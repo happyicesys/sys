@@ -42,6 +42,11 @@ class OpsJobItem extends Model
         'refillable_amount',
         'refillable_count',
         'remarks',
+        'citybox_msg_id',
+        'citybox_submit_status',
+        'citybox_submitted_at',
+        'citybox_submit_attempts',
+        'citybox_submit_error',
         'remarks_updated_at',
         'remarks_updated_by',
         'sequence',
@@ -91,8 +96,8 @@ class OpsJobItem extends Model
         return Attribute::make(
             // get: fn ($value) => $value != null ? $value / 100 : null,
             // set: fn ($value) => $value != null ? $value * 100 : null,
-            get: fn($value) => $value / 100,
-            set: fn($value) => $value * 100,
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
         );
     }
 
@@ -100,16 +105,16 @@ class OpsJobItem extends Model
     public function cashlessAmount(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $value / 100,
-            set: fn($value) => $value * 100,
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
         );
     }
 
     public function tempCashAmountFromVmc(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $value / 100,
-            set: fn($value) => $value * 100,
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
         );
     }
 
@@ -296,7 +301,7 @@ class OpsJobItem extends Model
     {
         $vend = $this->vend;
 
-        if (!$vend) {
+        if (! $vend) {
             return [
                 'mapping_current_name' => null,
                 'mapping_upcoming_via_current' => null,
@@ -309,7 +314,7 @@ class OpsJobItem extends Model
         // not taken effect, so we freeze it as absent (no name / no remarks).
         // When no start date is declared the helper returns true (rule ignored).
         $currentMapping = $vend->productMapping;
-        $upcomingEffective = !$currentMapping || $currentMapping->isUpcomingMappingEffective();
+        $upcomingEffective = ! $currentMapping || $currentMapping->isUpcomingMappingEffective();
 
         $viaCurrentUpcoming = $upcomingEffective ? $currentMapping?->upcomingProductMapping : null; // productMapping.upcomingProductMapping
         $directUpcoming = $upcomingEffective ? $vend->upcomingProductMapping : null;                 // vend.upcomingProductMapping
@@ -355,10 +360,10 @@ class OpsJobItem extends Model
 
     public function buildFreezeSnapshot(): array
     {
-        if (!$this->relationLoaded('opsJobItemChannels')) {
+        if (! $this->relationLoaded('opsJobItemChannels')) {
             $this->load('opsJobItemChannels');
         }
-        if (!$this->relationLoaded('vend')) {
+        if (! $this->relationLoaded('vend')) {
             $this->load([
                 'vend:id,parameter_json,vend_channel_error_logs_json,product_mapping_id,upcoming_product_mapping_id',
                 'vend.productMapping:id,name,upcoming_product_mapping_id,upcoming_product_mapping_start_date',

@@ -522,6 +522,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('ops-jobs')->group(function () {
+        // Smart Chiller (CityBox) driver actions on an item — access rule inside the controller (§6b.3).
+        Route::post('/items/{id}/citybox-open-door', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'openDoor'])->name('ops-job-items.citybox-open-door');
+        Route::post('/items/{id}/citybox-retry-submit', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'retrySubmit'])->name('ops-job-items.citybox-retry-submit');
+        Route::get('/items/{id}/citybox-door-opens', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'doorOpens'])->name('ops-job-items.citybox-door-opens');
         Route::get('/summary', [OpsJobController::class, 'summary'])->name('ops-jobs.summary');
         Route::get('/', [OpsJobController::class, 'index'])->name('ops-jobs');
         Route::get('/create', [OpsJobController::class, 'create']);

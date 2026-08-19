@@ -123,6 +123,16 @@ class OpsJobItemResource extends JsonResource
             'updated_at' => isset($this->updated_at) ? $this->updated_at->format('ymd h:i a (D)') : '',
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vend_id' => $this->vend_id,
+            // Smart Chiller (CityBox) visit state — flat so the ops pages don't
+            // depend on how deep `vend` was eager-loaded. is_citybox_chiller drives
+            // the Open Door buttons and the cash-block hiding.
+            'is_citybox_chiller' => $this->relationLoaded('vend') && $this->vend
+                ? ($this->vend->machine_type === \App\Models\Vend::MACHINE_TYPE_SMART_CHILLER && (bool) $this->vend->citybox_equipment_id)
+                : false,
+            'citybox_msg_id' => $this->citybox_msg_id ?? null,
+            'citybox_submit_status' => $this->citybox_submit_status ?? null,
+            'citybox_submitted_at' => isset($this->citybox_submitted_at) ? \Carbon\Carbon::parse($this->citybox_submitted_at)->format('ymd h:i a (D)') : null,
+            'citybox_submit_error' => $this->citybox_submit_error ?? null,
             'vend_channel_record_id' => $this->vend_channel_record_id,
             'vendChannelRecord' => VendChannelRecordResource::make($this->whenLoaded('vendChannelRecord')),
             'verified_at' => isset($this->verified_at) ? $this->verified_at->format('ymd h:i a (D)') : '',

@@ -1367,7 +1367,8 @@ class OpsJobController extends Controller
                     });
                 },
                 'opsJobItems.attachments',
-                'opsJobItems.vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,parameter_json,vend_channel_error_logs_json',
+                // machine_type/citybox_* /is_online: the Smart Chiller Open Door button + status on each row (§6b).
+                'opsJobItems.vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,parameter_json,vend_channel_error_logs_json,machine_type,citybox_equipment_id,is_online,citybox_status_json',
                 'opsJobItems.vend.productMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.vend.upcomingProductMapping.productMappingItemsNormalSequence.product',

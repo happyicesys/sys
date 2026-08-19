@@ -783,6 +783,23 @@
                             </template>
                             <!-- Normal mode: individual driver button -->
                             <template v-else>
+                              <!-- Smart Chiller (CityBox): driver-level Open Door in the item column (design §6b.2). -->
+                              <div class="mb-1" v-if="row.is_citybox_chiller">
+                                <CityboxOpenDoorButton
+                                  :item-id="row.id"
+                                  :equipment-id="row.vend?.citybox_equipment_id"
+                                  :citybox-name="row.vend?.citybox_status_json?.name"
+                                  :customer-name="row.customer?.name"
+                                  :offline="row.vend ? !row.vend.is_online : false"
+                                  :offline-since="row.vend?.citybox_status_json?.heartbeat_last_offline"
+                                  :disabled="row.status >= 3"
+                                  :disabled-reason="row.status >= 3 ? 'Item already stocked in' : null"
+                                  source="ops_job_page"
+                                  compact
+                                />
+                                <div class="text-[10px] mt-0.5" v-if="row.citybox_submit_status === 'failed'"><span class="text-amber-700 font-semibold">CityBox push failed</span></div>
+                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok'"><span class="text-green-700">Count pushed</span></div>
+                              </div>
                               <Button
                                 class="bg-blue-500 hover:bg-blue-600 text-white"
                                 :class="[row.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
@@ -1196,6 +1213,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
 import BatchChangeDriver from '@/Pages/OpsJob/BatchChangeDriver.vue';
 import Modal from '@/Components/Modal.vue';
 import Channel from '@/Pages/OpsJob/Channel.vue';

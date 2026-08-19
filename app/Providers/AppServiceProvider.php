@@ -46,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
         // Keep the freeze work-queue in sync so ops:freeze-stock-in scans a tiny
         // table instead of the whole ops_job_items history.
         OpsJobItem::observe(OpsJobItemObserver::class);
+        OpsJobItem::observe(\App\Observers\CityboxOpsJobItemObserver::class);
         // Mirror each refund ticket's live status onto its matched sales
         // transaction (vend_transactions.refund_request_*) so the Transactions
         // page reads the "Refund Request" column without joining refund_tickets.

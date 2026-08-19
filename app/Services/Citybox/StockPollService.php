@@ -122,9 +122,11 @@ class StockPollService
      * vend is pending (§6.1) — step 6 sets that flag; until then it is never
      * set, so this always runs.
      */
-    public function pushChannels(Vend $vend, Collection $lines, ?string $label = null): void
+    public function pushChannels(Vend $vend, Collection $lines, ?string $label = null, bool $force = false): void
     {
-        if ($this->submitPendingFor($vend)) {
+        // $force: the visit's own B/A frames must always land — the pending
+        // guard exists to stop the SCHEDULED poll writing pre-restock numbers.
+        if (! $force && $this->submitPendingFor($vend)) {
             \Illuminate\Support\Facades\Log::info('Citybox: channel push skipped — stock submit pending', ['vend_id' => $vend->id]);
 
             return;
@@ -168,10 +170,25 @@ class StockPollService
         return 'citybox:planogram:'.$vend->id;
     }
 
-    /** Step 6 wires this to ops_job_items.citybox_submit_status. */
+    /**
+     * True while an ops item on this vend has a stock submit pending/failed
+     * (§6.1): the scheduled poll would otherwise read their PRE-restock qty and
+     * write a false low stock + a spurious movement. Bounded to 2 h so a
+     * permanently failed submit can't freeze channels forever.
+     */
     protected function submitPendingFor(Vend $vend): bool
     {
-        return false;
+        return \App\Models\OpsJobItem::where('vend_id', $vend->id)
+            ->whereIn('citybox_submit_status', ['pending', 'failed'])
+            ->where('completed_at', '>=', now()->subHours(2))
+            ->exists();
+    }
+
+    /** Mirror live lines onto the vend WITHOUT writing a poll row (B/A visit pulls). */
+    public function applyStockOnly(Vend $vend, Collection $lines): void
+    {
+        $this->mirrorOntoVend($vend, $this->snapshot($lines));
+        $this->catalog->noteSeenOnDevice($lines);
     }
 
     /** @param Collection<int,ChillerStockLine> $lines */

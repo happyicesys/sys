@@ -64,7 +64,22 @@
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
             <div class="px-2 border-b mb-2 border-gray-100 text-left relative flex justify-between items-center">
               <div></div>
-              <div class="absolute right-0 top-0 mt-2 mr-2">
+              <div class="absolute right-0 top-0 mt-2 mr-2 flex items-center space-x-2">
+                <!-- Smart Chiller (CityBox): driver door-open, right beside Stock Action (design §6b.2). -->
+                <CityboxOpenDoorButton
+                  v-if="opsJobItem.is_citybox_chiller"
+                  :item-id="opsJobItem.id"
+                  :equipment-id="opsJobItem.vend?.citybox_equipment_id"
+                  :citybox-name="opsJobItem.vend?.citybox_status_json?.name"
+                  :customer-name="opsJobItem.customer?.name"
+                  :offline="opsJobItem.vend ? !opsJobItem.vend.is_online : false"
+                  :offline-since="opsJobItem.vend?.citybox_status_json?.heartbeat_last_offline"
+                  :disabled="opsJobItem.status >= 3"
+                  :disabled-reason="opsJobItem.status >= 3 ? 'Item already stocked in' : null"
+                  source="ops_job_item_page"
+                  label="Open Door (Restock)"
+                  @opened="reloadDoorOpens"
+                />
                 <Menu as="div" class="relative inline-block text-left" v-if="permissions.includes('admin-access operations') && opsJobItem.status == 1">
                   <div>
                     <MenuButton class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-sky-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus:outline-none ring-1 ring-inset ring-sky-300">
@@ -101,6 +116,37 @@
                   </transition>
                 </Menu>
               </div>
+            </div>
+
+            <!-- Smart Chiller (CityBox) visit status (design §6b.4 / §8b) -->
+            <div v-if="opsJobItem.is_citybox_chiller" class="mb-3 space-y-2">
+              <div v-if="opsJobItem.citybox_submit_status === 'failed'" class="rounded-md bg-amber-50 border border-amber-300 p-3 text-sm text-amber-900 flex items-start justify-between gap-3">
+                <div>
+                  <b>CityBox push failed</b> — your count was saved in mark1 but not yet in CityBox's system.
+                  <div class="text-xs mt-1 text-amber-800">{{ opsJobItem.citybox_submit_error }}</div>
+                </div>
+                <Button type="button" class="bg-amber-600 hover:bg-amber-700 text-white text-xs whitespace-nowrap" @click.prevent="retryCityboxSubmit">Retry push</Button>
+              </div>
+              <div v-else-if="opsJobItem.citybox_submit_status === 'pending'" class="rounded-md bg-sky-50 border border-sky-200 p-2 text-xs text-sky-800">
+                Pushing your count to CityBox…
+              </div>
+              <div v-else-if="opsJobItem.citybox_submit_status === 'ok'" class="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-800">
+                Count pushed to CityBox at {{ opsJobItem.citybox_submitted_at }}.
+              </div>
+              <details class="text-xs text-gray-600" @toggle="onDoorOpensToggle">
+                <summary class="cursor-pointer select-none">Door opens on this chiller</summary>
+                <table class="mt-1 min-w-full text-xs">
+                  <tbody>
+                    <tr v-for="(d, i) in doorOpens" :key="i" class="border-t" :class="d.this_item ? 'bg-sky-50' : ''">
+                      <td class="px-2 py-1 whitespace-nowrap">{{ d.at }}</td>
+                      <td class="px-2 py-1">{{ d.by }}</td>
+                      <td class="px-2 py-1">{{ d.source }}</td>
+                      <td class="px-2 py-1" :class="d.result === 'opened' ? 'text-green-700' : 'text-red-700'">{{ d.result }}<span v-if="d.message" class="text-gray-500"> · {{ d.message }}</span></td>
+                    </tr>
+                    <tr v-if="doorOpensLoaded && !doorOpens.length"><td class="px-2 py-2 text-gray-400" colspan="4">No door opens yet.</td></tr>
+                  </tbody>
+                </table>
+              </details>
             </div>
             <div class="px-2 border-b mb-2 border-gray-100 text-left">
             <dl class="divide-y divide-gray-100">
@@ -1242,7 +1288,9 @@
             </div>
           </div>
 
-          <div class="px-2 pt-3 border-b mb-2 border-gray-100 text-left">
+          <!-- Cash block: hidden for CityBox chillers — fully cashless, settled through
+               their gateway; the JV holds the books (design §6c.4). One flag, no per-field v-if sprawl. -->
+          <div class="px-2 pt-3 border-b mb-2 border-gray-100 text-left" v-if="showsCash">
             <dl class="divide-y divide-gray-100">
               <div class="flex justify-between">
                 <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
@@ -1635,6 +1683,8 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
+import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
+import axios from 'axios';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, PlusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, computed, onMounted, nextTick } from 'vue'
@@ -1650,6 +1700,28 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const opsJobItem = ref([])
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
+
+// ── Smart Chiller (CityBox) ─────────────────────────────────────────────
+const doorOpens = ref([])
+const doorOpensLoaded = ref(false)
+async function reloadDoorOpens() {
+  if (!props.opsJobItem?.data?.is_citybox_chiller && !props.opsJobItem?.is_citybox_chiller) return
+  try {
+    const id = props.opsJobItem?.data?.id ?? props.opsJobItem?.id
+    const { data } = await axios.get(`/ops-jobs/items/${id}/citybox-door-opens`)
+    doorOpens.value = data; doorOpensLoaded.value = true
+  } catch (e) { /* history is a nicety */ }
+}
+const showsCash = computed(() => !(opsJobItem.value && opsJobItem.value.is_citybox_chiller))
+function onDoorOpensToggle(ev) { if (ev.target.open && !doorOpensLoaded.value) reloadDoorOpens() }
+function retryCityboxSubmit() {
+  const id = props.opsJobItem?.data?.id ?? props.opsJobItem?.id
+  router.post(`/ops-jobs/items/${id}/citybox-retry-submit`, {}, {
+    preserveScroll: true, preserveState: false,
+    onSuccess: () => toast.success('Re-pushing your count to CityBox…', { timeout: 4000 }),
+    onError: (e) => toast.error(e.citybox || 'Retry failed', { timeout: 6000 }),
+  })
+}
 const vend = ref([])
 
 // Add-channel state (only visible when status==1 & no stock_action_type)
