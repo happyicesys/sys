@@ -6,6 +6,7 @@ use App\Contracts\Citybox\ChillerGateway;
 use App\Jobs\SyncCityboxCatalog;
 use App\Models\CityboxProduct;
 use App\Models\CityboxProductSyncLog;
+use App\Models\Operator;
 use App\Models\Product;
 use App\Models\Vend;
 use App\Services\Citybox\CatalogSyncService;
@@ -27,6 +28,86 @@ class CityboxCatalogSyncTest extends TestCase
         config(['citybox.openapi.enabled' => true, 'citybox.openapi.app_id' => 'A', 'citybox.openapi.secret' => 'S']);
         $this->gw = new FakeChillerGateway;
         $this->app->instance(ChillerGateway::class, $this->gw);
+        Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
+        (new \Database\Seeders\CityboxOperatorSeeder)->run();
+    }
+
+    private function cbOperatorId(): int
+    {
+        return Operator::where('code', 'CB')->value('id');
+    }
+
+    // ── auto-created mark1 products (Brian 2026-08-19: no mapping step) ─────
+
+    public function test_catalog_run_creates_a_mark1_product_per_sku_and_links_it(): void
+    {
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola', 'https://cdn.icitybox.cn/a.png'), $this->catalogRow(90340, 'KSF Peach')];
+        $log = app(CatalogSyncService::class)->syncCatalog();
+
+        $this->assertEqualsCanonicalizing([89925, 90340], $log->details_json['products_created']);
+        $row = CityboxProduct::where('citybox_product_id', 89925)->first();
+        $product = Product::withoutGlobalScopes()->find($row->product_id);
+        $this->assertNotNull($product);
+        $this->assertSame('89925', (string) $product->code);
+        $this->assertSame('Cocacola', $product->name);
+        $this->assertSame($this->cbOperatorId(), (int) $product->operator_id);
+        $this->assertSame('ledger', $product->warehouse_qty_source);
+        $this->assertSame('https://cdn.icitybox.cn/a.png', $product->thumbnail->full_url);
+        $this->assertNotNull($row->mapped_at);
+        $this->assertNull($row->mapped_by);
+    }
+
+    public function test_rerun_never_duplicates_products_and_follows_rename_and_image(): void
+    {
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola', 'https://cdn.icitybox.cn/a.png')];
+        app(CatalogSyncService::class)->syncCatalog();
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Coca-Cola 330ml', 'https://cdn.icitybox.cn/b.png')];
+        $log = app(CatalogSyncService::class)->syncCatalog();
+        app(CatalogSyncService::class)->syncCatalog();
+
+        $this->assertSame([], $log->details_json['products_created']);
+        $this->assertSame(1, Product::withoutGlobalScopes()->where('code', '89925')->count());
+        $product = Product::withoutGlobalScopes()->where('code', '89925')->first();
+        $this->assertSame('Coca-Cola 330ml', $product->name);
+        $this->assertSame('https://cdn.icitybox.cn/b.png', $product->fresh()->thumbnail->full_url);
+        $this->assertSame($product->id, CityboxProduct::where('citybox_product_id', 89925)->first()->product_id);
+    }
+
+    public function test_existing_product_with_that_code_is_reused_not_duplicated(): void
+    {
+        $mine = Product::create(['code' => '89925', 'name' => 'Coke (pre-made)', 'operator_id' => 1]);
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola')];
+        $log = app(CatalogSyncService::class)->syncCatalog();
+
+        $this->assertSame([], $log->details_json['products_created']);
+        $this->assertSame(1, Product::withoutGlobalScopes()->where('code', '89925')->count());
+        $this->assertSame($mine->id, CityboxProduct::where('citybox_product_id', 89925)->first()->product_id);
+        $this->assertSame('ledger', $mine->fresh()->warehouse_qty_source);
+    }
+
+    public function test_human_mapping_is_respected_and_its_product_is_not_renamed(): void
+    {
+        $human = Product::create(['code' => 'MYCOKE', 'name' => 'My Coke', 'operator_id' => 1]);
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola')];
+        app(CatalogSyncService::class)->syncCatalog();
+        CityboxProduct::where('citybox_product_id', 89925)->update(['product_id' => $human->id]);
+
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Renamed')];
+        app(CatalogSyncService::class)->syncCatalog();
+
+        $this->assertSame($human->id, CityboxProduct::where('citybox_product_id', 89925)->first()->product_id);
+        $this->assertSame('My Coke', $human->fresh()->name);
+    }
+
+    public function test_device_poll_discovered_sku_also_gets_a_product(): void
+    {
+        $this->gw->seedDevice('E1');
+        $this->gw->seedStock('E1', [['id' => 90999, 'name' => 'New on shelf', 'quantity' => 2, 'par' => 5, 'price' => 200]]);
+        app(CatalogSyncService::class)->noteSeenOnDevice($this->gw->deviceStock('E1'));
+
+        $row = CityboxProduct::where('citybox_product_id', 90999)->first();
+        $this->assertNotNull($row->product_id);
+        $this->assertSame('90999', (string) Product::withoutGlobalScopes()->find($row->product_id)->code);
     }
 
     /** Literal product_list shape (2026-08-19), incl. the dead product_id=0 SKU field. */
@@ -48,7 +129,7 @@ class CityboxCatalogSyncTest extends TestCase
         $this->assertSame([2, 2, 0, 0, 0], [$log->fetched, $log->added, $log->updated, $log->delisted, $log->unchanged]);
         $this->assertSame([89925, 90340], $log->details_json['added']);
         $this->assertNull(CityboxProduct::where('citybox_product_id', 89925)->first()->sku_code); // "0" ⇒ absent
-        $this->assertNull(CityboxProduct::first()->product_id); // never auto-linked
+        $this->assertNotNull(CityboxProduct::first()->product_id); // auto-linked to a created mark1 product (2026-08-19)
     }
 
     public function test_second_run_is_idempotent_and_classifies_updates(): void

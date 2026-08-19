@@ -27,13 +27,12 @@ class CityboxProductController extends Controller
 
     public function index(Request $request): Response
     {
-        $tab = in_array($request->tab, ['unmapped', 'mapped', 'delisted', 'log']) ? $request->tab : 'unmapped';
+        $tab = in_array($request->tab, ['catalog', 'delisted', 'log']) ? $request->tab : 'catalog';
 
         $rows = match ($tab) {
-            'mapped' => CityboxProduct::mapped()->with('product:id,code,name')->orderBy('name')->get(),
             'delisted' => CityboxProduct::delisted()->with('product:id,code,name')->orderBy('name')->get(),
             'log' => collect(),
-            default => CityboxProduct::unmapped()->orderBy('first_seen_at', 'desc')->get(),
+            default => CityboxProduct::where('is_delisted', false)->with('product:id,code,name')->orderBy('name')->get(),
         };
 
         return Inertia::render('Citybox/Products', [
@@ -51,11 +50,10 @@ class CityboxProductController extends Controller
                 'last_seen_at' => $p->last_seen_at?->format('Y-m-d H:i'),
                 'is_delisted' => $p->is_delisted,
                 'product' => $p->product ? ['id' => $p->product->id, 'code' => $p->product->code, 'name' => $p->product->name] : null,
-                'suggestion' => $p->product ? null : $this->suggest($p),
             ]),
             'counts' => [
-                'unmapped' => CityboxProduct::unmapped()->count(),
-                'mapped' => CityboxProduct::mapped()->count(),
+                'catalog' => CityboxProduct::where('is_delisted', false)->count(),
+                'unlinked' => CityboxProduct::unmapped()->count(), // should be 0 after any sync; >0 ⇒ operator not seeded
                 'delisted' => CityboxProduct::delisted()->count(),
             ],
             'logs' => $tab === 'log'
@@ -72,7 +70,11 @@ class CityboxProductController extends Controller
         ]);
     }
 
-    /** Human links a CityBox SKU to a mark1 product (or unlinks with null). */
+    /**
+     * Re-point a CityBox SKU at a different mark1 product. NOT surfaced in the UI
+     * since 2026-08-19 (SKUs get their product automatically — see
+     * CatalogSyncService::ensureMark1Products); kept as an escape hatch.
+     */
     public function map(MapCityboxProductRequest $request, int $id): RedirectResponse
     {
         $row = CityboxProduct::findOrFail($id);
@@ -105,10 +107,10 @@ class CityboxProductController extends Controller
             return redirect()->back()->withErrors(['citybox' => 'CityBox sync failed: '.$e->getMessage()]);
         }
 
-        $unmapped = CityboxProduct::unmapped()->count();
+        $created = count($log->details_json['products_created'] ?? []);
 
         return redirect()->back()->with('success', sprintf(
-            'CityBox synced — %s. %d need mapping.', $log->summaryLine(), $unmapped,
+            'CityBox synced — %s; %d mark1 product(s) created.', $log->summaryLine(), $created,
         ));
     }
 
@@ -121,21 +123,5 @@ class CityboxProductController extends Controller
             ->when($q !== '', fn ($qq) => $qq->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%")))
             ->orderBy('name')->limit(20)->get(['id', 'code', 'name'])
             ->map(fn ($p) => ['id' => $p->id, 'code' => $p->code, 'name' => $p->name]);
-    }
-
-    /**
-     * Fuzzy suggestion: their names are bilingual ("Suntory, Osmanthus… 三得利,…");
-     * match the English half against mark1 product names. Best-effort, human confirms.
-     */
-    private function suggest(CityboxProduct $p): ?array
-    {
-        $english = trim(preg_split('/[\x{4e00}-\x{9fff}]/u', $p->name)[0] ?? $p->name, ' ,-');
-        $first = trim(explode(',', $english)[0] ?? $english);
-        if (mb_strlen($first) < 3) {
-            return null;
-        }
-        $hit = Product::where('name', 'like', "%{$first}%")->orderBy('name')->first(['id', 'code', 'name']);
-
-        return $hit ? ['id' => $hit->id, 'code' => $hit->code, 'name' => $hit->name] : null;
     }
 }

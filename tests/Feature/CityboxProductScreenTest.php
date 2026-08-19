@@ -27,6 +27,8 @@ class CityboxProductScreenTest extends TestCase
         foreach (['read products', 'update products'] as $p) {
             Permission::findOrCreate($p, 'web');
         }
+        \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
+        (new \Database\Seeders\CityboxOperatorSeeder)->run();
     }
 
     private function editor(): User
@@ -51,20 +53,26 @@ class CityboxProductScreenTest extends TestCase
         $this->actingAs($this->reader())->get('/citybox/products')->assertOk();
     }
 
-    public function test_index_shows_unmapped_by_default_with_counts_and_suggestion(): void
+    public function test_index_shows_the_catalog_with_each_skus_mark1_product(): void
     {
-        Product::create(['code' => 'CK-330', 'name' => 'Cocacola 330ml']);
-        CityboxProduct::create(['citybox_product_id' => 89925, 'name' => 'Cocacola', 'first_seen_at' => now()]);
-        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Kang Shi Fu, Oolong Tea 康师傅', 'first_seen_at' => now(), 'product_id' => 1, 'mapped_at' => now()]);
+        $product = Product::create(['code' => '89925', 'name' => 'Cocacola', 'operator_id' => 1]);
+        CityboxProduct::create(['citybox_product_id' => 89925, 'name' => 'Cocacola', 'first_seen_at' => now(), 'product_id' => $product->id, 'mapped_at' => now()]);
+        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Kang Shi Fu, Oolong Tea 康师傅', 'first_seen_at' => now()]);
+        CityboxProduct::create(['citybox_product_id' => 90341, 'name' => 'Gone', 'first_seen_at' => now(), 'is_delisted' => true]);
 
         $this->actingAs($this->reader())->get('/citybox/products')
             ->assertInertia(fn ($page) => $page
                 ->component('Citybox/Products')
-                ->where('tab', 'unmapped')
-                ->where('counts.unmapped', 1)
-                ->where('counts.mapped', 1)
+                ->where('tab', 'catalog')
+                ->where('counts.catalog', 2)
+                ->where('counts.unlinked', 1)
+                ->where('counts.delisted', 1)
                 ->where('rows.0.citybox_product_id', 89925)
-                ->where('rows.0.suggestion.code', 'CK-330'));
+                ->where('rows.0.product.code', '89925')
+                ->where('rows.1.product', null));
+
+        $this->actingAs($this->reader())->get('/citybox/products?tab=delisted')
+            ->assertInertia(fn ($page) => $page->where('tab', 'delisted')->where('rows.0.citybox_product_id', 90341));
     }
 
     public function test_map_requires_update_products_and_links_the_row(): void
@@ -105,7 +113,7 @@ class CityboxProductScreenTest extends TestCase
 
         $this->actingAs($this->editor())->from('/citybox/products')->post('/citybox/products/sync')
             ->assertRedirect('/citybox/products')
-            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 new') && str_contains($m, '1 need mapping'));
+            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 new') && str_contains($m, '1 mark1 product(s) created'));
 
         $this->assertSame(CityboxProductSyncLog::SOURCE_CATALOG_MANUAL, CityboxProductSyncLog::sole()->source);
     }
