@@ -32,6 +32,8 @@ class Kernel extends ConsoleKernel
         // snapshot's synced_at and treat it as an estimate; the driver's
         // on-site count via device_stock_submit is the source of truth anyway.
         $schedule->command('citybox:openapi-poll')->everyThreeMinutes();
+        // Hourly mirror of their SKU catalog (§5). Same enabled guard inside.
+        $schedule->command('citybox:sync-products')->hourly();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');

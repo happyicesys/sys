@@ -18,7 +18,10 @@ use Illuminate\Support\Collection;
  */
 class StockPollService
 {
-    public function __construct(private ChillerGateway $gateway) {}
+    public function __construct(
+        private ChillerGateway $gateway,
+        private CatalogSyncService $catalog,
+    ) {}
 
     /**
      * @param  Collection<string,Vend>  $vends  keyed by equipment id (from DeviceSyncService)
@@ -47,6 +50,9 @@ class StockPollService
     {
         $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
         $this->applyStock($vend, $lines);
+        // Opportunistic catalog upsert: a product appears on a chiller long
+        // before anyone opens the mapping screen (§5.2). Never delists.
+        $this->catalog->noteSeenOnDevice($lines);
 
         return $lines;
     }

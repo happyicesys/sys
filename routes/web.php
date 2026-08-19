@@ -674,6 +674,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [PaymentMethodController::class, 'delete']);
     });
 
+    // CityBox Products — mapping screen for the smart-chiller catalog mirror (§5.5).
+    // Permission gates live in the controller constructor (read/update products).
+    Route::prefix('citybox')->group(function () {
+        Route::get('/products', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'index'])->name('citybox.products');
+        Route::post('/products/sync', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'syncNow'])->name('citybox.products.sync');
+        Route::post('/products/{id}/map', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'map'])->name('citybox.products.map');
+        Route::get('/products/search', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'productSearch'])->name('citybox.products.search');
+    });
+
     Route::prefix('products')->group(function () {
         // Product Movement
         Route::get('/movements', [ProductMovementController::class, 'index'])->name('product-movements.index');
