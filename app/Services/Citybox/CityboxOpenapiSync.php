@@ -42,6 +42,7 @@ class CityboxOpenapiSync
     public function pull(Vend $vend): Vend
     {
         $this->devices->refreshOne($vend);
+        $this->stock->refreshPlanogram($vend); // Pull = also re-mirror their Pre-Stock Setup
         $this->stock->pollOne($vend);
 
         return $vend->refresh();

@@ -32,7 +32,13 @@ class StockPollService
         private ChillerGateway $gateway,
         private CatalogSyncService $catalog,
         private MovementClassifier $classifier,
+        private ChillerPlanogram $planogram,
+        private ChannelFrameAdapter $adapter,
     ) {}
+
+    // Planogram code map is re-derived hourly / on Pull / on Open Door, not
+    // every 3 min: it only changes when someone edits their portal.
+    private const PLANOGRAM_TTL = 3600;
 
     /**
      * @param  Collection<string,Vend>  $vends  keyed by equipment id
@@ -104,9 +110,68 @@ class StockPollService
 
             $this->mirrorOntoVend($vend, $snapshot);
             $this->catalog->noteSeenOnDevice($lines);
+            $this->pushChannels($vend, $lines);
 
             return $poll;
         });
+    }
+
+    /**
+     * Turn the live stock into a CHANNEL frame and hand it to the SAME job the
+     * vending fleet uses (design §1/§2). Skipped while a stock submit for this
+     * vend is pending (§6.1) — step 6 sets that flag; until then it is never
+     * set, so this always runs.
+     */
+    public function pushChannels(Vend $vend, Collection $lines, ?string $label = null): void
+    {
+        if ($this->submitPendingFor($vend)) {
+            \Illuminate\Support\Facades\Log::info('Citybox: channel push skipped — stock submit pending', ['vend_id' => $vend->id]);
+
+            return;
+        }
+        $codes = $this->planogramCodes($vend);
+        if ($codes === []) {
+            return; // no planogram synced yet — nothing to map onto
+        }
+        $frame = $this->adapter->toFrame($lines, $codes, $label);
+        if ($frame->isEmpty()) {
+            return;
+        }
+        \App\Jobs\Vend\SyncVendChannels::dispatch($frame->toArray(), $vend)->onQueue('high');
+    }
+
+    /** Force a fresh planogram sync (Pull / Open Door) and return its codes. */
+    public function refreshPlanogram(Vend $vend): array
+    {
+        $codes = $this->planogram->sync($vend);
+        \Illuminate\Support\Facades\Cache::put($this->planogramKey($vend), $codes, self::PLANOGRAM_TTL);
+
+        return $codes;
+    }
+
+    /** @return array<int,array{code:int,par:int,layer:int}> */
+    private function planogramCodes(Vend $vend): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember($this->planogramKey($vend), self::PLANOGRAM_TTL, function () use ($vend) {
+            try {
+                return $this->planogram->sync($vend);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Citybox planogram sync failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+
+                return [];
+            }
+        });
+    }
+
+    private function planogramKey(Vend $vend): string
+    {
+        return 'citybox:planogram:'.$vend->id;
+    }
+
+    /** Step 6 wires this to ops_job_items.citybox_submit_status. */
+    protected function submitPendingFor(Vend $vend): bool
+    {
+        return false;
     }
 
     /** @param Collection<int,ChillerStockLine> $lines */

@@ -1124,6 +1124,13 @@
 	@modalClose="onSmartChannelOverviewClosed"
 >
 </SmartFreezerChannelOverview>
+<SmartChillerChannelOverview
+	v-if="showChillerChannelOverviewModal"
+	:vend="vend"
+	:showModal="showChillerChannelOverviewModal"
+	@modalClose="onChillerChannelOverviewClosed"
+>
+</SmartChillerChannelOverview>
 <Create
 	v-if="showCreateModal"
 	:showModal="showCreateModal"
@@ -1331,6 +1338,7 @@ font-size:13px;
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
 	const SmartFreezerChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/SmartFreezerChannelOverview.vue'));
+	const SmartChillerChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/SmartChillerChannelOverview.vue'));
 	const Create = defineAsyncComponent(() => import('@/Pages/Vend/Create.vue'));
 	const Form = defineAsyncComponent(() => import('@/Pages/Vend/Form.vue'));
 	const MapMarker = defineAsyncComponent(() => import('@/Components/MapMarker.vue'));
@@ -1688,6 +1696,7 @@ font-size:13px;
 	const showAllFilters = ref(false)
 	const showChannelOverviewModal = ref(false)
 	const showSmartChannelOverviewModal = ref(false)
+	const showChillerChannelOverviewModal = ref(false)
 	const showCreateModal = ref(false)
 	const showEditModal = ref(false)
 	const showMapMarkerModal = ref(false)
@@ -2439,7 +2448,10 @@ function onChannelOverviewClicked(vendData) {
 		vend.value = vendData
 		// Smart freezers report no channel telemetry, so the vending overview
 		// would render blank. Route them to the planogram-driven 2D basket view.
-		if (vendData.product_mapping_is_smart) {
+		if (vendData.machine_type === 'smart_chiller') {
+			// CityBox chiller: planogram-driven 5-layer view fed by the 3-min poll.
+			showChillerChannelOverviewModal.value = true
+		} else if (vendData.product_mapping_is_smart) {
 			showSmartChannelOverviewModal.value = true
 		} else {
 			showChannelOverviewModal.value = true
@@ -2448,6 +2460,10 @@ function onChannelOverviewClicked(vendData) {
 
 function onChannelOverviewClosed() {
 		showChannelOverviewModal.value = false
+}
+
+function onChillerChannelOverviewClosed() {
+		showChillerChannelOverviewModal.value = false
 }
 
 function onSmartChannelOverviewClosed() {

@@ -42,6 +42,59 @@ class CityboxVendActionController extends Controller
         return redirect()->back()->with('success', 'Pulled latest status and stock from Citybox.');
     }
 
+    /**
+     * JSON for SmartChillerChannelOverview.vue: 5 layers → channels from
+     * vend_channels (qty/capacity/amount) joined to the mirror mapping + CityBox
+     * catalog for name/thumbnail. Reads only what the poller/planogram wrote.
+     */
+    public function planogram(int $id): \Illuminate\Http\JsonResponse
+    {
+        $vend = $this->chillerOr403($id);
+        $status = $vend->citybox_status_json ?? [];
+
+        // Channel rows are the truth for qty/capacity/amount/product; layer = first digit of the code.
+        $channels = $vend->vendChannels()->where('is_active', true)->with('product:id,code,name')->orderBy('code')->get();
+        // CityBox name/thumbnail per channel: match by product via the catalog, else by the snapshot's layer/order.
+        $catalog = \App\Models\CityboxProduct::whereIn('product_id', $channels->pluck('product_id')->filter())->get()->keyBy('product_id');
+
+        $layers = [];
+        foreach (range(1, 5) as $l) {
+            $layers[$l] = ['layer' => $l, 'channels' => [], 'qty' => 0, 'capacity' => 0];
+        }
+        foreach ($channels as $ch) {
+            $layer = intdiv((int) $ch->code, 10);
+            if ($layer < 1 || $layer > 5) {
+                continue;
+            }
+            $cb = $ch->product_id ? $catalog->get($ch->product_id) : null;
+            $layers[$layer]['channels'][] = [
+                'code' => (int) $ch->code,
+                'qty' => (int) $ch->qty,
+                'capacity' => (int) $ch->capacity,
+                'amount_cents' => (int) $ch->amount,
+                'product' => $ch->product ? ['id' => $ch->product->id, 'code' => $ch->product->code, 'name' => $ch->product->name] : null,
+                'citybox_name' => $cb?->name,
+                'thumbnail' => $cb?->img_url,
+                'mapped' => $ch->product_id !== null,
+            ];
+            $layers[$layer]['qty'] += (int) $ch->qty;
+            $layers[$layer]['capacity'] += (int) $ch->capacity;
+        }
+
+        return response()->json([
+            'vend' => ['id' => $vend->id, 'code' => $vend->code, 'equipment_id' => $vend->citybox_equipment_id],
+            'citybox_name' => $status['name'] ?? null,
+            'online' => (bool) ($status['online'] ?? $vend->is_online),
+            'offline_since' => $status['heartbeat_last_offline'] ?? null,
+            'device_type' => $status['device_type'] ?? null,
+            'synced_at' => $vend->citybox_synced_at?->format('Y-m-d H:i'),
+            'layers' => array_values(array_reverse($layers)), // layer 5 first = top of the rack
+            'total_qty' => $channels->sum('qty'),
+            'total_capacity' => $channels->sum('capacity'),
+            'unmapped_count' => $channels->whereNull('product_id')->count(),
+        ]);
+    }
+
     private function chillerOr403(int $id): Vend
     {
         $vend = Vend::findOrFail($id);
