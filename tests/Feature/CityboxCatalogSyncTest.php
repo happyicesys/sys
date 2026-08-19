@@ -12,7 +12,9 @@ use App\Models\Vend;
 use App\Services\Citybox\CatalogSyncService;
 use App\Services\Citybox\CityboxOpenapiSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\Citybox\FakeChillerGateway;
 use Tests\TestCase;
 
@@ -30,6 +32,26 @@ class CityboxCatalogSyncTest extends TestCase
         $this->app->instance(ChillerGateway::class, $this->gw);
         Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
         (new \Database\Seeders\CityboxOperatorSeeder)->run();
+        Storage::fake('public');
+        config(['filesystems.default' => 'local']);
+        // Any CityBox CDN url answers with a small PNG unless a test overrides it.
+        Http::fake(['cdn.icitybox.cn/*' => Http::response($this->png(64, 64), 200, ['Content-Type' => 'image/png'])]);
+    }
+
+    /** A real PNG of the given size, noisy so it does not compress to nothing. */
+    private function png(int $w, int $h): string
+    {
+        $im = imagecreatetruecolor($w, $h);
+        mt_srand(1);
+        for ($y = 0; $y < $h; $y += 2) {
+            for ($x = 0; $x < $w; $x += 2) {
+                imagesetpixel($im, $x, $y, imagecolorallocate($im, mt_rand(0, 255), mt_rand(0, 255), mt_rand(0, 255)));
+            }
+        }
+        ob_start();
+        imagepng($im, null, 0);
+
+        return ob_get_clean();
     }
 
     private function cbOperatorId(): int
@@ -52,7 +74,9 @@ class CityboxCatalogSyncTest extends TestCase
         $this->assertSame('Cocacola', $product->name);
         $this->assertSame($this->cbOperatorId(), (int) $product->operator_id);
         $this->assertSame('ledger', $product->warehouse_qty_source);
-        $this->assertSame('https://cdn.icitybox.cn/a.png', $product->thumbnail->full_url);
+        $this->assertSame('citybox:https://cdn.icitybox.cn/a.png', $product->thumbnail->desc);
+        $this->assertStringContainsString('sys/products/citybox/cb-89925.', $product->thumbnail->local_url);
+        Storage::disk('public')->assertExists($product->thumbnail->local_url);
         $this->assertNotNull($row->mapped_at);
         $this->assertNull($row->mapped_by);
     }
@@ -69,7 +93,8 @@ class CityboxCatalogSyncTest extends TestCase
         $this->assertSame(1, Product::withoutGlobalScopes()->where('code', '89925')->count());
         $product = Product::withoutGlobalScopes()->where('code', '89925')->first();
         $this->assertSame('Coca-Cola 330ml', $product->name);
-        $this->assertSame('https://cdn.icitybox.cn/b.png', $product->fresh()->thumbnail->full_url);
+        $this->assertSame('citybox:https://cdn.icitybox.cn/b.png', $product->fresh()->thumbnail->desc);
+        Http::assertSentCount(2); // a.png once, b.png once — the third run re-downloaded nothing
         $this->assertSame($product->id, CityboxProduct::where('citybox_product_id', 89925)->first()->product_id);
     }
 
@@ -97,6 +122,47 @@ class CityboxCatalogSyncTest extends TestCase
 
         $this->assertSame($human->id, CityboxProduct::where('citybox_product_id', 89925)->first()->product_id);
         $this->assertSame('My Coke', $human->fresh()->name);
+    }
+
+    public function test_oversized_citybox_image_is_shrunk_under_490kb_on_our_storage(): void
+    {
+        $big = $this->png(1600, 1600);
+        $this->assertGreaterThan(490 * 1024, strlen($big));
+        Http::fake(['cdn.icitybox.cn/*' => Http::response($big, 200, ['Content-Type' => 'image/png'])]);
+
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola', 'https://cdn.icitybox.cn/big.png')];
+        app(CatalogSyncService::class)->syncCatalog();
+
+        $thumb = Product::withoutGlobalScopes()->where('code', '89925')->first()->thumbnail;
+        $this->assertLessThanOrEqual(490 * 1024, Storage::disk('public')->size($thumb->local_url));
+        $this->assertSame('citybox:https://cdn.icitybox.cn/big.png', $thumb->desc);
+    }
+
+    public function test_failed_image_download_hotlinks_for_now_and_retries_next_sync(): void
+    {
+        // First sync: the CDN 500s (twice — the importer retries once); second sync: it recovers.
+        Http::fakeSequence('img.icitybox.cn/*')->push('nope', 500)->push('nope', 500)
+            ->push($this->png(64, 64), 200, ['Content-Type' => 'image/png']);
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola', 'https://img.icitybox.cn/a.png')];
+        app(CatalogSyncService::class)->syncCatalog();
+        $thumb = Product::withoutGlobalScopes()->where('code', '89925')->first()->thumbnail;
+        $this->assertSame('https://img.icitybox.cn/a.png', $thumb->full_url);
+        $this->assertSame('citybox-remote:https://img.icitybox.cn/a.png', $thumb->desc);
+
+        app(CatalogSyncService::class)->syncCatalog();
+        $this->assertSame('citybox:https://img.icitybox.cn/a.png', $thumb->fresh()->desc);
+    }
+
+    public function test_human_uploaded_thumbnail_is_never_overwritten(): void
+    {
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola', 'https://cdn.icitybox.cn/a.png')];
+        app(CatalogSyncService::class)->syncCatalog();
+        $product = Product::withoutGlobalScopes()->where('code', '89925')->first();
+        $product->thumbnail->update(['full_url' => 'https://ours.example/mine.png', 'local_url' => 'sys/products/mine.png', 'desc' => null]);
+
+        $this->gw->catalogRows = [$this->catalogRow(89925, 'Cocacola', 'https://cdn.icitybox.cn/b.png')];
+        app(CatalogSyncService::class)->syncCatalog();
+        $this->assertSame('https://ours.example/mine.png', $product->fresh()->thumbnail->full_url);
     }
 
     public function test_device_poll_discovered_sku_also_gets_a_product(): void

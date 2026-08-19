@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Log;
  */
 class CatalogSyncService
 {
-    public function __construct(private ChillerGateway $gateway) {}
+    public function __construct(private ChillerGateway $gateway, private ThumbnailImporter $thumbnails) {}
 
     public function syncCatalog(string $source = CityboxProductSyncLog::SOURCE_CATALOG_SCHEDULED, ?int $userId = null): CityboxProductSyncLog
     {
@@ -189,7 +189,13 @@ class CatalogSyncService
         return $created;
     }
 
-    /** Name + thumbnail follow CityBox for a product we own (code = their id). */
+    /**
+     * Name + thumbnail follow CityBox for a product we own (code = their id).
+     * The image is COPIED onto our storage, shrunk to ≤ 490 KB (ThumbnailImporter);
+     * the attachment's `desc` remembers which CityBox URL it came from so a
+     * re-run only re-downloads when CityBox changes the picture. If the download
+     * fails we hot-link their URL for now (desc marks it) and retry next sync.
+     */
     private function refreshAutoProduct(Product $product, CityboxProduct $row): void
     {
         if ($row->name !== '' && $product->name !== $row->name) {
@@ -199,12 +205,25 @@ class CatalogSyncService
             return;
         }
         $thumb = $product->thumbnail;
-        $theirHost = parse_url($row->img_url, PHP_URL_HOST);
-        $ownedByUs = $thumb && $thumb->full_url && parse_url($thumb->full_url, PHP_URL_HOST) === $theirHost;
-        if (! $thumb) {
-            $product->thumbnail()->create(['type' => 1, 'full_url' => $row->img_url, 'local_url' => $row->img_url]);
-        } elseif ($ownedByUs && $thumb->full_url !== $row->img_url) {
-            $thumb->update(['full_url' => $row->img_url, 'local_url' => $row->img_url]);
+        $origin = 'citybox:'.$row->img_url;
+        $stale = 'citybox-remote:'.$row->img_url;
+        if ($thumb && $thumb->desc === $origin) {
+            return; // already our shrunk copy of this exact picture
+        }
+        $ours = $thumb === null || str_starts_with((string) $thumb->desc, 'citybox')
+            || parse_url((string) $thumb->full_url, PHP_URL_HOST) === parse_url($row->img_url, PHP_URL_HOST);
+        if (! $ours) {
+            return; // a human uploaded their own picture — keep it
+        }
+
+        $stored = $this->thumbnails->import($row->img_url, 'cb-'.$row->citybox_product_id);
+        $attrs = $stored
+            ? ['full_url' => $stored['full_url'], 'local_url' => $stored['local_url'], 'desc' => $origin]
+            : ['full_url' => $row->img_url, 'local_url' => $row->img_url, 'desc' => $stale];
+        if ($thumb) {
+            $thumb->update($attrs);
+        } else {
+            $product->thumbnail()->create(['type' => 1] + $attrs);
         }
     }
 
