@@ -348,6 +348,13 @@ class SettingController extends Controller
                 'vends.product_mapping_id',
                 'vends.server_price_type',
                 'vends.machine_type',
+                // CityBox link — written by the Create flow (DeviceProvisioningService),
+                // shown read-only here. Missing from this list until 2026-08-20: the
+                // field rendered empty and every Save posted null → wiped the serial.
+                'vends.citybox_equipment_id',
+                'vends.citybox_synced_at',
+                'vends.citybox_status_json',
+                'vends.is_online',
                 // 'vends.serial_num',
                 'vends.key_id',
                 'vends.upcoming_product_mapping_id',

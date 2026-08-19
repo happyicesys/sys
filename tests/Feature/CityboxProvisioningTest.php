@@ -164,9 +164,39 @@ class CityboxProvisioningTest extends TestCase
         $this->assertSame('ICB26F9605R9', $vend->fresh()->citybox_equipment_id); // untouched
         $this->assertSame('smart_chiller', $vend->fresh()->machine_type);
 
+        // Staying a Smart Chiller with an empty / missing serial never wipes the link
+        // (prod 2026-08-20: the Settings page could not see the value, so every Save
+        // posted null). Editable only while empty; no unbind for chillers.
+        $this->post("/vends/{$vend->id}/update", $base + ['machine_type' => 'smart_chiller', 'citybox_equipment_id' => null]);
+        $this->assertSame('ICB26F9605R9', $vend->fresh()->citybox_equipment_id);
+        $this->post("/vends/{$vend->id}/update", $base + ['machine_type' => 'smart_chiller', 'citybox_equipment_id' => '']);
+        $this->assertSame('ICB26F9605R9', $vend->fresh()->citybox_equipment_id);
+        $this->post("/vends/{$vend->id}/update", $base + ['machine_type' => 'smart_chiller']);
+        $this->assertSame('ICB26F9605R9', $vend->fresh()->citybox_equipment_id);
+
         // Explicitly clearing the serial AND changing type is still allowed (deliberate act)
         $this->post("/vends/{$vend->id}/update", $base + ['machine_type' => 'vending_machine', 'citybox_equipment_id' => null]);
         $this->assertNull($vend->fresh()->citybox_equipment_id);
+    }
+
+    public function test_settings_page_receives_the_citybox_link_fields(): void
+    {
+        // Regression (prod 2026-08-20, vend 1361): SettingController::edit selected an
+        // explicit column list without citybox_equipment_id → the page showed an empty
+        // field for a linked chiller (and a Save then wiped it).
+        foreach (['read machine-settings', 'update machine-settings'] as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
+        }
+        $this->user->givePermissionTo(['read machine-settings', 'update machine-settings']);
+        $vend = Vend::create(['code' => 10002, 'machine_type' => 'smart_chiller', 'citybox_equipment_id' => 'ICB26F9FEAGC', 'is_active' => 1, 'operator_id' => $this->op()->id,
+            'is_online' => 1, 'citybox_synced_at' => now(), 'citybox_status_json' => ['name' => 'Singapore2', 'device_type' => 'visual-2']]);
+
+        $this->get('/settings/vend/'.$vend->id.'/update')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Setting/Edit')
+                ->where('vend.citybox_equipment_id', 'ICB26F9FEAGC')
+                ->where('vend.citybox_status_json.name', 'Singapore2')
+                ->has('vend.citybox_synced_at'));
     }
 
     // ── HTTP ───────────────────────────────────────────────────────────────

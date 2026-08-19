@@ -5202,6 +5202,15 @@ class VendController extends Controller
         // to demote the vend and silently wipe the link.)
         $requestedType = $request->has('machine_type') ? ($request->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) : ($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE);
         $explicitlyClearingSerial = $request->has('citybox_equipment_id') && ! $request->citybox_equipment_id;
+
+        // A chiller's serial is bound at creation and read-only after (no unbind /
+        // rebind for chillers): while the vend STAYS a Smart Chiller, an empty or
+        // missing serial in the payload never overwrites a linked one. (2026-08-20:
+        // the Settings page could not even see the value, and each Save wiped it.)
+        if ($vend->citybox_equipment_id && $requestedType === Vend::MACHINE_TYPE_SMART_CHILLER && $explicitlyClearingSerial) {
+            $request->merge(['citybox_equipment_id' => $vend->citybox_equipment_id]);
+            $explicitlyClearingSerial = false;
+        }
         if ($vend->citybox_equipment_id && $vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER
             && $requestedType !== Vend::MACHINE_TYPE_SMART_CHILLER
             && ! $explicitlyClearingSerial) {

@@ -667,14 +667,24 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Citybox Equipment ID
                 </label>
+                <!-- Bound at creation (Machine Management › Create › Smart Chiller) and read-only
+                     from then on — there is no unbind/rebind for chillers. Editable only while
+                     EMPTY, so a vend that lost its link can be repaired. -->
+                <div v-if="vend.citybox_equipment_id" class="mt-1 flex items-center space-x-2">
+                  <span class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 font-mono text-sm text-gray-900 border border-gray-200">{{ vend.citybox_equipment_id }}</span>
+                  <span v-if="vend.citybox_status_json && vend.citybox_status_json.name" class="text-xs text-gray-600">{{ vend.citybox_status_json.name }} · {{ vend.citybox_status_json.device_type }}</span>
+                  <span class="text-xs" :class="vend.is_online ? 'text-green-700' : 'text-gray-500'">{{ vend.is_online ? 'online' : 'offline' }}</span>
+                </div>
                 <input
+                  v-else
                   v-model="form.citybox_equipment_id"
                   type="text"
                   placeholder="e.g. ICB23EHWFC5B"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 <p class="mt-1 text-xs text-gray-500">
-                  Device serial from Citybox (设备号). Links this vend to their API + webhooks — must be unique across all vends.
+                  <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation; synced {{ vend.citybox_synced_at || 'never' }}. Not editable.</template>
+                  <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — enter it here only to repair a lost link.</template>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.citybox_equipment_id">
                   {{ form.errors.citybox_equipment_id }}
