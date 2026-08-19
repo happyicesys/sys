@@ -82,8 +82,15 @@ class CityboxProductController extends Controller
             'mapped_by' => $request->product_id ? $request->user()->id : null,
         ])->save();
 
-        $msg = $request->product_id
-            ? 'Mapped "'.$row->name.'" to '.optional(Product::find($request->product_id))->name
+        // A product that a chiller sells lives on the mark1 ledger (§8.1): set
+        // the source at mapping time unless a human already chose one.
+        $product = $request->product_id ? Product::find($request->product_id) : null;
+        if ($product && $product->warehouseQtySource() === \App\Enums\WarehouseQtySource::Cms) {
+            $product->forceFill(['warehouse_qty_source' => \App\Enums\WarehouseQtySource::Ledger->value])->save();
+        }
+
+        $msg = $product
+            ? 'Mapped "'.$row->name.'" to '.$product->name.' (warehouse qty from mark1 ledger)'
             : 'Unmapped "'.$row->name.'"';
 
         return redirect()->back()->with('success', $msg);

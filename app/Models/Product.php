@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+
 use App\Models\Scopes\OperatorProductFilterScope;
 use App\Models\Scopes\ProductAccessProductScope;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -12,9 +13,13 @@ class Product extends Model
     use HasFactory;
 
     const MEASUREMENT_UNIT_L = 'L';
+
     const MEASUREMENT_UNIT_ML = 'ml';
+
     const MEASUREMENT_UNIT_G = 'g';
+
     const MEASUREMENT_UNIT_KG = 'kg';
+
     const MEASUREMENT_UNIT_PCS = 'pcs';
 
     const MEASUREMENT_UNIT_MAPPINGS = [
@@ -51,6 +56,7 @@ class Product extends Model
         'category_group_id',
         'cms_refer_id',
         'code',
+        'warehouse_qty_source',
         'desc',
         'is_active',
         'is_available',
@@ -242,24 +248,24 @@ class Product extends Model
     protected function isInventory(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $value,
-            set: fn($value) => $value ? true : false,
+            get: fn ($value) => $value,
+            set: fn ($value) => $value ? true : false,
         );
     }
 
     protected function isCommission(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $value,
-            set: fn($value) => $value ? true : false,
+            get: fn ($value) => $value,
+            set: fn ($value) => $value ? true : false,
         );
     }
 
     protected function isSupermarketFee(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $value,
-            set: fn($value) => $value ? true : false,
+            get: fn ($value) => $value,
+            set: fn ($value) => $value ? true : false,
         );
     }
 
@@ -374,15 +380,71 @@ class Product extends Model
             })
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
-                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 }
             });
     }
+
+    // ── Warehouse qty source (design §8.1) ─────────────────────────────────
+
+    public function warehouseQtySource(): \App\Enums\WarehouseQtySource
+    {
+        return \App\Enums\WarehouseQtySource::tryFrom((string) $this->warehouse_qty_source)
+            ?? \App\Enums\WarehouseQtySource::Cms;
+    }
+
+    public function usesLedgerWarehouseQty(): bool
+    {
+        return $this->warehouseQtySource() === \App\Enums\WarehouseQtySource::Ledger;
+    }
+
+    /** CityBox SKUs linked to this product (many-to-one: their catalog has duplicate names). */
+    public function cityboxProducts()
+    {
+        return $this->hasMany(CityboxProduct::class);
+    }
+
+    /**
+     * mark1-ledger warehouse quantity: incoming/adjustment movements minus
+     * picks (the same arithmetic /products/movements shows). ONE query pair,
+     * used only for ledger-source products; cms-source products keep reading
+     * the CMS API in ProductController::index — this accessor is the single
+     * place that knows the branch, so chiller pick screens (step 5/6) call it
+     * and never re-implement the rule.
+     */
+    public function warehouseQty(): ?int
+    {
+        if (! $this->usesLedgerWarehouseQty()) {
+            return null; // cms-source: caller reads the CMS figure it already has
+        }
+        // MUST stay identical to ProductMovementController::getProductQuery's
+        // total_movements_qty / total_delivered_qty subselects (the page and this
+        // accessor are the same number by contract): incoming+adjustment only;
+        // picks from picked-or-later, not cancelled, jobs dated on/after the
+        // ledger go-live 2025-12-06.
+        $moved = (int) \Illuminate\Support\Facades\DB::table('product_movements')
+            ->where('product_id', $this->id)
+            ->whereIn('type', [ProductMovement::TYPE_INCOMING, ProductMovement::TYPE_ADJUSTMENT])
+            ->sum('qty');
+        $picked = (int) \Illuminate\Support\Facades\DB::table('ops_job_item_channels')
+            ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->where('ops_job_item_channels.product_id', $this->id)
+            ->where('ops_job_items.status', '>=', 2)
+            ->where('ops_job_items.status', '!=', 99)
+            ->where('ops_jobs.date', '>=', self::LEDGER_GO_LIVE_DATE)
+            ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(ops_job_item_channels.picked_qty, 0)'));
+
+        return $moved - $picked;
+    }
+
+    /** Ledger picks are counted from this date (matches ProductMovementController). */
+    public const LEDGER_GO_LIVE_DATE = '2025-12-06';
 }

@@ -20,10 +20,10 @@ class ProductResource extends JsonResource
             'code' => $this->code,
             // 'created_at' => $this->created_at,
             'name' => $this->name,
-            'full_name' => $this->code . ' - ' . $this->name,
+            'full_name' => $this->code.' - '.$this->name,
             'option_data' => [
                 'id' => $this->id,
-                'full_name' => $this->code . ' - ' . $this->name . ' ' . $this->desc,
+                'full_name' => $this->code.' - '.$this->name.' '.$this->desc,
             ],
             'remarks' => $this->remarks,
             'remarks_updated_at' => $this->remarks_updated_at,
@@ -95,6 +95,7 @@ class ProductResource extends JsonResource
             'picked_value_on_date' => isset($this->picked_value_on_date) ? $this->picked_value_on_date / 100 : 0,
             'calculated_warehouse_qty' => isset($this->calculated_warehouse_qty) ? $this->calculated_warehouse_qty : null,
             'qty_available_pcs_api' => isset($this->qty_available_pcs_api) ? $this->qty_available_pcs_api : null,
+            'warehouse_qty_source' => $this->warehouse_qty_source ?: 'cms',
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
             'sellingPrices' => SellingPriceResource::collection($this->whenLoaded('sellingPrices')),
@@ -112,7 +113,7 @@ class ProductResource extends JsonResource
             'last_two_month_revenue' => $this->last_two_month_revenue / 100,
             'last_two_month_gross_profit' => $this->last_two_month_gross_profit / 100,
             'last_two_month_gross_profit_margin' => $this->last_two_month_gross_profit_margin,
-            'vendTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTransactions'))
+            'vendTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTransactions')),
         ];
     }
 }

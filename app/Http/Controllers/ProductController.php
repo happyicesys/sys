@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CategoryResource;
+use App\Exports\ProductAvailabilityExport;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CategoryResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\TagResource;
@@ -12,6 +13,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Operator;
 use App\Models\OpsJob;
+use App\Models\OpsJobItemChannel;
 use App\Models\Product;
 use App\Models\ProductChild;
 use App\Models\ProductUom;
@@ -19,43 +21,44 @@ use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\UnitCost;
 use App\Models\Uom;
-use App\Models\OpsJobItemChannel;
-use App\Traits\GetUserTimezone;
 use App\Services\CmsService;
 use App\Services\TagBindingService;
 use App\Services\VendChannelService;
 use App\Services\VendTransactionService;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ProductAvailabilityExport;
 
 class ProductController extends Controller
 {
     use GetUserTimezone;
 
     protected $cmsService;
+
     protected $tagBindingService;
+
     protected $vendChannelService;
+
     protected $vendTransactionService;
 
     public function __construct()
     {
-        $this->cmsService = new CmsService();
-        $this->tagBindingService = new TagBindingService();
-        $this->vendChannelService = new VendChannelService();
-        $this->vendTransactionService = new VendTransactionService();
+        $this->cmsService = new CmsService;
+        $this->tagBindingService = new TagBindingService;
+        $this->vendChannelService = new VendChannelService;
+        $this->vendTransactionService = new VendTransactionService;
         $this->middleware(['permission:read products']);
     }
 
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $className = get_class(new Product());
+        $className = get_class(new Product);
 
         return Inertia::render('Product/Index', [
             'categories' => CategoryResource::collection(
@@ -118,7 +121,7 @@ class ProductController extends Controller
         // operatorOptions: Object,
         // permissions: [Array, Object],
         // productTagOptions: Object,
-        $className = get_class(new Product());
+        $className = get_class(new Product);
 
         return Inertia::render('Product/Create', [
             'categories' => CategoryResource::collection(
@@ -165,12 +168,12 @@ class ProductController extends Controller
             'is_healthier_choice' => $request->is_healthier_choice ? true : false,
         ]);
 
-        $product = new Product();
+        $product = new Product;
         $product = $product->fill($request->all());
-        if (!$request->operator_id) {
+        if (! $request->operator_id) {
             $product->operator_id = auth()->user()->operator_id;
         }
-        if (!$request->measurement_count) {
+        if (! $request->measurement_count) {
             $product->measurement_count = 1;
         }
         $product->save();
@@ -203,7 +206,7 @@ class ProductController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -225,7 +228,7 @@ class ProductController extends Controller
         // "@Me Mentioned" view — products whose Remarks @-mention this user.
         $isMentionView = $request->boolean('mentioned');
         $isPartialReload = $request->hasHeader('X-Inertia-Partial-Data');
-        if ($authUser && !$request->boolean('searched') && !$isPartialReload) {
+        if ($authUser && ! $request->boolean('searched') && ! $isPartialReload) {
             $noteService->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_AVAILABILITY);
         }
         $availUnreadSince = $authUser
@@ -277,7 +280,7 @@ class ProductController extends Controller
             ])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('operator_id', $search);
                 }
             })
@@ -323,7 +326,7 @@ class ProductController extends Controller
             })
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
                 // If sorting by calculated fields, keep simple sorts here and handle complex sorts if needed in JS or dedicated query
-                if (!in_array($sortKey, ['needed_qty', 'needed_value', 'not_yet_sync_api_qty', 'picked_value_on_date'])) {
+                if (! in_array($sortKey, ['needed_qty', 'needed_value', 'not_yet_sync_api_qty', 'picked_value_on_date'])) {
                     $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 }
             }, function ($query) {
@@ -423,7 +426,6 @@ class ProductController extends Controller
             ->get()
             ->keyBy('product_id');
 
-
         $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
 
         // Create a lookup map for CMS products for O(1) access
@@ -502,7 +504,7 @@ class ProductController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -520,17 +522,17 @@ class ProductController extends Controller
         $products = Product::query()
             ->with(['isAvailableUpdatedBy', 'remarksUpdatedBy', 'latestUnitCost', 'productLimits' => function ($query) use ($request) {
                 // `date` is a DATE column, so a plain where() is identical to whereDate()
-                    // but doesn't wrap the column in DATE(), keeping it index-friendly.
-                    $query->where('date', $request->productAvailableDate);
+                // but doesn't wrap the column in DATE(), keeping it index-friendly.
+                $query->where('date', $request->productAvailableDate);
             }, 'productLimits.createdBy', 'thumbnail'])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('operator_id', $search);
                 }
             })
-            ->when($request->product_code, fn($q, $s) => $q->where('code', 'LIKE', "%{$s}%"))
-            ->when($request->product_name, fn($q, $s) => $q->where('name', 'LIKE', "%{$s}%"))
+            ->when($request->product_code, fn ($q, $s) => $q->where('code', 'LIKE', "%{$s}%"))
+            ->when($request->product_name, fn ($q, $s) => $q->where('name', 'LIKE', "%{$s}%"))
             ->when($request->is_available !== null, function ($query) use ($request) {
                 if ($request->is_available !== 'all') {
                     $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
@@ -597,7 +599,7 @@ class ProductController extends Controller
 
         return Excel::download(
             new ProductAvailabilityExport($products, $request->productAvailableDate),
-            'Product_Availability_' . str_replace('-', '', $request->productAvailableDate) . '_' . Carbon::now()->format('His') . '.xlsx'
+            'Product_Availability_'.str_replace('-', '', $request->productAvailableDate).'_'.Carbon::now()->format('His').'.xlsx'
         );
     }
 
@@ -605,6 +607,7 @@ class ProductController extends Controller
     {
         // dd($request->all());
         $request->validate([
+            'warehouse_qty_source' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::in(['cms', 'ledger'])],
             'code' => 'required',
             'name' => 'required',
             'operator_id' => 'required',
@@ -633,7 +636,7 @@ class ProductController extends Controller
 
         if ($request->has('languages')) {
             $product->update([
-                'translated_names_json' => $request->languages
+                'translated_names_json' => $request->languages,
             ]);
         }
 
@@ -641,7 +644,7 @@ class ProductController extends Controller
             $sellingPrices = $request->sellingPrices;
             if ($sellingPrices) {
                 foreach ($sellingPrices as $sellingPrice) {
-                    if (!isset($sellingPrice['id'])) {
+                    if (! isset($sellingPrice['id'])) {
                         $product->sellingPrices()->create([
                             'amount' => $sellingPrice['amount'],
                             'type' => $sellingPrice['type'],
@@ -655,7 +658,7 @@ class ProductController extends Controller
             $unitCosts = $request->unitCosts;
             if ($unitCosts) {
                 foreach ($unitCosts as $unitCost) {
-                    if (!isset($unitCost['id'])) {
+                    if (! isset($unitCost['id'])) {
                         if ($product->unitCosts()->exists()) {
                             $product->unitcosts()->update([
                                 'is_current' => false,
@@ -680,7 +683,7 @@ class ProductController extends Controller
     public function toggleActivateDeactivate($productId)
     {
         $product = Product::findOrFail($productId);
-        $product->is_active = !$product->is_active;
+        $product->is_active = ! $product->is_active;
         $product->save();
 
         $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
@@ -691,7 +694,7 @@ class ProductController extends Controller
     public function toggleIsAvailable(Request $request)
     {
         $product = Product::findOrFail($request->product_id);
-        $product->is_available = !$product->is_available;
+        $product->is_available = ! $product->is_available;
         $product->is_available_updated_by = auth()->user()->id;
         $product->is_available_updated_at = Carbon::now();
         $product->save();
@@ -797,7 +800,7 @@ class ProductController extends Controller
             'blindChildren.childProduct.thumbnail',
         ])->findOrFail($productId);
 
-        $className = get_class(new Product());
+        $className = get_class(new Product);
 
         return Inertia::render('Product/Edit', [
             'categories' => CategoryResource::collection(
@@ -848,7 +851,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($productId);
 
-        if (!$product->is_parent_sku) {
+        if (! $product->is_parent_sku) {
             return back()->withErrors(['children' => 'This product is not a blind parent SKU.']);
         }
 
@@ -900,7 +903,7 @@ class ProductController extends Controller
             }
 
             ProductChild::where('parent_product_id', $product->id)
-                ->when(!empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
+                ->when(! empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
                 ->delete();
         });
 
@@ -950,7 +953,7 @@ class ProductController extends Controller
                 ->first();
 
             // RESPECT future manual overrides (Green labels)
-            if ($targetLimit && !$targetLimit->is_created_by_system) {
+            if ($targetLimit && ! $targetLimit->is_created_by_system) {
                 // If we hit a manual override, STOP propagating this change further forward?
                 // Or just skip this day? User said "propagate till before that day value being set".
                 // Stop is usually the intent of "till before".

@@ -83,6 +83,28 @@
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Qty in Warehouse from
+              </label>
+              <MultiSelect
+                v-model="form.warehouse_qty_source"
+                :options="warehouseQtySourceOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <p class="mt-1 text-xs text-gray-500">
+                CMS API = today's default for the vending fleet. mark1 ledger = manual incoming + picks (CityBox / no-CMS products).
+              </p>
+              <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
+                {{ form.errors.warehouse_qty_source }}
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
                    *
@@ -545,6 +567,10 @@ const emit = defineEmits(['modalClose']);
 const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
 const measurementUnitOptions = ref([]);
+const warehouseQtySourceOptions = ref([
+  { id: 'cms', name: 'CMS API' },
+  { id: 'ledger', name: 'mark1 ledger (manual incoming + picks)' },
+]);
 const showUomModal = ref(false);
 const uomOptions = ref([]);
 const unitCosts = ref([]);
@@ -581,6 +607,7 @@ onMounted(() => {
     category_id: categoryOptions.value.find(categoryOption => categoryOption.id === props.product.category_id),
     category_group_id: categoryGroupOptions.value.find(categoryGroupOption => categoryGroupOption.id === props.product.category_group_id),
     tags: props.product.tagBindings?.map(tagBinding => productTagOptions.value.find(productTagOption => productTagOption.id === tagBinding.tag.id)),
+    warehouse_qty_source: props.product.warehouse_qty_source || 'cms',
   }) : useForm(getDefaultForm());
 });
 
@@ -600,6 +627,7 @@ function getDefaultForm() {
     measurement_count: '',
     measurement_value: '',
     measurement_unit: '',
+    warehouse_qty_source: 'cms',
     operator_id: '',
     selling_price_amount: '',
     selling_price_type: '',
@@ -620,6 +648,7 @@ function submit() {
         category_group_id: data.category_group_id?.id,
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
+        warehouse_qty_source: (data.warehouse_qty_source && data.warehouse_qty_source.id) ? data.warehouse_qty_source.id : (data.warehouse_qty_source || 'cms'),
       }))
       .post('/products/create', {
         onSuccess: () => {
@@ -656,6 +685,7 @@ function submit() {
           category_group_id: data.category_group_id?.id,
           measurement_unit: data.measurement_unit.id,
           operator_id: data.operator_id.id,
+          warehouse_qty_source: (data.warehouse_qty_source && data.warehouse_qty_source.id) ? data.warehouse_qty_source.id : (data.warehouse_qty_source || 'cms'),
           unitCosts: unitCosts.value,
           languages: languages.value,
           sellingPrices: sellingPrices.value,
