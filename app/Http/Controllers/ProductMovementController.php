@@ -569,11 +569,12 @@ class ProductMovementController extends Controller
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)
-            // Qty source: this page IS the mark1 ledger, so on a CMS-connected domain
-            // the useful default is the products whose warehouse qty lives here
-            // ('ledger' — CityBox SKUs); 'cms' / 'all' remain selectable.
-            ->when(in_array($request->warehouse_qty_source, ['cms', 'ledger'], true), function ($query) use ($request) {
-                $query->where('products.warehouse_qty_source', $request->warehouse_qty_source);
+            // This page IS the self-system ledger. On a CMS-connected domain the
+            // CMS-sourced products belong on Warehouse Qty (via API), so only the
+            // products whose warehouse qty is kept here are listed (Brian,
+            // 2026-08-20). Without CMS every product's truth is this ledger → all.
+            ->when(config('app.cms_url'), function ($query) {
+                $query->where('products.warehouse_qty_source', \App\Enums\WarehouseQtySource::Ledger->value);
             })
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
                 $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');

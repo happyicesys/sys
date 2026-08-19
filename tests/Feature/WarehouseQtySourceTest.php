@@ -134,19 +134,21 @@ class WarehouseQtySourceTest extends TestCase
                     && collect($rows)->firstWhere('code', '89925')['warehouse_qty_source'] === 'ledger'));
     }
 
-    public function test_movements_page_filters_by_qty_source_and_exposes_it_per_row(): void
+    public function test_movements_page_lists_only_self_system_products_when_cms_is_connected(): void
     {
         $u = $this->plannerUser();
         Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id]);
         Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'warehouse_qty_source' => 'ledger']);
 
-        $this->actingAs($u)->get('/products/movements?operators[]=all&warehouse_qty_source=ledger')
+        config(['app.cms_url' => 'https://cms.test']);
+        $this->actingAs($u)->get('/products/movements?operators[]=all')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('Vend/ProductMovement')
-                ->where('filters.warehouse_qty_source', 'ledger')
-                ->where('products.data', fn ($rows) => count($rows) === 1 && $rows[0]['code'] === '89925' && $rows[0]['warehouse_qty_source'] === 'ledger'));
+                ->where('products.data', fn ($rows) => count($rows) === 1 && $rows[0]['code'] === '89925'));
 
-        $this->actingAs($u)->get('/products/movements?operators[]=all&warehouse_qty_source=all')
+        // No CMS on this domain: the ledger is everyone's truth — every product listed.
+        config(['app.cms_url' => null]);
+        $this->actingAs($u)->get('/products/movements?operators[]=all')
             ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => count($rows) === 2));
     }
 }

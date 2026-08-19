@@ -37,7 +37,7 @@
                                     </Link>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
                                 <SearchInput placeholderStr="Product ID/ Code" v-model="filters.product_code">
                                     Product ID
                                 </SearchInput>
@@ -68,22 +68,6 @@
                                     <MultiSelect
                                         v-model="filters.is_available"
                                         :options="booleanOptions"
-                                        trackBy="id"
-                                        valueProp="id"
-                                        label="value"
-                                        placeholder="Select"
-                                        open-direction="bottom"
-                                        class="mt-1"
-                                    >
-                                    </MultiSelect>
-                                </div>
-                                <div>
-                                    <label for="text" class="block text-sm font-medium text-gray-700">
-                                        Qty in Warehouse from
-                                    </label>
-                                    <MultiSelect
-                                        v-model="filters.warehouse_qty_source"
-                                        :options="qtySourceOptions"
                                         trackBy="id"
                                         valueProp="id"
                                         label="value"
@@ -137,7 +121,7 @@
                             <table class="min-w-full divide-y divide-gray-300">
                                 <thead class="bg-gray-100 sticky top-0 z-10">
                                     <tr>
-                                        <th colspan="8" class="bg-gray-100"></th>
+                                        <th colspan="7" class="bg-gray-100"></th>
                                         <th colspan="2" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
                                             Planning
                                         </th>
@@ -157,10 +141,6 @@
                                                   </svg>
                                                 </span>
                                             </div>
-                                        </th>
-                                        <th  scope="col" class="th-header w-[6%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                                            Qty Source
-                                            <ExclamationCircleIcon class="inline min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: '<b>Manual</b> = this page is the truth: key incoming here, picks deduct. <b>CMS API</b> = warehouse qty is pulled from CMS (see Warehouse Qty via API); figures here are the self-system ledger only. Set per product on its edit page.', html: true }"></ExclamationCircleIcon>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                                             <div class="flex items-center justify-center gap-1">
@@ -243,10 +223,6 @@
                                                 <span v-else-if="product.blind_parent_codes && product.blind_parent_codes.length" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">child of {{ product.blind_parent_codes.join(', ') }}</span>
                                                 <BlindFlavourChips v-if="product.is_parent_sku" :product="product" />
                                             </div>
-                                        </td>
-                                        <td class="p-1 sm:p-3 text-center">
-                                            <span v-if="product.warehouse_qty_source === 'ledger'" class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800" title="Warehouse qty = this ledger (incoming − picks)">Manual</span>
-                                            <span v-else class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600" title="Warehouse qty is pulled from the CMS API">CMS API</span>
                                         </td>
                                         <td class="whitespace-nowrap py-1 pl-1 pr-1 text-xs font-medium sm:py-4 sm:pl-6 sm:pr-3 sm:text-sm text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
                                           {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
@@ -425,19 +401,10 @@ const filters = ref({
     product_code: '',
     operators: [],
     is_available: '',
-    warehouse_qty_source: '',
     productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
     sortKey: 'code',
     sortBy: false,
 });
-// Qty source filter. On a CMS-connected domain this page is mainly for the
-// products whose warehouse qty lives on the mark1 ledger (CityBox SKUs), so
-// that is the default there; elsewhere the ledger is everyone's truth → All.
-const qtySourceOptions = ref([
-    {id: 'all', value: 'All'},
-    {id: 'ledger', value: 'Manual (self-system ledger)'},
-    {id: 'cms', value: 'CMS API'},
-]);
 const today = moment().format('YYYY-MM-DD');
 const booleanOptions = ref([])
 
@@ -490,9 +457,6 @@ onMounted(() => {
     } else {
         filters.value.is_available = booleanOptions.value[0];
     }
-    const srcFromUrl = props.filters && props.filters.warehouse_qty_source;
-    filters.value.warehouse_qty_source = qtySourceOptions.value.find(o => o.id === srcFromUrl)
-        || qtySourceOptions.value.find(o => o.id === (usePage().props.isCmsUrlSet ? 'ledger' : 'all'));
 })
 
 const onSearchFilterUpdated = () => {
@@ -505,7 +469,6 @@ const onSearchFilterUpdated = () => {
         product_code: filters.value.product_code,
         operators: operators,
         is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
-        warehouse_qty_source: filters.value.warehouse_qty_source ? filters.value.warehouse_qty_source.id : 'all',
         productAvailableDate: filters.value.productAvailableDate,
         sortKey: filters.value.sortKey,
         sortBy: filters.value.sortBy,
@@ -553,8 +516,7 @@ const onExcelExportClicked = () => {
             product_code: filters.value.product_code,
             operators: operators,
             is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
-            warehouse_qty_source: filters.value.warehouse_qty_source ? filters.value.warehouse_qty_source.id : 'all',
-            productAvailableDate: filters.value.productAvailableDate,
+                productAvailableDate: filters.value.productAvailableDate,
         },
         responseType: 'blob',
     }).then(response => {
