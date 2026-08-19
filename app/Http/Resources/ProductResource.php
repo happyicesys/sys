@@ -96,6 +96,11 @@ class ProductResource extends JsonResource
             'calculated_warehouse_qty' => isset($this->calculated_warehouse_qty) ? $this->calculated_warehouse_qty : null,
             'qty_available_pcs_api' => isset($this->qty_available_pcs_api) ? $this->qty_available_pcs_api : null,
             'warehouse_qty_source' => $this->warehouse_qty_source ?: 'cms',
+            // Ledger-source products (CityBox / no-CMS) carry their own warehouse
+            // figure + units currently inside chillers; cms products keep the CMS
+            // fields above and pay no extra query here.
+            'ledger_warehouse_qty' => $this->when(($this->warehouse_qty_source ?? 'cms') === 'ledger', fn () => $this->warehouseQty()),
+            'qty_in_chillers' => $this->when(($this->warehouse_qty_source ?? 'cms') === 'ledger', fn () => $this->qtyInChillers()),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
             'sellingPrices' => SellingPriceResource::collection($this->whenLoaded('sellingPrices')),

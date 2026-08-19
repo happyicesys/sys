@@ -15,12 +15,10 @@ use Illuminate\Support\Facades\Http;
  * {code, body}; code 200 = success, errors put {success:false, message} in
  * body.
  *
- * Scope is deliberately READ + auth only. open_device / pay_callback /
- * refund endpoints / add_yue / transfer are NOT wired: whether we build the
- * consumer flow (mode B) and which doc governs stock writes are open
- * supplier questions (citybox/API_REQUEST_2026-08-14.md Q2/Q6) — wiring
- * money-moving endpoints ahead of those answers invites building the wrong
- * half of the integration.
+ * Scope: auth, read endpoints, and the two OPS writes (zyy_ls_open_door,
+ * device_stock_submit). open_device / pay_callback / refund endpoints /
+ * add_yue / transfer are deliberately NOT wired: mode A was decided
+ * (2026-08-14) — Citybox's own app sells and collects; mark1 does ops only.
  */
 class OpenapiClient
 {

@@ -63,6 +63,18 @@ class WarehouseQtySourceTest extends TestCase
         $this->assertSame(8 - 3, $p->warehouseQty());
     }
 
+    public function test_qty_in_chillers_sums_only_active_channels_on_smart_chiller_vends(): void
+    {
+        $p = Product::create(['code' => 'CB9', 'name' => 'Peach', 'warehouse_qty_source' => 'ledger']);
+        $chiller = \App\Models\Vend::create(['code' => 9801, 'machine_type' => 'smart_chiller', 'citybox_equipment_id' => 'Q1', 'is_active' => 1]);
+        $vm = \App\Models\Vend::create(['code' => 9802, 'machine_type' => 'vending_machine', 'is_active' => 1]);
+        \App\Models\VendChannel::create(['vend_id' => $chiller->id, 'code' => 11, 'qty' => 4, 'capacity' => 5, 'amount' => 10, 'product_id' => $p->id, 'is_active' => 1, 'error_rate_json' => []]);
+        \App\Models\VendChannel::create(['vend_id' => $chiller->id, 'code' => 12, 'qty' => 9, 'capacity' => 5, 'amount' => 10, 'product_id' => $p->id, 'is_active' => 0, 'error_rate_json' => []]); // inactive: excluded
+        \App\Models\VendChannel::create(['vend_id' => $vm->id, 'code' => 11, 'qty' => 7, 'capacity' => 5, 'amount' => 10, 'product_id' => $p->id, 'is_active' => 1, 'error_rate_json' => []]);      // vending machine: excluded
+
+        $this->assertSame(4, $p->qtyInChillers());
+    }
+
     public function test_mapping_a_citybox_sku_flips_the_product_to_ledger(): void
     {
         $u = User::factory()->create();

@@ -445,6 +445,22 @@ class Product extends Model
         return $moved - $picked;
     }
 
+    /**
+     * Units of this product currently inside Smart Chillers (sum of
+     * vend_channels.qty across smart_chiller vends), from the 3-min CityBox
+     * poll. Warehouse + in-chillers = total on hand for a chiller product.
+     * One aggregate query; call only where it is displayed.
+     */
+    public function qtyInChillers(): int
+    {
+        return (int) \Illuminate\Support\Facades\DB::table('vend_channels')
+            ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
+            ->where('vend_channels.product_id', $this->id)
+            ->where('vend_channels.is_active', true)
+            ->where('vends.machine_type', Vend::MACHINE_TYPE_SMART_CHILLER)
+            ->sum('vend_channels.qty');
+    }
+
     /** Ledger picks are counted from this date (matches ProductMovementController). */
     public const LEDGER_GO_LIVE_DATE = '2025-12-06';
 }

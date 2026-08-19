@@ -25,7 +25,6 @@ class Kernel extends ConsoleKernel
         // CityBox-Openapi (governs since 2026-08-14): status + live stock for
         // linked Smart Chiller vends. No-op until CITYBOX_OPENAPI_ENABLED and a
         // chiller carries a citybox_equipment_id (guards inside the command).
-        // The old apiThredDetail citybox:poll is retired from the schedule.
         // Every 3 min (Brian, 2026-08-17): the snapshot is a stock MIRROR, not a
         // sales feed — no event is lost by polling less often, the mirror is just
         // up to 3 min stale. Ops-job pick qty for chillers must read the

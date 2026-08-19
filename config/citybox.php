@@ -1,29 +1,15 @@
 <?php
 
 return [
-    // Master switch — keep false until Citybox delivers the real domain +
-    // api_secret and `php artisan citybox:ping` passes against production.
-    'enabled' => env('CITYBOX_ENABLED', false),
-
-    // Scheme + host only, no trailing slash (e.g. https://api.citybox.example).
-    // The client appends /api/apiThredDetail/<method> itself.
-    'base_url' => env('CITYBOX_BASE_URL'),
-
-    // Shared signing secret appended to the sorted-param string before MD5.
-    // NEVER commit a real value; the sample in the supplier doc is burned.
-    'api_secret' => env('CITYBOX_API_SECRET'),
-
-    // Per-request timeout, seconds. The 1-min poller must never stack requests.
-    'timeout' => env('CITYBOX_TIMEOUT', 10),
-
     /*
     |--------------------------------------------------------------------------
-    | CityBox-Openapi (second supplier API, doc 2026-08-14)
+    | CityBox-Openapi — THE CityBox integration (doc 2026-08-14)
     |--------------------------------------------------------------------------
-    | Separate surface from apiThredDetail above: token auth, different sign
-    | concatenation, order/refund/close webhooks. Which doc governs is still
-    | open (citybox/API_REQUEST_2026-08-14.md Q2), so both configs coexist.
-    | app_id / secret / open_source are 待分配 — leave empty until assigned.
+    | Token auth + MD5 signing; read endpoints (fleet, stock, par, catalog),
+    | ops writes (restock door-open, stock submit), and three dormant webhook
+    | receivers. The earlier apiThredDetail surface was retired 2026-08-19
+    | (superseded per Citybox). Master switch: CITYBOX_OPENAPI_ENABLED.
+    | Credentials come from Citybox; keep them in .env only.
     */
     'openapi' => [
         'enabled' => env('CITYBOX_OPENAPI_ENABLED', false),

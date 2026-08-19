@@ -4,10 +4,9 @@ namespace App\Services\Citybox;
 
 /**
  * Signature builder/verifier for the CityBox-Openapi surface
- * (citybox/openapi_2026-08-14.pdf). NOT interchangeable with CityboxSigner:
- * apiThredDetail joins pairs with '&' and no trailing separator and
- * JSON-encodes arrays; this API's own PHP sample appends '&' after EVERY
- * pair (including the last, so the secret is concatenated after a dangling
+ * (citybox/openapi_2026-08-14.pdf). Note the retired apiThredDetail API
+ * joined pairs with '&' and no trailing separator; THIS API's own PHP
+ * sample appends '&' after EVERY pair (including the last, so the secret is concatenated after a dangling
  * '&') and flattens arrays with join('').
  *
  * The doc contradicts itself for webhook pushes: the worked example string

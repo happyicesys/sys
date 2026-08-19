@@ -139,6 +139,13 @@ class CityboxProvisioningTest extends TestCase
         $this->assertSame(0, Vend::withoutGlobalScopes()->where('citybox_equipment_id', 'E1')->count()); // rolled back
     }
 
+    public function test_unique_index_on_citybox_equipment_id_is_the_real_duplicate_guard(): void
+    {
+        Vend::create(['code' => 9701, 'machine_type' => 'smart_chiller', 'citybox_equipment_id' => 'DUP1', 'is_active' => 1]);
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        Vend::create(['code' => 9702, 'machine_type' => 'smart_chiller', 'citybox_equipment_id' => 'DUP1', 'is_active' => 1]);
+    }
+
     // ── HTTP ───────────────────────────────────────────────────────────────
 
     public function test_store_requires_a_customer_choice_and_unique_equipment(): void
