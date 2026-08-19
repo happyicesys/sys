@@ -247,7 +247,7 @@
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center">
                           <a :href="product.thumbnail.full_url" target="_blank" v-if="product.thumbnail">
-                            <img class="h-28 w-28 md:h-24 md:w-24 rounded-full" :src="product.thumbnail.full_url" alt="" />
+                            <img class="h-28 w-28 md:h-24 md:w-24 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="product.thumbnail.full_url" alt="" />
                           </a>
                         </div>
                       </TableData>
