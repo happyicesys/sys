@@ -137,4 +137,22 @@ class CityboxGatewayServicesTest extends TestCase
         $this->assertSame(10, $stock->first()->activePriceCents);
         $this->assertSame(DeviceState::Free, $gw->deviceState('E1'));
     }
+
+    public function test_real_gateway_treats_device_with_no_products_configured_as_empty_not_error(): void
+    {
+        $this->app->forgetInstance(ChillerGateway::class);
+        config(['citybox.openapi.base_url' => 'https://gw.test']);
+        Http::fake([
+            'gw.test/api/Openapi/get_access_token' => Http::response(['code' => 200, 'body' => ['access_token' => 'T', 'express_in' => 3600]]),
+            'gw.test/api/Openapi/device_product' => Http::response(['code' => 400, 'body' => ['message' => '此设备没有商品']]),
+            'gw.test/api/Openapi/shipping_product' => Http::response(['code' => 400, 'body' => ['message' => '此设备没有商品']]),
+            'gw.test/api/Openapi/product_list' => Http::response(['code' => 400, 'body' => ['message' => '参数错误']]),
+        ]);
+
+        $gw = app(ChillerGateway::class);
+        $this->assertCount(0, $gw->deviceStock('E1'));
+        $this->assertCount(0, $gw->restockConfig('E1'));
+        $this->expectException(\App\Exceptions\CityboxApiException::class); // other 400s still throw
+        $gw->catalog();
+    }
 }

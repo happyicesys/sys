@@ -704,7 +704,7 @@
                   </p>
                 </template>
                 <p class="mt-1 text-xs text-gray-500">
-                  <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation; synced {{ vend.citybox_synced_at || 'never' }}. Not editable.</template>
+                  <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation · last synced {{ vend.citybox_synced_at ? formatDatetime(vend.citybox_synced_at) : 'never' }} · not editable.</template>
                   <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — set it here only to repair a lost link.</template>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.citybox_equipment_id">

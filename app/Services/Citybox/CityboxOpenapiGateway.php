@@ -4,6 +4,7 @@ namespace App\Services\Citybox;
 
 use App\Contracts\Citybox\ChillerGateway;
 use App\Enums\Citybox\DeviceState;
+use App\Exceptions\CityboxApiException;
 use App\Services\Citybox\DTO\ChillerCatalogItem;
 use App\Services\Citybox\DTO\ChillerDevice;
 use App\Services\Citybox\DTO\ChillerStockLine;
@@ -29,14 +30,34 @@ class CityboxOpenapiGateway implements ChillerGateway
 
     public function deviceStock(string $deviceId): Collection
     {
-        return collect($this->client->deviceProduct($deviceId)['goods'] ?? [])
+        return collect($this->goodsOrEmpty(fn () => $this->client->deviceProduct($deviceId)))
             ->map(fn ($g) => ChillerStockLine::fromApi($g));
     }
 
     public function restockConfig(string $deviceId): Collection
     {
-        return collect($this->client->shippingProduct($deviceId)['goods'] ?? [])
+        return collect($this->goodsOrEmpty(fn () => $this->client->shippingProduct($deviceId)))
             ->map(fn ($g) => ChillerStockLine::fromApi($g));
+    }
+
+    /**
+     * A device with NOTHING configured in their portal (Pre-Stock Setup empty)
+     * answers device_product / shipping_product with code 400 "此设备没有商品"
+     * (this device has no products) — prod vend 10001 / Singapore1, 2026-08-20.
+     * That is a legitimate state, not a failure: report an empty list so the
+     * poll logs "0 products" instead of an error every 3 min. Any other 400
+     * still throws.
+     */
+    private function goodsOrEmpty(callable $call): array
+    {
+        try {
+            return $call()['goods'] ?? [];
+        } catch (CityboxApiException $e) {
+            if ($e->apiCode === 400 && str_contains($e->getMessage(), '此设备没有商品')) {
+                return [];
+            }
+            throw $e;
+        }
     }
 
     public function catalog(array $filters = []): Collection
