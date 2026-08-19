@@ -102,4 +102,51 @@ class WarehouseQtySourceTest extends TestCase
         ]);
         $this->assertSame('ledger', $product->fresh()->warehouse_qty_source);
     }
+
+    private function plannerUser(): User
+    {
+        foreach (['read product-availability'] as $perm) {
+            Permission::findOrCreate($perm, 'web');
+        }
+        $op = \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
+        $u = User::factory()->create(['operator_id' => $op->id]);
+        $u->givePermissionTo(['read products', 'update products', 'read product-availability']);
+
+        return $u;
+    }
+
+    public function test_availability_page_shows_ledger_qty_for_manual_products_and_cms_qty_for_the_rest(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => 'https://cms.test']);
+        \Illuminate\Support\Facades\Http::fake(['cms.test/*' => \Illuminate\Support\Facades\Http::response([['code' => 'VM1', 'qty' => 40]])]);
+
+        $vm = Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id, 'is_available' => 1]);
+        $cb = Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'is_available' => 1, 'warehouse_qty_source' => 'ledger']);
+        DB::table('product_movements')->insert(['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 12, 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->actingAs($u)->get('/products/availability?operators[]=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Vend/ProductAvailability')
+                ->where('products.data', fn ($rows) => collect($rows)->firstWhere('code', 'VM1')['qty_available_pcs_api'] === 40
+                    && collect($rows)->firstWhere('code', '89925')['qty_available_pcs_api'] === 12
+                    && collect($rows)->firstWhere('code', '89925')['net_available_qty_pcs_api'] === 12
+                    && collect($rows)->firstWhere('code', '89925')['warehouse_qty_source'] === 'ledger'));
+    }
+
+    public function test_movements_page_filters_by_qty_source_and_exposes_it_per_row(): void
+    {
+        $u = $this->plannerUser();
+        Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id]);
+        Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'warehouse_qty_source' => 'ledger']);
+
+        $this->actingAs($u)->get('/products/movements?operators[]=all&warehouse_qty_source=ledger')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Vend/ProductMovement')
+                ->where('filters.warehouse_qty_source', 'ledger')
+                ->where('products.data', fn ($rows) => count($rows) === 1 && $rows[0]['code'] === '89925' && $rows[0]['warehouse_qty_source'] === 'ledger'));
+
+        $this->actingAs($u)->get('/products/movements?operators[]=all&warehouse_qty_source=all')
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => count($rows) === 2));
+    }
 }

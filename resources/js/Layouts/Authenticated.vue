@@ -181,7 +181,9 @@ const navigation = computed(() => [
             {name: 'Products', href: '/products', permission: 'read products'},
             {name: 'Mappings', href: '/product-mappings', permission: 'read product-mappings'},
             ...(page.props.isCmsUrlSet ? [{name: 'Warehouse Qty (via API) & Planning', href: '/products/availability', permission: 'read product-availability'}] : []),
-            ...(!page.props.isCmsUrlSet ? [{name: 'Warehouse Qty & Planning', href: '/products/movements', permission: 'read products'}] : []),
+            // The mark1 ledger page. Without CMS it is THE warehouse page; with CMS it
+            // still carries the products whose qty is kept manually (CityBox SKUs).
+            {name: page.props.isCmsUrlSet ? 'Warehouse Qty (manual ledger)' : 'Warehouse Qty & Planning', href: '/products/movements', permission: 'read products'},
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
             {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
             {name: 'Product Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},

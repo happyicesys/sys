@@ -82,6 +82,30 @@
               </div>
               <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Qty in Warehouse from
+                </label>
+                <MultiSelect
+                  v-model="form.warehouse_qty_source"
+                  :options="warehouseQtySourceOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                  :disabled="!permissions.includes('update products')"
+                >
+                </MultiSelect>
+                <p class="mt-1 text-xs text-gray-500">
+                  <b>CMS API</b> = pulled from CMS by product code (vending fleet default).
+                  <b>Manual (mark1 ledger)</b> = you key incoming stock in Products › Movements; picks deduct it. CityBox SKUs are ledger.
+                </p>
+                <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
+                  {{ form.errors.warehouse_qty_source }}
+                </div>
+              </div>
+              <div class="sm:col-span-2">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Operator
                   <span class="text-red-500">
                     *
@@ -603,6 +627,10 @@ const parentThumbnailUrl = computed(() => props.product?.data?.thumbnail?.full_u
 // Only allow binding once is_parent_sku is persisted (the save endpoint requires it).
 const isPersistedParentSku = computed(() => !!props.product?.data?.is_parent_sku);
 
+const warehouseQtySourceOptions = ref([
+  { id: 'cms', name: 'CMS API (pulled)' },
+  { id: 'ledger', name: 'Manual (mark1 ledger)' },
+]);
 const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
 const measurementUnitOptions = ref([]);
@@ -672,6 +700,7 @@ function getDefaultForm() {
     name: '',
     thumbnail: '',
     is_inventory: 1,
+    warehouse_qty_source: 'cms',
     is_commission: '',
     is_halal: '',
     is_healthier_choice: '',
@@ -702,6 +731,7 @@ function submit() {
           category_group_id: data.category_group_id?.id,
           measurement_unit: data.measurement_unit.id,
           operator_id: data.operator_id.id,
+          warehouse_qty_source: (data.warehouse_qty_source && data.warehouse_qty_source.id) ? data.warehouse_qty_source.id : (data.warehouse_qty_source || 'cms'),
           unitCosts: unitCosts.value,
           languages: languages.value,
           sellingPrices: sellingPrices.value,

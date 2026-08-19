@@ -80,6 +80,7 @@ class ProductMovementController extends Controller
             'products' => ProductResource::collection(
                 $products
             ),
+            'filters' => $request->all(),
         ]);
     }
 
@@ -564,9 +565,16 @@ class ProductMovementController extends Controller
                 'products.remarks',
                 'products.remarks_updated_at',
                 'products.remarks_updated_by',
+                'products.warehouse_qty_source',
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)
+            // Qty source: this page IS the mark1 ledger, so on a CMS-connected domain
+            // the useful default is the products whose warehouse qty lives here
+            // ('ledger' — CityBox SKUs); 'cms' / 'all' remain selectable.
+            ->when(in_array($request->warehouse_qty_source, ['cms', 'ledger'], true), function ($query) use ($request) {
+                $query->where('products.warehouse_qty_source', $request->warehouse_qty_source);
+            })
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
                 $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             }, function ($query) {

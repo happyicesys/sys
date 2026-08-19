@@ -252,9 +252,14 @@
                       {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
 
-                    <!-- Qty in Warehouse (Blue) -->
+                    <!-- Qty in Warehouse (Blue). Manual-ledger products (CityBox SKUs) show the mark1 ledger figure instead of CMS. -->
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                       {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      <div v-if="product.warehouse_qty_source === 'ledger'" class="mt-0.5">
+                        <Link :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
+                          class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                          title="Warehouse qty is the mark1 ledger (manual incoming − picks), not CMS. Click to key incoming / see history.">Manual ledger</Link>
+                      </div>
                     </td>
                     <!-- Picked Qty (Gray) -->
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-gray-800">
@@ -353,7 +358,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
 import { onBeforeMount, onMounted, ref, watch, computed } from 'vue';
-import { Head, usePage, router } from '@inertiajs/vue3';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import BlindFlavourChips from '@/Components/BlindFlavourChips.vue';
