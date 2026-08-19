@@ -2635,10 +2635,13 @@ function saveVend(vendID) {
       key_id: data.key_id ? data.key_id.id : null,
       // is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
-      machine_type: data.machine_type ? data.machine_type.id : 'vending_machine',
+      // A cleared/unmatched picker must NOT silently demote the machine to a vending
+      // machine (that would also wipe a CityBox serial server-side): fall back to the
+      // vend's current type.
+      machine_type: data.machine_type ? data.machine_type.id : (props.vend.machine_type || 'vending_machine'),
       // Linkage travels with the type: switching a vend away from Smart Chiller
       // drops the Citybox serial rather than tripping the server-side guard.
-      citybox_equipment_id: data.machine_type && data.machine_type.id === 'smart_chiller'
+      citybox_equipment_id: ((data.machine_type ? data.machine_type.id : props.vend.machine_type) === 'smart_chiller')
         ? (data.citybox_equipment_id || null)
         : null,
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,

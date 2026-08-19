@@ -5196,6 +5196,20 @@ class VendController extends Controller
             $request->merge(['citybox_equipment_id' => null]);
         }
 
+        // Leaving Smart Chiller while a CityBox serial is linked must be an explicit
+        // act, not a side effect of a mis-set dropdown: refuse, and tell them to clear
+        // the serial first. (2026-08-19: a single Save with an unmatched picker used
+        // to demote the vend and silently wipe the link.)
+        $requestedType = $request->has('machine_type') ? ($request->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) : ($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE);
+        $explicitlyClearingSerial = $request->has('citybox_equipment_id') && ! $request->citybox_equipment_id;
+        if ($vend->citybox_equipment_id && $vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER
+            && $requestedType !== Vend::MACHINE_TYPE_SMART_CHILLER
+            && ! $explicitlyClearingSerial) {
+            return redirect()->back()->withErrors([
+                'machine_type' => 'This vend is linked to CityBox device '.$vend->citybox_equipment_id.'. Clear the Citybox Equipment ID first if you really want to change its machine type.',
+            ]);
+        }
+
         $request->validate([
             'citybox_equipment_id' => [
                 'sometimes', 'nullable', 'string', 'max:64',

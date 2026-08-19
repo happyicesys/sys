@@ -146,6 +146,29 @@ class CityboxProvisioningTest extends TestCase
         Vend::create(['code' => 9702, 'machine_type' => 'smart_chiller', 'citybox_equipment_id' => 'DUP1', 'is_active' => 1]);
     }
 
+    public function test_settings_save_cannot_silently_demote_a_linked_chiller_and_wipe_its_serial(): void
+    {
+        // Regression (prod 2026-08-19, vend 1360): a Save with an unmatched Machine Type
+        // picker submitted machine_type=vending_machine, and the server dutifully nulled
+        // the CityBox serial. Now the server refuses the demotion while a serial exists.
+        \Spatie\Permission\Models\Permission::findOrCreate('update machine-settings', 'web');
+        $this->user->givePermissionTo('update machine-settings');
+        $vend = Vend::create(['code' => 10001, 'machine_type' => 'smart_chiller', 'citybox_equipment_id' => 'ICB26F9605R9', 'is_active' => 1, 'operator_id' => $this->op()->id]);
+        $base = ['name' => null, 'begin_date' => '2026-08-19', 'lcd_monitor_id' => 1, 'menu_frame_id' => 1, 'operator_id' => $this->op()->id,
+            'vend_model_id' => 1, 'vend_prefix_id' => 1, 'product_mapping_id' => 1, 'vend_config_id' => null, 'status' => 'active', 'is_fan_enabled' => true];
+
+        // The bad payload the old page could send
+        $this->from('/settings/vend/'.$vend->id.'/update')
+            ->post("/vends/{$vend->id}/update", $base + ['machine_type' => 'vending_machine', 'citybox_equipment_id' => 'ICB26F9605R9'])
+            ->assertSessionHasErrors('machine_type');
+        $this->assertSame('ICB26F9605R9', $vend->fresh()->citybox_equipment_id); // untouched
+        $this->assertSame('smart_chiller', $vend->fresh()->machine_type);
+
+        // Explicitly clearing the serial AND changing type is still allowed (deliberate act)
+        $this->post("/vends/{$vend->id}/update", $base + ['machine_type' => 'vending_machine', 'citybox_equipment_id' => null]);
+        $this->assertNull($vend->fresh()->citybox_equipment_id);
+    }
+
     // ── HTTP ───────────────────────────────────────────────────────────────
 
     public function test_store_requires_a_customer_choice_and_unique_equipment(): void
