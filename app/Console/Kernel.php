@@ -34,6 +34,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('citybox:openapi-poll')->everyThreeMinutes();
         // Hourly mirror of their SKU catalog (§5). Same enabled guard inside.
         $schedule->command('citybox:sync-products')->hourly();
+        // Poll-row retention (movements are never pruned) — §5b.2.
+        $schedule->command('citybox:prune-polls')->dailyAt('01:50')->withoutOverlapping();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');
