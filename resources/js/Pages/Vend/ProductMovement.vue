@@ -160,7 +160,7 @@
                                         </th>
                                         <th  scope="col" class="th-header w-[6%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty Source
-                                            <ExclamationCircleIcon class="inline min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: '<b>Manual</b> = this page is the truth: key incoming here, picks deduct. <b>CMS API</b> = warehouse qty is pulled from CMS (see Warehouse Qty via API); figures here are the mark1 ledger only. Set per product on its edit page.', html: true }"></ExclamationCircleIcon>
+                                            <ExclamationCircleIcon class="inline min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: '<b>Manual</b> = this page is the truth: key incoming here, picks deduct. <b>CMS API</b> = warehouse qty is pulled from CMS (see Warehouse Qty via API); figures here are the self-system ledger only. Set per product on its edit page.', html: true }"></ExclamationCircleIcon>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                                             <div class="flex items-center justify-center gap-1">
@@ -179,7 +179,7 @@
 
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
-                                            <span class="font-normal text-gray-600">(mark1 ledger: incoming + adjustments)</span>
+                                            <span class="font-normal text-gray-600">(self-system ledger: incoming + adjustments)</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Picked Qty<br>
@@ -435,7 +435,7 @@ const filters = ref({
 // that is the default there; elsewhere the ledger is everyone's truth → All.
 const qtySourceOptions = ref([
     {id: 'all', value: 'All'},
-    {id: 'ledger', value: 'Manual (mark1 ledger)'},
+    {id: 'ledger', value: 'Manual (self-system ledger)'},
     {id: 'cms', value: 'CMS API'},
 ]);
 const today = moment().format('YYYY-MM-DD');

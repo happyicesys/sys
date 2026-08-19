@@ -98,7 +98,7 @@
                 </MultiSelect>
                 <p class="mt-1 text-xs text-gray-500">
                   <b>CMS API</b> = pulled from CMS by product code (vending fleet default).
-                  <b>Manual (mark1 ledger)</b> = you key incoming stock in Products › Movements; picks deduct it. CityBox SKUs are ledger.
+                  <b>Manual (self-system ledger)</b> = you key incoming stock in Product Management › Warehouse Qty (self-system ledger); picks deduct it. CityBox SKUs are ledger; everything else CMS.
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
                   {{ form.errors.warehouse_qty_source }}
@@ -629,7 +629,7 @@ const isPersistedParentSku = computed(() => !!props.product?.data?.is_parent_sku
 
 const warehouseQtySourceOptions = ref([
   { id: 'cms', name: 'CMS API (pulled)' },
-  { id: 'ledger', name: 'Manual (mark1 ledger)' },
+  { id: 'ledger', name: 'Manual (self-system ledger)' },
 ]);
 const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
@@ -673,6 +673,7 @@ onMounted(() => {
     is_halal: product.value.is_halal ?? false,
     is_healthier_choice: product.value.is_healthier_choice ?? false,
     is_parent_sku: product.value.is_parent_sku ?? false,
+    warehouse_qty_source: warehouseQtySourceOptions.value.find(o => o.id === (product.value.warehouse_qty_source || 'cms')) || warehouseQtySourceOptions.value[0],
     tags: product.value.tagBindings?.map(tagBinding => productTagOptions.value.find(productTagOption => productTagOption.id === tagBinding.tag.id)),
   }) : useForm(getDefaultForm());
 });

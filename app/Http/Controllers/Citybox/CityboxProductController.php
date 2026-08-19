@@ -92,7 +92,7 @@ class CityboxProductController extends Controller
         }
 
         $msg = $product
-            ? 'Mapped "'.$row->name.'" to '.$product->name.' (warehouse qty from mark1 ledger)'
+            ? 'Mapped "'.$row->name.'" to '.$product->name.' (warehouse qty from the self-system ledger)'
             : 'Unmapped "'.$row->name.'"';
 
         return redirect()->back()->with('success', $msg);

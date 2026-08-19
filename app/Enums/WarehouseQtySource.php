@@ -18,8 +18,8 @@ enum WarehouseQtySource: string
     public function label(): string
     {
         return match ($this) {
-            self::Cms => 'CMS API',
-            self::Ledger => 'mark1 ledger (manual incoming + picks)',
+            self::Cms => 'CMS API (pulled)',
+            self::Ledger => 'Manual (self-system ledger)',
         };
     }
 }

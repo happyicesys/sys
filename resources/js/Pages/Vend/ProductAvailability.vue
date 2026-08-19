@@ -258,7 +258,7 @@
                       <div v-if="product.warehouse_qty_source === 'ledger'" class="mt-0.5">
                         <Link :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
                           class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                          title="Warehouse qty is the mark1 ledger (manual incoming − picks), not CMS. Click to key incoming / see history.">Manual ledger</Link>
+                          title="Warehouse qty is the self-system ledger (manual incoming − picks), not CMS. Click to key incoming / see history.">Self-system ledger</Link>
                       </div>
                     </td>
                     <!-- Picked Qty (Gray) -->

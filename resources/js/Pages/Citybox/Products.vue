@@ -26,7 +26,7 @@
       <div class="rounded-md bg-indigo-50 p-3 mb-3 text-xs text-indigo-800">
         Mirrors CityBox's own product list (their ERP) every hour and whenever a chiller shows a new SKU.
         Each SKU automatically gets a mark1 product under the <b>Citybox</b> operator — product code = CityBox id, name and image follow CityBox,
-        warehouse qty from the mark1 ledger. Nothing to map by hand; edit costs on the product itself.
+        warehouse qty from the self-system ledger. Nothing to map by hand; edit costs on the product itself.
         <span v-if="counts.unlinked" class="text-red-700 font-semibold">{{ counts.unlinked }} SKU(s) have no product — is the Citybox operator seeded?</span>
       </div>
 

@@ -97,7 +97,7 @@
               >
               </MultiSelect>
               <p class="mt-1 text-xs text-gray-500">
-                CMS API = today's default for the vending fleet. mark1 ledger = manual incoming + picks (CityBox / no-CMS products).
+                CMS API (pulled) = the default for every product. Manual (self-system ledger) = you key incoming stock; picks deduct it (CityBox SKUs).
               </p>
               <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
                 {{ form.errors.warehouse_qty_source }}
@@ -568,8 +568,8 @@ const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
 const measurementUnitOptions = ref([]);
 const warehouseQtySourceOptions = ref([
-  { id: 'cms', name: 'CMS API' },
-  { id: 'ledger', name: 'mark1 ledger (manual incoming + picks)' },
+  { id: 'cms', name: 'CMS API (pulled)' },
+  { id: 'ledger', name: 'Manual (self-system ledger)' },
 ]);
 const showUomModal = ref(false);
 const uomOptions = ref([]);
