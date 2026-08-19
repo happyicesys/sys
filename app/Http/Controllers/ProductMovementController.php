@@ -180,6 +180,13 @@ class ProductMovementController extends Controller
             }
         }
         $operators = is_array($request->operators) ? $request->operators : [$request->operators];
+        if (in_array('all', $operators, true)) {
+            // 'All' (the ledger page's default): HIPL staff see every operator's
+            // movements; anyone else is pinned to their own operator.
+            $operators = auth()->user()->operator->code == 'HIPL'
+                ? Operator::pluck('id')->all()
+                : [auth()->user()->operator_id];
+        }
 
         // 2. Incoming (ProductMovement)
         // Select: date, type_label, product, qty, running_qty (calc later), remarks
@@ -494,19 +501,11 @@ class ProductMovementController extends Controller
     private function getProductQuery(Request $request)
     {
         if ($request->operators == null) {
-            if (auth()->user()->operator->code == 'HIPL') {
-                $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
-                ]);
-            } else {
-                $request->merge(['operators' => [auth()->user()->operator_id]]);
-            }
+            // Default = All (Brian, 2026-08-20): the self-system ledger spans
+            // operators (CityBox SKUs sit under CB, not in the HIPL group).
+            // Non-HIPL users are still pinned to their own operator by
+            // OperatorProductFilterScope, so 'all' never widens their view.
+            $request->merge(['operators' => ['all']]);
         }
 
         $request->merge([

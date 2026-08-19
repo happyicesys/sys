@@ -51,6 +51,12 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
         } else {
             $operators = is_array($request->operators) ? $request->operators : explode(',', $request->operators);
         }
+        if (in_array('all', $operators, true)) {
+            // Same rule as ProductMovementController::trackingDetails.
+            $operators = auth()->user()->operator->code == 'HIPL'
+                ? Operator::pluck('id')->all()
+                : [auth()->user()->operator_id];
+        }
 
         // Incoming Query
         $incomingQuery = ProductMovement::query()

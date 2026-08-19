@@ -1,11 +1,17 @@
 <template>
-    <Head title="Warehouse Qty & Planning" />
+    <Head :title="pageTitle" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Warehouse Qty & Planning
-            </h2>
+            <div>
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                    {{ pageTitle }}
+                </h2>
+                <p class="mt-1 text-xs text-gray-500" v-if="isCmsUrlSet">
+                    Products whose warehouse quantity is kept in this system (incoming + adjustments − picks) — e.g. CityBox SKUs.
+                    CMS-sourced products are on <Link href="/products/availability" class="text-indigo-600 hover:underline">Warehouse Qty (via API)</Link>.
+                </p>
+            </div>
         </template>
 
         <div class="m-2 sm:mx-2 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -392,7 +398,8 @@ const props = defineProps({
 const subtotalProducts = computed(() => (props.products?.data ?? []).filter(p => !p.is_parent_sku))
 
 const permissions = usePage().props.auth.permissions
-const authOperator = usePage().props.auth.operator
+const isCmsUrlSet = !!usePage().props.isCmsUrlSet
+const pageTitle = isCmsUrlSet ? 'Warehouse Qty (self-system ledger)' : 'Warehouse Qty & Planning'
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
 
@@ -424,15 +431,9 @@ onMounted(() => {
 			{id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
-  filters.value.operators = authOperator ? [
-		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [
-			operatorOptions.value.find(operator => operator.code == 'HIMD'),
-			operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-		] : [],
-	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
+  // Default = All (Brian, 2026-08-20): the ledger spans operators (CityBox SKUs
+  // sit under CB). Non-HIPL users are pinned to their own operator server-side.
+  filters.value.operators = [operatorOptions.value[0]]
 
     // If props.filters.operators exist, it means the user has searched, so we should use those values.
     // The values from props.filters.operators will be IDs (strings or numbers) if they came from the URL.
@@ -481,15 +482,7 @@ const onSearchFilterUpdated = () => {
 
 
 const onResetFilterClicked = () => {
-    filters.value.operators = [
-        operatorOptions.value.find(operator => operator.id === authOperator.id),
-        ...authOperator.code == 'HIPL' ? [
-            operatorOptions.value.find(operator => operator.code == 'HIMD'),
-            operatorOptions.value.find(operator => operator.code == 'LEA'),
-            operatorOptions.value.find(operator => operator.code == 'HIESG'),
-            operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-        ] : []
-    ].filter(Boolean);
+    filters.value.operators = [operatorOptions.value[0]]; // All
     filters.value.product_name = '';
     filters.value.product_code = '';
     filters.value.is_available = booleanOptions.value[0];

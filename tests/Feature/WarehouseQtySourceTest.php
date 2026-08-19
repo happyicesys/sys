@@ -108,8 +108,11 @@ class WarehouseQtySourceTest extends TestCase
         foreach (['read product-availability'] as $perm) {
             Permission::findOrCreate($perm, 'web');
         }
+        // HIPL must be operator id 1: OperatorProductFilterScope keys "sees every
+        // operator" on id 1 (as in prod), and RefreshDatabase does not reset autoincrement.
         $op = \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
-        $u = User::factory()->create(['operator_id' => $op->id]);
+        DB::table('operators')->where('id', $op->id)->update(['id' => 1]);
+        $u = User::factory()->create(['operator_id' => 1]);
         $u->givePermissionTo(['read products', 'update products', 'read product-availability']);
 
         return $u;
@@ -150,5 +153,25 @@ class WarehouseQtySourceTest extends TestCase
         config(['app.cms_url' => null]);
         $this->actingAs($u)->get('/products/movements?operators[]=all')
             ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => count($rows) === 2));
+    }
+
+    public function test_ledger_page_defaults_to_all_operators_and_warehouse_log_honours_all(): void
+    {
+        $u = $this->plannerUser(); // HIPL
+        $cb = \App\Models\Operator::create(['code' => 'CB', 'name' => 'Citybox', 'country_id' => 1]);
+        Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $cb->id, 'warehouse_qty_source' => 'ledger']);
+        config(['app.cms_url' => 'https://cms.test']);
+
+        // No operators param at all: the CB product (not in the HIPL group) is listed.
+        $this->actingAs($u)->get('/products/movements')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => count($rows) === 1 && $rows[0]['code'] === '89925'));
+
+        // Warehouse Log with operators[]=all must not be empty (whereIn 'all' used to match nothing).
+        ProductMovement::create(['product_id' => Product::withoutGlobalScopes()->where('code', '89925')->value('id'), 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 5, 'operator_id' => $cb->id, 'created_at' => now()]);
+        $this->actingAs($u)->get('/products/movements/tracking?operators[]=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('ProductMovement/TrackingDetails')
+                ->where('movements.data', fn ($rows) => collect($rows)->contains(fn ($r) => (int) ($r['qty'] ?? 0) === 5)));
     }
 }

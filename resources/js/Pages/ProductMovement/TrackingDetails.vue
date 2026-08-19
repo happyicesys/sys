@@ -38,6 +38,7 @@ const filters = ref({
 onMounted(() => {
     // Initialize Operators
     operatorOptions.value = [
+        {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
     ]
 
