@@ -539,7 +539,7 @@
                                 <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
                                   {{ channel.product.name }}
                                 </p>
-                                <p class="mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.ref_price != null">
+                                <p class="mt-1.5 text-xs font-semibold text-emerald-700" v-if="channel.ref_price != null">
                                   {{ formatPrice(channel.ref_price) }}
                                 </p>
                             </div>
@@ -975,7 +975,7 @@
                             <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
                               <br> {{ channel.product.name }}
                             </span>
-                            <span class="block mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.ref_price != null">
+                            <span class="block mt-1.5 text-xs font-semibold text-emerald-700" v-if="channel.ref_price != null">
                               {{ formatPrice(channel.ref_price) }}
                             </span>
                           </span>
