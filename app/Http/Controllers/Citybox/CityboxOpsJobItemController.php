@@ -43,6 +43,10 @@ class CityboxOpsJobItemController extends Controller
         try {
             $session = $visits->openDoor($item, $request->user(), $request->input('source', CityboxDoorOpenLog::SOURCE_OPS_JOB_PAGE), $request);
         } catch (CityboxApiException $e) {
+            // Nothing opened — don't hold the driver to the 20 s guard on a refusal
+            // (an offline chiller that comes back deserves an immediate retry).
+            RateLimiter::clear($key);
+
             return redirect()->back()->withErrors(['citybox' => $this->friendly($e)]);
         }
 

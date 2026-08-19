@@ -266,6 +266,18 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertStringContainsString('offline', session('errors')->first('citybox'));
     }
 
+    public function test_refused_open_does_not_arm_the_double_tap_guard(): void
+    {
+        $this->gw->openRefusals['E1'] = '售货机失联=>20002';
+        $this->actingAs($this->driver)->post("/ops-jobs/items/{$this->item->id}/citybox-open-door")->assertSessionHasErrors('citybox');
+
+        // Chiller comes back online: the very next press must reach CityBox, not the 20 s guard.
+        unset($this->gw->openRefusals['E1']);
+        $this->actingAs($this->driver)->post("/ops-jobs/items/{$this->item->id}/citybox-open-door")->assertSessionHas('success');
+        $this->assertSame(2, CityboxDoorOpenLog::count());
+        $this->assertSame(CityboxDoorOpenLog::RESULT_OPENED, CityboxDoorOpenLog::latest('id')->first()->result);
+    }
+
     public function test_open_door_route_is_403_for_a_vending_machine_item(): void
     {
         $vm = Vend::create(['code' => 9602, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1]);
