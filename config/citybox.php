@@ -38,4 +38,23 @@ return [
         // Attempts on connection/timeout errors only (their API blips briefly a few times a day).
         'retries' => env('CITYBOX_OPENAPI_RETRIES', 3),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Provisioning (design §8c / §8f)
+    |--------------------------------------------------------------------------
+    | Every Smart Chiller vend + its customer is forced under ONE dedicated
+    | operator so chiller performance and the CIMB settlement batch never mix
+    | with other operators. Seeded by CityboxOperatorSeeder; the code is the
+    | stable handle (operators.code), never a hard-coded id.
+    */
+    'operator_code' => env('CITYBOX_OPERATOR_CODE', 'CB'),
+    'vend_prefix_name' => env('CITYBOX_VEND_PREFIX', 'CB'),
+    // Their `type` -> mark1 vend_model name. Both SG models are 5 layers
+    // (their portal, 2026-08-19). Unknown types get the generic entry + a log.
+    'device_models' => [
+        'visual-2' => 'CityBox F5 (visual-2)',
+        'visual-8' => 'CityBox C5 (visual-8)',
+        'unknown' => 'CityBox (unknown type)',
+    ],
 ];

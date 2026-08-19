@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Http\Resources\UserResource;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +20,6 @@ class HandleInertiaRequests extends Middleware
     /**
      * Determine the current asset version.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return string|null
      */
     public function version(Request $request)
@@ -32,7 +30,6 @@ class HandleInertiaRequests extends Middleware
     /**
      * Define the props that are shared by default.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return array
      */
     public function share(Request $request)
@@ -47,7 +44,7 @@ class HandleInertiaRequests extends Middleware
         // is saved, so the value is always identical to a fresh query.
         $setting = Setting::singleton();
         $allowOverrideIds = collect($setting?->allow_overwrite_logo_operator_ids_array ?? [])
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->filter()
             ->unique()
             ->values();
@@ -66,16 +63,18 @@ class HandleInertiaRequests extends Middleware
         $smallLogoUrl = env('APP_SMALL_LOGO_URL');
 
         return array_merge(parent::share($request), [
+            // Smart Chiller (CityBox) integration switch — the vend Create page enables its radio branch on this.
+            'cityboxEnabled' => (bool) config('citybox.openapi.enabled'),
             'auth' => [
                 'user' => $user,
                 'operator' => $operator,
                 'operator.name' => $operator ? $operator->name : null,
                 'operatorCountry' => $operator ? $operator->country : null,
                 'roles' => function () use ($request) {
-                    return ($request->user() ? $request->user()->roles->pluck('name')->all() : null);
+                    return $request->user() ? $request->user()->roles->pluck('name')->all() : null;
                 },
                 'permissions' => function () use ($request) {
-                    return ($request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null);
+                    return $request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null;
                 },
                 'operatorRole' => $user ? $user->hasRole('operator') : null,
                 // Single source for the Vue side of the driver-role checks, so
@@ -96,7 +95,7 @@ class HandleInertiaRequests extends Middleware
             'logoUrl' => $logoUrl,
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,
-            'isCmsUrlSet' => !empty(env('CMS_URL')),
+            'isCmsUrlSet' => ! empty(env('CMS_URL')),
             // Address-autofill map provider. When unset (or set to an
             // unsupported value) the address search API is disabled and the
             // Building/Street fields fall back to manual entry. Only 'onemap'
@@ -114,8 +113,8 @@ class HandleInertiaRequests extends Middleware
             'visitorVisit' => $request->attributes->get('visitor_visit_uuid'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
-                'error'   => fn () => $request->session()->get('error'),
-                'info'    => fn () => $request->session()->get('info'),
+                'error' => fn () => $request->session()->get('error'),
+                'info' => fn () => $request->session()->get('info'),
                 'mcpNewToken' => fn () => $request->session()->get('mcpNewToken'),
             ],
             // Messenger-style unread-note badges for the sidebar, keyed by menu
@@ -124,18 +123,20 @@ class HandleInertiaRequests extends Middleware
             // so its own badge reads 0 ("clear on visit") while other pages
             // keep their accurate counts. See NoteNotificationService.
             'noteBadges' => function () use ($user) {
-                if (!$user) {
-                    return new \stdClass();
+                if (! $user) {
+                    return new \stdClass;
                 }
+
                 return app(\App\Services\NoteNotificationService::class)
                     ->badgeCounts($user);
             },
             // Separate @-mention badge counts keyed by href — clears on visit
             // (uses last_viewed_at) just like noteBadges. See NoteNotificationService.
             'noteMentionBadges' => function () use ($user) {
-                if (!$user) {
-                    return new \stdClass();
+                if (! $user) {
+                    return new \stdClass;
                 }
+
                 return app(\App\Services\NoteNotificationService::class)
                     ->mentionBadgeCounts($user);
             },
@@ -154,10 +155,10 @@ class HandleInertiaRequests extends Middleware
     {
         $stamp = rtrim(url('/'), '/');
         foreach (glob(base_path('routes/*.php')) ?: [] as $file) {
-            $stamp .= '|' . $file . ':' . @filemtime($file);
+            $stamp .= '|'.$file.':'.@filemtime($file);
         }
 
-        return Cache::remember('ziggy_routes_' . md5($stamp), 86400, function () {
+        return Cache::remember('ziggy_routes_'.md5($stamp), 86400, function () {
             return (new Ziggy)->toArray();
         });
     }

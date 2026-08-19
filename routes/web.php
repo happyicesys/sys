@@ -677,6 +677,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
     // CityBox Products — mapping screen for the smart-chiller catalog mirror (§5.5).
     // Permission gates live in the controller constructor (read/update products).
     Route::prefix('citybox')->group(function () {
+        // Vend provisioning from the CityBox fleet (Create page radio branch, §8c).
+        Route::get('/devices', [\App\Http\Controllers\Citybox\CityboxProvisioningController::class, 'devices'])->name('citybox.devices');
+        Route::get('/devices/{equipmentId}/preview', [\App\Http\Controllers\Citybox\CityboxProvisioningController::class, 'preview'])->name('citybox.devices.preview');
+        Route::post('/vends', [\App\Http\Controllers\Citybox\CityboxProvisioningController::class, 'store'])->name('citybox.vends.store');
+        Route::get('/customers/search', [\App\Http\Controllers\Citybox\CityboxProvisioningController::class, 'customerSearch'])->name('citybox.customers.search');
         Route::get('/products', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'index'])->name('citybox.products');
         Route::post('/products/sync', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'syncNow'])->name('citybox.products.sync');
         Route::post('/products/{id}/map', [\App\Http\Controllers\Citybox\CityboxProductController::class, 'map'])->name('citybox.products.map');
