@@ -675,16 +675,37 @@
                   <span v-if="vend.citybox_status_json && vend.citybox_status_json.name" class="text-xs text-gray-600">{{ vend.citybox_status_json.name }} · {{ vend.citybox_status_json.device_type }}</span>
                   <span class="text-xs" :class="vend.is_online ? 'text-green-700' : 'text-gray-500'">{{ vend.is_online ? 'online' : 'offline' }}</span>
                 </div>
-                <input
-                  v-else
-                  v-model="form.citybox_equipment_id"
-                  type="text"
-                  placeholder="e.g. ICB23EHWFC5B"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
+                <template v-else>
+                  <!-- Repair picker: the unlinked CityBox fleet, pre-selected to the device whose
+                       name this vend last saw (citybox_status_json.name). Falls back to typing. -->
+                  <select
+                    v-if="cbRepair.devices.length && !cbRepair.manual"
+                    v-model="form.citybox_equipment_id"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    <option :value="null">— pick the CityBox device —</option>
+                    <option v-for="d in cbRepair.devices" :key="d.equipment_id" :value="d.equipment_id">
+                      {{ d.name }} · {{ d.equipment_id }} · {{ d.model }} · {{ d.online ? 'online' : 'offline' }}
+                    </option>
+                  </select>
+                  <input
+                    v-else
+                    v-model="form.citybox_equipment_id"
+                    type="text"
+                    placeholder="e.g. ICB23EHWFC5B"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                  <p class="mt-1 text-xs" :class="cbRepair.matched ? 'text-green-700' : 'text-gray-500'">
+                    <span v-if="cbRepair.loading">Loading the CityBox fleet…</span>
+                    <span v-else-if="cbRepair.matched">Pre-selected <b>{{ cbRepair.matched.name }}</b> ({{ cbRepair.matched.equipment_id }}) — the device this vend was last synced with. Save to re-link.</span>
+                    <span v-else-if="cbRepair.devices.length">{{ cbRepair.devices.length }} unlinked device(s) in the CityBox fleet.</span>
+                    <span v-else-if="cbRepair.error">{{ cbRepair.error }}</span>
+                    <a v-if="cbRepair.devices.length" href="#" class="ml-1 text-indigo-600 hover:underline" @click.prevent="cbRepair.manual = !cbRepair.manual">{{ cbRepair.manual ? 'pick from list' : 'type it instead' }}</a>
+                  </p>
+                </template>
                 <p class="mt-1 text-xs text-gray-500">
                   <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation; synced {{ vend.citybox_synced_at || 'never' }}. Not editable.</template>
-                  <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — enter it here only to repair a lost link.</template>
+                  <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — set it here only to repair a lost link.</template>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.citybox_equipment_id">
                   {{ form.errors.citybox_equipment_id }}
@@ -1510,7 +1531,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { useToast } from "vue-toastification";
@@ -1865,7 +1886,25 @@ function getDefaultForm() {
   }
 }
 
+// Repair picker for a Smart Chiller that lost its CityBox link (see the field above).
+const cbRepair = reactive({ devices: [], loading: false, error: null, matched: null, manual: false });
+async function loadCityboxRepairDevices() {
+  if (props.vend.machine_type !== 'smart_chiller' || props.vend.citybox_equipment_id) return;
+  cbRepair.loading = true;
+  try {
+    const { data } = await axios.get('/citybox/devices', { params: { fresh: 1 } });
+    cbRepair.devices = data.unlinked || [];
+    if (data.error) cbRepair.error = data.error;
+    const remembered = props.vend.citybox_status_json && props.vend.citybox_status_json.name;
+    cbRepair.matched = remembered ? (cbRepair.devices.find(d => d.name === remembered) || null) : null;
+    if (cbRepair.matched && !form.value.citybox_equipment_id) form.value.citybox_equipment_id = cbRepair.matched.equipment_id;
+  } catch (e) {
+    cbRepair.error = e?.response?.status === 403 ? 'No permission to list the CityBox fleet — type the serial.' : 'Could not load the CityBox fleet — type the serial.';
+  } finally { cbRepair.loading = false; }
+}
+
 onMounted(() => {
+  loadCityboxRepairDevices();
   stickerOptions.value = [{ id: '', name: '--- Clear ---' }, ...(((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map(s => ({ id: s.id, name: s.name })))]
 
   // Per-field audit (who/when) for this machine, derived from user_logs.
