@@ -249,90 +249,18 @@
             </div>
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <div class="flex flex-col items-center">
-                    <button type="button" class="px-3 bg-white text-lg font-medium text-gray-500 rounded-md"
-                            @click="isShowDeprecatedSection = !isShowDeprecatedSection">
-                      Deprecated {{ isShowDeprecatedSection ? '▴' : '▾' }}
-                    </button>
-                    <span class="text-sm text-gray-600">
-                      Kept for big-board machines below APK v{{ deprecation.threshold }} — still stored and pushed, no longer maintained.
-                    </span>
-                    <span class="text-sm"
-                          :class="deprecationReady ? 'text-green-600' : 'text-amber-600'">
-                      {{ deprecation.readyVends ?? 0 }} of {{ deprecation.totalVends ?? 0 }} bound machines on v{{ deprecation.threshold }}+
-                      <template v-if="deprecationReady && (deprecation.totalVends ?? 0) > 0">
-                        — fleet ready, this section can be retired
-                      </template>
-                    </span>
-                    <span class="text-sm text-gray-500" v-if="deprecation.maybeSmallBoard > 0">
-                      {{ deprecation.maybeSmallBoard }} bound machine(s) report a 12x/13x version — possibly small-board units, which never sync these parameters. Verify the board type before treating them as blockers.
-                    </span>
-                  </div>
-                </div>
+              <div class="flex items-center gap-3">
+                <div class="flex-1 border-t border-gray-300" aria-hidden="true"></div>
+                <span class="text-lg font-medium text-gray-900"> Default Media — Pictures &amp; Videos </span>
+                <div class="flex-1 border-t border-gray-300" aria-hidden="true"></div>
               </div>
-            </div>
-
-            <template v-if="isShowDeprecatedSection">
-              <div class="sm:col-span-5">
-                <FormInput v-model="form.dcvendFreePlanPromoValue" disabled="true">
-                  <div class="text-base">
-                    DCVend Free Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
-                  </div>
-                </FormInput>
-              </div>
-
-              <div class="sm:col-span-5">
-                <FormInput v-model="form.dcvendGoldPlanPromoValue" disabled="true">
-                  <div class="text-base">
-                    DCVend Gold Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
-                  </div>
-                </FormInput>
-              </div>
-
-              <div class="sm:col-span-5">
-                <FormInput v-model="form.dcvendPlatinumPlanPromoValue" disabled="true">
-                  <div class="text-base">
-                    DCVend Platinum Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
-                  </div>
-                </FormInput>
-              </div>
-
-              <div class="sm:col-span-5" v-if="legacyReadonlyKeys.length">
-                <label class="flex justify-start text-base font-medium text-gray-700">
-                  Legacy keys <span class="text-sm text-gray-500 ml-1">(read-only)</span>
-                </label>
-                <div class="mt-1 text-sm text-gray-600 space-y-1">
-                  <div v-for="entry in legacyReadonlyKeys" :key="entry.key">
-                    <span>{{ entry.label }}</span>
-                    (<span class="font-mono">{{ entry.key }}</span>):
-                    <span class="font-mono">{{ formatLegacyValue(apkSetting?.settings_parameter_json?.[entry.key]) }}</span>
-                    <span class="text-gray-400" v-if="entry.note"> — {{ entry.note }}</span>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Media — Pictures &amp; Videos </span>
-                    <span class="text-sm">
-                      (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Pictures &amp; /Videos)
-                    </span>
-                    <span class="text-sm text-gray-600">
-                      In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
-                    </span>
-                  </div>
-                </div>
+              <div class="mt-1 flex flex-col items-center text-center">
+                <span class="text-sm">
+                  (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Pictures &amp; /Videos)
+                </span>
+                <span class="text-sm text-gray-600">
+                  In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
+                </span>
               </div>
             </div>
 
@@ -496,21 +424,18 @@
 
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Campaign Media — Pictures &amp; Videos </span>
-                    <span class="text-sm">
-                      (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Pictures &amp; /Videos)
-                    </span>
-                    <span class="text-sm text-gray-600">
-                      In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
-                    </span>
-                  </div>
-                </div>
+              <div class="flex items-center gap-3">
+                <div class="flex-1 border-t border-gray-300" aria-hidden="true"></div>
+                <span class="text-lg font-medium text-gray-900"> Campaign Media — Pictures &amp; Videos </span>
+                <div class="flex-1 border-t border-gray-300" aria-hidden="true"></div>
+              </div>
+              <div class="mt-1 flex flex-col items-center text-center">
+                <span class="text-sm">
+                  (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Pictures &amp; /Videos)
+                </span>
+                <span class="text-sm text-gray-600">
+                  In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
+                </span>
               </div>
             </div>
 
@@ -1365,6 +1290,72 @@
             </div>
             </div>
             </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="flex items-center gap-3">
+                <div class="flex-1 border-t border-gray-300" aria-hidden="true"></div>
+                <button type="button" class="text-lg font-medium text-gray-500 rounded-md hover:text-gray-700"
+                        @click="isShowDeprecatedSection = !isShowDeprecatedSection">
+                  Deprecated {{ isShowDeprecatedSection ? '▴' : '▾' }}
+                </button>
+                <div class="flex-1 border-t border-gray-300" aria-hidden="true"></div>
+              </div>
+              <div class="mt-1 flex flex-col items-center text-center">
+                <span class="text-sm text-gray-600">
+                  Kept for big-board machines below APK v{{ deprecation.threshold }} — still stored and pushed, no longer maintained.
+                </span>
+                <span class="text-sm"
+                      :class="deprecationReady ? 'text-green-600' : 'text-amber-600'">
+                  {{ deprecation.readyVends ?? 0 }} of {{ deprecation.totalVends ?? 0 }} bound machines on v{{ deprecation.threshold }}+
+                  <template v-if="deprecationReady && (deprecation.totalVends ?? 0) > 0">
+                    — fleet ready, this section can be retired
+                  </template>
+                </span>
+                <span class="text-sm text-gray-500" v-if="deprecation.maybeSmallBoard > 0">
+                  {{ deprecation.maybeSmallBoard }} bound machine(s) report a 12x/13x version — possibly small-board units, which never sync these parameters. Verify the board type before treating them as blockers.
+                </span>
+              </div>
+            </div>
+
+            <template v-if="isShowDeprecatedSection">
+              <div class="sm:col-span-5">
+                <FormInput v-model="form.dcvendFreePlanPromoValue" disabled="true">
+                  <div class="text-base">
+                    DCVend Free Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-5">
+                <FormInput v-model="form.dcvendGoldPlanPromoValue" disabled="true">
+                  <div class="text-base">
+                    DCVend Gold Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-5">
+                <FormInput v-model="form.dcvendPlatinumPlanPromoValue" disabled="true">
+                  <div class="text-base">
+                    DCVend Platinum Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-5" v-if="legacyReadonlyKeys.length">
+                <label class="flex justify-start text-base font-medium text-gray-700">
+                  Legacy keys <span class="text-sm text-gray-500 ml-1">(read-only)</span>
+                </label>
+                <div class="mt-1 text-sm text-gray-600 space-y-1">
+                  <div v-for="entry in legacyReadonlyKeys" :key="entry.key">
+                    <span>{{ entry.label }}</span>
+                    (<span class="font-mono">{{ entry.key }}</span>):
+                    <span class="font-mono">{{ formatLegacyValue(apkSetting?.settings_parameter_json?.[entry.key]) }}</span>
+                    <span class="text-gray-400" v-if="entry.note"> — {{ entry.note }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
 
             <div class="sm:col-span-6 py-4">
               <span class="flex space-x-1 justify-end">
