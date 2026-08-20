@@ -1857,15 +1857,19 @@
 							</span>
 
 							<div class="flex justify-center border-b border-gray-300 pb-2 mb-2 w-full">
-								<span
+								<div
 									v-if="vend.vendChannelTotalsJson"
 									v-tooltip="remainingChannelTooltip(vend)"
-									class="cursor-help"
-									:class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+									class="flex justify-center items-center cursor-help"
 								>
-										{{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
-										({{ 100 - vend.out_of_stock_sku_percent }}%)
-								</span>
+									<span
+										:class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+									>
+											{{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
+											({{ 100 - vend.out_of_stock_sku_percent }}%)
+									</span>
+									<ExclamationTriangleIcon v-if="hasErrorLockedChannels(vend)" class="min-w-5 w-5 h-5 self-center pl-1 text-yellow-500" />
+								</div>
 							</div>
 							<span>&nbsp;</span>
 							<span :class="[vend.actual_stock_in_value < 100 ? 'text-red-500' : 'text-gray-800']" v-if="vend.actual_stock_in_value">
@@ -3148,7 +3152,7 @@ font-size:13px;
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
 	import MentionTextarea from '@/Components/MentionTextarea.vue';
-	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -4076,6 +4080,17 @@ function remainingChannelTooltip(vend) {
 		content: parts.join('<br>'),
 		html: true
 	};
+}
+
+// Drives the yellow warning icon beside the Remaining Channel# figure. Same
+// source as the tooltip's error-locked count (errorLockedInStockSku, with the
+// pre-fix fallback), so the icon can never show without the breakdown
+// listing an error-locked channel, and vice versa.
+function hasErrorLockedChannels(vend) {
+	const totals = vend?.vendChannelTotalsJson;
+	if (!totals) return false;
+
+	return (Number(totals['errorLockedInStockSku'] ?? totals['activeErrorLogs']) || 0) > 0;
 }
 
 function compareRefPrice(vend, channel) {
