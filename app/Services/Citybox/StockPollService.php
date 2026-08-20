@@ -132,6 +132,19 @@ class StockPollService
             return;
         }
         $codes = $this->planogramCodes($vend);
+        // A line the cached planogram does not know (Brian, 2026-08-20: a SKU
+        // added in their portal mid-hour) would be silently dropped from the
+        // frame until the 1 h cache expired. The portal changed ⇒ the mirror is
+        // stale ⇒ re-mirror now. noteSeenOnDevice already ran, so the new
+        // SKU's mark1 product exists before the mirror links to it. On failure
+        // keep the cached map — the known SKUs still land.
+        if ($lines->contains(fn (\App\Services\Citybox\DTO\ChillerStockLine $l) => ! isset($codes[$l->cityboxProductId]))) {
+            try {
+                $codes = $this->refreshPlanogram($vend);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Citybox planogram refresh for unknown SKU failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+            }
+        }
         if ($codes === []) {
             return; // no planogram synced yet — nothing to map onto
         }

@@ -179,6 +179,40 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame(2, VendChannel::where('vend_id', $this->vend->id)->first()->qty);
     }
 
+    public function test_sku_added_mid_hour_gets_product_channel_and_qty_on_the_next_poll(): void
+    {
+        // Brian, 2026-08-20: a SKU added in their portal between hourly catalog
+        // runs must not wait for the 1 h planogram cache — the 3-min poll sees
+        // an unknown line, re-mirrors the planogram, and the frame includes it.
+        \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
+        (new \Database\Seeders\CityboxOperatorSeeder)->run();
+        $this->seedPar();
+        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1]]);
+        app(CityboxOpenapiSync::class)->syncAll(); // planogram now cached for 1 h
+
+        // They add a brand-new SKU (never in our catalog) to the device.
+        $this->gw->seedPar('E1', [
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10'],
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
+            ['id' => 90999, 'name' => 'Brand New Tea', 'qty' => 6, 'layer' => 2, 'price' => '0.20'],
+        ]);
+        $this->gw->seedStock('E1', [
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1],
+            ['id' => 90999, 'name' => 'Brand New Tea', 'qty' => 6, 'layer' => 2, 'price' => '0.20'],
+        ]);
+        app(CityboxOpenapiSync::class)->syncAll(); // still within the cache TTL
+
+        $ch = VendChannel::where('vend_id', $this->vend->id)->where('code', 21)->first();
+        $this->assertNotNull($ch, 'new SKU must get a channel on the very next poll');
+        $this->assertSame(6, $ch->qty);
+        $this->assertSame(6, $ch->capacity);
+        // And its mark1 product exists + is linked (created by the same poll).
+        $row = \App\Models\CityboxProduct::where('citybox_product_id', 90999)->first();
+        $this->assertNotNull($row->product_id);
+        $this->assertSame($row->product_id, $ch->product_id);
+    }
+
     public function test_pull_refreshes_planogram_immediately_bypassing_the_hourly_cache(): void
     {
         $this->seedPar();
