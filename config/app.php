@@ -56,7 +56,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    'cms_url' => env('CMS_URL', 'http://localhost'),
+    // Null when this deployment has no legacy CMS (e.g. LSH): every consumer
+    // guards on falsy, and the warehouse pages then treat the self-system
+    // ledger as the only truth. The old 'http://localhost' default made an
+    // absent CMS_URL look like a configured CMS.
+    'cms_url' => env('CMS_URL'),
 
     // Public base URL of CMS file storage (DigitalOcean Spaces), used to turn
     // a CMS file_person `path` (e.g. /person_asset/file/x.pdf) into a fetchable

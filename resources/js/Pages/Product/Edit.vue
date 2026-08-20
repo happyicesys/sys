@@ -80,7 +80,10 @@
                   {{ form.errors.measurement_unit }}
                 </div>
               </div>
-              <div class="sm:col-span-2">
+              <!-- Only meaningful when this deployment has a CMS to pull from —
+                   without one the self-system ledger is the only truth, so
+                   there is no choice to offer (e.g. LSH). -->
+              <div class="sm:col-span-2" v-if="isCmsUrlSet">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Qty in Warehouse from
                 </label>
@@ -98,7 +101,8 @@
                 </MultiSelect>
                 <p class="mt-1 text-xs text-gray-500">
                   <b>CMS API</b> = pulled from CMS by product code (vending fleet default).
-                  <b>Manual (self-system ledger)</b> = you key incoming stock in Product Management › Warehouse Qty (self-system ledger); picks deduct it. CityBox SKUs are ledger; everything else CMS.
+                  <b>Manual (self-system ledger)</b> = you key incoming stock in Product Management › Warehouse Qty (self-system ledger); picks deduct it.
+                  <span v-if="isCityboxEnabled">CityBox SKUs are ledger; everything else CMS.</span>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
                   {{ form.errors.warehouse_qty_source }}
@@ -644,6 +648,8 @@ const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([]);
 const operatorRole = usePage().props.auth.operatorRole;
 const permissions = usePage().props.auth.permissions
+const isCmsUrlSet = !!usePage().props.isCmsUrlSet
+const isCityboxEnabled = !!usePage().props.isCityboxEnabled
 const priceTypeOptions = ref([]);
 const product = ref([]);
 const productTagOptions = ref([]);

@@ -547,7 +547,7 @@ class ProductController extends Controller
                     $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
                 }
             })
-            ->select(['products.id', 'products.avg_seven_days_count', 'products.code', 'products.desc', 'products.name', 'products.is_available', 'products.is_available_updated_at', 'products.is_available_updated_by', 'products.remarks', 'products.remarks_updated_at', 'products.remarks_updated_by'])
+            ->select(['products.id', 'products.avg_seven_days_count', 'products.code', 'products.desc', 'products.name', 'products.is_available', 'products.is_available_updated_at', 'products.is_available_updated_by', 'products.remarks', 'products.remarks_updated_at', 'products.remarks_updated_by', 'products.warehouse_qty_source'])
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->orderBy('code', 'asc')
@@ -597,7 +597,13 @@ class ProductController extends Controller
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $limit = $product->productLimits->first();
             $product->max_ops_job_pick_limit = $limit ? $limit->qty : null;
-            if (isset($cmsQtyMap[$product->code])) {
+            if ($product->usesLedgerWarehouseQty()) {
+                // Same branch as index(): ledger products carry the self-system
+                // figure (already net of picks); CMS never deducts for them.
+                $product->qty_available_pcs_api = $product->warehouseQty() ?? 0;
+                $product->not_yet_sync_api_qty = 0;
+                $product->net_available_qty_pcs_api = $product->qty_available_pcs_api;
+            } elseif (isset($cmsQtyMap[$product->code])) {
                 $product->qty_available_pcs_api = $cmsQtyMap[$product->code]['qty'] ?? 0;
                 $product->net_available_qty_pcs_api = ($cmsQtyMap[$product->code]['qty'] ?? 0) - $product->not_yet_sync_api_qty;
             } else {

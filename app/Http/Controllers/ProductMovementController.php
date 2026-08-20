@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\IncomingStockHistoryExport;
+use App\Exports\ProductMovementExport;
+use App\Exports\ProductMovementTrackingExport;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Operator;
@@ -16,9 +19,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ProductMovementExport;
-use App\Exports\ProductMovementTrackingExport;
-use App\Exports\IncomingStockHistoryExport;
 
 class ProductMovementController extends Controller
 {
@@ -40,7 +40,6 @@ class ProductMovementController extends Controller
         foreach ($products as $product) {
             $product->calculated_warehouse_qty = $product->total_movements_qty - $product->total_delivered_qty;
 
-
         }
 
         // Blind SKU: split each housing's To-Pick / Picked / Daily-Sold down to its
@@ -51,7 +50,7 @@ class ProductMovementController extends Controller
             ->map(fn ($v) => (int) $v)
             ->unique()->values()->all();
 
-        if (!empty($blindParentIds)) {
+        if (! empty($blindParentIds)) {
             $date = $request->productAvailableDate ?: Carbon::today()->addDay()->toDateString();
 
             $parentPicked = OpsJobItemChannel::query()
@@ -89,7 +88,7 @@ class ProductMovementController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'qty' => 'required|integer',
-            'type' => 'required|in:' . ProductMovement::TYPE_INCOMING . ',' . ProductMovement::TYPE_ADJUSTMENT,
+            'type' => 'required|in:'.ProductMovement::TYPE_INCOMING.','.ProductMovement::TYPE_ADJUSTMENT,
             'remarks' => 'nullable|string',
             'created_at' => 'nullable|date',
         ]);
@@ -110,6 +109,13 @@ class ProductMovementController extends Controller
     {
         $products = Product::where('is_inventory', true)
             ->where('is_active', true)
+            // Same rule as the ledger index (getProductQuery): on a CMS-connected
+            // domain only self-system products take manual incoming here — keying
+            // incoming against a CMS-sourced product would vanish from the ledger
+            // page (it lists ledger products only) while CMS keeps its own figure.
+            ->when(config('app.cms_url'), function ($query) {
+                $query->where('warehouse_qty_source', \App\Enums\WarehouseQtySource::Ledger->value);
+            })
             ->with(['thumbnail'])
             ->orderBy('code')
             ->get();
@@ -131,7 +137,7 @@ class ProductMovementController extends Controller
         ]);
 
         $batchNumber = $request->batch_number;
-        $createdAt = Carbon::parse($request->created_at . ' ' . Carbon::now()->toTimeString());
+        $createdAt = Carbon::parse($request->created_at.' '.Carbon::now()->toTimeString());
         $operatorId = auth()->user()->operator_id;
 
         $userId = auth()->id();
@@ -164,7 +170,7 @@ class ProductMovementController extends Controller
             'date_to' => $request->date_to ?: Carbon::today()->toDateString(),
         ]);
 
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -173,7 +179,7 @@ class ProductMovementController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -237,7 +243,7 @@ class ProductMovementController extends Controller
                     $search = array_map('trim', explode(',', $request->vend_code));
                     $q->whereIn('vends.code', $search);
                 } else {
-                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
                 }
             });
 
@@ -290,7 +296,7 @@ class ProductMovementController extends Controller
                     $search = array_map('trim', explode(',', $request->vend_code));
                     $q->whereIn('vends.code', $search);
                 } else {
-                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
                 }
             })
             // Exclude records after cutoff because they are now logged in product_movements
@@ -334,7 +340,7 @@ class ProductMovementController extends Controller
                     $search = array_map('trim', explode(',', $request->vend_code));
                     $q->whereIn('vends.code', $search);
                 } else {
-                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
                 }
             })
             // Exclude records after cutoff because they are now logged in product_movements
@@ -378,20 +384,22 @@ class ProductMovementController extends Controller
             'operatorOptions' => OperatorResource::collection(Operator::all()),
         ]);
     }
+
     public function exportExcel(Request $request)
     {
         $products = $this->getProductQuery($request)->get();
-        return Excel::download(new ProductMovementExport($products), 'Product_Movement_' . Carbon::now()->format('ymdHis') . '.xlsx');
+
+        return Excel::download(new ProductMovementExport($products), 'Product_Movement_'.Carbon::now()->format('ymdHis').'.xlsx');
     }
 
     public function trackingExportExcel(Request $request)
     {
-        return Excel::download(new ProductMovementTrackingExport($request), 'Product_Movement_Tracking_' . Carbon::now()->format('ymdHis') . '.xlsx');
+        return Excel::download(new ProductMovementTrackingExport($request), 'Product_Movement_Tracking_'.Carbon::now()->format('ymdHis').'.xlsx');
     }
 
     public function incomingHistoryExport(Request $request)
     {
-        return Excel::download(new IncomingStockHistoryExport($request), 'Incoming_Stock_History_' . Carbon::now()->format('ymdHis') . '.xlsx');
+        return Excel::download(new IncomingStockHistoryExport($request), 'Incoming_Stock_History_'.Carbon::now()->format('ymdHis').'.xlsx');
     }
 
     public function incomingHistory(Request $request)
@@ -426,6 +434,7 @@ class ProductMovementController extends Controller
         $collection->transform(function ($item) use ($operatorsById, $usersById) {
             $item->operator = $operatorsById->get($item->operator_id);
             $item->user = $usersById->get($item->user_id);
+
             return $item;
         });
 
@@ -460,6 +469,7 @@ class ProductMovementController extends Controller
             'metadata' => $metadata,
         ]);
     }
+
     /**
      * Blind SKU: a housing's To-Pick ("needed") aggregated per parent product,
      * mirroring this page's own needed_qty formula. Used to split blind demand onto
@@ -536,7 +546,7 @@ class ProductMovementController extends Controller
             ])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('operator_id', $search);
                 }
             })

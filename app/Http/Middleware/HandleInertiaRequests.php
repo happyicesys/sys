@@ -95,7 +95,14 @@ class HandleInertiaRequests extends Middleware
             'logoUrl' => $logoUrl,
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,
-            'isCmsUrlSet' => ! empty(env('CMS_URL')),
+            // config(), not env(): env() returns null once config is cached, and
+            // the backend warehouse filters key on config('app.cms_url') — both
+            // sides must agree on whether this deployment has a CMS.
+            'isCmsUrlSet' => ! empty(config('app.cms_url')),
+            // Whether this deployment runs the CityBox integration. Drives
+            // CityBox-specific wording/fields (e.g. the product form's warehouse
+            // source help text) so non-CityBox deployments never see the term.
+            'isCityboxEnabled' => (bool) config('citybox.openapi.enabled'),
             // Address-autofill map provider. When unset (or set to an
             // unsupported value) the address search API is disabled and the
             // Building/Street fields fall back to manual entry. Only 'onemap'

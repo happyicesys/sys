@@ -155,6 +155,75 @@ class WarehouseQtySourceTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => count($rows) === 2));
     }
 
+    public function test_shared_props_expose_cms_and_citybox_flags_from_config(): void
+    {
+        $u = $this->plannerUser();
+
+        // CMS + CityBox on (the sys domain): product forms offer the source
+        // choice and may use CityBox wording.
+        config(['app.cms_url' => 'https://cms.test', 'citybox.openapi.enabled' => true]);
+        $this->actingAs($u)->get('/products/movements')
+            ->assertInertia(fn ($page) => $page->where('isCmsUrlSet', true)->where('isCityboxEnabled', true));
+
+        // Neither (an LSH-style domain): no source choice, no CityBox terms.
+        config(['app.cms_url' => null, 'citybox.openapi.enabled' => false]);
+        $this->actingAs($u)->get('/products/movements')
+            ->assertInertia(fn ($page) => $page->where('isCmsUrlSet', false)->where('isCityboxEnabled', false));
+    }
+
+    public function test_batch_incoming_lists_only_self_system_products_when_cms_is_connected(): void
+    {
+        $u = $this->plannerUser();
+        Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id, 'is_inventory' => 1]);
+        Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'is_inventory' => 1, 'warehouse_qty_source' => 'ledger']);
+        // Inactive ledger product: never offered for incoming, on any domain.
+        Product::create(['code' => '89999', 'name' => 'Delisted chiller coke', 'operator_id' => $u->operator_id, 'is_inventory' => 1, 'is_active' => 0, 'warehouse_qty_source' => 'ledger']);
+
+        config(['app.cms_url' => 'https://cms.test']);
+        $this->actingAs($u)->get('/products/movements/batch-incoming')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('ProductMovement/BatchIncoming')
+                ->where('products.data', fn ($rows) => count($rows) === 1 && $rows[0]['code'] === '89925'));
+
+        // No CMS on this domain: every inventory product takes incoming here.
+        config(['app.cms_url' => null]);
+        $this->actingAs($u)->get('/products/movements/batch-incoming')
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => count($rows) === 2));
+    }
+
+    public function test_availability_export_shows_the_ledger_qty_for_manual_products(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => 'https://cms.test']);
+        \Illuminate\Support\Facades\Http::fake(['cms.test/*' => \Illuminate\Support\Facades\Http::response([['code' => 'VM1', 'qty' => 40]])]);
+        \Maatwebsite\Excel\Facades\Excel::fake();
+
+        Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id, 'is_available' => 1]);
+        $cb = Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'is_available' => 1, 'warehouse_qty_source' => 'ledger']);
+        DB::table('product_movements')->insert(['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 12, 'created_at' => now(), 'updated_at' => now()]);
+
+        \Illuminate\Support\Carbon::setTestNow('2026-08-20 10:00:00');
+        $fileName = 'Product_Availability_'.str_replace('-', '', now()->addDay()->toDateString()).'_'.now()->format('His').'.xlsx';
+
+        $this->actingAs($u)->get('/products/availability/export-excel?operators[]=all')->assertOk();
+
+        \Maatwebsite\Excel\Facades\Excel::assertDownloaded(
+            $fileName,
+            function (\App\Exports\ProductAvailabilityExport $export) {
+                $rows = collect($export->collection());
+                if ($rows->isEmpty()) {
+                    return false;
+                }
+                $ledger = $rows->firstWhere('code', '89925');
+                $cms = $rows->firstWhere('code', 'VM1');
+
+                return $ledger && (int) $ledger->qty_available_pcs_api === 12
+                    && (int) $ledger->net_available_qty_pcs_api === 12
+                    && $cms && (int) $cms->qty_available_pcs_api === 40;
+            }
+        );
+    }
+
     public function test_ledger_page_defaults_to_all_operators_and_warehouse_log_honours_all(): void
     {
         $u = $this->plannerUser(); // HIPL
