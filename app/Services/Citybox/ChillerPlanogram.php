@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ChillerPlanogram
 {
-    public function __construct(private ChillerGateway $gateway) {}
+    public function __construct(private ChillerGateway $gateway, private CatalogSyncService $catalog) {}
 
     /**
      * Pull shipping_product for the vend and overwrite its mirror mapping.
@@ -47,6 +47,14 @@ class ChillerPlanogram
     /** @param Collection<int,ChillerStockLine> $parLines */
     public function apply(Vend $vend, Collection $parLines): array
     {
+        // SKU FIRST, stock second (Brian, 2026-08-20): their portal can add a
+        // product to the par config before it ever appears in device stock.
+        // Register every par-line SKU (citybox_products upsert + mark1 product
+        // create/link) BEFORE reading the links, so the mirror mapping carries
+        // an item for a brand-new SKU in this same pass instead of skipping it
+        // until the next catalog run.
+        $this->catalog->noteSeenOnDevice($parLines);
+
         $codes = self::assignCodes($parLines);
         $links = CityboxProduct::whereIn('citybox_product_id', array_keys($codes))->pluck('product_id', 'citybox_product_id');
 

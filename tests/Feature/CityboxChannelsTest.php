@@ -101,6 +101,27 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame(0, $mapping->basket_layout_json[4]['positions']); // layer 5 empty
     }
 
+    public function test_par_only_new_sku_gets_its_product_and_mapping_item_in_the_same_sync(): void
+    {
+        // SKU first, stock second (Brian, 2026-08-20): a product added to the
+        // par config BEFORE it has any stock must not wait for the hourly
+        // catalog run — the planogram sync itself registers it.
+        \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
+        (new \Database\Seeders\CityboxOperatorSeeder)->run();
+        $this->gw->seedPar('E1', [['id' => 90998, 'name' => 'Configured First', 'qty' => 4, 'layer' => 3, 'price' => '0.30']]);
+
+        $codes = app(ChillerPlanogram::class)->sync($this->vend);
+
+        $row = CityboxProduct::where('citybox_product_id', 90998)->first();
+        $this->assertNotNull($row, 'par sync must register the SKU');
+        $this->assertNotNull($row->product_id, 'and create + link its mark1 product');
+        $mapping = ProductMapping::withoutGlobalScopes()->find($this->vend->fresh()->product_mapping_id);
+        $item = $mapping->productMappingItems()->where('channel_code', (string) $codes[90998]['code'])->first();
+        $this->assertNotNull($item, 'mapping item must exist in the SAME pass, not the next one');
+        $this->assertSame($row->product_id, $item->product_id);
+        $this->assertSame(31, $codes[90998]['code']); // layer 3, position 1
+    }
+
     public function test_resync_overwrites_local_edits_and_removes_delisted_rows(): void
     {
         foreach ([90340 => 'Peach', 90338 => 'Suntory', 90339 => 'Lemon'] as $cid => $n) {

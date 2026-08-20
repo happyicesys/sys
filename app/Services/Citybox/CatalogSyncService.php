@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\Log;
  *  - syncCatalog()       hourly (or manual): full `product_list` → add /
  *                        update / SOFT-delist absent rows. The only path
  *                        allowed to delist, because only it sees the whole set.
- *  - noteSeenOnDevice()  from the 3-min stock poll: upsert any product a
+ *  - noteSeenOnDevice()  from the 3-min stock poll AND the planogram mirror
+ *                        (par lines — SKU first, stock second, Brian
+ *                        2026-08-20): upsert any product a
  *                        device shows that we don't have yet, and enrich
  *                        volume/unit/class/price (catalog rows lack them).
  *                        Never delists — a device sees a subset.
