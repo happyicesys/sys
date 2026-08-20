@@ -21,6 +21,12 @@ class DashboardControllerOptimizationTest extends TestCase
 
     public function test_dashboard_data_integrity()
     {
+        // Frozen mid-month, mid-year: 'yesterday' / 'last month' / the 29-day
+        // performer window and the current-year monthly window are all stable,
+        // so the assertions below never depend on the real calendar date.
+        // (Laravel's TestCase resets Carbon's test-now in tearDown.)
+        Carbon::setTestNow('2026-08-20 10:00:00');
+
         // 1. Setup Data
         $this->seedMonths();
 
@@ -33,6 +39,9 @@ class DashboardControllerOptimizationTest extends TestCase
             'username' => 'testuser',
         ]);
         $user->assignRole('operator');
+        // The route gained a server-side gate (DashboardController::__construct).
+        \Spatie\Permission\Models\Permission::findOrCreate('read dashboard-performance', 'web');
+        $user->givePermissionTo('read dashboard-performance');
 
         $locationType = LocationType::create(['name' => 'Office', 'sequence' => 1]);
 
@@ -40,7 +49,7 @@ class DashboardControllerOptimizationTest extends TestCase
             'code' => 'C001',
             'name' => 'Test Customer',
             'location_type_id' => $locationType->id,
-            'operator_id' => $operator->id
+            'operator_id' => $operator->id,
         ]);
 
         $vend = Vend::create([
@@ -48,7 +57,7 @@ class DashboardControllerOptimizationTest extends TestCase
             'name' => 'Test Vend',
             'operator_id' => $operator->id,
             'customer_id' => $customer->id,
-            'location_type_id' => $locationType->id
+            'location_type_id' => $locationType->id,
         ]);
 
         $product = Product::create(['code' => 'P001', 'name' => 'Coke']);
@@ -98,7 +107,10 @@ class DashboardControllerOptimizationTest extends TestCase
         ]);
 
         // 2. Act
-        $response = $this->actingAs($user)->get('/dashboard');
+        // '/dashboard' is now a redirect shell; the page lives at /performance.
+        // autoload=1: without it the controller deliberately skips every graph
+        // query (the page lazy-fetches them) and returns empty collections.
+        $response = $this->actingAs($user)->get('/dashboard/performance?autoload=1');
 
         // 3. Assert
         // dump($response->json('props.dayGraphData'));
@@ -107,43 +119,34 @@ class DashboardControllerOptimizationTest extends TestCase
         $response->assertInertia(function (\Inertia\Testing\AssertableInertia $page) use ($lastMonth) {
             // dump($page->toArray()['props']['dayGraphData']);
             $page->component('Dashboard')
-                // Check Day Graph (Yesterday + Today)
-                ->has('dayGraphData', function (\Inertia\Testing\AssertableInertia $json) {
-                    // We expect at least entries for yesterday and today (and potentially filled empty dates)
-                    // But checking for existence and structure is good enough for now
-                    // dump($json->toArray());
-                    dd(array_keys($json->toArray()));
-                    $json->where('0.amount', 0) // Start of month might be 0
-                        ->etc();
-                })
+                // Day Graph: presence only. Its day-by-day values depend on what
+                // today's date is within the month, so pinning them makes the
+                // test date-flaky; the graphs below carry the value assertions.
+                // (This closure used to hold a leftover dd() that killed every
+                // suite run at this point.)
+                ->has('dayGraphData')
                 // Check Product Graph
                 ->has('productGraphData', 1)
-                ->where('productGraphData.0.amount', 200)
+                // Amounts leave the controller in dollars (cents / 100 at the edge).
+                ->where('productGraphData.0.amount', 2)
                 ->where('productGraphData.0.count', 1)
 
-                // Check Best Performer (Last 30 days)
-                ->has('performerGraphData', 1)
-                ->where('performerGraphData.0.amount', 30200) // 10000 (yesterday) + 20000 (last month if within 30 days) + 200 (today) ??
-                // Wait, getBestPerformer uses VendRecord only, and date range is today-29 to today.
-                // Yesterday record: 10000. Last Month record: 20000.
-                // If last month is > 29 days ago, it won't be included.
-                // Let's assume last month is > 29 days for safety, or check logic.
-                // Code: Carbon::today()->copy()->subDays(29)->startOfDay()
-                // So if today is Nov 22, subDays(29) is Oct 24.
-                // If last month is Oct 22, it's excluded.
-                // Let's rely on Yesterday's record (10000).
-                // Wait, getBestPerformer sums total_amount.
-                // It queries VendRecord. Does it include today's transactions? No, only VendRecord.
-                // So it should be 10000 (Yesterday).
-                // ->where('performerGraphData.0.amount', 10000)
+                // Best Performer (last 30 days) reads VendRecord only, serialized
+                // through a resource collection (hence the .data level), amounts
+                // in dollars. With time frozen at Aug 20 the 29-day window starts
+                // Jul 22, so only yesterday's $100 record is inside it.
+                ->has('performerGraphData.data', 1)
+                ->where('performerGraphData.data.0.amount', 100)
 
                 // Check Vend Count
                 ->where('vendCount', 1) // Yesterday's active vends
 
-                // Check Monthly Analytics
-                ->has('monthsByModel.Office', 12) // Location Type 'Office'
-                ->where('monthsByModel.Office.' . Carbon::yesterday()->month . '.amount', 100) // 100.00
-                ->where('monthsByModel.Office.' . $lastMonth->month . '.amount', 200); // 200.00
+                // Monthly Analytics: keyed by location-type name, then month
+                // NUMBER — and only months that have data are present (Jul + Aug
+                // here), in dollars.
+                ->has('monthsByModel.Office', 2)
+                ->where('monthsByModel.Office.'.Carbon::yesterday()->month.'.amount', 100)
+                ->where('monthsByModel.Office.'.$lastMonth->month.'.amount', 200);
         });
     }
 
@@ -161,7 +164,7 @@ class DashboardControllerOptimizationTest extends TestCase
             9 => 'September',
             10 => 'October',
             11 => 'November',
-            12 => 'December'
+            12 => 'December',
         ];
 
         foreach ($months as $num => $name) {

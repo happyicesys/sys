@@ -43,7 +43,17 @@ class SupDriverRoleTest extends TestCase
     {
         $this->seed(RolePermissionSyncSeeder::class);
 
-        $expected = array_merge($this->permissionNames('driver'), self::DASHBOARD_ONLY);
+        // driver holds vend-customers-lite as a REPLACEMENT for the full
+        // Dashboard it lost in the 2026-08-09 sync (seeder note, 2026-08-18).
+        // sup_driver kept the full Dashboard (that is its whole point), so it
+        // deliberately does not carry the Lite fallback.
+        $expected = array_merge(
+            array_values(array_filter(
+                $this->permissionNames('driver'),
+                fn ($p) => ! str_ends_with($p, 'vend-customers-lite')
+            )),
+            self::DASHBOARD_ONLY
+        );
         sort($expected);
 
         $this->assertSame($expected, $this->permissionNames('sup_driver'));

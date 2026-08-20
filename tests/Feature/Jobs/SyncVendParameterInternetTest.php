@@ -263,6 +263,9 @@ class SyncVendParameterInternetTest extends TestCase
 
         $this->handlePacket($this->packet(['Internet' => $internet]), $vend);
 
-        $this->assertSame($internet, $vend->parameter_json['Internet']);
+        // assertEquals, not assertSame: vends.parameter_json is a native MySQL
+        // JSON column, and MySQL normalizes object key order (by length, then
+        // binary). Contents are the contract; order never was.
+        $this->assertEquals($internet, $vend->parameter_json['Internet']);
     }
 }

@@ -16,6 +16,8 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // '/' deliberately redirects guests to the login screen (routes/web.php)
+        // — the Breeze welcome page this test was born asserting is long gone.
+        $response->assertRedirect('/login');
     }
 }

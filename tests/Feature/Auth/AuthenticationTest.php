@@ -22,8 +22,10 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
+        // The app's LoginRequest takes a single 'login' field (email OR username),
+        // not the Breeze default 'email'.
         $response = $this->post('/login', [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'password',
         ]);
 
@@ -35,8 +37,10 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
+        // 'login' (not 'email'), so this exercises a real wrong-password attempt
+        // rather than passing vacuously on a missing credential field.
         $this->post('/login', [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'wrong-password',
         ]);
 

@@ -41,7 +41,10 @@ class UserLogger
         // Skipping registration entirely keeps those high-volume Eloquent writes
         // (machine ingestion via queued jobs) completely off this listener,
         // avoiding the boot-time overhead that caused the 2026-07-01 backlog.
-        if (app()->runningInConsole()) {
+        // PHPUnit also runs in the console, but the tests exercise this logger
+        // (simulating a web session via Auth::guard('web')->setUser), so they
+        // are exempt — GATE 1 below still governs what actually gets recorded.
+        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
             return;
         }
 
@@ -73,7 +76,7 @@ class UserLogger
 
             // GATE 2 — deny-list (high-volume / self-auditing models).
             $class = get_class($model);
-            $base  = class_basename($class);
+            $base = class_basename($class);
             if (in_array($base, (array) config('userlog.deny', []), true)) {
                 return;
             }
@@ -87,16 +90,16 @@ class UserLogger
             // Raw insert: deliberately bypasses Eloquent events so writing the
             // log can never re-trigger this listener (no recursion) and stays cheap.
             DB::table('user_logs')->insert([
-                'user_id'        => $user?->getKey(),
-                'user_name'      => $user?->name,
-                'event'          => $event,
+                'user_id' => $user?->getKey(),
+                'user_name' => $user?->name,
+                'event' => $event,
                 'auditable_type' => $class,
-                'auditable_id'   => $model->getKey(),
-                'changes'        => $changes === [] ? null : json_encode($changes),
-                'source'         => 'web',
-                'ip'             => request()->ip(),
-                'url'            => mb_substr((string) request()->path(), 0, 2048),
-                'created_at'     => now(),
+                'auditable_id' => $model->getKey(),
+                'changes' => $changes === [] ? null : json_encode($changes),
+                'source' => 'web',
+                'ip' => request()->ip(),
+                'url' => mb_substr((string) request()->path(), 0, 2048),
+                'created_at' => now(),
             ]);
         } catch (Throwable $e) {
             // Auditing must never break the user's action.
@@ -112,11 +115,11 @@ class UserLogger
      */
     private static function changesFor(string $event, Model $model, string $base): array
     {
-        $conf   = (array) config('userlog.ignore_columns', []);
+        $conf = (array) config('userlog.ignore_columns', []);
         $ignore = array_merge((array) ($conf['*'] ?? []), (array) ($conf[$base] ?? []));
 
         if ($event === 'updated') {
-            $diff     = [];
+            $diff = [];
             $original = $model->getOriginal();
             foreach ($model->getChanges() as $key => $new) {
                 if (in_array($key, $ignore, true)) {

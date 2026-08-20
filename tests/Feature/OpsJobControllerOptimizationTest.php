@@ -2,15 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
-use App\Models\User;
-use App\Models\Operator;
-use App\Models\Vend;
-use App\Models\VendChannel;
 use App\Models\Product;
 use App\Models\UnitCost;
+use App\Models\User;
+use App\Models\Vend;
+use App\Models\VendChannel;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -52,11 +52,15 @@ class OpsJobControllerOptimizationTest extends TestCase
 
         // Create Vend and Channel
         $vend = Vend::create(['code' => 'V001', 'operator_id' => $operator->id]);
+        // is_active + capacity matter: the index's channel-stats aggregation
+        // only counts channels with vc.is_active = 1 AND vc.capacity > 0.
         $vendChannel = VendChannel::create([
             'vend_id' => $vend->id,
             'product_id' => $product->id,
             'amount' => 200, // $2.00 price
             'code' => 'A1',
+            'capacity' => 10,
+            'is_active' => 1,
         ]);
 
         // Create OpsJobItems with different statuses
@@ -96,7 +100,7 @@ class OpsJobControllerOptimizationTest extends TestCase
         ]);
 
         // 2. Act
-        $response = $this->actingAs($user)->get('/ops-jobs?date_from=' . Carbon::today()->subDay()->toDateString());
+        $response = $this->actingAs($user)->get('/ops-jobs?date_from='.Carbon::today()->subDay()->toDateString());
 
         // 3. Assert
         $response->assertStatus(200);
