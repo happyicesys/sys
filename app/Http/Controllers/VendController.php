@@ -2870,7 +2870,7 @@ class VendController extends Controller
             return response()->json([], 200);
         }
 
-        $serverPriceType = $vend->server_price_type;
+        $serverPriceType = $vend->serverPriceType();
 
         // Get product IDs from mapping items
         $productIds = $productMappingItems->pluck('product_id')->unique()->toArray();
@@ -2972,7 +2972,7 @@ class VendController extends Controller
             return response()->json([], 200);
         }
 
-        $serverPriceType = $vend->server_price_type;
+        $serverPriceType = $vend->serverPriceType();
 
         // Get product IDs from mapping items
         $productIds = $productMappingItems->pluck('product_id')->unique()->toArray();
@@ -3421,6 +3421,13 @@ class VendController extends Controller
         $data = [
             ...$settingsParams,
             'isGrabEnabled' => $isGrabEnabled ? 'true' : 'false',
+            // 2026-08-21: per MACHINE, not per setting. The stored
+            // selectedPricingSource is shared by every vend bound to this
+            // setting, but "follow the Site's pricing" is a per-machine switch
+            // (vends.is_using_server_price, set in Machine Settings / APK
+            // Settings). The stored key stays in SCHEMA only so old rows
+            // normalize and the wire stays schema-complete.
+            'selectedPricingSource' => $vend->usesServerPrice() ? 'server' : 'machine',
             'companyUrl' => $settingsParams['company_url'] ?? null,
             'companyAddress' => $settingsParams['company_address'] ?? null,
             'companyName' => $settingsParams['companyName'] ?? null,
@@ -5288,7 +5295,12 @@ class VendController extends Controller
             'is_sold' => $request->is_sold,
             'is_testing' => $request->is_testing,
             'is_fan_enabled' => $request->is_fan_enabled === 'true' || $request->is_fan_enabled === true,
-            // 'is_using_server_price' => $request->is_using_server_price,
+            // Pricing source (No = board price / Yes = follow the Site's RP).
+            // The tier itself is never stored on the vend — see
+            // Vend::serverPriceType(). Only persisted when the form sent it.
+            ...($request->has('is_using_server_price')
+                ? ['is_using_server_price' => filter_var($request->is_using_server_price, FILTER_VALIDATE_BOOLEAN)]
+                : []),
             'machine_type' => $machineType,
             // The serial follows the machine type: leaving smart_chiller always
             // clears it (an orphaned serial on a non-chiller vend would squat on
@@ -5302,7 +5314,6 @@ class VendController extends Controller
                     : [])),
             'product_mapping_id' => $request->product_mapping_id,
             'serial_num' => $request->serial_num,
-            'server_price_type' => $request->server_price_type,
             'simcard_id' => $request->simcard_id,
             'termination_date' => $request->termination_date,
             'upcoming_product_mapping_id' => $request->upcoming_product_mapping_id,
@@ -5313,6 +5324,9 @@ class VendController extends Controller
             'vend_serial_number_id' => $request->vend_serial_number_id,
             'vend_vend_config_version' => $request->vend_vend_config_version,
         ]);
+
+        // A flipped pricing source is nudged to the terminal by
+        // VendPricingSourceObserver (fires on the save above).
 
         // Bust dashboard vend-ID caches whenever a vend is saved, so that changes
         // to is_testing or customer_id are reflected within the next page load
@@ -5463,9 +5477,10 @@ class VendController extends Controller
 
         $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
-        // callback to cms to unbind vendcode
-        if ($vend->customer && $vend->customer->person_id) {
-            Http::get(env('CMS_URL').'/api/person/'.$vend->customer->person_id.'/detach-vendcode');
+        // callback to cms to unbind vendcode — env() is unreliable under
+        // config:cache, and a CMS outage must not abort the local unbind
+        if (($cmsUrl = config('app.cms_url')) && $vend->customer && $vend->customer->person_id) {
+            rescue(fn () => Http::get($cmsUrl.'/api/person/'.$vend->customer->person_id.'/detach-vendcode'));
         }
 
         $vend->customer_id = null;
@@ -5519,9 +5534,10 @@ class VendController extends Controller
 
         $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
-        // callback to cms to unbind vendcode
-        if ($vend->customer && $vend->customer->person_id) {
-            Http::get(env('CMS_URL').'/api/person/'.$vend->customer->person_id.'/detach-vendcode');
+        // callback to cms to unbind vendcode — env() is unreliable under
+        // config:cache, and a CMS outage must not abort the local unbind
+        if (($cmsUrl = config('app.cms_url')) && $vend->customer && $vend->customer->person_id) {
+            rescue(fn () => Http::get($cmsUrl.'/api/person/'.$vend->customer->person_id.'/detach-vendcode'));
         }
 
         $vend->customer_id = null;

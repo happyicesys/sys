@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Vend;
 use App\Jobs\SyncVendCodeVendPrefixCMS;
+use App\Models\Vend;
 use Illuminate\Console\Command;
 
 class SyncAllCMSVendCodeVendPrefix extends Command
@@ -27,8 +27,14 @@ class SyncAllCMSVendCodeVendPrefix extends Command
      */
     public function handle()
     {
+        // Instances without a CMS (no CMS_URL) have nothing to push — skip
+        // instead of queueing a no-op job per vend.
+        if (! config('app.cms_url')) {
+            return;
+        }
+
         $vends = Vend::query()
-            ->whereHas('customer', function($query) {
+            ->whereHas('customer', function ($query) {
                 $query->whereNotNull('person_id');
             })
             ->where('is_active', true)

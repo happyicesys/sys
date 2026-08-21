@@ -480,7 +480,6 @@ class Vend extends Model
         'private_key',
         'product_mapping_id',
         'serial_num',
-        'server_price_type',
         'settings_parameter_json',
         'simcard_id',
         'statistics1_json',
@@ -571,6 +570,44 @@ class Vend extends Model
         $version = $this->reportedApkVersion();
 
         return $version > 0 && $version < 140;
+    }
+
+    /**
+     * Pricing source switch for the terminal, decided per machine:
+     *   false — "No, use machine price": the VMC board's own channel prices.
+     *   true  — "Yes, follow Site's pricing": mark1 selling prices at the
+     *           Site's reference tier (customers.selling_price_type, RP1–RP5).
+     *
+     * The Site is the ONLY place a tier is chosen (Brian, 2026-08-21); a
+     * machine never carries its own RP. Wire effect: /parameters emits
+     * selectedPricingSource = server|machine from this flag, and /thumbnails
+     * and /menu carry server_price only when it is on.
+     */
+    public function usesServerPrice(): bool
+    {
+        return (bool) $this->is_using_server_price;
+    }
+
+    /**
+     * The selling-price tier this machine's server prices come from — the
+     * bound Site's RP — or null when the machine uses the board price or has
+     * no Site (then there is no server price, and the APK falls back to the
+     * machine price on its own: clsSlotPara.getPrice checks server_price > 0).
+     */
+    public function serverPriceType(): ?int
+    {
+        if (! $this->usesServerPrice()) {
+            return null;
+        }
+
+        // Trust an eager-loaded customer only if it actually carries the column
+        // (several pages load 'customer:id,code,name,…' subsets).
+        $customer = $this->relationLoaded('customer') ? $this->customer : null;
+        $type = $customer && array_key_exists('selling_price_type', $customer->getAttributes())
+            ? $customer->selling_price_type
+            : DB::table('customers')->where('id', $this->customer_id)->value('selling_price_type');
+
+        return $type ? (int) $type : null;
     }
 
     public function cardTerminal()

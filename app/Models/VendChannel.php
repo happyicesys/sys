@@ -151,19 +151,23 @@ class VendChannel extends Model
             return null;
         }
 
-        // Avoid lazy-loading the full Vend model (SELECT * fetches all JSON columns)
-        // just to read one tiny integer. Query only the column we need.
-        $serverPriceType = DB::table('vends')
-            ->where('id', $this->vend_id)
-            ->value('server_price_type');
+        // The tier is the SITE's (customers.selling_price_type); the machine
+        // only says whether it follows it — see Vend::serverPriceType(). Raw
+        // query on purpose: avoid lazy-loading the full Vend model (SELECT *
+        // fetches all JSON columns) just to read two tiny columns.
+        $pricing = DB::table('vends')
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->where('vends.id', $this->vend_id)
+            ->select('vends.is_using_server_price', 'customers.selling_price_type')
+            ->first();
 
-        if (!$serverPriceType) {
+        if (! $pricing || ! $pricing->is_using_server_price || ! $pricing->selling_price_type) {
             return null;
         }
 
         return DB::table('selling_prices')
             ->where('product_id', $this->product_id)
-            ->where('type', $serverPriceType)
+            ->where('type', $pricing->selling_price_type)
             ->value('amount');
     }
 

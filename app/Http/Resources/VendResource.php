@@ -68,9 +68,11 @@ class VendResource extends JsonResource
             'binded_at' => isset($this->binded_at) ? Carbon::parse($this->binded_at)->setTimezone($this->getUserTimezone())->toDateTimeString() : null,
             'deliveryProductMappingVends' => DeliveryProductMappingVendResource::collection($this->whenLoaded('deliveryProductMappingVends')),
             'customerVendBindings' => CustomerVendBindingResource::collection($this->whenLoaded('customerVendBindings')),
-            // 'is_using_server_price' => $this->is_using_server_price,
+            'is_using_server_price' => (bool) ($this->is_using_server_price ?? false),
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
-            'server_price_type' => isset($this->server_price_type) ? $this->server_price_type : null,
+            // Effective tier = the Site's RP while the machine follows it; null
+            // otherwise. Cheap: resolved only for the few vends with the flag on.
+            'server_price_type' => ($this->is_using_server_price ?? false) ? $this->serverPriceType() : null,
             // compare last_updated_at and mqtt_last_updated_at which time is nearer to current time, then show the shortRelativeDiffForHumans
             'label_name' => isset($this->label_name) ? $this->label_name : null,
             'last_ops_job_acc_total_amount' => isset($this->last_ops_job_acc_total_amount) ? $this->last_ops_job_acc_total_amount / 100 : 0,

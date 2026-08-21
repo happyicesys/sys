@@ -410,9 +410,13 @@ const cleanOpsJobItems = opsJob.value.opsJobItems.map(item => {
   };
 });
 
-// Build a mergedOrder from generated_sequence for tasks and items combined
+// Build a mergedOrder from generated_sequence for tasks and items combined.
+// Filter by id, not isOrigin: when the origin is itself an ops job item (the default
+// when no origin is selected) it carries generated_sequence 1 and must be synced too,
+// otherwise its sequence is never written and the list starts at 2. A warehouse origin
+// is a synthetic entry with no id and is skipped.
 const mergedOrder = opsJob.value.opsJobItems
-  .filter(item => !item.isOrigin && item.generated_sequence != null)
+  .filter(item => item.id != null && item.generated_sequence != null)
   .sort((a, b) => a.generated_sequence - b.generated_sequence)
   .map(item => ({
     type: item._isTask ? 'task' : 'item',
@@ -775,23 +779,21 @@ const showDirectionsAPI = (originLatLng) => {
       totalDistance.value = totalDistance.value.toFixed(2); // Update total distance
       // console.log(`Total distance (Google API): ${totalDistance.toFixed(2)} km`);
 
+      const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
+      const { originLabel, firstSequence } = assignOriginSequence(originItem);
+
       const optimizedOrder = result.routes[0].waypoint_order;
       const optimizedCustomers = optimizedOrder.map((orderIndex, idx) => {
         const item = waypoints[orderIndex];
-        item.generated_sequence = idx + 2;
+        item.generated_sequence = idx + firstSequence;
         return item;
       });
-
-      const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
-      if (originItem) {
-        originItem.generated_sequence = 1;
-      }
 
       remainingOpsJobItems.forEach((item, index) => {
         item.generated_sequence = `5${index + 1}`;
       });
 
-      addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems);
+      addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems, originLabel);
 
       opsJob.value.opsJobItems = [
         originItem,
@@ -857,12 +859,10 @@ function showDirectionsNearest(originLatLng) {
   // console.log(`Total distance (Nearest Distance): ${totalDistance.toFixed(2)} km`);
 
   const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
-  if (originItem) {
-    originItem.generated_sequence = 1;
-  }
+  const { originLabel, firstSequence } = assignOriginSequence(originItem);
 
   optimizedCustomers.forEach((item, idx) => {
-    item.generated_sequence = idx + 2;
+    item.generated_sequence = idx + firstSequence;
   });
 
   opsJob.value.opsJobItems = [
@@ -870,7 +870,7 @@ function showDirectionsNearest(originLatLng) {
     ...optimizedCustomers,
   ];
 
-  addCustomMarkers(originLatLng, optimizedCustomers);
+  addCustomMarkers(originLatLng, optimizedCustomers, [], originLabel);
   plotRouteOnRoads([originLatLng, ...optimizedCustomers.map(customer => ({
     lat: parseFloat(customer.customer.deliveryAddress.latitude),
     lng: parseFloat(customer.customer.deliveryAddress.longitude),
@@ -948,13 +948,29 @@ function getDistance(point1, point2) {
   return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJobItems = []) {
+// Decide what sequence the origin takes and where the job items start.
+// - Origin is a real ops job item (has an id, e.g. the default "first item" origin):
+//   it is stop #1 and the rest run 2..N, so the synced sequence is contiguous from 1.
+// - Origin is a warehouse / address-only entry (no id): it is never an ops job item and
+//   is not synced, so job items must start from 1 or the synced list would begin at 2.
+function assignOriginSequence(originItem) {
+  const originIsJobItem = !!(originItem && originItem.id);
+  if (originItem) {
+    originItem.generated_sequence = originIsJobItem ? 1 : 'Origin';
+  }
+  return {
+    originLabel: originIsJobItem ? '1' : 'O',
+    firstSequence: originIsJobItem ? 2 : 1,
+  };
+}
+
+function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJobItems = [], originLabel = '1') {
   // Add a custom marker for the origin
   const originMarker = new google.maps.Marker({
     position: originLatLng,
     map: map,
     label: {
-      text: '1', // Sequence for the origin
+      text: originLabel, // '1' when the origin is a job item, 'O' for a warehouse origin
       color: "#000000",
       fontSize: "14px",
       fontWeight: "bold",

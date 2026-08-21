@@ -272,7 +272,8 @@ class SettingController extends Controller
             ->where('id', $id)
             ->first();
 
-        $type = $vendInit->customer?->server_price_type ?? SellingPrice::TYPE_1;
+        // The Site's RP drives the channel price list (the vend carries no tier of its own).
+        $type = $vendInit->customer?->selling_price_type ?? SellingPrice::TYPE_1;
 
         $vend = Vend::withoutGlobalScopes()
             ->with([
@@ -346,7 +347,6 @@ class SettingController extends Controller
                 'vends.modem_unit_id',
                 'vends.operator_id',
                 'vends.product_mapping_id',
-                'vends.server_price_type',
                 'vends.machine_type',
                 // CityBox link — written by the Create flow (DeviceProvisioningService),
                 // shown read-only here. Missing from this list until 2026-08-20: the
@@ -526,7 +526,6 @@ class SettingController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
-            'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'simcardOptions' => SimcardResource::collection(
                 Simcard::orderBy('code')->get()
             ),

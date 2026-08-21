@@ -606,8 +606,8 @@
                   Is Using Server Price?
                 </label>
                 <MultiSelect
-                  v-model="form.server_price_type"
-                  :options="serverPriceTypeOptions"
+                  v-model="form.is_using_server_price"
+                  :options="serverPriceOptions"
                   trackBy="id"
                   valueProp="id"
                   label="value"
@@ -616,8 +616,18 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.server_price_type">
-                  {{ form.errors.server_price_type }}
+                <!-- The RP tier is the Site's (Customer edit → Ref Price Type); the machine
+                     only chooses whether to follow it. No per-machine RP override. -->
+                <p class="mt-1 text-xs text-gray-500">
+                  <template v-if="siteSellingPriceType">
+                    Site's pricing is <span class="font-semibold text-gray-700">RP{{ siteSellingPriceType }}</span> — change it in the Site (Customer) edit page.
+                  </template>
+                  <template v-else>
+                    No Site bound / no Ref Price Type on the Site — the machine falls back to machine price until one is set.
+                  </template>
+                </p>
+                <div class="text-sm text-red-600" v-if="form.errors.is_using_server_price">
+                  {{ form.errors.is_using_server_price }}
                 </div>
             </div>
             <div class="sm:col-span-3">
@@ -1552,7 +1562,6 @@ const props = defineProps({
     operatorOptions: Object,
     machineTypeOptions: Object,
     productMappingOptions: Object,
-    sellingPriceTypeOptions: [Array, Object],
     simcardOptions: Object,
     type: String,
     upcomingProductMappingOptions: Object,
@@ -1645,7 +1654,13 @@ watch(
     if (!stillValid(form.value.upcoming_product_mapping_id)) form.value.upcoming_product_mapping_id = null
   }
 )
-const serverPriceTypeOptions = ref([])
+// Pricing source per machine. The tier (RP1–RP5) is never chosen here — it is
+// the Site's selling_price_type; the machine only follows it or not.
+const serverPriceOptions = ref([
+  {id: 'false', value: 'No, use machine price'},
+  {id: 'true', value: "Yes, follow Site's pricing"},
+])
+const siteSellingPriceType = computed(() => props.vend?.selling_price_type ?? props.vend?.customer?.selling_price_type ?? null)
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
 const toast = useToast()
@@ -1976,10 +1991,6 @@ onMounted(() => {
     { id: '', name: '--- Clear ---'},
     ...props.productMappingOptions.data,
   ]
-  serverPriceTypeOptions.value = [
-    { id: '', value: '--- Not Using ---'},
-    ...Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
-  ]
   machineTypeOptions.value = Object.entries(props.machineTypeOptions).map(([id, name]) => ({id: id, value: name}))
   simcardOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -2029,7 +2040,7 @@ onMounted(() => {
     cardTerminalOptions, cashlessTerminalOptions, clawMachineBoardOptions,
     clawMachineBodyOptions, lcdMonitorOptions, ledMatrixPanelOptions,
     keyOptions, menuFrameOptions, modemTypeOptions, modemUnitOptions,
-    operatorOptions, productMappingOptions, serverPriceTypeOptions,
+    operatorOptions, productMappingOptions,
     simcardOptions, upcomingProductMappingOptions, vendConfigOptions,
     vendContractOptions, vendModelOptions, vendPrefixOptions,
     vendSerialNumberOptions,
@@ -2044,7 +2055,7 @@ onMounted(() => {
     cashless_terminal_id: props.vend.cashless_terminal_id ? cashlessTerminalOptions.value.find(t => t.id == props.vend.cashless_terminal_id) : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
-    // is_using_server_price: booleanStrictOptions.value.find(booleanStrict => booleanStrict.id == props.vend.is_using_server_price.toString()),
+    is_using_server_price: serverPriceOptions.value.find(option => option.id == (['1', 'true'].includes(String(props.vend.is_using_server_price)) ? 'true' : 'false')),
     lcd_monitor_id: props.vend.lcd_monitor_id ? lcdMonitorOptions.value.find(lcdMonitor => lcdMonitor.id == props.vend.lcd_monitor_id) : null,
     led_matrix_panel_id: props.vend.led_matrix_panel_id ? ledMatrixPanelOptions.value.find(ledMatrixPanel => ledMatrixPanel.id == props.vend.led_matrix_panel_id) : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
@@ -2054,7 +2065,6 @@ onMounted(() => {
     machine_type: machineTypeOptions.value.find(machineType => machineType.id == (props.vend.machine_type || 'vending_machine')) || null,
     citybox_equipment_id: props.vend.citybox_equipment_id || null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
-    server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
     is_fan_enabled: (props.vend.is_fan_enabled === false || props.vend.is_fan_enabled === 0 || props.vend.is_fan_enabled === '0' || props.vend.is_fan_enabled === 'false') ? {id: 'false', value: 'No'} : {id: 'true', value: 'Yes'},
     simcard_id: props.vend.simcard_id ? simcardOptions.value.find(simcard => simcard.id == props.vend.simcard_id) : null,
     status: statusOptions.value.find(status => status.id == (props.vend.is_sold == 1 ? 'sold' : (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')))),
@@ -2682,7 +2692,7 @@ function saveVend(vendID) {
       led_matrix_panel_id: data.led_matrix_panel_id ? data.led_matrix_panel_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       key_id: data.key_id ? data.key_id.id : null,
-      // is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
+      is_using_server_price: data.is_using_server_price ? data.is_using_server_price.id === 'true' : false,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
       // A cleared/unmatched picker must NOT silently demote the machine to a vending
       // machine (that would also wipe a CityBox serial server-side): fall back to the
@@ -2695,7 +2705,6 @@ function saveVend(vendID) {
         : null,
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
       modem_unit_id: data.modem_unit_id ? data.modem_unit_id.id : null,
-      server_price_type: data.server_price_type ? data.server_price_type.id : null,
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       operator_id: data.operator_id ? data.operator_id.id : null,

@@ -22,6 +22,7 @@ use App\Models\VendPrefix;
 use App\Services\TagBindingService;
 use App\Services\VendJobService;
 use App\Services\VendParameterService;
+use App\Services\VendPricingSourceService;
 use App\ValueObjects\ApkSettingParameters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -36,11 +37,14 @@ class ApkSettingController extends Controller
 
     protected $vendJobService;
 
-    public function __construct(VendJobService $vendJobService)
+    protected $vendPricingSourceService;
+
+    public function __construct(VendJobService $vendJobService, VendPricingSourceService $vendPricingSourceService)
     {
         $this->tagBindingService = new TagBindingService;
         $this->vendParameterService = new VendParameterService;
         $this->vendJobService = $vendJobService;
+        $this->vendPricingSourceService = $vendPricingSourceService;
     }
 
     public function index(Request $request)
@@ -314,6 +318,29 @@ class ApkSettingController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Per-machine pricing source, edited from the bound-machines table on this
+     * page. The setting's own selectedPricingSource is NOT the switch: it is
+     * shared by every bound machine, whereas "follow the Site's pricing" is a
+     * per-machine decision (Vend::usesServerPrice()) — /parameters derives the
+     * wire value from the vend, and VendPricingSourceObserver nudges the terminal.
+     */
+    public function updateVendPricingSource(Request $request, $vendId)
+    {
+        $request->validate([
+            'is_using_server_price' => 'required|boolean',
+        ]);
+
+        $vend = Vend::findOrFail($vendId);
+
+        $this->vendPricingSourceService->setUsingServerPrice(
+            $vend,
+            $request->boolean('is_using_server_price')
+        );
+
+        return redirect()->back();
     }
 
     public function update(UpdateApkSettingRequest $request, $id)

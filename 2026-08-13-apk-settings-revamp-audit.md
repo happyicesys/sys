@@ -69,7 +69,7 @@ Key facts:
   Images cached 24h TTL; MQTT `TYPESYNCAPICHANNELSLOTLIST` forces refresh.
 - Price change reaches a machine **only** via re-fetch (`TYPESYNCAPICHANNELSLOTLIST`
   doorbell or reboot). There is no dedicated price-push command.
-- `server_price` resolves as `selling_prices.amount WHERE type = vends.server_price_type`
+- `server_price` resolves as `selling_prices.amount WHERE type = customers.selling_price_type` of the bound Site, and only while `vends.is_using_server_price` is on (2026-08-21: `vends.server_price_type` dropped — the Site owns the tier; see mark1 `CLAUDE.md` → Pricing source)
   — per-vend price tier selection lives on the vend row, not the profile.
 
 ### Every other control surface found (the "what else affects APK" audit)
@@ -84,7 +84,7 @@ Key facts:
 | Media | 4 endpoints (`banner-image/video`, `campaign-image/video`) mirror-synced to device folders; **name-only caching** | `VendController.php:3220-3303`, `clsHttpManager.java:1502-1799` |
 | Payment config | `GET /api/v1/payment-merchants/{CC}/{gateway}`; `vends.is_enable_grab_collection` etc. (machine-authoritative) | `PaymentController`, `SyncFeatureApkSetting.php` |
 | Campaigns | `campaigns` + `campaign_items` + `apk_setting_campaign` pivot → `campaigns[]` / `promoLabelItems[]` in `/parameters` (label promos are **server-only**, no local UI) | `ApkSettingController::bindCampaigns` |
-| Vend row flags | `vends.server_price_type` (price tier), `vends.product_mapping_id`, `vends.private_key` (MQTT signing), `vends.is_enable_grab_collection` + 5 siblings | migrations 2024-12-25, 2026-01-20/30 |
+| Vend row flags | `vends.is_using_server_price` (follow the Site's RP or board price; the tier itself is `customers.selling_price_type`), `vends.product_mapping_id`, `vends.private_key` (MQTT signing), `vends.is_enable_grab_collection` + 5 siblings | migrations 2024-12-25, 2026-01-20/30 |
 
 ---
 
@@ -212,7 +212,7 @@ per parameter**, in one server-side registry.
 | Class | Authority | Examples | Web UI treatment |
 |---|---|---|---|
 | **D — Device bootstrap** | Device only, never synced | `comPort`, `locale`/API base, `aesKey` (Secret Key), `Venderid`, `enableMQTT`, `selectedRemoteSetting` | Read-only display (from PWRON/FEATUREAPKSETTING telemetry) with "set on device" badge |
-| **P — Fleet policy (profile)** | Server-authoritative | `poweredBy`, `supportContactNum`, `bannerKind`, `selectedPricingSource`, company/refund fields, `enableAutoReboot`*, soft-keypad module & carousel*, cart limit*, payment method toggles* (see 3.4) | Editable in profile; versioned; pushed |
+| **P — Fleet policy (profile)** | Server-authoritative | `poweredBy`, `supportContactNum`, `bannerKind`, company/refund fields (`selectedPricingSource` is NO LONGER a profile setting since 2026-08-21 — `/parameters` derives it per machine from `vends.is_using_server_price`), `enableAutoReboot`*, soft-keypad module & carousel*, cart limit*, payment method toggles* (see 3.4) | Editable in profile; versioned; pushed |
 | **C — Campaign (time-boxed)** | Server-authoritative, separate entity | running texts, promo banner kind, campaign dates, buy1free1/buy2free1, bundle discounts, label promos | Campaign editor with start/end, bound to profiles/vends; never baked into profile blob |
 | **T — Telemetry / reported** | Device-reported, server read-only | `version`, `lastSyncApiDate`, `offlineRestartCount`, `consecutiveOfflineReboots`, current feature flags | Status panel per vend |
 
@@ -318,7 +318,7 @@ Pick a direction and enforce it:
   (name changes when content changes) — fixes #13 with zero APK changes, since
   device mirror-sync keys on filename.
 - Document loudly (CLAUDE.md-level): `server_amount`/`server_price` are integer
-  cents; `vends.server_price_type` (not the profile) picks the price tier;
+  cents; the Site's `customers.selling_price_type` picks the price tier and `vends.is_using_server_price` (not the profile) decides whether the machine follows it (2026-08-21);
   price changes need a `TYPESYNCAPICHANNELSLOTLIST` doorbell — consider
   auto-doorbelling on `selling_prices`/`product_mapping_items` writes the same
   way apk-settings edits auto-push.

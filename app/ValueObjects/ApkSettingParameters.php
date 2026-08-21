@@ -128,7 +128,13 @@ final class ApkSettingParameters implements JsonSerializable
         'supportContactNum' => ['default' => '85488897', 'type' => self::TYPE_STRING, 'group' => 'branding', 'label' => 'Support Contact Number'],
         'poweredBy' => ['default' => 'Powered By Happy Ice', 'type' => self::TYPE_STRING, 'group' => 'branding', 'label' => 'Display Text (Corner)'],
 
-        'selectedPricingSource' => ['default' => 'machine', 'type' => self::TYPE_ENUM, 'group' => 'pricing', 'label' => 'Pricing Source', 'options' => ['server', 'machine']],
+        // 2026-08-21: the STORED value is no longer what a machine receives.
+        // Pricing source is per machine (vends.is_using_server_price — "follow
+        // the Site's pricing" or the board price); VendController::
+        // getVendParameters overrides this key per vend on the wire. The key
+        // stays here so old rows normalize and the payload stays schema-
+        // complete for Gson (a missing key resets the pref on-device).
+        'selectedPricingSource' => ['default' => 'machine', 'type' => self::TYPE_ENUM, 'group' => 'pricing', 'label' => 'Pricing Source (derived per machine)', 'options' => ['server', 'machine']],
 
         'enableDebugMode' => ['default' => 'false', 'type' => self::TYPE_BOOL, 'group' => 'system', 'label' => 'Enable Debug Mode'],
 

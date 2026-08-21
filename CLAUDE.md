@@ -93,6 +93,31 @@ door. `OperatorDeliveryProductMappingScope` is the worked example: it also
 covers edit/update/delete/bindVend and two `::all()` option lists.
 Regression coverage: `tests/Feature/DeliveryProductMappingOperatorScopeTest.php`.
 
+## Pricing source: the Site owns the tier, the machine only follows it
+
+`customers.selling_price_type` (RP1–RP5, Customer/Site edit) is the **only**
+place a reference-price tier is chosen. A machine carries just a switch,
+`vends.is_using_server_price` ("Is Using Server Price?"):
+
+- **No** → the terminal sells at the VMC board price.
+- **Yes, follow Site's pricing** → mark1 selling prices in the Site's tier.
+
+There is no per-machine RP override (`vends.server_price_type` was dropped
+2026-08-21 — Brian). Derive, never store: `Vend::usesServerPrice()` /
+`Vend::serverPriceType()`, and the raw-query equivalent in
+`VendChannel::getServerAmountAttribute()`.
+
+On the wire, `/api/vends/{code}/parameters` emits `selectedPricingSource`
+**per vend** from that flag — the `selectedPricingSource` stored in the shared
+`apk_settings` row is ignored (kept in `ApkSettingParameters::SCHEMA` only so
+old rows normalize and Gson keeps a schema-complete payload). `/thumbnails` and
+`/menu` carry `server_price` only while the flag is on.
+
+Every write path goes through `VendPricingSourceService` (or nudges via it):
+Machine Settings save, the per-machine column on APK Settings → Edit, and a Site
+RP change — each tells the terminal to re-read settings **and** re-fetch its
+menu. Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
+
 ---
 
 # Laravel Boost guidelines

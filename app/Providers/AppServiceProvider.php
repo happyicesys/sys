@@ -40,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Blind SKU: keep per-product blended unit costs in sync.
         UnitCost::observe(UnitCostObserver::class);
+        \App\Models\Vend::observe(\App\Observers\VendPricingSourceObserver::class);
         ProductChild::observe(ProductChildObserver::class);
         // Blind SKU: snapshot the flavour set onto each ops job channel at creation.
         OpsJobItemChannel::observe(OpsJobItemChannelObserver::class);

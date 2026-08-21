@@ -90,24 +90,20 @@
               </div>
             </div>
 
+            <!-- Pricing source is decided PER MACHINE (vends.is_using_server_price), not per
+                 setting: this setting is shared by every bound machine while "follow the
+                 Site's pricing" depends on each machine's Site. The wire value
+                 (selectedPricingSource) is derived from the machine at /parameters.
+                 Set it in the bound-machines table below or in Machine Settings. -->
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Pricing Source
               </label>
-              <span class="text-sm text-gray-600">
-                (Server = prices from mark1 selling prices; Machine = prices from the VMC board)
-              </span>
-              <MultiSelect
-                v-model="form.selectedPricingSource"
-                :options="pricingSourceOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
+              <p class="text-sm text-gray-600 mt-1">
+                Set per machine — see the <span class="font-semibold">Server Price</span> column in the bound machines list below
+                (also on Machine Settings → Edit). <span class="font-semibold">Yes</span> = prices follow the Site's Ref Price Type (RP1–RP5 from the Site edit page);
+                <span class="font-semibold">No</span> = machine (VMC board) price.
+              </p>
             </div>
 
             <div class="sm:col-span-3">
@@ -1208,6 +1204,9 @@
                           Enable Soft Keyboard Qr Pay
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Server Price
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                           Action
                         </th>
                       </tr>
@@ -1267,6 +1266,24 @@
                           <div v-if="vend.is_enable_soft_keyboard_qr_pay !== null">
                             <CheckCircleIcon v-if="vend.is_enable_soft_keyboard_qr_pay" class="w-5 h-5 text-green-500 mx-auto" aria-hidden="true"/>
                             <XCircleIcon v-else class="w-5 h-5 text-red-500 mx-auto" aria-hidden="true"/>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 text-center">
+                          <!-- Saves immediately (own route), independent of the main Save button. -->
+                          <select
+                            :value="vend.is_using_server_price ? 'true' : 'false'"
+                            :disabled="pricingSourceSaving[vend.id]"
+                            @change="setVendPricingSource(vend, $event.target.value === 'true')"
+                            class="rounded-md border-gray-300 text-sm py-1 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500 disabled:opacity-50"
+                          >
+                            <option value="false">No, use machine price</option>
+                            <option value="true">Yes, follow Site's pricing</option>
+                          </select>
+                          <div class="mt-1 text-xs">
+                            <span v-if="vend.customer?.selling_price_type" :class="vend.is_using_server_price ? 'text-emerald-700 font-semibold' : 'text-gray-500'">
+                              Site RP{{ vend.customer.selling_price_type }}
+                            </span>
+                            <span v-else class="text-gray-400">no Site RP</span>
                           </div>
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">
@@ -1408,11 +1425,6 @@ const booleanStrictOptions = ref([
   {id: 'false', value: 'No'},
 ])
 
-const pricingSourceOptions = ref([
-  {id: 'server', value: 'Server'},
-  {id: 'machine', value: 'Machine'},
-])
-
 const promoBannerKindOptions = ref([
   {id: 'video', value: 'Video'},
   {id: 'picture', value: 'Picture'},
@@ -1531,9 +1543,6 @@ onMounted(() => {
     bannerKind: promoBannerKindOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.bannerKind.toString()
     ),
-    selectedPricingSource: pricingSourceOptions.value.find(
-      option => option.id == props.apkSetting.data.settings_parameter_json.selectedPricingSource.toString()
-    ),
     enableDebugMode: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enableDebugMode.toString()
     ),
@@ -1614,8 +1623,6 @@ function getDefaultForm() {
     supportContactNum: '',
     poweredBy: '',
 
-    selectedPricingSource: '',
-
     enableDebugMode: '',
 
     vend_id: '',
@@ -1651,7 +1658,6 @@ function submit() {
             enableDiscount03: form.value.enableDiscount03?.id,
             enableLabelPromo: form.value.enableLabelPromo?.id,
             bannerKind: form.value.bannerKind?.id,
-            selectedPricingSource: form.value.selectedPricingSource?.id,
             enableDebugMode: form.value.enableDebugMode?.id,
             headerTextStartDate: form.value.headerTextStartDate != 'Invalid date' ? form.value.headerTextStartDate : null,
             headerTextEndDate: form.value.headerTextEndDate != 'Invalid date' ? form.value.headerTextEndDate : null,
@@ -2026,6 +2032,32 @@ function unbindVendItem(vend) {
   vends.value.splice(vends.value.indexOf(vend), 1)
   unbindedVendOptions.value.push(vend)
   unbindedVendOptions.value.sort((a, b) => a.code - b.code)
+}
+
+// Per-machine "Is Using Server Price?" — same field as Machine Settings → Edit.
+// Posts straight away (the main Save only writes this setting's own parameters),
+// and the server nudges the terminal to re-read settings + menu.
+const pricingSourceSaving = ref({})
+function setVendPricingSource(vend, on) {
+  const previous = vend.is_using_server_price
+  vend.is_using_server_price = on
+  pricingSourceSaving.value[vend.id] = true
+  router.post('/apk-settings/vends/' + vend.id + '/pricing-source', {
+    is_using_server_price: on,
+  }, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => {
+      toast.success('Machine ' + vend.code + ': ' + (on ? "now follows the Site's pricing" : 'now uses machine price'))
+    },
+    onError: () => {
+      vend.is_using_server_price = previous
+      toast.error('Could not update pricing source for machine ' + vend.code)
+    },
+    onFinish: () => {
+      pricingSourceSaving.value[vend.id] = false
+    },
+  })
 }
 
 </script>

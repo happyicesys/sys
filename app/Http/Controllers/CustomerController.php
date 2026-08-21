@@ -42,6 +42,7 @@ use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\PerformanceReportContentService;
 use App\Services\TagBindingService;
+use App\Services\VendPricingSourceService;
 use App\Traits\ExportOptimizationTrait;
 use App\Traits\HasFilter;
 use App\Traits\SearchAddress;
@@ -81,10 +82,12 @@ class CustomerController extends Controller
 
     protected $historyService;
     protected $mapService;
+    protected $vendPricingSourceService;
 
-    public function __construct(HistoryService $historyService)
+    public function __construct(HistoryService $historyService, VendPricingSourceService $vendPricingSourceService)
     {
         $this->historyService = $historyService;
+        $this->vendPricingSourceService = $vendPricingSourceService;
         $this->mapService = new MapService();
     }
 
@@ -6163,8 +6166,20 @@ class CustomerController extends Controller
             // affected month span below if they change (flat-fee proration).
             $oldActiveDate = $customer->active_date;
             $oldRemovedDate = $customer->removed_date;
+            $oldSellingPriceType = $customer->selling_price_type;
 
             $customer->update($request->customer);
+
+            // Site RP changed → every machine that follows the Site's pricing
+            // must re-fetch its menu so server_price moves to the new tier. The
+            // Site is the only place the tier lives (Vend::serverPriceType()).
+            // vends(), not vend(): a Site can carry several machines. A machine
+            // bound further down in this same request is nudged by
+            // VendPricingSourceObserver (customer_id change) instead.
+            if ((int) $oldSellingPriceType !== (int) $customer->selling_price_type) {
+                $customer->vends()->where('is_using_server_price', true)->get()
+                    ->each(fn (Vend $follower) => $this->vendPricingSourceService->nudge($follower));
+            }
 
             // Append a Status History row whenever the site status changed (date
             // captured above). Append-only audit; powers the Status History popup.

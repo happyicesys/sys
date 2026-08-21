@@ -145,6 +145,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/upload-media', [ApkSettingController::class, 'uploadMedia']);
         Route::post('/{id}/upload-campaign-media', [ApkSettingController::class, 'uploadCampaignMedia']);
         Route::delete('/unbind-vend/{vendId}', [ApkSettingController::class, 'unbindVend']);
+        Route::post('/vends/{vendId}/pricing-source', [ApkSettingController::class, 'updateVendPricingSource']);
         Route::delete('/{id}', [ApkSettingController::class, 'destroy']);
     });
 

@@ -101,7 +101,10 @@ class VendParametersWireContractTest extends TestCase
         $this->assertSame('Legacy promo', $data['promoHeaderText']);
         $this->assertSame(5, $data['discountPercent01']);
         $this->assertSame(-1, $data['buy1free1X']);
-        $this->assertSame('server', $data['selectedPricingSource']);
+        // 2026-08-21: selectedPricingSource is derived per MACHINE
+        // (vends.is_using_server_price), not read from the shared row — this
+        // vend uses the board price, so the stored 'server' is NOT what it gets.
+        $this->assertSame('machine', $data['selectedPricingSource']);
 
         // Keys the 38-key generation never had are healed with defaults,
         // deprecated ones included (pre-301 machines still parse them).
