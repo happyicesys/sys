@@ -195,7 +195,7 @@
                     <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                       <div class="flex justify-center items-center">
                         <a :href="product.thumbnail.full_url" target="_blank" v-if="product.thumbnail">
-                          <img class="h-20 w-20 md:h-24 md:w-24 rounded-lg object-contain bg-white border border-gray-200 p-1" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" />
+                          <img class="h-20 w-20 md:h-24 md:w-24 max-w-none shrink-0 rounded-lg object-contain bg-white border border-gray-200 p-1" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" />
                         </a>
                       </div>
                     </td>
