@@ -2607,6 +2607,36 @@
 									</div>
 							</div>
 							<!--
+								Internet link — telco / Wi-Fi / LAN plus signal bars, squeezed into
+								one badge so the column stays narrow. Reported by the APK in its
+								VENDER packet ("Internet" key: big board v302+, smart freezer) and
+								promoted onto vends.internet_* by SyncVendParameter.
+
+								Hidden (not N/A) when the machine has never reported a link: during
+								rollout that is the normal state for older APKs, not an error.
+								Colour grades the bar RATIO (the device declares its own scale):
+								  - green  > 45 %          - yellow <= 45 %
+								  - red    <= 25 % or no link at all
+								  - gray   link without a readable signal (LAN) or inactive vend
+							-->
+							<div
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+									:class="[vend.is_active || vend.is_testing ? internetLinkClass(vend) : 'bg-gray-200 text-gray-400']"
+									v-if="vend.internet_source"
+							>
+									<div class="flex flex-col">
+											<span class="font-bold">
+													{{ internetLinkTitle(vend) }}
+											</span>
+											<span v-if="internetLinkBars(vend)">
+													{{ internetLinkBars(vend) }}
+											</span>
+											<span v-if="vend.internet_updated_at">
+													{{ shortTimeAgo(vend.internet_updated_at) }}
+											</span>
+									</div>
+							</div>
+							<!--
 								Remote Modem — minimal badge, matches HTTP / MQTT styling.
 								Modem type, IMEI and Reset button have been moved to
 								Vend/Edit.vue (Advance Control) so this column stays
@@ -4307,6 +4337,52 @@ function getVendsField() {
 					// vendChannelsJson: props.indexType === 'customers' ? data.vend?.vendChannelsJson : data.vendChannelsJson,
 			}})
 	}
+}
+
+/**
+ * Internet link badge (Machine Status column) — title line.
+ * "StarHub 4G" / "Wi-Fi HappyIce" / "LAN" / "No Link". Carrier or SSID
+ * first because that is what ops recognise; the generation is the detail.
+ */
+function internetLinkTitle(vend) {
+	const source = vend.internet_source;
+	const provider = vend.internet_provider;
+	const network = vend.internet_network;
+	if (source === 'none') return 'No Link';
+	if (source === 'lan') return 'LAN';
+	if (source === 'wifi') return provider ? 'Wi-Fi ' + provider : 'Wi-Fi';
+	if (source === 'telco') {
+		const parts = [provider || 'Telco'];
+		if (network) parts.push(network);
+		return parts.join(' ');
+	}
+	return provider || network || 'Internet';
+}
+
+/**
+ * Internet link badge — bar count line ("Signal 4/5"), or null when the
+ * machine could not read a signal (LAN, or a ROM with no signal API), so the
+ * badge simply omits the line rather than inventing "0/5".
+ */
+function internetLinkBars(vend) {
+	if (vend.internet_signal === null || vend.internet_signal === undefined) return null;
+	return 'Signal ' + vend.internet_signal + '/' + (vend.internet_signal_max || 5);
+}
+
+/**
+ * Internet link badge colour. Same thresholds as Vend/Index.vue's link
+ * column, graded on the RATIO because the scale is whatever the device
+ * declared (3 bars is good out of 5, mediocre out of 10). A link with no
+ * bar reading is neutral gray: absence of evidence is not a bad link.
+ */
+function internetLinkClass(vend) {
+	if (vend.internet_source === 'none') return 'bg-red-200';
+	if (vend.internet_signal === null || vend.internet_signal === undefined) return 'bg-gray-200';
+	const max = vend.internet_signal_max || 5;
+	const ratio = max > 0 ? vend.internet_signal / max : 0;
+	if (ratio <= 0.25) return 'bg-red-200';
+	if (ratio <= 0.45) return 'bg-yellow-200';
+	return 'bg-green-200';
 }
 
 function getVendRecordsAmountAverageDayClass(amount) {

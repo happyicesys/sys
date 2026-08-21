@@ -194,7 +194,9 @@
                                         <td class="p-1 sm:p-3 text-xs sm:text-sm text-center text-gray-900">{{ index + 1 }}</td>
                     <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                       <div class="flex justify-center items-center">
-                        <img class="h-8 w-8 sm:h-16 sm:w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
+                        <a :href="product.thumbnail.full_url" target="_blank" v-if="product.thumbnail">
+                          <img class="h-20 w-20 md:h-24 md:w-24 rounded-lg object-contain bg-white border border-gray-200 p-1" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" />
+                        </a>
                       </div>
                     </td>
                                         <td class="p-1 sm:p-3 text-xs sm:text-sm text-gray-900">

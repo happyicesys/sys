@@ -647,19 +647,6 @@
             </div>
           </TableHeadSort>
           <TableHead>
-            <div class="flex flex-col space-y-1">
-              <span>
-                Internet Link
-              </span>
-              <span class="text-blue-600 text-xs">
-                Provider
-              </span>
-              <span class="text-blue-600 text-xs">
-                Signal
-              </span>
-            </div>
-          </TableHead>
-          <TableHead>
             Inventory Status <br>
             #Channel, Needed, Balance/Capacity (LastStockIn)
           </TableHead>
@@ -1013,30 +1000,6 @@
               </span>
             </div>
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <!--
-              Link telemetry, reported by APK v302 (big board) / v134 (small board).
-              A machine still on an older APK sends nothing here, so the N/A branch
-              is the normal state during rollout and is NOT an error.
-            -->
-            <div class="flex flex-col items-center space-y-1" v-if="vend.internet_source">
-              <span
-                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
-                :class="internetLinkClass(vend)"
-              >
-                {{ internetLinkLabel(vend) }}
-              </span>
-              <span v-if="vend.internet_provider" class="text-blue-800">
-                {{ vend.internet_provider }}
-              </span>
-              <span v-if="vend.internet_updated_at" class="text-xs text-gray-500">
-                {{ vend.internet_updated_at }}
-              </span>
-            </div>
-            <div v-else class="text-gray-400">
-              N/A
-            </div>
-          </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <div class="flex flex-col space-y-2">
               <ul
@@ -1270,6 +1233,31 @@
                       </span>
                       <span v-if="vend.mqtt_last_updated_at">
                           {{ vend.mqtt_last_updated_at }}
+                      </span>
+                  </div>
+              </div>
+              <!--
+                Internet link — telco / Wi-Fi / LAN plus signal bars in one badge
+                (same badge as Vend/CustomerIndex's Machine Status column). Reported
+                by the APK in its VENDER packet ("Internet" key: big board v302+,
+                small board v134+, smart freezer) and promoted onto vends.internet_*
+                by SyncVendParameter. Hidden when the machine has never reported a
+                link — during rollout that is the normal state for older APKs.
+              -->
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                  :class="[vend.is_active || vend.is_testing ? internetLinkClass(vend) : 'bg-gray-200 text-gray-400']"
+                  v-if="vend.internet_source"
+              >
+                  <div class="flex flex-col">
+                      <span class="font-bold">
+                          {{ internetLinkTitle(vend) }}
+                      </span>
+                      <span v-if="internetLinkBars(vend)">
+                          {{ internetLinkBars(vend) }}
+                      </span>
+                      <span v-if="vend.internet_updated_at">
+                          {{ vend.internet_updated_at }}
                       </span>
                   </div>
               </div>
@@ -1957,21 +1945,38 @@ function onIsShowOperationDivButtonClicked() {
 }
 
 /**
- * Badge text for the link column: the mobile generation when we have one,
- * otherwise the transport, plus the bar count when the machine could read it.
- * "4G 4/5", "wifi 3/5", "lan", "none".
+ * Internet link badge (Machine Status column) — title line.
+ * "StarHub 4G" / "Wi-Fi HappyIce" / "LAN" / "No Link". Carrier or SSID
+ * first because that is what ops recognise; the generation is the detail.
+ * Mirrors Vend/CustomerIndex.vue so both pages read the same.
  */
-function internetLinkLabel(vend) {
-  const kind = vend.internet_network || vend.internet_source;
-  if (vend.internet_signal === null || vend.internet_signal === undefined) {
-    return kind;
+function internetLinkTitle(vend) {
+  const source = vend.internet_source;
+  const provider = vend.internet_provider;
+  const network = vend.internet_network;
+  if (source === 'none') return 'No Link';
+  if (source === 'lan') return 'LAN';
+  if (source === 'wifi') return provider ? 'Wi-Fi ' + provider : 'Wi-Fi';
+  if (source === 'telco') {
+    const parts = [provider || 'Telco'];
+    if (network) parts.push(network);
+    return parts.join(' ');
   }
-
-  return kind + ' ' + vend.internet_signal + '/' + (vend.internet_signal_max || 5);
+  return provider || network || 'Internet';
 }
 
 /**
- * Green / amber / red for the link badge.
+ * Internet link badge — bar count line ("Signal 4/5"), or null when the
+ * machine could not read a signal (LAN, or a ROM with no signal API), so the
+ * badge simply omits the line rather than inventing "0/5".
+ */
+function internetLinkBars(vend) {
+  if (vend.internet_signal === null || vend.internet_signal === undefined) return null;
+  return 'Signal ' + vend.internet_signal + '/' + (vend.internet_signal_max || 5);
+}
+
+/**
+ * Internet link badge colour, in this page's badge palette.
  *
  * Thresholds are on the RATIO, not the raw bar count, because the scale is
  * whatever the device declared: 3 bars is good out of 5 and mediocre out of 10.
@@ -1982,23 +1987,13 @@ function internetLinkLabel(vend) {
  * that really are marginal.
  */
 function internetLinkClass(vend) {
-  if (vend.internet_source === 'none') {
-    return 'bg-red-100 text-red-800';
-  }
-  if (vend.internet_signal === null || vend.internet_signal === undefined) {
-    return 'bg-gray-100 text-gray-800';
-  }
-
+  if (vend.internet_source === 'none') return 'bg-red-200';
+  if (vend.internet_signal === null || vend.internet_signal === undefined) return 'bg-gray-200';
   const max = vend.internet_signal_max || 5;
   const ratio = max > 0 ? vend.internet_signal / max : 0;
-  if (ratio <= 0.25) {
-    return 'bg-red-100 text-red-800';
-  }
-  if (ratio <= 0.45) {
-    return 'bg-yellow-100 text-yellow-800';
-  }
-
-  return 'bg-green-100 text-green-800';
+  if (ratio <= 0.25) return 'bg-red-200';
+  if (ratio <= 0.45) return 'bg-yellow-200';
+  return 'bg-green-200';
 }
 
 function onResetModemClicked(modemUnitID) {

@@ -1080,6 +1080,17 @@ class VendController extends Controller
                 'vends.label_name',
                 'vends.last_updated_at',
                 'vends.mqtt_last_updated_at',
+                // Internet link badge in the Machine Status column on
+                // Vend/CustomerIndex (telco / Wi-Fi / LAN + signal bars),
+                // promoted out of the VENDER packet by SyncVendParameter and
+                // formatted by VendResource. Nullable: a machine on a pre-v302
+                // APK (or a freezer before it reported) simply has no badge.
+                'vends.internet_source',
+                'vends.internet_provider',
+                'vends.internet_signal',
+                'vends.internet_signal_max',
+                'vends.internet_network',
+                'vends.internet_updated_at',
                 'vends.out_of_stock_sku_percent',
                 DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
