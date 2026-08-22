@@ -1253,7 +1253,7 @@
                       <span class="font-bold">
                           {{ internetLinkTitle(vend) }}
                       </span>
-                      <span v-if="internetLinkBars(vend)">
+                      <span class="font-bold" v-if="internetLinkBars(vend)">
                           {{ internetLinkBars(vend) }}
                       </span>
                       <span v-if="vend.internet_updated_at">
