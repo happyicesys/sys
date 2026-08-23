@@ -55,6 +55,18 @@ return [
     'auto_refund_terminals' => ['Nayax'],
 
     /*
+    | Card terminals whose MDB reader REVERSES the charge at the machine when a
+    | SINGLE-item vend fails (VEND FAILURE → reader refund; seen as "REVERSAL" on
+    | the NETS terminal). For these, a TRADE with PAY_TYPE=card, is_multiple=0,
+    | error ∉ {0,6}, ISOK=0 is recorded as auto-refunded
+    | (vend_transactions.is_refunded + auto_refund_source = card_terminal_reversal)
+    | so the Sales Transactions / Refund Request pages never let ops pay a second
+    | time. Verified on NETS (2026-08-23); widen only after a field check on that
+    | terminal type. Multi-item purchases are never reversed by the terminal.
+    */
+    'card_reversal_terminals' => ['Nets', 'Nets-Auresys'],
+
+    /*
     | Fallback ISO country (e.g. SG, MY, ID) for PayNow phone validation when a
     | machine's operator has no country set. Per-country instances can override.
     */

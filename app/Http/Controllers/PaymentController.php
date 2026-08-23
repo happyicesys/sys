@@ -111,11 +111,36 @@ class PaymentController extends Controller
           case 'refund':
             $status = PaymentGatewayLog::STATUS_REFUND;
             break;
+          case 'dispute':
+            // dispute.create / .accept / .close — no money moves on these
+            // events. If Omise accepts a chargeback as a refund it ALSO emits
+            // refund.create, which is handled above. Acknowledge (200) instead
+            // of throwing: a 500 makes Omise retry for days and hides the real
+            // refund event behind the noise.
+            Log::info('Omise dispute event acknowledged', ['key' => $input['key'] ?? null, 'charge' => $input['data']['charge'] ?? null]);
+            return;
           default:
             throw new \Exception('Payment gateway is not found');
         }
-        $orderId = $input['data']['metadata']['order_id'];
+        // metadata.order_id is OUR stamp: present on charges we create and on
+        // refunds WE make through the API. A refund made on the Omise dashboard
+        // or by a dispute/chargeback carries the refund's own (empty) metadata
+        // — resolve it through data.charge (the charge id = our ref_id) instead,
+        // otherwise the event is dropped and mark1 never learns the charge was
+        // refunded (chrg_68n67o8khxc8go7inac, 2026-08-12, WeChat dispute).
+        $orderId = $input['data']['metadata']['order_id'] ?? null;
         $refId = $input['data']['id'];
+        if ($status === PaymentGatewayLog::STATUS_REFUND && !empty($input['data']['charge'])) {
+          $refId = $input['data']['charge']; // keep ref_id = charge id on the log
+          if (!$orderId) {
+            $byCharge = PaymentGatewayLog::where('ref_id', $input['data']['charge'])->orderByDesc('id')->first();
+            $orderId = $byCharge?->order_id;
+          }
+        }
+        if (!$orderId) {
+          Log::warning('Omise webhook without a resolvable order_id', ['key' => $input['key'] ?? null, 'data_id' => $refId]);
+          return;
+        }
         $qrRefID = isset($input['data']['source']) && isset($input['data']['source']['provider_references']) && isset($input['data']['source']['provider_references']['reference_number_1']) ? $input['data']['source']['provider_references']['reference_number_1'] : null;
         break;
       case 'fiuu':
@@ -211,6 +236,18 @@ class PaymentController extends Controller
       'order_id' => $orderId,
     ], $updatedPaymentGatewayLogValues);
 
+    // A refund we did NOT initiate (Omise dashboard / dispute / chargeback):
+    // the log is now REFUND — bring the linked vend_transaction (is_refunded,
+    // auto_refund_source, settlement) and any open refund ticket in line, the
+    // same way RefundOmiseJob does for our own refunds. A refund WE initiated
+    // never reaches here: RefundOmiseJob flips the log to REFUND first, so the
+    // APPROVE lookup above finds nothing and returns early (or, in the rare
+    // race where the webhook wins, the job's own record() re-writes the source).
+    if ($company === 'omise' && $status === PaymentGatewayLog::STATUS_REFUND) {
+      app(\App\Services\Refund\OmiseRefundRecorder::class)
+        ->record($updatedPaymentGatewayLog, $input, \App\Support\AutoRefundSource::OMISE_EXTERNAL);
+    }
+
     if ($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
 
       if ($ageSeconds > 210) {
@@ -218,7 +255,7 @@ class PaymentController extends Controller
           case 'midtrans':
             break;
           case 'omise':
-            RefundOmiseJob::dispatch($paymentGatewayLog->order_id);
+            RefundOmiseJob::dispatch($paymentGatewayLog->order_id, \App\Support\AutoRefundSource::OMISE_STALE_APPROVE);
             break;
         }
         return;

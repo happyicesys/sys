@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Models\PaymentMethod;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,6 +28,10 @@ class VendTransactionResource extends JsonResource
             'is_multiple' => $this->is_multiple,
             'is_payment_received' => $this->is_payment_received,
             'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,
+            // WHY the system auto-refunded (App\Support\AutoRefundSource), for the
+            // "Auto-refunded?" badge tooltip. null when not auto-refunded / unknown.
+            'auto_refund_source' => $this->auto_refund_source ?? null,
+            'auto_refund_source_label' => \App\Support\AutoRefundSource::label($this->auto_refund_source ?? null),
             // Refund badge: 'auto' | 'manual' | null, plus the ticket reference
             // (RF-xxxxxx) when there is one. Populated per-page in transactionIndex.
             'refund_type' => $this->refund_type ?? null,
@@ -58,6 +61,7 @@ class VendTransactionResource extends JsonResource
                         }
                     }
                 }
+
                 return $merged;
             })(),
             'metaJson' => $this->meta_json,

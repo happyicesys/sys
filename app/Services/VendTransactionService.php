@@ -1,42 +1,43 @@
 <?php
 
 namespace App\Services;
+
+use App\Jobs\HandleFailedVendTransaction;
+use App\Jobs\SendDataToDcvend;
+use App\Jobs\Vend\DecrementVendDailyStat;
+use App\Jobs\Vend\SyncVendChannelErrorLog;
+use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatforms\Grab;
+use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
-use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
 use App\Models\Product;
-use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
-use App\Jobs\HandleFailedVendTransaction;
-use App\Jobs\SendDataToDcvend;
-use App\Jobs\Vend\DecrementVendDailyStat;
-use App\Jobs\Vend\SyncUnitCostJson;
-use App\Jobs\Vend\SyncVendChannelErrorLog;
-use App\Jobs\Vend\SyncVendTransactionTotalsJson;
-use App\Services\VoucherService;
 use Carbon\Carbon;
 use DB;
 
 class VendTransactionService
 {
     protected $voucherService;
+
     protected $paymentMethods;
+
     protected $vendChannelErrors;
+
     protected $vendChannels;
+
     protected $productMappingItems;
 
     public function __construct()
     {
-        $this->voucherService = new VoucherService();
+        $this->voucherService = new VoucherService;
     }
-
 
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
@@ -58,7 +59,7 @@ class VendTransactionService
 
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
 
-        DB::statement("SET innodb_lock_wait_timeout = 5"); // Prevent long waits
+        DB::statement('SET innodb_lock_wait_timeout = 5'); // Prevent long waits
         DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
 
         // Set true when this TRADE updates a gateway row that was pre-created at
@@ -68,9 +69,9 @@ class VendTransactionService
 
         try {
             // 🔥 Store the result of the transaction
-            $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $input, $isCurrentTime, &$wasPreCreatedUpdate) {
+            $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $isCurrentTime, &$wasPreCreatedUpdate) {
                 if ($processedInput['interfaceType'] == '50') {
-                    $processedInput['orderID'] = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID'];
+                    $processedInput['orderID'] = Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$processedInput['orderID'];
                 }
 
                 // Look up an existing row for this order id (raw + TXN_SRC-50
@@ -80,7 +81,7 @@ class VendTransactionService
                 $existingVendTransaction = VendTransaction::query()
                     ->where(function ($query) use ($processedInput) {
                         $query->where('order_id', $processedInput['orderID'])
-                            ->orWhere('order_id', Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID']);
+                            ->orWhere('order_id', Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$processedInput['orderID']);
                     })
                     ->where('vend_id', $vend->id)
                     ->lockForUpdate()
@@ -113,6 +114,7 @@ class VendTransactionService
                     }
 
                     $wasPreCreatedUpdate = true;
+
                     return $existingVendTransaction;
                 }
 
@@ -156,7 +158,7 @@ class VendTransactionService
                 return $transaction;
             }, 3); // Retry up to 3 times
 
-            if (!$vendTransaction) {
+            if (! $vendTransaction) {
                 return; // Prevent further execution if duplicate order ID
             }
 
@@ -164,42 +166,42 @@ class VendTransactionService
             // path. A pre-created gateway row was already linked at paid-time, and
             // its nofound_txn counter was never incremented (the row existed), so
             // there is nothing to decrement here.
-            if (!$wasPreCreatedUpdate) {
-            // store vend transaction id if found delivery platform order
-            if ($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
-                $deliveryPlatformOrder->update([
-                    'vend_transaction_id' => $vendTransaction->id,
-                    'status' => DeliveryPlatformOrder::STATUS_DISPENSED > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
-                    'status_json' => array_merge_recursive((array) $deliveryPlatformOrder->status_json, [
-                        'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
-                        'datetime' => Carbon::now()->toDateTimeString(),
-                    ]),
-                    'dispensed_at' => Carbon::now(),
-                ]);
-            }
-
-            if ($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
-                $vendTransaction->update([
-                    'payment_gateway_log_id' => $paymentGatewayLog->id,
-                ]);
-
-                // "Found in Transactions?" just flipped false → true for this
-                // PG log. If the LogNofoundTxnIfStillMissing job already ran
-                // (i.e. >5 minutes have passed since approved_at), the +1 is
-                // already on vend_daily_stats and we need a matching -1 so the
-                // counter reflects only currently-unresolved anomalies.
-                // Under 5 minutes? The delayed log job hasn't fired yet — when
-                // it does, it'll re-check this PG log, see the txn linked,
-                // and no-op. Either way the counter ends up correct.
-                $approvedAt = $paymentGatewayLog->approved_at;
-                if ($approvedAt && $approvedAt->lt(Carbon::now()->subMinutes(5)) && $paymentGatewayLog->vend_id) {
-                    DecrementVendDailyStat::dispatch(
-                        (int) $paymentGatewayLog->vend_id,
-                        'nofound_txn',
-                        $approvedAt->copy()->toDateString()
-                    )->onQueue('low');
+            if (! $wasPreCreatedUpdate) {
+                // store vend transaction id if found delivery platform order
+                if ($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
+                    $deliveryPlatformOrder->update([
+                        'vend_transaction_id' => $vendTransaction->id,
+                        'status' => $deliveryPlatformOrder->status < DeliveryPlatformOrder::STATUS_DISPENSED ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
+                        'status_json' => array_merge_recursive((array) $deliveryPlatformOrder->status_json, [
+                            'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
+                            'datetime' => Carbon::now()->toDateTimeString(),
+                        ]),
+                        'dispensed_at' => Carbon::now(),
+                    ]);
                 }
-            }
+
+                if ($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
+                    $vendTransaction->update([
+                        'payment_gateway_log_id' => $paymentGatewayLog->id,
+                    ]);
+
+                    // "Found in Transactions?" just flipped false → true for this
+                    // PG log. If the LogNofoundTxnIfStillMissing job already ran
+                    // (i.e. >5 minutes have passed since approved_at), the +1 is
+                    // already on vend_daily_stats and we need a matching -1 so the
+                    // counter reflects only currently-unresolved anomalies.
+                    // Under 5 minutes? The delayed log job hasn't fired yet — when
+                    // it does, it'll re-check this PG log, see the txn linked,
+                    // and no-op. Either way the counter ends up correct.
+                    $approvedAt = $paymentGatewayLog->approved_at;
+                    if ($approvedAt && $approvedAt->lt(Carbon::now()->subMinutes(5)) && $paymentGatewayLog->vend_id) {
+                        DecrementVendDailyStat::dispatch(
+                            (int) $paymentGatewayLog->vend_id,
+                            'nofound_txn',
+                            $approvedAt->copy()->toDateString()
+                        )->onQueue('low');
+                    }
+                }
             } // end if (!$wasPreCreatedUpdate)
 
             // if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
@@ -209,7 +211,8 @@ class VendTransactionService
             // }
 
         } catch (\Exception $e) {
-            \Log::error("Error creating vend transaction: " . $e->getMessage());
+            \Log::error('Error creating vend transaction: '.$e->getMessage());
+
             return;
         }
 
@@ -221,12 +224,13 @@ class VendTransactionService
         if ($wasPreCreatedUpdate) {
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
-            // Hand to the refund/void path ONLY when the row actually ended up
-            // PENDING — i.e. nothing dispensed AND the dispense ACK never
-            // confirmed it. applyTradeToPreCreatedRow() has already settled it
-            // (or kept it REFUNDED) in every other case, so this can no longer
-            // refund a confirmed sale or double-handle an already-refunded row.
-            // For Omise this refunds and marks settlement_status = REFUNDED; for
+            // Hand to the refund/void path ONLY when the row ended up PENDING:
+            // either nothing dispensed AND no dispense ACK, or a single-item
+            // TRADE that reports a real dispense failure (resolvePreCreatedSettlement).
+            // Already-REFUNDED rows and multi-item / successful TRADEs are
+            // settled there, so this never refunds a confirmed sale or
+            // double-handles an already-refunded row. For Omise this refunds
+            // (RefundOmiseJob marks is_refunded + REFUNDED on success); for
             // non-Omise it is a no-op and the row stays PENDING (money held,
             // manual review).
             if ((int) $vendTransaction->settlement_status === VendTransaction::SETTLEMENT_PENDING) {
@@ -234,14 +238,14 @@ class VendTransactionService
             }
 
             // Channel-error logs from the machine result (mirror fresh-create).
-            if (sizeof($processedInput['children']) > 1) {
+            if (count($processedInput['children']) > 1) {
                 foreach ($processedInput['children'] as $child) {
-                    if (!empty($child['vendChannelErrorID'])) {
+                    if (! empty($child['vendChannelErrorID'])) {
                         SyncVendChannelErrorLog::dispatch($vend, $child['vendChannelCode'], $child['errorCode'], $vendTransaction->id)->onQueue('default');
                     }
                 }
             } else {
-                if (!empty($processedInput['vendChannelErrorID'])) {
+                if (! empty($processedInput['vendChannelErrorID'])) {
                     SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
                 }
             }
@@ -260,23 +264,27 @@ class VendTransactionService
         }
 
         // ✅ Use $vendTransaction safely outside the transaction
-        if (!$processedInput['isSuccessful']) {
+        if (! $processedInput['isSuccessful']) {
             HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
+
+            // Card terminal reversal: the reader already returned the money at
+            // the machine — record it so no surface lets ops pay a second time.
+            $this->markCardTerminalReversal($vendTransaction, $processedInput);
         }
 
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
         if ($vendTransaction) {
             // dd(sizeof($processedInput['children']), $processedInput['children']);
-            if (sizeof($processedInput['children']) > 1) {
+            if (count($processedInput['children']) > 1) {
                 foreach ($processedInput['children'] as $child) {
                     $this->createVendTransactionItem($vendTransaction, $child);
-                    if (!empty($child['vendChannelErrorID'])) {
+                    if (! empty($child['vendChannelErrorID'])) {
                         SyncVendChannelErrorLog::dispatch($vend, $child['vendChannelCode'], $child['errorCode'], $vendTransaction->id)->onQueue('default');
                     }
                 }
             } else {
-                if (!empty($processedInput['vendChannelErrorID'])) {
+                if (! empty($processedInput['vendChannelErrorID'])) {
                     SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
                 }
             }
@@ -378,7 +386,7 @@ class VendTransactionService
                 'vend_prefix_name' => $vendPrefix?->name ?? null,
                 'vouchers' => $input['vouchers'],
                 'hid_card_id' => $input['hid_card_id'] ?? null,
-            ]
+            ],
         ]);
 
         return $vendTransaction;
@@ -390,12 +398,7 @@ class VendTransactionService
      * actually collected); only the dispense outcome comes from the machine.
      * transaction_datetime is intentionally NOT moved (stays the paid time).
      *
-     * Settlement (never demotes a confirmed sale):
-     *   - already REFUNDED          → stays REFUNDED (a late TRADE can't revive it)
-     *   - dispensed per TRADE, OR already SETTLED by the dispense ACK, OR the
-     *     gateway log shows is_dispensed → SETTLED (partial multi-vend included)
-     *   - otherwise (nothing dispensed, never confirmed) → PENDING, left for the
-     *     caller's refund/void handling to resolve.
+     * Settlement is decided by resolvePreCreatedSettlement() — see there.
      */
     private function applyTradeToPreCreatedRow(VendTransaction $transaction, $vend, $input): void
     {
@@ -405,32 +408,11 @@ class VendTransactionService
         $revenue = $amount / (1.00 + ($gstVatRate / 100));
         $grossProfit = $revenue - $unitCostValue;
 
-        // Resolve the settlement state WITHOUT ever demoting a confirmed sale.
-        // The dispense ACK (GetPurchaseConfirm) is the authoritative "did it
-        // vend?" signal for gateway rows and may have already settled this row
-        // before the TRADE arrived. A TRADE that happens to report
-        // success_qty/dispensed_qty = 0 must NOT drag a SETTLED (or
-        // dispense-confirmed) row back to PENDING and trigger a wrongful refund.
-        $current = (int) $transaction->settlement_status;
-        if ($current === VendTransaction::SETTLEMENT_REFUNDED) {
-            // Already refunded/voided (e.g. the 10-min no-dispense auto-refund) —
-            // a late TRADE must not resurrect it into a sale.
-            $settlementStatus = VendTransaction::SETTLEMENT_REFUNDED;
-        } elseif (
-            $this->tradeDispensedAnything($input)
-            || $current === VendTransaction::SETTLEMENT_SETTLED
-            || (bool) ($transaction->paymentGatewayLog?->is_dispensed)
-        ) {
-            // Dispensed per the machine's TRADE, OR already settled by the
-            // dispense ACK, OR the gateway log confirms the dispense. Counts as a
-            // sale (a partial multi-vend dispense is included by design).
-            $settlementStatus = VendTransaction::SETTLEMENT_SETTLED;
-        } else {
-            // Genuinely nothing dispensed and never confirmed → leave PENDING so
-            // the caller's refund/void path can resolve it (Omise → REFUNDED;
-            // non-Omise → money held for manual review).
-            $settlementStatus = VendTransaction::SETTLEMENT_PENDING;
-        }
+        $settlementStatus = self::resolvePreCreatedSettlement(
+            (int) $transaction->settlement_status,
+            (bool) ($transaction->paymentGatewayLog?->is_dispensed),
+            $input
+        );
 
         $transaction->forceFill([
             'interface_type' => $input['interfaceType'],
@@ -469,7 +451,7 @@ class VendTransactionService
 
         // Rebuild multi-purchase items from the machine's children (delete +
         // recreate keeps it simple and correct vs. fuzzy per-channel matching).
-        if (!empty($input['isMultiple']) && sizeof($input['children']) > 0) {
+        if (! empty($input['isMultiple']) && count($input['children']) > 0) {
             $transaction->vendTransactionItems()->delete();
             foreach ($input['children'] as $child) {
                 $this->createVendTransactionItem($transaction, $child);
@@ -478,10 +460,141 @@ class VendTransactionService
     }
 
     /**
+     * Settlement state for a gateway row pre-created at paid-time, now that the
+     * machine's TRADE has arrived. Pure (no DB) so it is unit-tested directly.
+     *
+     *   - already REFUNDED → stays REFUNDED (a late TRADE never revives a
+     *     refunded row, e.g. after the 10-min no-dispense auto-refund).
+     *   - single-item TRADE reporting a REAL dispense failure (no successful
+     *     drop, error code not 0/6) → PENDING, **even if** the dispense ACK
+     *     (GetPurchaseConfirm / payment_gateway_logs.is_dispensed) already
+     *     settled the row. The ACK is sent by the APK when it RECEIVES the paid
+     *     order — before the motor runs — so it is not proof of a drop and must
+     *     not out-rank the machine's own verdict. The caller hands PENDING rows
+     *     to HandleFailedVendTransaction → Omise refund → REFUNDED. This is the
+     *     pre-2026-05-26 behaviour (every Omise single-purchase dispense error
+     *     was auto-refunded) restored; see REFUND_INTEGRITY_AUDIT_2026-08-23.md.
+     *     Only single-item purchases: a multi-item partial dispense is a sale.
+     *   - otherwise: dispensed per TRADE, OR already SETTLED, OR ACKed → SETTLED.
+     *   - else nothing dispensed and never confirmed → PENDING (refund/void path).
+     *
+     * @param  int  $current  current vend_transactions.settlement_status
+     * @param  bool  $gatewayAcked  payment_gateway_logs.is_dispensed
+     * @param  array  $input  processed TRADE (processMapping output)
+     */
+    public static function resolvePreCreatedSettlement(int $current, bool $gatewayAcked, array $input): int
+    {
+        if ($current === VendTransaction::SETTLEMENT_REFUNDED) {
+            return VendTransaction::SETTLEMENT_REFUNDED;
+        }
+
+        if (self::isSingleItemDispenseFailure($input)) {
+            return VendTransaction::SETTLEMENT_PENDING;
+        }
+
+        if (self::tradeDispensedAnything($input)
+            || $current === VendTransaction::SETTLEMENT_SETTLED
+            || $gatewayAcked) {
+            return VendTransaction::SETTLEMENT_SETTLED;
+        }
+
+        return VendTransaction::SETTLEMENT_PENDING;
+    }
+
+    /**
+     * A single-item TRADE whose machine verdict is "nothing successfully
+     * dispensed": success_qty = 0 and a numeric error code outside the success
+     * set {0, 6}. Codes 7/9 (sensor error) land here even though the motor ran
+     * (dispensed_qty = 1) — ops treat them as a failed vend, the card terminals
+     * reverse on them, and Omise used to auto-refund them. A non-numeric or
+     * missing code is NOT a failure (never refund on a guess). Multi-item
+     * purchases are never a "single-item failure".
+     */
+    public static function isSingleItemDispenseFailure(array $input): bool
+    {
+        if (! empty($input['isMultiple'])) {
+            return false;
+        }
+        if ((int) ($input['success_qty'] ?? 0) > 0) {
+            return false;
+        }
+        $code = $input['errorCode'] ?? null;
+        if (! is_numeric($code)) {
+            return false;
+        }
+
+        return ! in_array((int) $code, [0, 6], true);
+    }
+
+    /**
+     * Card-terminal reversal footprint. On a SINGLE-item card vend that fails,
+     * the VMC ends the MDB session with VEND FAILURE and the reader reverses the
+     * charge at the machine (NETS shows "REVERSAL — Reversing The Previous
+     * Transaction"; verified 2026-08-23). mark1 never gets a processor callback
+     * for it — the only evidence is the machine's TRADE:
+     *   PAY_TYPE = card, is_multiple = false, success_qty = 0,
+     *   error code ∉ {0,6}, ISOK = 0 (1:1 with failures in prod),
+     *   and the machine's terminal is one that is known to reverse
+     *   (config refund.card_reversal_terminals).
+     * Multi-item purchases are never reversed by the terminal (the session
+     * covers several vends) — those stay a manual refund-ticket matter.
+     *
+     * @param  array  $input  processed TRADE (processMapping output)
+     * @param  string|null  $cashlessMfg  vend_transactions.cashless_mfg snapshot
+     */
+    public static function isCardTerminalReversal(array $input, ?string $cashlessMfg): bool
+    {
+        if (($input['paymentClassification'] ?? null) !== 'card') {
+            return false;
+        }
+        if (! self::isSingleItemDispenseFailure($input)) {
+            return false;
+        }
+        $isok = $input['originalJson']['ISOK'] ?? null;
+        if (! is_numeric($isok) || (int) $isok !== 0) {
+            return false;
+        }
+        $terminals = (array) config('refund.card_reversal_terminals', []);
+
+        return $cashlessMfg !== null && in_array($cashlessMfg, $terminals, true);
+    }
+
+    /**
+     * Record a card-terminal reversal on a freshly created card row:
+     * is_refunded = true + auto_refund_source = card_terminal_reversal, then
+     * cross any open refund ticket on it (markAutoRefundedByCharge pulls
+     * approved/scheduled tickets out of payout — the same double-refund
+     * guard the Omise job uses). Best-effort: a ticket-side failure must never
+     * break TRADE ingestion.
+     */
+    private function markCardTerminalReversal(VendTransaction $vendTransaction, array $input): void
+    {
+        if (! self::isCardTerminalReversal($input, $vendTransaction->cashless_mfg)) {
+            return;
+        }
+
+        $vendTransaction->forceFill([
+            'is_refunded' => true,
+            'auto_refund_source' => \App\Support\AutoRefundSource::CARD_TERMINAL_REVERSAL,
+        ])->save();
+
+        try {
+            app(\App\Services\Refund\RefundTicketService::class)
+                ->markAutoRefundedByCharge($vendTransaction->order_id, null, $vendTransaction->id);
+        } catch (\Throwable $e) {
+            \Log::error('Refund ticket auto-resolve after card terminal reversal failed', [
+                'vend_transaction_id' => $vendTransaction->id,
+                'order_id' => $vendTransaction->order_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Did the machine dispense anything for this TRADE? Covers single (qty 1)
      * and multi (summed). Used to decide sale vs. void for a settling row.
      */
-    private function tradeDispensedAnything(array $input): bool
+    private static function tradeDispensedAnything(array $input): bool
     {
         return (int) ($input['dispensed_qty'] ?? 0) > 0
             || (int) ($input['success_qty'] ?? 0) > 0;
@@ -520,7 +633,7 @@ class VendTransactionService
             }
         }
 
-        if (!empty($attributes)) {
+        if (! empty($attributes)) {
             $vend->forceFill($attributes)->save();
         }
     }
@@ -567,11 +680,11 @@ class VendTransactionService
 
     private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input, bool $isSuccessfulItem): ?int
     {
-        if (!$isSuccessfulItem) {
+        if (! $isSuccessfulItem) {
             return 0;
         }
 
-        if (array_key_exists('unit_price_amount', $input) && !is_null($input['unit_price_amount'])) {
+        if (array_key_exists('unit_price_amount', $input) && ! is_null($input['unit_price_amount'])) {
             return (int) $input['unit_price_amount'];
         }
 
@@ -587,11 +700,11 @@ class VendTransactionService
         }
 
         if ($vendChannel) {
-            if (!is_null($vendChannel->amount) && $vendChannel->amount > 0) {
+            if (! is_null($vendChannel->amount) && $vendChannel->amount > 0) {
                 return (int) $vendChannel->amount;
             }
 
-            if (!is_null($vendChannel->amount2) && $vendChannel->amount2 > 0) {
+            if (! is_null($vendChannel->amount2) && $vendChannel->amount2 > 0) {
                 return (int) $vendChannel->amount2;
             }
         }
@@ -602,12 +715,12 @@ class VendTransactionService
     private function extractChildAmountCents(array $trans): ?int
     {
         foreach (['Price', 'price', 'Amount', 'amount'] as $key) {
-            if (!array_key_exists($key, $trans)) {
+            if (! array_key_exists($key, $trans)) {
                 continue;
             }
 
             $normalized = $this->normalizeAmountToCents($trans[$key]);
-            if (!is_null($normalized)) {
+            if (! is_null($normalized)) {
                 return $normalized;
             }
         }
@@ -628,7 +741,7 @@ class VendTransactionService
             }
         }
 
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return null;
         }
 
@@ -657,7 +770,7 @@ class VendTransactionService
                 $paymentClassification = 'cash';
             } elseif ($paymentCode === 1) {
                 $paymentClassification = 'card';
-            } elseif (!is_null($paymentMethod->payment_gateway_id)) {
+            } elseif (! is_null($paymentMethod->payment_gateway_id)) {
                 $paymentClassification = 'cashless';
             }
         }
@@ -679,7 +792,7 @@ class VendTransactionService
 
         // handle those QR payment and grab mart, treat as payment received by default
         if ($paymentMethod) {
-            if (isset(Midtrans::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or isset(Omise::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or Grab::PAYMENT_METHOD_GRABMART == $paymentMethod->code) {
+            if (isset(Midtrans::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or isset(Omise::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or $paymentMethod->code == Grab::PAYMENT_METHOD_GRABMART) {
                 $isPaymentReceived = true;
             }
         }
@@ -717,7 +830,7 @@ class VendTransactionService
 
         // handle not found vend channel (vending only — smart freezers never
         // create vend_channels rows)
-        if (!$isSmart and !$vendChannel and $vendChannelCode != 0) {
+        if (! $isSmart and ! $vendChannel and $vendChannelCode != 0) {
             $vendChannel = $this->createVendChannel($vend->id, $vendChannelCode);
         }
 
@@ -795,7 +908,7 @@ class VendTransactionService
         }
 
         // 2. Handle 'campaign_label_pivot' -> resolve to "slug(id)"
-        if (isset($input['campaign_label_pivot']) && is_array($input['campaign_label_pivot']) && !empty($input['campaign_label_pivot'])) {
+        if (isset($input['campaign_label_pivot']) && is_array($input['campaign_label_pivot']) && ! empty($input['campaign_label_pivot'])) {
             $pivotIds = $input['campaign_label_pivot'];
 
             // Proposed Change: Look up Campaigns directly
@@ -804,14 +917,14 @@ class VendTransactionService
 
             foreach ($campaigns as $campaign) {
                 if ($campaign->slug) {
-                    $labels[] = $campaign->slug . '(' . $campaign->id . ')';
+                    $labels[] = $campaign->slug.'('.$campaign->id.')';
                 }
             }
         }
 
         // Deduplicate and assign
         $labels = array_values(array_unique($labels));
-        $data['label'] = !empty($labels) ? $labels : null;
+        $data['label'] = ! empty($labels) ? $labels : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
@@ -832,7 +945,7 @@ class VendTransactionService
         $data['success_qty'] = in_array($normalizedErrorCode, $successErrorCodes, true) ? 1 : 0;
         $data['dispensed_qty'] = in_array($normalizedErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
 
-        if (isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
+        if (isset($input['transf_info']) and count($input['transf_info']) == 1) {
             $data['qty'] = 1;
             $data['isMultiple'] = false;
             $data['errorCode'] = $input['transf_info'][0]['SErr'];
@@ -843,9 +956,9 @@ class VendTransactionService
             $data['dispensed_qty'] = in_array($singleErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
         }
 
-        if (isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
+        if (isset($input['transf_info']) and count($input['transf_info']) > 1) {
             $data['isMultiple'] = true;
-            $data['qty'] = sizeof($input['transf_info']);
+            $data['qty'] = count($input['transf_info']);
             $data['success_qty'] = 0;
             $data['dispensed_qty'] = 0;
             foreach ($input['transf_info'] as $trans) {
@@ -962,5 +1075,4 @@ class VendTransactionService
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
         }
     }
-
 }

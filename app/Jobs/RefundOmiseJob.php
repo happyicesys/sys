@@ -4,10 +4,9 @@ namespace App\Jobs;
 
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Omise;
-use App\Models\VendTransaction;
 use App\Services\ErrorService;
+use App\Support\AutoRefundSource;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,15 +16,46 @@ class RefundOmiseJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * Retry a failed Omise refund call. A single failed attempt used to be final:
+     * the 10-min scanner never re-picks a charge (its cursor has moved on) and the
+     * TRADE-failure path fires once per TRADE, so a transient API/network error
+     * silently left the charge un-refunded. The job is idempotent (it re-reads
+     * the PG log and returns if it is no longer APPROVE, and an Omise
+     * `refund.create` webhook also flips the log to REFUND), so retrying is safe.
+     */
+    public $tries = 3;
+
+    public $backoff = [30, 120];
+
     protected $errorService;
+
     protected $orderId;
+
+    /** One of App\Support\AutoRefundSource::OMISE_* — why this refund is being made. */
+    protected $source;
+
     /**
      * Create a new job instance.
      */
-    public function __construct($orderId)
+    public function __construct($orderId, ?string $source = null)
     {
-        $this->errorService = new ErrorService();
+        $this->errorService = new ErrorService;
         $this->orderId = $orderId;
+        $this->source = $source ?: AutoRefundSource::OMISE_MANUAL;
+    }
+
+    /**
+     * All attempts exhausted: make it visible. The PG log stays status=APPROVE
+     * and the vend_transaction stays un-refunded (never claim a refund that did
+     * not happen) — this is the row the "Auto-refunded?" audit must find.
+     */
+    public function failed(\Throwable $e): void
+    {
+        \Illuminate\Support\Facades\Log::error('Omise refund failed after all attempts', [
+            'order_id' => $this->orderId,
+            'error' => $e->getMessage(),
+        ]);
     }
 
     /**
@@ -35,14 +65,14 @@ class RefundOmiseJob implements ShouldQueue
     {
         $paymentGatewayLog = PaymentGatewayLog::where('order_id', $this->orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
 
-        if(!$paymentGatewayLog) {
+        if (! $paymentGatewayLog) {
             return;
         }
 
         $newObj = new Omise(
             $paymentGatewayLog->operatorPaymentGateway->key1,
             $paymentGatewayLog->operatorPaymentGateway->key2
-          );
+        );
         $response = $newObj->refundCharge([
             'metadata' => [
                 'order_id' => $this->orderId,
@@ -51,47 +81,20 @@ class RefundOmiseJob implements ShouldQueue
         ], $paymentGatewayLog->ref_id); // charge id
 
         $refundFailed = $response->failed();
-        if($refundFailed) {
-            $this->errorService->throwErrorWithMqtt('Refund failed' . $response->body(), $paymentGatewayLog->vend);
+        if ($refundFailed) {
+            \Illuminate\Support\Facades\Log::warning('Omise refund attempt failed', [
+                'order_id' => $this->orderId,
+                'attempt' => $this->attempts(),
+                'http_status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            // Throws → this attempt fails → Horizon retries per $tries/$backoff.
+            $this->errorService->throwErrorWithMqtt('Refund failed'.$response->body(), $paymentGatewayLog->vend);
         }
 
-        $paymentGatewayLog->update([
-            'status' => PaymentGatewayLog::STATUS_REFUND,
-            'response' => $response->json(),
-        ]);
-
-        // Unified transactions only: keep the linked vend_transaction in sync —
-        // a refund voids the sale. Gated per-vend so legacy refund accounting
-        // (where refunded rows still appear in gross sales) is unchanged for any
-        // machine the feature doesn't apply to. No-op if no transaction linked.
-        if (\App\Support\GatewayUnifiedTransaction::appliesToVend($paymentGatewayLog->vend_code)) {
-            $vendTransaction = VendTransaction::withoutGlobalScopes()
-                ->where('payment_gateway_log_id', $paymentGatewayLog->id)
-                ->first();
-
-            if ($vendTransaction) {
-                $vendTransaction->forceFill([
-                    'is_refunded' => true,
-                    'settlement_status' => VendTransaction::SETTLEMENT_REFUNDED,
-                ])->save();
-            }
-        }
-
-        // If a customer had raised a refund ticket for this charge, the processor
-        // has now refunded it automatically — resolve that ticket and email the
-        // customer that it was handled, so no manual PayNow payout goes out on top.
-        // Best-effort and fully isolated: a ticket/email failure must never break
-        // the payment refund performed above.
-        if (!$refundFailed) {
-            try {
-                app(\App\Services\Refund\RefundTicketService::class)
-                    ->markAutoRefundedByCharge($this->orderId, $paymentGatewayLog->id);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Refund ticket auto-resolve after Omise refund failed', [
-                    'order_id' => $this->orderId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        // Single recording path (log status, linked vend_transaction, ticket
+        // guard) shared with the webhook + reconcile command.
+        app(\App\Services\Refund\OmiseRefundRecorder::class)
+            ->record($paymentGatewayLog, $response->json(), $this->source);
     }
 }

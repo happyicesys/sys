@@ -3655,6 +3655,7 @@ class VendController extends Controller
                     'vend_transactions.interface_type',
                     'vend_transactions.is_multiple',
                     'vend_transactions.is_refunded',
+                    'vend_transactions.auto_refund_source',
                     'vend_transactions.refund_request_id',
                     'vend_transactions.refund_request_reference',
                     'vend_transactions.refund_request_status',

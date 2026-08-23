@@ -28,8 +28,8 @@ class RefundOmise extends Command
     {
         $orderId = $this->argument('orderId');
 
-        if($orderId) {
-            RefundOmiseJob::dispatch($orderId);
+        if ($orderId) {
+            RefundOmiseJob::dispatch($orderId, \App\Support\AutoRefundSource::OMISE_MANUAL);
         } else {
             $this->error('Please provide order id');
         }

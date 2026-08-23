@@ -3,7 +3,6 @@
 namespace App\Jobs\Vend;
 
 use App\Jobs\PublishMqtt;
-use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DispenseRecord;
 use App\Models\PaymentGatewayLog;
@@ -11,7 +10,6 @@ use App\Models\VendTransaction;
 use App\Services\MqttService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -23,7 +21,9 @@ class GetPurchaseConfirm implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $orderId;
+
     protected $vend;
+
     /**
      * Create a new job instance.
      *
@@ -33,7 +33,7 @@ class GetPurchaseConfirm implements ShouldQueue
     {
         $this->orderId = $orderId;
         $this->vend = $vend;
-        $this->mqttService = new MqttService();
+        $this->mqttService = new MqttService;
     }
 
     /**
@@ -47,66 +47,73 @@ class GetPurchaseConfirm implements ShouldQueue
         $deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $this->orderId)->first();
         $dispenseRecord = DispenseRecord::where('order_id', $this->orderId)->first();
 
-        if($dispenseRecord) {
-          $dispenseRecord->update([
-            'is_vm_receive_dispense_signal' => true,
-          ]);
+        if ($dispenseRecord) {
+            $dispenseRecord->update([
+                'is_vm_receive_dispense_signal' => true,
+            ]);
         }
 
-        if($deliveryPlatformOrder) {
-          $deliveryPlatformOrder->update([
-              'status' => DeliveryPlatformOrder::STATUS_DISPENSING > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSING : $deliveryPlatformOrder->status,
-              'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
-                  'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSING],
-                  'datetime' => Carbon::now()->toDateTimeString(),
-              ]),
-              'is_verified' => true,
-          ]);
+        if ($deliveryPlatformOrder) {
+            $deliveryPlatformOrder->update([
+                'status' => $deliveryPlatformOrder->status < DeliveryPlatformOrder::STATUS_DISPENSING ? DeliveryPlatformOrder::STATUS_DISPENSING : $deliveryPlatformOrder->status,
+                'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+                    'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSING],
+                    'datetime' => Carbon::now()->toDateTimeString(),
+                ]),
+                'is_verified' => true,
+            ]);
         }
 
-        if($paymentGatewayLog) {
-          // Log::info('PaymentGatewayLog: '.$paymentGatewayLog->id . ',OrderID: '.$this->orderId);
-          $paymentGatewayLog->update([
-              'is_dispensed' => true,
-          ]);
+        if ($paymentGatewayLog) {
+            // Log::info('PaymentGatewayLog: '.$paymentGatewayLog->id . ',OrderID: '.$this->orderId);
+            $paymentGatewayLog->update([
+                'is_dispensed' => true,
+            ]);
 
-          // Unified transactions: the item dispensed, so the pre-created row is a
-          // sale now even if the TRADE never arrives ("dispensed + not found =
-          // sale"). Only PENDING rows exist when the feature is on, so this is a
-          // no-op otherwise. TRADE later fills ground truth + flips found=true.
-          $preCreated = VendTransaction::withoutGlobalScopes()
-              ->where('payment_gateway_log_id', $paymentGatewayLog->id)
-              ->where('settlement_status', VendTransaction::SETTLEMENT_PENDING)
-              ->first();
+            // Unified transactions: the machine acknowledged the paid order, so
+            // the pre-created row counts as a sale even if the TRADE never arrives
+            // ("acked + not found = sale"). Only PENDING rows exist when the
+            // feature is on, so this is a no-op otherwise.
+            //
+            // Never override a row whose TRADE has ALREADY landed
+            // (is_found_in_transaction = true): this ACK is sent by the APK when it
+            // receives the order, before the motor runs, so the TRADE's verdict
+            // out-ranks it — a late ACK must not flip a failed single-item vend
+            // (left PENDING for the Omise refund) back to SETTLED.
+            $preCreated = VendTransaction::withoutGlobalScopes()
+                ->where('payment_gateway_log_id', $paymentGatewayLog->id)
+                ->where('settlement_status', VendTransaction::SETTLEMENT_PENDING)
+                ->where('is_found_in_transaction', false)
+                ->first();
 
-          if ($preCreated) {
-              $preCreated->forceFill([
-                  'settlement_status' => VendTransaction::SETTLEMENT_SETTLED,
-              ])->save();
+            if ($preCreated) {
+                $preCreated->forceFill([
+                    'settlement_status' => VendTransaction::SETTLEMENT_SETTLED,
+                ])->save();
 
-              if ($this->vend) {
-                  SyncVendTransactionTotalsJson::dispatch($this->vend)->onQueue('default');
-              }
-          }
+                if ($this->vend) {
+                    SyncVendTransactionTotalsJson::dispatch($this->vend)->onQueue('default');
+                }
+            }
         }
 
-        if($paymentGatewayLog or $deliveryPlatformOrder) {
-          $result = [
-            'Type' => 'CONFIRM',
-            'orderid' => $this->orderId,
-            'code' => 1,
-            'des' => null,
-            'time' => Carbon::now()->timestamp,
-          ];
+        if ($paymentGatewayLog or $deliveryPlatformOrder) {
+            $result = [
+                'Type' => 'CONFIRM',
+                'orderid' => $this->orderId,
+                'code' => 1,
+                'des' => null,
+                'time' => Carbon::now()->timestamp,
+            ];
 
-          $fid = $this->orderId;
-          $content = base64_encode(json_encode($result));
-          $contentLength = strlen($content);
-          $key = $this->vend && $this->vend->private_key ? $this->vend->private_key : '123456789110138A';
-          $md5 = md5($fid.','.$contentLength.','.$content.$key);
+            $fid = $this->orderId;
+            $content = base64_encode(json_encode($result));
+            $contentLength = strlen($content);
+            $key = $this->vend && $this->vend->private_key ? $this->vend->private_key : '123456789110138A';
+            $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-          PublishMqtt::dispatch('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
-          // $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+            PublishMqtt::dispatch('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+            // $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
         }
         // else {
         //   PublishMqtt::dispatch('CM'.$this->vend->code, 'This order id not found or QR is expired')->onQueue('high');

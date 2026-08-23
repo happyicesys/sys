@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\RefundOmiseJob;
 use App\Models\PaymentGatewayLog;
 use App\Models\Setting;
-use App\Jobs\RefundOmiseJob;
 use Illuminate\Console\Command;
 
 class RefundPaymentGatewayEveryTenMinutes extends Command
@@ -43,10 +43,10 @@ class RefundPaymentGatewayEveryTenMinutes extends Command
         $setting->payment_gateway_log_refund_scanned_at = $now;
         $setting->save();
 
-        foreach($paymentGatewayLogs as $paymentGatewayLog) {
-            switch($paymentGatewayLog->paymentGateway->name) {
+        foreach ($paymentGatewayLogs as $paymentGatewayLog) {
+            switch ($paymentGatewayLog->paymentGateway->name) {
                 case 'omise':
-                    RefundOmiseJob::dispatch($paymentGatewayLog->order_id)->onQueue('default');
+                    RefundOmiseJob::dispatch($paymentGatewayLog->order_id, \App\Support\AutoRefundSource::OMISE_NO_DISPENSE)->onQueue('default');
                     break;
                 default:
                     break;

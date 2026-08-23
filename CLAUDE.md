@@ -118,6 +118,43 @@ Machine Settings save, the per-machine column on APK Settings → Edit, and a Si
 RP change — each tells the terminal to re-read settings **and** re-fetch its
 menu. Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
 
+## Auto-refund integrity: `is_refunded` means the money has already gone back
+
+`vend_transactions.is_refunded` is the ONE boolean every refund surface reads —
+Sales Transactions "Auto-refunded?", Refund Request "Auto Refunded?", the
+validation 3rd icon and the server Approve-guard (`RefundTicket::isAlreadyRefunded`).
+Because of that it is written **only after** the customer's money has actually
+been returned, and always together with `auto_refund_source`
+(`App\Support\AutoRefundSource`):
+
+- **Omise** — every Omise refund is recorded through
+  `App\Services\Refund\OmiseRefundRecorder`, whoever made it: `RefundOmiseJob`
+  on API success (sources `omise_no_dispense` / `omise_stale_approve` /
+  `omise_trade_fail` / `omise_manual`), the `refund.create` webhook for refunds
+  made on the Omise dashboard or by a dispute (`omise_external` — map them by
+  `data.charge`, NOT `data.metadata.order_id`, which only our own refunds carry),
+  and `refund:sync-omise` to reconcile from Omise's records. Never pre-mark
+  before the money has moved. The dispense ACK
+  (`payment_gateway_logs.is_dispensed`, set on the APK's `CONFIRM`) is sent
+  **before the motor runs** — it is "order received", not "product dropped",
+  and must never out-rank the TRADE (`VendTransactionService::resolvePreCreatedSettlement`).
+  A single-item TRADE with `success_qty = 0` and error ∉ {0,6} is refunded;
+  multi-item purchases are never auto-refunded.
+- **Card terminals** — the MDB reader reverses a failed SINGLE-item vend at the
+  machine; mark1 gets no callback, only the TRADE footprint (`PAY_TYPE=1`,
+  single, error ∉ {0,6}, `ISOK=0`). `VendTransactionService::isCardTerminalReversal`
+  marks it `card_terminal_reversal` for terminals in
+  `config('refund.card_reversal_terminals')` (NETS family; widen only after a
+  field check of that terminal type).
+- Every write of `is_refunded` must also call
+  `RefundTicketService::markAutoRefundedByCharge` so an open ticket's frozen
+  verdict crosses and approved/scheduled ones are pulled out of payout.
+
+Manual PayNow/PayPal payouts never set `is_refunded` — they live on
+`refund_tickets`. History + reasoning: `REFUND_INTEGRITY_AUDIT_2026-08-23.md`.
+Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,
+`tests/Unit/CardTerminalReversalPredicateTest.php`.
+
 ---
 
 # Laravel Boost guidelines

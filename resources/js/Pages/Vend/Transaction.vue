@@ -864,7 +864,9 @@
                                     v-if="vendTransaction.refund_type === 'auto' || vendTransaction.is_refunded"
                                     class="h-4 w-4 text-green-500"
                                     aria-hidden="true"
-                                    :title="vendTransaction.refund_reference ? 'Auto refund — ' + vendTransaction.refund_reference : 'Auto refund'"
+                                    :title="'Auto refund'
+                                        + (vendTransaction.auto_refund_source_label ? ' — ' + vendTransaction.auto_refund_source_label : '')
+                                        + (vendTransaction.refund_reference ? ' — ' + vendTransaction.refund_reference : '')"
                                 />
                             </div>
                         </TableData>

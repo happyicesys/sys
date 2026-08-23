@@ -2,13 +2,10 @@
 
 namespace App\Models\PaymentGateways;
 
-use App\Models\PaymentGateway;
 use App\Interfaces\PaymentGateway as PaymentGatewayInterface;
+use App\Models\PaymentGateway;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-
 
 class Omise extends PaymentGateway implements PaymentGatewayInterface
 {
@@ -17,17 +14,29 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     const AMOUNT_MULTIPLIER = 100;
 
     const PAYMENT_METHOD_PAYNOW = 201;
+
     const PAYMENT_METHOD_GRABPAY = 202;
+
     const PAYMENT_METHOD_SHOPEEPAY = 203;
+
     const PAYMENT_METHOD_ALIPAYPLUS_TNG = 204;
+
     const PAYMENT_METHOD_ALIPAYPLUS_ALIPAY = 205;
+
     const PAYMENT_METHOD_ALIPAYPLUS_GCASH = 206;
+
     const PAYMENT_METHOD_ALIPAYPLUS_KAKAOPAY = 207;
+
     const PAYMENT_METHOD_ALIPAYPLUS_TRUEMONEY = 208;
+
     const PAYMENT_METHOD_WECHATPAY = 210;
+
     const PAYMENT_METHOD_ALIPAYPLUS_DANA = 211;
+
     const PAYMENT_METHOD_DUITNOW = 301;
+
     const PAYMENT_METHOD_TOUCH_N_GO = 302;
+
     const PAYMENT_METHOD_PROMPTPAY = 401;
 
     const PAYMENT_METHOD_MAPPING = [
@@ -47,10 +56,15 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     ];
 
     public static $production = 'https://api.omise.co';
+
     protected $publicKey;
+
     protected $secretKey;
+
     private $orderId;
+
     private $operatorPaymentGateway;
+
     private $referenceId;
 
     public function __construct($publicKey, $secretKey)
@@ -87,14 +101,14 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'amount' => (int) round($params['amount'] * self::AMOUNT_MULTIPLIER),
                 'currency' => $params['currency'],
             ]);
+
         // if ($response->successful()) {
         return $response;
         // }
         // throw new \Exception('Source creation failed: ' . $response->body());
     }
 
-
-    public function createCharge($params = [], $sourceId)
+    public function createCharge($params, $sourceId)
     {
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
             ->post('https://api.omise.co/charges', [
@@ -137,10 +151,10 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         return $this->referenceId;
     }
 
-    public function refundCharge($params = [], $chargeId)
+    public function refundCharge($params, $chargeId)
     {
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
-            ->post('https://api.omise.co/charges/' . $chargeId . '/refunds', [
+            ->post('https://api.omise.co/charges/'.$chargeId.'/refunds', [
                 'amount' => round($params['amount'] * self::AMOUNT_MULTIPLIER),
                 'metadata' => $params['metadata'],
             ]);
@@ -151,6 +165,24 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         // throw new \Exception('Refund creation failed: ' . $response->body());
     }
 
+    /** GET /charges/{id} — Omise's own record of a charge (status, refunded_amount, refunds). */
+    public function getCharge($chargeId)
+    {
+        return Http::withHeaders($this->getHeaders($this->secretKey))
+            ->get('https://api.omise.co/charges/'.$chargeId);
+    }
+
+    /**
+     * GET /refunds — every refund on the account (whoever made it: our API,
+     * the dashboard, a dispute), newest first unless order=chronological.
+     * $params: from, to (ISO-8601), limit (≤100), offset, order.
+     */
+    public function listRefunds($params = [])
+    {
+        return Http::withHeaders($this->getHeaders($this->secretKey))
+            ->get('https://api.omise.co/refunds', $params);
+    }
+
     public function setOperatorPaymentGateway($operatorPaymentGateway)
     {
         $this->operatorPaymentGateway = $operatorPaymentGateway;
@@ -158,13 +190,12 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     private function getHeaders($apiKey)
     {
-        $headers = array(
-            'Authorization' => 'Basic ' . base64_encode($apiKey . ':'),
+        $headers = [
+            'Authorization' => 'Basic '.base64_encode($apiKey.':'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-        );
+        ];
 
         return $headers;
     }
-
 }
