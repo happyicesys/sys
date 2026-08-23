@@ -359,7 +359,14 @@
                             </div>
                           </TableHead>
                           <TableHead>
-                            Address
+                            <div class="flex flex-col space-y-2">
+                              <SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
+                                Refilling Routes
+                              </SingleSortItem>
+                              <span>
+                                Address
+                              </span>
+                            </div>
                           </TableHead>
                           <TableHead>
                             Action
@@ -750,23 +757,29 @@
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 px-1 text-sm text-left">
-                            <div class="flex flex-col space-y-2 break-words max-w-32 md:max-w-52" v-if="row.customer && row.customer.deliveryAddress">
-                              <span>
-                                <a :href="row.customer.deliveryAddress.map_url" v-if="row.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
-                                  {{ row.customer.deliveryAddress.full_address }}
-                                </a>
-                                <span v-else>
-                                  {{ row.customer.deliveryAddress.full_address }}
-                                </span>
+                            <div class="flex flex-col space-y-2 break-words max-w-32 md:max-w-52" v-if="row.customer">
+                              <!-- Refilling Route (customers.zone_id → zones.name), same field CustomerIndex shows -->
+                              <span class="font-medium text-gray-900" v-if="row.zone_name || row.customer.zone_name">
+                                {{ row.zone_name || row.customer.zone_name }}
                               </span>
-                              <span v-if="!row.customer.deliveryAddress.full_address">
-                                <a :href="row.customer.deliveryAddress.map_url" v-if="row.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
-                                  {{ row.customer.deliveryAddress.postcode }}
-                                </a>
-                                <span v-else>
-                                  {{ row.customer.deliveryAddress.postcode }}
+                              <template v-if="row.customer.deliveryAddress">
+                                <span>
+                                  <a :href="row.customer.deliveryAddress.map_url" v-if="row.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
+                                    {{ row.customer.deliveryAddress.full_address }}
+                                  </a>
+                                  <span v-else>
+                                    {{ row.customer.deliveryAddress.full_address }}
+                                  </span>
                                 </span>
-                              </span>
+                                <span v-if="!row.customer.deliveryAddress.full_address">
+                                  <a :href="row.customer.deliveryAddress.map_url" v-if="row.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
+                                    {{ row.customer.deliveryAddress.postcode }}
+                                  </a>
+                                  <span v-else>
+                                    {{ row.customer.deliveryAddress.postcode }}
+                                  </span>
+                                </span>
+                              </template>
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">

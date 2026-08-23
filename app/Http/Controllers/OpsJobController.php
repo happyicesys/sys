@@ -1356,6 +1356,16 @@ class OpsJobController extends Controller
                     LIMIT 1) as delivery_postcode'
                     );
 
+                    // Refilling Route (zones.name) — surfaced in the Address column and
+                    // sortable via sortKey=zone_name, same pattern as delivery_postcode.
+                    $query->selectRaw('
+                    (SELECT zones.name
+                    FROM customers
+                    LEFT JOIN zones ON zones.id = customers.zone_id
+                    WHERE customers.id = ops_job_items.customer_id
+                    LIMIT 1) as zone_name'
+                    );
+
                     $query->when($request->sortKey, function ($query, $search) use ($request) {
                         if (
                             in_array($search, [
@@ -1393,6 +1403,7 @@ class OpsJobController extends Controller
                 'opsJobItems.vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
                 'opsJobItems.cmsTransactionBy',
                 'opsJobItems.customer.deliveryAddress',
+                'opsJobItems.customer.zone:id,name',
                 'opsJobItems.remarksUpdatedBy:id,name',
                 'opsJobItems.vend.vendPrefix',
                 'opsJobItems.pickedBy:id,name',

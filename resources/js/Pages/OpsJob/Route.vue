@@ -78,6 +78,21 @@
                   />
                 </div>
 
+                <!-- Return to HQ (destination) -->
+                <div class="sm:col-span-6" v-if="destinationAddress">
+                  <label class="inline-flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      v-model="form.return_to_destination"
+                      class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                    />
+                    <span>Return to {{ destinationAddress.name }} (last stop)</span>
+                  </label>
+                  <p class="text-xs text-gray-500 mt-1">
+                    When checked, the generated route ends at {{ destinationAddress.full_address }}.
+                  </p>
+                </div>
+
                 <!-- Buttons to Set Origin and Regenerate Route -->
                 <div class="sm:col-span-6 flex justify-between mt-4">
                   <a :href="'/ops-jobs/' + opsJob.id + '/edit'">
@@ -180,7 +195,7 @@
                             </tr>
                           </thead>
                           <tbody class="bg-white">
-                            <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-100'">
+                            <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id ?? (opsJobItem.isOrigin ? 'origin' : 'destination')" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-100'">
                               <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 <div class="flex items-center justify-center">
                                   <input
@@ -292,7 +307,7 @@ import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue'; // Retained TableHead component
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ArrowUturnLeftIcon, ArrowRightCircleIcon, BarsArrowDownIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -303,6 +318,7 @@ const filters = ref({
 
 const props = defineProps({
   originAddresses: [Array, Object],
+  destinationAddresses: [Array, Object],
   mapApiKey: String,
   opsJob: Object,
 });
@@ -310,6 +326,19 @@ const props = defineProps({
 const emit = defineEmits(['modalClose']);
 
 const originAddressOptions = ref([]);
+// Return-to-HQ destination: the first type-100 address (Happy Ice Pte Ltd). Null when none
+// is configured, in which case the checkbox is hidden and routes end at the last stop.
+const destinationAddress = computed(() => {
+  const first = Array.isArray(props.destinationAddresses?.data) ? props.destinationAddresses.data[0] : null;
+  if (!first || !first.latitude || !first.longitude) return null;
+  return {
+    id: first.id,
+    name: first.name || 'Happy Ice Pte Ltd',
+    full_address: first.full_address,
+    latitude: first.latitude,
+    longitude: first.longitude,
+  };
+});
 const form = ref(useForm(getDefaultForm()));
 const isSequenceGenerated = ref(false);
 const opsJob = ref(props.opsJob?.data || []);
@@ -406,6 +435,7 @@ const cleanOpsJobItems = opsJob.value.opsJobItems.map(item => {
     },
     vend: item.vend ? { code: item.vend.code } : null, // Only send vend code if available
     isOrigin: item.isOrigin,
+    isDestination: item.isDestination,
     isOpsJobItem: item.isOpsJobItem
   };
 });
@@ -451,6 +481,7 @@ function clearRoute() {
 function getDefaultForm() {
   return {
     origin_address_id: '',
+    return_to_destination: false,
   };
 }
 
@@ -458,7 +489,7 @@ function onRenumberItemsClicked() {
   // Build the unified ordered list (items + tasks) in current display order.
   // Tasks were merged in as synthetic entries with _isTask flag.
   const mergedOrder = opsJob.value.opsJobItems
-    .filter(item => !item.isOrigin) // exclude temporary origin markers
+    .filter(item => !item.isOrigin && !item.isDestination) // exclude temporary origin / destination markers
     .map(item => ({
       type: item._isTask ? 'task' : 'item',
       id: item.id,
@@ -666,6 +697,7 @@ function setOriginDestination(type = 1) {
   // Clear any existing origin (set isOrigin = false for all items)
   opsJob.value.opsJobItems.forEach((item) => {
     item.isOrigin = false;
+    item.isDestination = false;
     item.processed = false; // Reset the processed flag
   });
 
@@ -725,7 +757,7 @@ const showDirectionsAPI = (originLatLng) => {
     const lat = parseFloat(opsJobItem.customer?.deliveryAddress?.latitude);
     const lng = parseFloat(opsJobItem.customer?.deliveryAddress?.longitude);
     return !isNaN(lat) && !isNaN(lng);
-  }).filter(opsJobItem => !opsJobItem.isOrigin);
+  }).filter(opsJobItem => !opsJobItem.isOrigin && !opsJobItem.isDestination);
 
   const waypoints = customersWithValidAddresses.slice(0, maxWaypoints);
   const remainingOpsJobItems = customersWithValidAddresses.slice(maxWaypoints);
@@ -740,6 +772,9 @@ const showDirectionsAPI = (originLatLng) => {
   clearMarkers();
   clearRoute();
 
+  // Return-to-HQ: the route ends at the destination address instead of the last stop.
+  const destinationLatLng = getReturnDestinationLatLng();
+
   const request = {
     travelMode: google.maps.TravelMode.DRIVING,
     waypoints: waypoints.map(opsJobItem => {
@@ -752,7 +787,7 @@ const showDirectionsAPI = (originLatLng) => {
       };
     }),
     origin: originLatLng,
-    destination: {
+    destination: destinationLatLng || {
       lat: parseFloat(lastWaypoint.latitude),
       lng: parseFloat(lastWaypoint.longitude),
     },
@@ -793,12 +828,15 @@ const showDirectionsAPI = (originLatLng) => {
         item.generated_sequence = `5${index + 1}`;
       });
 
-      addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems, originLabel);
+      const destinationItem = destinationLatLng ? buildDestinationItem() : null;
+
+      addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems, originLabel, destinationLatLng);
 
       opsJob.value.opsJobItems = [
         originItem,
         ...optimizedCustomers,
         ...remainingOpsJobItems,
+        ...(destinationItem ? [destinationItem] : []),
       ];
     } else {
       console.error('Directions request failed due to ' + status);
@@ -817,7 +855,7 @@ function showDirectionsNearest(originLatLng) {
   }
 
   let customersWithValidAddresses = opsJob.value.opsJobItems.filter(
-    opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin
+    opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin && !opsJobItem.isDestination
   );
 
   let currentPoint = originLatLng;
@@ -865,16 +903,52 @@ function showDirectionsNearest(originLatLng) {
     item.generated_sequence = idx + firstSequence;
   });
 
+  // Return-to-HQ: append the destination as the final leg after the last stop.
+  const destinationLatLng = getReturnDestinationLatLng();
+  const destinationItem = destinationLatLng ? buildDestinationItem() : null;
+
   opsJob.value.opsJobItems = [
     originItem,
     ...optimizedCustomers,
+    ...(destinationItem ? [destinationItem] : []),
   ];
 
-  addCustomMarkers(originLatLng, optimizedCustomers, [], originLabel);
-  plotRouteOnRoads([originLatLng, ...optimizedCustomers.map(customer => ({
-    lat: parseFloat(customer.customer.deliveryAddress.latitude),
-    lng: parseFloat(customer.customer.deliveryAddress.longitude),
-  }))]);
+  addCustomMarkers(originLatLng, optimizedCustomers, [], originLabel, destinationLatLng);
+  plotRouteOnRoads([
+    originLatLng,
+    ...optimizedCustomers.map(customer => ({
+      lat: parseFloat(customer.customer.deliveryAddress.latitude),
+      lng: parseFloat(customer.customer.deliveryAddress.longitude),
+    })),
+    ...(destinationLatLng ? [destinationLatLng] : []),
+  ]);
+}
+
+// Return-to-HQ helpers. The destination is a synthetic row like the warehouse origin:
+// no id, never synced to ops_job_items.sequence, shown as 'End' in the generated list.
+function getReturnDestinationLatLng() {
+  if (!form.value.return_to_destination || !destinationAddress.value) return null;
+  const lat = parseFloat(destinationAddress.value.latitude);
+  const lng = parseFloat(destinationAddress.value.longitude);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  return { lat, lng };
+}
+
+function buildDestinationItem() {
+  return {
+    customer: {
+      name: destinationAddress.value.name,
+      deliveryAddress: {
+        full_address: destinationAddress.value.full_address,
+        latitude: destinationAddress.value.latitude,
+        longitude: destinationAddress.value.longitude,
+      },
+    },
+    isDestination: true,
+    isOpsJobItem: false,
+    processed: true,
+    generated_sequence: 'End',
+  };
 }
 
 
@@ -964,7 +1038,22 @@ function assignOriginSequence(originItem) {
   };
 }
 
-function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJobItems = [], originLabel = '1') {
+function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJobItems = [], originLabel = '1', destinationLatLng = null) {
+  // Return-to-HQ: mark the final destination with an 'E' label
+  if (destinationLatLng) {
+    const destinationMarker = new google.maps.Marker({
+      position: destinationLatLng,
+      map: map,
+      label: {
+        text: 'E',
+        color: "#000000",
+        fontSize: "14px",
+        fontWeight: "bold",
+      },
+    });
+    markers.push(destinationMarker);
+  }
+
   // Add a custom marker for the origin
   const originMarker = new google.maps.Marker({
     position: originLatLng,

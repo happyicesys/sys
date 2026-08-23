@@ -54,6 +54,7 @@ class OpsJobItemResource extends JsonResource
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'delta_cash_amount' => isset($this->delta_cash_amount) ? $this->delta_cash_amount / 100 : 0,
             'delivery_postcode' => isset($this->delivery_postcode) ? $this->delivery_postcode : null,
+            'zone_name' => isset($this->zone_name) ? $this->zone_name : null,
             'is_cash_collected' => $this->is_cash_collected,
             'is_ignore_limit' => $this->is_ignore_limit,
             'name' => $this->name,
