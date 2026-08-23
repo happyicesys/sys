@@ -78,12 +78,26 @@ class RefundController extends Controller
         // would double-count it in the chip totals).
         $counts['all'] = (int) RefundTicket::count();
 
+        // Payment Method filter options — the same cached lookups the Transactions
+        // page uses (VendController), so the two dropdowns stay in step: every
+        // PaymentMethod, plus the canonical card-terminal names the frontend turns
+        // into per-terminal "<card method> (<terminal>)" entries.
+        $ttl = 86400;
+        $paymentMethods = \Illuminate\Support\Facades\Cache::remember('payment_methods', $ttl, fn () => \App\Http\Resources\PaymentMethodResource::collection(
+            \App\Models\PaymentMethod::orderBy('name')->get()
+        )->resolve());
+        $cardTerminalOptions = \Illuminate\Support\Facades\Cache::remember('card_terminal_options', $ttl, fn () => \App\Models\CardTerminal::orderBy('name')->pluck('name')->values()
+        );
+
         return Inertia::render('Refund/Index', [
             'tickets' => $tickets,
+            'paymentMethods' => ['data' => $paymentMethods],
+            'cardTerminalOptions' => ['data' => $cardTerminalOptions],
             'counts' => $counts,
             'filters' => [
                 'search' => $request->input('search', ''),
                 'refund_method' => $request->input('refund_method', ''),
+                'paymentMethods' => array_values(array_filter((array) $request->input('paymentMethods', []), fn ($v) => $v !== '' && $v !== null)),
                 // only reflect status in the UI when the user explicitly chose some;
                 // the default (all except completed) is applied silently and shows as "All statuses"
                 'status' => $request->has('status') ? $statusSel : [],
@@ -164,6 +178,22 @@ class RefundController extends Controller
                 });
             })
             ->when($request->refund_method, fn ($q, $s) => $q->where('refund_method', $s))
+            // --- Payment Method: how the customer PAID (not the payout method above).
+            // Same dropdown values as the Transactions page — PaymentMethod ids and/or
+            // "cc:<terminal>" synthetic card entries — resolved through the ticket's
+            // matched transaction, which is what the "Pay Method" column shows.
+            // Unmatched / manual tickets have no transaction and so never match.
+            ->when($request->paymentMethods, function ($q, $sel) {
+                $values = array_values(array_filter((array) $sel, fn ($v) => $v !== 'all' && $v !== '' && $v !== null));
+                if (empty($values)) {
+                    return;
+                }
+                $q->whereExists(function ($sub) use ($values) {
+                    $sub->selectRaw('1')->from('vend_transactions')
+                        ->whereColumn('vend_transactions.id', 'refund_tickets.vend_transaction_id');
+                    \App\Models\VendTransaction::applyPaymentMethodFilter($sub, $values);
+                });
+            })
             ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->when($request->search, function ($q, $s) {

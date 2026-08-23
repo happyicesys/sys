@@ -29,6 +29,8 @@ const props = defineProps({
     statuses: { type: Object, default: () => ({}) },
     banks: { type: Object, default: () => ({}) },
     defaultBank: { type: String, default: 'cimb' },
+    paymentMethods: { type: Object, default: () => ({ data: [] }) },
+    cardTerminalOptions: { type: Object, default: () => ({ data: [] }) },
 });
 
 // ---- batch selection / push to settlement ----
@@ -137,10 +139,24 @@ const numberPerPageOptions = ref([
 const fallbackPerPage = numberPerPageOptions.value.find((o) => o.id === 50) || numberPerPageOptions.value[0];
 const defaultPerPage = numberPerPageOptions.value.find((o) => String(o.id) === String(props.filters.numberPerPage)) || fallbackPerPage;
 
+// Payment Method (how the customer PAID — distinct from Refund Method, the
+// payout). Same option scheme as Vend/Transaction.vue: "All", every PaymentMethod
+// by id, plus one synthetic "<card method> (<terminal>)" entry per card terminal
+// with id "cc:<terminal>", which the backend decodes as card + cashless_mfg. The
+// plain card entry is kept as well (= any terminal, incl. the few transactions
+// that recorded none). Matches through the ticket's matched transaction.
+const cardMethod = (props.paymentMethods?.data ?? []).find((pm) => Number(pm.code) === 1);
+const paymentMethodOptions = ref([
+    { id: 'all', name: 'All' },
+    ...(props.paymentMethods?.data ?? []).map((pm) => ({ id: pm.id, name: pm.name })),
+    ...(props.cardTerminalOptions?.data ?? []).map((t) => ({ id: `cc:${t}`, name: `${cardMethod?.name ?? 'Card Terminal'} (${t})` })),
+]);
+
 const filters = ref({
     search: props.filters.search || '',
     status: statusOptions.value.filter((o) => (props.filters.status || []).includes(o.id)),
     refund_method: props.filters.refund_method || '',
+    paymentMethods: paymentMethodOptions.value.filter((o) => (props.filters.paymentMethods || []).map(String).includes(String(o.id))),
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
     site_name: props.filters.site_name || '',
@@ -160,13 +176,15 @@ const filters = ref({
 // "All" is mutually exclusive with the individual statuses: picking it drops the
 // rest, picking another status drops it. Deep watch because the MultiSelect pushes
 // into the same array it emitted (the reference doesn't change on select).
-watch(() => filters.value.status, (sel) => {
-    if (!Array.isArray(sel) || sel.length < 2 || !sel.some((o) => o.id === 'all')) return;
+const exclusiveAll = (sel) => {
+    if (!Array.isArray(sel) || sel.length < 2 || !sel.some((o) => o.id === 'all')) return sel;
     // the just-picked tag is appended last, so it wins
-    filters.value.status = sel[sel.length - 1].id === 'all'
+    return sel[sel.length - 1].id === 'all'
         ? sel.filter((o) => o.id === 'all')
         : sel.filter((o) => o.id !== 'all');
-}, { deep: true });
+};
+watch(() => filters.value.status, (sel) => { filters.value.status = exclusiveAll(sel); }, { deep: true });
+watch(() => filters.value.paymentMethods, (sel) => { filters.value.paymentMethods = exclusiveAll(sel); }, { deep: true });
 
 function payload() {
     const p = {
@@ -190,6 +208,9 @@ function payload() {
     // omit status when empty -> server applies the default (all except completed);
     // the explicit "all" option is passed through and makes the server skip the filter
     if (filters.value.status.length) p.status = filters.value.status.map((s) => s.id);
+    // omit when empty / "All" -> no payment-method constraint
+    const pms = (filters.value.paymentMethods || []).map((o) => o.id).filter((id) => id !== 'all');
+    if (pms.length) p.paymentMethods = pms;
     return p;
 }
 function applyFilters() {
@@ -197,7 +218,7 @@ function applyFilters() {
 }
 function clearFilters() {
     filters.value = {
-        search: '', status: [], refund_method: '', date_from: '', date_to: '',
+        search: '', status: [], refund_method: '', paymentMethods: [], date_from: '', date_to: '',
         site_name: '', channel: '', product: '', paid_min: '', paid_max: '',
         repeat: '', product_drop_sensor: '', error_code: '', settlement_ref: '', refund_done: '', sent_settlement: '',
         numberPerPage: fallbackPerPage,
@@ -404,6 +425,20 @@ const sortedRows = computed(() => {
                             <option value="none">None</option>
                         </select>
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Payment Method</label>
+                    <MultiSelect
+                        v-model="filters.paymentMethods"
+                        :options="paymentMethodOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="name"
+                        mode="tags"
+                        placeholder="All"
+                        open-direction="bottom"
+                        class="mt-1"
+                    />
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700">Site Name</label>
