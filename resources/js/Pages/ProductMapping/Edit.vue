@@ -681,6 +681,15 @@ function submit() {
         const flash = page?.props?.flash
         if (flash?.error) toast.error(flash.error, { timeout: 8000 })
         else if (flash?.success) toast.success(flash.success)
+
+        // The server's update() wipes and recreates every product_mapping_item,
+        // so every row now has a NEW id. The redirect-back already refreshed
+        // props.productMapping; re-derive the local copy from it, otherwise the
+        // next per-row action (DELETE /items/{id}, inline update, sequence
+        // change) is sent with a stale id and findOrFail answers 404.
+        productMappingItems.value = props.productMapping
+          ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
+          : []
         emit('modalClose')
       },
       preserveState: true,
