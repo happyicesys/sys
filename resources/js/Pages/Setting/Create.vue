@@ -38,6 +38,34 @@
                   Machine ID
                 </SearchVendCodeInput>
               </div>
+              <!-- Machine Type is chosen ONCE, here at creation. Setting/Edit shows it read-only
+                   (it drives which product mappings the machine may bind, and a chiller's
+                   CityBox link travels with it). Smart Chiller is not offered on this branch —
+                   it is the "Smart Chiller — CityBox" source above. -->
+              <div class="sm:col-span-6">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine Type
+                  <span class="text-red-500 ml-1">*</span>
+                </label>
+                <MultiSelect
+                  v-model="form.machine_type"
+                  :options="standardMachineTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1 sm:w-1/2"
+                  :canClear="false"
+                >
+                </MultiSelect>
+                <p class="mt-1 text-xs text-gray-500">
+                  Vending Machine / Smart Freezer — fixed after creation; it decides which product mappings the machine can use.
+                </p>
+                <div class="text-sm text-red-600" v-if="form.errors.machine_type">
+                  {{ form.errors.machine_type }}
+                </div>
+              </div>
               <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
                 v-if="permissions.includes('update machine-settings')">
@@ -154,6 +182,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
 import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import axios from 'axios';
@@ -165,7 +194,14 @@ import moment from 'moment';
 const props = defineProps({
     vend: Object,
     type: String,
+    machineTypeOptions: Object,
   })
+
+  // {vending_machine: 'Vending Machine', ...} → MultiSelect rows, minus Smart Chiller
+  // (created through the CityBox source branch, never picked by hand).
+  const standardMachineTypeOptions = Object.entries(props.machineTypeOptions || {})
+    .filter(([id]) => id !== 'smart_chiller')
+    .map(([id, name]) => ({ id, value: name }))
 
   const booleanOptions = ref([])
   const form = ref(
@@ -190,6 +226,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     code: '',
+    machine_type: standardMachineTypeOptions.find(o => o.id === 'vending_machine') || standardMachineTypeOptions[0] || null,
     begin_date: moment().format('YYYY-MM-DD'),
     // CityBox branch fields (ignored by the standard branch)
     equipment_id: null,
@@ -263,6 +300,12 @@ function submit() {
   }
   if(props.type === 'create') {
     form.value
+    .transform(data => ({
+      ...data,
+      // Server expects the id; the picker holds {id, value}. An empty pick falls back
+      // to Vending Machine rather than posting null.
+      machine_type: data.machine_type ? data.machine_type.id : 'vending_machine',
+    }))
     .post('/settings/vend/store', {
       preserveState: true,
       replace: true,

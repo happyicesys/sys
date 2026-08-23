@@ -75,16 +75,23 @@
                 back through a permission-checked endpoint, never a public URL.
               -->
               <div class="mt-2" v-if="vend && vend.code && permissions.includes('update machine-settings')">
-                <Button
-                  type="button"
-                  class="!text-xs"
-                  :disabled="screenshotBusy"
-                  @click="openScreenshot()"
-                  v-tooltip="'Ask this machine for one screenshot of what it is showing right now. The machine shows nothing while it is taken.'"
-                >
-                  <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
-                  {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
-                </Button>
+                <!--
+                  Tooltip sits on the wrapper, not the button: a disabled native
+                  <button> swallows mouse events, so a tooltip bound to it would
+                  never show - and the disabled state is exactly when the operator
+                  needs to read why.
+                -->
+                <span class="inline-block" v-tooltip="screenshotTooltip">
+                  <Button
+                    type="button"
+                    class="!text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="screenshotBusy || !screenshotSupported"
+                    @click="openScreenshot()"
+                  >
+                    <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
+                    {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
+                  </Button>
+                </span>
               </div>
             </div>
             <div class="sm:col-span-4">
@@ -92,6 +99,30 @@
                 Label
               </FormInput>
                 <FieldAudit :entry="fieldAudit.label_name" />
+            </div>
+
+            <!-- Machine Type is fixed at creation (Setting/Create) and read-only here: it gates
+                 which product mappings the machine can bind, and a Smart Chiller's CityBox
+                 link travels with it. form.machine_type is still kept populated because the
+                 mapping filters and the submit transform read it. -->
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Machine Type
+              </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  class="shadow-sm block w-full sm:w-1/2 text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                  :value="form.machine_type ? form.machine_type.value : ''"
+                  disabled
+                />
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Set when the machine was created — not editable. Restricts the mapping lists below to mappings built for this machine kind.
+              </p>
+              <div class="text-sm text-red-600" v-if="form.errors.machine_type">
+                {{ form.errors.machine_type }}
+              </div>
             </div>
 
             <div class="sm:col-span-2">
@@ -651,29 +682,7 @@
             </div>
 
             <hr class="sm:col-span-6">
-            <div class="sm:col-span-3">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Machine Type
-                </label>
-                <MultiSelect
-                  v-model="form.machine_type"
-                  :options="machineTypeOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="value"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-                <p class="mt-1 text-xs text-gray-500">
-                  Vending Machine / Smart Freezer / Smart Chiller — restricts the mapping lists below to mappings built for this machine kind.
-                </p>
-                <div class="text-sm text-red-600" v-if="form.errors.machine_type">
-                  {{ form.errors.machine_type }}
-                </div>
-            </div>
-            <div class="sm:col-span-3" v-if="form.machine_type && form.machine_type.id === 'smart_chiller'">
+            <div class="sm:col-span-6" v-if="form.machine_type && form.machine_type.id === 'smart_chiller'">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Citybox Equipment ID
                 </label>
@@ -721,7 +730,6 @@
                   {{ form.errors.citybox_equipment_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3" v-else></div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now
                  lists ALL active mappings (name asc) and no longer depends on the prefix,
                  so the v-if="form.vend_prefix_id" gate was removed. -->
@@ -1671,6 +1679,30 @@ const toast = useToast()
 // POSTs the image back, and we poll until it lands. Nothing is persisted: the
 // server holds the bytes in cache for 10 minutes and serves them through a
 // permission-checked endpoint.
+// Oldest APK build that answers the SCREENSHOT frame. Older builds drop it on
+// the floor (CvMqttService default -> OtherMessage -> a local log line), so the
+// operator would sit through the full 120 s wait for nothing. A NULL
+// apk_version_code means the machine has never checked in with OTA at all,
+// i.e. a pre-301 build - treated as unsupported. Bump this when the handler
+// actually ships in a build.
+const SCREENSHOT_MIN_APK_VERSION = 301
+
+const screenshotSupported = computed(() => {
+  const v = Number(props.vend?.apk_version_code)
+  return Number.isFinite(v) && v >= SCREENSHOT_MIN_APK_VERSION
+})
+
+const screenshotTooltip = computed(() => {
+  if (screenshotSupported.value) {
+    return 'Ask this machine for one screenshot of what it is showing right now. The machine shows nothing while it is taken.'
+  }
+  const v = props.vend?.apk_version_code
+  if (v === null || v === undefined || v === '') {
+    return `Screen capture needs APK v${SCREENSHOT_MIN_APK_VERSION} or newer. This machine has never reported its APK version (pre-OTA build) - update the APK first.`
+  }
+  return `Screen capture needs APK v${SCREENSHOT_MIN_APK_VERSION} or newer. This machine is on v${v} - update the APK first.`
+})
+
 const screenshotModalOpen = ref(false)
 const screenshotBusy = ref(false)
 const screenshotState = ref('idle')   // idle | pending | ready | timeout
@@ -1697,7 +1729,7 @@ function closeScreenshot() {
 }
 
 function openScreenshot() {
-  if (!props.vend || !props.vend.id || screenshotBusy.value) {
+  if (!props.vend || !props.vend.id || screenshotBusy.value || !screenshotSupported.value) {
     return
   }
 

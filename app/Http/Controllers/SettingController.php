@@ -263,6 +263,8 @@ class SettingController extends Controller
         return Inertia::render('Setting/Create', [
             'vend' => $vend,
             'type' => 'create',
+            // Machine Type is chosen at creation only (read-only on Setting/Edit).
+            'machineTypeOptions' => Vend::MACHINE_TYPE_MAPPINGS,
         ]);
     }
 
@@ -364,6 +366,10 @@ class SettingController extends Controller
                 'vends.vend_prefix_id',
                 'vends.vend_serial_number_id',
                 'vends.vend_vend_config_version',
+                // Last APK versionCode the machine reported via OTA check-in — the
+                // Setting/Edit "View Screen" gate (SCREENSHOT_MIN_APK_VERSION) reads
+                // it; without it in this select the button was always disabled.
+                'vends.apk_version_code',
                 'vend_configs.name AS vend_config_name',
                 'vend_models.name AS vend_model_name',
                 'vend_prefixes.name AS vend_prefix_name',
