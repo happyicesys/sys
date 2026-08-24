@@ -166,7 +166,7 @@ Touch points (all verified paths):
 |---|---|
 | DTO | `cvmqttmodule/.../para/clsSettingPromoParam.java` — add the 10 fields; **boxed** `Boolean`/`Integer` + null-guard before persisting (the `isGrabActivated` idiom, `:67-68` / `Main2Activity.java:7848-7850`) so an older mark1 never clears the setting. |
 | Persist/apply | `Main2Activity.updateSettingsPromoParam()` `:7811-7936` → `SharedPreferences "Settings"`; `applySharedPreferences()` `:7699-7795` reads them and toggles the entry pill; counters `timingGame.winsDate`, `timingGame.winsCount`, `timingGame.lastPlayAt` in the same prefs. |
-| Entry point | `activity_main2.xml` `frameLayout` (`:159-179`): a pill **above `btnPulse`** (inside the existing bottom scrim, so no dock tile is displaced — the dock is already full at 5×132dp). Visible iff enabled ∧ in window ∧ trigger=`idle` ∧ reward channel vendable ∧ cap/cooldown OK. For `after_purchase`, the same card is offered from the carousel's "done" overlay (`fragment_carousel_withrecyclerview.xml:468-600`). |
+| Entry point | **Dock tile** (`txt_info1` row) — verified on device 2026-08-24: the idle mid-screen is fully covered by `btn_order_layout` (the soft-keyboard entry bound at `Main2Activity.java:1034`), so a mid-screen pill is never tappable; only the dock receives taps. Tile `btn_timing_game`, 132×120dp yellow. With all 5 feature tiles enabled a 6th does not fit at 132dp — phase 1 must shrink tiles (~112dp when >5 visible) or gate the count. Visible iff enabled ∧ in window ∧ trigger=`idle` ∧ reward channel vendable ∧ cap/cooldown OK. For `after_purchase`, the same card is offered from the carousel's "done" overlay (`fragment_carousel_withrecyclerview.xml:468-600`). |
 | Overlay | New `pageTimingGameDialog extends pageDialog` (template: `pagePromoInfoDialog.java`, 164 L) — full-screen scrim, 600dp card, states READY → RUNNING → HIDDEN → RESULT. Timer: `SystemClock.elapsedRealtime()` at the start tap and stop tap; UI tick via `Choreographer`/`Handler` 16 ms; the **measured** value is the tap timestamps, not the rendered digits. |
 | OTA guard | `Main2Activity.otaBusyReason()` `:6035-6096` must treat a showing game dialog as busy (same class of bug as the QR/grab dialog entries). |
 | Idle timer | use `MyDialog`-style touch forwarding so the idle watchdog sees taps; hard cap one game session at 60 s. |
@@ -175,7 +175,7 @@ Touch points (all verified paths):
 | TRADE tag | `clsTradeRet` gets a `game` object (new POJO `clsGameResult`); `OrderBean` carries it from the dialog to `mUploadTradeRet()`. Gson serialises it; older mark1 ignores it. |
 | Result | `ISOK == 1` on the TRADE echo → "Enjoy!"; `SErr ≠ 0` → "Sorry, the slot jammed — no charge" (and **don't** count the win against the daily cap). |
 | Assets | vector icons only (no `getIdentifier()` — shrinkResources rule). Strings in `strings.xml` (translatable). |
-| Version | ships in the **30x stream after 303 is bench-tested and published** (303 is still the OTA candidate; do not fold the game into it). |
+| Version | **Phase 0 shipped**: playable game (no config, no dispense) is on bench 2031 as vc 999 (2026-08-24). Phase 1 ships in the **30x stream after 303 is bench-tested and published** (303 is still the OTA candidate; do not fold the game into it). |
 
 Accuracy note: touch→event latency on these boards is ~20–40 ms and the same on
 START and STOP, so it largely cancels; the default `±50 ms` band is fair but
