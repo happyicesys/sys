@@ -874,6 +874,65 @@
 									Fan RPM
 								</SingleSortItem>
 							</div>
+							<!-- PWRON 1d/2d/3d trend block — moved here from the Error column
+							     (Daniel, 2026-08-24; the Error column bottom now carries
+							     "# of Refund"). Per-day sort handles hit the
+							     `pwron_{1,2,3}d_count` aliases exposed conditionally by
+							     VendController::indexCustomer (single leftJoin against
+							     vend_daily_stats). Actual counts render at the bottom of
+							     the data cell below. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
+							</div>
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="pwron_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_1d_count', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="pwron_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_2d_count', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="pwron_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_3d_count', false)">
+									3d
+								</SingleSortItem>
+							</div>
+							<!-- "# of No Found in Txn" 1d/2d/3d block — counter written by
+							     LogNofoundTxnIfStillMissing (5 min after a PG payment is
+							     approved, if the matching vend_transactions row still
+							     hasn't landed) and decremented when the txn eventually
+							     arrives — so the number is the count of *currently
+							     unresolved* payment-without-transaction anomalies for
+							     that day. Headers are per-day sortable; data renders at
+							     the bottom of the cell below. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900"># of No Found in Txn</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily count of payment-gateway transactions where the matching machine transaction never arrived within 5 minutes of payment approval. Decrements automatically if the transaction lands later. Sourced from vend_daily_stats (metric=nofound_txn). 1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
+							</div>
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="nofound_txn_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_1d_count', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="nofound_txn_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_2d_count', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="nofound_txn_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_3d_count', false)">
+									3d
+								</SingleSortItem>
+							</div>
+							<!-- SIM Card block — telco (or Wi-Fi/LAN) the machine reports,
+							     plus its signal strength pill. Data renders at the bottom
+							     of the cell below. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900">SIM Card</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Internet link the machine itself reports (VENDER packet, big board v302+ / smart freezer): the SIM card\'s telco (or Wi-Fi / LAN) and its signal strength.<br>Signal: 1-2 red, 3 yellow, 4-5 green.', html: true }"></ExclamationCircleIcon>
+							</div>
 						</div>
 					</TableHead>
 					<TableHead>
@@ -948,61 +1007,28 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 							</div>
-							<!-- PWRON 1d/2d/3d trend block — header has per-day sort
-							     handles. Each SingleSortItem hits the matching
-							     `pwron_{1,2,3}d_count` alias exposed conditionally by
-							     VendController::indexCustomer (single leftJoin against
-							     vend_daily_stats). Actual counts render at the bottom of
-							     the data cell below. Tooltip wording is product-supplied
-							     so it stays in sync with what we tell users PWRON means. -->
+							<!-- "# of Refund" 1d/2d/3d block (Daniel, 2026-08-24) — RF tickets
+							     submitted for this machine per day (any status), counted from
+							     refund_tickets by vend_id. Per-day sort handles hit the
+							     refund_{1,2,3}d_count aliases exposed conditionally by
+							     VendController::indexCustomer. Data renders at the bottom of
+							     the cell below. (PWRON / # of No Found in Txn / SIM Card moved
+							     to the bottom of the Temperature column.) -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
+								<span class="text-[11px] font-semibold text-gray-900"># of Refund</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Refund requests (RF tickets) submitted for this machine per day, whatever their status. 1d = today, 2d = yesterday, 3d = day before (baseline).<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
 							</div>
-							<!-- No text-* override here — TableHead drives the base
-							     text-[11px] size for every header cell. Adding text-sm
-							     pushed these handles to ~14px and made them visually
-							     louder than "1d Rate" / "2d Rate" etc. above. -->
 							<div class="flex justify-center items-center space-x-1">
-								<SingleSortItem modelName="pwron_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_1d_count', false)">
+								<SingleSortItem modelName="refund_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refund_1d_count', false)">
 									1d
 								</SingleSortItem>
 								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="pwron_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_2d_count', false)">
+								<SingleSortItem modelName="refund_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refund_2d_count', false)">
 									2d
 								</SingleSortItem>
 								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="pwron_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_3d_count', false)">
-									3d
-								</SingleSortItem>
-							</div>
-							<!-- "# of No Found in Txn" 1d/2d/3d block — sits directly
-							     under PWRON, same Error column. Counter is written by
-							     LogNofoundTxnIfStillMissing (5 min after a PG payment is
-							     approved, if the matching vend_transactions row still
-							     hasn't landed) and decremented when the txn eventually
-							     arrives — so the number is the count of *currently
-							     unresolved* payment-without-transaction anomalies for
-							     that day. Headers are per-day sortable; data renders at
-							     the bottom of the cell below. -->
-							<hr class="border-t border-gray-300 my-1 w-full" />
-							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900"># of No Found in Txn</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily count of payment-gateway transactions where the matching machine transaction never arrived within 5 minutes of payment approval. Decrements automatically if the transaction lands later. Sourced from vend_daily_stats (metric=nofound_txn). 1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
-							</div>
-							<!-- Match the PWRON row above — no explicit text size class
-							     so we inherit TableHead's text-[11px]. -->
-							<div class="flex justify-center items-center space-x-1">
-								<SingleSortItem modelName="nofound_txn_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_1d_count', false)">
-									1d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="nofound_txn_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_2d_count', false)">
-									2d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="nofound_txn_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_3d_count', false)">
+								<SingleSortItem modelName="refund_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refund_3d_count', false)">
 									3d
 								</SingleSortItem>
 							</div>
@@ -1635,6 +1661,112 @@
 										({{ getAlertLabel(alert) }})
 									</span>
 								</div>
+							<!-- PWRON 1d/2d/3d trend (counts from vend_daily_stats).
+							     Coloring (inactive machines stay gray):
+							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
+							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
+							       - 3d: always black (baseline for comparison)
+							     v-if guards the block when the controller hasn't
+							     attached the counts (e.g. older /vends path). -->
+							<template v-if="vend.pwron_1d_count !== null && vend.pwron_1d_count !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.pwron_1d_count > vend.pwron_2d_count ? 'text-red-700' :
+												(vend.pwron_1d_count < vend.pwron_2d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.pwron_1d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.pwron_2d_count > vend.pwron_3d_count ? 'text-red-700' :
+												(vend.pwron_2d_count < vend.pwron_3d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.pwron_2d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
+										{{ vend.pwron_3d_count }}
+									</span>
+								</div>
+							</template>
+							<!-- "# of No Found in Txn" 1d/2d/3d (counts from vend_daily_stats
+							     metric=nofound_txn). Coloring rule mirrors the PWRON block
+							     directly above so the two trend lines read consistently:
+							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
+							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
+							       - 3d: always black (baseline)
+							     Inactive machines stay gray (matches PWRON). Block is
+							     hidden when the controller hasn't enriched the counts. -->
+							<template v-if="vend.nofound_txn_1d_count !== null && vend.nofound_txn_1d_count !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.nofound_txn_1d_count > vend.nofound_txn_2d_count ? 'text-red-700' :
+												(vend.nofound_txn_1d_count < vend.nofound_txn_2d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.nofound_txn_1d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.nofound_txn_2d_count > vend.nofound_txn_3d_count ? 'text-red-700' :
+												(vend.nofound_txn_2d_count < vend.nofound_txn_3d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.nofound_txn_2d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
+										{{ vend.nofound_txn_3d_count }}
+									</span>
+								</div>
+							</template>
+							<!-- SIM Card — moved here from the Machine Status column (Daniel,
+							     2026-08-24). Telco/Wi-Fi/LAN title + signal pill (1-2 red,
+							     3 yellow, 4-5 green — shared constants/internetLink.js).
+							     Hidden (not N/A) when the machine has never reported a link:
+							     during rollout that is the normal state for older APKs. -->
+							<template v-if="vend.internet_source">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex flex-col items-center space-y-1">
+									<span class="text-xs font-bold" :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
+										{{ internetLinkTitle(vend) }}
+									</span>
+									<span
+										v-if="signalBars(vend) || vend.internet_source === 'none'"
+										class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+										:class="[(vend.is_active || vend.is_testing) ? signalBadgeClass(vend) : 'bg-gray-200 text-gray-400']"
+									>
+										{{ signalBars(vend) || 'No Link' }}
+									</span>
+									<span class="text-xs text-gray-500" v-if="vend.internet_updated_at">
+										{{ shortTimeAgo(vend.internet_updated_at) }}
+									</span>
+								</div>
+							</template>
 						</div>
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
@@ -1755,86 +1887,45 @@
 									{{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
 									({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 							</span>
-							<!-- PWRON 1d/2d/3d trend (counts from vend_daily_stats).
-							     Coloring (inactive machines stay gray):
-							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
-							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
-							       - 3d: always black (baseline for comparison)
-							     v-if guards the block when the controller hasn't
-							     attached the counts (e.g. older /vends path). -->
-							<template v-if="vend.pwron_1d_count !== null && vend.pwron_1d_count !== undefined">
-								<hr class="border-t border-gray-300 my-2 w-full" />
-								<div class="flex justify-center items-center space-x-1 text-sm">
-									<span
-										:class="
-											(vend.is_active || vend.is_testing) ?
-											(
-												vend.pwron_1d_count > vend.pwron_2d_count ? 'text-red-700' :
-												(vend.pwron_1d_count < vend.pwron_2d_count ? 'text-green-700' : 'text-gray-900')
-											) :
-											'text-gray-400'
-										"
-									>
-										{{ vend.pwron_1d_count }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span
-										:class="
-											(vend.is_active || vend.is_testing) ?
-											(
-												vend.pwron_2d_count > vend.pwron_3d_count ? 'text-red-700' :
-												(vend.pwron_2d_count < vend.pwron_3d_count ? 'text-green-700' : 'text-gray-900')
-											) :
-											'text-gray-400'
-										"
-									>
-										{{ vend.pwron_2d_count }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
-										{{ vend.pwron_3d_count }}
-									</span>
-								</div>
-							</template>
-							<!-- "# of No Found in Txn" 1d/2d/3d (counts from vend_daily_stats
-							     metric=nofound_txn). Coloring rule mirrors the PWRON block
-							     directly above so the two trend lines read consistently:
+							<!-- "# of Refund" 1d/2d/3d (RF tickets submitted per day, any
+							     status - counted from refund_tickets by vend_id; Daniel 2026-08-24).
+							     Coloring mirrors the PWRON block (now in the Temperature column):
 							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
 							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
 							       - 3d: always black (baseline)
-							     Inactive machines stay gray (matches PWRON). Block is
-							     hidden when the controller hasn't enriched the counts. -->
-							<template v-if="vend.nofound_txn_1d_count !== null && vend.nofound_txn_1d_count !== undefined">
+							     Inactive machines stay gray. Hidden when the controller has not
+							     enriched the counts (e.g. older /vends path). -->
+							<template v-if="vend.refund_1d_count !== null && vend.refund_1d_count !== undefined">
 								<hr class="border-t border-gray-300 my-2 w-full" />
 								<div class="flex justify-center items-center space-x-1 text-sm">
 									<span
 										:class="
 											(vend.is_active || vend.is_testing) ?
 											(
-												vend.nofound_txn_1d_count > vend.nofound_txn_2d_count ? 'text-red-700' :
-												(vend.nofound_txn_1d_count < vend.nofound_txn_2d_count ? 'text-green-700' : 'text-gray-900')
+												vend.refund_1d_count > vend.refund_2d_count ? 'text-red-700' :
+												(vend.refund_1d_count < vend.refund_2d_count ? 'text-green-700' : 'text-gray-900')
 											) :
 											'text-gray-400'
 										"
 									>
-										{{ vend.nofound_txn_1d_count }}
+										{{ vend.refund_1d_count }}
 									</span>
 									<span class="text-gray-400">/</span>
 									<span
 										:class="
 											(vend.is_active || vend.is_testing) ?
 											(
-												vend.nofound_txn_2d_count > vend.nofound_txn_3d_count ? 'text-red-700' :
-												(vend.nofound_txn_2d_count < vend.nofound_txn_3d_count ? 'text-green-700' : 'text-gray-900')
+												vend.refund_2d_count > vend.refund_3d_count ? 'text-red-700' :
+												(vend.refund_2d_count < vend.refund_3d_count ? 'text-green-700' : 'text-gray-900')
 											) :
 											'text-gray-400'
 										"
 									>
-										{{ vend.nofound_txn_2d_count }}
+										{{ vend.refund_2d_count }}
 									</span>
 									<span class="text-gray-400">/</span>
 									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
-										{{ vend.nofound_txn_3d_count }}
+										{{ vend.refund_3d_count }}
 									</span>
 								</div>
 							</template>
@@ -2606,36 +2697,8 @@
 											</span>
 									</div>
 							</div>
-							<!--
-								Internet link — telco / Wi-Fi / LAN plus signal bars, squeezed into
-								one badge so the column stays narrow. Reported by the APK in its
-								VENDER packet ("Internet" key: big board v302+, smart freezer) and
-								promoted onto vends.internet_* by SyncVendParameter.
-
-								Hidden (not N/A) when the machine has never reported a link: during
-								rollout that is the normal state for older APKs, not an error.
-								Colour grades the bar RATIO (the device declares its own scale):
-								  - green  > 45 %          - yellow <= 45 %
-								  - red    <= 25 % or no link at all
-								  - gray   link without a readable signal (LAN) or inactive vend
-							-->
-							<div
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_active || vend.is_testing ? internetLinkClass(vend) : 'bg-gray-200 text-gray-400']"
-									v-if="vend.internet_source"
-							>
-									<div class="flex flex-col">
-											<span class="font-bold">
-													{{ internetLinkTitle(vend) }}
-											</span>
-											<span class="font-bold" v-if="internetLinkBars(vend)">
-													{{ internetLinkBars(vend) }}
-											</span>
-											<span v-if="vend.internet_updated_at">
-													{{ shortTimeAgo(vend.internet_updated_at) }}
-											</span>
-									</div>
-							</div>
+							<!-- Internet-link badge moved to the Error column's "SIM Card" block
+							     (Daniel, 2026-08-24) — see constants/internetLink.js. -->
 							<!--
 								Remote Modem — minimal badge, matches HTTP / MQTT styling.
 								Modem type, IMEI and Reset button have been moved to
@@ -3193,6 +3256,7 @@ font-size:13px;
 	import moment from 'moment';
 	import axios from 'axios';
 	import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
+	import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
@@ -4337,52 +4401,6 @@ function getVendsField() {
 					// vendChannelsJson: props.indexType === 'customers' ? data.vend?.vendChannelsJson : data.vendChannelsJson,
 			}})
 	}
-}
-
-/**
- * Internet link badge (Machine Status column) — title line.
- * "StarHub 4G" / "Wi-Fi HappyIce" / "LAN" / "No Link". Carrier or SSID
- * first because that is what ops recognise; the generation is the detail.
- */
-function internetLinkTitle(vend) {
-	const source = vend.internet_source;
-	const provider = vend.internet_provider;
-	const network = vend.internet_network;
-	if (source === 'none') return 'No Link';
-	if (source === 'lan') return 'LAN';
-	if (source === 'wifi') return provider ? 'Wi-Fi ' + provider : 'Wi-Fi';
-	if (source === 'telco') {
-		const parts = [provider || 'Telco'];
-		if (network) parts.push(network);
-		return parts.join(' ');
-	}
-	return provider || network || 'Internet';
-}
-
-/**
- * Internet link badge — bar count line ("Signal 4/5"), or null when the
- * machine could not read a signal (LAN, or a ROM with no signal API), so the
- * badge simply omits the line rather than inventing "0/5".
- */
-function internetLinkBars(vend) {
-	if (vend.internet_signal === null || vend.internet_signal === undefined) return null;
-	return 'Signal ' + vend.internet_signal + '/' + (vend.internet_signal_max || 5);
-}
-
-/**
- * Internet link badge colour. Same thresholds as Vend/Index.vue's link
- * column, graded on the RATIO because the scale is whatever the device
- * declared (3 bars is good out of 5, mediocre out of 10). A link with no
- * bar reading is neutral gray: absence of evidence is not a bad link.
- */
-function internetLinkClass(vend) {
-	if (vend.internet_source === 'none') return 'bg-red-200';
-	if (vend.internet_signal === null || vend.internet_signal === undefined) return 'bg-gray-200';
-	const max = vend.internet_signal_max || 5;
-	const ratio = max > 0 ? vend.internet_signal / max : 0;
-	if (ratio <= 0.25) return 'bg-red-200';
-	if (ratio <= 0.45) return 'bg-yellow-200';
-	return 'bg-green-200';
 }
 
 function getVendRecordsAmountAverageDayClass(amount) {

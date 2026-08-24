@@ -643,6 +643,12 @@ class VendController extends Controller
         // finally lands. Both metrics share the same vend_daily_stats table
         // and the same three-date window, so we can reuse the date variables.
         $needsNofoundTxn = in_array($sortKey, ['nofound_txn_1d_count', 'nofound_txn_2d_count', 'nofound_txn_3d_count']);
+        // "# of Refund" 1d/2d/3d sort — same pattern, but counted straight off
+        // refund_tickets (one row per submitted RF ticket, any status — same
+        // "how many claims did this machine generate" semantics as the Refund
+        // page's Machine RF 24h flag). Table is small; DATE(created_at) over a
+        // 3-day window is cheap.
+        $needsRefund = in_array($sortKey, ['refund_1d_count', 'refund_2d_count', 'refund_3d_count']);
         // Dates are app-TZ — mirrors the post-query loop and matches how
         // IncrementVendDailyStat buckets writes. Computed up here so both the
         // sort-leftJoin and the post-query enrichment use the same values.
@@ -1048,6 +1054,21 @@ class VendController extends Controller
                 AND `date` IN ('{$pwronDate1d}', '{$pwronDate2d}', '{$pwronDate3d}')
                 GROUP BY vend_id
             ) AS vds_nofound"), 'vds_nofound.vend_id', '=', 'vends.id');
+                })
+                ->when($needsRefund, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
+                    // "# of Refund" — counted from refund_tickets (per submitted
+                    // ticket, any status), bucketed by submission date in app TZ to
+                    // line up with the PWRON / nofound day windows above.
+                    $query->leftJoin(DB::raw("(
+                SELECT vend_id,
+                    SUM(CASE WHEN DATE(created_at) = '{$pwronDate1d}' THEN 1 ELSE 0 END) AS refund_1d_count,
+                    SUM(CASE WHEN DATE(created_at) = '{$pwronDate2d}' THEN 1 ELSE 0 END) AS refund_2d_count,
+                    SUM(CASE WHEN DATE(created_at) = '{$pwronDate3d}' THEN 1 ELSE 0 END) AS refund_3d_count
+                FROM refund_tickets
+                WHERE vend_id IS NOT NULL
+                AND created_at >= '{$pwronDate3d} 00:00:00'
+                GROUP BY vend_id
+            ) AS rt_counts"), 'rt_counts.vend_id', '=', 'vends.id');
                 });
             $selectColumns = [
                 'customers.id AS id',
@@ -1262,6 +1283,13 @@ class VendController extends Controller
                 $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_1d_count, 0) AS nofound_txn_1d_count');
                 $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_2d_count, 0) AS nofound_txn_2d_count');
                 $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_3d_count, 0) AS nofound_txn_3d_count');
+            }
+
+            if ($needsRefund) {
+                // Same pattern as the PWRON block above — see comment there.
+                $selectColumns[] = DB::raw('COALESCE(rt_counts.refund_1d_count, 0) AS refund_1d_count');
+                $selectColumns[] = DB::raw('COALESCE(rt_counts.refund_2d_count, 0) AS refund_2d_count');
+                $selectColumns[] = DB::raw('COALESCE(rt_counts.refund_3d_count, 0) AS refund_3d_count');
             }
 
             if ($needsThirtyDaysVendingEarning) {
@@ -1679,6 +1707,21 @@ class VendController extends Controller
                         }
                     }
                 }
+                // "# of Refund" 1d/2d/3d — RF tickets submitted per machine per day
+                // (any status: a rejected claim still tells ops the machine drew a
+                // complaint). Same 3-date window; bucketed in PHP like the stats above.
+                $refundByVend = [];
+                if (! empty($vendIds)) {
+                    DB::table('refund_tickets')
+                        ->whereIn('vend_id', $vendIds)
+                        ->where('created_at', '>=', $pwronDate3d.' 00:00:00')
+                        ->get(['vend_id', 'created_at'])
+                        ->each(function ($row) use (&$refundByVend) {
+                            $dateKey = substr((string) $row->created_at, 0, 10);
+                            $vid = (int) $row->vend_id;
+                            $refundByVend[$vid][$dateKey] = ($refundByVend[$vid][$dateKey] ?? 0) + 1;
+                        });
+                }
                 foreach ($vends->items() as $vend) {
                     $vid = (int) ($vend->vend_id ?? 0);
                     $vend->pwron_1d_count = (int) ($pwronByVend[$vid][$pwronDate1d] ?? 0);
@@ -1687,6 +1730,9 @@ class VendController extends Controller
                     $vend->nofound_txn_1d_count = (int) ($nofoundByVend[$vid][$pwronDate1d] ?? 0);
                     $vend->nofound_txn_2d_count = (int) ($nofoundByVend[$vid][$pwronDate2d] ?? 0);
                     $vend->nofound_txn_3d_count = (int) ($nofoundByVend[$vid][$pwronDate3d] ?? 0);
+                    $vend->refund_1d_count = (int) ($refundByVend[$vid][$pwronDate1d] ?? 0);
+                    $vend->refund_2d_count = (int) ($refundByVend[$vid][$pwronDate2d] ?? 0);
+                    $vend->refund_3d_count = (int) ($refundByVend[$vid][$pwronDate3d] ?? 0);
                 }
 
                 // Second pass: loadAggregates() and the accumulate-earning loop

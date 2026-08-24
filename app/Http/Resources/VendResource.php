@@ -397,6 +397,13 @@ class VendResource extends JsonResource
             // matching vend_transactions row finally lands. Null-default so
             // routes that don't enrich (e.g. /vends) hide the block.
             'nofound_txn_1d_count' => isset($this->nofound_txn_1d_count) ? (int) $this->nofound_txn_1d_count : null,
+            // "# of Refund" 1d / 2d / 3d — RF tickets submitted per day (any
+            // status), counted from refund_tickets by vend_id. Drives the block
+            // at the bottom of the Error column on Vend/CustomerIndex; null when
+            // the route didn't enrich.
+            'refund_1d_count' => isset($this->refund_1d_count) ? (int) $this->refund_1d_count : null,
+            'refund_2d_count' => isset($this->refund_2d_count) ? (int) $this->refund_2d_count : null,
+            'refund_3d_count' => isset($this->refund_3d_count) ? (int) $this->refund_3d_count : null,
             'nofound_txn_2d_count' => isset($this->nofound_txn_2d_count) ? (int) $this->nofound_txn_2d_count : null,
             'nofound_txn_3d_count' => isset($this->nofound_txn_3d_count) ? (int) $this->nofound_txn_3d_count : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
