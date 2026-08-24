@@ -290,10 +290,14 @@ const skuDisplay = computed(() => {
     if (t.value.is_manual && t.value.manual_items_summary) return 'Manual: ' + t.value.manual_items_summary;
     return claimedSkus.value || '—';
 });
-// Manual claims: show the customer's declared pay method; matched: the classified channel.
-const paymentChannelDisplay = computed(() => {
-    if (t.value.is_manual && t.value.manual_pay_method) return t.value.manual_pay_method;
-    return t.value.payment_channel || '—';
+// Payment Method — same data as the index "Pay Method" column: the matched
+// transaction's payment method (+ card-terminal provider in brackets), falling
+// back to what the customer keyed in on the manual form when nothing is matched.
+const payMethodDisplay = computed(() => {
+    if (!t.value.matched) return null;
+    const m = t.value.pay_method || t.value.payment_channel;
+    if (!m) return null;
+    return t.value.pay_provider ? m + ' (' + t.value.pay_provider + ')' : m;
 });
 
 // ---- Photo / video (right of the submission; up to 3 thumbnails) ----
@@ -442,6 +446,24 @@ function actionBadge(l) {
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <!-- left: the input flow -->
                 <div class="lg:col-span-2">
+                    <!-- Times first — same data as the index "RF Submitted" column:
+                         submission time, matched transaction time + elapsed delta. -->
+                    <dl class="grid grid-cols-3 gap-y-2 text-sm pb-2 mb-2 border-b">
+                        <dt class="text-gray-500">Submitted at</dt>
+                        <dd class="col-span-2 font-medium">{{ t.submitted_at || '—' }}</dd>
+                        <dt class="text-gray-500">Transaction at</dt>
+                        <dd class="col-span-2 font-medium">
+                            <template v-if="t.matched">
+                                <a v-if="t.txn_link" :href="t.txn_link" target="_blank"
+                                    class="text-teal-600 hover:text-teal-800 hover:underline"
+                                    title="Open Sales Transactions filtered to this machine on the same day">{{ t.txn_datetime || '—' }}</a>
+                                <span v-else>{{ t.txn_datetime || '—' }}</span>
+                                <span v-if="t.txn_delta" class="text-xs text-gray-500 ml-2"
+                                    title="Elapsed time between the transaction and the refund submission">Δ {{ t.txn_delta }}</span>
+                            </template>
+                            <span v-else class="text-amber-600 italic">pending match</span>
+                        </dd>
+                    </dl>
                     <dl class="grid grid-cols-3 gap-y-2 text-sm">
                         <dt class="text-gray-500">Name</dt><dd class="col-span-2 font-medium">{{ t.contact_name || '—' }}</dd>
                         <dt class="text-gray-500">Email</dt><dd class="col-span-2 font-medium break-all">{{ t.contact_email || '—' }}</dd>
@@ -456,6 +478,13 @@ function actionBadge(l) {
                             <span v-if="t.entered_day_date && isRelativeDay" class="text-gray-500"> ({{ t.entered_day_date }})</span>
                         </dd>
                         <dt class="text-gray-500">Amount paid</dt><dd class="col-span-2 font-medium">{{ t.entered_amount ? '$' + t.entered_amount : '—' }}</dd>
+                        <dt class="text-gray-500">Payment Method</dt>
+                        <dd class="col-span-2 font-medium">
+                            <span v-if="payMethodDisplay">{{ payMethodDisplay }}</span>
+                            <span v-else-if="t.manual_pay_method" class="italic text-amber-700"
+                                title="Payment method keyed in by the customer on the manual form">{{ t.manual_pay_method }}</span>
+                            <span v-else>—</span>
+                        </dd>
                         <dt class="text-gray-500">Matched with Transaction</dt>
                         <dd class="col-span-2">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full border"
@@ -483,8 +512,6 @@ function actionBadge(l) {
                     <dl class="grid grid-cols-3 gap-y-2 text-sm mt-3 pt-3 border-t">
                         <dt class="text-gray-500">{{ payoutLabel }}</dt><dd class="col-span-2 font-medium break-all">{{ t.payout_destination || '—' }}</dd>
                         <dt class="text-gray-500">Submitted via</dt><dd class="col-span-2 font-medium">{{ t.is_manual ? 'Manual entry (no match found)' : 'Scanned QR' }}</dd>
-                        <dt class="text-gray-500">Submitted at</dt><dd class="col-span-2 font-medium">{{ t.created_at }}</dd>
-                        <dt class="text-gray-500">Payment channel</dt><dd class="col-span-2 font-medium">{{ paymentChannelDisplay }}</dd>
                         <template v-if="t.is_manual"><dt class="text-gray-500">Approx. time</dt><dd class="col-span-2 font-medium">{{ t.approx_time || '—' }}</dd></template>
                     </dl>
                 </div>
