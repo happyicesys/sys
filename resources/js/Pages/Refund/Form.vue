@@ -10,6 +10,11 @@ const props = defineProps({
     reasonCodes: { type: Array, default: () => [] },
     allowedDays: { type: Array, default: () => ['today', 'yesterday'] },
     maxLookbackDays: { type: Number, default: 14 },
+    // 2026-08-23: set when the link came from the machine's dispense-failure QR
+    // (/refund?machineID=..&order_id=<ORDRID>). prefilledCandidate is the
+    // matched purchase, or null if it had not synced yet at page load.
+    orderId: { type: String, default: '' },
+    prefilledCandidate: { type: Object, default: null },
 });
 
 // machineID may be missing/invalid (QR without it, or a broken APK) — fall back to a manual entry page.
@@ -47,9 +52,13 @@ const productsLoaded = ref(false);
 const prodOpen = ref(false);
 // manual review can list more than one affected item (product + channel + qty)
 const manualItems = ref([]); // [{ product_id, name, channel_code, image_url, price_cents, qty }]
+// "Not sure / not listed" is a valid answer now that Affected Items is
+// compulsory — tracked as its own flag (no structured item) and shown as a
+// removable row so the customer can see the pick registered.
+const manualNotSure = ref(false);
 function addManualItem(p) {
     prodOpen.value = false;
-    if (!p) return; // "Not sure / not listed" — no structured item, they'll explain in text
+    if (!p) { manualNotSure.value = true; return; }
     const key = p.product_id + '-' + p.channel_code;
     const existing = manualItems.value.find(i => (i.product_id + '-' + i.channel_code) === key);
     if (existing) { existing.qty = Math.min(10, existing.qty + 1); return; }
@@ -244,7 +253,13 @@ async function startRefund() {
     if (!customerName.value || !customerName.value.trim()) { errorMsg.value = 'Please enter your name.'; return; }
 
     // Machine already confirmed via the QR link — no need to re-enter/re-check the ID.
-    if (machineResolved.value && machineId.value) { step.value = 2; return; }
+    if (machineResolved.value && machineId.value) {
+        // Order-pinned QR: skip day / amount / search and open on that purchase.
+        if (props.orderId) {
+            if (await openPinnedOrder()) return;
+        }
+        step.value = 2; return;
+    }
 
     const code = (machineId.value || '').trim();
     if (!/^\d{4}$/.test(code)) { errorMsg.value = 'Please enter the 4-digit Machine ID.'; return; }
@@ -265,6 +280,35 @@ async function startRefund() {
     } finally {
         loading.value = false;
     }
+}
+
+// Use the purchase resolved from the QR's order_id. The machine's TRADE upload
+// can trail the scan by a few seconds, so if the page loaded without it, ask
+// once more before giving up and falling back to the normal search.
+const pinnedOrder = ref(false);
+async function openPinnedOrder() {
+    let c = props.prefilledCandidate;
+    if (!c) {
+        loading.value = true;
+        try {
+            const { data } = await window.axios.post('/refund/by-order', { machineID: machineId.value, order_id: props.orderId });
+            c = data && data.found ? data.candidate : null;
+        } catch (e) {
+            c = null;
+        } finally {
+            loading.value = false;
+        }
+    }
+    if (!c) return false;
+    candidates.value = [c];
+    selected.value = c;
+    pinnedOrder.value = true;
+    // pre-tick the item(s) the machine reported as failed; the customer can still change it
+    selectedRawIds.value = (c.items || [])
+        .filter((i) => i.vend_transaction_item_id && i.had_channel_error && !i.is_refunded)
+        .map((i) => i.vend_transaction_item_id);
+    step.value = multiItem.value ? 5 : 6;
+    return true;
 }
 
 async function fetchCandidates() {
@@ -366,8 +410,14 @@ function next() {
     }
     if (s === 8) { submit(); return; }
     if (s === '4c') {
+        // Every manual-review field is compulsory (2026-08-24) — the team can't
+        // check a claim against machine records without them.
+        if (!manualTime.value) { errorMsg.value = 'Please tell us roughly what time you bought it.'; return; }
         const paid = parseFloat(manualAmount.value);
         if (!manualAmount.value || isNaN(paid) || paid <= 1) { errorMsg.value = 'Please enter the total amount you paid (must be more than $1).'; return; }
+        if (!manualPayMethod.value) { errorMsg.value = 'Please select how you paid.'; return; }
+        if (manualItems.value.length === 0 && !manualNotSure.value) { errorMsg.value = 'Please add the affected item(s) — or pick "Not sure / not listed".'; return; }
+        if (!manualText.value.trim()) { errorMsg.value = 'Please explain what happened.'; return; }
         if (photos.value.length === 0) { errorMsg.value = 'Please add at least one photo or a short video.'; return; }
         if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you.'; return; }
         step.value = 7; return;
@@ -379,6 +429,8 @@ function back() {
     const s = step.value;
     if (s === 2) step.value = 'enter_machine';
     else if (s === 3) step.value = 2;
+    // order-pinned: there was no day/amount step, the purchase card goes back to the start
+    else if (s === 4 && pinnedOrder.value) step.value = 'enter_machine';
     else if (s === 4 || s === '4b') step.value = 3;
     else if (s === '4c') step.value = '4b';
     else if (s === 5) step.value = 4;
@@ -433,8 +485,10 @@ async function submitManual() {
         // method are captured in their own fields (manual_items_summary / manual_pay_method).
         if (manualText.value) fd.append('reason_text', manualText.value);
         // Structured, human-readable summary of the affected items for the SKU-name field.
+        // "Not sure / not listed" is a valid (compulsory-field) answer of its own.
         const itemsSummary = manualItems.value
             .map(i => `${i.name}${i.channel_code ? ' (Channel #' + i.channel_code + ')' : ''} × ${i.qty}`)
+            .concat(manualNotSure.value ? ['Not sure / not listed'] : [])
             .join('; ');
         if (itemsSummary) fd.append('manual_items_summary', itemsSummary);
         if (manualPayMethod.value) fd.append('manual_pay_method', manualPayMethod.value);
@@ -507,10 +561,10 @@ async function submitManual() {
                 <p class="p" style="text-align:center">Enter the <b>Machine ID</b> printed on the vending machine (usually near the QR sticker or on the front panel), and your name to start.</p>
             </div>
             <template v-if="!machineResolved">
-                <label class="fld">Machine ID <span class="req">(required)</span></label>
+                <label class="fld">Machine ID <span class="req">*</span></label>
                 <input class="inp" v-model="machineId" inputmode="numeric" maxlength="4" placeholder="e.g. 1234" @input="onMachineIdInput" @keyup.enter="startRefund" />
             </template>
-            <label class="fld">Your name <span class="req">(required)</span></label>
+            <label class="fld">Your name <span class="req">*</span></label>
             <input class="inp" v-model="customerName" placeholder="Enter your name" @keyup.enter="startRefund" autocapitalize="words" />
             <button class="btn" style="margin-top:14px" @click="startRefund" :disabled="loading">{{ loading ? 'Checking…' : 'Continue' }}</button>
         </div>
@@ -575,19 +629,26 @@ async function submitManual() {
             <div class="h2">Tell us what happened</div>
             <p class="p">Our team will check this against the machine records and get back to you.</p>
 
-            <label class="fld">Around what time? <span class="dayhint">({{ dayLabel }})</span></label>
+            <label class="fld">Around what time? <span class="req">*</span> <span class="dayhint">({{ dayLabel }})</span></label>
             <input class="inp" type="time" v-model="manualTime" />
 
-            <label class="fld">Total amount paid <span style="color:#dc2626">*</span> <span class="dayhint">(total from your bill)</span></label>
+            <label class="fld">Total amount paid <span class="req">*</span> <span class="dayhint">(total from your bill)</span></label>
             <div class="amtrow"><span class="cur2">$</span><input class="inp amt2" type="text" inputmode="numeric" :value="manualAmount" @input="onManualAmountInput" placeholder="0.00" /></div>
 
-            <label class="fld">How did you pay?</label>
+            <label class="fld">How did you pay? <span class="req">*</span></label>
             <select class="inp" v-model="manualPayMethod">
                 <option value="" disabled>Select payment method…</option>
                 <option v-for="m in manualPayMethods" :key="m.value" :value="m.value">{{ m.label }}</option>
             </select>
 
-            <label class="fld">Affected Items? <span class="dayhint">(add all affected items)</span></label>
+            <label class="fld">Affected Items? <span class="req">*</span> <span class="dayhint">(add all affected items)</span></label>
+
+            <!-- "Not sure / not listed" registered as the answer -->
+            <div v-if="manualNotSure" class="itemrow">
+                <span class="ddthumb">❔</span>
+                <span class="ddinfo"><span class="ddname">Not sure / not listed</span></span>
+                <button type="button" class="itemrm" @click="manualNotSure = false">×</button>
+            </div>
 
             <!-- items already added -->
             <div v-for="(it, idx) in manualItems" :key="it.product_id + '-' + it.channel_code" class="itemrow">
@@ -609,7 +670,7 @@ async function submitManual() {
 
             <div class="proddd">
                 <button type="button" class="inp ddbtn" @click="prodOpen = !prodOpen">
-                    <span class="ddname muted">{{ manualItems.length ? 'Add another item…' : 'Select a product…' }}</span>
+                    <span class="ddname muted">{{ (manualItems.length || manualNotSure) ? 'Add another item…' : 'Select a product…' }}</span>
                     <span class="caret">▾</span>
                 </button>
                 <div v-if="prodOpen" class="ddlist">
@@ -627,11 +688,11 @@ async function submitManual() {
                 </div>
             </div>
 
-            <label class="fld">Explain what happened</label>
+            <label class="fld">Explain what happened <span class="req">*</span></label>
             <textarea class="inp bigta" rows="6" v-model="manualText" placeholder="e.g. I paid $3.50 by PayNow around 2pm, the machine showed 'dispensing' but nothing came out."></textarea>
-            <label class="fld">Email <span class="req">(required)</span></label>
+            <label class="fld">Email <span class="req">*</span></label>
             <input class="inp" type="email" v-model="contactEmail" placeholder="you@email.com" />
-            <label class="fld">Photos or video <span class="req">(required)</span> <span class="dayhint">— up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each</span></label>
+            <label class="fld">Photos or video <span class="req">*</span> <span class="dayhint">— up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each</span></label>
             <div class="photogrid">
                 <div v-for="(p, i) in photoPreviews" :key="i" class="thumb">
                     <video v-if="p.isVideo" :src="p.url" class="thumbmedia" muted playsinline></video>
@@ -677,7 +738,7 @@ async function submitManual() {
             </select>
             <label class="fld">Add a note (optional)</label>
             <textarea class="inp" rows="3" v-model="reasonText" placeholder="Anything else we should know?"></textarea>
-            <label class="fld">Photo or video <span class="req">(required)</span></label>
+            <label class="fld">Photo or video <span class="req">*</span></label>
             <p class="p" style="margin-top:0">A photo or short video of the machine or screen helps us verify. Up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each.</p>
             <div class="photogrid">
                 <div v-for="(p, i) in photoPreviews" :key="i" class="thumb">
@@ -691,7 +752,7 @@ async function submitManual() {
                     <span>📷</span><small>Add</small>
                 </label>
             </div>
-            <label class="fld">Email <span class="req">(required)</span></label>
+            <label class="fld">Email <span class="req">*</span></label>
             <input class="inp" type="email" v-model="contactEmail" placeholder="you@email.com" />
             <p class="p" style="margin-top:6px">We'll email you updates on your refund.</p>
         </div>
@@ -857,7 +918,11 @@ label.fld .dayhint{color:#64748b;font-weight:600}
 .ddprice-inline{font-size:11px;font-weight:800;color:#0f172a;background:#f1f5f9;border-radius:6px;padding:1px 7px;white-space:nowrap}
 .ddthumb{width:34px;height:34px;border-radius:9px;flex:0 0 auto;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:16px}
 .ddthumb img{width:100%;height:100%;object-fit:cover}
-.ddlist{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;max-height:260px;overflow:auto;box-shadow:0 10px 24px rgba(2,6,23,.12)}
+/* Bigger thumbnails inside the product dropdown so customers can recognise the
+   item at a glance (2026-08-24, Brian). The compact 34px .ddthumb stays for the
+   added-item rows above the picker. */
+.ddopt .ddthumb{width:72px;height:72px;border-radius:14px;font-size:32px}
+.ddlist{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;max-height:420px;overflow:auto;box-shadow:0 10px 24px rgba(2,6,23,.12)}
 .ddopt{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer}
 .ddopt:hover{background:#f8fafc}
 .ddopt .ddprice{margin-left:auto;font-size:12.5px;font-weight:700;color:#0f172a}

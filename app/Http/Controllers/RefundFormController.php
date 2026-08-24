@@ -12,6 +12,10 @@ use Inertia\Inertia;
 /**
  * Public, unauthenticated customer refund form. Reached via the QR the machine
  * renders: /refund?machineID=<vend_code> (machineID appended by mqtt-config).
+ *
+ * 2026-08-23: the APK also shows a QR right on the dispensing dialog when an
+ * item fails, carrying &order_id=<ORDRID>. With a resolvable order the form
+ * skips day/amount/candidate search and opens on that purchase.
  */
 class RefundFormController extends Controller
 {
@@ -25,7 +29,9 @@ class RefundFormController extends Controller
     ];
 
     protected RefundMatchingService $matching;
+
     protected RefundTicketService $tickets;
+
     protected RefundEmailService $email;
 
     public function __construct(RefundMatchingService $matching, RefundTicketService $tickets, RefundEmailService $email)
@@ -45,7 +51,7 @@ class RefundFormController extends Controller
 
         try {
             $phone = new \Propaganistas\LaravelPhone\PhoneNumber($value, $country);
-            if (!$phone->isValid()) {
+            if (! $phone->isValid()) {
                 return false;
             }
             try {
@@ -61,7 +67,7 @@ class RefundFormController extends Controller
     /** Site (customer) name for a machine — public context, so skip operator scopes. */
     protected function siteName(?\App\Models\Vend $vend): ?string
     {
-        if (!$vend || !$vend->customer_id) {
+        if (! $vend || ! $vend->customer_id) {
             return null;
         }
 
@@ -73,15 +79,48 @@ class RefundFormController extends Controller
         $machineID = (string) $request->query('machineID', '');
         $vend = $machineID !== '' ? $this->matching->resolveMachine($machineID) : null;
 
+        // order_id from the dispense-failure QR (APK ORDRID: digits, ~19 chars).
+        // Anything else is ignored rather than rejected — the form still works
+        // as a plain machine link.
+        $orderId = $this->cleanOrderId($request->query('order_id'));
+        $prefilled = ($vend && $orderId !== '') ? $this->matching->candidateByOrderId($machineID, $orderId) : null;
+
         return Inertia::render('Refund/Form', [
             'machineID' => $machineID,
             'machineFound' => (bool) $vend,
             'machineName' => $vend?->name,
             'siteName' => $this->siteName($vend),
+            'orderId' => $orderId,
+            'prefilledCandidate' => $prefilled,
             'reasonCodes' => collect(self::REASON_CODES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
             'allowedDays' => config('refund.match.days', ['today', 'yesterday']),
             'maxLookbackDays' => (int) config('refund.match.max_lookback_days', 14),
         ]);
+    }
+
+    /** Strip an order id down to what the APK emits; '' when unusable. */
+    protected function cleanOrderId($raw): string
+    {
+        $s = trim((string) $raw);
+
+        return preg_match('/^[A-Za-z0-9_-]{6,64}$/', $s) ? $s : '';
+    }
+
+    /**
+     * Retry hook for the order-pinned QR: the TRADE upload can trail the scan by
+     * a few seconds, so the form asks again before falling back to the manual
+     * day + amount search.
+     */
+    public function byOrder(Request $request)
+    {
+        $data = $request->validate([
+            'machineID' => ['required', 'string', 'max:191'],
+            'order_id' => ['required', 'string', 'max:64'],
+        ]);
+        $orderId = $this->cleanOrderId($data['order_id']);
+        $candidate = $orderId !== '' ? $this->matching->candidateByOrderId($data['machineID'], $orderId) : null;
+
+        return response()->json(['found' => (bool) $candidate, 'candidate' => $candidate]);
     }
 
     public function resolve(Request $request)
@@ -107,7 +146,7 @@ class RefundFormController extends Controller
         $data = $request->validate(['machineID' => ['required', 'string', 'max:191']]);
         $vend = $this->matching->resolveMachine($data['machineID']);
 
-        if (!$vend) {
+        if (! $vend) {
             return response()->json(['found' => false, 'products' => []]);
         }
 
@@ -138,7 +177,7 @@ class RefundFormController extends Controller
                     'channel_code' => $c->code,
                 ];
             })
-            ->sortBy(fn ($r) => mb_strtolower($r['name']) . '|' . str_pad((string) $r['channel_code'], 6, '0', STR_PAD_LEFT))
+            ->sortBy(fn ($r) => mb_strtolower($r['name']).'|'.str_pad((string) $r['channel_code'], 6, '0', STR_PAD_LEFT))
             ->values();
 
         return response()->json(['found' => true, 'products' => $products]);
@@ -165,10 +204,14 @@ class RefundFormController extends Controller
 
     public function store(Request $request)
     {
-        // On the manual-review path (no matched transaction) the customer must key in
-        // the total amount they paid, and it must be more than $1. Matched claims
-        // derive the amount from the transaction, so entered_amount stays optional there.
+        // On the manual-review path (no matched transaction) every descriptive
+        // field is compulsory (Brian, 2026-08-24): time, amount (> $1), payment
+        // method, affected items (the frontend's "Not sure / not listed" pick
+        // still produces a manual_items_summary line), and the explanation.
+        // Matched claims derive all of that from the transaction, so the same
+        // fields stay optional there.
         $isManual = $request->boolean('is_manual');
+        $manualRequired = fn (array $rules) => array_merge($isManual ? ['required'] : ['nullable'], $rules);
 
         $data = $request->validate([
             'machineID' => ['required', 'string', 'max:191'],
@@ -176,10 +219,10 @@ class RefundFormController extends Controller
             'payment_gateway_log_id' => ['nullable', 'integer'],
             'selected_item_ids' => ['nullable', 'array'],
             'selected_item_ids.*' => ['integer'],
-            'reason_code' => ['nullable', 'string', 'in:' . implode(',', array_keys(self::REASON_CODES))],
-            'reason_text' => ['nullable', 'string', 'max:2000'],
-            'manual_items_summary' => ['nullable', 'string', 'max:1000'],
-            'manual_pay_method' => ['nullable', 'string', 'max:100'],
+            'reason_code' => ['nullable', 'string', 'in:'.implode(',', array_keys(self::REASON_CODES))],
+            'reason_text' => $manualRequired(['string', 'max:2000']),
+            'manual_items_summary' => $manualRequired(['string', 'max:1000']),
+            'manual_pay_method' => $manualRequired(['string', 'max:100']),
             'refund_method' => ['nullable', 'string', 'in:paynow,paypal'],
             'payout_destination' => ['nullable', 'string', 'max:191'],
             'contact_name' => ['nullable', 'string', 'max:191'],
@@ -190,23 +233,24 @@ class RefundFormController extends Controller
             'entered_amount' => $isManual
                 ? ['required', 'numeric', 'gt:1', 'max:100000']
                 : ['nullable', 'numeric', 'min:0', 'max:100000'],
-            'approx_time' => ['nullable', 'string', 'max:191'],
-            'photos' => ['nullable', 'array', 'max:' . config('refund.attachments.max_count', 3)],
-            'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:' . config('refund.attachments.max_kb', 30720)],
+            'approx_time' => $manualRequired(['string', 'max:191']),
+            'photos' => ['nullable', 'array', 'max:'.config('refund.attachments.max_count', 3)],
+            'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:'.config('refund.attachments.max_kb', 30720)],
         ], [
             'entered_amount.required' => 'Please enter the total amount you paid.',
             'entered_amount.gt' => 'The amount you paid must be more than $1.',
+            'approx_time.required' => 'Please tell us roughly what time you bought it.',
+            'manual_pay_method.required' => 'Please select how you paid.',
+            'manual_items_summary.required' => 'Please add the affected item(s), or pick "Not sure / not listed".',
+            'reason_text.required' => 'Please explain what happened.',
         ]);
 
         // A photo/video is required on every path (matched and manual review).
-        if (!$request->hasFile('photos')) {
+        if (! $request->hasFile('photos')) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'photos' => 'Please attach at least one photo or a short video.',
             ]);
         }
-
-        // PayNow is Singapore-only: validate the refund number as an SG mobile.
-        $vend = $this->matching->resolveMachine($data['machineID']);
         $method = $data['refund_method'] ?? null;
         $dest = trim((string) ($data['payout_destination'] ?? ''));
 
@@ -216,7 +260,7 @@ class RefundFormController extends Controller
                     'payout_destination' => 'Please enter your PayNow mobile number.',
                 ]);
             }
-            if (!$this->isValidPaynowDestination($dest, config('refund.paynow_country', 'SG'))) {
+            if (! $this->isValidPaynowDestination($dest, config('refund.paynow_country', 'SG'))) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'payout_destination' => 'Please enter a valid Singapore mobile number registered for PayNow.',
                 ]);
@@ -255,7 +299,7 @@ class RefundFormController extends Controller
                 // Configured disk (config/refund.php attachments.disk): 'local' or
                 // private DO Spaces. Same relative path either way, so the DB rows
                 // and the authed viewer route are disk-agnostic.
-                $path = $photo->store('refund-attachments/' . $ticket->id, \App\Models\RefundTicketAttachment::storageDisk());
+                $path = $photo->store('refund-attachments/'.$ticket->id, \App\Models\RefundTicketAttachment::storageDisk());
                 \App\Models\RefundTicketAttachment::create([
                     'refund_ticket_id' => $ticket->id,
                     'path' => $path,

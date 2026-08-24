@@ -72,7 +72,7 @@ class RefundMatchingService
         $vend = $this->resolveMachine($machineID);
         $range = $this->dayRange($day);
 
-        if (!$vend || !$range) {
+        if (! $vend || ! $range) {
             return ['vend' => $vend, 'candidates' => []];
         }
 
@@ -116,8 +116,8 @@ class RefundMatchingService
             }
             $candidate = $this->buildTransactionCandidate($txn, $ticketedItemIds);
             // skip transactions where every item is already refunded / ticketed
-            $allCovered = !empty($candidate['items']) && collect($candidate['items'])->every(fn ($i) => $i['is_refunded'] === true);
-            if (!$allCovered) {
+            $allCovered = ! empty($candidate['items']) && collect($candidate['items'])->every(fn ($i) => $i['is_refunded'] === true);
+            if (! $allCovered) {
                 $candidates[] = $candidate;
             }
         }
@@ -142,6 +142,63 @@ class RefundMatchingService
         }
 
         return ['vend' => $vend, 'candidates' => $candidates];
+    }
+
+    /**
+     * One candidate pinned to an order id — the APK's ORDRID, which the machine
+     * puts on the refund QR it shows after a failed dispense
+     * (/refund?machineID=<vend_code>&order_id=<ORDRID>). Same id lands in
+     * vend_transactions.order_id (TRADE upload) and payment_gateway_logs.order_id
+     * (QR/Omise approval, written before the TRADE), so a customer who scans
+     * within seconds of the failure still resolves via the gateway log.
+     *
+     * Returns null when the machine or order is unknown, or when everything on
+     * it is already refunded / under an active ticket — callers then fall back
+     * to the normal day + amount search.
+     */
+    public function candidateByOrderId(string $machineID, string $orderId): ?array
+    {
+        $vend = $this->resolveMachine($machineID);
+        $orderId = trim($orderId);
+        if (! $vend || $orderId === '') {
+            return null;
+        }
+
+        [$ticketedItemIds, $ticketedLogIds] = $this->activeTicketCoverage();
+
+        $txn = VendTransaction::withoutGlobalScopes()
+            ->where('vend_id', $vend->id)
+            ->where('order_id', $orderId)
+            ->with([
+                'vendTransactionItems.product.thumbnail',
+                'vendTransactionItems.vendChannel.product.thumbnail',
+                'vendTransactionItems.vendChannelError',
+                'product.thumbnail',
+                'vendChannel.product.thumbnail',
+                'vendChannelError',
+                'paymentMethod',
+            ])
+            ->orderByDesc('id')
+            ->first();
+
+        if ($txn) {
+            $candidate = $this->buildTransactionCandidate($txn, $ticketedItemIds);
+            $allCovered = ! empty($candidate['items']) && collect($candidate['items'])->every(fn ($i) => $i['is_refunded'] === true);
+
+            return $allCovered ? null : $candidate;
+        }
+
+        $log = PaymentGatewayLog::where('vend_code', $machineID)
+            ->where('order_id', $orderId)
+            ->whereIn('status', [PaymentGatewayLog::STATUS_APPROVE, PaymentGatewayLog::STATUS_REFUND])
+            ->orderByDesc('id')
+            ->first();
+
+        if ($log && ! in_array((int) $log->id, $ticketedLogIds, true)) {
+            return $this->buildGatewayCandidate($log);
+        }
+
+        return null;
     }
 
     /**
@@ -179,10 +236,11 @@ class RefundMatchingService
             // Fall back to items_json / header when the pre-created item row never
             // got its channel error backfilled (see fallbackChannelError()).
             $fallback = $itemHasError ? null : $this->fallbackChannelError($txn, $item->vend_channel_code);
+
             return [
                 'vend_transaction_item_id' => $item->id,
                 'product_id' => $item->product_id,
-                'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel ' . $item->vend_channel_code : 'Item')),
+                'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel '.$item->vend_channel_code : 'Item')),
                 'product_sku' => $product?->code ?? $item->vendChannel?->sku_code ?? $item->vend_channel_code,
                 'product_image_url' => $product?->thumbnail?->full_url,
                 'vend_channel_code' => $item->vend_channel_code,
@@ -205,7 +263,7 @@ class RefundMatchingService
             $items = [[
                 'vend_transaction_item_id' => null,
                 'product_id' => $txn->product_id,
-                'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel ' . $txn->vend_channel_code : 'Purchase'),
+                'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel '.$txn->vend_channel_code : 'Purchase'),
                 'product_sku' => $product?->code ?? $txn->vendChannel?->sku_code ?? $txn->vend_channel_code,
                 'product_image_url' => $product?->thumbnail?->full_url,
                 'vend_channel_code' => $txn->vend_channel_code,
@@ -279,6 +337,7 @@ class RefundMatchingService
         if ($paymentGatewayLogId) {
             return RefundTicket::CHANNEL_QR;
         }
+
         return RefundTicket::CHANNEL_UNKNOWN;
     }
 
@@ -289,6 +348,7 @@ class RefundMatchingService
     public function isRealChannelError(?string $code): bool
     {
         $c = trim((string) $code);
+
         return $c !== '' && ltrim($c, '0') !== '';
     }
 
@@ -319,7 +379,7 @@ class RefundMatchingService
         $children = $txn->items_json;
         if (is_array($children) && $channelCode !== null) {
             foreach ($children as $child) {
-                if (!is_array($child)) {
+                if (! is_array($child)) {
                     continue;
                 }
                 if ((string) ($child['vendChannelCode'] ?? '') !== (string) $channelCode) {
@@ -330,6 +390,7 @@ class RefundMatchingService
                 if ($errId && $this->isRealChannelError((string) $errCode)) {
                     return $this->channelErrorPayload((int) $errId, $errCode);
                 }
+
                 return null; // channel matched but no real error → nothing to add
             }
         }
@@ -350,7 +411,7 @@ class RefundMatchingService
     /** Resolve a VendChannelError (cached) into the payload shape callers expect. */
     protected function channelErrorPayload(int $id, $codeFallback = null): array
     {
-        if (!array_key_exists($id, $this->channelErrorCache)) {
+        if (! array_key_exists($id, $this->channelErrorCache)) {
             $this->channelErrorCache[$id] = \App\Models\VendChannelError::find($id);
         }
         $e = $this->channelErrorCache[$id];
@@ -365,9 +426,10 @@ class RefundMatchingService
 
     public function isAutoRefundTerminal(?string $cashlessMfg): bool
     {
-        if (!$cashlessMfg) {
+        if (! $cashlessMfg) {
             return false;
         }
+
         return in_array($cashlessMfg, (array) config('refund.auto_refund_terminals', ['Nayax']), true);
     }
 }

@@ -1110,6 +1110,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
 */
 Route::get('/refund', [RefundFormController::class, 'show'])->name('refund.form');
 Route::post('/refund/resolve', [RefundFormController::class, 'resolve'])->middleware('throttle:60,1')->name('refund.resolve');
+Route::post('/refund/by-order', [RefundFormController::class, 'byOrder'])->middleware('throttle:60,1')->name('refund.by-order');
 Route::post('/refund/candidates', [RefundFormController::class, 'candidates'])->middleware('throttle:60,1')->name('refund.candidates');
 Route::post('/refund/machine-products', [RefundFormController::class, 'machineProducts'])->middleware('throttle:60,1')->name('refund.machine-products');
 Route::post('/refund', [RefundFormController::class, 'store'])->middleware('throttle:20,1')->name('refund.store');
