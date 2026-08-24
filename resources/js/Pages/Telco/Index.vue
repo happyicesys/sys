@@ -81,6 +81,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Desc
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -91,6 +94,9 @@
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-left">
                         {{ telco.name }}
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-left">
+                        <span class="whitespace-pre-line">{{ telco.desc }}</span>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

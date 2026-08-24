@@ -17,6 +17,7 @@ class TelcoResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'desc' => $this->desc,
             'remarks' => $this->remarks,
         ];
     }

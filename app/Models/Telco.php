@@ -11,6 +11,7 @@ class Telco extends Model
 
     protected $fillable = [
         'name',
+        'desc',
         'remarks',
     ];
 

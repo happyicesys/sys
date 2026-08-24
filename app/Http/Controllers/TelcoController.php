@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\TelcoResource;
 use App\Models\Telco;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -19,11 +18,11 @@ class TelcoController extends Controller
         return Inertia::render('Telco/Index', [
             'telcos' => TelcoResource::collection(
                 Telco::query()
-                    ->when($request->name, function($query, $search) {
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -35,6 +34,7 @@ class TelcoController extends Controller
     {
         $request->validate([
             'name' => 'required',
+            'desc' => 'nullable|string',
         ]);
 
         Telco::create($request->all());
@@ -47,6 +47,7 @@ class TelcoController extends Controller
         // dd($request->all());
         $request->validate([
             'name' => 'required',
+            'desc' => 'nullable|string',
         ]);
 
         $telco = Telco::findOrFail($telcoId);
