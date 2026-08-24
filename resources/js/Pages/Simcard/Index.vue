@@ -109,13 +109,16 @@
                       Machine ID
                     </TableHeadSort>
                     <TableHeadSort modelName="telco_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('telco_id')">
-                      Telco
+                      SimCard Telco
                     </TableHeadSort>
                     <TableHead>
                       Phone Number
                     </TableHead>
                     <TableHeadSort modelName="msisdn" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('msisdn')">
                       MSISDN
+                    </TableHeadSort>
+                    <TableHeadSort modelName="updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('updated_at')">
+                      Updated By
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -133,13 +136,39 @@
                         {{ simcard.vend_code }}
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
-                        {{ simcard.telco.name }}
+                        <div class="flex flex-col items-center space-y-1">
+                          <span>{{ simcard.telco.name }}</span>
+                          <!-- What the bound machine actually reports (vends.internet_*,
+                               same data as the Machine List's SIM Card block): the live
+                               carrier + signal pill (1-2 red, 3 yellow, 4-5 green).
+                               Nothing shows when no bound machine has reported a link. -->
+                          <template v-if="reportedLink(simcard)">
+                            <span class="text-xs font-bold text-gray-700">{{ internetLinkTitle(reportedLink(simcard)) }}</span>
+                            <span
+                              v-if="signalBars(reportedLink(simcard)) || reportedLink(simcard).internet_source === 'none'"
+                              class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+                              :class="signalBadgeClass(reportedLink(simcard))"
+                            >
+                              {{ signalBars(reportedLink(simcard)) || 'No Link' }}
+                            </span>
+                          </template>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.phone_number }}
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.msisdn }}
+                      </TableData>
+                      <!-- Who last edited this simcard + when (same two-line pattern as
+                           OpsJob Index's Created By). '—' = never edited since the column
+                           was added (updated_by is only stamped on Edit saves). -->
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
+                        <div v-if="simcard.updatedBy && simcard.updatedBy.name" class="flex flex-col space-y-1">
+                          <span>{{ simcard.updatedBy.name }}</span>
+                          <span class="text-xs text-gray-500">{{ simcard.updated_at }}</span>
+                        </div>
+                        <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -203,6 +232,14 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
+
+// The bound machine's live-reported link (vends.internet_*) for the SimCard
+// Telco column — first bound vend that has ever reported one, else null.
+function reportedLink(simcard) {
+  const vends = simcard.vends || [];
+  return vends.find((v) => v.internet_source) || null;
+}
 
 const props = defineProps({
   simcards: Object,

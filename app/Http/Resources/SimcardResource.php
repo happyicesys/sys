@@ -28,8 +28,11 @@ class SimcardResource extends JsonResource
             'termination_date' => $this->termination_date,
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
             'updated_by' => $this->updated_by,
+            // For the Index "Updated By" column — only meaningful once updated_by
+            // is set (rows only ever created show '—' there).
+            'updated_at' => optional($this->updated_at)->format('ymd h:i a'),
             'vends' => $this->whenLoaded('vends'),
-            'vend_code' => $this->whenLoaded('vends', function() {
+            'vend_code' => $this->whenLoaded('vends', function () {
                 return $this->vends->pluck('code')->implode(', ');
             }),
 

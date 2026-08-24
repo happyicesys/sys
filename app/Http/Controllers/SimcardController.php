@@ -6,7 +6,6 @@ use App\Http\Resources\SimcardResource;
 use App\Http\Resources\TelcoResource;
 use App\Models\Simcard;
 use App\Models\Telco;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -25,25 +24,26 @@ class SimcardController extends Controller
                         'operator',
                         'telco',
                         'vends',
+                        'updatedBy:id,name',
                     ])
-                    ->when($request->code, function($query, $search) {
+                    ->when($request->code, function ($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->vend_code, function($query, $search) {
-                        $query->whereHas('vends', function($query) use ($search) {
+                    ->when($request->vend_code, function ($query, $search) {
+                        $query->whereHas('vends', function ($query) use ($search) {
                             $query->where('code', 'LIKE', "%{$search}%");
                         });
                     })
-                    ->when($request->phone_number, function($query, $search) {
+                    ->when($request->phone_number, function ($query, $search) {
                         $query->where('phone_number', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->msisdn, function($query, $search) {
+                    ->when($request->msisdn, function ($query, $search) {
                         $query->where('msisdn', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->telco_id, function($query, $search) {
+                    ->when($request->telco_id, function ($query, $search) {
                         $query->where('telco_id', $search);
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
                         if ($search === 'vend_code') {
                             $query->orderBy(
                                 \App\Models\Vend::select('code')
@@ -52,7 +52,7 @@ class SimcardController extends Controller
                                 filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'
                             );
                         } else {
-                            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                         }
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -70,7 +70,9 @@ class SimcardController extends Controller
             'telco_id' => 'required',
         ]);
 
-        $simcard = Simcard::create($request->except('vend_id'));
+        $simcard = Simcard::create(array_merge($request->except('vend_id'), [
+            'created_by' => auth()->id(),
+        ]));
 
         if ($request->vend_id) {
             \App\Models\Vend::where('id', $request->vend_id)->update(['simcard_id' => $simcard->id]);
@@ -95,6 +97,14 @@ class SimcardController extends Controller
                 \App\Models\Vend::where('id', $request->vend_id)->update(['simcard_id' => $simcard->id]);
             }
         }
+
+        // Stamp who touched it and when — explicitly, so the "Updated By" column
+        // moves even when only the vend binding changed (that write lands on
+        // vends, not this row, and an all-same-values update() is a no-op).
+        $simcard->forceFill([
+            'updated_by' => auth()->id(),
+            'updated_at' => now(),
+        ])->save();
 
         return redirect()->route('simcards');
     }

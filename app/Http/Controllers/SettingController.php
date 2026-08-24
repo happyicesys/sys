@@ -533,7 +533,7 @@ class SettingController extends Controller
                     ->get()
             ),
             'simcardOptions' => SimcardResource::collection(
-                Simcard::orderBy('code')->get()
+                Simcard::with('telco')->orderBy('code')->get()
             ),
             'adminCustomerOptions' => CustomerResource::collection(
                 $customers

@@ -429,7 +429,7 @@
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Simcard
+                  Simcard &amp; Number
                 </label>
                 <MultiSelect
                   v-model="form.simcard_id"
@@ -2028,7 +2028,7 @@ onMounted(() => {
     { id: '', name: '--- Clear ---'},
     ...props.simcardOptions.data.map(simcard => ({
       id: simcard.id,
-      name: simcard.code,
+      name: simcard.telco ? `${simcard.telco.name} - ${simcard.code}` : simcard.code,
     }))
   ]
   upcomingProductMappingOptions.value = [
