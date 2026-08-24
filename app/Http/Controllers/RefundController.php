@@ -9,9 +9,9 @@ use App\Models\RefundTicketItem;
 use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
+use App\Support\SiteSearch;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Support\SiteSearch;
 
 /**
  * Admin/back-office refund management (Ops -> Admin -> Manager).
@@ -20,7 +20,9 @@ use App\Support\SiteSearch;
 class RefundController extends Controller
 {
     protected RefundTicketService $tickets;
+
     protected RefundPayoutCsvService $payout;
+
     protected RefundEmailService $email;
 
     public function __construct(RefundTicketService $tickets, RefundPayoutCsvService $payout, RefundEmailService $email)
@@ -37,7 +39,7 @@ class RefundController extends Controller
         // sliding this user's last_viewed_at to now. The badge counts tickets
         // that arrived since. See NoteNotificationService.
         $authUser = auth()->user();
-        if ($authUser && !$request->boolean('searched') && !$request->hasHeader('X-Inertia-Partial-Data')) {
+        if ($authUser && ! $request->boolean('searched') && ! $request->hasHeader('X-Inertia-Partial-Data')) {
             app(\App\Services\NoteNotificationService::class)
                 ->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_REFUNDS);
         }
@@ -141,7 +143,7 @@ class RefundController extends Controller
         $statusSel = $explicitStatus
             ? array_values(array_filter((array) $request->input('status')))
             : $defaultStatuses;
-        $applyStatus = !empty($statusSel) && !in_array('all', $statusSel, true);
+        $applyStatus = ! empty($statusSel) && ! in_array('all', $statusSel, true);
 
         // "Dropped" is a pseudo-status (dropped tickets are Rejected + is_dropped),
         // so it filters on the flag, not the status column. Strip it out of the real
@@ -164,10 +166,10 @@ class RefundController extends Controller
         $query = RefundTicket::query()
             ->when($applyStatus, function ($q) use ($realStatuses, $wantDropped, $explicitStatus) {
                 $q->where(function ($w) use ($realStatuses, $wantDropped, $explicitStatus) {
-                    if (!empty($realStatuses)) {
+                    if (! empty($realStatuses)) {
                         $w->orWhere(function ($x) use ($realStatuses, $wantDropped, $explicitStatus) {
                             $x->whereIn('status', $realStatuses);
-                            if ($explicitStatus && !$wantDropped) {
+                            if ($explicitStatus && ! $wantDropped) {
                                 $x->where('is_dropped', false);
                             }
                         });
@@ -308,13 +310,13 @@ class RefundController extends Controller
         // because Vend/VendTransaction/Customer carry operator scopes that would
         // drop rows in an admin/public context.
         $txns = \App\Models\VendTransaction::withoutGlobalScopes([
-                // Shed the OPERATOR scopes only (an admin/public refund context
-                // must see any operator's transaction) - but keep
-                // ProductAccessTransactionScope, or a product-restricted user
-                // reads every party's basket through the refund screens.
-                \App\Models\Scopes\OperatorTransactionFilterScope::class,
-                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
-            ])->with(['paymentMethod', 'vendPrefix'])
+            // Shed the OPERATOR scopes only (an admin/public refund context
+            // must see any operator's transaction) - but keep
+            // ProductAccessTransactionScope, or a product-restricted user
+            // reads every party's basket through the refund screens.
+            \App\Models\Scopes\OperatorTransactionFilterScope::class,
+            \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+        ])->with(['paymentMethod', 'vendPrefix'])
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
@@ -358,10 +360,10 @@ class RefundController extends Controller
         // (actor) + timestamp beside the status. One batched query; the latest entry
         // per stage wins (ordered ascending, so a later row overwrites an earlier one).
         $stageActions = [
-            'validation'   => ['verified', 'rejected', 'pending', 'status_override', 'dropped', 'undropped'],
-            'settlement'   => ['scheduled', 'returned_to_pool'],
+            'validation' => ['verified', 'rejected', 'pending', 'status_override', 'dropped', 'undropped'],
+            'settlement' => ['scheduled', 'returned_to_pool'],
             'insufficient' => ['insufficient_info'],
-            'done'         => ['completed'],
+            'done' => ['completed'],
         ];
         $actionStage = [];
         foreach ($stageActions as $stage => $acts) {
@@ -455,7 +457,7 @@ class RefundController extends Controller
             } while ($chunk->count() === 500);
         };
 
-        $filename = 'Refund_Requests_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'Refund_Requests_'.now()->format('Ymd_His').'.xlsx';
 
         return (new \Rap2hpoutre\FastExcel\FastExcel($generator()))->download($filename, function (array $r) use ($statusLabels) {
             // Money columns are built as number_format() strings for the on-screen
@@ -534,7 +536,7 @@ class RefundController extends Controller
 
         return response($res['content'], 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $res['filename'] . '"',
+            'Content-Disposition' => 'attachment; filename="'.$res['filename'].'"',
             'X-Filename' => $res['filename'],
             'Access-Control-Expose-Headers' => 'Content-Disposition, X-Filename',
         ]);
@@ -590,8 +592,8 @@ class RefundController extends Controller
                 RefundEmailService::T_IN_PROGRESS,
                 RefundEmailService::T_COMPLETED,
             ])->mapWithKeys(fn ($key) => [$key => $this->email->preview($ticket, $key)])
-              ->filter()
-              ->all(),
+                ->filter()
+                ->all(),
             'statuses' => $this->statusLabels(),
         ]);
     }
@@ -606,8 +608,8 @@ class RefundController extends Controller
      */
     private function guardTransition(RefundTicket $ticket, array $allowedFrom, string $verb): void
     {
-        if (!in_array($ticket->status, $allowedFrom, true)) {
-            abort(422, "Cannot {$verb} a refund that is currently '" . ($this->statusLabels()[$ticket->status] ?? $ticket->status) . "'.");
+        if (! in_array($ticket->status, $allowedFrom, true)) {
+            abort(422, "Cannot {$verb} a refund that is currently '".($this->statusLabels()[$ticket->status] ?? $ticket->status)."'.");
         }
     }
 
@@ -658,7 +660,7 @@ class RefundController extends Controller
         // transaction twice.
         if ($conflict = $ticket->conflictingRefund()) {
             return back()->withErrors([
-                'ticket' => "Cannot verify — this transaction is already being refunded under {$conflict->reference} (" . ($this->statusLabels()[$conflict->status] ?? $conflict->status) . ').',
+                'ticket' => "Cannot verify — this transaction is already being refunded under {$conflict->reference} (".($this->statusLabels()[$conflict->status] ?? $conflict->status).').',
             ]);
         }
 
@@ -751,7 +753,7 @@ class RefundController extends Controller
      */
     public function undrop(RefundTicket $ticket)
     {
-        if (!$ticket->is_dropped) {
+        if (! $ticket->is_dropped) {
             return back()->withErrors(['ticket' => 'This refund is not dropped, so there is nothing to un-drop.']);
         }
 
@@ -764,7 +766,7 @@ class RefundController extends Controller
             'status' => $restoreTo,
             'is_dropped' => false,
         ]);
-        $this->tickets->log($ticket, 'undropped', $from, $restoreTo, 'Un-dropped — restored to ' . ($this->statusLabels()[$restoreTo] ?? $restoreTo) . ' (no email)', auth()->user()?->name ?? 'Ops', auth()->id());
+        $this->tickets->log($ticket, 'undropped', $from, $restoreTo, 'Un-dropped — restored to '.($this->statusLabels()[$restoreTo] ?? $restoreTo).' (no email)', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
     }
@@ -905,7 +907,7 @@ class RefundController extends Controller
             $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund completed (batch)', auth()->user()?->name ?? 'Admin', auth()->id());
         }
 
-        return back()->with('success', $tickets->count() . ' refund(s) marked completed.');
+        return back()->with('success', $tickets->count().' refund(s) marked completed.');
     }
 
     /**
@@ -939,7 +941,7 @@ class RefundController extends Controller
             $this->tickets->log($ticket, 'insufficient_info', $from, $ticket->status, 'Flagged insufficient info (PayPal - bad payout details; handle manually)', auth()->user()?->name ?? 'Admin', auth()->id());
         }
 
-        return back()->with('success', $tickets->count() . ' PayPal refund(s) flagged as insufficient info.');
+        return back()->with('success', $tickets->count().' PayPal refund(s) flagged as insufficient info.');
     }
 
     public function updateItem(Request $request, RefundTicket $ticket, RefundTicketItem $item)
@@ -947,7 +949,7 @@ class RefundController extends Controller
         abort_unless($item->refund_ticket_id === $ticket->id, 404);
         $data = $request->validate(['approved' => ['required', 'boolean']]);
         $item->update(['approved' => $data['approved']]);
-        $this->tickets->log($ticket, 'item_decision', null, null, ($data['approved'] ? 'Approved' : 'Excluded') . ' item: ' . ($item->product_name ?? $item->id), auth()->user()?->name ?? 'Admin', auth()->id());
+        $this->tickets->log($ticket, 'item_decision', null, null, ($data['approved'] ? 'Approved' : 'Excluded').' item: '.($item->product_name ?? $item->id), auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back();
     }
@@ -969,7 +971,7 @@ class RefundController extends Controller
 
         if (in_array($ticket->status, [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED], true)) {
             return back()->withErrors([
-                'final_refund_amount' => 'The refund amount can no longer be changed — this ticket is already ' . ($this->statusLabels()[$ticket->status] ?? $ticket->status) . '.',
+                'final_refund_amount' => 'The refund amount can no longer be changed — this ticket is already '.($this->statusLabels()[$ticket->status] ?? $ticket->status).'.',
             ]);
         }
 
@@ -982,10 +984,10 @@ class RefundController extends Controller
             'final_refund_remarks' => $remarks,
         ]);
 
-        $note = 'Final refund amount set to $' . number_format($cents / 100, 2)
-            . ' (claim $' . number_format((int) $ticket->claimed_amount_cents / 100, 2) . ')'
-            . ($prev !== $cents ? ' — was $' . number_format($prev / 100, 2) : '')
-            . ($remarks ? ' — ' . $remarks : '');
+        $note = 'Final refund amount set to $'.number_format($cents / 100, 2)
+            .' (claim $'.number_format((int) $ticket->claimed_amount_cents / 100, 2).')'
+            .($prev !== $cents ? ' — was $'.number_format($prev / 100, 2) : '')
+            .($remarks ? ' — '.$remarks : '');
         $this->tickets->log($ticket, 'final_amount', null, null, $note, auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back()->with('success', 'Final refund amount saved.');
@@ -1012,7 +1014,7 @@ class RefundController extends Controller
 
         if (in_array($ticket->status, [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED], true)) {
             return back()->withErrors([
-                'override_status' => 'The status can no longer be overwritten — this ticket is already ' . ($this->statusLabels()[$ticket->status] ?? $ticket->status) . '.',
+                'override_status' => 'The status can no longer be overwritten — this ticket is already '.($this->statusLabels()[$ticket->status] ?? $ticket->status).'.',
             ]);
         }
 
@@ -1035,11 +1037,11 @@ class RefundController extends Controller
         ]);
 
         // One audit line: the forced status change + the remark entered (no email).
-        $note = 'Status overwritten: ' . $fromLabel . ' → ' . $toLabel . ' (no email)'
-            . ($remarks ? ' — ' . $remarks : '');
+        $note = 'Status overwritten: '.$fromLabel.' → '.$toLabel.' (no email)'
+            .($remarks ? ' — '.$remarks : '');
         $this->tickets->log($ticket, 'status_override', $from, $newStatus, $note, auth()->user()?->name ?? 'Admin', auth()->id());
 
-        return back()->with('success', 'Status overwritten to ' . $toLabel . '.');
+        return back()->with('success', 'Status overwritten to '.$toLabel.'.');
     }
 
     public function sendEmail(Request $request, RefundTicket $ticket)
@@ -1048,7 +1050,7 @@ class RefundController extends Controller
         // Delivery now runs on the queue; send() records its own "Email sent/queued"
         // audit line when the job runs, so this action line just notes the request.
         $this->email->queue($ticket, $data['template']);
-        $this->tickets->log($ticket, 'email', null, null, 'Queued email: ' . $data['template'], auth()->user()?->name ?? 'Admin', auth()->id());
+        $this->tickets->log($ticket, 'email', null, null, 'Queued email: '.$data['template'], auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back();
     }
@@ -1066,7 +1068,7 @@ class RefundController extends Controller
 
         $template = (string) $request->query('template', RefundEmailService::T_RECEIVED);
         $html = $this->email->previewHtml($ticket, $template);
-        abort_if($html === null, 404, 'Unknown email template: ' . $template);
+        abort_if($html === null, 404, 'Unknown email template: '.$template);
 
         return response($html);
     }
@@ -1111,7 +1113,7 @@ class RefundController extends Controller
     {
         abort_unless($batch->csv_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($batch->csv_path), 404);
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->download($batch->csv_path, $batch->reference . '.csv');
+        return \Illuminate\Support\Facades\Storage::disk('local')->download($batch->csv_path, $batch->reference.'.csv');
     }
 
     public function viewAttachment(RefundTicket $ticket, RefundTicketAttachment $attachment)
@@ -1131,7 +1133,7 @@ class RefundController extends Controller
      * ALSO used on another refund ticket within 60 days (either direction) — a
      * repeat-number signal Ops should eyeball before paying. One batched query.
      *
-     * @return array<int, bool>  ticket id => reused-within-60d
+     * @return array<int, bool> ticket id => reused-within-60d
      */
     protected function payNowReuseFlags($rows): array
     {
@@ -1209,15 +1211,21 @@ class RefundController extends Controller
         // (this set includes the page rows themselves plus any sibling claims on the
         // same orders). We then match earlier siblings on order identity + channel.
         $orderIds = $rows->pluck('order_id')->filter()->unique()->values()->all();
-        $vtIds    = $rows->pluck('vend_transaction_id')->filter()->unique()->values()->all();
-        $logIds   = $rows->pluck('payment_gateway_log_id')->filter()->unique()->values()->all();
+        $vtIds = $rows->pluck('vend_transaction_id')->filter()->unique()->values()->all();
+        $logIds = $rows->pluck('payment_gateway_log_id')->filter()->unique()->values()->all();
 
         $candidates = ($orderIds || $vtIds || $logIds)
             ? RefundTicket::where('status', '!=', RefundTicket::STATUS_REJECTED)
                 ->where(function ($q) use ($orderIds, $vtIds, $logIds) {
-                    if ($orderIds) { $q->orWhereIn('order_id', $orderIds); }
-                    if ($vtIds)    { $q->orWhereIn('vend_transaction_id', $vtIds); }
-                    if ($logIds)   { $q->orWhereIn('payment_gateway_log_id', $logIds); }
+                    if ($orderIds) {
+                        $q->orWhereIn('order_id', $orderIds);
+                    }
+                    if ($vtIds) {
+                        $q->orWhereIn('vend_transaction_id', $vtIds);
+                    }
+                    if ($logIds) {
+                        $q->orWhereIn('payment_gateway_log_id', $logIds);
+                    }
                 })
                 ->get(['id', 'reference', 'order_id', 'vend_transaction_id', 'payment_gateway_log_id', 'created_at'])
             : collect();
@@ -1312,7 +1320,7 @@ class RefundController extends Controller
         $txnDelta = null;
         if ($matched && $txnDate && $t->created_at) {
             $mins = abs((int) \Illuminate\Support\Carbon::parse($txnDate)->diffInMinutes($t->created_at));
-            $txnDelta = intdiv($mins, 1440) . 'd ' . intdiv($mins % 1440, 60) . 'h ' . ($mins % 60) . 'm';
+            $txnDelta = intdiv($mins, 1440).'d '.intdiv($mins % 1440, 60).'h '.($mins % 60).'m';
         }
 
         // Deep link into Sales Transactions showing ALL sales on this machine for
@@ -1322,7 +1330,7 @@ class RefundController extends Controller
         $txnLink = null;
         if ($matched && $t->vend_code && $txnDate) {
             $txnDay = \Illuminate\Support\Carbon::parse($txnDate);
-            $txnLink = '/vends/transactions?' . http_build_query(array_filter([
+            $txnLink = '/vends/transactions?'.http_build_query(array_filter([
                 'codes' => $t->vend_code,
                 'date_from' => $txnDay->copy()->startOfDay()->toDateTimeString(),
                 'date_to' => $txnDay->copy()->endOfDay()->toDateTimeString(),
@@ -1409,15 +1417,23 @@ class RefundController extends Controller
             // the matched transaction at the moment it occurred (true = Enabled,
             // false = Disabled, null = unknown / not captured). A later machine
             // toggle does not change this recorded value.
-            'product_drop_sensor' => (isset($txn) && !is_null($txn->product_drop_sensor)) ? (bool) $txn->product_drop_sensor : null,
+            'product_drop_sensor' => (isset($txn) && ! is_null($txn->product_drop_sensor)) ? (bool) $txn->product_drop_sensor : null,
             // Payment-gateway "dispense attempted" reading (is_dispensed) is still
             // recorded on the gateway log; kept in the payload but hidden from the
             // UI for now (superseded by product_drop_sensor above).
-            'dispense_attempted' => ($log && !is_null($log->is_dispensed)) ? (bool) $log->is_dispensed : null,
+            'dispense_attempted' => ($log && ! is_null($log->is_dispensed)) ? (bool) $log->is_dispensed : null,
             'error_code' => $self['error_code'] ?? null,
             'error_desc' => $self['error_desc'] ?? null,
             // Customer-flagged affected items: channel(s) + product name(s).
             'affected_items' => $self['affected_items'] ?? [],
+            // Customer-KEYED figures from a manual submission (2026-08-24): the
+            // Channel / Paid Amt / Refund Amt columns used to sit at "—" until the
+            // ticket was matched. Now the customer's own entries show there —
+            // rendered italic/amber client-side so Ops never mistakes a claim for
+            // verified transaction data.
+            'manual_affected_items' => $this->parseManualItemsSummary($t->manual_items_summary),
+            'manual_pay_method' => $t->manual_pay_method,
+            'entered_amount' => $t->entered_amount_cents !== null ? number_format($t->entered_amount_cents / 100, 2) : null,
             'paid_amount' => ($matched && $paidCents !== null) ? number_format($paidCents / 100, 2) : null,
             'pay_method' => $matched ? ($txn?->paymentMethod?->name ?? ($log ? 'QR' : null)) : null,
             // Card-terminal provider (Nayax / Nets / …) from vend_transactions.cashless_mfg,
@@ -1437,6 +1453,40 @@ class RefundController extends Controller
             'insufficient_actor' => $self['insufficient_actor'] ?? null,
             'done_actor' => $self['done_actor'] ?? null,
         ];
+    }
+
+    /**
+     * Split refund_tickets.manual_items_summary back into per-item rows for the
+     * list's Channel column. The refund form writes it as
+     * "Name (Channel #xx) × qty; Name2 × qty; Not sure / not listed" —
+     * segments that don't parse fall back to a name-only row, so free text
+     * still shows rather than disappearing.
+     *
+     * @return array<int, array{channel: string|null, product_name: string}>
+     */
+    protected function parseManualItemsSummary(?string $summary): array
+    {
+        if (! $summary) {
+            return [];
+        }
+
+        return collect(explode(';', $summary))
+            ->map(fn ($seg) => trim($seg))
+            ->filter()
+            ->map(function ($seg) {
+                if (preg_match('/^(.*?)\s*\(Channel #([^)]+)\)\s*(?:×\s*(\d+))?$/u', $seg, $m)) {
+                    $qty = isset($m[3]) ? (int) $m[3] : 1;
+
+                    return [
+                        'channel' => $m[2],
+                        'product_name' => trim($m[1]).($qty > 1 ? ' × '.$qty : ''),
+                    ];
+                }
+
+                return ['channel' => null, 'product_name' => $seg];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -1658,7 +1708,7 @@ class RefundController extends Controller
                 'id' => $a->id,
                 'original_name' => $a->original_name,
                 'mime' => $a->mime,
-                'url' => '/refunds/' . $t->id . '/attachments/' . $a->id,
+                'url' => '/refunds/'.$t->id.'/attachments/'.$a->id,
             ])->values(),
             'logs' => $t->logs->map(fn ($l) => [
                 'actor_label' => $l->actor_label,
@@ -1712,7 +1762,7 @@ class RefundController extends Controller
         foreach ($txn->vendTransactionItems as $vti) {
             $claim = $claimedByChannel->pull($vti->vend_channel_code);
             $rows[] = $mapClaim($claim, [
-                'product_name' => $claim?->product_name ?? $vti->product?->name ?? ($vti->vend_channel_code ? 'Channel ' . $vti->vend_channel_code : 'Item'),
+                'product_name' => $claim?->product_name ?? $vti->product?->name ?? ($vti->vend_channel_code ? 'Channel '.$vti->vend_channel_code : 'Item'),
                 'product_sku' => $claim?->product_sku ?? $vti->product?->code,
                 'vend_channel_code' => $vti->vend_channel_code,
                 'unit_price' => $claim
@@ -1735,13 +1785,13 @@ class RefundController extends Controller
     protected function relatedTransactions(RefundTicket $ticket): array
     {
         $q = \App\Models\VendTransaction::withoutGlobalScopes([
-                // Shed the OPERATOR scopes only (an admin/public refund context
-                // must see any operator's transaction) - but keep
-                // ProductAccessTransactionScope, or a product-restricted user
-                // reads every party's basket through the refund screens.
-                \App\Models\Scopes\OperatorTransactionFilterScope::class,
-                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
-            ])
+            // Shed the OPERATOR scopes only (an admin/public refund context
+            // must see any operator's transaction) - but keep
+            // ProductAccessTransactionScope, or a product-restricted user
+            // reads every party's basket through the refund screens.
+            \App\Models\Scopes\OperatorTransactionFilterScope::class,
+            \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+        ])
             ->with(['paymentMethod', 'operator', 'customer', 'vendPrefix', 'vendChannel', 'vendChannelError',
                 'vendTransactionItems.product', 'vendTransactionItems.vendChannel',
                 // Needed to tell "the machine reported nothing" apart from "the
@@ -1762,7 +1812,7 @@ class RefundController extends Controller
             // as the transaction (codes = vend_code + that day's window), so the
             // admin can eyeball every sale on the machine around the disputed one
             // — more useful than pinning to the single matched order_id.
-            $link = '/vends/transactions?' . http_build_query(array_filter([
+            $link = '/vends/transactions?'.http_build_query(array_filter([
                 'codes' => $ticket->vend_code,
                 'date_from' => $date ? $date->copy()->startOfDay()->toDateTimeString() : null,
                 'date_to' => $date ? $date->copy()->endOfDay()->toDateTimeString() : null,
@@ -1773,7 +1823,7 @@ class RefundController extends Controller
             $paymentStatus = $t->is_payment_received
                 ? 'Successful'
                 : (($errCode === null || in_array($errCode, [0, 6], true)) ? 'Successful' : 'Unsuccessful');
-            $site = trim(($t->customer?->virtual_customer_code ? $t->customer->virtual_customer_code . ' - ' : '') . ($t->customer?->name ?? ''));
+            $site = trim(($t->customer?->virtual_customer_code ? $t->customer->virtual_customer_code.' - ' : '').($t->customer?->name ?? ''));
 
             return [
                 'id' => $t->id,
@@ -1786,7 +1836,7 @@ class RefundController extends Controller
                 'operator_code' => $t->operator?->code,
                 'payment_method' => $t->paymentMethod?->name,
                 'payment_status' => $paymentStatus,
-                'channel_error' => ($t->vendChannelError && $errCode !== null && !in_array($errCode, [0, 6], true)) ? $t->vendChannelError->desc : null,
+                'channel_error' => ($t->vendChannelError && $errCode !== null && ! in_array($errCode, [0, 6], true)) ? $t->vendChannelError->desc : null,
                 'price_type' => ($t->vendChannel && (int) $t->amount === (int) $t->vendChannel->amount)
                     ? 'P1'
                     : (($t->vendChannel && (int) $t->amount === (int) $t->vendChannel->amount2) ? 'P2' : null),
@@ -1812,7 +1862,7 @@ class RefundController extends Controller
                     : null,
                 'is_refunded' => (bool) $t->is_refunded,
                 'items' => $t->vendTransactionItems->map(fn ($i) => [
-                    'product' => $i->product?->name ?? ($i->vend_channel_code ? 'Channel ' . $i->vend_channel_code : 'Item'),
+                    'product' => $i->product?->name ?? ($i->vend_channel_code ? 'Channel '.$i->vend_channel_code : 'Item'),
                     'product_code' => $i->product?->code,
                     'channel' => $i->vend_channel_code,
                     'price' => number_format((($i->unit_price_amount ?: ($i->vendChannel?->amount ?? 0))) / 100, 2),

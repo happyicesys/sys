@@ -691,7 +691,10 @@ const sortedRows = computed(() => {
                             </div>
                             <div v-if="t.matched && t.txn_delta" class="text-xs text-gray-500 mt-0.5">Δ {{ t.txn_delta }}</div>
                         </td>
-                        <!-- Customer-flagged affected items: channel + product name, one row each -->
+                        <!-- Customer-flagged affected items: channel + product name, one row each.
+                             Manual / pending-match tickets fall back to what the customer KEYED IN
+                             on the form (manual_items_summary) — italic amber so Ops can tell a
+                             claim from verified transaction data at a glance. -->
                         <td class="px-3 py-3 align-middle border-l border-gray-100 text-center">
                             <div v-if="t.affected_items && t.affected_items.length" class="space-y-1 max-w-[140px] mx-auto">
                                 <div v-for="(it, i) in t.affected_items" :key="i" class="text-xs leading-tight">
@@ -699,15 +702,29 @@ const sortedRows = computed(() => {
                                     <span class="block text-gray-500 break-words mt-1" :title="it.product_name || ''">{{ it.product_name || '—' }}</span>
                                 </div>
                             </div>
+                            <div v-else-if="t.manual_affected_items && t.manual_affected_items.length" class="space-y-1 max-w-[140px] mx-auto italic text-amber-700"
+                                v-tooltip="'Keyed in by the customer on the manual form — not matched to a transaction yet'">
+                                <div v-for="(it, i) in t.manual_affected_items" :key="'m' + i" class="text-xs leading-tight">
+                                    <span class="font-medium">{{ it.channel || '—' }}</span>
+                                    <span class="block break-words mt-1" :title="it.product_name || ''">{{ it.product_name || '—' }}</span>
+                                </div>
+                            </div>
                             <span v-else class="text-xs text-gray-400">—</span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="text-gray-700">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</div>
+                            <div class="text-gray-700">
+                                <template v-if="t.matched && t.paid_amount">${{ t.paid_amount }}</template>
+                                <span v-else-if="t.entered_amount" class="italic text-amber-700"
+                                    v-tooltip="'Amount keyed in by the customer on the manual form'">${{ t.entered_amount }}</span>
+                                <template v-else>—</template>
+                            </div>
                             <div class="text-xs text-gray-600 mt-1">
                                 <template v-if="t.matched">
                                     {{ payMethodParts(t.pay_method || t.payment_channel || '—').main }}
                                     <span v-if="payMethodParts(t.pay_method || t.payment_channel || '—').paren" class="block text-gray-500">{{ payMethodParts(t.pay_method || t.payment_channel || '—').paren }}</span>
                                 </template>
+                                <span v-else-if="t.manual_pay_method" class="italic text-amber-700"
+                                    v-tooltip="'Payment method keyed in by the customer on the manual form'">{{ t.manual_pay_method }}</span>
                                 <template v-else>—</template>
                                 <span v-if="t.matched && t.pay_provider" class="block text-gray-500">({{ t.pay_provider }})</span>
                             </div>
@@ -730,6 +747,11 @@ const sortedRows = computed(() => {
                                     <span v-if="t.final_refund_remarks" class="block text-gray-500 italic break-words">“{{ t.final_refund_remarks }}”</span>
                                 </div>
                             </template>
+                            <!-- Manual / pending-match: the customer's claimed amount, shown as a
+                                 claim (italic amber). It becomes payable only after matching or an
+                                 admin-set Final Refund Amount — settlement still reads those, not this. -->
+                            <span v-else-if="t.entered_amount" class="italic text-amber-700 font-normal"
+                                v-tooltip="'Claimed by the customer on the manual form — becomes payable only after matching or an admin-set Final Refund Amount'">${{ t.entered_amount }}</span>
                             <template v-else>—</template>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
