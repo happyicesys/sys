@@ -2713,6 +2713,17 @@ function saveCustomer(customerID) {
         },
       });
     },
+    // A 422 on this long form used to be completely silent — no toast, no
+    // scroll — so the save looked done but nothing persisted (e.g. a stored
+    // invalid report_email blocked EVERY field change, discovered via a
+    // "Refilling Routes won't save" report). Name the first failing field so
+    // the user knows where to look.
+    onError: (errors) => {
+      const first = errors && Object.values(errors)[0];
+      toast.error(first ? String(first) : "Save failed — please check the form for errors", {
+        timeout: 6000
+      });
+    },
     preserveState: true,
     replace: true,
   });
@@ -2730,6 +2741,13 @@ function saveVend(vendID) {
     is_testing: data.is_testing.id,
   })).post('/customers/' + vendID + '/update', {
     onSuccess: () => { },
+    // Same silent-422 guard as saveCustomer above.
+    onError: (errors) => {
+      const first = errors && Object.values(errors)[0];
+      toast.error(first ? String(first) : "Save failed — please check the form for errors", {
+        timeout: 6000
+      });
+    },
     preserveState: true,
     replace: true,
   });
