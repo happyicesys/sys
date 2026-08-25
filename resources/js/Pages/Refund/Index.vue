@@ -277,6 +277,11 @@ const payMethodParts = (label) => {
     return m ? { main: m[1], paren: m[2] } : { main: s, paren: '' };
 };
 
+// Manual pay-method labels ("PayNow / QR code", "Credit / debit card") are long
+// enough to widen the Paid column (the td is whitespace-nowrap); break them at
+// the slash so each half sits on its own line.
+const manualPayMethodLines = (label) => String(label ?? '').trim().split(' / ');
+
 // Three system-validation checks mirrored from the ticket detail page's
 // "System validation" badges (green = the favourable state, red = otherwise).
 const validationChecks = (t) => [
@@ -724,7 +729,9 @@ const sortedRows = computed(() => {
                                     <span v-if="payMethodParts(t.pay_method || t.payment_channel || '—').paren" class="block text-gray-500">{{ payMethodParts(t.pay_method || t.payment_channel || '—').paren }}</span>
                                 </template>
                                 <span v-else-if="t.manual_pay_method" class="italic text-amber-700"
-                                    v-tooltip="'Payment method keyed in by the customer on the manual form'">{{ t.manual_pay_method }}</span>
+                                    v-tooltip="'Payment method keyed in by the customer on the manual form'">
+                                    <span v-for="(part, i) in manualPayMethodLines(t.manual_pay_method)" :key="i" class="block">{{ part }}{{ i < manualPayMethodLines(t.manual_pay_method).length - 1 ? ' /' : '' }}</span>
+                                </span>
                                 <template v-else>—</template>
                                 <span v-if="t.matched && t.pay_provider" class="block text-gray-500">({{ t.pay_provider }})</span>
                             </div>

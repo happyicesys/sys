@@ -1326,10 +1326,12 @@ class RefundController extends Controller
         // Deep link into Sales Transactions showing ALL sales on this machine for
         // the SAME DAY as the disputed transaction (machine code + that day's
         // window), so the admin can eyeball every sale around the claimed one.
-        // Only when matched and the machine + transaction date are known.
+        // Matched tickets anchor on the transaction's date; unmatched ones fall
+        // back to the customer's Day Chosen so "pending match" still opens the
+        // day's sales for eyeballing.
         $txnLink = null;
-        if ($matched && $t->vend_code && $txnDate) {
-            $txnDay = \Illuminate\Support\Carbon::parse($txnDate);
+        $txnDay = ($matched && $txnDate) ? \Illuminate\Support\Carbon::parse($txnDate) : $enteredDayDate;
+        if ($t->vend_code && $txnDay) {
             $txnLink = '/vends/transactions?'.http_build_query(array_filter([
                 'codes' => $t->vend_code,
                 'date_from' => $txnDay->copy()->startOfDay()->toDateTimeString(),

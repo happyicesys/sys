@@ -384,8 +384,6 @@ function actionBadge(l) {
                     title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
             </div>
 
-            <p v-if="t.system_validation && t.system_validation.evaluated_at" class="text-xs text-gray-400 mt-3">Evaluated {{ t.system_validation.evaluated_at }}</p>
-
             <!-- System self-checking — mirrors the index list's self-check columns
                  (machine RF-in-24h, New/Repeat, product exit sensor, error code). -->
             <div class="mt-4 pt-4 border-t">
@@ -461,6 +459,9 @@ function actionBadge(l) {
                                 <span v-if="t.txn_delta" class="text-xs text-gray-500 ml-2"
                                     title="Elapsed time between the transaction and the refund submission">Δ {{ t.txn_delta }}</span>
                             </template>
+                            <a v-else-if="t.txn_link" :href="t.txn_link" target="_blank"
+                                class="text-amber-600 italic hover:text-amber-800 hover:underline"
+                                title="Open Sales Transactions for this machine on the customer's chosen day">pending match</a>
                             <span v-else class="text-amber-600 italic">pending match</span>
                         </dd>
                     </dl>
