@@ -19,6 +19,22 @@ class PaymentGateway extends Model
         'key3_name',
     ];
 
+    /**
+     * Whether mark1 can return this gateway's money by API call.
+     *
+     * THE single definition of "refundable gateway": the settlement resolver
+     * (VendTransactionService::applyTradeToPreCreatedRow) demotes a failed
+     * single-item vend to PENDING only when this is true, and
+     * HandleFailedVendTransaction dispatches the refund job on the same test.
+     * The two must never disagree — a gateway that demotes but never refunds
+     * leaves rows forever-PENDING (out of sales AND never refunded). Widen this
+     * together with a dispatch branch when Fiuu/Midtrans API refunds land.
+     */
+    public function supportsApiRefund(): bool
+    {
+        return strtolower((string) $this->name) === 'omise';
+    }
+
     // relationships
     public function country()
     {

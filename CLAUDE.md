@@ -142,8 +142,15 @@ been returned, and always together with `auto_refund_source`
   multi-item purchases are never auto-refunded.
 - **Card terminals** — the MDB reader reverses a failed SINGLE-item vend at the
   machine; mark1 gets no callback, only the TRADE footprint (`PAY_TYPE=1`,
-  single, error ∉ {0,6}, `ISOK=0`). `VendTransactionService::isCardTerminalReversal`
-  marks it `card_terminal_reversal` for terminals in
+  single, error ∉ {0,6}), which arrives in TWO frame shapes: VMC-keypad frames
+  (TXN_SRC 0) additionally require `ISOK=0` as a veto, while Android-built
+  soft-keyboard frames (TXN_SRC ≥ 1) hard-code `ISOK=1` (error in
+  `transf_info[0].SErr`) — there err 7 counts only when the machine reports
+  APK v303+ (`Vend::reportedApkVersion()`; below that, v301 can retain the
+  credit for a free re-vend instead of reversing, so the gate widens
+  machine-by-machine as the OTA lands; the backfill excludes err 7 outright
+  since trade-time versions are unknowable). `VendTransactionService::isCardTerminalReversal` marks it
+  `card_terminal_reversal` for terminals in
   `config('refund.card_reversal_terminals')` (NETS family; widen only after a
   field check of that terminal type).
 - Every write of `is_refunded` must also call

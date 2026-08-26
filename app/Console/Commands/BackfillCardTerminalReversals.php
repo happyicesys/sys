@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Selects card rows with the reversal footprint — terminal in
  * config('refund.card_reversal_terminals'), single item, success_qty = 0,
- * error ∉ {0,6}, ISOK = 0, not yet refunded — and marks them
+ * not yet refunded, and per frame shape: VMC-keypad frames (TXN_SRC 0) need
+ * header error ∉ {0,6} + ISOK = 0; Android soft-keyboard frames (TXN_SRC ≥ 1,
+ * ISOK hard-coded 1) need transf_info[0].SErr ∉ {0,6,7} — and marks them
  * is_refunded = 1 / auto_refund_source = card_terminal_reversal, then runs the
  * same ticket guard the live path runs (markAutoRefundedByCharge: open tickets
  * get the "already refunded" cross, approved/scheduled ones are pulled out of
@@ -59,26 +61,57 @@ class BackfillCardTerminalReversals extends Command
             ->map(fn ($c) => (int) $c)->reject(fn ($c) => in_array($c, [0, 6], true))
             ->push(8)->unique()->values()->all();
 
+        // Card payment methods only (code 1) — the live predicate requires
+        // paymentClassification 'card'. cashless_mfg alone is not that guarantee:
+        // pre-2026-05 rows had it stamped from VMC telemetry on ALL transactions.
+        $cardMethodIds = \App\Models\PaymentMethod::query()->where('code', 1)->pluck('id')->all();
+
         $query = VendTransaction::withoutGlobalScopes()
-            ->whereIn('error_code_normalized', $failureCodes)
             ->where('transaction_datetime', '>=', $from)
             ->where('transaction_datetime', '<', $to)
             ->whereIn('cashless_mfg', $terminals)
+            ->whereIn('payment_method_id', $cardMethodIds)
             ->where('is_multiple', false)
             ->where('is_refunded', false)
             ->where('success_qty', 0)
-            ->whereRaw("JSON_EXTRACT(vend_transaction_json, '$.ISOK') = 0")
+            // The TRADE arrives in two shapes (mirrors isCardTerminalReversal):
+            ->where(function ($q) use ($failureCodes) {
+                // VMC-keypad frames (TXN_SRC 0): header SErr is normalized into
+                // error_code_normalized (index-friendly) and ISOK = 0 is a veto.
+                $q->where(function ($q) use ($failureCodes) {
+                    $q->whereRaw('COALESCE(interface_type, 0) = 0')
+                        ->whereIn('error_code_normalized', $failureCodes)
+                        ->whereRaw("JSON_EXTRACT(vend_transaction_json, '$.ISOK') = 0");
+                })
+                    // Android-built soft-keyboard frames (TXN_SRC >= 1): ISOK is
+                    // hard-coded 1 and the header SErr is absent, so
+                    // error_code_normalized is NULL — the error lives in
+                    // transf_info[0].SErr. Err 7 is excluded UNCONDITIONALLY
+                    // here (stricter than the live predicate, which admits it on
+                    // machines reporting APK v303+): on <= v301 NETS can RETAIN
+                    // the credit for a free re-vend instead of reversing, and a
+                    // machine's version AT TRADE TIME is unknowable historically
+                    // — its current version proves nothing about old rows.
+                    ->orWhere(function ($q) {
+                        $q->whereRaw('COALESCE(interface_type, 0) >= 1')
+                            ->whereRaw("CAST(JSON_EXTRACT(vend_transaction_json, '$.transf_info[0].SErr') AS SIGNED) NOT IN (0, 6, 7)");
+                    });
+            })
             ->orderBy('id');
+
+        // Frame-shape-aware error for the summary: header SErr where normalized,
+        // else the Android frame's transf_info error.
+        $errExpr = "COALESCE(error_code_normalized, CAST(JSON_EXTRACT(vend_transaction_json, '$.transf_info[0].SErr') AS SIGNED))";
 
         $total = (clone $query)->count();
         $byTerminal = (clone $query)
-            ->select('cashless_mfg', 'error_code_normalized', DB::raw('COUNT(*) n'), DB::raw('SUM(amount) cents'))
-            ->groupBy('cashless_mfg', 'error_code_normalized')
+            ->select('cashless_mfg', DB::raw("{$errExpr} err"), DB::raw('COUNT(*) n'), DB::raw('SUM(amount) cents'))
+            ->groupBy('cashless_mfg', DB::raw($errExpr))
             ->get();
 
         $this->info(($apply ? 'APPLY' : 'DRY-RUN')." — {$total} card rows with the reversal footprint, {$from} ≤ t < {$to}");
         $this->table(['terminal', 'err', 'rows', 'amount'], $byTerminal->map(fn ($r) => [
-            $r->cashless_mfg, $r->error_code_normalized, $r->n, number_format($r->cents / 100, 2),
+            $r->cashless_mfg, $r->err, $r->n, number_format($r->cents / 100, 2),
         ])->all());
 
         if (! $apply || $total === 0) {

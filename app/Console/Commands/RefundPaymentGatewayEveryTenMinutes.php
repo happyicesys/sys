@@ -44,12 +44,11 @@ class RefundPaymentGatewayEveryTenMinutes extends Command
         $setting->save();
 
         foreach ($paymentGatewayLogs as $paymentGatewayLog) {
-            switch ($paymentGatewayLog->paymentGateway->name) {
-                case 'omise':
-                    RefundOmiseJob::dispatch($paymentGatewayLog->order_id, \App\Support\AutoRefundSource::OMISE_NO_DISPENSE)->onQueue('default');
-                    break;
-                default:
-                    break;
+            // Shared refundability definition (see PaymentGateway::supportsApiRefund)
+            // — Omise is the only API-refundable gateway today; add a dispatch
+            // branch when Fiuu/Midtrans refunds land.
+            if ($paymentGatewayLog->paymentGateway?->supportsApiRefund()) {
+                RefundOmiseJob::dispatch($paymentGatewayLog->order_id, \App\Support\AutoRefundSource::OMISE_NO_DISPENSE)->onQueue('default');
             }
         }
     }

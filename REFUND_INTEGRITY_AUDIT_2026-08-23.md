@@ -189,15 +189,53 @@ are live examples. Not a double *payout* yet, but it is the path to one.
 ### Phase 2 — card terminal reversal → `is_refunded` — **IMPLEMENTED 2026-08-23 (NETS-only gate, local, awaiting deploy + backfill)**
 - Live rule: `VendTransactionService::isCardTerminalReversal` /
   `markCardTerminalReversal` on the fresh-create TRADE path: card + single +
-  `success_qty=0` + err ∉ {0,6} + `ISOK=0` + `cashless_mfg ∈
+  `success_qty=0` + err ∉ {0,6} + `cashless_mfg ∈
   config('refund.card_reversal_terminals') = ['Nets','Nets-Auresys']` →
   `is_refunded=1`, `auto_refund_source=card_terminal_reversal`, then
   `markAutoRefundedByCharge`. PAX / MLS / Nayax excluded until field-checked
-  (config change only to widen). No board/flow gate: both boards and both
-  flows produce the same footprint and the reversal is VMC/MDB behaviour.
+  (config change only to widen). No board/flow gate; the TRADE arrives in TWO
+  shapes (found 2026-08-25 via order 2026082415513017924, Nets err 4):
+  VMC-keypad frames (TXN_SRC 0, header SErr, ISOK=0 on every failure — ISOK
+  required as a veto) and Android soft-keyboard frames (TXN_SRC ≥ 1, error in
+  transf_info[0].SErr, **ISOK hard-coded 1** by StaticFunction.mUploadTradeRet
+  — ISOK not consulted). ~301 vs ~38 card-single failures/week respectively;
+  the photographed reversal was the soft-keyboard flow (SErr 4).
+- **Soft-keyboard err 7 gated on APK ≥ v303** (2026-08-26): on APK ≤ v301,
+  SErr 7 can be NETS *retaining* the credit for a free re-vend (0x21 tradeId
+  ownership bug, fixed in big-board v303), not a reversal — and 96 of the 106
+  Android card-single failures since 2026-08-01 are err 7. Auto-marking them
+  `is_refunded` would claim money moved and auto-block genuine claims. The live
+  predicate therefore admits err 7 only when the machine reports v303+
+  (`Vend::reportedApkVersion()`), widening machine-by-machine as the OTA lands;
+  other codes (4/3/9/…) qualify regardless of version. The backfill excludes
+  err 7 outright — a machine's version at trade time is unknowable
+  historically. (The backfill's original ISOK-OR clause was dead anyway:
+  `error_code_normalized` is NULL for Android frames, so the `whereIn`
+  excluded them — fixed 2026-08-26 by splitting the query into the two frame
+  shapes + a card payment-method gate.)
 - Backfill: `php artisan refund:backfill-card-reversals --from=YYYY-MM-DD
   [--to=] [--apply]` — dry-run by default, index-friendly, chunked; COMPLETED
-  tickets untouched. Local dry-run for 2026-08-01→23: 722 rows / $2,221.70.
+  tickets untouched. (The 2026-08-23 local dry-run figure of 722 rows /
+  $2,221.70 predates the 2026-08-26 rewrite — two frame-shape arms, card
+  payment-method gate, Android err-7 exclusion — so expect a different count:
+  run a fresh dry-run and sanity-check it against the by-terminal table, do not
+  reconcile against the old number.)
+
+### Pre-deploy logic review (2026-08-25) — 3 findings, all fixed
+1. **Non-Omise gateways**: the single-failure → PENDING demotion would have left
+   Fiuu/Midtrans rows (other-country instances of this codebase) PENDING forever
+   — out of sales AND never refunded (`HandleFailedVendTransaction` no-ops
+   there). `resolvePreCreatedSettlement` now takes `$gatewayRefundable`; only
+   Omise-backed rows are demoted, others keep the old rule.
+2. **Deploy-window job crash**: a `RefundOmiseJob` queued by pre-source code and
+   run by new code deserializes `$source = null` → TypeError after the refund
+   already succeeded at Omise. `handle()` now falls back to `omise_manual`.
+3. **qr_ref_id wipe**: refund/decline webhooks carry no source block; the
+   updateOrCreate now preserves the stored QR reference instead of nulling it.
+
+Accepted (no change): a TRADE-failure refund and the 10-min scanner can, in a
+narrow race, both call the Omise refund API — Omise rejects the second (over
+refundable balance), so money is safe; the loser shows up as a failed job.
 
 ### Deploy runbook — FORWARD-ONLY (Brian, 2026-08-23: "no need to go back and
 ### resync the history; going forward, only make it auto refund")

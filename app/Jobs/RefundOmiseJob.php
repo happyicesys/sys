@@ -93,8 +93,11 @@ class RefundOmiseJob implements ShouldQueue
         }
 
         // Single recording path (log status, linked vend_transaction, ticket
-        // guard) shared with the webhook + reconcile command.
+        // guard) shared with the webhook + reconcile command. The ?: covers a
+        // job serialized by pre-source code and executed after deploy, whose
+        // $source deserializes as null — must never TypeError after a refund
+        // has already succeeded at Omise.
         app(\App\Services\Refund\OmiseRefundRecorder::class)
-            ->record($paymentGatewayLog, $response->json(), $this->source);
+            ->record($paymentGatewayLog, $response->json(), $this->source ?: AutoRefundSource::OMISE_MANUAL);
     }
 }

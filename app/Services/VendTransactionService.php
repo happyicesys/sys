@@ -269,7 +269,7 @@ class VendTransactionService
 
             // Card terminal reversal: the reader already returned the money at
             // the machine — record it so no surface lets ops pay a second time.
-            $this->markCardTerminalReversal($vendTransaction, $processedInput);
+            $this->markCardTerminalReversal($vendTransaction, $processedInput, $vend);
         }
 
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
@@ -408,10 +408,20 @@ class VendTransactionService
         $revenue = $amount / (1.00 + ($gstVatRate / 100));
         $grossProfit = $revenue - $unitCostValue;
 
+        // Only a gateway we can refund by API may leave a failed single-item
+        // vend PENDING for the refund path — for Fiuu/Midtrans instances
+        // HandleFailedVendTransaction is a no-op, and a permanently-PENDING row
+        // is dropped from sales AND never refunded, which is worse than the old
+        // settled-but-unrefunded state. Non-refundable gateways keep the old
+        // rule. PaymentGateway::supportsApiRefund() is the shared definition —
+        // HandleFailedVendTransaction gates its dispatch on the same call.
+        $gatewayRefundable = (bool) $transaction->paymentGatewayLog?->operatorPaymentGateway?->paymentGateway?->supportsApiRefund();
+
         $settlementStatus = self::resolvePreCreatedSettlement(
             (int) $transaction->settlement_status,
             (bool) ($transaction->paymentGatewayLog?->is_dispensed),
-            $input
+            $input,
+            $gatewayRefundable
         );
 
         $transaction->forceFill([
@@ -481,14 +491,20 @@ class VendTransactionService
      * @param  int  $current  current vend_transactions.settlement_status
      * @param  bool  $gatewayAcked  payment_gateway_logs.is_dispensed
      * @param  array  $input  processed TRADE (processMapping output)
+     * @param  bool  $gatewayRefundable  the charge can be refunded by API (Omise).
+     *                                   When false, a failed single-item vend is
+     *                                   NOT demoted to PENDING — the refund path
+     *                                   is a no-op there, and a forever-PENDING
+     *                                   row would vanish from sales without ever
+     *                                   being refunded (Fiuu/Midtrans instances).
      */
-    public static function resolvePreCreatedSettlement(int $current, bool $gatewayAcked, array $input): int
+    public static function resolvePreCreatedSettlement(int $current, bool $gatewayAcked, array $input, bool $gatewayRefundable = true): int
     {
         if ($current === VendTransaction::SETTLEMENT_REFUNDED) {
             return VendTransaction::SETTLEMENT_REFUNDED;
         }
 
-        if (self::isSingleItemDispenseFailure($input)) {
+        if ($gatewayRefundable && self::isSingleItemDispenseFailure($input)) {
             return VendTransaction::SETTLEMENT_PENDING;
         }
 
@@ -530,19 +546,27 @@ class VendTransactionService
      * Card-terminal reversal footprint. On a SINGLE-item card vend that fails,
      * the VMC ends the MDB session with VEND FAILURE and the reader reverses the
      * charge at the machine (NETS shows "REVERSAL — Reversing The Previous
-     * Transaction"; verified 2026-08-23). mark1 never gets a processor callback
-     * for it — the only evidence is the machine's TRADE:
+     * Transaction"; verified 2026-08-23 on the soft-keyboard flow). mark1 never
+     * gets a processor callback — the only evidence is the machine's TRADE:
      *   PAY_TYPE = card, is_multiple = false, success_qty = 0,
-     *   error code ∉ {0,6}, ISOK = 0 (1:1 with failures in prod),
-     *   and the machine's terminal is one that is known to reverse
-     *   (config refund.card_reversal_terminals).
+     *   error code ∉ {0,6}, terminal ∈ config refund.card_reversal_terminals.
+     *
+     * The TRADE arrives in TWO shapes and ISOK only means something in one:
+     *   - VMC-keypad flow (TXN_SRC = 0): flat VMC frame, header SErr, and
+     *     ISOK = 0 on every failure (1:1 in prod) → require ISOK = 0 as a veto.
+     *   - Soft-keyboard flow (TXN_SRC ≥ 1): the APK builds the TRADE itself and
+     *     HARD-CODES ISOK = 1 (StaticFunction.mUploadTradeRet), error in
+     *     transf_info[0].SErr — e.g. order 2026082415513017924 (Nets, SErr 4,
+     *     ISOK 1). ISOK carries no signal there, so it is not consulted; err 7
+     *     instead requires the machine to report APK v303+ (v301
+     *     retained-credit ambiguity — see below).
      * Multi-item purchases are never reversed by the terminal (the session
      * covers several vends) — those stay a manual refund-ticket matter.
      *
      * @param  array  $input  processed TRADE (processMapping output)
      * @param  string|null  $cashlessMfg  vend_transactions.cashless_mfg snapshot
      */
-    public static function isCardTerminalReversal(array $input, ?string $cashlessMfg): bool
+    public static function isCardTerminalReversal(array $input, ?string $cashlessMfg, ?int $reportedApkVersion = null): bool
     {
         if (($input['paymentClassification'] ?? null) !== 'card') {
             return false;
@@ -550,8 +574,27 @@ class VendTransactionService
         if (! self::isSingleItemDispenseFailure($input)) {
             return false;
         }
-        $isok = $input['originalJson']['ISOK'] ?? null;
-        if (! is_numeric($isok) || (int) $isok !== 0) {
+        // VMC-originated frame → ISOK is the VMC's own trade-ok flag; a failure
+        // TRADE always carries 0, so anything else vetoes the reversal claim.
+        // Android-built TRADEs (interfaceType/TXN_SRC ≥ 1) hard-code ISOK = 1.
+        if (empty($input['interfaceType'])) {
+            $isok = $input['originalJson']['ISOK'] ?? null;
+            if (! is_numeric($isok) || (int) $isok !== 0) {
+                return false;
+            }
+        } elseif ((int) ($input['errorCode'] ?? 0) === 7 && (int) $reportedApkVersion < 303) {
+            // Soft-keyboard err 7 on APK ≤ v301 can be NETS *retaining* the
+            // credit for a free re-vend (0x21 tradeId ownership bug, fixed in
+            // big-board v303), not a reversal. Marking it refunded would claim
+            // money moved that the customer may instead consume as a free
+            // re-vend, and would auto-block a genuine refund claim
+            // (RefundTicket::isAlreadyRefunded). So err 7 qualifies only once
+            // the machine itself reports v303+ (Vend::reportedApkVersion) —
+            // the gate widens machine-by-machine as the OTA lands. Small
+            // boards (13x stream) never reach 303 and stay excluded until
+            // their own retained-credit fix is field-verified. Other codes
+            // (e.g. SErr 4, order 2026082415513017924) are field-verified
+            // reversals and pass regardless of version.
             return false;
         }
         $terminals = (array) config('refund.card_reversal_terminals', []);
@@ -567,9 +610,9 @@ class VendTransactionService
      * guard the Omise job uses). Best-effort: a ticket-side failure must never
      * break TRADE ingestion.
      */
-    private function markCardTerminalReversal(VendTransaction $vendTransaction, array $input): void
+    private function markCardTerminalReversal(VendTransaction $vendTransaction, array $input, ?Vend $vend = null): void
     {
-        if (! self::isCardTerminalReversal($input, $vendTransaction->cashless_mfg)) {
+        if (! self::isCardTerminalReversal($input, $vendTransaction->cashless_mfg, $vend?->reportedApkVersion())) {
             return;
         }
 

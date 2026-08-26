@@ -28,9 +28,9 @@ class PreCreatedSettlementResolverTest extends TestCase
         ], $overrides);
     }
 
-    private function resolve(int $current, bool $acked, array $input): int
+    private function resolve(int $current, bool $acked, array $input, bool $refundable = true): int
     {
-        return VendTransactionService::resolvePreCreatedSettlement($current, $acked, $input);
+        return VendTransactionService::resolvePreCreatedSettlement($current, $acked, $input, $refundable);
     }
 
     // ── single-item dispense failures → PENDING (refund path) ──────────────
@@ -119,6 +119,21 @@ class PreCreatedSettlementResolverTest extends TestCase
     {
         $input = $this->trade(['isMultiple' => true, 'errorCode' => 7, 'success_qty' => 0, 'dispensed_qty' => 0]);
         $this->assertSame(VendTransaction::SETTLEMENT_PENDING, $this->resolve(VendTransaction::SETTLEMENT_PENDING, false, $input));
+    }
+
+    // ── non-refundable gateways (Fiuu / Midtrans) keep the pre-patch rule ───
+
+    public function test_non_refundable_gateway_single_failure_is_not_demoted(): void
+    {
+        // HandleFailedVendTransaction is a no-op for non-Omise gateways: a
+        // forever-PENDING row would silently vanish from sales without a refund,
+        // so the failed single vend stays SETTLED there (old behaviour).
+        $input = $this->trade(['errorCode' => 7, 'success_qty' => 0, 'dispensed_qty' => 1]);
+        $this->assertSame(VendTransaction::SETTLEMENT_SETTLED, $this->resolve(VendTransaction::SETTLEMENT_SETTLED, true, $input, false));
+
+        // The genuinely-nothing-and-never-acked case is unchanged for them too.
+        $none = $this->trade(['errorCode' => 4, 'success_qty' => 0, 'dispensed_qty' => 0]);
+        $this->assertSame(VendTransaction::SETTLEMENT_PENDING, $this->resolve(VendTransaction::SETTLEMENT_PENDING, false, $none, false));
     }
 
     // ── refunded rows are never revived ─────────────────────────────────────

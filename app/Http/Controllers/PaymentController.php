@@ -223,7 +223,9 @@ class PaymentController extends Controller
     $updatedPaymentGatewayLogValues = [
       // 'response' => $input,
       'method' => $paymentGatewayLog->method ? $paymentGatewayLog->method : $method,
-      'qr_ref_id' => $qrRefID,
+      // Refund/decline events carry no source block — never wipe the QR
+      // reference the approve webhook stored.
+      'qr_ref_id' => $qrRefID ?: $paymentGatewayLog->qr_ref_id,
       'ref_id' => $refId,
       'status' => $status,
       'response' => $input,
