@@ -92,6 +92,7 @@ class ProductResource extends JsonResource
             // To-Pick contribution on the planning date.
             'available_vend_count' => isset($this->available_vend_count) ? $this->available_vend_count : null,
             'available_vend_with_stock_count' => isset($this->available_vend_with_stock_count) ? $this->available_vend_with_stock_count : null,
+            'available_vend_low_stock_count' => isset($this->available_vend_low_stock_count) ? $this->available_vend_low_stock_count : null,
             'needed_vend_count' => isset($this->needed_vend_count) ? $this->needed_vend_count : null,
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
             'productLimits' => ProductLimitResource::collection($this->whenLoaded('productLimits')),

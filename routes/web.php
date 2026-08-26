@@ -722,6 +722,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/availability/toggle-is-available', [ProductController::class, 'toggleIsAvailable'])->name('products-availability.toggle-is-available');
         Route::post('/availability/update-remarks/{product_id}', [ProductController::class, 'updateRemarks'])->name('products-availability.update-remarks');
         Route::get('/availability/export-excel', [ProductController::class, 'exportAvailability'])->name('products-availability.export-excel');
+        Route::get('/availability/low-stock-vends/{product_id}', [ProductController::class, 'lowStockVends'])->name('products-availability.low-stock-vends');
 
     });
 

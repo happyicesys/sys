@@ -222,13 +222,47 @@ class ProductController extends Controller
     /**
      * "Available in # of VM": distinct DEPLOYED machines (active, not
      * disposed, bound to a customer) carrying each product on an active
-     * channel, plus how many of those machines still hold stock of it.
+     * channel, plus how many of those machines still hold stock of it,
+     * plus how many are running low (machine's total qty of the SKU
+     * across its active channels <= 2 — includes empty machines).
      * Unbound machines keep their last planogram while parked in the
      * warehouse, so counting them inflated this above the fleet size
      * (Brian, 2026-08-26). Raw join to vends, so the viewer's operator
      * boundary is applied by hand (see CLAUDE.md, operator isolation).
      */
     private function availableVendCounts(array $productIds)
+    {
+        $perVend = $this->deployedVendChannelQuery($productIds)
+            ->groupBy('vend_channels.product_id', 'vend_channels.vend_id')
+            ->selectRaw('vend_channels.product_id, vend_channels.vend_id,
+                MAX(vend_channels.qty > 0) as has_stock,
+                COALESCE(SUM(vend_channels.qty), 0) as total_qty');
+
+        return DB::query()->fromSub($perVend, 'per_vend')
+            ->groupBy('per_vend.product_id')
+            ->selectRaw('per_vend.product_id,
+                COUNT(*) as vend_count,
+                COALESCE(SUM(per_vend.has_stock), 0) as vend_with_stock_count,
+                COALESCE(SUM(per_vend.total_qty <= 2), 0) as vend_low_stock_count')
+            ->get()
+            // SUM() comes back as a decimal string; the page (and its tests)
+            // treat these as integers like the COUNT(DISTINCT) they replaced.
+            ->map(function ($row) {
+                $row->vend_count = (int) $row->vend_count;
+                $row->vend_with_stock_count = (int) $row->vend_with_stock_count;
+                $row->vend_low_stock_count = (int) $row->vend_low_stock_count;
+
+                return $row;
+            })
+            ->keyBy('product_id');
+    }
+
+    /**
+     * Shared base for the "Available in # of VM" figures and the low-stock
+     * drill-down: active channels of DEPLOYED machines, viewer boundary
+     * applied by hand (raw join to vends — see CLAUDE.md, operator isolation).
+     */
+    private function deployedVendChannelQuery(array $productIds)
     {
         return VendChannel::query()
             ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
@@ -237,13 +271,52 @@ class ProductController extends Controller
             ->where('vend_channels.is_active', true)
             ->where('vends.is_active', true)
             ->where('vends.is_disposed', false)
-            ->whereNotNull('vends.customer_id')
-            ->groupBy('vend_channels.product_id')
-            ->selectRaw('vend_channels.product_id,
-                COUNT(DISTINCT vend_channels.vend_id) as vend_count,
-                COUNT(DISTINCT CASE WHEN vend_channels.qty > 0 THEN vend_channels.vend_id END) as vend_with_stock_count')
-            ->get()
-            ->keyBy('product_id');
+            ->whereNotNull('vends.customer_id');
+    }
+
+    /**
+     * Drill-down for the "stock <= 2" line on the Warehouse Qty page:
+     * the machines behind vend_low_stock_count for one product, with the
+     * Site and its refilling route (zone). A blind flavour resolves
+     * through its active housing(s), mirroring the page's aggregation.
+     */
+    public function lowStockVends($productId)
+    {
+        $product = Product::query()
+            ->with([
+                'blindParentLinks' => fn ($q) => $q
+                    ->where('is_active', true)
+                    ->whereHas('parentProduct', fn ($pq) => $pq->where('is_active', true)),
+            ])
+            ->findOrFail($productId);
+
+        $productIds = $product->blindParentLinks->pluck('parent_product_id')
+            ->map(fn ($v) => (int) $v)
+            ->push($product->id)
+            ->unique()->values()->all();
+
+        $rows = $this->deployedVendChannelQuery($productIds)
+            ->join('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->groupBy('vends.id', 'vends.code', 'customers.id', 'customers.name', 'zones.name')
+            ->havingRaw('COALESCE(SUM(vend_channels.qty), 0) <= 2')
+            ->selectRaw('vends.id as vend_id, vends.code as vend_code,
+                customers.id as customer_id, customers.name as customer_name,
+                zones.name as zone_name,
+                COALESCE(SUM(vend_channels.qty), 0) as total_qty')
+            ->orderByRaw('zones.name IS NULL, zones.name, customers.name')
+            ->get();
+
+        return response()->json([
+            'vends' => $rows->map(fn ($r) => [
+                'vend_id' => $r->vend_id,
+                'vend_code' => $r->vend_code,
+                'site_ref_id' => $r->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT,
+                'site_name' => $r->customer_name,
+                'zone_name' => $r->zone_name,
+                'qty' => (int) $r->total_qty,
+            ])->values(),
+        ]);
     }
 
     public function availability(Request $request)
@@ -474,6 +547,7 @@ class ProductController extends Controller
             $product->needed_vend_count = $product->is_available ? ($neededData->get($product->id)?->needed_vend_count ?? 0) : 0;
             $product->available_vend_count = $vendCountData->get($product->id)?->vend_count ?? 0;
             $product->available_vend_with_stock_count = $vendCountData->get($product->id)?->vend_with_stock_count ?? 0;
+            $product->available_vend_low_stock_count = $vendCountData->get($product->id)?->vend_low_stock_count ?? 0;
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $product->picked_value_on_date = $pickedValueData->get($product->id)?->value ?? 0;
 
@@ -524,6 +598,7 @@ class ProductController extends Controller
             $parentIds = $product->blindParentLinks->pluck('parent_product_id');
             $product->available_vend_count += (int) $parentIds->sum(fn ($pid) => $vendCountData->get($pid)?->vend_count ?? 0);
             $product->available_vend_with_stock_count += (int) $parentIds->sum(fn ($pid) => $vendCountData->get($pid)?->vend_with_stock_count ?? 0);
+            $product->available_vend_low_stock_count += (int) $parentIds->sum(fn ($pid) => $vendCountData->get($pid)?->vend_low_stock_count ?? 0);
             if ($product->is_available) {
                 $product->needed_vend_count += (int) $parentIds->sum(fn ($pid) => $neededData->get($pid)?->needed_vend_count ?? 0);
             }
@@ -648,6 +723,7 @@ class ProductController extends Controller
             $product->needed_vend_count = $product->is_available ? ($neededData->get($product->id)?->needed_vend_count ?? 0) : 0;
             $product->available_vend_count = $vendCountData->get($product->id)?->vend_count ?? 0;
             $product->available_vend_with_stock_count = $vendCountData->get($product->id)?->vend_with_stock_count ?? 0;
+            $product->available_vend_low_stock_count = $vendCountData->get($product->id)?->vend_low_stock_count ?? 0;
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $limit = $product->productLimits->first();
             $product->max_ops_job_pick_limit = $limit ? $limit->qty : null;

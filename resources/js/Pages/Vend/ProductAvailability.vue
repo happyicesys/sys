@@ -150,7 +150,11 @@
                         </span>
                       </div>
                     </th>
-                    <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
+                    <th scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                      Available in # of VM <br>
+                      <span class="font-normal text-gray-600">(machines carrying SKU, with stock)</span>
+                    </th>
+                    <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                       <div class="flex items-center justify-center gap-1">
                           <span>Daily Sold Qty</span>
                           <span v-if="filters.sortKey === 'avg_seven_days_count'">
@@ -163,10 +167,6 @@
                           </span>
                       </div>
                       <span class="font-normal text-gray-600">(average last 7days)</span>
-                    </th>
-                    <th scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
-                      Available in # of VM <br>
-                      <span class="font-normal text-gray-600">(machines carrying SKU, with stock)</span>
                     </th>
 
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
@@ -258,15 +258,27 @@
                         </div>
                       </div>
                     </td>
-                    <td class="p-1 sm:p-3 text-center text-xs sm:text-sm font-medium" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
-                      {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
-                    </td>
                     <!-- Available in # of VM: live machines carrying the SKU (+ how many still hold stock) -->
-                    <td class="p-1 sm:p-3 text-center border-r border-gray-300" :class="[product.is_available ? '' : 'opacity-50']">
+                    <td class="p-1 sm:p-3 text-center" :class="[product.is_available ? '' : 'opacity-50']">
                       <span class="text-sm sm:text-lg font-bold text-gray-800">{{ Number(product.available_vend_count ?? 0).toLocaleString() }}</span>
                       <div v-if="product.available_vend_count > 0" class="text-[10px] text-gray-500">
                         {{ Number(product.available_vend_with_stock_count ?? 0).toLocaleString() }} with stock
                       </div>
+                      <!-- Low stock: machines whose total qty of this SKU is <= 2 (incl. empty). Click for the machine list. -->
+                      <div v-if="product.available_vend_count > 0" class="text-[10px]">
+                        <button
+                          v-if="Number(product.available_vend_low_stock_count ?? 0) > 0"
+                          type="button"
+                          class="font-semibold text-red-600 underline decoration-dotted underline-offset-2 hover:text-red-700"
+                          @click.prevent="onLowStockClicked(product)"
+                        >
+                          {{ Number(product.available_vend_low_stock_count).toLocaleString() }}, stock &lt;= 2
+                        </button>
+                        <span v-else class="text-gray-400">0, stock &lt;= 2</span>
+                      </div>
+                    </td>
+                    <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                      {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
 
                     <!-- Qty in Warehouse (Blue). Manual-ledger products (CityBox SKUs) show the mark1 ledger figure instead of CMS. -->
@@ -325,15 +337,15 @@
                         <span class="text-gray-900">Stock Value</span>
                       </div>
                     </td>
-                    <td class="p-1 sm:p-3 text-center text-gray-900">
+                    <!-- Available in # of VM: no total — the same machine carries many SKUs -->
+                    <td></td>
+                    <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
                         <div class="flex flex-col space-y-1">
                             <span>{{ getDailySoldQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                             <span>{{ operatorCountry.currency_symbol }}{{ getDailySoldQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                             <span>&nbsp;</span>
                         </div>
                     </td>
-                    <!-- Available in # of VM: no total — the same machine carries many SKUs -->
-                    <td class="border-r border-gray-300"></td>
                     <td class="p-1 sm:p-3 text-center text-blue-600">
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductAvailablePcsApiTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
@@ -373,6 +385,58 @@
         </div>
       </div>
     </div>
+
+    <!-- Low-stock drill-down: machines whose total qty of the SKU is <= 2 -->
+    <Modal :open="lowStockModalOpen" @modalClose="lowStockModalOpen = false">
+      <template #header>
+        <div class="flex flex-col text-left">
+          <span>Machines with stock &lt;= 2</span>
+          <span class="text-sm font-normal text-gray-600" v-if="lowStockProduct">
+            {{ lowStockProduct.code }} — {{ lowStockProduct.name }}
+          </span>
+        </div>
+      </template>
+      <div class="text-sm">
+        <div v-if="lowStockLoading" class="py-8 text-center text-gray-500">
+          Loading...
+        </div>
+        <div v-else-if="lowStockVends.length === 0" class="py-8 text-center text-gray-500">
+          No machines with stock &lt;= 2.
+        </div>
+        <div v-else class="max-h-[60vh] overflow-y-auto">
+          <table class="min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="p-2 text-left text-xs font-semibold text-gray-900">#</th>
+                <th class="p-2 text-left text-xs font-semibold text-gray-900">Machine</th>
+                <th class="p-2 text-left text-xs font-semibold text-gray-900">Site</th>
+                <th class="p-2 text-center text-xs font-semibold text-gray-900">Stock Left</th>
+                <th class="p-2 text-right text-xs font-semibold text-gray-900">Refilling Route</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+              <tr v-for="(vend, vendIndex) in lowStockVends" :key="vend.vend_id" class="hover:bg-gray-50">
+                <td class="p-2 text-xs text-gray-500">{{ vendIndex + 1 }}</td>
+                <td class="p-2 text-xs font-bold text-gray-900 whitespace-nowrap">{{ vend.vend_code }}</td>
+                <td class="p-2 text-xs text-gray-800">
+                  <span class="font-semibold">{{ vend.site_ref_id }}</span>
+                  {{ vend.site_name }}
+                </td>
+                <td class="p-2 text-center text-xs font-bold" :class="vend.qty === 0 ? 'text-red-600' : 'text-orange-600'">
+                  {{ vend.qty }}
+                </td>
+                <td class="p-2 text-right text-xs whitespace-nowrap">
+                  <span v-if="vend.zone_name" class="inline-block rounded bg-sky-100 px-1.5 py-0.5 font-semibold text-sky-800">
+                    {{ vend.zone_name }}
+                  </span>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -387,6 +451,7 @@ import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import BlindFlavourChips from '@/Components/BlindFlavourChips.vue';
+import Modal from '@/Components/Modal.vue';
 const props = defineProps({
   operatorOptions: Object,
   products: Object,
@@ -545,6 +610,29 @@ function getDailySoldQtyTotalCost() {
     const unitCost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * unitCost);
   }, 0);
+}
+
+// Low-stock drill-down modal: machines whose total qty of the SKU is <= 2.
+const lowStockModalOpen = ref(false)
+const lowStockLoading = ref(false)
+const lowStockProduct = ref(null)
+const lowStockVends = ref([])
+
+function onLowStockClicked(product) {
+  lowStockProduct.value = product
+  lowStockVends.value = []
+  lowStockModalOpen.value = true
+  lowStockLoading.value = true
+  axios.get('/products/availability/low-stock-vends/' + product.id)
+    .then(response => {
+      lowStockVends.value = response.data.vends
+    })
+    .catch(error => {
+      console.error('Error loading low-stock machines:', error)
+    })
+    .finally(() => {
+      lowStockLoading.value = false
+    })
 }
 
 // Event handlers for availability toggling and limit selection
