@@ -17,10 +17,12 @@ use App\Models\OpsJobItemChannel;
 use App\Models\Product;
 use App\Models\ProductChild;
 use App\Models\ProductUom;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\UnitCost;
 use App\Models\Uom;
+use App\Models\VendChannel;
 use App\Services\CmsService;
 use App\Services\TagBindingService;
 use App\Services\VendChannelService;
@@ -194,6 +196,53 @@ class ProductController extends Controller
         return redirect()->route('products.edit', ['id' => $product->id])->with('success', 'Product saved successfully');
     }
 
+    /**
+     * A channel's To-Pick contribution for the planning date: the picked qty
+     * once picked, else the saved pick, else the (limit-capped) refill up to
+     * capacity. One definition, used three ways on the Warehouse Qty page and
+     * its Excel export: SUM() = To Pick Qty, SUM(× amount) = To Pick value,
+     * and COUNT(DISTINCT vend_id WHERE > 0) = "Needed by # of VM".
+     */
+    private const NEEDED_QTY_CASE_SQL = '
+        CASE
+            WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
+            WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
+            WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
+                CASE
+                    WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                        COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                    WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                        product_limits.qty - COALESCE(vend_channels.qty, 0)
+                    ELSE 0
+                END
+            ELSE
+                COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+        END';
+
+    /**
+     * "Available in # of VM": distinct live machines (active, not disposed)
+     * carrying each product on an active channel — same semantics as the
+     * machine_count in ReportController — plus how many of those machines
+     * still hold stock of it. Raw join to vends, so the viewer's operator
+     * boundary is applied by hand (see CLAUDE.md, operator isolation).
+     */
+    private function availableVendCounts(array $productIds)
+    {
+        return VendChannel::query()
+            ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
+            ->when(OperatorVendFilterScope::viewerOperatorId(), fn ($q, $operatorId) => $q->where('vends.operator_id', $operatorId))
+            ->whereIn('vend_channels.product_id', $productIds)
+            ->where('vend_channels.is_active', true)
+            ->where('vends.is_active', true)
+            ->where('vends.is_disposed', false)
+            ->groupBy('vend_channels.product_id')
+            ->selectRaw('vend_channels.product_id,
+                COUNT(DISTINCT vend_channels.vend_id) as vend_count,
+                COUNT(DISTINCT CASE WHEN vend_channels.qty > 0 THEN vend_channels.vend_id END) as vend_with_stock_count')
+            ->get()
+            ->keyBy('product_id');
+    }
+
     public function availability(Request $request)
     {
         // dd($request->operators, $request->all());
@@ -364,41 +413,16 @@ class ProductController extends Controller
             ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id,
-                COALESCE(SUM(
-                    CASE
-                        WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
-                        WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
-                        WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
-                            CASE
-                                WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                    COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                                WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                    product_limits.qty - COALESCE(vend_channels.qty, 0)
-                                ELSE 0
-                            End
-                        ELSE
-                            COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                    END
-                ), 0) as needed_qty,
-                COALESCE(SUM(
-                    (CASE
-                        WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
-                        WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
-                        WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
-                            CASE
-                                WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                    COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                                WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                    product_limits.qty - COALESCE(vend_channels.qty, 0)
-                                ELSE 0
-                            END
-                        ELSE
-                            COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                    END) * vend_channels.amount
-                ), 0) as needed_value
+                COALESCE(SUM('.self::NEEDED_QTY_CASE_SQL.'), 0) as needed_qty,
+                COALESCE(SUM(('.self::NEEDED_QTY_CASE_SQL.') * vend_channels.amount), 0) as needed_value,
+                COUNT(DISTINCT CASE WHEN ('.self::NEEDED_QTY_CASE_SQL.') > 0 THEN ops_job_items.vend_id END) as needed_vend_count
             ')
             ->get()
             ->keyBy('product_id');
+
+        // "Available in # of VM" — distinct live machines currently carrying each
+        // product on an active channel, plus how many of those still hold stock.
+        $vendCountData = $this->availableVendCounts($productIds);
 
         // 2. Calculate not_yet_sync_api_qty
         $notYetSyncData = OpsJobItemChannel::query()
@@ -444,6 +468,9 @@ class ProductController extends Controller
             // Map calculated values
             $product->needed_qty = $product->is_available ? ($neededData->get($product->id)?->needed_qty ?? 0) : 0;
             $product->needed_value = $product->is_available ? ($neededData->get($product->id)?->needed_value ?? 0) : 0;
+            $product->needed_vend_count = $product->is_available ? ($neededData->get($product->id)?->needed_vend_count ?? 0) : 0;
+            $product->available_vend_count = $vendCountData->get($product->id)?->vend_count ?? 0;
+            $product->available_vend_with_stock_count = $vendCountData->get($product->id)?->vend_with_stock_count ?? 0;
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $product->picked_value_on_date = $pickedValueData->get($product->id)?->value ?? 0;
 
@@ -480,6 +507,24 @@ class ProductController extends Controller
             $notYetSyncData->map(fn ($r) => $r->qty),
             'not_yet_sync_api_qty'
         );
+        // Blind flavours carry no vend_channels of their own — machines
+        // "carrying" or "needing" a flavour are the ones carrying/needing its
+        // housing(s). Mirror attributeToChildren's additive semantics: add the
+        // housings' machine counts on top of the flavour's own (usually 0), so
+        // a flavour row never shows "0 machines" beside the positive To-Pick
+        // qty it just inherited. A flavour under several housings sums them —
+        // a machine carrying both housings counts twice, accepted as rare.
+        foreach ($products as $product) {
+            if (! $product->relationLoaded('blindParentLinks') || $product->blindParentLinks->isEmpty()) {
+                continue;
+            }
+            $parentIds = $product->blindParentLinks->pluck('parent_product_id');
+            $product->available_vend_count += (int) $parentIds->sum(fn ($pid) => $vendCountData->get($pid)?->vend_count ?? 0);
+            $product->available_vend_with_stock_count += (int) $parentIds->sum(fn ($pid) => $vendCountData->get($pid)?->vend_with_stock_count ?? 0);
+            if ($product->is_available) {
+                $product->needed_vend_count += (int) $parentIds->sum(fn ($pid) => $neededData->get($pid)?->needed_vend_count ?? 0);
+            }
+        }
         // Re-derive Remaining for any flavour whose Picked just gained a blind share.
         foreach ($products as $product) {
             $product->net_available_qty_pcs_api = ($product->qty_available_pcs_api ?? 0) - ($product->not_yet_sync_api_qty ?? 0);
@@ -568,8 +613,11 @@ class ProductController extends Controller
             ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id,
-                COALESCE(SUM(CASE WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN CASE WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0) WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN product_limits.qty - COALESCE(vend_channels.qty, 0) ELSE 0 END ELSE COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0) END), 0) as needed_qty')
+                COALESCE(SUM('.self::NEEDED_QTY_CASE_SQL.'), 0) as needed_qty,
+                COUNT(DISTINCT CASE WHEN ('.self::NEEDED_QTY_CASE_SQL.') > 0 THEN ops_job_items.vend_id END) as needed_vend_count')
             ->get()->keyBy('product_id');
+
+        $vendCountData = $this->availableVendCounts($productIds);
 
         $notYetSyncData = OpsJobItemChannel::query()
             ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
@@ -594,6 +642,9 @@ class ProductController extends Controller
 
         foreach ($products as $product) {
             $product->needed_qty = $product->is_available ? ($neededData->get($product->id)?->needed_qty ?? 0) : 0;
+            $product->needed_vend_count = $product->is_available ? ($neededData->get($product->id)?->needed_vend_count ?? 0) : 0;
+            $product->available_vend_count = $vendCountData->get($product->id)?->vend_count ?? 0;
+            $product->available_vend_with_stock_count = $vendCountData->get($product->id)?->vend_with_stock_count ?? 0;
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $limit = $product->productLimits->first();
             $product->max_ops_job_pick_limit = $limit ? $limit->qty : null;

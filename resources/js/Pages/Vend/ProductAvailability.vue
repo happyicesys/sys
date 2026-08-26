@@ -125,8 +125,8 @@
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-100 sticky top-0 z-10">
                   <tr>
-                    <th colspan="7" class="bg-gray-100"></th>
-                    <th colspan="2" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
+                    <th colspan="8" class="bg-gray-100"></th>
+                    <th colspan="3" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
                       Planning
                     </th>
                   </tr>
@@ -150,7 +150,7 @@
                         </span>
                       </div>
                     </th>
-                    <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
+                    <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                       <div class="flex items-center justify-center gap-1">
                           <span>Daily Sold Qty</span>
                           <span v-if="filters.sortKey === 'avg_seven_days_count'">
@@ -163,6 +163,10 @@
                           </span>
                       </div>
                       <span class="font-normal text-gray-600">(average last 7days)</span>
+                    </th>
+                    <th scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
+                      Available in # of VM <br>
+                      <span class="font-normal text-gray-600">(machines carrying SKU, with stock)</span>
                     </th>
 
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
@@ -180,10 +184,14 @@
                       </div>
                       <span class="font-normal text-[10px] text-gray-600">(Qty in Warehouse, minus Picked Qty)</span>
                     </th>
-                    <th scope="col" class="th-header w-[15%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                    <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       To Pick Qty <br>
                       <!-- Live Update note similar to ProductMovement if desired, or just keep header simple -->
                       <span class="font-normal text-xs text-gray-600">(Live Update)</span>
+                    </th>
+                    <th scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                      Needed by # of VM <br>
+                      <span class="font-normal text-xs text-gray-600">(machines with To Pick Qty)</span>
                     </th>
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Capped Qty per Channel <br>
@@ -250,8 +258,15 @@
                         </div>
                       </div>
                     </td>
-                    <td class="p-1 sm:p-3 text-center text-xs sm:text-sm font-medium border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                    <td class="p-1 sm:p-3 text-center text-xs sm:text-sm font-medium" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
                       {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                    </td>
+                    <!-- Available in # of VM: live machines carrying the SKU (+ how many still hold stock) -->
+                    <td class="p-1 sm:p-3 text-center border-r border-gray-300" :class="[product.is_available ? '' : 'opacity-50']">
+                      <span class="text-sm sm:text-lg font-bold text-gray-800">{{ Number(product.available_vend_count ?? 0).toLocaleString() }}</span>
+                      <div v-if="product.available_vend_count > 0" class="text-[10px] text-gray-500">
+                        {{ Number(product.available_vend_with_stock_count ?? 0).toLocaleString() }} with stock
+                      </div>
                     </td>
 
                     <!-- Qty in Warehouse (Blue). Manual-ledger products (CityBox SKUs) show the mark1 ledger figure instead of CMS. -->
@@ -276,6 +291,10 @@
                     <!-- Needed Qty (Orange) -->
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
                       {{ Number(product.needed_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                    </td>
+                    <!-- Needed by # of VM: machines with a positive To-Pick contribution on the planning date -->
+                    <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
+                      {{ Number(product.needed_vend_count ?? 0).toLocaleString() }}
                     </td>
                     <!-- Capped Qty / Limit (Select Input) -->
                     <td class="p-1 sm:p-3 text-center">
@@ -306,13 +325,15 @@
                         <span class="text-gray-900">Stock Value</span>
                       </div>
                     </td>
-                    <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
+                    <td class="p-1 sm:p-3 text-center text-gray-900">
                         <div class="flex flex-col space-y-1">
                             <span>{{ getDailySoldQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                             <span>{{ operatorCountry.currency_symbol }}{{ getDailySoldQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                             <span>&nbsp;</span>
                         </div>
                     </td>
+                    <!-- Available in # of VM: no total — the same machine carries many SKUs -->
+                    <td class="border-r border-gray-300"></td>
                     <td class="p-1 sm:p-3 text-center text-blue-600">
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductAvailablePcsApiTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
@@ -341,6 +362,8 @@
                         <span class="text-orange-600 font-bold capitalize">{{ operatorCountry.currency_symbol }}{{ getProductNeededValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
+                    <!-- Needed by # of VM: no total — the same machine needs many SKUs -->
+                    <td></td>
                     <td></td>
                   </tr>
                 </tfoot>

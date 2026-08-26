@@ -137,6 +137,43 @@ class WarehouseQtySourceTest extends TestCase
                     && collect($rows)->firstWhere('code', '89925')['warehouse_qty_source'] === 'ledger'));
     }
 
+    public function test_availability_page_counts_machines_carrying_and_needing_each_product(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => 'https://cms.test']);
+        \Illuminate\Support\Facades\Http::fake(['cms.test/*' => \Illuminate\Support\Facades\Http::response([['code' => 'VM2', 'qty' => 40]])]);
+
+        $p = Product::create(['code' => 'VM2', 'name' => 'Cornetto', 'operator_id' => $u->operator_id, 'is_available' => 1]);
+
+        // Carrying: A (stock), B (sold out), E (full). Excluded: C disposed, D inactive channel.
+        $mkVend = fn (int $code, array $extra = []) => \App\Models\Vend::create(array_merge(['code' => $code, 'machine_type' => 'vending_machine', 'is_active' => 1], $extra));
+        $mkChannel = fn ($vend, int $qty, int $capacity, int $active = 1) => \App\Models\VendChannel::create(['vend_id' => $vend->id, 'code' => 11, 'qty' => $qty, 'capacity' => $capacity, 'amount' => 200, 'product_id' => $p->id, 'is_active' => $active, 'error_rate_json' => []]);
+        $chA = $mkChannel($mkVend(9811), 3, 10);
+        $chB = $mkChannel($mkVend(9812), 0, 10);
+        $chE = $mkChannel($mkVend(9813), 5, 5);
+        $mkChannel($mkVend(9814, ['is_disposed' => 1]), 4, 10);
+        $mkChannel($mkVend(9815), 4, 10, 0);
+
+        // Planning (default date = tomorrow): refill jobs on A and B need stock
+        // (capacity > qty); E's channel is full, so its contribution is 0.
+        $job = OpsJob::create(['date' => \Carbon\Carbon::tomorrow()->toDateString(), 'status' => 1, 'code' => 900101]);
+        foreach ([$chA, $chB, $chE] as $ch) {
+            $item = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $ch->vend_id, 'customer_id' => 1, 'status' => 0]);
+            OpsJobItemChannel::create(['ops_job_id' => $job->id, 'ops_job_item_id' => $item->id, 'vend_channel_id' => $ch->id, 'product_id' => $p->id, 'picked_qty' => 0, 'qty' => 0, 'capacity' => $ch->capacity, 'vend_channel_code' => 11, 'vend_code' => $ch->vend->code]);
+        }
+
+        $this->actingAs($u)->get('/products/availability?operators[]=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Vend/ProductAvailability')
+                ->where('products.data', function ($rows) {
+                    $row = collect($rows)->firstWhere('code', 'VM2');
+
+                    return $row['available_vend_count'] === 3          // A, B, E
+                        && $row['available_vend_with_stock_count'] === 2 // A, E
+                        && $row['needed_vend_count'] === 2;              // A, B (E is full)
+                }));
+    }
+
     public function test_movements_page_lists_only_self_system_products_when_cms_is_connected(): void
     {
         $u = $this->plannerUser();

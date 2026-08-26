@@ -86,6 +86,13 @@ class ProductResource extends JsonResource
             'limit_is_created_by_system' => isset($this->limit_is_created_by_system) ? $this->limit_is_created_by_system : null,
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,
             'needed_value' => isset($this->needed_value) ? $this->needed_value / 100 : 0,
+            // Warehouse Qty page: machine counts. "Available in # of VM" =
+            // live machines carrying the SKU on an active channel (+ how many
+            // still hold stock); "Needed by # of VM" = machines with a positive
+            // To-Pick contribution on the planning date.
+            'available_vend_count' => isset($this->available_vend_count) ? $this->available_vend_count : null,
+            'available_vend_with_stock_count' => isset($this->available_vend_with_stock_count) ? $this->available_vend_with_stock_count : null,
+            'needed_vend_count' => isset($this->needed_vend_count) ? $this->needed_vend_count : null,
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
             'productLimits' => ProductLimitResource::collection($this->whenLoaded('productLimits')),
             'productUoms' => ProductUomResource::collection($this->whenLoaded('productUoms')),
