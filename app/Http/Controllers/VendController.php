@@ -771,14 +771,7 @@ class VendController extends Controller
                 // can SELECT card_terminals.name AS card_terminal_name and expose
                 // it on the Customer Index "Card Terminal" badge / filter without
                 // an N+1 lazy load.
-                ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id')
-                // SIM card package (Data Management > SimCard Package, i.e. the
-                // telcos table) reached through the machine's bound SIM card.
-                // Joined so we can SELECT telcos.name AS telco_name for the
-                // "SimCard Package" badge in the Machine Status column without
-                // an N+1 lazy load. Both hops are PK joins, so no row fan-out.
-                ->leftJoin('simcards', 'simcards.id', '=', 'vends.simcard_id')
-                ->leftJoin('telcos', 'telcos.id', '=', 'simcards.telco_id');
+                ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
 
             // ── Grouped "travel together" (Operation Dashboard) ─────────────────
             // When the "Grouped?" toggle is on, a co-located cluster must appear as
@@ -1212,10 +1205,20 @@ class VendController extends Controller
                 'vends.card_terminal_id',
                 'card_terminals.name AS card_terminal_name',
                 // SimCard package — drives the "SimCard Package" badge in the
-                // Machine Status column and the matching hidden filter.
+                // Machine Status column.
+                //
+                // A correlated subquery, NOT the two leftJoins this started as.
+                // This SELECT already spans twelve tables and the server runs
+                // optimizer_search_depth 62, so adding simcards + telcos to the
+                // join made the planner cost a 14-table permutation on every
+                // request — for one label. Two PK lookups per RETURNED row is
+                // strictly cheaper, and the badge is the only consumer (the
+                // "SimCard Package" filter narrows via a subquery on
+                // vends.simcard_id in HasFilter, not through this column).
                 'vends.simcard_id',
-                'simcards.telco_id AS telco_id',
-                'telcos.name AS telco_name',
+                DB::raw('(SELECT t.name FROM simcards s
+                    JOIN telcos t ON t.id = s.telco_id
+                    WHERE s.id = vends.simcard_id) AS telco_name'),
             ];
 
             if ($needsVc) {
