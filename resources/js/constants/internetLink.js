@@ -6,7 +6,7 @@
 // internet_signal / internet_signal_max / internet_updated_at.
 //
 // Shared by Vend/CustomerIndex.vue (the Error column's "SIM Card" block) and
-// Simcard/Index.vue (the "SimCard Telco" column), so both surfaces name the
+// Simcard/Index.vue (the "Signal Strength" column), so both surfaces name the
 // carrier and color the signal identically.
 
 /**
