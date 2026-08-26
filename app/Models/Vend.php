@@ -576,11 +576,22 @@ class Vend extends Model
      * its package/deviceType, so treat this as "possibly small board", not
      * proof.
      */
+    public const SMALL_BOARD_VERSION_CEILING = 140;
+
     public function maybeSmallBoardStream(): bool
     {
-        $version = $this->reportedApkVersion();
+        return self::versionMaybeSmallBoardStream($this->reportedApkVersion());
+    }
 
-        return $version > 0 && $version < 140;
+    /**
+     * The same heuristic on a bare version number, for the static predicates
+     * that are handed a reported version rather than a model
+     * (VendTransactionService::isCardTerminalReversal). Keeping the ceiling in
+     * one place is the point — two copies of "< 140" would drift.
+     */
+    public static function versionMaybeSmallBoardStream(?int $reportedApkVersion): bool
+    {
+        return $reportedApkVersion > 0 && $reportedApkVersion < self::SMALL_BOARD_VERSION_CEILING;
     }
 
     /**

@@ -145,8 +145,16 @@ been returned, and always together with `auto_refund_source`
   single, error ∉ {0,6}), which arrives in TWO frame shapes: VMC-keypad frames
   (TXN_SRC 0) additionally require `ISOK=0` as a veto, while Android-built
   soft-keyboard frames (TXN_SRC ≥ 1) hard-code `ISOK=1` (error in
-  `transf_info[0].SErr`) — there err 7 counts only when the machine reports
-  APK v303+ (`Vend::reportedApkVersion()`; below that, v301 can retain the
+  `transf_info[0].SErr`). Cutting across both shapes: v303+ frames carry
+  `CSHL_ARMED_MS` (arm→approval ms) and < 5000 (`CARD_APPROVAL_SUSPECT_MS`)
+  vetoes outright — approval served from retained credit, no fresh auth to
+  reverse. A well-formed value is also per-trade proof of the fixed build for
+  the err-7 gate, but ONLY off the small-board versionCode stream
+  (`Vend::versionMaybeSmallBoardStream`): `mark1-apk-small` shares the codebase
+  and applicationId, so if that plumbing is ever ported there the key must not
+  silently unlock err 7 for boards whose own retained-credit fix is unverified.
+  Frames without the key keep the machine-level APK v303+ requirement
+  (`Vend::reportedApkVersion()`; below that, v301 can retain the
   credit for a free re-vend instead of reversing, so the gate widens
   machine-by-machine as the OTA lands; the backfill excludes err 7 outright
   since trade-time versions are unknowable). `VendTransactionService::isCardTerminalReversal` marks it

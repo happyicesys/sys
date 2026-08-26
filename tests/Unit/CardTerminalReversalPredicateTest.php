@@ -102,6 +102,80 @@ class CardTerminalReversalPredicateTest extends TestCase
         $this->assertTrue(VendTransactionService::isCardTerminalReversal($this->trade(), 'Nets'));
     }
 
+    public function test_cshl_armed_ms_is_per_trade_proof_of_the_fixed_build(): void
+    {
+        // v303 APKs stamp CSHL_ARMED_MS on every Android-built card TRADE. Its
+        // presence proves THIS frame came from the 0x21-ownership-fix build, so
+        // err 7 qualifies even when Vend::reportedApkVersion is stale or null.
+        $input = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 7],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => 28450, 'transf_info' => [['SId' => 42, 'SErr' => 7]]]
+        );
+        $this->assertTrue(VendTransactionService::isCardTerminalReversal($input, 'Nets'));
+        $this->assertTrue(VendTransactionService::isCardTerminalReversal($input, 'Nets', 301));
+
+        // A malformed value is treated as absent — fall back to the version gate.
+        $junk = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 7],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => 'abc', 'transf_info' => [['SId' => 42, 'SErr' => 7]]]
+        );
+        $this->assertFalse(VendTransactionService::isCardTerminalReversal($junk, 'Nets'));
+        $this->assertTrue(VendTransactionService::isCardTerminalReversal($junk, 'Nets', 303));
+    }
+
+    public function test_cshl_armed_ms_is_not_proof_on_the_small_board_stream(): void
+    {
+        // mark1-apk-small shares this codebase and the com.venderroute
+        // applicationId. If the CSHL_ARMED_MS plumbing is ever ported there,
+        // the key alone must NOT unlock the err-7 auto-refund: the small board's
+        // own retained-credit fix has not been field-verified, and its 13x
+        // stream can never satisfy the v303+ gate that keeps it excluded.
+        $input = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 7],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => 28450, 'transf_info' => [['SId' => 42, 'SErr' => 7]]]
+        );
+
+        $this->assertFalse(VendTransactionService::isCardTerminalReversal($input, 'Nets', 134));
+        $this->assertFalse(VendTransactionService::isCardTerminalReversal($input, 'Nets', 139));
+
+        // 140 is the ceiling: at and above it the version no longer reads as
+        // the small-board stream, so the per-trade proof stands again.
+        $this->assertTrue(VendTransactionService::isCardTerminalReversal($input, 'Nets', 140));
+
+        // The retained-credit veto is unconditional — small board or not.
+        $suspect = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 4, 'dispensed_qty' => 0],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => 900, 'transf_info' => [['SId' => 42, 'SErr' => 4]]]
+        );
+        $this->assertFalse(VendTransactionService::isCardTerminalReversal($suspect, 'Nets', 134));
+    }
+
+    public function test_suspect_retained_credit_approval_vetoes_the_reversal_claim(): void
+    {
+        // An approval < 5s after arming means the VMC served credit retained
+        // from an earlier failed vend (SUSPECT_RETAINED_CREDIT) — no fresh card
+        // auth happened for this trade, so a failed dispense has nothing for
+        // the reader to reverse. Applies to every error code, and even on v303.
+        $err7 = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 7],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => 1200, 'transf_info' => [['SId' => 11, 'SErr' => 7]]]
+        );
+        $this->assertFalse(VendTransactionService::isCardTerminalReversal($err7, 'Nets', 303));
+
+        $err4 = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 4, 'dispensed_qty' => 0],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => 900, 'transf_info' => [['SId' => 42, 'SErr' => 4]]]
+        );
+        $this->assertFalse(VendTransactionService::isCardTerminalReversal($err4, 'Nets', 303));
+
+        // At/above the threshold the same frames qualify as genuine reversals.
+        $err4Genuine = $this->trade(
+            ['interfaceType' => 1, 'errorCode' => 4, 'dispensed_qty' => 0],
+            ['ISOK' => 1, 'TXN_SRC' => 1, 'CSHL_ARMED_MS' => VendTransactionService::CARD_APPROVAL_SUSPECT_MS, 'transf_info' => [['SId' => 42, 'SErr' => 4]]]
+        );
+        $this->assertTrue(VendTransactionService::isCardTerminalReversal($err4Genuine, 'Nets'));
+    }
+
     public function test_only_card_payments_qualify(): void
     {
         $this->assertFalse(VendTransactionService::isCardTerminalReversal($this->trade(['paymentClassification' => 'cash']), 'Nets'));
