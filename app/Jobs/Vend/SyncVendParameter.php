@@ -178,16 +178,16 @@ class SyncVendParameter implements ShouldQueue
     /**
      * Promote the APK's cumulative data-usage counters (APK v303+):
      *
-     *   "DataMB":1843,"DataMobileMB":1790,"DataAppMB":211,"DataDays":38
+     *   "DataKB":1843201,"DataMobileKB":1790854,"DataAppKB":211077,"DataDays":38
      *
-     * CUMULATIVE lifetime decimal MB since the ledger's epoch — usage over a
+     * CUMULATIVE lifetime decimal KB since the ledger's epoch — usage over a
      * window comes from diffing the daily vend_data_usage_snapshots rows, not
      * from these columns. Unlike the link fields these are DEVICE-scoped, so a
      * Source change never wipes them; and a value LOWER than the stored one is
      * accepted as-is, because it means the ledger reset (APK reinstall / prefs
      * wipe) and the new number is the truth.
      *
-     * DataMB is the one required member: the APK's ledger emits the total
+     * DataKB is the one required member: the APK's ledger emits the total
      * channel whenever it emits anything, so an object carrying only the
      * optional members is malformed and skipped whole.
      */
@@ -197,24 +197,24 @@ class SyncVendParameter implements ShouldQueue
             return;
         }
 
-        // 8 digits of MB (~95 TB) matches the APK-side DATA_MAX_MB cap.
-        $totalMb = $this->boundedInt($net['DataMB'] ?? null, 0, 99_999_999);
-        if ($totalMb === null) {
+        // 11 digits of KB (~100 TB) matches the APK-side DATA_MAX_KB cap.
+        $totalKb = $this->boundedInt($net['DataKB'] ?? null, 0, 99_999_999_999);
+        if ($totalKb === null) {
             return;
         }
 
-        $vend->internet_data_mb = $totalMb;
+        $vend->internet_data_kb = $totalKb;
 
         // Optional members keep their previous value when omitted (a channel
         // the ROM reports UNSUPPORTED simply never arrives), same rule as the
         // link fields.
-        $mobileMb = $this->boundedInt($net['DataMobileMB'] ?? null, 0, 99_999_999);
-        if ($mobileMb !== null) {
-            $vend->internet_data_mobile_mb = $mobileMb;
+        $mobileKb = $this->boundedInt($net['DataMobileKB'] ?? null, 0, 99_999_999_999);
+        if ($mobileKb !== null) {
+            $vend->internet_data_mobile_kb = $mobileKb;
         }
-        $appMb = $this->boundedInt($net['DataAppMB'] ?? null, 0, 99_999_999);
-        if ($appMb !== null) {
-            $vend->internet_data_app_mb = $appMb;
+        $appKb = $this->boundedInt($net['DataAppKB'] ?? null, 0, 99_999_999_999);
+        if ($appKb !== null) {
+            $vend->internet_data_app_kb = $appKb;
         }
         $days = $this->boundedInt($net['DataDays'] ?? null, 0, 9_999);
         if ($days !== null) {
@@ -229,7 +229,7 @@ class SyncVendParameter implements ShouldQueue
     {
         if (self::$dataColumnsExist === null) {
             try {
-                self::$dataColumnsExist = Schema::hasColumn('vends', 'internet_data_mb');
+                self::$dataColumnsExist = Schema::hasColumn('vends', 'internet_data_kb');
             } catch (\Throwable $e) {
                 self::$dataColumnsExist = false;
             }

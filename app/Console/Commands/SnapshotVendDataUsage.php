@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
  * SyncVendParameter) into vend_data_usage_snapshots, one row per machine per
  * day.
  *
- * The APK reports lifetime cumulative MB, so this daily copy is what turns the
+ * The APK reports lifetime cumulative decimal KB, so this daily copy is what turns the
  * counters into per-window figures: last-30-days for a machine is today's row
  * minus the newest row at least 30 days old. Runs at 23:55 so a row reads as
  * "the cumulative total at the END of captured_on".
@@ -36,16 +36,16 @@ class SnapshotVendDataUsage extends Command
         // viewer, and the operator global scopes must not decide which
         // machines get metered.
         $rows = DB::table('vends')
-            ->whereNotNull('internet_data_mb')
-            ->get(['id', 'code', 'internet_data_mb', 'internet_data_mobile_mb',
-                'internet_data_app_mb', 'internet_data_days'])
+            ->whereNotNull('internet_data_kb')
+            ->get(['id', 'code', 'internet_data_kb', 'internet_data_mobile_kb',
+                'internet_data_app_kb', 'internet_data_days'])
             ->map(fn ($vend) => [
                 'vend_id' => $vend->id,
                 'vend_code' => is_numeric($vend->code) ? (int) $vend->code : null,
                 'captured_on' => $now->toDateString(),
-                'total_mb' => $vend->internet_data_mb,
-                'mobile_mb' => $vend->internet_data_mobile_mb,
-                'app_mb' => $vend->internet_data_app_mb,
+                'total_kb' => $vend->internet_data_kb,
+                'mobile_kb' => $vend->internet_data_mobile_kb,
+                'app_kb' => $vend->internet_data_app_kb,
                 'ledger_days' => $vend->internet_data_days,
                 'created_at' => $now,
             ])
@@ -55,7 +55,7 @@ class SnapshotVendDataUsage extends Command
             DB::table('vend_data_usage_snapshots')->upsert(
                 $chunk,
                 ['vend_id', 'captured_on'],
-                ['vend_code', 'total_mb', 'mobile_mb', 'app_mb', 'ledger_days', 'created_at'],
+                ['vend_code', 'total_kb', 'mobile_kb', 'app_kb', 'ledger_days', 'created_at'],
             );
         }
 

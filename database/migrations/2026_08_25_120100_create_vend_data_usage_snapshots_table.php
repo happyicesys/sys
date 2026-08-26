@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Schema;
  * Daily copy of each machine's cumulative data-usage counters
  * (vends.internet_data_*), taken by `vend:snapshot-data-usage` at 23:55.
  *
+ * SUPERSEDED by 2026_08_26_160000_rename_vend_data_usage_columns_to_kb: the
+ * unit is now decimal KB and the columns are total_kb / mobile_kb / app_kb.
+ * This file is left as it ran (batch 437) — do NOT edit it to "fix" the unit.
+ *
  * The APK deliberately reports CUMULATIVE lifetime MB, not a windowed figure —
  * so any window is a diff of two rows here: last 30 days for a machine is
  * (today's total_mb - the total_mb of the newest row >= 30 days old). A

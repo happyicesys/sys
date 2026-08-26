@@ -7,6 +7,12 @@ use Illuminate\Support\Facades\Schema;
 /**
  * vends: cumulative data-usage counters reported by the machine's APK.
  *
+ * SUPERSEDED by 2026_08_26_160000_rename_vend_data_usage_columns_to_kb: the
+ * unit is now decimal KB and the columns are internet_data_kb / _mobile_kb /
+ * _app_kb. This file is left as it ran (batch 437) — read the rename migration
+ * for the current names, units and wire keys. Do NOT edit this one to "fix"
+ * the unit: it has already run everywhere and would never re-run.
+ *
  * From APK v303 (mark1-apk) the VENDER packet's "Internet" object carries the
  * DataUsageLedger's readings — lifetime decimal MB, monotonic across reboots:
  *
