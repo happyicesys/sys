@@ -295,6 +295,21 @@ class ProductController extends Controller
             ->push($product->id)
             ->unique()->values()->all();
 
+        // "Last Job": the most recent job that actually visited the machine.
+        // Same FILTER as Vend::lastOpsJobItem — delivered or beyond, not
+        // cancelled, not dated in the future — but the tiebreak differs: that
+        // relation orders by created_at (latest()) and reads its job's date,
+        // while this takes MAX(ops_jobs.date) outright. The two disagree only
+        // when a job carrying an EARLIER date was created after a later-dated
+        // one (a backdated entry), where this column shows the later date.
+        $lastJobSql = '(select max(ops_jobs.date)
+            from ops_job_items
+            join ops_jobs on ops_jobs.id = ops_job_items.ops_job_id
+            where ops_job_items.vend_id = vends.id
+              and ops_job_items.status >= ?
+              and ops_job_items.status <> ?
+              and ops_jobs.date <= ?)';
+
         $rows = $this->deployedVendChannelQuery($productIds)
             ->join('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
@@ -303,19 +318,32 @@ class ProductController extends Controller
             ->selectRaw('vends.id as vend_id, vends.code as vend_code,
                 customers.id as customer_id, customers.name as customer_name,
                 zones.name as zone_name,
-                COALESCE(SUM(vend_channels.qty), 0) as total_qty')
+                COALESCE(SUM(vend_channels.qty), 0) as total_qty,
+                '.$lastJobSql.' as last_job_date', [
+                OpsJob::STATUS_DELIVERED,
+                OpsJob::STATUS_CANCELLED,
+                Carbon::today()->endOfDay()->toDateTimeString(),
+            ])
             ->orderByRaw('zones.name IS NULL, zones.name, customers.name')
             ->get();
 
+        $today = Carbon::today();
+
         return response()->json([
-            'vends' => $rows->map(fn ($r) => [
-                'vend_id' => $r->vend_id,
-                'vend_code' => $r->vend_code,
-                'site_ref_id' => $r->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT,
-                'site_name' => $r->customer_name,
-                'zone_name' => $r->zone_name,
-                'qty' => (int) $r->total_qty,
-            ])->values(),
+            'vends' => $rows->map(function ($r) use ($today) {
+                $lastJobDate = $r->last_job_date ? Carbon::parse($r->last_job_date)->startOfDay() : null;
+
+                return [
+                    'vend_id' => $r->vend_id,
+                    'vend_code' => $r->vend_code,
+                    'site_ref_id' => $r->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT,
+                    'site_name' => $r->customer_name,
+                    'zone_name' => $r->zone_name,
+                    'qty' => (int) $r->total_qty,
+                    'last_job_date' => $lastJobDate?->toDateString(),
+                    'last_job_days_ago' => $lastJobDate ? (int) $lastJobDate->diffInDays($today) : null,
+                ];
+            })->values(),
         ]);
     }
 

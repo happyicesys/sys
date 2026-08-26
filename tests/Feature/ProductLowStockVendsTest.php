@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Operator;
+use App\Models\OpsJob;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\User;
@@ -91,6 +92,40 @@ class ProductLowStockVendsTest extends TestCase
         $this->assertNull($bravo['zone_name']);
     }
 
+    public function test_reports_the_last_completed_job_date_and_its_age(): void
+    {
+        $product = Product::create(['code' => 'LS3', 'name' => 'Aged Bar']);
+
+        $refilled = $this->makeVend($this->hipl, 9201, 'Refilled Site', null);
+        $this->makeChannel($refilled, 11, $product->id, 1);
+        // Delivered 5 days ago is the answer; the older delivered job loses,
+        // the cancelled one and the job dated tomorrow do not count at all.
+        $this->makeJobItem($refilled, now()->subDays(5), OpsJob::STATUS_DELIVERED);
+        $this->makeJobItem($refilled, now()->subDays(20), OpsJob::STATUS_VERIFIED);
+        $this->makeJobItem($refilled, now()->subDay(), OpsJob::STATUS_CANCELLED);
+        $this->makeJobItem($refilled, now()->addDay(), OpsJob::STATUS_DELIVERED);
+        // Only ever had a job that never got delivered -> no last job.
+        $pending = $this->makeVend($this->hipl, 9202, 'Pending Site', null);
+        $this->makeChannel($pending, 11, $product->id, 0);
+        $this->makeJobItem($pending, now()->subDays(3), OpsJob::STATUS_PICKED);
+
+        $user = User::factory()->create(['operator_id' => $this->hipl->id]);
+        $user->givePermissionTo('read products');
+
+        $vends = collect($this->actingAs($user)
+            ->getJson("/products/availability/low-stock-vends/{$product->id}")
+            ->assertOk()
+            ->json('vends'));
+
+        $refilledRow = $vends->firstWhere('vend_code', 9201);
+        $this->assertSame(now()->subDays(5)->toDateString(), $refilledRow['last_job_date']);
+        $this->assertSame(5, $refilledRow['last_job_days_ago']);
+
+        $pendingRow = $vends->firstWhere('vend_code', 9202);
+        $this->assertNull($pendingRow['last_job_date']);
+        $this->assertNull($pendingRow['last_job_days_ago']);
+    }
+
     public function test_viewer_operator_boundary_is_applied(): void
     {
         // Owned by the restricted operator, so the product global scope lets
@@ -135,6 +170,29 @@ class ProductLowStockVendsTest extends TestCase
             'is_active' => 1,
             'is_disposed' => 0,
             'is_testing' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function makeJobItem(int $vendId, \Illuminate\Support\Carbon $date, string $status): void
+    {
+        $opsJobId = DB::table('ops_jobs')->insertGetId([
+            'code' => random_int(1, 999999999),
+            'created_by' => 1,
+            'date' => $date,
+            'operator_id' => $this->hipl->id,
+            'status' => $status,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('ops_job_items')->insert([
+            'customer_id' => DB::table('vends')->where('id', $vendId)->value('customer_id'),
+            'ops_job_id' => $opsJobId,
+            'status' => $status,
+            'updated_by' => 1,
+            'vend_id' => $vendId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

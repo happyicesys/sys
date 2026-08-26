@@ -261,7 +261,7 @@
                     <!-- Available in # of VM: live machines carrying the SKU (+ how many still hold stock) -->
                     <td class="p-1 sm:p-3 text-center" :class="[product.is_available ? '' : 'opacity-50']">
                       <span class="text-sm sm:text-lg font-bold text-gray-800">{{ Number(product.available_vend_count ?? 0).toLocaleString() }}</span>
-                      <div v-if="product.available_vend_count > 0" class="text-[10px] text-gray-500">
+                      <div v-if="product.available_vend_count > 0" class="text-xs text-gray-500">
                         {{ Number(product.available_vend_with_stock_count ?? 0).toLocaleString() }} with stock
                       </div>
                       <!-- Low stock: machines whose total qty of this SKU is <= 2 (incl. empty). Click for the machine list. -->
@@ -269,14 +269,14 @@
                         <button
                           v-if="Number(product.available_vend_low_stock_count ?? 0) > 0"
                           type="button"
-                          class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 shadow-sm transition-colors hover:bg-red-100 hover:ring-red-300"
+                          class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2.5 py-1 text-xs sm:text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 shadow-sm transition-colors hover:bg-red-100 hover:ring-red-300"
                           v-tooltip="{ content: 'Machines whose total stock of this SKU is 2 or less (empty included). Click for the machine list with refilling routes.' }"
                           @click.prevent="onLowStockClicked(product)"
                         >
-                          <ExclamationTriangleIcon class="h-3 w-3 text-red-500" aria-hidden="true" />
+                          <ExclamationTriangleIcon class="h-4 w-4 text-red-500" aria-hidden="true" />
                           {{ Number(product.available_vend_low_stock_count).toLocaleString() }} at &le;2
                         </button>
-                        <span v-else class="inline-flex items-center whitespace-nowrap rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-gray-400 ring-1 ring-inset ring-gray-200">
+                        <span v-else class="inline-flex items-center whitespace-nowrap rounded-full bg-gray-50 px-2.5 py-1 text-xs sm:text-sm text-gray-400 ring-1 ring-inset ring-gray-200">
                           0 at &le;2
                         </span>
                       </div>
@@ -411,15 +411,28 @@
           <table class="min-w-full divide-y divide-gray-300">
             <thead class="bg-gray-100 sticky top-0">
               <tr>
-                <th class="p-2 text-left text-xs font-semibold text-gray-900">#</th>
-                <th class="p-2 text-left text-xs font-semibold text-gray-900">Machine</th>
-                <th class="p-2 text-left text-xs font-semibold text-gray-900">Site</th>
-                <th class="p-2 text-center text-xs font-semibold text-gray-900">Stock Left</th>
-                <th class="p-2 text-right text-xs font-semibold text-gray-900">Refilling Route</th>
+                <th
+                  v-for="column in lowStockColumns"
+                  :key="column.key"
+                  :class="['p-2 text-xs font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-200', column.align]"
+                  @click="sortLowStock(column.key)"
+                >
+                  <div :class="['flex items-center gap-1', column.justify]">
+                    <span>{{ column.label }}</span>
+                    <span v-if="lowStockSortKey === column.key">
+                      <svg v-if="lowStockSortAsc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white">
-              <tr v-for="(vend, vendIndex) in lowStockVends" :key="vend.vend_id" class="hover:bg-gray-50">
+              <tr v-for="(vend, vendIndex) in sortedLowStockVends" :key="vend.vend_id" class="hover:bg-gray-50">
                 <td class="p-2 text-xs text-gray-500">{{ vendIndex + 1 }}</td>
                 <td class="p-2 text-xs font-bold text-gray-900 whitespace-nowrap">{{ vend.vend_code }}</td>
                 <td class="p-2 text-xs text-gray-800">
@@ -428,6 +441,13 @@
                 </td>
                 <td class="p-2 text-center text-xs font-bold" :class="vend.qty === 0 ? 'text-red-600' : 'text-orange-600'">
                   {{ vend.qty }}
+                </td>
+                <td class="p-2 text-left text-xs whitespace-nowrap">
+                  <template v-if="vend.last_job_date">
+                    <span class="text-gray-800">{{ moment(vend.last_job_date).format('YYYY-MM-DD') }}</span>
+                    <span class="text-gray-500"> ({{ vend.last_job_days_ago }}d ago)</span>
+                  </template>
+                  <span v-else class="text-gray-400">never</span>
                 </td>
                 <td class="p-2 text-right text-xs whitespace-nowrap">
                   <span v-if="vend.zone_name" class="inline-block rounded bg-sky-100 px-1.5 py-0.5 font-semibold text-sky-800">
@@ -622,9 +642,76 @@ const lowStockLoading = ref(false)
 const lowStockProduct = ref(null)
 const lowStockVends = ref([])
 
+// The modal's columns, all click-to-sort. '#' is the server order (refilling
+// route, then site) — clicking it puts the list back the way it arrived.
+const lowStockColumns = [
+  { key: 'index', label: '#', align: 'text-left', justify: 'justify-start' },
+  { key: 'vend_code', label: 'Machine', align: 'text-left', justify: 'justify-start' },
+  { key: 'site_name', label: 'Site', align: 'text-left', justify: 'justify-start' },
+  { key: 'qty', label: 'Stock Left', align: 'text-center', justify: 'justify-center' },
+  { key: 'last_job_date', label: 'Last Job', align: 'text-left', justify: 'justify-start' },
+  { key: 'zone_name', label: 'Refilling Route', align: 'text-right', justify: 'justify-end' },
+]
+const lowStockSortKey = ref('index')
+const lowStockSortAsc = ref(true)
+
+function sortLowStock(key) {
+  if (lowStockSortKey.value === key) {
+    lowStockSortAsc.value = !lowStockSortAsc.value
+  } else {
+    lowStockSortKey.value = key
+    lowStockSortAsc.value = true
+  }
+}
+
+function compareLowStock(a, b, key) {
+  if (key === 'qty') {
+    return a.qty - b.qty
+  }
+  if (key === 'vend_code') {
+    // Machine codes are numeric strings — 2601 must not sort after 999.
+    return String(a.vend_code).localeCompare(String(b.vend_code), undefined, { numeric: true })
+  }
+  if (key === 'last_job_date') {
+    // Never refilled is the extreme case ops looks for, so it counts as the
+    // oldest possible date and leads the ascending (longest-unvisited) sort.
+    if (!a.last_job_date && !b.last_job_date) return 0
+    if (!a.last_job_date) return -1
+    if (!b.last_job_date) return 1
+
+    return a.last_job_date.localeCompare(b.last_job_date)
+  }
+  if (key === 'zone_name') {
+    // Unrouted machines last ascending, matching the server's default order.
+    if (!a.zone_name && !b.zone_name) return 0
+    if (!a.zone_name) return 1
+    if (!b.zone_name) return -1
+
+    return a.zone_name.localeCompare(b.zone_name)
+  }
+
+  return String(a[key] ?? '').localeCompare(String(b[key] ?? ''))
+}
+
+const sortedLowStockVends = computed(() => {
+  const key = lowStockSortKey.value
+  const dir = lowStockSortAsc.value ? 1 : -1
+  const rows = lowStockVends.value.map((vend, index) => ({ vend, index }))
+
+  return rows.sort((a, b) => {
+    if (key === 'index') return (a.index - b.index) * dir
+    const cmp = compareLowStock(a.vend, b.vend, key)
+
+    // Ties keep the arrival order, so equal rows never reshuffle on re-sort.
+    return cmp !== 0 ? cmp * dir : a.index - b.index
+  }).map(row => row.vend)
+})
+
 function onLowStockClicked(product) {
   lowStockProduct.value = product
   lowStockVends.value = []
+  lowStockSortKey.value = 'index'
+  lowStockSortAsc.value = true
   lowStockModalOpen.value = true
   lowStockLoading.value = true
   axios.get('/products/availability/low-stock-vends/' + product.id)
