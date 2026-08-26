@@ -5372,69 +5372,69 @@
       "_MultiSelect.vue_vue_type_style_index_0_lang.f6249b7c.js"
     ]
   },
-  "resources/js/Pages/ProductMapping/Table.css": {
-    "file": "assets/Table.e3b0c442.css",
-    "src": "resources/js/Pages/ProductMapping/Table.css"
-  },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.b7da5231.css",
-    "src": "resources/js/Pages/Welcome.css"
-  },
   "DropzoneFileInput.css": {
     "file": "assets/DropzoneFileInput.5033d0bf.css",
     "src": "DropzoneFileInput.css"
-  },
-  "resources/js/Pages/Customer/Summary.css": {
-    "file": "assets/Summary.558dcc44.css",
-    "src": "resources/js/Pages/Customer/Summary.css"
   },
   "resources/js/Pages/Vend/CustomerIndex.css": {
     "file": "assets/CustomerIndex.743e67ae.css",
     "src": "resources/js/Pages/Vend/CustomerIndex.css"
   },
-  "resources/js/Pages/Vend/Index.css": {
-    "file": "assets/Index.cb32b0f1.css",
-    "src": "resources/js/Pages/Vend/Index.css"
-  },
-  "MultiSelect.css": {
-    "file": "assets/MultiSelect.5c8bc91d.css",
-    "src": "MultiSelect.css"
-  },
-  "resources/js/Pages/Vend/CustomerIndexLite.css": {
-    "file": "assets/CustomerIndexLite.743e67ae.css",
-    "src": "resources/js/Pages/Vend/CustomerIndexLite.css"
-  },
-  "resources/js/Pages/Refund/Index.css": {
-    "file": "assets/Index.3f6fbd70.css",
-    "src": "resources/js/Pages/Refund/Index.css"
-  },
-  "resources/js/Pages/Report/IndexStockCount.css": {
-    "file": "assets/IndexStockCount.7c9f8c42.css",
-    "src": "resources/js/Pages/Report/IndexStockCount.css"
-  },
-  "resources/js/Pages/Vend/IndexComponent.css": {
-    "file": "assets/IndexComponent.8b3a4ee5.css",
-    "src": "resources/js/Pages/Vend/IndexComponent.css"
-  },
-  "resources/js/Pages/Report/IndexSnapshot.css": {
-    "file": "assets/IndexSnapshot.cb32b0f1.css",
-    "src": "resources/js/Pages/Report/IndexSnapshot.css"
-  },
-  "resources/js/Pages/Client/ApiDocs.css": {
-    "file": "assets/ApiDocs.5c1d28ba.css",
-    "src": "resources/js/Pages/Client/ApiDocs.css"
+  "resources/js/Pages/Customer/Summary.css": {
+    "file": "assets/Summary.558dcc44.css",
+    "src": "resources/js/Pages/Customer/Summary.css"
   },
   "UploadFileInput.css": {
     "file": "assets/UploadFileInput.d34a28df.css",
     "src": "UploadFileInput.css"
   },
+  "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
+    "file": "assets/Index.cb32b0f1.css",
+    "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
+  },
+  "resources/js/Pages/Client/ApiDocs.css": {
+    "file": "assets/ApiDocs.5c1d28ba.css",
+    "src": "resources/js/Pages/Client/ApiDocs.css"
+  },
   "resources/js/Pages/Refund/Form.css": {
     "file": "assets/Form.e69c2aa8.css",
     "src": "resources/js/Pages/Refund/Form.css"
   },
+  "resources/js/Pages/Report/IndexSnapshot.css": {
+    "file": "assets/IndexSnapshot.cb32b0f1.css",
+    "src": "resources/js/Pages/Report/IndexSnapshot.css"
+  },
+  "resources/js/Pages/Vend/IndexComponent.css": {
+    "file": "assets/IndexComponent.8b3a4ee5.css",
+    "src": "resources/js/Pages/Vend/IndexComponent.css"
+  },
+  "resources/js/Pages/ProductMapping/Table.css": {
+    "file": "assets/Table.e3b0c442.css",
+    "src": "resources/js/Pages/ProductMapping/Table.css"
+  },
   "main.css": {
     "file": "assets/main.768eba40.css",
     "src": "main.css"
+  },
+  "resources/js/Pages/Report/IndexStockCount.css": {
+    "file": "assets/IndexStockCount.7c9f8c42.css",
+    "src": "resources/js/Pages/Report/IndexStockCount.css"
+  },
+  "resources/js/Pages/Refund/Index.css": {
+    "file": "assets/Index.3f6fbd70.css",
+    "src": "resources/js/Pages/Refund/Index.css"
+  },
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.b7da5231.css",
+    "src": "resources/js/Pages/Welcome.css"
+  },
+  "resources/js/Pages/Vend/CustomerIndexLite.css": {
+    "file": "assets/CustomerIndexLite.743e67ae.css",
+    "src": "resources/js/Pages/Vend/CustomerIndexLite.css"
+  },
+  "MultiSelect.css": {
+    "file": "assets/MultiSelect.5c8bc91d.css",
+    "src": "MultiSelect.css"
   },
   "resources/js/app.css": {
     "file": "assets/app.754da79f.css",

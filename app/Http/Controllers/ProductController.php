@@ -220,10 +220,12 @@ class ProductController extends Controller
         END';
 
     /**
-     * "Available in # of VM": distinct live machines (active, not disposed)
-     * carrying each product on an active channel — same semantics as the
-     * machine_count in ReportController — plus how many of those machines
-     * still hold stock of it. Raw join to vends, so the viewer's operator
+     * "Available in # of VM": distinct DEPLOYED machines (active, not
+     * disposed, bound to a customer) carrying each product on an active
+     * channel, plus how many of those machines still hold stock of it.
+     * Unbound machines keep their last planogram while parked in the
+     * warehouse, so counting them inflated this above the fleet size
+     * (Brian, 2026-08-26). Raw join to vends, so the viewer's operator
      * boundary is applied by hand (see CLAUDE.md, operator isolation).
      */
     private function availableVendCounts(array $productIds)
@@ -235,6 +237,7 @@ class ProductController extends Controller
             ->where('vend_channels.is_active', true)
             ->where('vends.is_active', true)
             ->where('vends.is_disposed', false)
+            ->whereNotNull('vends.customer_id')
             ->groupBy('vend_channels.product_id')
             ->selectRaw('vend_channels.product_id,
                 COUNT(DISTINCT vend_channels.vend_id) as vend_count,

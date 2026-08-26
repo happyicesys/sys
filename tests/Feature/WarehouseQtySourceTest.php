@@ -145,14 +145,19 @@ class WarehouseQtySourceTest extends TestCase
 
         $p = Product::create(['code' => 'VM2', 'name' => 'Cornetto', 'operator_id' => $u->operator_id, 'is_available' => 1]);
 
-        // Carrying: A (stock), B (sold out), E (full). Excluded: C disposed, D inactive channel.
-        $mkVend = fn (int $code, array $extra = []) => \App\Models\Vend::create(array_merge(['code' => $code, 'machine_type' => 'vending_machine', 'is_active' => 1], $extra));
+        // Carrying: A (stock), B (sold out), E (full). Excluded: C disposed,
+        // D inactive channel, F unbound (parked in the warehouse with its old
+        // planogram — counting it pushed "Available in # of VM" above the
+        // fleet size).
+        $site = \App\Models\Customer::create(['name' => 'Avail Site', 'code' => 10091, 'operator_id' => $u->operator_id, 'status_id' => \App\Models\Customer::STATUS_ACTIVE]);
+        $mkVend = fn (int $code, array $extra = []) => \App\Models\Vend::create(array_merge(['code' => $code, 'machine_type' => 'vending_machine', 'is_active' => 1, 'customer_id' => $site->id], $extra));
         $mkChannel = fn ($vend, int $qty, int $capacity, int $active = 1) => \App\Models\VendChannel::create(['vend_id' => $vend->id, 'code' => 11, 'qty' => $qty, 'capacity' => $capacity, 'amount' => 200, 'product_id' => $p->id, 'is_active' => $active, 'error_rate_json' => []]);
         $chA = $mkChannel($mkVend(9811), 3, 10);
         $chB = $mkChannel($mkVend(9812), 0, 10);
         $chE = $mkChannel($mkVend(9813), 5, 5);
         $mkChannel($mkVend(9814, ['is_disposed' => 1]), 4, 10);
         $mkChannel($mkVend(9815), 4, 10, 0);
+        $mkChannel($mkVend(9816, ['customer_id' => null]), 4, 10);
 
         // Planning (default date = tomorrow): refill jobs on A and B need stock
         // (capacity > qty); E's channel is full, so its contribution is 0.
