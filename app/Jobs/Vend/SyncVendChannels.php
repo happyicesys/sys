@@ -2,31 +2,25 @@
 
 namespace App\Jobs\Vend;
 
-use App\Jobs\Vend\SaveVendChannelsJson;
-use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelRecord;
 use App\Models\VendChannelStockEvent;
-use App\Models\VendTransaction;
-use App\Models\ProductMappingItem;
 use App\Services\DeliveryProductMappingService;
 use App\Services\ProductMappingService;
 use Carbon\Carbon;
-use DB;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class SyncVendChannels implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
+
     protected $vend;
 
     /**
@@ -56,7 +50,12 @@ class SyncVendChannels implements ShouldQueue
             $errorRates = $this->getChannelErrorRatesArray($vend->id);
 
             foreach ($channels as $channel) {
-                $prevVendChannel = $prevVendChannels->get($channel['channel_code']);
+                // Normalize once: boards have sent non-canonical code strings
+                // ("017", padded) that miss the int-keyed lookup while MySQL
+                // coerces them to the same int on insert — which is how the
+                // vend 4753 duplicate-channel-17 row was born (2026-08-03).
+                $channelCode = (int) $channel['channel_code'];
+                $prevVendChannel = $prevVendChannels->get($channelCode);
 
                 $data = [
                     'amount' => $channel['amount'],
@@ -116,15 +115,21 @@ class SyncVendChannels implements ShouldQueue
                 }
 
                 // Single write per channel; reuse the preloaded row instead of
-                // updateOrCreate's extra SELECT round-trip.
+                // updateOrCreate's extra SELECT round-trip. The miss path does
+                // pay for that SELECT, via updateOrCreate: vend_channels
+                // carries a unique (vend_id, code) index, and updateOrCreate
+                // goes through firstOrCreate → createOrFirst, which catches the
+                // unique violation and re-reads the winner. So losing a race
+                // against a concurrent report degrades into an update of the
+                // winner's row, never a duplicate and never an exception.
                 if ($prevVendChannel) {
                     $prevVendChannel->update($data);
                     $vendChannel = $prevVendChannel;
                 } else {
-                    $vendChannel = VendChannel::create(array_merge([
+                    $vendChannel = VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
-                        'code' => $channel['channel_code'],
-                    ], $data));
+                        'code' => $channelCode,
+                    ], $data);
                 }
 
                 if ($stockEvent) {
@@ -132,7 +137,7 @@ class SyncVendChannels implements ShouldQueue
                 }
 
                 if ($data['is_active']) {
-                    SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
+                    SyncVendChannelErrorLog::dispatch($vend, $channelCode, $channel['error_code']);
                 }
             }
             $productMappingService->syncChannelsByVend($vend);
@@ -261,8 +266,6 @@ class SyncVendChannels implements ShouldQueue
         }
     }
 
-
-
     private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)
     {
         if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
@@ -280,7 +283,6 @@ class SyncVendChannels implements ShouldQueue
             });
         }
     }
-
 
     private function syncVendChannelRecordVMCAfterQty(VendChannelRecord $vendChannelRecord)
     {

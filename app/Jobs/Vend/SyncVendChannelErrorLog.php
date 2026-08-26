@@ -7,17 +7,15 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendLog;
-use App\Jobs\Vend\SaveVendChannelErrorLogsJson;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Log as Logger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log as Logger;
 
-class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
+class SyncVendChannelErrorLog implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -25,13 +23,17 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
 
     public function uniqueId()
     {
-        return $this->vend->id . '_' . $this->vendChannelCode . '_' . $this->vendChannelErrorCode . '_' . ($this->vendTransactionId ?? 'null');
+        return $this->vend->id.'_'.$this->vendChannelCode.'_'.$this->vendChannelErrorCode.'_'.($this->vendTransactionId ?? 'null');
     }
 
     protected $vend;
+
     protected $vendChannelCode;
+
     protected $vendChannelErrorCode;
+
     protected $vendTransactionId;
+
     /**
      * Create a new job instance.
      *
@@ -63,7 +65,7 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
             if ($vendChannelError->code > 0) {
                 $vendChannel = VendChannel::firstOrCreate([
                     'vend_id' => $vend->id,
-                    'code' => $vendChannelCode,
+                    'code' => (int) $vendChannelCode,
                 ]);
 
                 // If transaction ID is provided, check if THIS specific transaction already has a log for this error
@@ -79,7 +81,7 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
                     $vendChannelErrorLog = VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id,
-                        'vend_transaction_id' => $vendTransactionId
+                        'vend_transaction_id' => $vendTransactionId,
                     ]);
                 } else {
                     // Heartbeat/Sync: Only create if no active log exists for this channel/error to prevent spam
@@ -94,7 +96,7 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
 
                     $vendChannelErrorLog = VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
-                        'vend_channel_error_id' => $vendChannelError->id
+                        'vend_channel_error_id' => $vendChannelError->id,
                     ]);
                 }
 
@@ -138,10 +140,10 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
                     ->latest()
                     ->first();
 
-                $shouldClearLastLog = $lastLog && $lastLog->vendChannelError->code != $vendChannelErrorCode && !$lastLog->is_error_cleared;
+                $shouldClearLastLog = $lastLog && $lastLog->vendChannelError->code != $vendChannelErrorCode && ! $lastLog->is_error_cleared;
 
                 // Protect recent transaction-based errors from being cleared by heartbeats (potentially stale data)
-                if ($shouldClearLastLog && !$vendTransactionId && $lastLog->vend_transaction_id && $lastLog->created_at->gt(now()->subSeconds(90))) {
+                if ($shouldClearLastLog && ! $vendTransactionId && $lastLog->vend_transaction_id && $lastLog->created_at->gt(now()->subSeconds(90))) {
                     $shouldClearLastLog = false;
                 }
 
@@ -171,7 +173,7 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
 
                     // If this recovery is from a heartbeat/sync (no transaction ID),
                     // protect recent transaction-based errors from being cleared by potentially stale heartbeat data
-                    if (!$vendTransactionId) {
+                    if (! $vendTransactionId) {
                         $recoveredVendChannelErrorLogsQuery->where(function ($q) {
                             $q->whereNull('vend_transaction_id')
                                 ->orWhere('created_at', '<', now()->subSeconds(90));

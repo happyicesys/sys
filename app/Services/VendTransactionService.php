@@ -713,12 +713,25 @@ class VendTransactionService
 
     private function createVendChannel($vendID, $channelCode)
     {
-        $vendChannel = VendChannel::create([
-            'code' => $channelCode,
+        // The caller's lookup ($this->vendChannels) is the FILTERED
+        // vendChannels() relation (is_active AND capacity > 0), so a miss here
+        // does not mean the row is absent — an inactive or zero-capacity
+        // channel is invisible to it. firstOrCreate against the unfiltered
+        // table reuses such a row instead of inserting a duplicate, which the
+        // unique (vend_id, code) index would reject anyway.
+        //
+        // Knock-on: the returned row may now be a REAL channel carrying real
+        // state rather than the blank one create() used to make, so
+        // determineUnitPriceAmount's last-resort fallback can read that row's
+        // amount / amount2. Reachable only when the item succeeded AND the
+        // TRADE carried no unit_price_amount AND no positive amount — in which
+        // case the deactivated channel's own price is a better answer than the
+        // null the blank row produced. Covered by
+        // VendChannelDuplicateGuardTest::test_trade_channel_creation_reuses_an_inactive_row.
+        return VendChannel::firstOrCreate([
             'vend_id' => $vendID,
+            'code' => (int) $channelCode,
         ]);
-
-        return $vendChannel;
     }
 
     private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input, bool $isSuccessfulItem): ?int
@@ -731,13 +744,12 @@ class VendTransactionService
             return (int) $input['unit_price_amount'];
         }
 
+        // The machine's own reported amount wins whenever it is present and
+        // positive, whether or not it matches either channel price — the two
+        // branches this used to have both returned $amount.
         if (isset($input['amount']) && is_numeric($input['amount'])) {
             $amount = (int) round($input['amount']);
             if ($amount > 0) {
-                if ($vendChannel && in_array($amount, [(int) $vendChannel->amount, (int) $vendChannel->amount2], true)) {
-                    return $amount;
-                }
-
                 return $amount;
             }
         }
