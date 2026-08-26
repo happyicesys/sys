@@ -70,6 +70,15 @@ const manualPayMethod = ref('');
 // True while the customer is on the manual-review path, so the shared payout
 // step (7) knows to submit as a manual claim instead of going to the auto review.
 const manualMode = ref(false);
+// Shown between 4b and 4c (2026-08-25): a no-match usually means the payment
+// never reached the machine — the bank auto-refunds it — so reassure the
+// customer and ask them to check their app before filing a manual claim.
+const showNoTxnInfo = ref(false);
+function startManual() {
+    showNoTxnInfo.value = false;
+    manualMode.value = true;
+    step.value = '4c';
+}
 const manualPayMethods = [
     { value: 'PayNow / QR code', label: 'PayNow / QR code' },
     { value: 'Credit / debit card', label: 'Credit / debit card (tap)' },
@@ -621,7 +630,21 @@ async function submitManual() {
                 <p class="p" style="text-align:center">No <b>${{ amount }}</b> purchase {{ dayLabel }} at this machine. Try a different amount or day — or send it for manual checking.</p>
             </div>
             <button class="btn ghost" @click="step = 3">↩ Change amount / day</button>
-            <button class="btn" style="margin-top:10px" @click="manualMode = true; step = '4c'">Submit for manual review →</button>
+            <button class="btn" style="margin-top:10px" @click="showNoTxnInfo = true">Submit for manual review →</button>
+
+            <!-- reassurance: a no-match usually means the payment never went through -->
+            <div v-if="showNoTxnInfo" class="modal-mask" @click.self="showNoTxnInfo = false">
+                <div class="modal">
+                    <div class="modal-e">💡</div>
+                    <div class="h2" style="text-align:center"><span class="hlred">Can't find</span> your transaction in our record?<br>Most likely the payment has <span class="hlred">NOT</span> gone through</div>
+                    <div class="tipcard">
+                        <div class="tiprow"><span class="tipico">📱</span><span><b>PayNow / QR:</b> the bank usually <b>refunds it by itself</b> — check your banking app (up to 1–2 working days).</span></div>
+                        <div class="tiprow"><span class="tipico">💳</span><span><b>Card (tap):</b> money is only <b>on hold</b> — the bank releases it within a few days.</span></div>
+                    </div>
+                    <button class="btn" style="margin-top:14px" @click="showNoTxnInfo = false">OK, I'll check my bank app first</button>
+                    <button class="btn ghost" @click="startManual">I checked — money was taken and not returned</button>
+                </div>
+            </div>
         </div>
 
         <!-- 4c manual -->
@@ -949,6 +972,15 @@ textarea.bigta{min-height:140px;resize:vertical;line-height:1.5}
 .check{width:74px;height:74px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px}
 .ref{font-size:24px;font-weight:800;letter-spacing:.04em;margin:6px 0 2px}
 .emptywrap{text-align:center;padding-top:30px}.emptywrap .e{font-size:54px}
+.modal-mask{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;padding:14px}
+.modal{background:#fff;border-radius:22px;padding:22px 18px 16px;max-width:400px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(2,6,23,.3);animation:modalup .22s ease-out}
+@keyframes modalup{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-e{font-size:44px;text-align:center;margin-bottom:8px}
+.hlred{color:#dc2626}
+.tipcard{background:#f0fdfa;border:1px solid #99f6e4;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.tiprow{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.55;color:#134e4a;padding:6px 0}
+.tiprow + .tiprow{border-top:1px solid #ccfbf1}
+.tiprow .tipico{font-size:18px;flex:0 0 auto;margin-top:1px}
 .photogrid{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
 .thumb{position:relative;width:92px;height:92px;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0}
 .thumbmedia{width:100%;height:100%;object-fit:cover;display:block;background:#000}

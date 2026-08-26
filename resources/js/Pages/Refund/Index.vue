@@ -692,6 +692,9 @@ const sortedRows = computed(() => {
                                 <a v-if="t.matched && t.txn_link" :href="t.txn_link" target="_blank" @click.stop
                                     class="text-teal-600 hover:text-teal-800 hover:underline">Txn: {{ t.txn_datetime || '—' }}</a>
                                 <span v-else-if="t.matched" class="text-gray-600">Txn: {{ t.txn_datetime || '—' }}</span>
+                                <a v-else-if="t.txn_link" :href="t.txn_link" target="_blank" @click.stop
+                                    class="text-amber-600 italic hover:text-amber-800 hover:underline"
+                                    title="Open Sales Transactions for this machine on the customer's chosen day">pending match</a>
                                 <span v-else class="text-amber-600 italic">pending match</span>
                             </div>
                             <div v-if="t.matched && t.txn_delta" class="text-xs text-gray-500 mt-0.5">Δ {{ t.txn_delta }}</div>

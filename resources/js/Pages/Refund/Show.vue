@@ -605,7 +605,6 @@ function actionBadge(l) {
                             :class="r.payment_status === 'Successful' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
                             {{ r.payment_status || '—' }}
                         </span>
-                        <span v-if="r.price_type" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">{{ r.price_type }}</span>
                         <span v-if="r.is_refunded" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">↩ Refunded</span>
                     </div>
                     <a :href="r.link" target="_blank" class="shrink-0 text-teal-600 text-xs font-semibold hover:underline"
