@@ -23,7 +23,15 @@ class SimcardController extends Controller
                     ->with([
                         'operator',
                         'telco',
-                        'vends',
+                        // Only what the Index page reads per bound machine
+                        // (Machine ID / Machine APK / Signal Strength columns)
+                        // — a bare 'vends' serialized FULL vend models into the
+                        // Inertia payload, dragging apk_ver_json siblings like
+                        // settings_parameter_json and meta_json along for every
+                        // row on the page.
+                        'vends:id,simcard_id,code,apk_version_code,apk_ver_json,'
+                            .'internet_source,internet_provider,internet_network,'
+                            .'internet_signal,internet_signal_max',
                         'updatedBy:id,name',
                     ])
                     ->when($request->code, function ($query, $search) {
