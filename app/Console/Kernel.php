@@ -46,6 +46,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('grab:sync-all-menu')->daily();
         $schedule->command('sync:all-cms-vend-code-vend-prefix')->dailyAt('02:00');
         $schedule->command('copy:product-limit-from-yesterday')->at('23:57');
+        // End-of-day copy of each machine's cumulative data-usage counters
+        // (vends.internet_data_*, from APK v303's VENDER "Data*" fields) into
+        // vend_data_usage_snapshots. Windowed usage = diff of two rows.
+        $schedule->command('vend:snapshot-data-usage')->dailyAt('23:55')->withoutOverlapping();
         // End-of-day safety net: auto-close any refund settlement the admin left
         // open (empty ones are voided). Idempotent — a no-op when none are open.
         $schedule->command('refund-settlements:auto-close')->dailyAt('23:58')->withoutOverlapping();

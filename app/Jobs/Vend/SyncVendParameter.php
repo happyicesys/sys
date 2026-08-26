@@ -161,6 +161,8 @@ class SyncVendParameter implements ShouldQueue
             }
 
             $vend->internet_updated_at = Carbon::now();
+
+            $this->syncDataUsage($net, $vend);
         } catch (\Throwable $e) {
             \Log::warning('syncInternetStatus failed', [
                 'vend_id' => $vend->id ?? null,
@@ -168,6 +170,72 @@ class SyncVendParameter implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /** Memoized "do the internet_data_* columns exist yet?". Same idea as above. */
+    private static $dataColumnsExist = null;
+
+    /**
+     * Promote the APK's cumulative data-usage counters (APK v303+):
+     *
+     *   "DataMB":1843,"DataMobileMB":1790,"DataAppMB":211,"DataDays":38
+     *
+     * CUMULATIVE lifetime decimal MB since the ledger's epoch — usage over a
+     * window comes from diffing the daily vend_data_usage_snapshots rows, not
+     * from these columns. Unlike the link fields these are DEVICE-scoped, so a
+     * Source change never wipes them; and a value LOWER than the stored one is
+     * accepted as-is, because it means the ledger reset (APK reinstall / prefs
+     * wipe) and the new number is the truth.
+     *
+     * DataMB is the one required member: the APK's ledger emits the total
+     * channel whenever it emits anything, so an object carrying only the
+     * optional members is malformed and skipped whole.
+     */
+    private function syncDataUsage(array $net, Vend $vend): void
+    {
+        if (! $this->dataColumnsExist()) {
+            return;
+        }
+
+        // 8 digits of MB (~95 TB) matches the APK-side DATA_MAX_MB cap.
+        $totalMb = $this->boundedInt($net['DataMB'] ?? null, 0, 99_999_999);
+        if ($totalMb === null) {
+            return;
+        }
+
+        $vend->internet_data_mb = $totalMb;
+
+        // Optional members keep their previous value when omitted (a channel
+        // the ROM reports UNSUPPORTED simply never arrives), same rule as the
+        // link fields.
+        $mobileMb = $this->boundedInt($net['DataMobileMB'] ?? null, 0, 99_999_999);
+        if ($mobileMb !== null) {
+            $vend->internet_data_mobile_mb = $mobileMb;
+        }
+        $appMb = $this->boundedInt($net['DataAppMB'] ?? null, 0, 99_999_999);
+        if ($appMb !== null) {
+            $vend->internet_data_app_mb = $appMb;
+        }
+        $days = $this->boundedInt($net['DataDays'] ?? null, 0, 9_999);
+        if ($days !== null) {
+            $vend->internet_data_days = $days;
+        }
+
+        $vend->internet_data_updated_at = Carbon::now();
+    }
+
+    /** True once the internet_data_* columns have been migrated. Fails closed. */
+    private function dataColumnsExist(): bool
+    {
+        if (self::$dataColumnsExist === null) {
+            try {
+                self::$dataColumnsExist = Schema::hasColumn('vends', 'internet_data_mb');
+            } catch (\Throwable $e) {
+                self::$dataColumnsExist = false;
+            }
+        }
+
+        return self::$dataColumnsExist;
     }
 
     /**
