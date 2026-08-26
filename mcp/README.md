@@ -10,7 +10,9 @@ Max plan; this server is just a local tool provider, so there's no API bill and
 nothing is exposed to the internet.
 
 Tools exposed: `data_dictionary`, `list_tables`, `describe_table`, `run_query`
-(SELECT/WITH only, row- and time-capped).
+(SELECT/WITH only, row- and time-capped), plus the one deliberate exception:
+`apply_route_sequence` (ops-job route planning — see "Route writing" below;
+disabled unless its own column-scoped DB user is configured).
 
 ---
 
@@ -90,11 +92,56 @@ own read-only SQL. Examples:
 - "Top 20 products by gross profit in the last 90 days, with margin."
 - "Are there machines with an unusual spike in refunds or vend errors lately?"
 
+## Route writing (`apply_route_sequence`) — the one exception to read-only
+
+Lets Claude plan an ops-job driver route from the data (past visiting order,
+site timing, coordinates) and apply it directly — no copy-paste back into the
+route page. It renumbers `ops_job_items.sequence` / `ops_job_tasks.sequence` to
+1..N for one job, the same always-overwrite semantics as the route page's
+Renumber button. `dry_run: true` previews without writing.
+
+The safety model stays DB-grant-based. Create a second user that can update
+**only the two sequence columns** and nothing else:
+
+```sql
+CREATE USER 'mark1_route_w'@'127.0.0.1' IDENTIFIED BY 'CHANGE_ME_strong_password';
+GRANT SELECT (id, ops_job_id, sequence), UPDATE (sequence)
+  ON mark1.ops_job_items TO 'mark1_route_w'@'127.0.0.1';
+GRANT SELECT (id, ops_job_id, sequence), UPDATE (sequence)
+  ON mark1.ops_job_tasks TO 'mark1_route_w'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+Then add to `.env` (or the service environment):
+
+```
+MARK1_DB_WRITE_USERNAME=mark1_route_w
+MARK1_DB_WRITE_PASSWORD=...
+```
+
+Guards, in order:
+
+1. Unset credentials → the tool refuses with a clear message (default state).
+2. The caller's mark1 user must hold the `admin-access operations` permission —
+   the same one that guards the route page's Renumber button. (The trusted
+   local stdio owner is exempt, as for every other tool.)
+3. Ids are validated to belong to the given ops job before any write; unknown
+   or duplicate ids abort. Stops omitted from the list are appended in their
+   current order so no stale sequence numbers survive.
+4. Every UPDATE carries a `WHERE id = ? AND ops_job_id = ?` guard and the batch
+   runs in a single transaction.
+5. The MySQL grant means even a bug in all of the above could only ever touch
+   the two `sequence` columns.
+6. Applied writes get their own audit-log line (`apply_route_sequence:applied`).
+
 ## Safety summary
 
-- DB user is `SELECT`-only (hard guarantee).
-- Server rejects anything that isn't a single `SELECT`/`WITH` statement, strips
-  comments, blocks multiple statements and write/DDL keywords.
+- The read path's DB user is `SELECT`-only (hard guarantee). The ONE write
+  path, `apply_route_sequence`, uses a separate opt-in DB user whose grant
+  covers only the two `sequence` columns (see "Route writing" above) — leave
+  its credentials unset and the server is fully read-only.
+- The query tools reject anything that isn't a single `SELECT`/`WITH`
+  statement, strip comments, block multiple statements and write/DDL keywords.
 - Every query runs in a `READ ONLY` session with `MAX_EXECUTION_TIME` and a row
   cap (defaults: 500 rows, 5000 max, 15s).
 - Runs locally — not exposed to the internet.

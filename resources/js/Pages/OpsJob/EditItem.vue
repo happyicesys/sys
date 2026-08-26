@@ -41,7 +41,7 @@
             <div class="flex flex-col" v-if="opsJobItem.stock_action_type">
               <div
                   class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit capitalize"
-                  :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+                  :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : opsJobItem.stock_action_type == 'melted_stock' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
               >
                   {{ opsJobItem.stock_action_type.replace(/_/g, ' ') }}
               </div>
@@ -104,6 +104,11 @@
                         <MenuItem v-slot="{ active }">
                           <button type="button" @click="onUpdateStockAction('onsite_adjustment')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
                             Stock Adjustment <span class="text-gray-600">调整货量</span>
+                          </button>
+                        </MenuItem>
+                        <MenuItem v-slot="{ active }">
+                          <button type="button" @click="onUpdateStockAction('melted_stock')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
+                            Melted Ice Cream <span class="text-gray-600">溶撤丢</span>
                           </button>
                         </MenuItem>
                         <MenuItem v-slot="{ active }" v-if="opsJobItem.stock_action_type">
@@ -1523,7 +1528,7 @@
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
                   @click="onUndoStatusClicked(opsJobItem.id)"
-                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && opsJobItem.stock_action_type !== 'return_stock' && opsJobItem.stock_action_type !== 'onsite_adjustment'"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && !AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.stock_action_type)"
               >
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
@@ -1536,7 +1541,7 @@
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-orange-400 hover:bg-orange-500 text-white w-full md:w-fit"
                   @click="onUndoStockActionClicked()"
-                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && (opsJobItem.stock_action_type === 'return_stock' || opsJobItem.stock_action_type === 'onsite_adjustment')"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.stock_action_type)"
               >
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
@@ -1549,7 +1554,7 @@
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onDeleteClicked()"
-                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && (opsJobItem.stock_action_type === 'return_stock' || opsJobItem.stock_action_type === 'onsite_adjustment')"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.stock_action_type)"
               >
                 <span class="flex space-x-1 items-center">
                   <TrashIcon class="w-4 h-4"></TrashIcon>
@@ -1590,7 +1595,7 @@
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-gray-300 hover:bg-gray-400 text-gray-800 w-full md:w-fit"
                   @click="onSaveClicked()"
-                  v-if="opsJobItem.status == 1 && opsJobItem.stock_action_type !== 'return_stock' && opsJobItem.stock_action_type !== 'onsite_adjustment'"
+                  v-if="opsJobItem.status == 1 && !AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.stock_action_type)"
                   title="Freezes only the SKUs you manually changed (RED). Untouched SKUs (BLUE) keep updating with live Needed Qty."
               >
                 <span class="flex space-x-1 items-center">
@@ -1700,6 +1705,10 @@ const props = defineProps({
   referencePrices: { type: Object, default: () => ({}) },
 })
 const channels = ref([])
+// Stock actions that need no warehouse picking (auto-Picked, undoable in that
+// state). Keep in sync with OpsJobItem::AUTO_PICK_STOCK_ACTIONS — one
+// definition per layer; add the next such action there and here only.
+const AUTO_PICK_STOCK_ACTIONS = ['return_stock', 'onsite_adjustment', 'melted_stock']
 const operatorCountry = usePage().props.auth.operatorCountry
 const opsJobItem = ref([])
 const permissions = usePage().props.auth.permissions
@@ -1826,9 +1835,12 @@ function loadingData() {
       return false;
     })();
 
-    // Return Stock: all channels are being cleared out (nothing to pick, return all)
+    // Return Stock: all channels are being cleared out (nothing to pick, return all).
+    // Melted Stock (溶撤丢) behaves identically on the machine side — clear all,
+    // negative stock-in — it only differs at CMS sync (discard, no coldroom credit).
     const is_return_stock = !opsJobItemChannel.is_upcoming_product &&
-                            opsJobItem.value.stock_action_type === 'return_stock';
+                            (opsJobItem.value.stock_action_type === 'return_stock' ||
+                             opsJobItem.value.stock_action_type === 'melted_stock');
 
     // Onsite Adjustment: same as return stock but Stock In defaults to 0 (not -currentQty)
     const is_onsite_adjustment = !opsJobItemChannel.is_upcoming_product &&
@@ -2300,7 +2312,7 @@ function onConfirmClicked() {
   let confirmText = '';
 
   if(form.value.status == 1) {
-    const isAutoPickAction = opsJobItem.value.stock_action_type === 'return_stock' || opsJobItem.value.stock_action_type === 'onsite_adjustment';
+    const isAutoPickAction = AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.value.stock_action_type);
     confirmText = isAutoPickAction
       ? 'Are you sure you want to mark as Picked? (No stock picking required for this action) '
       : 'Are you sure you want to Picked? ';
@@ -2654,6 +2666,7 @@ function onUpdateStockAction(type) {
   let typeName = 'normal job';
   if (type == 'implement_new_mapping') typeName = 'Implement New Mapping';
   else if (type == 'return_stock') typeName = 'Return Stock';
+  else if (type == 'melted_stock') typeName = 'Melted Ice Cream (discard, no coldroom credit)';
   else if (type == null) typeName = 'Reset to Normal Job';
 
   const approval = confirm(`Are you sure to ${typeName}?`);

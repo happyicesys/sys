@@ -2200,6 +2200,14 @@
 										Return Stock
 									</span>
 								</div>
+								<div
+									v-else-if="vend.lastOpsJobItem.stock_action_type === 'melted_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-rose-100 text-rose-700 border-rose-300">
+										Melted Stock
+									</span>
+								</div>
 							</div>
 							<!-- Divider between Last Job and Last 2 Job -->
 							<div v-if="vend && vend.lastSecondOpsJobItem" class="border-t border-gray-300 my-2 pt-2"></div>
@@ -2284,6 +2292,14 @@
 										Return Stock
 									</span>
 								</div>
+								<div
+									v-else-if="vend.lastSecondOpsJobItem.stock_action_type === 'melted_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-rose-100 text-rose-700 border-rose-300">
+										Melted Stock
+									</span>
+								</div>
 							</div>
 						</div>
 					</TableData>
@@ -2361,6 +2377,14 @@
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
 										Return Stock
+									</span>
+								</div>
+								<div
+									v-else-if="vend.nextOpsJobItem.stock_action_type === 'melted_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-rose-100 text-rose-700 border-rose-300">
+										Melted Stock
 									</span>
 								</div>
 							</div>

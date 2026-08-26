@@ -11,6 +11,22 @@ class OpsJobItem extends Model
 {
     use GetUserTimezone, HasFactory;
 
+    /**
+     * Stock actions that need no warehouse picking: the goods either leave the
+     * machine (return_stock → coldroom credit; melted_stock → thrown away) or
+     * are counted in place (onsite_adjustment). Confirming one auto-zeroes
+     * picked_qty and jumps straight to Picked, and it stays undoable/deletable
+     * in that state. ONE definition — the controller's gates follow it, and
+     * EditItem.vue mirrors it as AUTO_PICK_STOCK_ACTIONS. Add the next such
+     * action here (and there), not at the call sites.
+     */
+    public const AUTO_PICK_STOCK_ACTIONS = ['return_stock', 'onsite_adjustment', 'melted_stock'];
+
+    public function isAutoPickAction(): bool
+    {
+        return in_array($this->stock_action_type, self::AUTO_PICK_STOCK_ACTIONS, true);
+    }
+
     protected $fillable = [
         'acc_total_amount',
         'acc_total_cash_amount',

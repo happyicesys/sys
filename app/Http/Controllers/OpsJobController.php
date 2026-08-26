@@ -629,11 +629,10 @@ class OpsJobController extends Controller
                     'refillable_count' => $stats ? $stats->refillable_count : 0,
                 ]);
 
-                $stockActionType = $opsJobItem->stock_action_type;
-                $isAutoPickAction = $stockActionType === 'return_stock' || $stockActionType === 'onsite_adjustment';
+                $isAutoPickAction = $opsJobItem->isAutoPickAction();
 
                 if ($isAutoPickAction) {
-                    // For return_stock and onsite_adjustment, no warehouse picking is needed.
+                    // For return_stock, onsite_adjustment and melted_stock, no warehouse picking is needed.
                     // Set all channel picked_qty to 0 and move straight to Picked.
                     $opsJobItem->opsJobItemChannels()->update([
                         'picked_before_qty' => DB::raw('qty'),
@@ -1814,7 +1813,23 @@ class OpsJobController extends Controller
 
     public function renumberItems(Request $request, $id)
     {
+        // Same gate as the Route page's Renumber button: rewriting a route is an
+        // operations-admin action, and a completed job's visiting order is
+        // history — never rewrite it. (The MCP apply_route_sequence tool
+        // enforces the same permission; the endpoint must too.)
+        abort_unless(auth()->user()?->can('admin-access operations'), 403);
+
         $opsJob = OpsJob::findOrFail($id);
+
+        // Tasks are always renumberable (the Route page treats every task as
+        // pending), so their presence keeps the route editable even when every
+        // item has been delivered.
+        abort_unless(
+            $opsJob->opsJobItems()->where('status', '<', OpsJob::STATUS_DELIVERED)->exists()
+                || $opsJob->opsJobTasks()->exists(),
+            403,
+            'This job is completed — its route can no longer be renumbered.'
+        );
 
         // ---------------------------------------------------------------
         // Build a merged ordered list from the request.
@@ -1925,7 +1940,19 @@ class OpsJobController extends Controller
 
     public function saveSequence(Request $request, $id)
     {
+        // Same gate as renumberItems: this endpoint performs the identical
+        // sequence rewrite (with caller-chosen numbers, even) — an ungated
+        // /sequence would make the /renumber gate pointless.
+        abort_unless(auth()->user()?->can('admin-access operations'), 403);
+
         $opsJob = OpsJob::findOrFail($id);
+
+        abort_unless(
+            $opsJob->opsJobItems()->where('status', '<', OpsJob::STATUS_DELIVERED)->exists()
+                || $opsJob->opsJobTasks()->exists(),
+            403,
+            'This job is completed — its route can no longer be resequenced.'
+        );
 
         // New unified path: mergedOrder with type markers
         if ($request->has('mergedOrder') && is_array($request->mergedOrder)) {
@@ -2275,7 +2302,7 @@ class OpsJobController extends Controller
 
         if ($stockActionType === 'implement_new_mapping') {
             $this->applyNewMappingToItem($opsJobItem);
-        } elseif ($stockActionType === 'return_stock' || $stockActionType === 'onsite_adjustment') {
+        } elseif (in_array($stockActionType, OpsJobItem::AUTO_PICK_STOCK_ACTIONS, true)) {
             // Remove any upcoming products first
             $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
             $this->applyReturnStockToItem($opsJobItem);
@@ -2331,10 +2358,10 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        // Only allow undo when in Picked status with return_stock or onsite_adjustment
+        // Only allow undo when in Picked status with an auto-pick stock action
         if (
             $opsJobItem->status != OpsJob::STATUS_PICKED ||
-            ! in_array($opsJobItem->stock_action_type, ['return_stock', 'onsite_adjustment'])
+            ! $opsJobItem->isAutoPickAction()
         ) {
             return redirect()->back()->with('error', 'Cannot undo stock action for this item.');
         }
@@ -2372,7 +2399,7 @@ class OpsJobController extends Controller
             $item->update(['stock_action_type' => $request->stock_action_type]);
             if ($request->stock_action_type === 'implement_new_mapping') {
                 $this->applyNewMappingToItem($item);
-            } elseif ($request->stock_action_type === 'return_stock' || $request->stock_action_type === 'onsite_adjustment') {
+            } elseif (in_array($request->stock_action_type, OpsJobItem::AUTO_PICK_STOCK_ACTIONS, true)) {
                 $item->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
                 $this->applyReturnStockToItem($item);
             } else {

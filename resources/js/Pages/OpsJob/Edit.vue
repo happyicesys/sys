@@ -10,7 +10,7 @@
             <div
               v-if="opsJob.stock_action_type"
               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit uppercase"
-              :class="opsJob.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJob.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+              :class="opsJob.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJob.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : opsJob.stock_action_type == 'melted_stock' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
             >
               <span class="font-semibold grow-0">
                 {{ opsJob.stock_action_type.replace(/_/g, ' ') }}
@@ -566,9 +566,9 @@
                                 <div class="flex flex-col gap-1" v-if="row.stock_action_type">
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
-                                      :class="row.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : row.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'"
+                                      :class="row.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : row.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : row.stock_action_type == 'melted_stock' ? 'bg-rose-100 text-rose-700' : 'bg-orange-100 text-orange-700'"
                                   >
-                                      {{ row.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : row.stock_action_type == 'return_stock' ? 'Return Stock' : 'Onsite Adjustment' }}
+                                      {{ row.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : row.stock_action_type == 'return_stock' ? 'Return Stock' : row.stock_action_type == 'melted_stock' ? 'Melted Stock' : 'Onsite Adjustment' }}
                                   </div>
                                   <div
                                       class="text-xs text-gray-700 whitespace-pre-line break-words max-w-40 border border-purple-300 rounded px-1.5 py-1 bg-purple-50"

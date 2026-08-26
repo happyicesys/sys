@@ -132,6 +132,19 @@
                     </button>
                     <button
                       type="button"
+                      @click="showClaudePanel = !showClaudePanel"
+                      v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3) && permissions.includes('admin-access operations')"
+                      class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded text-sm"
+                    >
+                      <div class="flex space-x-1 items-center">
+                        <ArrowRightCircleIcon class="h-4 w-4" />
+                        <span>
+                          Generate Route (Claude JSON)
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
                       @click.prevent="applySequenceJobs"
                       class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-medium py-2 px-4 rounded text-sm"
                       v-if="isSequenceGenerated"
@@ -140,6 +153,46 @@
                         <BarsArrowDownIcon class="h-4 w-4" />
                         <span>
                           Sync Generated Sequence to Current
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Claude JSON route: plan externally (Claude desktop + sys-happyice MCP), paste the JSON, apply.
+                     Applying posts the ordered stop list to /renumber, which always overwrites the current sequence. -->
+                <div class="sm:col-span-6 border border-indigo-200 rounded-md p-4 bg-indigo-50" v-if="showClaudePanel">
+                  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                    <label class="text-sm font-medium text-gray-700"> Claude route JSON </label>
+                    <button
+                      type="button"
+                      @click="copyClaudePrompt"
+                      class="text-xs text-indigo-700 font-medium underline text-left"
+                    >
+                      Copy planning prompt for Claude (includes this job's stops)
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">
+                    Plan the route in Claude with the sys-happyice MCP, then paste the JSON it returns here.
+                    Applying <span class="font-semibold">always overwrites</span> the current sequence.
+                    Stops missing from the JSON are appended at the end in their current order.
+                  </p>
+                  <textarea
+                    v-model="claudeJsonText"
+                    rows="6"
+                    class="mt-2 block w-full text-sm font-mono border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    :placeholder="'{&quot;ops_job_id&quot;: ' + opsJob.id + ', &quot;stops&quot;: [{&quot;type&quot;: &quot;item&quot;, &quot;id&quot;: 123}, {&quot;type&quot;: &quot;task&quot;, &quot;id&quot;: 456}]}'"
+                  ></textarea>
+                  <div class="flex justify-end mt-2">
+                    <button
+                      type="button"
+                      @click="applyClaudeJson"
+                      class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded text-sm"
+                    >
+                      <div class="flex space-x-1 items-center">
+                        <BarsArrowDownIcon class="h-4 w-4" />
+                        <span>
+                          Generate &amp; Overwrite Current Sequence
                         </span>
                       </div>
                     </button>
@@ -341,6 +394,8 @@ const destinationAddress = computed(() => {
 });
 const form = ref(useForm(getDefaultForm()));
 const isSequenceGenerated = ref(false);
+const showClaudePanel = ref(false);
+const claudeJsonText = ref('');
 const opsJob = ref(props.opsJob?.data || []);
 const permissions = usePage().props.auth.permissions;
 const toast = useToast();
@@ -465,6 +520,160 @@ axios.post('/ops-jobs/' + opsJob.value.id + '/sequence', {
   console.error(error);
 });
 
+}
+
+// ---------------------------------------------------------------------------
+// Claude JSON route: the JSON is planned outside mark1 (Claude desktop reading
+// the DB through the read-only sys-happyice MCP) and pasted here. Applying it
+// posts a mergedOrder to /renumber, which rewrites sequence 1..N — the same
+// always-overwrite semantics as the Renumber button.
+// ---------------------------------------------------------------------------
+
+// Real stops of this job: items plus the tasks merged in onMounted. Filter by
+// id, not isOrigin/isDestination: a REAL job item is flagged isOrigin when a
+// route is generated with it as origin (the applySequenceJobs comment documents
+// this exact trap) and must still be sequenced; only the synthetic warehouse
+// origin/destination markers (no id) are excluded.
+//
+// setOriginDestination resets opsJobItems from props, which silently drops the
+// tasks merged in onMounted — re-add any task missing from the array (same
+// shape and lat/lng filter as the onMounted merge) so the Claude plan and the
+// append-missing pass always cover the whole job.
+function getClaudeJobStops() {
+  const stops = (opsJob.value.opsJobItems || []).filter(stop => stop.id != null);
+  if (Array.isArray(props.opsJob.data?.opsJobTasks)) {
+    const presentTaskIds = new Set(stops.filter(s => s._isTask).map(s => Number(s.id)));
+    props.opsJob.data.opsJobTasks
+      .filter(task => task.latitude && task.longitude && !presentTaskIds.has(Number(task.id)))
+      .forEach(task => stops.push({
+        id: task.id,
+        _isTask: true,
+        sequence: task.sequence,
+        delivery_postcode: task.postcode,
+        vend: { code: '[task] ' + task.task_name },
+        customer: {
+          name: task.task_name,
+          deliveryAddress: { latitude: task.latitude, longitude: task.longitude },
+        },
+      }));
+  }
+  return stops;
+}
+
+function buildClaudePrompt() {
+  const stopLines = getClaudeJobStops().map(stop => {
+    const type = stop._isTask ? 'task' : 'item';
+    const address = stop.customer?.deliveryAddress;
+    return '- ' + type + ' id=' + stop.id
+      + ' | ' + (stop.vend?.code ?? '')
+      + ' | ' + (stop.customer?.name ?? '')
+      + ' | postcode ' + (stop.delivery_postcode ?? address?.postcode ?? '?')
+      + ' | lat ' + (address?.latitude ?? '?')
+      + ' lng ' + (address?.longitude ?? '?');
+  });
+
+  return 'Plan the driver route for mark1 ops job ' + opsJob.value.id
+    + ' (' + (opsJob.value.date_formatted ?? '') + ', driver: ' + (opsJob.value.deliveredBy?.name ?? 'unassigned') + ').\n\n'
+    + 'Stops to order:\n' + stopLines.join('\n') + '\n\n'
+    + 'Use the read-only sys-happyice MCP where helpful: past visiting order for these sites '
+    + '(ops_job_items.sequence on earlier ops_jobs for the same customer_id/driver), site timing patterns, '
+    + 'and anything else in the DB. Order the stops to minimise travel and respect timing patterns.\n\n'
+    + 'If the mark1 MCP offers the apply_route_sequence tool, apply the route directly with it '
+    + '(dry_run first, then apply after I confirm). Otherwise reply with ONLY this JSON '
+    + '(stops in visiting order, include every stop listed above) for me to paste into the route page:\n'
+    + '{"ops_job_id": ' + opsJob.value.id + ', "stops": [{"type": "item", "id": 123}, {"type": "task", "id": 456}]}';
+}
+
+function copyClaudePrompt() {
+  navigator.clipboard.writeText(buildClaudePrompt()).then(() => {
+    toast.success('Planning prompt copied — paste it into Claude', { timeout: 3000 });
+  }).catch(() => {
+    toast.error('Could not copy to clipboard');
+  });
+}
+
+function applyClaudeJson() {
+  let parsed;
+  try {
+    parsed = JSON.parse(claudeJsonText.value);
+  } catch (e) {
+    toast.error('Invalid JSON: ' + e.message);
+    return;
+  }
+
+  // Accept a bare array or an object holding the array under stops/sequence/route.
+  const rawStops = Array.isArray(parsed) ? parsed : (parsed.stops ?? parsed.sequence ?? parsed.route);
+  if (!Array.isArray(rawStops) || !rawStops.length) {
+    toast.error('JSON must contain a non-empty "stops" array');
+    return;
+  }
+  // Guard against pasting another job's plan.
+  if (parsed.ops_job_id != null && Number(parsed.ops_job_id) !== Number(opsJob.value.id)) {
+    toast.error('This JSON is for ops job ' + parsed.ops_job_id + ', not ' + opsJob.value.id);
+    return;
+  }
+
+  const jobStops = getClaudeJobStops();
+  const stopKey = stop => (stop._isTask ? 'task' : 'item') + ':' + stop.id;
+  const byKey = new Map(jobStops.map(stop => [stopKey(stop), stop]));
+  const byCode = new Map(jobStops.filter(stop => !stop._isTask && stop.vend?.code).map(stop => [String(stop.vend.code), stop]));
+
+  const seen = new Set();
+  const mergedOrder = [];
+  const unmatched = [];
+  rawStops.forEach(raw => {
+    const entry = (raw !== null && typeof raw === 'object') ? raw : { id: raw };
+    // Item and task ids overlap, so a mis-cased/unknown type must NOT silently
+    // fall back to 'item' — it could match a different stop. Reject it instead.
+    const type = String(entry.type ?? 'item').toLowerCase();
+    if (type !== 'item' && type !== 'task') {
+      unmatched.push(JSON.stringify(entry));
+      return;
+    }
+    let stop = entry.id != null ? byKey.get(type + ':' + Number(entry.id)) : null;
+    if (!stop && (entry.vend_code ?? entry.code) != null) {
+      stop = byCode.get(String(entry.vend_code ?? entry.code));
+    }
+    if (!stop) {
+      unmatched.push(JSON.stringify(entry));
+      return;
+    }
+    if (seen.has(stopKey(stop))) return; // duplicate in the JSON — first occurrence wins
+    seen.add(stopKey(stop));
+    mergedOrder.push({ type: stop._isTask ? 'task' : 'item', id: stop.id });
+  });
+
+  if (!mergedOrder.length) {
+    toast.error('No stops in the JSON match this ops job');
+    return;
+  }
+
+  // Every real stop gets a fresh sequence: stops missing from the JSON are
+  // appended in their current order, so the overwrite never leaves stale numbers.
+  const missing = jobStops.filter(stop => !seen.has(stopKey(stop)));
+  missing.forEach(stop => mergedOrder.push({ type: stop._isTask ? 'task' : 'item', id: stop.id }));
+
+  const lines = ['Overwrite the current sequence with ' + mergedOrder.length + ' stops from the Claude JSON?'];
+  if (missing.length) {
+    lines.push(missing.length + ' stop(s) not in the JSON will be appended at the end.');
+  }
+  if (unmatched.length) {
+    lines.push(unmatched.length + ' JSON entries do not match this job and will be ignored: '
+      + unmatched.slice(0, 5).join(', ') + (unmatched.length > 5 ? ', …' : ''));
+  }
+  if (!confirm(lines.join('\n'))) {
+    return;
+  }
+
+  axios.post('/ops-jobs/' + opsJob.value.id + '/renumber', { mergedOrder })
+    .then(() => {
+      toast.success('Route applied from Claude JSON', { timeout: 3000 });
+      location.reload();
+    })
+    .catch(error => {
+      console.error(error);
+      toast.error('Failed to apply the route');
+    });
 }
 
 // Function to clear the existing route and markers

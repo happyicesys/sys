@@ -58,6 +58,14 @@ DB_NAME = os.getenv("MARK1_DB_DATABASE", "mark1")
 DB_USER = os.getenv("MARK1_DB_USERNAME", "mark1_ro")
 DB_PASS = os.getenv("MARK1_DB_PASSWORD", "")
 
+# Optional route-writer DB user for apply_route_sequence. The GRANT for this
+# user is column-level — UPDATE (sequence) on ops_job_items / ops_job_tasks and
+# nothing else (see README) — so even with these credentials set, the server
+# physically cannot write any other column or table. Leave unset to keep the
+# MCP fully read-only (the tool then refuses with a clear message).
+DB_WRITE_USER = os.getenv("MARK1_DB_WRITE_USERNAME", "")
+DB_WRITE_PASS = os.getenv("MARK1_DB_WRITE_PASSWORD", "")
+
 # Hard caps so a single question can never pull the whole DB into context or
 # make the server chew through a huge result set.
 DEFAULT_ROW_LIMIT = int(os.getenv("MARK1_DEFAULT_ROW_LIMIT", "500"))
@@ -280,6 +288,29 @@ def _run(sql: str, max_rows: int) -> dict:
             }
     finally:
         conn.close()
+
+
+def _connect_write() -> pymysql.connections.Connection:
+    """Connection as the route-writer user (column-level UPDATE grant only).
+    No READ ONLY session guard, autocommit off — the caller owns the
+    transaction. Raises if the write credentials are not configured."""
+    if not DB_WRITE_USER or not DB_WRITE_PASS:
+        raise RuntimeError(
+            "Route writing is not enabled on this MCP server "
+            "(MARK1_DB_WRITE_USERNAME/PASSWORD not set)."
+        )
+    return pymysql.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_WRITE_USER,
+        password=DB_WRITE_PASS,
+        database=DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor,
+        connect_timeout=10,
+        read_timeout=30,
+        charset="utf8mb4",
+        autocommit=False,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -728,6 +759,233 @@ def run_query(sql: str, max_rows: int = DEFAULT_ROW_LIMIT) -> str:
         return json.dumps({"error": f"MySQL error: {e}"})
     except Exception as e:  # noqa: BLE001
         return json.dumps({"error": f"Unexpected error: {e}"})
+
+
+# --------------------------------------------------------------------------- #
+# Route planning (the one write this server can make)
+# --------------------------------------------------------------------------- #
+ROUTE_PERMISSION = "admin-access operations"  # same gate as the UI's Renumber button
+
+
+def _user_can_plan_routes(identity: dict) -> bool:
+    """True when the caller may rewrite route sequences. The local stdio owner
+    (no bound user) is trusted, as everywhere else in this server; a token/OAuth
+    identity must hold the same mark1 permission that guards the Renumber
+    button, via a role or directly. Read-only check on the Spatie tables."""
+    user_id = (identity or {}).get("user_id")
+    if user_id is None:
+        return True  # local stdio owner
+    sql = (
+        "SELECT COUNT(*) AS n FROM permissions p "
+        "WHERE p.name = %s AND ("
+        "  EXISTS (SELECT 1 FROM model_has_permissions mhp "
+        "          WHERE mhp.permission_id = p.id "
+        "            AND mhp.model_type = 'App\\\\Models\\\\User' AND mhp.model_id = %s) "
+        "  OR EXISTS (SELECT 1 FROM role_has_permissions rhp "
+        "             JOIN model_has_roles mhr ON mhr.role_id = rhp.role_id "
+        "              AND mhr.model_type = 'App\\\\Models\\\\User' AND mhr.model_id = %s "
+        "             WHERE rhp.permission_id = p.id)"
+        ")"
+    )
+    try:
+        conn = _connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, (ROUTE_PERMISSION, user_id, user_id))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        return False
+    return bool(row and row.get("n"))
+
+
+def _load_route_stops(ops_job_id: int) -> list:
+    """The job's real stops (items + tasks) in current sequence order. Each:
+    {type, id, sequence, code, name}."""
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 'item' AS type, oji.id AS id, oji.sequence AS sequence, "
+                "v.code AS code, c.name AS name "
+                "FROM ops_job_items oji "
+                "LEFT JOIN vends v ON v.id = oji.vend_id "
+                "LEFT JOIN customers c ON c.id = oji.customer_id "
+                "WHERE oji.ops_job_id = %s "
+                "UNION ALL "
+                "SELECT 'task' AS type, t.id AS id, t.sequence AS sequence, "
+                "NULL AS code, t.task_name AS name "
+                "FROM ops_job_tasks t WHERE t.ops_job_id = %s "
+                "ORDER BY ISNULL(sequence), sequence, id",
+                (ops_job_id, ops_job_id),
+            )
+            return list(cur.fetchall())
+    finally:
+        conn.close()
+
+
+def _job_route_editable(ops_job_id: int) -> bool:
+    """Mirror of the web endpoint's completed-job gate: editable while any item
+    is undelivered (status < 3) or the job has tasks (the route page treats
+    every task as pending). Fails closed on DB errors."""
+    sql = (
+        "SELECT (EXISTS (SELECT 1 FROM ops_job_items "
+        "                WHERE ops_job_id = %s AND status < 3) "
+        "     OR EXISTS (SELECT 1 FROM ops_job_tasks "
+        "                WHERE ops_job_id = %s)) AS ok"
+    )
+    try:
+        conn = _connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, (ops_job_id, ops_job_id))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        return False
+    return bool(row and row.get("ok"))
+
+
+@mcp.tool()
+def apply_route_sequence(ops_job_id: int, stops: list, dry_run: bool = False) -> str:
+    """Overwrite the driver route (visiting order) of one ops job. This is the
+    ONLY write this server can make: it renumbers ops_job_items.sequence /
+    ops_job_tasks.sequence to 1..N — the same always-overwrite semantics as the
+    route page's Renumber button. Nothing else is writable, at the DB-grant level.
+
+    Args:
+      ops_job_id: the ops job whose route to set.
+      stops: the stops in visiting order. Each entry is
+             {"type": "item"|"task", "id": <ops_job_items.id | ops_job_tasks.id>}
+             (a bare integer is treated as an item id). Read the job's stops
+             first, e.g. via run_query on ops_job_items/ops_job_tasks.
+      dry_run: if true, only report what would change — no write.
+
+    Rules:
+      - Every id must belong to this ops job; unknown or duplicate ids are an
+        error (fix the list and retry).
+      - Stops of the job missing from the list are appended after it in their
+        current order, so the overwrite never leaves stale sequence numbers.
+      - Requires the 'admin-access operations' mark1 permission (the same
+        one that guards the route page's Renumber button).
+
+    Returns JSON: the final order with old -> new sequence per stop.
+    """
+    identity, _err = _guard("apply_route_sequence", f"job={ops_job_id} stops={len(stops or [])} dry_run={dry_run}")
+    if _err:
+        return _err
+    if not _user_can_plan_routes(identity):
+        return json.dumps({"error": f"Your mark1 account lacks the '{ROUTE_PERMISSION}' permission required to rewrite routes."})
+
+    # --- validate input shape --------------------------------------------- #
+    try:
+        ops_job_id = int(ops_job_id)
+    except (TypeError, ValueError):
+        return json.dumps({"error": "ops_job_id must be an integer."})
+    if not isinstance(stops, list) or not stops:
+        return json.dumps({"error": "stops must be a non-empty list."})
+
+    requested = []
+    for raw in stops:
+        if isinstance(raw, dict):
+            stop_type = raw.get("type", "item")
+            stop_id = raw.get("id")
+        else:
+            stop_type, stop_id = "item", raw
+        if stop_type not in ("item", "task"):
+            return json.dumps({"error": f"Invalid stop type {stop_type!r} (use 'item' or 'task')."})
+        try:
+            stop_id = int(stop_id)
+        except (TypeError, ValueError):
+            return json.dumps({"error": f"Invalid stop id in entry {raw!r}."})
+        requested.append((stop_type, stop_id))
+
+    dupes = {k for k in requested if requested.count(k) > 1}
+    if dupes:
+        return json.dumps({"error": "Duplicate stops in the list: " + ", ".join(f"{t}:{i}" for t, i in sorted(dupes))})
+
+    # --- resolve against the job's real stops ----------------------------- #
+    try:
+        job_stops = _load_route_stops(ops_job_id)
+    except pymysql.MySQLError as e:
+        return json.dumps({"error": f"MySQL error: {e}"})
+    if not job_stops:
+        return json.dumps({"error": f"Ops job {ops_job_id} has no items or tasks (or does not exist)."})
+
+    # Completed-job rule, mirroring the web endpoint (OpsJobController::renumberItems):
+    # a job whose items are all delivered (status >= 3) and which has no tasks is
+    # history — its visiting order must not be rewritten.
+    if not _job_route_editable(ops_job_id):
+        return json.dumps({
+            "error": f"Ops job {ops_job_id} is completed (every item delivered, no tasks) — "
+                     "its route can no longer be rewritten."
+        })
+
+    by_key = {(s["type"], s["id"]): s for s in job_stops}
+    unknown = [k for k in requested if k not in by_key]
+    if unknown:
+        return json.dumps({
+            "error": "These stops do not belong to ops job "
+                     f"{ops_job_id}: " + ", ".join(f"{t}:{i}" for t, i in unknown),
+            "job_stops": _rows_json(job_stops),
+        })
+
+    # Requested order first, then any stop the list missed, in current order.
+    ordered = [by_key[k] for k in requested]
+    missing = [s for s in job_stops if (s["type"], s["id"]) not in set(requested)]
+    ordered += missing
+
+    plan = [
+        {
+            "sequence": seq,
+            "type": s["type"],
+            "id": s["id"],
+            "code": _jsonable(s.get("code")),
+            "name": _jsonable(s.get("name")),
+            "old_sequence": _jsonable(s.get("sequence")),
+        }
+        for seq, s in enumerate(ordered, start=1)
+    ]
+
+    result = {
+        "ops_job_id": ops_job_id,
+        "applied": False,
+        "stops_in_json_order": len(requested),
+        "stops_appended_from_job": len(missing),
+        "route": plan,
+    }
+    if dry_run:
+        result["note"] = "dry_run — nothing was written."
+        return json.dumps(result, indent=2)
+
+    # --- write (one transaction, per-row ops_job_id guard) ----------------- #
+    try:
+        conn = _connect_write()
+    except RuntimeError as e:
+        return json.dumps({"error": str(e)})
+    try:
+        with conn.cursor() as cur:
+            for entry in plan:
+                table = "ops_job_items" if entry["type"] == "item" else "ops_job_tasks"
+                cur.execute(
+                    f"UPDATE {table} SET sequence = %s WHERE id = %s AND ops_job_id = %s",
+                    (entry["sequence"], entry["id"], ops_job_id),
+                )
+        conn.commit()
+    except pymysql.MySQLError as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return json.dumps({"error": f"MySQL error while writing (rolled back): {e}"})
+    finally:
+        conn.close()
+
+    result["applied"] = True
+    _audit(identity, "apply_route_sequence:applied", f"job={ops_job_id} n={len(plan)}")
+    return json.dumps(result, indent=2)
 
 
 def _build_http_app():
