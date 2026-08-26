@@ -265,16 +265,20 @@
                         {{ Number(product.available_vend_with_stock_count ?? 0).toLocaleString() }} with stock
                       </div>
                       <!-- Low stock: machines whose total qty of this SKU is <= 2 (incl. empty). Click for the machine list. -->
-                      <div v-if="product.available_vend_count > 0" class="text-[10px]">
+                      <div v-if="product.available_vend_count > 0" class="mt-1">
                         <button
                           v-if="Number(product.available_vend_low_stock_count ?? 0) > 0"
                           type="button"
-                          class="font-semibold text-red-600 underline decoration-dotted underline-offset-2 hover:text-red-700"
+                          class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 shadow-sm transition-colors hover:bg-red-100 hover:ring-red-300"
+                          v-tooltip="{ content: 'Machines whose total stock of this SKU is 2 or less (empty included). Click for the machine list with refilling routes.' }"
                           @click.prevent="onLowStockClicked(product)"
                         >
-                          {{ Number(product.available_vend_low_stock_count).toLocaleString() }}, stock &lt;= 2
+                          <ExclamationTriangleIcon class="h-3 w-3 text-red-500" aria-hidden="true" />
+                          {{ Number(product.available_vend_low_stock_count).toLocaleString() }} at &le;2
                         </button>
-                        <span v-else class="text-gray-400">0, stock &lt;= 2</span>
+                        <span v-else class="inline-flex items-center whitespace-nowrap rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-gray-400 ring-1 ring-inset ring-gray-200">
+                          0 at &le;2
+                        </span>
                       </div>
                     </td>
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
@@ -442,7 +446,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon, ArrowDownTrayIcon, BellAlertIcon, AtSymbolIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon, ExclamationTriangleIcon, ArrowDownTrayIcon, BellAlertIcon, AtSymbolIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
