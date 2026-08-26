@@ -285,6 +285,11 @@ class VendResource extends JsonResource
             'private_key' => isset($this->private_key) ? $this->private_key : null,
             'simcard' => SimcardResource::make($this->whenLoaded('simcard')),
             'simcard_id' => isset($this->simcard_id) ? $this->simcard_id : null,
+            // "SimCard Package" (telcos.name) reached through the machine's
+            // bound SIM card. Selected via the simcards/telcos joins in
+            // VendController::indexCustomer; null on pages that don't join them.
+            'telco_id' => isset($this->telco_id) ? $this->telco_id : null,
+            'telco_name' => isset($this->telco_name) ? $this->telco_name : null,
             'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
             'settings_parameter_json' => isset($this->settings_parameter_json) ? $this->settings_parameter_json : null,
             'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,

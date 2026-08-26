@@ -10,7 +10,7 @@
             {{ props.telco.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Telco
+            Create New SimCard Package
           </span>
         </div>
       </template>
@@ -95,11 +95,11 @@ function submit() {
     form.value
     .post('/telcos/create', {
       onSuccess: () => {
-        toast.success("Telco created successfully", { timeout: 3000 })
+        toast.success("SimCard Package created successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create telco", { timeout: 3000 })
+        toast.error("Failed to create SimCard Package", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -110,11 +110,11 @@ function submit() {
     form.value
       .post('/telcos/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Telco updated successfully", { timeout: 3000 })
+        toast.success("SimCard Package updated successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update telco", { timeout: 3000 })
+        toast.error("Failed to update SimCard Package", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

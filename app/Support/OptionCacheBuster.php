@@ -14,6 +14,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\Tag;
+use App\Models\Telco;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannelError;
@@ -65,6 +66,7 @@ class OptionCacheBuster
         Zone::class             => ['zone_options'], // "Refilling Routes" dropdown
         ProductMapping::class   => ['product_mapping_options'],
         CardTerminal::class     => ['card_terminal_options'],
+        Telco::class            => ['telco_options'], // "SimCard Package" dropdown
         Tag::class              => ['tag_options_product'],
         PaymentMethod::class    => ['payment_methods', 'payment_method_id_credit_card'],
     ];

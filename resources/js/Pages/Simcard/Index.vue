@@ -37,7 +37,7 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Telco
+              SimCard Package
             </label>
             <MultiSelect
               v-model="filters.telco_id"
@@ -108,9 +108,15 @@
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Machine ID
                     </TableHeadSort>
+                    <TableHead>
+                      Machine APK
+                    </TableHead>
                     <TableHeadSort modelName="telco_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('telco_id')">
-                      SimCard Telco
+                      SimCard Package
                     </TableHeadSort>
+                    <TableHead>
+                      Signal Strength
+                    </TableHead>
                     <TableHead>
                       Phone Number
                     </TableHead>
@@ -135,24 +141,35 @@
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         {{ simcard.vend_code }}
                       </TableData>
+                      <!-- The APK versionCode the bound machine last reported, over
+                           either channel (OTA check-in or the PWRON frame) — the JS
+                           twin of Vend::reportedApkVersion(). One line per bound
+                           machine, in the same order as the Machine ID column. -->
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
-                        <div class="flex flex-col items-center space-y-1">
-                          <span>{{ simcard.telco.name }}</span>
-                          <!-- What the bound machine actually reports (vends.internet_*,
-                               same data as the Machine List's SIM Card block): the live
-                               carrier + signal pill (1-2 red, 3 yellow, 4-5 green).
-                               Nothing shows when no bound machine has reported a link. -->
-                          <template v-if="reportedLink(simcard)">
-                            <span class="text-xs font-bold text-gray-700">{{ internetLinkTitle(reportedLink(simcard)) }}</span>
-                            <span
-                              v-if="signalBars(reportedLink(simcard)) || reportedLink(simcard).internet_source === 'none'"
-                              class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
-                              :class="signalBadgeClass(reportedLink(simcard))"
-                            >
-                              {{ signalBars(reportedLink(simcard)) || 'No Link' }}
-                            </span>
-                          </template>
+                        <div v-if="apkVersions(simcard).length" class="flex flex-col items-center space-y-1">
+                          <span v-for="apk in apkVersions(simcard)" :key="apk.id">{{ apk.version }}</span>
                         </div>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
+                        {{ simcard.telco.name }}
+                      </TableData>
+                      <!-- What the bound machine actually reports (vends.internet_*,
+                           same data as the Machine List's SIM Card block): the live
+                           carrier + signal pill (1-2 red, 3 yellow, 4-5 green).
+                           Nothing shows when no bound machine has reported a link. -->
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
+                        <div v-if="reportedLink(simcard)" class="flex flex-col items-center space-y-1">
+                          <span class="text-xs font-bold text-gray-700">{{ internetLinkTitle(reportedLink(simcard)) }}</span>
+                          <span
+                            v-if="signalBars(reportedLink(simcard)) || reportedLink(simcard).internet_source === 'none'"
+                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+                            :class="signalBadgeClass(reportedLink(simcard))"
+                          >
+                            {{ signalBars(reportedLink(simcard)) || 'No Link' }}
+                          </span>
+                        </div>
+                        <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.phone_number }}
@@ -234,11 +251,28 @@ import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
 
-// The bound machine's live-reported link (vends.internet_*) for the SimCard
-// Telco column — first bound vend that has ever reported one, else null.
+// The bound machine's live-reported link (vends.internet_*) for the Signal
+// Strength column — first bound vend that has ever reported one, else null.
 function reportedLink(simcard) {
   const vends = simcard.vends || [];
   return vends.find((v) => v.internet_source) || null;
+}
+
+// Reported APK versionCode per bound machine, for the Machine APK column.
+// Mirrors Vend::reportedApkVersion(): the OTA check-in writes
+// vends.apk_version_code, the PWRON frame writes apk_ver_json.apkver, and the
+// higher of the two is what the machine is actually running. Machines that
+// have never reported either are left out (0 would read as a real version).
+function apkVersions(simcard) {
+  return (simcard.vends || [])
+    .map((vend) => ({
+      id: vend.id,
+      version: Math.max(
+        Number(vend.apk_version_code) || 0,
+        Number(vend.apk_ver_json && vend.apk_ver_json.apkver) || 0
+      ),
+    }))
+    .filter((apk) => apk.version > 0);
 }
 
 const props = defineProps({

@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Telco" />
+  <Head title="SimCard Package" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Telco)
+        Data Management (SimCard Package)
       </h2>
     </template>
 
@@ -198,10 +198,10 @@ function onDeleteClicked(telco) {
   }
   router.delete('/telcos/' + telco.id, {
     onSuccess: () => {
-      toast.success("Telco deleted successfully", { timeout: 3000 })
+      toast.success("SimCard Package deleted successfully", { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete telco", { timeout: 3000 })
+      toast.error("Failed to delete SimCard Package", { timeout: 3000 })
     }
   })
 }

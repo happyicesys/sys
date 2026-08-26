@@ -222,7 +222,7 @@ const navigation = computed(() => [
             {name: 'Card Terminals', href: '/card-terminals', permission: 'read card-terminals'},
             {name: 'Machine Sticker', href: '/machine-stickers', permission: 'read machine-stickers'},
             {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
-            {name: 'Telco', href: '/telcos', permission: 'read telcos'},
+            {name: 'SimCard Package', href: '/telcos', permission: 'read telcos'},
             {name: 'SIM Card', href: '/simcards', permission: 'read simcards'},
             {name: 'Machine Contract Type', href: '/vend-contracts', permission: 'read vend-contracts'},
             {name: 'Location Types', href: '/location-types', permission: 'read location-types'},

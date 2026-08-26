@@ -252,6 +252,26 @@
 					>
 					</MultiSelect>
 				</div>
+				<!-- SimCard Package — the SIM card's data plan (telcos), matched
+				     through vends.simcard_id. Multi-select; the "All" chip is the
+				     default and means "don't filter". -->
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					<label for="text" class="block text-sm font-medium text-gray-700">
+						SimCard Package
+					</label>
+					<MultiSelect
+						v-model="filters.telcos"
+						:options="telcoOptions"
+						trackBy="id"
+						valueProp="id"
+						label="value"
+						placeholder="Select"
+						open-direction="bottom"
+						class="mt-1"
+						mode="tags"
+					>
+					</MultiSelect>
+				</div>
 				<SearchInput placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Avg/Day Sales (30d) &lt;&lt;
 				</SearchInput>
@@ -2721,6 +2741,25 @@
 											</span>
 									</div>
 							</div>
+							<!--
+								SimCard Package — the data plan the machine's bound SIM
+								card sits on (Data Management > SimCard Package, i.e.
+								telcos.name), selected via the simcards/telcos joins in
+								VendController::indexCustomer. Informational, not a
+								status, so it carries no online/offline colouring —
+								only the usual dimming when the machine is inactive.
+								Hidden entirely when no SIM card is bound.
+							-->
+							<div
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+									:class="[vend.is_active || vend.is_testing ? 'bg-blue-100' : 'bg-gray-200 text-gray-400']"
+									v-if="vend.telco_name"
+							>
+									<div class="flex flex-col">
+											<span class="font-bold">SimCard Package</span>
+											<span>{{ vend.telco_name }}</span>
+									</div>
+							</div>
 							<!-- Internet-link badge moved to the Error column's "SIM Card" block
 							     (Daniel, 2026-08-24) — see constants/internetLink.js. -->
 							<!--
@@ -3324,6 +3363,9 @@ font-size:13px;
 			upcomingProductMappingOptions: Object,
 			productOptions: Object,
 			sellingPriceTypeOptions: [Array, Object],
+			// "SimCard Package" filter options (the telcos table, renamed in
+			// the UI). Shape: { data: [{id, name}] }.
+			telcoOptions: Object,
 			totals: [Array, Object],
 			vends: Object,
 			vendChannelErrors: Object,
@@ -3598,6 +3640,7 @@ font-size:13px;
 			numberPerPage: '',
 			productMappings: [],
 			upcomingProductMappings: [],
+			telcos: [],
 			vendConfigs: [],
 			vendContracts: [],
 			visited: true,
@@ -3661,6 +3704,7 @@ font-size:13px;
 	const vends = ref(getVendsField())
 	const vendChannelErrorsOptions = ref([])
 	const vendConfigOptions = ref([])
+	const telcoOptions = ref([])
 	const vendContractOptions = ref([])
 	const vendModelOptions = ref([])
 	const vendPrefixOptions = ref([])
@@ -3787,6 +3831,10 @@ vendContractOptions.value = [
 		{id: 'all', value: 'All'},
 		...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
+telcoOptions.value = [
+		{id: 'all', value: 'All'},
+		...(props.telcoOptions?.data ?? []).map((data) => {return {id: data.id, value: data.name}})
+	]
 vendModelOptions.value = [
 		{id: 'all', value: 'All'},
 		...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -3828,6 +3876,8 @@ filters.value.is_door_open = doorOptions.value[0]
 filters.value.fan_rpm = fanRpmOptions.value[0]
 filters.value.is_mqtt = booleanOptions.value[0]
 filters.value.is_mqtt_active = booleanOptions.value[0]
+// SimCard Package — multi-select, defaults to the "All" chip (no narrowing).
+filters.value.telcos = [telcoOptions.value[0]]
 filters.value.is_online = booleanOptions.value[0]
 filters.value.is_sensor = enableOptions.value[0]
 filters.value.is_testing = booleanOptions.value[2]
@@ -3920,6 +3970,7 @@ if(urlParams.has('channel_codes')) {
 	hydrateMulti('preferredDays', dayOptions.value, 'preferredDays');
 	hydrateMulti('productMappings', productMappingOptions.value, 'productMappings');
 	hydrateMulti('upcomingProductMappings', upcomingProductMappingOptions.value, 'upcomingProductMappings');
+	hydrateMulti('telcos', telcoOptions.value, 'telcos');
 	hydrateMulti('vendConfigs', vendConfigOptions.value, 'vendConfigs');
 	hydrateMulti('vendContracts', vendContractOptions.value, 'vendContracts');
 	hydrateMulti('vendModels', vendModelOptions.value, 'vendModels');
@@ -4718,6 +4769,7 @@ function onSearchFilterUpdated() {
 			// Overrides the object array spread by ...filters.value above — the
 			// backend expects bare ids (numeric, or the 'none' sentinel).
 			upcomingProductMappings: filters.value.upcomingProductMappings.map((pm) => { return pm.id }),
+			telcos: filters.value.telcos.map(telco => telco.id),
 			vendConfigs: filters.value.vendConfigs.map(vc => vc.id),
 			vendContracts: filters.value.vendContracts.map(vc => vc.id),
 			vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
@@ -4928,6 +4980,7 @@ axios({
 				is_testing: filters.value.is_testing.id,
 				status: filters.value.status.id,
 				// vend_prefix_id: filters.value.vend_prefix_id.id,
+				telcos: filters.value.telcos.map(telco => telco.id),
 				vendConfigs: filters.value.vendConfigs.map(vc => vc.id),
 				vendContracts: filters.value.vendContracts.map(vc => vc.id),
 				vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),

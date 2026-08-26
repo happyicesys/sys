@@ -741,6 +741,23 @@ trait HasFilter
                     $query->whereIn('vend_contract_id', $search);
                 }
             })
+            // "SimCard Package" (Vend/CustomerIndex, hidden filter) — the data
+            // plan of the machine's bound SIM card, i.e. simcards.telco_id.
+            // A subquery on `vends.simcard_id` for the same reason cashless_mfg
+            // uses one above: this trait runs on Vend-, Customer- and
+            // VendSnapshot-rooted queries, so whereHas() has no relation name
+            // that holds everywhere — but `vends` is joined at every call site.
+            ->when($request->telcos, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
+                    $query->whereIn('vends.simcard_id', function ($sub) use ($ids) {
+                        $sub->select('id')
+                            ->from('simcards')
+                            ->whereIn('telco_id', $ids);
+                    });
+                }
+            })
             ->when($request->vend_model_id, function ($query, $search) {
                 if ($search != 'all') {
                     $query->where('vends.vend_model_id', $search);

@@ -20,6 +20,7 @@ use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\TagResource;
+use App\Http\Resources\TelcoResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendChannelResource;
@@ -66,6 +67,7 @@ use App\Models\RefundTicketItem;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\Tag;
+use App\Models\Telco;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -769,7 +771,14 @@ class VendController extends Controller
                 // can SELECT card_terminals.name AS card_terminal_name and expose
                 // it on the Customer Index "Card Terminal" badge / filter without
                 // an N+1 lazy load.
-                ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+                ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id')
+                // SIM card package (Data Management > SimCard Package, i.e. the
+                // telcos table) reached through the machine's bound SIM card.
+                // Joined so we can SELECT telcos.name AS telco_name for the
+                // "SimCard Package" badge in the Machine Status column without
+                // an N+1 lazy load. Both hops are PK joins, so no row fan-out.
+                ->leftJoin('simcards', 'simcards.id', '=', 'vends.simcard_id')
+                ->leftJoin('telcos', 'telcos.id', '=', 'simcards.telco_id');
 
             // ── Grouped "travel together" (Operation Dashboard) ─────────────────
             // When the "Grouped?" toggle is on, a co-located cluster must appear as
@@ -1202,6 +1211,11 @@ class VendController extends Controller
                 // badge on the customer index page.
                 'vends.card_terminal_id',
                 'card_terminals.name AS card_terminal_name',
+                // SimCard package — drives the "SimCard Package" badge in the
+                // Machine Status column and the matching hidden filter.
+                'vends.simcard_id',
+                'simcards.telco_id AS telco_id',
+                'telcos.name AS telco_name',
             ];
 
             if ($needsVc) {
@@ -1883,6 +1897,10 @@ class VendController extends Controller
         $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn () => VendModelResource::collection(VendModel::orderBy('name')->get())->resolve()
         );
 
+        // "SimCard Package" filter list — the telcos table, renamed in the UI.
+        $telcoOptions = Cache::remember('telco_options', $ttl, fn () => TelcoResource::collection(Telco::orderBy('name')->get())->resolve()
+        );
+
         // Customer View filter: only list prefixes that still have at least
         // one Active machine — prefixes whose machines are all
         // inactive/testing should not clutter the dropdown.
@@ -2058,6 +2076,9 @@ class VendController extends Controller
             'productMappingOptions' => ['data' => $productMappingOptions],
             // Options for the "Upcoming Mapping" filter (see above).
             'upcomingProductMappingOptions' => ['data' => $upcomingProductMappingOptions],
+            // SimCard package options ("SimCard Package" = the telcos table,
+            // renamed in the UI). Drives the hidden multi-select filter.
+            'telcoOptions' => ['data' => $telcoOptions],
             'vendConfigOptions' => ['data' => $vendConfigOptions],
             'vendContractOptions' => ['data' => $vendContractOptions],
             'vendModelOptions' => ['data' => $vendModelOptions],
