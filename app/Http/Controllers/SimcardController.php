@@ -29,9 +29,11 @@ class SimcardController extends Controller
                         // Inertia payload, dragging apk_ver_json siblings like
                         // settings_parameter_json and meta_json along for every
                         // row on the page.
-                        'vends:id,simcard_id,code,apk_version_code,apk_ver_json,'
+                        'vends:id,simcard_id,code,customer_id,apk_version_code,apk_ver_json,'
                             .'internet_source,internet_provider,internet_network,'
                             .'internet_signal,internet_signal_max',
+                        // Site column — id + name only; ref_id is id + 20000.
+                        'vends.customer:id,name',
                         'updatedBy:id,name',
                     ])
                     ->when($request->code, function ($query, $search) {
@@ -41,9 +43,6 @@ class SimcardController extends Controller
                         $query->whereHas('vends', function ($query) use ($search) {
                             $query->where('code', 'LIKE', "%{$search}%");
                         });
-                    })
-                    ->when($request->phone_number, function ($query, $search) {
-                        $query->where('phone_number', 'LIKE', "%{$search}%");
                     })
                     ->when($request->msisdn, function ($query, $search) {
                         $query->where('msisdn', 'LIKE', "%{$search}%");

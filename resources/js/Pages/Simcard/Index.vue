@@ -29,9 +29,6 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
-          <SearchInput placeholderStr="Phone Number" v-model="filters.phone_number">
-            Phone Number
-          </SearchInput>
           <SearchInput placeholderStr="MSISDN" v-model="filters.msisdn">
             MSISDN
           </SearchInput>
@@ -109,6 +106,9 @@
                       Machine ID
                     </TableHeadSort>
                     <TableHead>
+                      Site
+                    </TableHead>
+                    <TableHead>
                       Machine APK
                     </TableHead>
                     <TableHeadSort modelName="telco_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('telco_id')">
@@ -116,9 +116,6 @@
                     </TableHeadSort>
                     <TableHead>
                       Signal Strength
-                    </TableHead>
-                    <TableHead>
-                      Phone Number
                     </TableHead>
                     <TableHeadSort modelName="msisdn" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('msisdn')">
                       MSISDN
@@ -140,6 +137,27 @@
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         {{ simcard.vend_code }}
+                      </TableData>
+                      <!-- The Site each bound machine sits at — displayed Site ID
+                           (customers.id + 20000) over the site name, one block per
+                           bound machine, in the same order as the Machine ID column.
+                           Unbound simcards, and machines sitting at no Site, show '—'. -->
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
+                        <div v-if="simcard.sites && simcard.sites.length" class="flex flex-col space-y-1">
+                          <template v-for="site in simcard.sites" :key="site.vend_id">
+                            <a
+                              v-if="site.id"
+                              class="text-blue-700 hover:underline"
+                              target="_blank"
+                              :href="'/customers/' + site.id + '/edit'"
+                            >
+                              {{ site.ref_id }}<br>
+                              {{ site.name }}
+                            </a>
+                            <span v-else class="text-gray-400">—</span>
+                          </template>
+                        </div>
+                        <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <!-- The APK versionCode the bound machine last reported, over
                            either channel (OTA check-in or the PWRON frame) — the JS
@@ -170,9 +188,6 @@
                           </span>
                         </div>
                         <span v-else class="text-gray-400">—</span>
-                      </TableData>
-                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
-                        {{ simcard.phone_number }}
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.msisdn }}
@@ -284,7 +299,6 @@ const props = defineProps({
 const filters = ref({
   code: '',
   vend_code: '',
-  phone_number: '',
   msisdn: '',
   telco_id: '',
   sortKey: '',
