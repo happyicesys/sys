@@ -49,6 +49,33 @@ class OpsJobController extends Controller
      */
     public const UPCOMING_DEFAULT_PICKED_QTY = 10;
 
+    /**
+     * Sort keys the item query in edit() can actually resolve — 'sequence' and
+     * 'refillable_amount' are real ops_job_items columns, the rest are aliases
+     * this method's own selectRaw() blocks define. Maintained by hand because
+     * most of these are aliases, so no schema check can derive the list.
+     *
+     * NOT included, deliberately: 'acc_vend_transactions_amount' and
+     * 'acc_vend_transactions_cash_amount'. Edit.vue offers headers for both
+     * ("Stock-out (Transactions)" / "CashAmt$ (Trans)"), but those aliases are
+     * only defined in index()'s per-job aggregate, never in this per-item
+     * query — sorting on either raised a SQL error, i.e. a 500. Leaving them
+     * out degrades those two headers to the default sequence order instead.
+     * To make them sort for real, add the SUM() aliases to the selectRaw block
+     * below and then add the keys here.
+     */
+    public const EDIT_SORT_KEYS = [
+        'sequence',
+        'delivery_postcode',
+        'zone_name',
+        'refillable_amount',
+        'picked_amount',
+        'stock_in_amount',
+        'total_cash_amount',
+        'total_cash_amount_from_vmc',
+        'delta_cash_amount',
+    ];
+
     use GetUserTimezone;
 
     protected $mapService;
@@ -1365,7 +1392,16 @@ class OpsJobController extends Controller
                     LIMIT 1) as zone_name'
                     );
 
-                    $query->when($request->sortKey, function ($query, $search) use ($request) {
+                    // Only the columns the table actually offers a header for.
+                    // Anything else falls through to the default order rather
+                    // than reaching orderBy()/orderByRaw() - an unknown key was
+                    // a 500, and the orderByRaw() branch interpolates the key
+                    // straight into SQL, so this is the guard holding that shut.
+                    $sortKey = in_array($request->sortKey, self::EDIT_SORT_KEYS, true)
+                        ? $request->sortKey
+                        : null;
+
+                    $query->when($sortKey, function ($query, $search) use ($request) {
                         if (
                             in_array($search, [
                                 'picked_amount',
@@ -1905,7 +1941,13 @@ class OpsJobController extends Controller
                         })
                         ->select('ops_job_items.*', 'postcode AS delivery_postcode');
 
-                    $query->when($request->sortKey, function ($query, $search) use ($request) {
+                    // Route.vue only offers two sort headers, and an unknown
+                    // key would 500 — same guard as edit().
+                    $sortKey = in_array($request->sortKey, ['sequence', 'delivery_postcode'], true)
+                        ? $request->sortKey
+                        : null;
+
+                    $query->when($sortKey, function ($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     }, function ($query) {
                         $query->orderByRaw('ISNULL(ops_job_items.sequence), ops_job_items.sequence ASC')->orderBy('postcode');

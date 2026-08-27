@@ -496,10 +496,17 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('operators')->group(function () {
-        Route::get('/', [OperatorController::class, 'index'])->name('operators');
+        // These two render the operator payload, which carries every bound
+        // gateway's key1..key3 in the clear (OperatorPaymentGatewayResource).
+        // The nav link has always been gated on 'read operators', but the
+        // routes were not - any authenticated user could open the URL directly
+        // and read the Omise/Midtrans secrets out of the Inertia props.
+        Route::get('/', [OperatorController::class, 'index'])->name('operators')
+            ->middleware('can:read operators');
         Route::get('/create', [OperatorController::class, 'create']);
         Route::post('/store', [OperatorController::class, 'store']);
-        Route::get('/{id}/edit', [OperatorController::class, 'edit'])->name('operators.edit');
+        Route::get('/{id}/edit', [OperatorController::class, 'edit'])->name('operators.edit')
+            ->middleware('can:read operators');
         Route::post('/{id}/update', [OperatorController::class, 'update']);
         Route::delete('/{id}', [OperatorController::class, 'delete']);
         Route::post('/bind-customer', [OperatorController::class, 'bindCustomer']);

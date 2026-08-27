@@ -1335,6 +1335,23 @@ onMounted(() => {
 // ----------------------------------------------------------------
 const mergedRows = ref([])
 
+// Column header text for every sortable column, keyed by the SingleSortItem
+// modelName. Used by the Renumber confirmation so it names the sort the way the
+// header does instead of leaking the DB column ("acc_vend_transactions_amount").
+const SORT_COLUMN_LABELS = {
+  sequence: 'Job Sequence',
+  delivery_postcode: 'Postcode',
+  refillable_amount: 'Refillable',
+  picked_amount: 'Picked',
+  stock_in_amount: 'Stock-in',
+  acc_vend_transactions_amount: 'Stock-out',
+  total_cash_amount: 'Cash Collected (Machine)',
+  total_cash_amount_from_vmc: 'CashAmt$ (VMC)',
+  delta_cash_amount: 'Cash Adjustment',
+  acc_vend_transactions_cash_amount: 'CashAmt$ (Trans)',
+  zone_name: 'Refilling Routes',
+}
+
 function rebuildMergedRows() {
   if (!opsJob.value) {
     mergedRows.value = []
@@ -1350,12 +1367,47 @@ function rebuildMergedRows() {
     task._key = 'task_' + task.id
     return task
   })
+  // Every other column (postcode, amounts, zone …) is sorted by the server in
+  // OpsJobController::edit(). Re-sorting by sequence here would throw that
+  // order away, so keep the server order for items and park the tasks — which
+  // carry none of those columns — at the end.
+  //
+  // Re-sorting client-side at all is only safe because opsJobItems is an
+  // eager-loaded relation, not a paginated set: every row the server matched is
+  // already here. Paginate it and this whole function has to move server-side.
+  if (filters.value.sortKey && filters.value.sortKey !== 'sequence') {
+    mergedRows.value = [...items, ...tasks]
+    return
+  }
+
+  // Job Sequence. sortBy===false is the descending half of the header toggle;
+  // note sortTable() flips sortBy on EVERY click, so arriving at this column
+  // from another one lands on descending first - that matches the arrow
+  // SingleSortItem draws, so the two stay in agreement either way.
+  // Rows without a sequence stay last in both directions (the server's
+  // orderBy('sequence','asc') would put its NULLs first).
+  const desc = filters.value.sortKey === 'sequence' && filters.value.sortBy === false
+
+  // v-model.lazy on the sequence input has no .number modifier, so an edited
+  // cell holds a STRING and a cleared one holds ''. `!= null` alone lets ''
+  // through and '' - 5 is NaN, which makes the comparator inconsistent and the
+  // sort order arbitrary. Normalise to a number or null once, up front.
+  const seq = (row) => {
+    if (row.sequence === '' || row.sequence == null) return null
+    const value = Number(row.sequence)
+    return Number.isFinite(value) ? value : null
+  }
+
   mergedRows.value = [...items, ...tasks].sort((a, b) => {
-    const seqA = (a.sequence != null) ? a.sequence : Infinity
-    const seqB = (b.sequence != null) ? b.sequence : Infinity
-    if (seqA !== seqB) return seqA - seqB
-    // Stable sort: items before tasks for same sequence
-    return a._isTask ? 1 : -1
+    const seqA = seq(a)
+    const seqB = seq(b)
+    if ((seqA === null) !== (seqB === null)) return seqA === null ? 1 : -1
+    if (seqA !== null && seqA !== seqB) {
+      return desc ? seqB - seqA : seqA - seqB
+    }
+    // Same sequence: items before tasks, otherwise keep the incoming order.
+    if (a._isTask !== b._isTask) return a._isTask ? 1 : -1
+    return 0
   })
 }
 
@@ -1651,6 +1703,20 @@ function onPickListModalClose() {
 }
 
 function onRenumberItemsClicked() {
+  // Renumber writes sequence 1..N in the order the rows are displayed. That is
+  // only obvious while the table is on its default ascending Job Sequence sort
+  // — under any other sort (reversed sequence, postcode, amounts …) it rewrites
+  // the route order, so confirm first.
+  const sortKey = filters.value.sortKey
+  const isDesc = filters.value.sortBy === false
+  if (sortKey && (sortKey !== 'sequence' || isDesc)) {
+    const orderLabel = sortKey === 'sequence'
+      ? 'reversed Job Sequence (descending)'
+      : (SORT_COLUMN_LABELS[sortKey] || sortKey) + (isDesc ? ', descending' : ', ascending')
+    if (!confirm('Renumber will rewrite the Job Sequence as 1..N in the current display order (' + orderLabel + '). Continue?')) {
+      return
+    }
+  }
   form.value.clearErrors()
   // Build the unified ordered list in current display sequence
   const mergedOrder = mergedRows.value.map(row => ({
@@ -1705,6 +1771,11 @@ function onSearchFilterUpdated() {
     preserveScroll: true,
     onSuccess: page => {
       opsJob.value = props.opsJob ? props.opsJob.data : null
+      // The watch(opsJob) above also fires here — the reload always hands back
+      // a fresh object — but it flushes on the next tick. Rebuilding inline
+      // keeps the re-sort in the same frame as the data swap, so the table
+      // never paints one frame of server order under a client-sorted header.
+      rebuildMergedRows()
     }
   })
 }

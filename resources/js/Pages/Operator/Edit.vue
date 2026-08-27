@@ -366,7 +366,7 @@
                             Type
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Public Key
+                            Key(s)
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
@@ -384,8 +384,8 @@
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             {{ operatorPaymentGateway.type }}
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ operatorPaymentGateway.key1 }}
+                          <td class="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            <GatewayKeyCell :operatorPaymentGateway="operatorPaymentGateway" />
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
@@ -821,6 +821,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
 import AccessBindingSection from '@/Components/AccessBindingSection.vue';
+import GatewayKeyCell from '@/Components/GatewayKeyCell.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';

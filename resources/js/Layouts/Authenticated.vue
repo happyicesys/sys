@@ -6,7 +6,8 @@ import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import MonthlySalesPopup from '@/Components/MonthlySalesPopup.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon, TicketIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, BuildingOfficeIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon, TicketIcon } from '@heroicons/vue/20/solid'
+import { useStorage } from '@vueuse/core'
 
 const page = usePage()
 
@@ -366,6 +367,10 @@ const navigation = computed(() => [
 ]);
 
 const showingNavigationDropdown = ref(false);
+
+// Desktop sidebar collapse (icon rail). Persisted per-browser in localStorage
+// so it survives Inertia visits and full reloads without a server round-trip.
+const sidebarCollapsed = useStorage('mark1-sidebar-collapsed', false)
 const logoUrl = computed(() => page.props.logoUrl)
 const permissions = page.props.auth.permissions
 
@@ -606,26 +611,37 @@ onBeforeUnmount(() => {
         <MonthlySalesPopup v-if="isHipl" />
         <div class="min-h-screen w-full md:flex bg-gray-100">
             <div
-                class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/6 xl:w-2/12 2xl:w-1/12 2xl:min-w-48">
+                :class="[sidebarCollapsed ? 'md:w-16' : 'md:w-1/6 xl:w-2/12 2xl:w-1/12 2xl:min-w-48', 'hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white transition-all duration-200']">
 
                 <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                     <Link href="/">
                         <div class="h-fit w-fit">
-                            <img :class="[useContainLogo ? 'object-contain h-24 w-36 p-2' : 'object-cover h-24 w-36']" :src="logoUrl" alt="Company Logo">
+                            <img v-if="sidebarCollapsed" class="h-10 w-10 object-contain" :src="smallLogoUrl" alt="Company Logo">
+                            <img v-else :class="[useContainLogo ? 'object-contain h-24 w-36 p-2' : 'object-cover h-24 w-36']" :src="logoUrl" alt="Company Logo">
                         </div>
                     </Link>
                 </div>
-                <div class="mt-5 flex-grow flex flex-col border-t border-gray-200 pt-2">
+                <div class="mt-2 flex px-2" :class="sidebarCollapsed ? 'justify-center' : 'justify-end'">
+                    <button type="button" @click="sidebarCollapsed = !sidebarCollapsed"
+                        v-tooltip.right="sidebarCollapsed ? 'Expand menu' : ''"
+                        :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        class="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <ChevronDoubleRightIcon v-if="sidebarCollapsed" class="h-5 w-5" aria-hidden="true" />
+                        <ChevronDoubleLeftIcon v-else class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                </div>
+                <div class="mt-2 flex-grow flex flex-col border-t border-gray-200 pt-2">
                     <nav class="flex-1 px-2 space-y-1 bg-white" aria-label="Sidebar">
                         <template v-for="item in navigation" :key="item.name">
                             <div v-if="!item.children">
                                 <Link :href="route(item.href)"
                                     v-if="canSee(item)"
-                                    :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 py-2 text-sm font-medium rounded-md']">
+                                    v-tooltip.right="sidebarCollapsed ? [item.name, item.tagline].filter(Boolean).join(' — ') : ''"
+                                    :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', sidebarCollapsed ? 'justify-center px-2' : 'pl-2', 'group w-full flex items-center py-2 text-sm font-medium rounded-md']">
                                 <component :is="item.icon"
-                                    :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'mr-3 flex-shrink-0 h-6 w-6']"
+                                    :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', sidebarCollapsed ? '' : 'mr-3', 'flex-shrink-0 h-6 w-6']"
                                     aria-hidden="true" />
-                                <span class="flex flex-col">
+                                <span v-if="!sidebarCollapsed" class="flex flex-col">
                                     <span>
                                         {{ item.name }}
                                     </span>
@@ -636,8 +652,59 @@ onBeforeUnmount(() => {
                                 </Link>
                             </div>
                             <Disclosure as="div" v-else class="flex flex-col justify-start space-y-1" v-slot="{ open }" :default-open="isItemActive(item)">
+                                <!-- Rail mode: clicking the section icon opens a flyout of its
+                                     children, so a page can be chosen WITHOUT expanding the
+                                     sidebar. A plain button, not a DisclosureButton, so the
+                                     section's own open state is untouched for when the rail is
+                                     exited. -->
+                                <!-- No :popper-triggers here — those are events on the popper
+                                     CONTENT, and floating-vue already keeps a click-opened
+                                     popper open while you click inside it. Adding 'click'
+                                     registers a second toggle path over the same links that
+                                     already carry v-close-popper. -->
+                                <VDropdown v-if="sidebarCollapsed && canSee(item)" class="w-full"
+                                    placement="right-start" :distance="4"
+                                    :triggers="['click']">
+                                    <!-- No v-tooltip here: a hover tooltip and the click popover
+                                         are two separate poppers on one element and visibly
+                                         overlap while the flyout fades in. The flyout's own
+                                         header carries the section name instead. -->
+                                    <button type="button" :aria-label="item.name"
+                                        :class="[isItemActive(item) ? 'bg-gray-100' : 'bg-white hover:bg-gray-50', 'relative group w-full flex items-center justify-center px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
+                                        <component :is="item.icon"
+                                            :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'flex-shrink-0 h-6 w-6']"
+                                            aria-hidden="true" />
+                                        <span v-if="sectionMentionBadge(item) > 0"
+                                            class="absolute top-0.5 left-1.5 h-2 w-2 rounded-full bg-indigo-500"></span>
+                                        <span v-if="sectionBadge(item) > 0"
+                                            class="absolute top-0.5 right-1.5 h-2 w-2 rounded-full bg-red-500"></span>
+                                    </button>
+                                    <template #popper>
+                                        <div class="w-60 py-2">
+                                            <div class="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                                {{ item.name }}
+                                            </div>
+                                            <template v-for="subItem in item.children" :key="subItem.name">
+                                                <Link v-if="canSee(subItem)" :href="subItem.href" v-close-popper
+                                                    :class="[isSubItemActive(item, subItem) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'flex items-center px-4 py-2 text-sm font-medium']">
+                                                    <span>{{ subItem.name }}</span>
+                                                    <span class="ml-auto flex items-center gap-1 pl-2">
+                                                        <span v-if="subMentionBadge(subItem.href) > 0"
+                                                            class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                            @{{ subMentionBadge(subItem.href) }}
+                                                        </span>
+                                                        <span v-if="subBadge(subItem.href) > 0"
+                                                            class="inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                            {{ subBadge(subItem.href) }}
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </VDropdown>
                                 <DisclosureButton
-                                    v-if="canSee(item)"
+                                    v-if="!sidebarCollapsed && canSee(item)"
                                     :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
@@ -663,7 +730,7 @@ onBeforeUnmount(() => {
                                         <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
                                     </svg>
                                 </DisclosureButton>
-                                <DisclosurePanel class="-ml-2 space-y-1 py-2 bg-gray-100">
+                                <DisclosurePanel v-if="!sidebarCollapsed" class="-ml-2 space-y-1 py-2 bg-gray-100">
                                     <Link v-for="subItem in item.children" :key="subItem.name" as="a"
                                             :href="subItem.href">
                                         <DisclosureButton
