@@ -236,7 +236,7 @@
                           >
                             {{ simcard.usage_used_mb.toFixed(2) }} MB
                           </span>
-                          <span v-if="simcard.usage_synced_at" class="text-xs text-gray-400">{{ simcard.usage_synced_at }}</span>
+                          <span v-if="simcard.usage_synced_at" class="text-xs text-gray-400">{{ shortTimeAgo(simcard.usage_synced_at) }}</span>
                         </div>
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
@@ -326,6 +326,22 @@ function apkVersions(simcard) {
       ),
     }))
     .filter((apk) => apk.version > 0);
+}
+
+// Shorten the backend "x seconds/minutes/... ago" string (SimcardResource
+// sends usage_synced_at as diffForHumans()) into a compact unit — e.g.
+// "39 seconds ago" -> "39s ago". Same pattern as CustomerIndex.
+function shortTimeAgo(str) {
+  if (!str) return str;
+  return str
+    .replace(/\bseconds?\b/, 's')
+    .replace(/\bminutes?\b/, 'm')
+    .replace(/\bhours?\b/, 'h')
+    .replace(/\bdays?\b/, 'd')
+    .replace(/\bweeks?\b/, 'w')
+    .replace(/\bmonths?\b/, 'mo')
+    .replace(/\byears?\b/, 'y')
+    .replace(/(\d)\s+([smhdwy])/, '$1$2');
 }
 
 // Status column badge colors. Status values come from the telco API

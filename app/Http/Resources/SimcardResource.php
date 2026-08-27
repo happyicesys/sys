@@ -29,18 +29,20 @@ class SimcardResource extends JsonResource
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
             'updated_by' => $this->updated_by,
             // Status column — latest telco-API snapshot (simcards:sync-usage,
-            // every 10 min). Dates pre-formatted here in the house 'ymd h:i a'
-            // style; expire urgency flags computed server-side so the page
-            // never parses dates. All null until the telco has a usage API.
+            // every 10 min). Act/Exp as date-only 'ymd' (Brian: the time adds
+            // nothing there); expire urgency flags computed server-side so the
+            // page never parses dates; synced-at as diffForHumans() which the
+            // page shortens to "2s ago" (same pattern as CustomerIndex).
+            // All null until the telco has a usage API.
             'usage_status' => $this->usage_status,
-            'usage_active_at' => optional($this->usage_active_at)->format('ymd h:i a'),
-            'usage_expire_at' => optional($this->usage_expire_at)->format('ymd h:i a'),
+            'usage_active_at' => optional($this->usage_active_at)->format('ymd'),
+            'usage_expire_at' => optional($this->usage_expire_at)->format('ymd'),
             'usage_expired' => (bool) $this->usage_expire_at?->isPast(),
             'usage_expiring_soon' => $this->usage_expire_at
                 ? (! $this->usage_expire_at->isPast() && $this->usage_expire_at->lt(now()->addDays(3)))
                 : false,
             'usage_used_mb' => $this->usage_used_mb,
-            'usage_synced_at' => optional($this->usage_synced_at)->format('ymd h:i a'),
+            'usage_synced_at' => optional($this->usage_synced_at)->diffForHumans(),
             // For the Index "Updated By" column — only meaningful once updated_by
             // is set (rows only ever created show '—' there).
             'updated_at' => optional($this->updated_at)->format('ymd h:i a'),
