@@ -45,9 +45,17 @@
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                    Operator
-                </label>
+                <div class="flex items-center justify-between">
+                  <label for="text" class="block text-sm font-medium text-gray-700">Operator</label>
+                  <button
+                    v-if="filters.operators && filters.operators.length"
+                    type="button"
+                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                    @click="filters.operators = []"
+                  >
+                    Clear
+                  </button>
+                </div>
                 <MultiSelect
                     v-model="filters.operators"
                     :options="operatorOptions"

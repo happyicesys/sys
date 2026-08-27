@@ -3,7 +3,7 @@
     <Multiselect
       class="custom-multiselect"
       :modelValue="internalValue"
-      :canClear="canClear"
+      :canClear="clearEnabled"
       :canDeselect="false"
       :disabled="disabled"
       :label="label"
@@ -16,6 +16,7 @@
       :valueProp="valueProp"
       @select="onSelected"
       @deselect="onDeselected"
+      @clear="onCleared"
       :clear="clear"
       @refreshOptions="refreshOptions"
       :clearOnBlur="clearOnBlur"
@@ -29,12 +30,15 @@
 <script setup>
 import Multiselect from '@vueform/multiselect';
 import '@vueform/multiselect/themes/default.css';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const emit = defineEmits(['update:modelValue', 'selected']);
 
 const props = defineProps({
-  canClear: [Boolean, String],
+  canClear: {
+    type: [Boolean, String],
+    default: null,
+  },
   clear: Boolean,
   clearOnBlur: {
     type: [Boolean, String],
@@ -70,6 +74,13 @@ const props = defineProps({
   },
 });
 
+// Tags mode gets the built-in clear (x) by default so a filter with many
+// selected options can be emptied in one click; single mode keeps the old
+// behaviour (off unless a page opts in) to avoid handing pages a null value.
+const clearEnabled = computed(() => (
+  props.canClear === null ? props.mode === 'tags' : props.canClear
+));
+
 const internalValue = ref(Array.isArray(props.modelValue) ? [...props.modelValue] : props.modelValue);
 
 watch(() => props.modelValue, (newValue) => {
@@ -89,6 +100,11 @@ function onSelected(data) {
     emit('update:modelValue', data);
   }
   emit('selected', data);
+}
+
+function onCleared() {
+  internalValue.value = props.mode === 'tags' ? [] : null;
+  emit('update:modelValue', internalValue.value);
 }
 
 function onDeselected(data) {

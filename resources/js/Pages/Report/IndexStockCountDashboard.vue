@@ -38,7 +38,17 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Operator</label>
+              <div class="flex items-center justify-between">
+                <label class="block text-sm font-medium text-gray-700">Operator</label>
+                <button
+                  v-if="filters.operators && filters.operators.length"
+                  type="button"
+                  class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                  @click="filters.operators = []"
+                >
+                  Clear
+                </button>
+              </div>
               <MultiSelect
                 v-model="filters.operators"
                 :options="operatorOptions"

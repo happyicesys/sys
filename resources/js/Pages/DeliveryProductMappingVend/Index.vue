@@ -13,9 +13,17 @@
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
-								Operator
-							</label>
+            <div class="flex items-center justify-between">
+              <label for="text" class="block text-sm font-medium text-gray-700">Operator</label>
+              <button
+                v-if="filters.operators && filters.operators.length"
+                type="button"
+                class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                @click="filters.operators = []"
+              >
+                Clear
+              </button>
+            </div>
 							<MultiSelect
 								v-model="filters.operators"
 								:options="operatorOptions"
