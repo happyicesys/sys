@@ -124,6 +124,9 @@
                       Updated By
                     </TableHeadSort>
                     <TableHead>
+                      Status
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -199,6 +202,41 @@
                         <div v-if="simcard.updatedBy && simcard.updatedBy.name" class="flex flex-col space-y-1">
                           <span>{{ simcard.updatedBy.name }}</span>
                           <span class="text-xs text-gray-500">{{ simcard.updated_at }}</span>
+                        </div>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <!-- Live telco-API snapshot (simcards:sync-usage, every 10 min):
+                           the current package's status / active / expire / used data,
+                           the same four values the telco's own portal shows. '—' =
+                           telco has no usage API mapped, or nothing synced yet. -->
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
+                        <div v-if="simcard.usage_status" class="flex flex-col items-center space-y-1">
+                          <span
+                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+                            :class="usageStatusBadgeClass(simcard)"
+                          >
+                            {{ simcard.usage_status }}
+                          </span>
+                          <span
+                            v-if="simcard.usage_active_at"
+                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-gray-100 text-gray-700 border-gray-300"
+                          >
+                            Act {{ simcard.usage_active_at }}
+                          </span>
+                          <span
+                            v-if="simcard.usage_expire_at"
+                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+                            :class="usageExpireBadgeClass(simcard)"
+                          >
+                            Exp {{ simcard.usage_expire_at }}
+                          </span>
+                          <span
+                            v-if="typeof simcard.usage_used_mb === 'number'"
+                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-blue-100 text-blue-800 border-blue-300"
+                          >
+                            {{ simcard.usage_used_mb.toFixed(2) }} MB
+                          </span>
+                          <span v-if="simcard.usage_synced_at" class="text-xs text-gray-400">{{ simcard.usage_synced_at }}</span>
                         </div>
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
@@ -288,6 +326,33 @@ function apkVersions(simcard) {
       ),
     }))
     .filter((apk) => apk.version > 0);
+}
+
+// Status column badge colors. Status values come from the telco API
+// (VoicePing: package status like "Activated"/"Expired", or card-level
+// simStatus like "Normal" when no package) — unknown values fall back to gray
+// rather than guessing.
+function usageStatusBadgeClass(simcard) {
+  const status = (simcard.usage_status || '').toLowerCase()
+  if (['activated', 'normal', 'active'].includes(status)) {
+    return 'bg-green-100 text-green-800 border-green-300'
+  }
+  if (['expired', 'deactivated', 'closed', 'suspended', 'terminated'].includes(status)) {
+    return 'bg-red-100 text-red-800 border-red-300'
+  }
+  return 'bg-gray-100 text-gray-700 border-gray-300'
+}
+
+// Expire badge urgency — red once past, amber within 3 days (flags computed
+// server-side in SimcardResource so no date parsing happens here).
+function usageExpireBadgeClass(simcard) {
+  if (simcard.usage_expired) {
+    return 'bg-red-100 text-red-800 border-red-300'
+  }
+  if (simcard.usage_expiring_soon) {
+    return 'bg-amber-100 text-amber-800 border-amber-300'
+  }
+  return 'bg-gray-100 text-gray-700 border-gray-300'
 }
 
 const props = defineProps({

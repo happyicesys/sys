@@ -54,6 +54,11 @@ class Kernel extends ConsoleKernel
         // open (empty ones are voided). Idempotent — a no-op when none are open.
         $schedule->command('refund-settlements:auto-close')->dailyAt('23:58')->withoutOverlapping();
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
+        // Live sim status from telco usage APIs (VoicePing today) for the
+        // Simcard Index "Status" column. Data-driven: only telcos with a
+        // usage_provider are polled, so instances with none mapped no-op —
+        // no env gate needed. A 429 logs a warning and waits for the next run.
+        $schedule->command('simcards:sync-usage')->everyTenMinutes()->withoutOverlapping();
         $schedule->command('sync:voucher-status-daily')->daily();
         $schedule->command('telescope:prune --hours=48')->dailyAt('01:00');
         // Admin > Visitor History retention (default 90 days, VISITOR_HISTORY_RETENTION_DAYS).

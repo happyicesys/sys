@@ -13,6 +13,9 @@ class Telco extends Model
         'name',
         'desc',
         'remarks',
+        // config/simcard_usage.php provider key ('voiceping', ...) — null means
+        // this telco has no usage API and simcards:sync-usage skips its sims.
+        'usage_provider',
     ];
 
     // relationships
