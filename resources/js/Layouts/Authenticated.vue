@@ -368,9 +368,16 @@ const navigation = computed(() => [
 
 const showingNavigationDropdown = ref(false);
 
-// Desktop sidebar collapse (icon rail). Persisted per-browser in localStorage
-// so it survives Inertia visits and full reloads without a server round-trip.
-const sidebarCollapsed = useStorage('mark1-sidebar-collapsed', false)
+// Desktop sidebar collapse (icon rail). Collapsed is the default. Persisted
+// per-browser in localStorage so it survives Inertia visits and full reloads
+// without a server round-trip.
+//
+// The key carries a version suffix because useStorage writes its default on
+// first read: every browser that loaded the previous build already holds
+// 'mark1-sidebar-collapsed' = false, and a stored value always beats a new
+// default. Bumping the key is what lets "default collapsed" actually reach
+// those browsers once; their choice from then on sticks under the new key.
+const sidebarCollapsed = useStorage('mark1-sidebar-collapsed-v2', true)
 const logoUrl = computed(() => page.props.logoUrl)
 const permissions = page.props.auth.permissions
 
@@ -385,6 +392,12 @@ function canSee(item) {
   return Array.isArray(item.permission)
     ? item.permission.some((p) => permissions.includes(p))
     : permissions.includes(item.permission)
+}
+// Rail mode: the section icon links to its first visible child, so a click goes
+// somewhere useful; hovering opens the flyout to pick a specific page.
+function firstChildHref(item) {
+    const child = (item.children || []).find((c) => canSee(c))
+    return child ? child.href : null
 }
 const roles = page.props.auth.roles
 const smallLogoUrl = page.props.smallLogoUrl
@@ -652,24 +665,25 @@ onBeforeUnmount(() => {
                                 </Link>
                             </div>
                             <Disclosure as="div" v-else class="flex flex-col justify-start space-y-1" v-slot="{ open }" :default-open="isItemActive(item)">
-                                <!-- Rail mode: clicking the section icon opens a flyout of its
-                                     children, so a page can be chosen WITHOUT expanding the
-                                     sidebar. A plain button, not a DisclosureButton, so the
-                                     section's own open state is untouched for when the rail is
-                                     exited. -->
-                                <!-- No :popper-triggers here — those are events on the popper
-                                     CONTENT, and floating-vue already keeps a click-opened
-                                     popper open while you click inside it. Adding 'click'
-                                     registers a second toggle path over the same links that
-                                     already carry v-close-popper. -->
+                                <!-- Rail mode: hovering the section icon floats out its children,
+                                     so a page can be chosen WITHOUT expanding the sidebar; the
+                                     icon itself links to the section's first visible child.
+                                     Deliberately not a DisclosureButton — that would toggle the
+                                     section's own open state, which has to survive the trip
+                                     through the rail.
+
+                                     popper-triggers mirrors triggers: on hover the pointer has to
+                                     cross out of the icon and into the flyout, and without the
+                                     CONTENT counting as hover the popper closes on the way over.
+                                     (A click-triggered popper does not need this.) -->
                                 <VDropdown v-if="sidebarCollapsed && canSee(item)" class="w-full"
                                     placement="right-start" :distance="4"
-                                    :triggers="['click']">
-                                    <!-- No v-tooltip here: a hover tooltip and the click popover
-                                         are two separate poppers on one element and visibly
-                                         overlap while the flyout fades in. The flyout's own
-                                         header carries the section name instead. -->
-                                    <button type="button" :aria-label="item.name"
+                                    :triggers="['hover']" :popper-triggers="['hover']">
+                                    <!-- No v-tooltip here: a hover tooltip and this popover are
+                                         two separate poppers on one element and visibly overlap
+                                         while the flyout fades in. The flyout's own header
+                                         carries the section name instead. -->
+                                    <Link :href="firstChildHref(item) || '#'" :aria-label="item.name"
                                         :class="[isItemActive(item) ? 'bg-gray-100' : 'bg-white hover:bg-gray-50', 'relative group w-full flex items-center justify-center px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                         <component :is="item.icon"
                                             :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'flex-shrink-0 h-6 w-6']"
@@ -678,7 +692,7 @@ onBeforeUnmount(() => {
                                             class="absolute top-0.5 left-1.5 h-2 w-2 rounded-full bg-indigo-500"></span>
                                         <span v-if="sectionBadge(item) > 0"
                                             class="absolute top-0.5 right-1.5 h-2 w-2 rounded-full bg-red-500"></span>
-                                    </button>
+                                    </Link>
                                     <template #popper>
                                         <div class="w-60 py-2">
                                             <div class="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
