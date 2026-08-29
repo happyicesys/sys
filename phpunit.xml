@@ -18,6 +18,12 @@
         </include>
     </coverage>
     <php>
+        <!-- The full suite outgrew the CLI's 128M default (2026-08-30): the
+             process dies with a Fileinfo mime-guess allocation right before
+             the last Feature file, so WarehouseQtySourceTest silently never
+             ran. Set here so every runner gets it (php -d on `artisan test`
+             does NOT reach the phpunit child process). -->
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_DRIVER" value="array"/>

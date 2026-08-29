@@ -281,6 +281,16 @@ class VendTransactionService
             $this->markCardTerminalReversal($vendTransaction, $processedInput, $vend);
         }
 
+        // Retained-credit settlement (2026-08-29): a card approval served in
+        // under CARD_APPROVAL_SUSPECT_MS came from credit banked by an earlier
+        // failed paid vend — no card was presented, no terminal settlement will
+        // match. Runs for successful AND failed settlement vends (a successful
+        // one consumes the credit; a failed one re-banks it and becomes the
+        // next link in the chain). Card TRADEs never take the pre-created
+        // gateway branch above, so this fresh-create hook covers every frame
+        // that can carry the key.
+        $this->recordRetainedCreditSettlement($vendTransaction, $processedInput);
+
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
         if ($vendTransaction) {
@@ -695,6 +705,32 @@ class VendTransactionService
                 ->markAutoRefundedByCharge($vendTransaction->order_id, null, $vendTransaction->id);
         } catch (\Throwable $e) {
             \Log::error('Refund ticket auto-resolve after card terminal reversal failed', [
+                'vend_transaction_id' => $vendTransaction->id,
+                'order_id' => $vendTransaction->order_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Hand a suspect card trade to the settlement recorder. Best-effort and
+     * isolated like markCardTerminalReversal: recording must never break
+     * TRADE ingestion.
+     */
+    private function recordRetainedCreditSettlement(VendTransaction $vendTransaction, array $input): void
+    {
+        if (($input['paymentClassification'] ?? null) !== 'card') {
+            return;
+        }
+        $armedMs = self::cardApprovalArmedMs($input);
+        if ($armedMs === null || $armedMs >= self::CARD_APPROVAL_SUSPECT_MS) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Refund\RetainedCreditSettlementRecorder::class)->record($vendTransaction);
+        } catch (\Throwable $e) {
+            \Log::error('Retained-credit settlement recording failed', [
                 'vend_transaction_id' => $vendTransaction->id,
                 'order_id' => $vendTransaction->order_id,
                 'error' => $e->getMessage(),

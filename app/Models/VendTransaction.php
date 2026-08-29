@@ -6,18 +6,18 @@ use App\Models\Scopes\OperatorTransactionFilterScope;
 use App\Models\Scopes\OperatorUserTransactionFilterScope;
 use App\Models\Scopes\ProductAccessTransactionScope;
 use App\Models\Scopes\TransactionAccessScope;
-use Carbon\Carbon;
+use App\Support\SiteSearch;
+use App\Traits\GetUserTimezone;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\GetUserTimezone;
-use App\Support\SiteSearch;
 
 class VendTransaction extends Model
 {
     use GetUserTimezone, HasFactory;
 
     const INTERFACE_TYPE_0 = 0;
+
     const INTERFACE_TYPE_1 = 1;
 
     const INTERFACE_TYPE_MAPPINGS = [
@@ -29,7 +29,9 @@ class VendTransaction extends Model
     // legacy rows are always SETTLED (the column default), so existing sales
     // logic is unaffected. See PLAN_merge_payment_gateway_into_sales_transactions.md.
     const SETTLEMENT_PENDING = 0;   // paid, dispense outcome not yet known
+
     const SETTLEMENT_REFUNDED = 1;  // refunded / void — never counts as a sale
+
     const SETTLEMENT_SETTLED = 2;   // counts as a sale (normal error-code logic still applies)
 
     // "Odd" transactions swept nightly by RemoveOddTransactions (see
@@ -43,7 +45,9 @@ class VendTransaction extends Model
     // looking "never reported", which would otherwise re-add the deleted amount
     // to the Total Sales headline. Keep the two in sync.
     const ODD_TRANSACTION_AMOUNTS = [0, 10, 20, 20000];
+
     const ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES = [10, 11];
+
     const ODD_TRANSACTION_OPERATOR_CODE = 'TEST';
 
     protected static function booted()
@@ -69,6 +73,7 @@ class VendTransaction extends Model
         'is_found_in_transaction' => 'boolean',
         'settlement_status' => 'integer',
         'product_drop_sensor' => 'boolean',
+        'is_retained_credit_settlement' => 'boolean',
     ];
 
     protected $fillable = [
@@ -195,6 +200,15 @@ class VendTransaction extends Model
         return $this->belongsTo(Vend::class);
     }
 
+    /**
+     * The failed sale whose retained credit this trade consumed — set only on
+     * rows with is_retained_credit_settlement (RetainedCreditSettlementRecorder).
+     */
+    public function retainedCreditSettledTransaction()
+    {
+        return $this->belongsTo(self::class, 'retained_credit_settles_txn_id');
+    }
+
     public function vendChannel()
     {
         return $this->belongsTo(VendChannel::class);
@@ -239,7 +253,7 @@ class VendTransaction extends Model
      */
     public function scopeCountsAsSale($query, string $alias = 'vend_transactions')
     {
-        return $query->where($alias . '.settlement_status', self::SETTLEMENT_SETTLED);
+        return $query->where($alias.'.settlement_status', self::SETTLEMENT_SETTLED);
     }
 
     /**
@@ -249,7 +263,7 @@ class VendTransaction extends Model
      */
     public static function settledSql(string $alias = 'vend_transactions'): string
     {
-        return $alias . '.settlement_status = ' . self::SETTLEMENT_SETTLED;
+        return $alias.'.settlement_status = '.self::SETTLEMENT_SETTLED;
     }
 
     /**
@@ -372,7 +386,7 @@ class VendTransaction extends Model
      */
     public function scopeApplyRefundedFilter($query, $search)
     {
-        if (!$search || $search === 'all') {
+        if (! $search || $search === 'all') {
             return $query;
         }
 
@@ -477,7 +491,7 @@ class VendTransaction extends Model
 
         // Resolve the card payment_method id once. Cached so repeated calls in the
         // same request (e.g. totals + paginated rows) don't re-query.
-        $creditCardId = !empty($terminalNames)
+        $creditCardId = ! empty($terminalNames)
             ? \Illuminate\Support\Facades\Cache::remember(
                 'payment_method_id_credit_card',
                 86400,
@@ -486,10 +500,10 @@ class VendTransaction extends Model
             : null;
 
         $query->where(function ($q) use ($numericIds, $terminalNames, $creditCardId) {
-            if (!empty($numericIds)) {
+            if (! empty($numericIds)) {
                 $q->orWhereIn('vend_transactions.payment_method_id', $numericIds);
             }
-            if (!empty($terminalNames) && !empty($creditCardId)) {
+            if (! empty($terminalNames) && ! empty($creditCardId)) {
                 $q->orWhere(function ($q2) use ($creditCardId, $terminalNames) {
                     $q2->where('vend_transactions.payment_method_id', $creditCardId)
                         ->whereIn('vend_transactions.cashless_mfg', $terminalNames);
@@ -566,7 +580,7 @@ class VendTransaction extends Model
                                 $q->whereNotIn('code', [0]);
                             });
                     });
-                } else if (in_array('1', $search)) {
+                } elseif (in_array('1', $search)) {
                     $query->where(function ($query) {
                         $query->whereHas('vendChannelError', function ($query) {
                             $query->where('id', 1);
@@ -706,8 +720,8 @@ class VendTransaction extends Model
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                $search = array_filter((array)$search, fn($item) => $item !== 'all');
-                if (!empty($search)) {
+                $search = array_filter((array) $search, fn ($item) => $item !== 'all');
+                if (! empty($search)) {
                     $query->whereIn('vend_transactions.operator_id', $search);
                 }
             })
@@ -756,33 +770,33 @@ class VendTransaction extends Model
 
                         // Cross-match via tags table (handles when JSON stores name but filter is id, or vice versa)
                         if ($isNumeric) {
-                            $where = "t.id = ?";
+                            $where = 't.id = ?';
                             $bindings = [(int) $tag];
                         } else {
-                            $where = "t.name = ? OR t.slug = ?";
+                            $where = 't.name = ? OR t.slug = ?';
                             $bindings = [$tag, $tag];
                         }
 
                         $sub->orWhereRaw(
-                            "EXISTS (\n" .
-                            "  SELECT 1\n" .
-                            "  FROM JSON_TABLE(\n" .
-                            "         COALESCE(vend_transactions.label_json, JSON_ARRAY()),\n" .
-                            "         '$[*]' COLUMNS(\n" .
-                            "           tag_id BIGINT PATH '$',\n" .
-                            "           tag_name VARCHAR(255) PATH '$'\n" .
-                            "         )\n" .
-                            "       ) jt\n" .
-                            "  JOIN tags t ON (t.id = jt.tag_id OR t.name = jt.tag_name)\n" .
-                            "  WHERE {$where}\n" .
-                            ")",
+                            "EXISTS (\n".
+                            "  SELECT 1\n".
+                            "  FROM JSON_TABLE(\n".
+                            "         COALESCE(vend_transactions.label_json, JSON_ARRAY()),\n".
+                            "         '$[*]' COLUMNS(\n".
+                            "           tag_id BIGINT PATH '$',\n".
+                            "           tag_name VARCHAR(255) PATH '$'\n".
+                            "         )\n".
+                            "       ) jt\n".
+                            "  JOIN tags t ON (t.id = jt.tag_id OR t.name = jt.tag_name)\n".
+                            "  WHERE {$where}\n".
+                            ')',
                             $bindings
                         );
                     });
                 }
             })
             ->when($request->vendContracts, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_transactions.vend_contract_id', $search);
                     // $query->whereHas('vend', function($query) use ($search) {
                     //     $query->whereIn('vend_contract_id', $search);
@@ -790,7 +804,7 @@ class VendTransaction extends Model
                 }
             })
             ->when($request->vendModels, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_transactions.vend_model_id', $search);
                     // $query->whereHas('vend', function($query) use ($search) {
                     //     $query->whereIn('vend_model_id', $search);
@@ -798,7 +812,7 @@ class VendTransaction extends Model
                 }
             })
             ->when($request->vendPrefixes, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     if (in_array('single-ud', $search)) {
                         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                         unset($search[array_search('single-ud', $search)]);
@@ -814,14 +828,14 @@ class VendTransaction extends Model
                 }
             });
 
-        if (!$skipSort) {
+        if (! $skipSort) {
             $query->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
-                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
@@ -915,14 +929,14 @@ class VendTransaction extends Model
                 });
             })
             ->when($request->vendContracts, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereHas('vend', function ($query) use ($search) {
                         $query->whereIn('vend_contract_id', $search);
                     });
                 }
             })
             ->when($request->vendPrefixes, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereHas('vend', function ($query) use ($search) {
                         if (in_array('single-ud', $search)) {
                             $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));

@@ -40,6 +40,18 @@ final class AutoRefundSource
      */
     public const CARD_TERMINAL_REVERSAL = 'card_terminal_reversal';
 
+    /**
+     * The ONE deliberate exception to "money has been returned": the customer
+     * was made whole by GOODS, not money. A later card trade with
+     * CSHL_ARMED_MS < 5000 proved the reader did NOT reverse this sale's
+     * charge — it retained the credit and vended against it
+     * (RetainedCreditSettlementRecorder rewrites a falsified
+     * card_terminal_reversal to this). is_refunded stays true because its
+     * operational meaning — "do not compensate this customer again" — still
+     * holds: their payment bought the re-vend.
+     */
+    public const RETAINED_CREDIT_REVEND = 'retained_credit_revend';
+
     /** Human-readable labels for badges / tooltips / exports. */
     public const LABELS = [
         self::OMISE_NO_DISPENSE => 'Omise — no dispense ACK within 10 min',
@@ -48,6 +60,7 @@ final class AutoRefundSource
         self::OMISE_MANUAL => 'Omise — manual refund (artisan)',
         self::OMISE_EXTERNAL => 'Omise — refunded outside mark1 (dashboard / dispute / chargeback)',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal (NETS)',
+        self::RETAINED_CREDIT_REVEND => 'Settled by re-vend from retained credit (no reversal)',
     ];
 
     public static function label(?string $source): ?string

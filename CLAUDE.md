@@ -164,6 +164,22 @@ been returned, and always together with `auto_refund_source`
 - Every write of `is_refunded` must also call
   `RefundTicketService::markAutoRefundedByCharge` so an open ticket's frozen
   verdict crosses and approved/scheduled ones are pulled out of payout.
+- **Retained-credit settlements (2026-08-29, bench-proven on 2031):** a card
+  TRADE with `CSHL_ARMED_MS` < 5000 was approved from credit the VMC/reader
+  banked after an earlier failed paid vend — no card presented, no terminal
+  settlement will ever match it. `RetainedCreditSettlementRecorder` (called
+  from `VendTransactionService::create`) marks the row
+  (`is_retained_credit_settlement`), links the failed sale it consumed
+  (`retained_credit_settles_txn_id`, most recent prior failed paid trade on
+  the machine, 7-day lookback — the credit is NOT slot- or amount-bound), and
+  rewrites a falsified TRADE-time `card_terminal_reversal` on that source to
+  `retained_credit_revend` — the ONE `auto_refund_source` where is_refunded
+  means "made whole by goods", not money returned. Revenue/gp aggregates do
+  NOT yet exclude these rows — the flag is the hook for that follow-up. The
+  fault itself is VMC firmware (survives error-clear, VMC restart, re-power;
+  only a dispense consumes the credit): see
+  `apk/mark1-apk/VMC_VENDOR_TICKET_2026-08-29.md` and
+  `CARD_RETAINED_CREDIT_2026-08-22.md` before "fixing" any of this.
 
 Manual PayNow/PayPal payouts never set `is_refunded` — they live on
 `refund_tickets`. History + reasoning: `REFUND_INTEGRITY_AUDIT_2026-08-23.md`.
