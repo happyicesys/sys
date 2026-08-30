@@ -25,6 +25,45 @@ class RefundMatchingService
     }
 
     /**
+     * Machine-eligibility gate (Daniel's rule, shelved 2026-08-24, enabled
+     * 2026-08-30): the public form only accepts machines plausibly still in
+     * service. Eligible = the vend is active AND attached to a Site — a bound
+     * active customer OR an active vend_bindings row. Either attachment counts
+     * because prod's vends.customer_id and vend_bindings disagree on a handful
+     * of machines that are actively selling (2443/2748/2810/2696/2310 as of
+     * 2026-08-30); vends.is_active stays required because ~76 long-dead
+     * machines still carry a stale active binding.
+     *
+     * Safety valve: a sale inside the refund lookback window proves the
+     * machine is live whatever the flags say — ops data drift must never cost
+     * a paying customer their refund (Brian, 2026-08-24).
+     */
+    public function machineBlocked(Vend $vend): bool
+    {
+        if ($vend->is_active) {
+            $boundToActiveSite = $vend->customer_id
+                && \App\Models\Customer::withoutGlobalScopes()
+                    ->where('id', $vend->customer_id)
+                    ->where('is_active', true)
+                    ->exists();
+
+            $hasActiveBinding = \App\Models\VendBinding::query()
+                ->where('vend_id', $vend->id)
+                ->where('is_active', true)
+                ->exists();
+
+            if ($boundToActiveSite || $hasActiveBinding) {
+                return false;
+            }
+        }
+
+        $lookback = (int) config('refund.match.max_lookback_days', 14);
+        $lastSale = $vend->last_vend_transaction_at ? Carbon::parse($vend->last_vend_transaction_at) : null;
+
+        return ! ($lastSale && $lastSale->gte(Carbon::today()->subDays($lookback)->startOfDay()));
+    }
+
+    /**
      * @return array{from: Carbon, to: Carbon}|null
      */
     public function dayRange(string $day): ?array

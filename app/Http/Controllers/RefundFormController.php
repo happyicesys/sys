@@ -64,6 +64,24 @@ class RefundFormController extends Controller
         }
     }
 
+    /**
+     * Resolve a machine and apply the eligibility gate. Blocked machines
+     * (deactivated / unbound, see RefundMatchingService::machineBlocked) are
+     * reported separately from unknown codes so the form can say why.
+     *
+     * @return array{0: ?\App\Models\Vend, 1: bool} [eligible vend or null, blocked]
+     */
+    protected function resolveEligibleMachine(string $machineID): array
+    {
+        $vend = $machineID !== '' ? $this->matching->resolveMachine($machineID) : null;
+
+        if ($vend && $this->matching->machineBlocked($vend)) {
+            return [null, true];
+        }
+
+        return [$vend, false];
+    }
+
     /** Site (customer) name for a machine — public context, so skip operator scopes. */
     protected function siteName(?\App\Models\Vend $vend): ?string
     {
@@ -77,7 +95,7 @@ class RefundFormController extends Controller
     public function show(Request $request)
     {
         $machineID = (string) $request->query('machineID', '');
-        $vend = $machineID !== '' ? $this->matching->resolveMachine($machineID) : null;
+        [$vend, $blocked] = $this->resolveEligibleMachine($machineID);
 
         // order_id from the dispense-failure QR (APK ORDRID: digits, ~19 chars).
         // Anything else is ignored rather than rejected — the form still works
@@ -88,6 +106,7 @@ class RefundFormController extends Controller
         return Inertia::render('Refund/Form', [
             'machineID' => $machineID,
             'machineFound' => (bool) $vend,
+            'machineBlocked' => $blocked,
             'machineName' => $vend?->name,
             'siteName' => $this->siteName($vend),
             'orderId' => $orderId,
@@ -117,8 +136,9 @@ class RefundFormController extends Controller
             'machineID' => ['required', 'string', 'max:191'],
             'order_id' => ['required', 'string', 'max:64'],
         ]);
+        [$vend] = $this->resolveEligibleMachine($data['machineID']);
         $orderId = $this->cleanOrderId($data['order_id']);
-        $candidate = $orderId !== '' ? $this->matching->candidateByOrderId($data['machineID'], $orderId) : null;
+        $candidate = ($vend && $orderId !== '') ? $this->matching->candidateByOrderId($data['machineID'], $orderId) : null;
 
         return response()->json(['found' => (bool) $candidate, 'candidate' => $candidate]);
     }
@@ -126,10 +146,11 @@ class RefundFormController extends Controller
     public function resolve(Request $request)
     {
         $data = $request->validate(['machineID' => ['required', 'string', 'max:191']]);
-        $vend = $this->matching->resolveMachine($data['machineID']);
+        [$vend, $blocked] = $this->resolveEligibleMachine($data['machineID']);
 
         return response()->json([
             'found' => (bool) $vend,
+            'blocked' => $blocked,
             'machineID' => $data['machineID'],
             'machineName' => $vend?->name,
             'siteName' => $this->siteName($vend),
@@ -144,7 +165,7 @@ class RefundFormController extends Controller
     public function machineProducts(Request $request)
     {
         $data = $request->validate(['machineID' => ['required', 'string', 'max:191']]);
-        $vend = $this->matching->resolveMachine($data['machineID']);
+        [$vend] = $this->resolveEligibleMachine($data['machineID']);
 
         if (! $vend) {
             return response()->json(['found' => false, 'products' => []]);
@@ -192,6 +213,11 @@ class RefundFormController extends Controller
             'day' => ['required', 'string', 'max:20'],
             'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
         ]);
+
+        [$vend] = $this->resolveEligibleMachine($data['machineID']);
+        if (! $vend) {
+            return response()->json(['machineFound' => false, 'candidates' => []]);
+        }
 
         $amountCents = (int) round(((float) $data['amount']) * 100);
         $result = $this->matching->candidates($data['machineID'], $data['day'], $amountCents);
@@ -270,6 +296,14 @@ class RefundFormController extends Controller
         // require either a matched source or the manual path
         if (empty($data['is_manual']) && empty($data['vend_transaction_id']) && empty($data['payment_gateway_log_id'])) {
             return response()->json(['message' => 'No transaction selected.'], 422);
+        }
+
+        // Eligibility gate: no tickets against machines that are out of service.
+        // The form never gets this far on its own (resolve already refuses), so
+        // this is the backstop against direct POSTs.
+        [, $machineIsBlocked] = $this->resolveEligibleMachine($data['machineID']);
+        if ($machineIsBlocked) {
+            return response()->json(['message' => 'This machine is no longer in service, so we cannot take a refund request for it.'], 422);
         }
 
         $ticket = $this->tickets->create([

@@ -5,6 +5,9 @@ import { Head } from '@inertiajs/vue3';
 const props = defineProps({
     machineID: { type: String, default: '' },
     machineFound: { type: Boolean, default: false },
+    // The ID matched a machine that is out of service (deactivated Site) —
+    // shown its own message instead of the generic "not found".
+    machineBlocked: { type: Boolean, default: false },
     machineName: { type: String, default: null },
     siteName: { type: String, default: null },
     reasonCodes: { type: Array, default: () => [] },
@@ -25,7 +28,9 @@ const machineResolved = ref(props.machineFound);
 
 const step = ref('enter_machine');
 const loading = ref(false);
-const errorMsg = ref('');
+const BLOCKED_MSG = 'This machine is no longer in service, so we can\'t take a refund request for it. Please check the Machine ID printed on the machine.';
+// A dead machine's QR still resolves the page — say why instead of "not found".
+const errorMsg = ref(props.machineBlocked ? BLOCKED_MSG : '');
 
 // 'today' | 'yesterday' | 'custom'. When 'custom', the actual date lives in customDate.
 const dayMode = ref('today');
@@ -281,6 +286,8 @@ async function startRefund() {
             siteName.value = data.siteName;
             machineResolved.value = true;
             step.value = 2;
+        } else if (data.blocked) {
+            errorMsg.value = BLOCKED_MSG;
         } else {
             errorMsg.value = "We couldn't find that Machine ID. Please check the number on the machine and try again.";
         }
