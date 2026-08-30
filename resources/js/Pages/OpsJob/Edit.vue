@@ -132,7 +132,8 @@
                     type="button"
                     class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer"
                     @click="onMapAllMarkerClicked"
-                    v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
+                    v-if="(opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude))
+                      || (opsJob.opsJobTasks && opsJob.opsJobTasks.some(task => task.latitude && task.longitude))"
                   >
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                     <span>Show Map Markers</span>
@@ -1665,13 +1666,33 @@ function onMapMarkerClicked(opsJobItem) {
   });
 }
 
+// Tasks carry their own geocoded coordinates (no customer), so they never go
+// through /customers/map — build MapMarker-shaped rows for them locally.
+function taskMapMarkers() {
+  return (opsJob.value.opsJobTasks || [])
+    .filter((task) => task.latitude && task.longitude)
+    .map((task) => ({
+      ops_job_task_id: task.id,
+      sequence: task.sequence,
+      name: task.task_name,
+      deliveryAddress: {
+        latitude: task.latitude,
+        longitude: task.longitude,
+        full_address: task.address,
+        postcode: task.postcode,
+      },
+    }));
+}
+
 function onMapAllMarkerClicked() {
   // Extract all the opsJobItems' customer information and send the request
-  const opsJobItems = opsJob.value.opsJobItems.map((item) => ({
-    ops_job_item_id: item.id,
-    sequence: item.sequence,
-    customer_id: item.customer.id,
-  }));
+  const opsJobItems = (opsJob.value.opsJobItems || [])
+    .filter((item) => item.customer)
+    .map((item) => ({
+      ops_job_item_id: item.id,
+      sequence: item.sequence,
+      customer_id: item.customer.id,
+    }));
 
   axios({
     method: 'POST',
@@ -1679,11 +1700,25 @@ function onMapAllMarkerClicked() {
     data: opsJobItems,  // Send all opsJobItems for mapping
   })
   .then((response) => {
-    customerModel.value = response.data.data.map((customerData, index) => ({
+    const itemMarkers = response.data.data.map((customerData, index) => ({
       ...customerData,
       sequence: opsJobItems[index].sequence,  // Maintain the correct sequence for each customer
       ops_job_item_id: opsJobItems[index].ops_job_item_id,  // Add ops_job_item_id
     }));
+    // Interleave task markers by sequence (nulls last) so both the marker
+    // labels and Show Directions follow the route order, tasks included.
+    const seq = (row) => {
+      if (row.sequence === '' || row.sequence == null) return null;
+      const value = Number(row.sequence);
+      return Number.isFinite(value) ? value : null;
+    };
+    customerModel.value = [...itemMarkers, ...taskMapMarkers()].sort((a, b) => {
+      const seqA = seq(a);
+      const seqB = seq(b);
+      if ((seqA === null) !== (seqB === null)) return seqA === null ? 1 : -1;
+      if (seqA !== null && seqA !== seqB) return seqA - seqB;
+      return 0;
+    });
     showMapMarkerModal.value = true;  // Open the map modal with all markers
   })
   .catch((error) => {

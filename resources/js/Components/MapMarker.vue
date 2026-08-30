@@ -139,7 +139,7 @@ const addMarkers = () => {
         const marker = new google.maps.Marker({
           position,
           map,
-          label: {
+          label: customer.sequence == null ? null : {
             text: String(customer.sequence), // Using custom sequence
             color: "#ffffff",
             fontSize: "14px",
