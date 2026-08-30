@@ -1209,6 +1209,20 @@ onMounted(() => {
     filters.value.is_payment_received = booleanOptions.value[0]
     filters.value.is_refunded = refundedOptions.value[0]
     filters.value.tag = tagOptions.value[0];
+
+    // Hydrate the filter panel from the query string so a deep link (e.g. the
+    // Today sales / 1d error-rate figures on the Operation Dashboard, which
+    // link here with ?codes=<machine>&date_from=&date_to=) shows the filters it
+    // actually applied. Without this the boxes read blank while the rows are
+    // filtered, and the next filter change silently drops the machine.
+    // Only these three are hydrated - the rest of the panel is option objects,
+    // not raw values, and no caller deep-links them.
+    const urlParams = new URLSearchParams(window.location.search)
+    for (const key of ['codes', 'date_from', 'date_to']) {
+        if (urlParams.has(key)) {
+            filters.value[key] = urlParams.get(key)
+        }
+    }
 })
 
 onUnmounted(() => {

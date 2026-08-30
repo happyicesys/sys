@@ -1885,8 +1885,14 @@
 										</div>
 								</div>
 							</span>
-							<span
+							<!-- 1d rate is today's window (see todayTransactionsUrl), so it
+							     drills into today's transactions for this machine. -->
+							<a
 							v-if="vend.vendTransactionTotalsJson && 'one_day_error_rate' in vend.vendTransactionTotalsJson"
+							:href="todayTransactionsUrl(vend)"
+							target="_blank"
+							class="hover:underline"
+							v-tooltip="'Open today\'s transactions for this machine'"
 							:class="[
 									vend.is_active || vend.is_testing ?
 									(vend.vendTransactionTotalsJson['one_day_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
@@ -1894,7 +1900,7 @@
 							]">
 									{{vend.vendTransactionTotalsJson['one_day_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
 									({{vend.vendTransactionTotalsJson['one_day_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['one_day_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-							</span>
+							</a>
 							<span
 							v-if="vend.vendTransactionTotalsJson && 'two_days_error_rate' in vend.vendTransactionTotalsJson"
 							:class="[
@@ -2000,8 +2006,12 @@
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
-						<span
+						<a
 						v-if="vend.vendTransactionTotalsJson && 'today_amount' in vend.vendTransactionTotalsJson"
+						:href="todayTransactionsUrl(vend)"
+						target="_blank"
+						class="hover:underline"
+						v-tooltip="'Open today\'s transactions for this machine'"
 						:class="[
 								vend.is_active || vend.is_testing ?
 								((vend.vendTransactionTotalsJson['today_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700') :
@@ -2009,7 +2019,7 @@
 						]">
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['today_amount'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 								({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-						</span>
+						</a>
 						<span
 						v-if="vend.vendTransactionTotalsJson && 'yesterday_amount' in vend.vendTransactionTotalsJson"
 						:class="[
@@ -4558,6 +4568,26 @@ function avgMthlySales(vend) {
 		)
 
 		return lifetime / months
+}
+
+// Drill-down from the two "today" figures on this row - Sales(qty) Today and
+// the 1d error rate - into /vends/transactions, pre-filtered to this machine
+// and today. Both figures are the same window: totals_json.today_* and
+// one_day_* are both built from daysVendTransactions(0, 0) in
+// SyncVendTransactionTotalsJson, i.e. today's calendar day.
+//
+// `codes` is the Transaction page's own "Machine ID" filter (LIKE match, same
+// as typing the code into that box); date_from/date_to are its date range.
+// Transaction.vue hydrates all three from the query string on mount, so the
+// filter panel there shows what the link actually applied.
+function todayTransactionsUrl(vend) {
+		const today = moment().format('YYYY-MM-DD')
+
+		return '/vends/transactions?' + new URLSearchParams({
+				codes: vend.code ?? '',
+				date_from: today,
+				date_to: today,
+		}).toString()
 }
 
 function onChannelOverviewClicked(vendData) {
