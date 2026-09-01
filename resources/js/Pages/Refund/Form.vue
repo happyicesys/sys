@@ -519,7 +519,10 @@ async function submitManual() {
         result.value = data;
         step.value = 9;
     } catch (e) {
-        errorMsg.value = 'Submission failed. Please try again.';
+        // Surface the server's own reason (same as the matched path) — the
+        // generic message used to hide field errors like an unusable PayNow
+        // number, leaving the customer with nothing to correct.
+        errorMsg.value = firstError(e, 'Submission failed. Please try again.');
     } finally {
         loading.value = false;
     }
