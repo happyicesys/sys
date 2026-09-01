@@ -29,7 +29,13 @@ class SimcardController extends Controller
                         // Inertia payload, dragging apk_ver_json siblings like
                         // settings_parameter_json and meta_json along for every
                         // row on the page.
+                        // is_online + last_updated_at back the Online/Offline line
+                        // in Signal Strength: SyncOnlineStatus flips is_online off
+                        // when the machine's HTTP heartbeat goes quiet for 15 min,
+                        // and a null last_updated_at means it never checked in at
+                        // all (reads 'N/A', not 'Offline').
                         'vends:id,simcard_id,code,customer_id,apk_version_code,apk_ver_json,'
+                            .'is_online,last_updated_at,'
                             .'internet_source,internet_provider,internet_network,'
                             .'internet_signal,internet_signal_max',
                         // Site column — id + name only; ref_id is id + 20000.

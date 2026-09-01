@@ -138,8 +138,25 @@
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.code }}
                       </TableData>
+                      <!-- Machine ID — one link per bound machine, in the same
+                           order as the Site / Machine APK columns so the three
+                           stacks line up. Opens the Operation Dashboard filtered
+                           to that machine (codes= + autoload=true, the same link
+                           Machine Health uses), in a new tab so the Simcard list
+                           and its filters survive the click. -->
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
-                        {{ simcard.vend_code }}
+                        <div v-if="machineCodes(simcard).length" class="flex flex-col items-center space-y-1">
+                          <a
+                            v-for="machine in machineCodes(simcard)"
+                            :key="machine.id"
+                            class="text-blue-700 hover:underline"
+                            target="_blank"
+                            :href="'/vends/customers?codes=' + machine.code + '&autoload=true'"
+                          >
+                            {{ machine.code }}
+                          </a>
+                        </div>
+                        <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <!-- The Site each bound machine sits at — displayed Site ID
                            (customers.id + 20000) over the site name, one block per
@@ -180,15 +197,25 @@
                            carrier + signal pill (1-2 red, 3 yellow, 4-5 green).
                            Nothing shows when no bound machine has reported a link. -->
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
-                        <div v-if="reportedLink(simcard)" class="flex flex-col items-center space-y-1">
-                          <span class="text-xs font-bold text-gray-700">{{ internetLinkTitle(reportedLink(simcard)) }}</span>
+                        <div v-if="onlineStates(simcard).length || reportedLink(simcard)" class="flex flex-col items-center space-y-1">
                           <span
-                            v-if="signalBars(reportedLink(simcard)) || reportedLink(simcard).internet_source === 'none'"
-                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
-                            :class="signalBadgeClass(reportedLink(simcard))"
+                            v-for="state in onlineStates(simcard)"
+                            :key="state.id"
+                            class="text-xs font-bold"
+                            :class="state.class"
                           >
-                            {{ signalBars(reportedLink(simcard)) || 'No Link' }}
+                            {{ state.label }}
                           </span>
+                          <template v-if="reportedLink(simcard)">
+                            <span class="text-xs font-bold text-gray-700">{{ internetLinkTitle(reportedLink(simcard)) }}</span>
+                            <span
+                              v-if="signalBars(reportedLink(simcard)) || reportedLink(simcard).internet_source === 'none'"
+                              class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+                              :class="signalBadgeClass(reportedLink(simcard))"
+                            >
+                              {{ signalBars(reportedLink(simcard)) || 'No Link' }}
+                            </span>
+                          </template>
                         </div>
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
@@ -309,6 +336,33 @@ import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/int
 function reportedLink(simcard) {
   const vends = simcard.vends || [];
   return vends.find((v) => v.internet_source) || null;
+}
+
+// Bound machines for the Machine ID column — id + code only, in the same order
+// as the Site column, so the two stacks line up row for row. A machine with no
+// code (never happens in practice) is left out rather than linked to nothing.
+function machineCodes(simcard) {
+  return (simcard.vends || [])
+    .filter((vend) => vend.code)
+    .map((vend) => ({ id: vend.id, code: vend.code }));
+}
+
+// Online/Offline per bound machine, for the top line of the Signal Strength
+// column. Straight off vends.is_online — the machine's own HTTP heartbeat
+// (SyncOnlineStatus marks it offline after 15 quiet minutes), the same signal
+// the Operation Dashboard shows. This is NOT a telco reading: VoicePing's
+// sim-info API carries package/usage only and has no network-attach state, so
+// the machine heartbeat is the only online evidence mark1 has. A machine that
+// has never checked in reads 'N/A' rather than 'Offline'.
+function onlineStates(simcard) {
+  return (simcard.vends || []).map((vend) => {
+    if (!vend.last_updated_at) {
+      return { id: vend.id, label: 'N/A', class: 'text-gray-400' };
+    }
+    return vend.is_online
+      ? { id: vend.id, label: 'Online', class: 'text-green-600' }
+      : { id: vend.id, label: 'Offline', class: 'text-red-600' };
+  });
 }
 
 // Reported APK versionCode per bound machine, for the Machine APK column.
