@@ -94,6 +94,8 @@ const navigation = computed(() => [
             {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
             {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},
+            {name: 'Card Settlement', href: '/card-settlements', permission: 'read card-settlements'},
+            {name: 'Card Terminal Bindings', href: '/card-terminal-bindings', permission: 'read card-settlements'},
         ]
     },
     {

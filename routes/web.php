@@ -6,6 +6,8 @@ use App\Http\Controllers\ApkSettingController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\CardSettlementController;
+use App\Http\Controllers\CardTerminalBindingController;
 use App\Http\Controllers\CardTerminalController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
@@ -1185,6 +1187,31 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
     Route::post('/{settlement}/mark-insufficient-info', [RefundSettlementController::class, 'markInsufficientInfo'])->middleware('can:payout refunds');
     Route::post('/{settlement}/return-to-pool/{ticket}', [RefundSettlementController::class, 'returnToPool'])->middleware('can:payout refunds');
     Route::delete('/{settlement}', [RefundSettlementController::class, 'destroy'])->middleware('can:payout refunds');
+});
+
+/*
+| Card Settlement — upload the acquirer's daily settlement report (NETS
+| MerchantConnect CSV first), match rows to vend_transactions via the terminal
+| bindings, resolve queries, then sync the settlement stamp onto the sales.
+| Permission gating lives in the controllers' constructors
+| (permission:… card-settlements).
+*/
+Route::middleware(['auth', 'cors'])->prefix('card-settlements')->group(function () {
+    Route::get('/', [CardSettlementController::class, 'index'])->name('card-settlements');
+    Route::post('/', [CardSettlementController::class, 'store'])->name('card-settlements.store');
+    Route::get('/{id}', [CardSettlementController::class, 'show'])->name('card-settlements.show');
+    Route::post('/{id}/rematch', [CardSettlementController::class, 'rematch'])->name('card-settlements.rematch');
+    Route::post('/{id}/rows/{rowId}/resolve', [CardSettlementController::class, 'resolveRow'])->name('card-settlements.rows.resolve');
+    Route::post('/{id}/rows/{rowId}/ignore', [CardSettlementController::class, 'ignoreRow'])->name('card-settlements.rows.ignore');
+    Route::post('/{id}/sync', [CardSettlementController::class, 'sync'])->name('card-settlements.sync');
+    Route::delete('/{id}', [CardSettlementController::class, 'destroy'])->name('card-settlements.destroy');
+});
+
+Route::middleware(['auth', 'cors'])->prefix('card-terminal-bindings')->group(function () {
+    Route::get('/', [CardTerminalBindingController::class, 'index'])->name('card-terminal-bindings');
+    Route::post('/', [CardTerminalBindingController::class, 'store'])->name('card-terminal-bindings.store');
+    Route::put('/{id}', [CardTerminalBindingController::class, 'update'])->name('card-terminal-bindings.update');
+    Route::delete('/{id}', [CardTerminalBindingController::class, 'destroy'])->name('card-terminal-bindings.destroy');
 });
 
 /*

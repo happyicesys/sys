@@ -761,6 +761,9 @@
                             Payment Status
                         </TableHead>
                         <TableHead>
+                            Settle Sync
+                        </TableHead>
+                        <TableHead>
                             Channels Error
                         </TableHead>
                         <TableHead>
@@ -860,6 +863,24 @@
                             <span v-else>
                                 {{ vendTransaction.vend_channel_error_code ? (vendTransaction.vend_channel_error_code == 0 || vendTransaction.vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful' }}
                             </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <!-- Card-terminal sales only: has this sale been confirmed by an
+                                 uploaded acquirer settlement report (Card Settlement page)? -->
+                            <div class="flex justify-center" v-if="vendTransaction.payment_method_gateway_id === null && vendTransaction.payment_method_code > 0">
+                                <CheckCircleIcon
+                                    v-if="vendTransaction.card_settlement_synced_at"
+                                    class="h-4 w-4 text-green-500"
+                                    aria-hidden="true"
+                                    :title="'Settlement synced ' + vendTransaction.card_settlement_synced_at"
+                                />
+                                <XMarkIcon
+                                    v-else
+                                    class="h-4 w-4 text-gray-400"
+                                    aria-hidden="true"
+                                    title="Not yet confirmed by a settlement report"
+                                />
+                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.vend_channel_error_desc && vendTransaction.vend_channel_error_code != 0 && vendTransaction.vend_channel_error_code != 6">
@@ -972,6 +993,9 @@
                                 Unsuccessful
                             </span> -->
                         </TableData>
+                        <!-- Settle Sync column: header-level only, blank on item rows -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                        </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.vendChannelError && (vendTransactionItem.vendChannelError.code != 0 && vendTransactionItem.vendChannelError.code != 6)">
                                 {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
@@ -1018,7 +1042,7 @@
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
-                        <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                        <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                             No Results Found
                         </td>
                     </tr>

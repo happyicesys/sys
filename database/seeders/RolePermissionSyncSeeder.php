@@ -3,11 +3,10 @@
 namespace Database\Seeders;
 
 use DB;
+use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 
 /**
  * THE SINGLE SOURCE OF TRUTH FOR ROLES AND PERMISSIONS.
@@ -76,7 +75,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'mcp-tokens',
                 ['read', 'manage'],
-                ['superadmin', 'admin']
+                ['superadmin', 'admin'],
             ],
             [
                 'visitor-history',
@@ -86,7 +85,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // tier. Keep 'superadmin' listed even though Gate::before already lets
                 // it pass - HandleInertiaRequests shares the ROLE's permission rows, so
                 // dropping it here would hide the sidebar item from superadmin too.
-                ['superadmin']
+                ['superadmin'],
             ],
             [
                 'dashboard',
@@ -105,13 +104,13 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-08-10: this seeder is the ONLY place prod_owner (or any
                 // role) is granted anything. ProdOwnerPermissionsSeeder and
                 // DashboardPerformanceLitePermissionSeeder are retired no-ops.
-                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user'],
             ],
 
             [
                 'dashboard',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin'],
             ],
 
             [
@@ -128,7 +127,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // of what 2 live users can see. dashboard-performance-lite is still
                 // granted, so both links appear. If the sheet meant "Performance (Lite)",
                 // remove prod_owner here and add a Performance (Lite) row to the sheet.
-                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user'],
             ],
 
             // Dashboard > Performance (Lite) — /dashboard/performance-lite.
@@ -147,13 +146,13 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard-performance-lite',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'prod_owner']
+                ['superadmin', 'admin', 'prod_owner'],
             ],
 
             [
                 'dashboard-machine-health',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
@@ -166,19 +165,19 @@ class RolePermissionSyncSeeder extends Seeder
                 // This is the one that renders the NAV LINK — Authenticated.vue
                 // gates "Dashboard -> /vends/customers" on `read vends`. Without
                 // it the page is reachable only by typing the URL.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee'],
             ],
 
             [
                 'vends',
                 ['update'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin'],
             ],
 
             [
                 'vends',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
@@ -191,7 +190,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // - observer_transactions: no column in the sheet (see below).
                 // 2026-08-13 sheet: + sup_driver (Ops Dashboard Full Filter, row 5).
                 // This is the ROUTE gate — without it /vends/customers 403s.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee'],
             ],
 
             [
@@ -199,7 +198,7 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'export'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (both Yes
                 // struck; round-1 operator_supervisor addition reverted)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
@@ -211,7 +210,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-08-13 sheet: + sup_driver. Its column says Full Filter, so
                 // it gets this gate too — serial num, temp/T2 thresholds, balance
                 // stock, last-visited. Drop it here alone for a limited filter.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor'],
             ],
 
             // Operations > Dashboard (Lite) — /vends/customers-lite. Its OWN
@@ -237,19 +236,19 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vend-customers-lite',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'prod_owner', 'driver']
+                ['superadmin', 'admin', 'prod_owner', 'driver'],
             ],
 
             [
                 'vend-machines',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'vend-machines',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
@@ -259,20 +258,20 @@ class RolePermissionSyncSeeder extends Seeder
                 // filter). "Limited" == read without admin-access: Transaction.vue
                 // gates ~10 filter controls on 'admin-access transactions', so
                 // prod_owner must NOT appear on the admin-access tuple below.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner'],
             ],
 
             [
                 'transactions',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'transactions-sales',
                 ['read', 'export'],
                 // 2026-08-05 sheet sync: + prod_owner
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner'],
 
             ],
 
@@ -290,20 +289,20 @@ class RolePermissionSyncSeeder extends Seeder
                 // wholesale to stay behaviour-preserving and was never reconciled to
                 // that row. Removed: technician, operator_admin, operator_supervisor,
                 // franchisee, licensee, hid_user, observer_transactions.
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'transactions-sales',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'transactions-payment-gateway',
                 ['read', 'export'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (HappyIce staff only)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
@@ -311,14 +310,14 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
                 // 2026-08-13 sheet: + sup_driver (new "Sup Driver" column) — it
                 // mirrors driver everywhere and adds the Ops Dashboard on top.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl'],
             ],
 
             [
                 'operation-jobs',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
                 // 2026-08-13 sheet: + sup_driver (Daily Jobs > Jobs, row 17).
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl'],
             ],
 
             [
@@ -327,33 +326,33 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-07-23 sheet sync v2: HappyIce staff only - operator_admin/
                 // operator_supervisor/operator_driver Yes struck through, operator_3pl blank
                 // 2026-08-13 sheet: + sup_driver (Daily Jobs > Summary, row 18).
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver'],
             ],
 
             [
                 'vend-settings',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'production_jb']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'production_jb'],
             ],
 
             [
                 'machine-view',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'machine-settings',
                 ['read', 'update'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (Machine Settings = HappyIce staff only).
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'machine-settings',
                 ['export', 'create', 'delete', 'admin-access'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
@@ -368,7 +367,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // roles back here.
                 'machine-alert-parameters',
                 ['read', 'export'],
-                []
+                [],
             ],
 
             [
@@ -380,90 +379,90 @@ class RolePermissionSyncSeeder extends Seeder
                 // the next sheet sync does not drop it.
                 'apk-releases',
                 ['read', 'create', 'update', 'delete'],
-                ['superadmin', 'admin']
+                ['superadmin', 'admin'],
             ],
 
             [
                 'apk-settings',
                 ['read', 'export'],
                 // 2026-07-23 sheet sync: - driver (UI Setting row has no Driver)
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'vend-configs',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'vend-prefixes',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'cashless-terminals',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
                 // 2026-07-23 sheet sync: - technician; v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'customers',
                 ['read', 'export', 'create', 'update', 'delete'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'customers',
                 ['admin-access'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (Site Settlement = staff only)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'products',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'product-mappings',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'product-availability',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'product-categories',
                 ['read'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'product-categories',
                 ['create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'product-subcategories',
                 ['read'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'product-subcategories',
                 ['create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
@@ -476,7 +475,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // Management > Product Labels (/tags?classname=Product). The old comment
                 // here said the operator removal "also hides Campaign Management menu";
                 // that side effect was the bug, not the intent.
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             // Campaign Management (/campaigns) - its OWN permission, split out of
@@ -505,7 +504,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // sheet does not make and no code enforces.
                 'campaigns',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
@@ -513,14 +512,14 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (whole
                 // Data Management section struck through for the operator roles)
-                ['superadmin', 'admin', 'supervisor', 'technician', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'hid_user'],
             ],
 
             [
                 'card-terminals',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
@@ -528,14 +527,14 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (page not in
                 // sheet, but whole Data Management section is disabled for operator roles)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'location-types',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
@@ -543,7 +542,7 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (page not in
                 // sheet, but whole Data Management section is disabled for operator roles)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
@@ -551,21 +550,21 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'create', 'update', 'delete', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (both Yes
                 // struck; round-1 operator_supervisor addition reverted); hid_user keeps access
-                ['superadmin', 'admin', 'supervisor', 'technician', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'hid_user'],
             ],
 
             [
                 'vend-models',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'modem-models',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             // 2026-07-23 sheet sync v2: Modem IMEI appears twice in the sheet - the
@@ -575,84 +574,84 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'modem-imei',
                 ['read'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'modem-imei',
                 ['create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'keys',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'serial-numbers',
                 ['read'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'serial-numbers',
                 ['create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'telcos',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'simcards',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'zones',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'delivery-platforms',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'delivery-platform-orders',
                 ['read', 'export', 'update'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'delivery-platform-orders',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'delivery-platform-vends',
                 ['read', 'export', 'update'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'delivery-platform-vends',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
@@ -662,19 +661,19 @@ class RolePermissionSyncSeeder extends Seeder
                 // Delivery Campaign row is NOT struck so delivery-platform-campaigns keeps them
                 // 2026-07-29: operator_admin re-granted CRUD on /delivery-product-mappings
                 // (requested by brian). admin-access intentionally NOT granted - see block below.
-                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin'],
             ],
 
             [
                 'delivery-platform-product-mappings',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'delivery-platform-campaigns',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
@@ -682,7 +681,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // roles: Stock Count Dashboard, Daily Stock Count, Sales Report.
                 'reports',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
@@ -700,38 +699,38 @@ class RolePermissionSyncSeeder extends Seeder
                 // product-grained margin data, so it is grouped here rather than left open.
                 'reports-gp',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'admins',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'operator_admin']
+                ['superadmin', 'admin', 'operator_admin'],
             ],
 
             [
                 'operators',
                 ['create', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin']
+                ['superadmin', 'admin'],
             ],
 
             [
                 'operators',
                 ['read', 'update'],
                 // 2026-07-23 sheet sync: - operator_admin (Admin > Operators = superadmin/admin only)
-                ['superadmin', 'admin']
+                ['superadmin', 'admin'],
             ],
 
             [
                 'users',
                 ['read', 'create', 'update', 'delete', 'export'],
-                ['superadmin', 'admin', 'operator_admin']
+                ['superadmin', 'admin', 'operator_admin'],
             ],
 
             [
                 'users',
                 ['admin-access'],
-                ['superadmin', 'admin', 'operator_admin']
+                ['superadmin', 'admin', 'operator_admin'],
             ],
 
             [
@@ -749,33 +748,33 @@ class RolePermissionSyncSeeder extends Seeder
                 // invisible rather than intentional. Folded in.
                 'vouchers',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'resource-centers',
                 ['read', 'export'],
                 // 2026-08-13: + sup_driver, mirroring driver.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver'],
             ],
 
             [
                 'resource-center-operators',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             [
                 'resource-center-technicians',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
                 'resource-center-drivers',
                 ['read', 'export', 'admin-access'],
                 // 2026-08-13: + sup_driver, mirroring driver.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver'],
             ],
 
             [
@@ -783,7 +782,7 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'export'],
                 // 2026-07-23 sheet sync: - technician, driver (staff use "Tutorial (with CMS)" / resource-centers instead)
                 // 2026-08-05 sheet sync: + prod_owner (Tutorial > Management to know)
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee', 'prod_owner']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee', 'prod_owner'],
             ],
 
             [
@@ -792,25 +791,25 @@ class RolePermissionSyncSeeder extends Seeder
                 // 'read tutorials-operators') without the admin bits.
                 'tutorials-operators',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'prod_owner']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'prod_owner'],
             ],
 
             [
                 'tutorials-operators',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'tutorials-technicians',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
             ],
 
             [
                 'tutorials-drivers',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee'],
             ],
 
             // Refund Requests module. Source of truth = migration
@@ -836,18 +835,28 @@ class RolePermissionSyncSeeder extends Seeder
                 // VendChannel.php:178 treat as a customer-binding BYPASS
                 // (hasRole('operator') ? 'all' : $isBindedCustomer). One mis-click
                 // in user admin would then hand someone every customer.
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
             [
                 'refunds',
                 ['create', 'update', 'payout'],
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
             ],
             [
                 'refunds',
                 ['verify'],
                 // 'operator' removed - see the read tuple above.
-                ['superadmin', 'admin', 'supervisor']
+                ['superadmin', 'admin', 'supervisor'],
+            ],
+
+            // Card Settlement (NETS terminal reconcile): upload the acquirer's
+            // daily report, match against vend_transactions, sync the stamp.
+            // HappyIce finance/admin staff only — own permission set so the
+            // blast radius (bulk-stamping sales) never piggybacks on refunds.
+            [
+                'card-settlements',
+                ['read', 'create', 'update', 'delete'],
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             // Operator Groups (payout groups) module. Source of truth = migration
@@ -859,7 +868,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'operator-groups',
                 ['read', 'manage'],
-                ['superadmin', 'admin']
+                ['superadmin', 'admin'],
             ],
         ];
 
@@ -908,46 +917,46 @@ class RolePermissionSyncSeeder extends Seeder
 
         try {
             DB::transaction(function () use ($permissionsData, $roleModels) {
-            foreach (Role::all() as $role) {
-                $role->syncPermissions([]);
-            }
+                foreach (Role::all() as $role) {
+                    $role->syncPermissions([]);
+                }
 
-            // delete(), not truncate() - see the class docblock. role_has_permissions
-            // is already empty at this point, so no FK juggling is needed. Both that
-            // FK and model_has_permissions' are ON DELETE CASCADE.
-            Permission::query()->delete();
+                // delete(), not truncate() - see the class docblock. role_has_permissions
+                // is already empty at this point, so no FK juggling is needed. Both that
+                // FK and model_has_permissions' are ON DELETE CASCADE.
+                Permission::query()->delete();
 
-            // Load-bearing, not decorative: a query-builder mass delete fires no
-            // model events, so it does NOT flush the registrar. Without this the
-            // first Permission::create() below finds the just-deleted name still in
-            // the cached map and throws PermissionAlreadyExists.
-            app(PermissionRegistrar::class)->forgetCachedPermissions();
+                // Load-bearing, not decorative: a query-builder mass delete fires no
+                // model events, so it does NOT flush the registrar. Without this the
+                // first Permission::create() below finds the just-deleted name still in
+                // the cached map and throws PermissionAlreadyExists.
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-            $grants = [];
+                $grants = [];
 
-            foreach ($permissionsData as $data) {
-                foreach ($data[1] as $action) {
-                    $permissionName = "{$action} {$data[0]}";
+                foreach ($permissionsData as $data) {
+                    foreach ($data[1] as $action) {
+                        $permissionName = "{$action} {$data[0]}";
 
-                    Permission::create(['name' => $permissionName, 'guard_name' => 'web']);
+                        Permission::create(['name' => $permissionName, 'guard_name' => 'web']);
 
-                    foreach ($data[2] as $roleName) {
-                        $grants[$roleName][] = $permissionName;
+                        foreach ($data[2] as $roleName) {
+                            $grants[$roleName][] = $permissionName;
+                        }
                     }
                 }
-            }
 
-            // Spatie resolves permission NAMES against its cached map; the rows
-            // above were written inside this transaction, so the map has to be
-            // dropped or syncPermissions throws PermissionDoesNotExist.
-            app(PermissionRegistrar::class)->forgetCachedPermissions();
+                // Spatie resolves permission NAMES against its cached map; the rows
+                // above were written inside this transaction, so the map has to be
+                // dropped or syncPermissions throws PermissionDoesNotExist.
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-            // One sync per role rather than a givePermissionTo() per link: ~16
-            // statements instead of ~1350, each of which would otherwise flush
-            // the permission cache on its own.
-            foreach ($grants as $roleName => $permissionNames) {
-                $roleModels[$roleName]->syncPermissions(array_unique($permissionNames));
-            }
+                // One sync per role rather than a givePermissionTo() per link: ~16
+                // statements instead of ~1350, each of which would otherwise flush
+                // the permission cache on its own.
+                foreach ($grants as $roleName => $permissionNames) {
+                    $roleModels[$roleName]->syncPermissions(array_unique($permissionNames));
+                }
             });
         } finally {
             // finally, not just after the try: DB::transaction() re-throws after

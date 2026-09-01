@@ -1,0 +1,212 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CardSettlementReport;
+use App\Models\CardSettlementRow;
+use App\Models\CardTerminalBinding;
+use App\Models\PaymentMethod;
+use App\Models\VendTransaction;
+use App\Services\CardSettlement\CardSettlementMatcher;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * CardSettlementMatcher — a settlement line has no acquirer reference on our
+ * side, so it must find its sale via terminal binding + amount (cents) + a
+ * time window (terminal approval time runs 10–25 s AHEAD of our TRADE time).
+ */
+class CardSettlementMatchTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const VEND_ID = 1320;
+
+    private PaymentMethod $card;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->card = PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
+        CardTerminalBinding::create([
+            'provider' => 'nets',
+            'terminal_id' => '23082824',
+            'vend_id' => self::VEND_ID,
+        ]);
+    }
+
+    private function report(): CardSettlementReport
+    {
+        return CardSettlementReport::create([
+            'provider' => 'nets',
+            'original_filename' => 'test.csv',
+            'status' => CardSettlementReport::STATUS_UPLOADED,
+        ]);
+    }
+
+    private function row(CardSettlementReport $report, array $overrides = []): CardSettlementRow
+    {
+        static $n = 0;
+        $n++;
+
+        return CardSettlementRow::create(array_merge([
+            'card_settlement_report_id' => $report->id,
+            'row_no' => $n,
+            'txn_type' => 'Purchase',
+            'terminal_id' => '23082824',
+            'transaction_date' => '2026-08-29',
+            'transaction_time' => '22:30:58',
+            'time_is_partial' => false,
+            'amount_cents' => 240,
+            'fingerprint' => sha1('row-'.$n.uniqid()),
+            'status' => CardSettlementRow::STATUS_PENDING,
+        ], $overrides));
+    }
+
+    private function txn(string $datetime, int $amount, array $overrides = []): VendTransaction
+    {
+        static $t = 0;
+        $t++;
+
+        return VendTransaction::create(array_merge([
+            'order_id' => 'ORD-'.$t,
+            'vend_id' => self::VEND_ID,
+            'transaction_datetime' => $datetime,
+            'amount' => $amount,
+            'qty' => 1,
+            'success_qty' => 1,
+            'dispensed_qty' => 1,
+            'vend_channel_id' => 0,
+            'gst_vat_rate' => 0,
+            'payment_method_id' => $this->card->id,
+            'cashless_mfg' => 'Nets',
+        ], $overrides));
+    }
+
+    public function test_full_time_row_matches_the_sale_reported_seconds_later()
+    {
+        $txn = $this->txn('2026-08-29 22:31:07', 240); // TRADE 9s after terminal approval
+        $report = $this->report();
+        $row = $this->row($report);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_MATCHED, $row->status);
+        $this->assertSame($txn->id, $row->matched_vend_transaction_id);
+        $this->assertSame(9, $row->match_time_delta);
+        $this->assertSame(1, $report->fresh()->matched_count);
+        $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->fresh()->status);
+    }
+
+    public function test_amount_and_window_are_both_required()
+    {
+        $this->txn('2026-08-29 22:31:07', 250);      // wrong amount
+        $this->txn('2026-08-29 23:30:58', 240);      // right amount, an hour late
+        $report = $this->report();
+        $row = $this->row($report);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->fresh()->status);
+    }
+
+    public function test_two_rows_competing_for_two_sales_each_get_their_nearest()
+    {
+        $early = $this->txn('2026-08-29 22:31:07', 240);
+        $late = $this->txn('2026-08-29 22:34:20', 240);
+        $report = $this->report();
+        $rowEarly = $this->row($report, ['transaction_time' => '22:30:58']);
+        $rowLate = $this->row($report, ['transaction_time' => '22:34:05']);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame($early->id, $rowEarly->fresh()->matched_vend_transaction_id);
+        $this->assertSame($late->id, $rowLate->fresh()->matched_vend_transaction_id);
+    }
+
+    public function test_a_sale_already_claimed_by_an_earlier_report_is_not_claimed_again()
+    {
+        $txn = $this->txn('2026-08-29 22:31:07', 240);
+
+        $first = $this->report();
+        $this->row($first);
+        app(CardSettlementMatcher::class)->match($first);
+
+        $second = $this->report();
+        $row = $this->row($second);
+        app(CardSettlementMatcher::class)->match($second);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->status);
+        $this->assertNull($row->matched_vend_transaction_id);
+        $this->assertSame('No matching sale in window', $row->resolution_note);
+        $this->assertSame($txn->id, $first->rows()->first()->matched_vend_transaction_id);
+    }
+
+    public function test_retained_credit_settlements_are_never_candidates()
+    {
+        // Not mass-assignable (only RetainedCreditSettlementRecorder writes it).
+        $this->txn('2026-08-29 22:31:07', 240)
+            ->forceFill(['is_retained_credit_settlement' => true])->save();
+        $report = $this->report();
+        $row = $this->row($report);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->fresh()->status);
+    }
+
+    public function test_binding_effective_dates_are_respected()
+    {
+        CardTerminalBinding::query()->update(['bound_from' => '2026-08-30']); // starts after the row's date
+        $this->txn('2026-08-29 22:31:07', 240);
+        $report = $this->report();
+        $row = $this->row($report);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->status);
+        $this->assertSame('No terminal binding', $row->resolution_note);
+    }
+
+    public function test_partial_time_row_matches_within_the_hour()
+    {
+        // Excel-damaged file: the row only knows mm:ss = 30:58.
+        $txn = $this->txn('2026-08-29 14:31:07', 240);
+        $report = $this->report();
+        $row = $this->row($report, ['transaction_time' => '00:30:58', 'time_is_partial' => true]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_MATCHED, $row->status);
+        $this->assertSame($txn->id, $row->matched_vend_transaction_id);
+    }
+
+    public function test_partial_time_row_with_candidates_in_two_hours_is_ambiguous()
+    {
+        $this->txn('2026-08-29 14:31:07', 240);
+        $this->txn('2026-08-29 19:31:12', 240);
+        $report = $this->report();
+        $row = $this->row($report, ['transaction_time' => '00:30:58', 'time_is_partial' => true]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_AMBIGUOUS, $row->status);
+        $this->assertNull($row->matched_vend_transaction_id);
+        $this->assertCount(2, $row->candidates_json);
+    }
+
+    public function test_non_purchase_rows_are_ignored()
+    {
+        $report = $this->report();
+        $row = $this->row($report, ['txn_type' => 'Logon', 'amount_cents' => 0]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame(CardSettlementRow::STATUS_IGNORED, $row->fresh()->status);
+    }
+}
