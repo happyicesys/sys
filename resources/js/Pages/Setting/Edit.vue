@@ -689,10 +689,25 @@
                 <!-- Bound at creation (Machine Management › Create › Smart Chiller) and read-only
                      from then on — there is no unbind/rebind for chillers. Editable only while
                      EMPTY, so a vend that lost its link can be repaired. -->
-                <div v-if="vend.citybox_equipment_id" class="mt-1 flex items-center space-x-2">
+                <div v-if="vend.citybox_equipment_id" class="mt-1 flex flex-wrap items-center gap-2">
                   <span class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 font-mono text-sm text-gray-900 border border-gray-200">{{ vend.citybox_equipment_id }}</span>
                   <span v-if="vend.citybox_status_json && vend.citybox_status_json.name" class="text-xs text-gray-600">{{ vend.citybox_status_json.name }} · {{ vend.citybox_status_json.device_type }}</span>
                   <span class="text-xs" :class="vend.is_online ? 'text-green-700' : 'text-gray-500'">{{ vend.is_online ? 'online' : 'offline' }}</span>
+                  <!-- Same actions as the CityBox block further down — duplicated here for discoverability. -->
+                  <Button
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center space-x-1 px-2 py-1"
+                    @click.prevent="cityboxOpenDoor(vend.id)"
+                  >
+                    <LockOpenIcon class="w-3.5 h-3.5"></LockOpenIcon>
+                    <span>Open Door</span>
+                  </Button>
+                  <Button
+                    class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs flex items-center space-x-1 px-2 py-1"
+                    @click.prevent="cityboxPull(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-3.5 h-3.5"></ArrowPathIcon>
+                    <span>Pull</span>
+                  </Button>
                 </div>
                 <template v-else>
                   <!-- Repair picker: the unlinked CityBox fleet, pre-selected to the device whose
