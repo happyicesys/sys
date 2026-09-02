@@ -22,6 +22,12 @@ use Illuminate\Support\Facades\Log;
  * refund-ticket guard (markAutoRefundedByCharge — open tickets cross their
  * "already refunded" icon, approved/scheduled ones are pulled from payout).
  * Idempotent: re-recording an already-REFUND log only refreshes the payload.
+ *
+ * Nothing in here is Omise-specific — the name is historical. Since
+ * 2026-09-02 PaymentController also routes Midtrans refund webhooks through
+ * it (source midtrans_external), so every QR rail records a refund the same
+ * way. NETS card terminals have no webhook; their reversals come from the
+ * settlement report (CardSettlementSyncService).
  */
 class OmiseRefundRecorder
 {

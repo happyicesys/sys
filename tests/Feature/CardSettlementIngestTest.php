@@ -23,7 +23,8 @@ class CardSettlementIngestTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake(config('filesystems.default'));
+        // No Spaces credentials in the test env → storageDisk() resolves to 'local'.
+        Storage::fake(CardSettlementReport::storageDisk());
         PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
     }
 
@@ -44,16 +45,18 @@ class CardSettlementIngestTest extends TestCase
 
     private function uploadedReport(): CardSettlementReport
     {
-        $path = 'sys/card-settlements/'.uniqid().'.csv';
-        Storage::put($path, $this->csv());
+        $disk = CardSettlementReport::storageDisk();
+        $path = 'card-settlements/'.uniqid().'.csv';
+        Storage::disk($disk)->put($path, $this->csv());
 
         $report = CardSettlementReport::create([
             'provider' => 'nets',
             'original_filename' => 'MCONNECT_test.csv',
+            'storage_disk' => $disk,
             'status' => CardSettlementReport::STATUS_UPLOADED,
         ]);
         $report->attachments()->create([
-            'full_url' => Storage::url($path),
+            'full_url' => '/card-settlements/'.$report->id.'/download',
             'local_url' => $path,
             'type' => 'card-settlement-report',
         ]);
