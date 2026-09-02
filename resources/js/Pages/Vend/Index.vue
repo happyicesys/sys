@@ -751,6 +751,13 @@
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             {{ vends.meta.from + vendIndex }}
           </TableData>
+          <!-- Smart Chiller (CityBox): none of the vending-machine columns apply (no VMC, APK,
+               temp, modem, coin, mark1 sales). One cell spanning the rest of the row shows
+               what is true of a chiller instead. Vending / freezer rows are untouched below. -->
+          <TableData v-if="isChiller(vend)" :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left" :colspan="chillerColspan">
+            <SmartChillerRowSummary :vend="vend" @overview="onChannelOverviewClicked" />
+          </TableData>
+          <template v-else>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <div class="flex flex-col space-y-1">
               <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">
@@ -1414,6 +1421,7 @@
 
             </div>
           </TableData>
+          </template>
         </tr>
         <tr v-if="!vends.data.length">
           <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -1442,6 +1450,13 @@
   @modalClose="onSmartChannelOverviewClosed"
 >
 </SmartFreezerChannelOverview>
+<SmartChillerChannelOverview
+  v-if="showChillerChannelOverviewModal"
+  :vend="vend"
+  :showModal="showChillerChannelOverviewModal"
+  @modalClose="onChillerChannelOverviewClosed"
+>
+</SmartChillerChannelOverview>
 <Create
   v-if="showCreateModal"
   :showModal="showCreateModal"
@@ -1513,6 +1528,7 @@ font-size:13px;
 import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
 import Create from '@/Pages/Vend/Create.vue';
 import SmartFreezerChannelOverview from '@/Pages/Vend/SmartFreezerChannelOverview.vue';
+import SmartChillerChannelOverview from '@/Pages/Vend/SmartChillerChannelOverview.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Form from '@/Pages/Vend/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
@@ -1523,9 +1539,10 @@ import VendLogModal from '@/Components/VendLogModal.vue';
 import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
+  import SmartChillerRowSummary from '@/Components/SmartChillerRowSummary.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
   import SingleSortItem from '@/Components/SingleSortItem.vue';
-  import { ref, onMounted } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
   import { router, Link, Head, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
   import axios from 'axios';
@@ -1629,6 +1646,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
   const showAllFilters = ref(false)
   const showChannelOverviewModal = ref(false)
   const showSmartChannelOverviewModal = ref(false)
+  const showChillerChannelOverviewModal = ref(false)
   const showCreateModal = ref(false)
   const showEditModal = ref(false)
   const showPickListModal = ref(false)
@@ -1649,6 +1667,11 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
   const operatorRole = usePage().props.auth.operatorRole
   const permissions = usePage().props.auth.permissions
   const roles = usePage().props.auth.roles
+
+  // Smart Chiller rows collapse every column after "#" into one summary cell.
+  // Column count mirrors the header: 15 cells after "#", two of them only on the customers view.
+  const isChiller = (vend) => vend && vend.machine_type === 'smart_chiller'
+  const chillerColspan = computed(() => 13 + (props.indexType === 'customers' ? 2 : 0))
   const initBinded = usePage().props.initBinded
   const now = ref(moment().format('HH:mm:ss'))
 
@@ -1832,11 +1855,18 @@ function onChannelOverviewClicked(vendData) {
     // Smart freezers report no vend_channels telemetry, so the vending overview renders an empty
     // grid (the "Cost/Value/Stock Qty: 0" the column already shows). Their planogram IS the source
     // of truth, so route them to the basket view that reads it. Same branch CustomerIndex uses.
-    if (vendData.product_mapping_is_smart) {
+    // Smart chillers get their own layer view (CityBox planogram + live stock).
+    if (isChiller(vendData)) {
+        showChillerChannelOverviewModal.value = true
+    } else if (vendData.product_mapping_is_smart) {
         showSmartChannelOverviewModal.value = true
     } else {
         showChannelOverviewModal.value = true
     }
+}
+
+function onChillerChannelOverviewClosed() {
+    showChillerChannelOverviewModal.value = false
 }
 
 function onChannelOverviewClosed() {

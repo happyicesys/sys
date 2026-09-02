@@ -45,6 +45,8 @@ class VendResource extends JsonResource
             'citybox_equipment_id' => $this->citybox_equipment_id ?? null,
             // Only ever set on Smart Chillers; the ops pages read name / heartbeat_last_offline from it.
             'citybox_status_json' => $this->citybox_status_json ?? null,
+            // ISO-8601 so the chiller row can judge staleness client-side (poll is every minute).
+            'citybox_synced_at' => isset($this->citybox_synced_at) ? Carbon::parse($this->citybox_synced_at)->toIso8601String() : null,
             'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
             'card_terminal_id' => isset($this->card_terminal_id) ? $this->card_terminal_id : null,
             // Card terminal name (Nayax / Nets / Nets-Auresys / PAX / MLS).

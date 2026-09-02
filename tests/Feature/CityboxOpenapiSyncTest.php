@@ -49,6 +49,7 @@ class CityboxOpenapiSyncTest extends TestCase
         $routes = [
             self::HOST.'/api/Openapi/get_access_token' => Http::response(['code' => 200, 'body' => ['access_token' => 'T', 'express_in' => 3600]]),
             self::HOST.'/api/Openapi/box_list' => Http::response(['code' => 200, 'body' => $boxes]),
+            self::HOST.'/api/Openapi/get_device_status_new' => Http::response(['code' => 200, 'body' => ['code' => 'FREE', 'msg' => '设备空闲状态']]),
             // A bare closure is a fake HANDLER (per-request); wrapping it in
             // Http::response() would make the closure the response BODY.
             self::HOST.'/api/Openapi/device_product' => function ($req) use ($goodsByDevice) {
@@ -100,6 +101,25 @@ class CityboxOpenapiSyncTest extends TestCase
         $this->assertSame(1, $s['stock']['p90340']['layer']);
         // Integer cents (estate invariant) — the VO converts their "0.10" string at the boundary.
         $this->assertSame(10, $s['stock']['p90340']['active_price']);
+        // Machine parameters mirrored for the rows: live session state + last poll health.
+        $this->assertSame('FREE', $s['device_state']);
+        $this->assertTrue($s['poll']['ok']);
+        $this->assertSame(2, $s['poll']['products_seen']);
+        $this->assertNull($s['poll']['error']);
+    }
+
+    public function test_offline_device_state_is_not_found_without_asking_and_poll_error_is_mirrored(): void
+    {
+        $vend = $this->chiller('ICB26F9605R9');
+        $this->fakeApi([$this->box('ICB26F9605R9', online: 0)], ['ICB26F9605R9' => 'ERROR']);
+
+        app(CityboxOpenapiSync::class)->syncAll();
+        $s = $vend->fresh()->citybox_status_json;
+
+        $this->assertSame('NOT_FOUND', $s['device_state']);
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), 'get_device_status_new'));
+        $this->assertFalse($s['poll']['ok']);
+        $this->assertStringContainsString('设备号不能为空', $s['poll']['error']);
     }
 
     public function test_sync_only_touches_smart_chiller_vends(): void

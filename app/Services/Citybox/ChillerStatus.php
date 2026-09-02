@@ -3,6 +3,7 @@
 namespace App\Services\Citybox;
 
 use App\Enums\Citybox\DeviceOpsStatus;
+use App\Enums\Citybox\DeviceState;
 use App\Enums\Citybox\DeviceType;
 use App\Models\Vend;
 use Carbon\CarbonImmutable;
@@ -38,6 +39,13 @@ final readonly class ChillerStatus
         public ?CarbonImmutable $heartbeatRecovery,
         public ?CarbonImmutable $heartbeatOffline,
         public ?CarbonImmutable $syncedAt,
+        /** Live session state from get_device_status_new at the last poll; null before the first. */
+        public ?DeviceState $deviceState = null,
+        public ?CarbonImmutable $deviceStateAt = null,
+        /** @var array{at:string,ok:bool,error:?string,duration_ms:?int,products_seen:?int,total_qty:?int}|null */
+        public ?array $lastPoll = null,
+        /** @var array{at:string,user_id:?int,source:?string,msg_id:?string}|null */
+        public ?array $lastOpsOpen = null,
     ) {}
 
     public static function forVend(Vend $vend): self
@@ -54,7 +62,17 @@ final readonly class ChillerStatus
             heartbeatRecovery: self::ts($json['heartbeat_last_recovery'] ?? null),
             heartbeatOffline: self::ts($json['heartbeat_last_offline'] ?? null),
             syncedAt: self::ts($vend->citybox_synced_at),
+            deviceState: isset($json['device_state']) ? DeviceState::fromApi($json['device_state']) : null,
+            deviceStateAt: self::ts($json['device_state_at'] ?? null),
+            lastPoll: is_array($json['poll'] ?? null) ? $json['poll'] : null,
+            lastOpsOpen: is_array($json['last_ops_open'] ?? null) ? $json['last_ops_open'] : null,
         );
+    }
+
+    /** Door can be opened for restock right now (their state says idle). */
+    public function canOpenDoor(): bool
+    {
+        return $this->online && ($this->deviceState?->canOpenDoor() ?? false);
     }
 
     /** Linked to a device and polled at least once. */
@@ -127,6 +145,12 @@ final readonly class ChillerStatus
             'is_stale' => $this->isStale(),
             'is_known' => $this->isKnown(),
             'summary' => $this->summary(),
+            'device_state' => $this->deviceState?->value,
+            'device_state_label' => $this->deviceState?->label(),
+            'device_state_at' => $this->deviceStateAt?->toDateTimeString(),
+            'can_open_door' => $this->canOpenDoor(),
+            'poll' => $this->lastPoll,
+            'last_ops_open' => $this->lastOpsOpen,
         ];
     }
 

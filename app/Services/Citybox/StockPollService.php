@@ -3,6 +3,7 @@
 namespace App\Services\Citybox;
 
 use App\Contracts\Citybox\ChillerGateway;
+use App\Enums\Citybox\DeviceState;
 use App\Models\CityboxInventoryPoll;
 use App\Models\CityboxProduct;
 use App\Models\CityboxStockMovement;
@@ -70,25 +71,35 @@ class StockPollService
     {
         $startedAt = now();
         $t0 = hrtime(true);
+        $online = $device?->online ?? (bool) $vend->is_online;
+
+        // Live session state (get_device_status_new): FREE / OPENING / BUSY / …
+        // Their API answers NOT_FOUND for an offline device, so that call is
+        // skipped when box_list already says offline. Best-effort: a failure
+        // here never fails the stock poll.
+        $state = $this->deviceState($vend, $online);
 
         try {
             $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
         } catch (\Throwable $e) {
-            return CityboxInventoryPoll::create([
+            $poll = CityboxInventoryPoll::create([
                 'vend_id' => $vend->id,
                 'citybox_equipment_id' => $vend->citybox_equipment_id,
                 'polled_at' => $startedAt,
-                'online' => $device?->online ?? (bool) $vend->is_online,
+                'online' => $online,
                 'device_status' => $device?->opsStatus?->value,
                 'error' => $e->getMessage(),
                 'duration_ms' => (int) ((hrtime(true) - $t0) / 1e6),
             ]);
+            $this->mirrorHealthOntoVend($vend, $state, $poll);
+
+            return $poll;
         }
 
         $durationMs = (int) ((hrtime(true) - $t0) / 1e6);
         $snapshot = $this->snapshot($lines);
 
-        return DB::transaction(function () use ($vend, $device, $startedAt, $lines, $snapshot, $durationMs) {
+        return DB::transaction(function () use ($vend, $device, $startedAt, $lines, $snapshot, $durationMs, $state) {
             $previous = CityboxInventoryPoll::previousFor($vend->id);
 
             $poll = CityboxInventoryPoll::create([
@@ -109,11 +120,49 @@ class StockPollService
             }
 
             $this->mirrorOntoVend($vend, $snapshot);
+            $this->mirrorHealthOntoVend($vend, $state, $poll);
             $this->catalog->noteSeenOnDevice($lines);
             $this->pushChannels($vend, $lines);
 
             return $poll;
         });
+    }
+
+    /** @return DeviceState|null null = not asked (offline short-circuits to NotFound; errors → null) */
+    private function deviceState(Vend $vend, bool $online): ?DeviceState
+    {
+        if (! $online) {
+            return DeviceState::NotFound;
+        }
+        try {
+            return $this->gateway->deviceState((string) $vend->citybox_equipment_id);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::info('Citybox device state read failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Machine-parameter mirror for the rows/cards: the live session state and
+     * the last poll's health, on the vend so index pages need no extra query.
+     */
+    private function mirrorHealthOntoVend(Vend $vend, ?DeviceState $state, CityboxInventoryPoll $poll): void
+    {
+        $json = $vend->citybox_status_json ?? [];
+        if ($state !== null) {
+            $json['device_state'] = $state->value;
+            $json['device_state_at'] = now()->toDateTimeString();
+        }
+        $json['poll'] = [
+            'at' => $poll->polled_at->toDateTimeString(),
+            'ok' => $poll->error === null,
+            'error' => $poll->error,
+            'duration_ms' => $poll->duration_ms,
+            'products_seen' => $poll->products_seen,
+            'total_qty' => $poll->total_qty,
+        ];
+        $vend->forceFill(['citybox_status_json' => $json])->save();
     }
 
     /**

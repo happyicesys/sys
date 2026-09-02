@@ -704,21 +704,6 @@
                   <span class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 font-mono text-sm text-gray-900 border border-gray-200">{{ vend.citybox_equipment_id }}</span>
                   <span v-if="vend.citybox_status_json && vend.citybox_status_json.name" class="text-xs text-gray-600">{{ vend.citybox_status_json.name }} · {{ vend.citybox_status_json.device_type }}</span>
                   <span class="text-xs" :class="vend.is_online ? 'text-green-700' : 'text-gray-500'">{{ vend.is_online ? 'online' : 'offline' }}</span>
-                  <!-- Same actions as the CityBox block further down — duplicated here for discoverability. -->
-                  <Button
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center space-x-1 px-2 py-1"
-                    @click.prevent="cityboxOpenDoor(vend.id)"
-                  >
-                    <LockOpenIcon class="w-3.5 h-3.5"></LockOpenIcon>
-                    <span>Open Door</span>
-                  </Button>
-                  <Button
-                    class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs flex items-center space-x-1 px-2 py-1"
-                    @click.prevent="cityboxPull(vend.id)"
-                  >
-                    <ArrowPathIcon class="w-3.5 h-3.5"></ArrowPathIcon>
-                    <span>Pull</span>
-                  </Button>
                 </div>
                 <template v-else>
                   <!-- Repair picker: the unlinked CityBox fleet, pre-selected to the device whose
@@ -775,6 +760,11 @@
                     <span :class="chillerStatus.online ? 'text-green-700' : 'text-gray-700'">{{ chillerStatus.online ? 'online' : 'offline' }}</span>
                     <span v-if="!chillerStatus.online && chillerStatus.heartbeat_last_offline" class="text-xs text-gray-500"> since {{ chillerStatus.heartbeat_last_offline }}</span>
                   </span>
+                  <span v-if="chillerStatus.device_state">
+                    <span class="text-gray-500">Machine:</span>
+                    <span :class="chillerStatus.device_state === 'FREE' ? 'text-green-700' : chillerStatus.device_state === 'NOT_FOUND' ? 'text-gray-600' : 'text-indigo-700 font-medium'">{{ chillerStatus.device_state_label }}</span>
+                    <span class="text-xs text-gray-500"> ({{ chillerStatus.device_state }})</span>
+                  </span>
                   <span><span class="text-gray-500">Model:</span> {{ chillerStatus.model }}</span>
                   <span v-if="chillerStatus.name"><span class="text-gray-500">CityBox name:</span> {{ chillerStatus.name }}</span>
                   <span class="text-xs" :class="chillerStatus.is_stale ? 'text-amber-800 font-medium' : 'text-gray-500'">
@@ -783,6 +773,10 @@
                     <template v-else>Synced {{ formatDatetime(chillerStatus.synced_at) }}</template>
                   </span>
                 </div>
+                <p v-if="chillerStatus.poll" class="mt-2 text-xs" :class="chillerStatus.poll.ok ? 'text-gray-500' : 'text-amber-800'">
+                  Last poll {{ chillerStatus.poll.at }} · {{ chillerStatus.poll.ok ? chillerStatus.poll.products_seen + ' SKU seen, ' + chillerStatus.poll.duration_ms + ' ms' : 'failed: ' + (chillerStatus.poll.error || 'error') }}
+                  <span v-if="chillerStatus.last_ops_open"> · Last ops door-open {{ chillerStatus.last_ops_open.at }}</span>
+                </p>
                 <p v-if="chillerStatus.is_retired" class="mt-2 text-xs text-red-700">CityBox reports this unit as removed (已撤机). Set mark1's Status to Inactive if it is no longer in service.</p>
               </div>
             </div>
@@ -1422,15 +1416,21 @@
 
             <!-- Smart Chiller (CityBox) ops actions — only rendered for that machine type. -->
             <div class="sm:col-span-6" v-if="vend.machine_type === 'smart_chiller'">
+              <!-- The ONE Open Door / Pull pair on this page (the copy beside the Equipment ID
+                   was removed 2026-09-02 — do not add another). Open Door is gated on what
+                   CityBox last reported: offline, or a session in progress, and their API
+                   refuses anyway — say why instead of failing. -->
               <div class="rounded-md bg-indigo-50 p-3 mb-2 text-xs text-indigo-800">
                 <span class="font-semibold">CityBox Smart Chiller.</span>
                 Open Door unlocks the cabinet for restocking (ops open — not a customer session). Pull refreshes status and live stock from CityBox now.
                 <span v-if="!vend.citybox_equipment_id" class="text-red-600 font-semibold">Set the Citybox Equipment ID above and save first.</span>
+                <span v-else-if="openDoorBlockedReason" class="text-amber-800 font-semibold">{{ openDoorBlockedReason }}</span>
               </div>
               <span class="flex space-x-1">
                 <Button
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white flex space-x-1"
-                    :disabled="!vend.citybox_equipment_id"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white flex space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="!vend.citybox_equipment_id || !!openDoorBlockedReason"
+                    v-tooltip="openDoorBlockedReason || 'Unlock the cabinet for restocking'"
                     @click.prevent="cityboxOpenDoor(vend.id)"
                   >
                     <LockOpenIcon class="w-4 h-4"></LockOpenIcon>
@@ -1659,6 +1659,16 @@ const props = defineProps({
 // VMC/APK buttons, unbind) is gated on it. Keyed on the persisted vend, not the
 // form, so a mis-set picker can never expose or hide the wrong controls.
 const isChiller = computed(() => props.vend && props.vend.machine_type === 'smart_chiller')
+
+// Why Open Door cannot be pressed right now, from CityBox's last poll (ChillerStatus):
+// null = go ahead. Unknown/never-polled state does not block — their API decides then.
+const openDoorBlockedReason = computed(() => {
+  const s = props.chillerStatus
+  if (!isChiller.value || !s || !s.is_known) return null
+  if (!s.online) return 'Offline — CityBox cannot open the door. Pull to re-check.'
+  if (s.device_state && !s.can_open_door) return 'CityBox reports the machine is ' + (s.device_state_label || s.device_state).toLowerCase() + ' — try again when idle.'
+  return null
+})
 
 const form = ref(
   useForm(getDefaultForm())

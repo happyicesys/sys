@@ -26,4 +26,23 @@ enum DeviceState: string
     {
         return $this === self::Free;
     }
+
+    /** NOT_FOUND is what their API answers for an offline/unknown device. */
+    public function isReachable(): bool
+    {
+        return $this !== self::NotFound;
+    }
+
+    /** Ops wording for the machine rows and the settings card. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Free => 'Idle',
+            self::Opening => 'Door open',
+            self::Busy => 'In use (customer session)',
+            self::Maintenance => 'Maintenance',
+            self::NotFound => 'Unreachable',
+            self::Other => 'Unknown state',
+        };
+    }
 }
