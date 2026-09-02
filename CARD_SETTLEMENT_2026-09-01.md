@@ -24,9 +24,14 @@ MerchantConnect daily report — so this feature lets the user upload it on dema
   August files are damaged like this** (0801, 0825, 0826, 0827, 0829 — corrected 2026-09-02 from an
   earlier "29 of 30" note that generalised from one file); the other 25 are raw
   (`2026-08-02`, `22:46:33.000`). The parser handles both — damaged rows are flagged
-  `time_is_partial` and match circularly on mm:ss within the hour; two plausible hours ⇒ AMBIGUOUS
-  for the user. The report shows `partial_time_rows` as an amber warning. **Upload raw portal
-  downloads** — nothing on import can recover a digit that is not in the file.
+  `time_is_partial` and matched **in file order** (`CardSettlementMatcher::assignOrdered`): the NETS
+  file is newest-first (0 order violations in 2,872 lines of a raw file) and Excel keeps row order,
+  so per terminal, descending `row_no` is chronological — each line takes the earliest unclaimed sale
+  that fits its mm:ss and sits at/after the previous line's sale. Offline check on a raw day with
+  the hours stripped: 82/83 placed, 0 wrong hour; the earlier independent rule (which produced 635
+  AMBIGUOUS lines on the live 0801 upload — 700 queries) is gone for partial rows. The report shows
+  `partial_time_rows` as an amber warning. **Upload raw portal downloads** anyway — the ordered
+  rule is inference; a raw file is fact.
 - The NETS business day cuts over ~22:30, so one file spans two calendar dates. The row's own
   Transaction Date drives matching; consecutive daily files can share edge rows — fingerprint dedupe
   (sha1 of provider|tid|date|seq|amount|time, UNIQUE) marks re-ingested lines DUPLICATE.

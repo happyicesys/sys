@@ -185,19 +185,47 @@ class CardSettlementMatchTest extends TestCase
         $this->assertSame($txn->id, $row->matched_vend_transaction_id);
     }
 
-    public function test_partial_time_row_with_candidates_in_two_hours_is_ambiguous()
+    /**
+     * Hour-less rows are placed by file order: the NETS file is newest-first,
+     * so within a terminal a HIGHER row_no is an EARLIER sale. Two lines with
+     * the same amount and mm:ss in different hours resolve without a human.
+     */
+    public function test_partial_time_rows_are_placed_by_file_order_when_hours_repeat()
     {
-        $this->txn('2026-08-29 14:31:07', 240);
-        $this->txn('2026-08-29 19:31:12', 240);
+        $morning = $this->txn('2026-08-29 09:31:07', 240);
+        $evening = $this->txn('2026-08-29 19:31:12', 240);
         $report = $this->report();
-        $row = $this->row($report, ['transaction_time' => '00:30:58', 'time_is_partial' => true]);
+        // row_no 10 = later in the file = earlier in time; row_no 5 = the later sale.
+        $later = $this->row($report, ['row_no' => 5, 'transaction_time' => '00:30:58', 'time_is_partial' => true]);
+        $earlier = $this->row($report, ['row_no' => 10, 'transaction_time' => '00:30:55', 'time_is_partial' => true]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame($morning->id, $earlier->fresh()->matched_vend_transaction_id);
+        $this->assertSame($evening->id, $later->fresh()->matched_vend_transaction_id);
+        $this->assertSame(0, $report->fresh()->ambiguous_count);
+    }
+
+    public function test_partial_time_rows_respect_an_already_matched_anchor_on_rematch()
+    {
+        $morning = $this->txn('2026-08-29 09:31:07', 240);
+        $evening = $this->txn('2026-08-29 19:31:12', 240);
+        $report = $this->report();
+        // A previous run already settled row 10 onto the EVENING sale (say, by
+        // a manual pick); the unresolved row 5 sits AFTER it in time, so the
+        // morning sale — earlier than the anchor — must not be chosen.
+        $this->row($report, [
+            'row_no' => 10, 'transaction_time' => '00:31:00', 'time_is_partial' => true,
+            'status' => CardSettlementRow::STATUS_MATCHED, 'matched_vend_transaction_id' => $evening->id, 'vend_id' => self::VEND_ID,
+        ]);
+        $row = $this->row($report, ['row_no' => 5, 'transaction_time' => '00:30:58', 'time_is_partial' => true]);
 
         app(CardSettlementMatcher::class)->match($report);
 
         $row->refresh();
-        $this->assertSame(CardSettlementRow::STATUS_AMBIGUOUS, $row->status);
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->status);
         $this->assertNull($row->matched_vend_transaction_id);
-        $this->assertCount(2, $row->candidates_json);
+        $this->assertNull(CardSettlementRow::where('matched_vend_transaction_id', $morning->id)->first()); // morning sale left unclaimed
     }
 
     public function test_reversal_line_pairs_with_the_purchase_it_undoes()

@@ -249,6 +249,18 @@ class CardSettlementMatcher
         $earlySlack = (int) config('card_settlement.match_early_slack_seconds', 60);
         $lateSlack = (int) config('card_settlement.match_late_slack_seconds', 300);
 
+        // Rows that lost their hour (Excel re-save) are matched by ORDER, not
+        // independently: see assignOrdered(). The independent pass below then
+        // only sees full-time rows, so its "ambiguous" branch no longer fires
+        // in practice (kept for completeness).
+        [$partial, $rows] = $rows->partition(fn (CardSettlementRow $row) => $row->time_is_partial);
+        if ($partial->isNotEmpty()) {
+            $this->assignOrdered($partial, $candidatesByVend, $earlySlack, $lateSlack);
+        }
+        if ($rows->isEmpty()) {
+            return;
+        }
+
         // Build every eligible (row, candidate) pair with its time delta.
         $pairs = [];
         $eligibleByRow = [];
@@ -337,6 +349,128 @@ class CardSettlementMatcher
                     ? 'All matching sales already claimed'
                     : 'No matching sale in window',
             ]);
+        }
+    }
+
+    /**
+     * Hour-less rows, matched in sequence.
+     *
+     * A row that lost its hour still has two things: its mm:ss and its
+     * POSITION in the file. The NETS report is written newest-first (verified
+     * on a raw file: 0 order violations in 2,872 lines) and an Excel re-save
+     * keeps row order, so within one terminal, descending row_no IS the
+     * chronological order. Walking a terminal's purchase lines oldest-first,
+     * each line's sale must sit at or after the previous line's sale; the
+     * EARLIEST unclaimed sale that fits the mm:ss window and that floor is the
+     * right one. Offline check on a raw day with the hours stripped: 82/83
+     * lines placed, 0 in the wrong hour; the independent rule left 24 of them
+     * ambiguous (2026-09-02, terminals 23104097 + 23100721).
+     *
+     * Lines already matched in an earlier run of this report act as anchors
+     * (their sale time becomes the floor) so a Rematch after adding a binding
+     * stays consistent with what is already settled.
+     *
+     * @param  Collection<int, CardSettlementRow>  $rows  unresolved partial-time rows with vend_id set
+     */
+    protected function assignOrdered(Collection $rows, Collection $candidatesByVend, int $earlySlack, int $lateSlack): void
+    {
+        $reportId = $rows->first()->card_settlement_report_id;
+        $pending = $rows->keyBy('id');
+
+        foreach ($rows->groupBy('terminal_id') as $terminalId => $terminalRows) {
+            $vendId = $terminalRows->first()->vend_id;
+            $pool = $candidatesByVend->get($vendId) ?? collect();
+
+            $sequence = CardSettlementRow::query()
+                ->where('card_settlement_report_id', $reportId)
+                ->where('terminal_id', $terminalId)
+                ->where('is_reversal', false)
+                ->where('txn_type', 'Purchase')
+                ->orderByDesc('row_no')
+                ->get(['id', 'row_no', 'status', 'matched_vend_transaction_id']);
+
+            $anchorTimes = VendTransaction::query()
+                ->withoutGlobalScopes()
+                ->whereIn('id', $sequence->pluck('matched_vend_transaction_id')->filter())
+                ->pluck('transaction_datetime', 'id');
+
+            $floor = null;
+            $claimed = [];
+            foreach ($sequence as $line) {
+                if ($line->status === CardSettlementRow::STATUS_MATCHED && $line->matched_vend_transaction_id) {
+                    $anchor = $anchorTimes->get($line->matched_vend_transaction_id);
+                    if ($anchor) {
+                        $anchor = Carbon::parse($anchor);
+                        $floor = $floor && $floor->gt($anchor) ? $floor : $anchor;
+                    }
+
+                    continue;
+                }
+
+                $row = $pending->get($line->id);
+                if (! $row) {
+                    continue;
+                }
+
+                $best = null;
+                $bestAt = null;
+                $bestDelta = null;
+                foreach ($pool as $sale) {
+                    if (isset($claimed[$sale->id]) || $sale->amount !== $row->amount_cents) {
+                        continue;
+                    }
+                    $delta = $this->timeDelta($row, $sale, $earlySlack, $lateSlack);
+                    if ($delta === null) {
+                        continue;
+                    }
+                    $at = Carbon::parse($sale->transaction_datetime);
+                    if ($floor && $at->lt($floor->copy()->subSeconds($earlySlack))) {
+                        continue;
+                    }
+                    if ($bestAt === null || $at->lt($bestAt)) {
+                        $best = $sale;
+                        $bestAt = $at;
+                        $bestDelta = $delta;
+                    }
+                }
+
+                if (! $best) {
+                    $row->update([
+                        'status' => CardSettlementRow::STATUS_UNMATCHED,
+                        'matched_vend_transaction_id' => null,
+                        'match_time_delta' => null,
+                        'candidates_json' => null,
+                        'resolution_note' => 'No matching sale in sequence (hour unknown in report)',
+                    ]);
+
+                    continue;
+                }
+
+                try {
+                    $row->update([
+                        'status' => CardSettlementRow::STATUS_MATCHED,
+                        'matched_vend_transaction_id' => $best->id,
+                        'match_time_delta' => $bestDelta,
+                        'candidates_json' => null,
+                        'resolution_note' => null,
+                    ]);
+                } catch (QueryException) {
+                    // Claimed by another report between candidate load and now.
+                    $claimed[$best->id] = true;
+                    $row->update([
+                        'status' => CardSettlementRow::STATUS_UNMATCHED,
+                        'matched_vend_transaction_id' => null,
+                        'match_time_delta' => null,
+                        'candidates_json' => null,
+                        'resolution_note' => 'All matching sales already claimed',
+                    ]);
+
+                    continue;
+                }
+
+                $claimed[$best->id] = true;
+                $floor = $bestAt;
+            }
         }
     }
 
