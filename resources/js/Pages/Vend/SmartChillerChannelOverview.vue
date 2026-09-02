@@ -44,38 +44,55 @@
               </div>
             </div>
 
-            <!-- The rack: layer 5 at top -->
-            <div class="rounded-xl border-2 border-gray-300 bg-white p-3 space-y-2">
-              <div v-for="layer in data.layers" :key="layer.layer" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="text-xs font-semibold text-gray-600">Layer {{ layer.layer }}</span>
-                  <span class="text-xs" :class="layer.capacity ? 'text-gray-700' : 'text-gray-400'">
-                    {{ layer.capacity ? (layer.qty + ' / ' + layer.capacity) : 'empty' }}
-                  </span>
-                </div>
-                <div v-if="layer.channels.length" class="grid gap-2" :style="{ gridTemplateColumns: `repeat(${Math.max(layer.channels.length, 1)}, minmax(0, 1fr))` }">
-                  <div v-for="ch in layer.channels" :key="ch.code"
-                    class="rounded-md border bg-white p-2 flex items-center space-x-2 min-w-0"
-                    :class="ch.qty === 0 ? 'border-red-300' : 'border-gray-200'"
-                    :title="`Channel ${ch.code}`">
-                    <img v-if="ch.thumbnail" :src="ch.thumbnail" class="w-10 h-10 object-contain rounded bg-gray-50 flex-shrink-0" />
-                    <div class="min-w-0">
-                      <div class="text-xs font-medium text-gray-900 truncate">{{ ch.product ? ch.product.name : (ch.citybox_name || 'Unmapped SKU') }}</div>
-                      <div class="text-xs text-gray-500 truncate">
-                        <span :class="ch.qty === 0 ? 'text-red-600 font-semibold' : ''">{{ ch.qty }}</span> / {{ ch.capacity }}
-                        · S${{ (ch.amount_cents / 100).toFixed(2) }}
-                        · <span class="text-gray-400">#{{ ch.code }}</span>
-                        <span v-if="!ch.mapped" class="text-amber-700"> · unmapped</span>
-                      </div>
+            <!-- The rack: layer 5 at top. Built for a driver's phone first: layers stack
+                 vertically, SKUs wrap in a responsive grid (a layer can hold many), each
+                 tile leads with a big thumbnail and a big count so the whole cabinet can be
+                 read at a glance. Empty layers collapse to one slim row so all five fit. -->
+            <div class="rounded-xl border-2 border-gray-300 bg-white p-2 sm:p-3 space-y-2">
+              <div v-for="layer in data.layers" :key="layer.layer"
+                   class="rounded-lg border bg-gray-50"
+                   :class="layer.channels.length ? 'border-gray-200 px-2 py-2 sm:px-3' : 'border-dashed border-gray-200 px-3 py-1.5'">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-bold text-gray-700 w-16 shrink-0">Layer {{ layer.layer }}</span>
+                  <template v-if="layer.channels.length">
+                    <div class="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden" :title="layer.qty + ' of ' + layer.capacity">
+                      <div class="h-full rounded-full" :class="barClass(layer.qty, layer.capacity)" :style="{ width: pct(layer.qty, layer.capacity) + '%' }"></div>
                     </div>
+                    <span class="text-sm font-semibold tabular-nums shrink-0" :class="layer.qty === 0 ? 'text-red-600' : 'text-gray-800'">{{ layer.qty }} / {{ layer.capacity }}</span>
+                    <span class="text-xs text-gray-500 shrink-0 hidden sm:inline">{{ layer.channels.length }} SKU{{ layer.channels.length === 1 ? '' : 's' }}</span>
+                  </template>
+                  <span v-else class="text-xs text-gray-400 italic">empty</span>
+                </div>
+
+                <div v-if="layer.channels.length" class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  <div v-for="ch in layer.channels" :key="ch.code"
+                    class="relative rounded-lg border-2 bg-white p-2 flex flex-col min-w-0"
+                    :class="ch.qty === 0 ? 'border-red-400' : (ch.qty <= 2 ? 'border-amber-300' : 'border-gray-200')"
+                    :title="`Channel ${ch.code}`">
+                    <span class="absolute top-1 left-1 rounded bg-gray-800/80 text-white text-[10px] font-semibold px-1 leading-4">#{{ ch.code }}</span>
+                    <span v-if="ch.qty === 0" class="absolute top-1 right-1 rounded bg-red-600 text-white text-[10px] font-bold px-1 leading-4">OUT</span>
+                    <span v-else-if="ch.qty <= 2" class="absolute top-1 right-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1 leading-4">LOW</span>
+                    <div class="w-full h-24 sm:h-28 rounded-md bg-gray-50 flex items-center justify-center overflow-hidden">
+                      <img v-if="ch.thumbnail" :src="ch.thumbnail" loading="lazy" class="w-full h-full object-contain p-1" />
+                      <span v-else class="text-3xl text-gray-300">🧃</span>
+                    </div>
+                    <div class="mt-1.5 text-xs sm:text-[13px] font-medium text-gray-900 leading-snug line-clamp-2 min-h-[2.5em]" :title="ch.product ? ch.product.name : (ch.citybox_name || '')">
+                      {{ ch.product ? ch.product.name : (ch.citybox_name || 'Unmapped SKU') }}
+                    </div>
+                    <div class="mt-auto pt-1 flex items-end justify-between gap-1">
+                      <span class="text-xl sm:text-2xl font-bold tabular-nums leading-none" :class="ch.qty === 0 ? 'text-red-600' : (ch.qty <= 2 ? 'text-amber-600' : 'text-green-700')">
+                        {{ ch.qty }}<span class="text-sm font-medium text-gray-400"> / {{ ch.capacity }}</span>
+                      </span>
+                      <span class="text-xs text-gray-600 tabular-nums">S${{ (ch.amount_cents / 100).toFixed(2) }}</span>
+                    </div>
+                    <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in mark1</span>
                   </div>
                 </div>
-                <div v-else class="text-xs text-gray-400 italic">No products on this layer.</div>
               </div>
             </div>
 
             <div class="flex justify-end">
-              <Button class="bg-sky-700 hover:bg-sky-800 text-white flex items-center space-x-1" :disabled="pulling" @click.prevent="pull">
+              <Button class="bg-sky-700 hover:bg-sky-800 text-white flex items-center justify-center space-x-1 w-full sm:w-auto" :disabled="pulling" @click.prevent="pull">
                 <ArrowPathIcon class="w-4 h-4" :class="pulling ? 'animate-spin' : ''" />
                 <span>{{ pulling ? 'Pulling…' : 'Pull from CityBox' }}</span>
               </Button>
@@ -126,6 +143,9 @@ function pull() {
     onFinish: () => { pulling.value = false },
   })
 }
+
+function pct(qty, cap) { return cap ? Math.max(0, Math.min(100, Math.round((qty / cap) * 100))) : 0 }
+function barClass(qty, cap) { const p = pct(qty, cap); return qty === 0 ? 'bg-red-500' : (p <= 40 ? 'bg-amber-400' : 'bg-green-500') }
 
 function onModalClose() { emit('modalClose') }
 onMounted(load)
