@@ -44,7 +44,13 @@ class VendResource extends JsonResource
             'machine_type' => $this->machine_type ?: 'vending_machine',
             'citybox_equipment_id' => $this->citybox_equipment_id ?? null,
             // Only ever set on Smart Chillers; the ops pages read name / heartbeat_last_offline from it.
-            'citybox_status_json' => $this->citybox_status_json ?? null,
+            // The Operation Dashboard (indexCustomer) hydrates rows without Eloquent
+            // casts, so this JSON column arrives as a raw string there — decode it
+            // here so every page sees the same array (prod 2026-09-02: rows showed
+            // "Unknown" status because Vue received a string).
+            'citybox_status_json' => is_string($this->citybox_status_json ?? null)
+                ? (json_decode($this->citybox_status_json, true) ?: null)
+                : ($this->citybox_status_json ?? null),
             // ISO-8601 so the chiller row can judge staleness client-side (poll is every minute).
             'citybox_synced_at' => isset($this->citybox_synced_at) ? Carbon::parse($this->citybox_synced_at)->toIso8601String() : null,
             'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),

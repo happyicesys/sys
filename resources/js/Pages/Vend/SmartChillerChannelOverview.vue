@@ -93,10 +93,13 @@ import Modal from '@/Components/Modal.vue'
 import { ArrowPathIcon } from '@heroicons/vue/20/solid'
 import { router } from '@inertiajs/vue3'
 import axios from 'axios'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 
 const props = defineProps({ vend: Object, showModal: Boolean })
+// Index rows alias the primary key as vend_id (vends.id AS vend_id) and may not carry `id`;
+// the settings/ops pages pass a plain model. Accept both.
+const vendId = computed(() => props.vend?.vend_id ?? props.vend?.id)
 const emit = defineEmits(['modalClose'])
 const toast = useToast()
 const loading = ref(true)
@@ -107,7 +110,7 @@ const data = ref({ layers: [], vend: {} })
 async function load() {
   loading.value = true; loadError.value = null
   try {
-    const res = await axios.get(`/vends/${props.vend.id}/citybox-planogram`)
+    const res = await axios.get(`/vends/${vendId.value}/citybox-planogram`)
     data.value = res.data
   } catch (e) {
     loadError.value = e?.response?.status === 403 ? 'This is not a Smart Chiller vend.' : "Couldn't load the planogram. Close and try again."
@@ -116,7 +119,7 @@ async function load() {
 
 function pull() {
   pulling.value = true
-  router.post(`/vends/${props.vend.id}/citybox-pull`, {}, {
+  router.post(`/vends/${vendId.value}/citybox-pull`, {}, {
     preserveScroll: true, preserveState: true,
     onSuccess: () => { toast.success('Pulled from CityBox', { timeout: 2500 }); load() },
     onError: (e) => toast.error(e.citybox || 'Pull failed', { timeout: 5000 }),

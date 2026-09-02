@@ -1384,12 +1384,10 @@
 							</div>
 						</div>
 					</TableData>
-					<!-- Smart Chiller (CityBox): none of the vending-machine columns apply (no VMC, APK,
-					     temp, modem, coin, mark1 sales). One cell spanning the rest of the row shows what
-					     is true of a chiller instead. Vending / freezer rows are untouched below. -->
-					<TableData v-if="isChiller(vend)" :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left" :colspan="chillerColspan">
-						<SmartChillerRowSummary :vend="vend" @overview="onChannelOverviewClicked" />
-					</TableData>
+					<!-- Smart Chiller (CityBox): rendered cell-for-cell under the same headers; columns
+					     that mean nothing for a chiller (temp, modem, APK, mark1 sales) stay empty.
+					     Vending / freezer rows are untouched below. -->
+					<SmartChillerRowCells v-if="isChiller(vend)" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="customers" :indexType="indexType" :isDriver="roles.includes('operator_driver')" :currencySymbol="operatorCountry.currency_symbol" @overview="onChannelOverviewClicked" />
 					<template v-else>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1 max-w-[150px]">
@@ -3344,7 +3342,7 @@ font-size:13px;
 	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
-	import SmartChillerRowSummary from '@/Components/SmartChillerRowSummary.vue';
+	import SmartChillerRowCells from '@/Components/SmartChillerRowCells.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
 	import { ref, computed, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
@@ -3751,13 +3749,8 @@ font-size:13px;
 	const permissions = usePage().props.auth.permissions
 	const roles = usePage().props.auth.roles
 
-	// Smart Chiller rows collapse every column from "Machine ID" onward into one summary cell.
-	// Mirrors the header: Machine ID + T1/Inventory/Error (4) + 9 non-driver columns + Refilling Routes (customers view only).
+	// Smart Chiller rows render their own cells under the same headers (SmartChillerRowCells).
 	const isChiller = (vend) => vend && vend.machine_type === 'smart_chiller'
-	const chillerColspan = computed(() => {
-		const driver = roles.includes('operator_driver')
-		return 4 + (driver ? 0 : 9) + (!driver && props.indexType === 'customers' ? 1 : 0)
-	})
 	const initBinded = usePage().props.initBinded
 	const hasSearched = ref(props.autoLoad ?? false)
 	const now = ref((props.autoLoad ? moment().format('HH:mm:ss') : '--:--'))

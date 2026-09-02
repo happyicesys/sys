@@ -262,6 +262,11 @@ rather than adding a new `if (citybox)` somewhere else:
   `is_active` from their API (`ChillerStatus::isRetired()` is the hook if that
   is ever decided).
 
+Two Operation Dashboard (`/vends/customers`) row facts that bit the chiller
+row: a row's `id` is the **customer** id (use `vend_id` for anything vend-scoped),
+and JSON columns arrive as raw strings there (the query hydrates without
+Eloquent casts) — decode in `VendResource`, as `citybox_status_json` now does.
+
 The fleet lives in `citybox_devices` (`CityboxDeviceRegistry` is the only
 writer — one upsert per poll, rows never deleted, `in_fleet` marks presence in
 the latest complete listing). Read it; never write it from a controller.
