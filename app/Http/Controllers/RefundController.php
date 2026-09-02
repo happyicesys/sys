@@ -1822,9 +1822,11 @@ class RefundController extends Controller
 
             $errCode = $t->vendChannelError?->code;
             $errCode = $errCode === null ? null : (int) $errCode;
-            $paymentStatus = $t->is_payment_received
-                ? 'Successful'
-                : (($errCode === null || in_array($errCode, [0, 6], true)) ? 'Successful' : 'Unsuccessful');
+            // Paid/Refunded and Dispensed/Failed are separate facts — one rule with
+            // the Sales Transactions grid and CSV (App\Support\SaleStatus).
+            $sale = \App\Support\SaleFacts::fromRow($t);
+            $paymentStatus = \App\Support\SaleStatus::payment($sale);
+            $dispenseStatus = \App\Support\SaleStatus::dispense($sale);
             $site = trim(($t->customer?->virtual_customer_code ? $t->customer->virtual_customer_code.' - ' : '').($t->customer?->name ?? ''));
 
             return [
@@ -1838,6 +1840,7 @@ class RefundController extends Controller
                 'operator_code' => $t->operator?->code,
                 'payment_method' => $t->paymentMethod?->name,
                 'payment_status' => $paymentStatus,
+                'dispense_status' => $dispenseStatus,
                 'channel_error' => ($t->vendChannelError && $errCode !== null && ! in_array($errCode, [0, 6], true)) ? $t->vendChannelError->desc : null,
                 'price_type' => ($t->vendChannel && (int) $t->amount === (int) $t->vendChannel->amount)
                     ? 'P1'

@@ -187,8 +187,10 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Payment Received
+                    Dispense Status
                 </label>
+                <!-- Request key stays is_payment_received (bookmarked URLs); it has
+                     always filtered on the dispense outcome — see the scope. -->
                 <MultiSelect
                     v-model="filters.is_payment_received"
                     :options="successfulOptions"
@@ -761,6 +763,9 @@
                             Payment Status
                         </TableHead>
                         <TableHead>
+                            Dispense Status
+                        </TableHead>
+                        <TableHead>
                             Settle Sync
                         </TableHead>
                         <TableHead>
@@ -856,12 +861,27 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.payment_method_name }}<span v-if="vendTransaction.cashless_mfg"> ({{ vendTransaction.cashless_mfg }})</span>
                         </TableData>
+                        <!-- Payment Status: did we keep the money (Paid / Refunded).
+                             Dispense Status: the machine's verdict (Dispensed / Partial /
+                             Failed, or Pending / No report for a gateway sale with no
+                             TRADE yet). Both deduced server-side by App\Support\SaleStatus;
+                             the old column mixed the two. -->
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <span v-if="vendTransaction.is_payment_received">
-                                {{ vendTransaction.is_payment_received ? 'Successful' : 'Unsuccessful' }}
+                            <!-- Blank = no rail has confirmed the money (cash; card before its report is synced).
+                                 Retained-credit rows get a badge with the why (payment_note). -->
+                            <span v-if="vendTransaction.payment_note"
+                                  class="inline-flex rounded px-1.5 py-0.5 text-xs font-medium border bg-purple-50 text-purple-700 border-purple-200 cursor-help"
+                                  v-tooltip="vendTransaction.payment_note">
+                                {{ vendTransaction.payment_status }}
                             </span>
-                            <span v-else>
-                                {{ vendTransaction.vend_channel_error_code ? (vendTransaction.vend_channel_error_code == 0 || vendTransaction.vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful' }}
+                            <span v-else class="font-medium" :class="saleStatusClass(vendTransaction.payment_status)">
+                                {{ vendTransaction.payment_status }}
+                            </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <!-- Blank on a multiple purchase: each item row below carries its own verdict. -->
+                            <span class="font-medium" :class="saleStatusClass(vendTransaction.dispense_status)">
+                                {{ vendTransaction.dispense_status }}
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
@@ -985,13 +1005,14 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
                         </TableData>
+                        <!-- Payment Status: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                            <!-- <span v-if="!vendTransactionItem.vendChannelError || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 0) || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 6)">
-                                Successful
+                        </TableData>
+                        <!-- Dispense Status: this line's own verdict -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                            <span class="font-medium" :class="saleStatusClass(vendTransactionItem.dispense_status)">
+                                {{ vendTransactionItem.dispense_status }}
                             </span>
-                            <span v-else>
-                                Unsuccessful
-                            </span> -->
                         </TableData>
                         <!-- Settle Sync column: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
@@ -1042,7 +1063,7 @@
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
-                        <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                        <td colspan="26" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                             No Results Found
                         </td>
                     </tr>
@@ -1108,6 +1129,18 @@ const refundStatusLabels = {
     completed: 'Completed',
 }
 const refundStatusLabel = (s) => refundStatusLabels[s] || s
+// Payment Status / Dispense Status cell colour. Labels come from
+// App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed
+// red, Re-vended amber, Pending / No report grey (blank = unconfirmed).
+const saleStatusClass = (s) => ({
+    'Paid': 'text-green-700',
+    'Settled': 'text-green-700',
+    'Dispensed': 'text-green-700',
+    'Refunded': 'text-red-700',
+    'Failed': 'text-red-700',
+    'Re-vended': 'text-amber-700',
+}[s] || 'text-gray-500')
+
 const refundStatusClass = (s) => ({
     submitted: 'bg-yellow-100 text-yellow-800',   // Received
     auto_resolved: 'bg-purple-100 text-purple-800',
@@ -1189,8 +1222,8 @@ onMounted(() => {
     ]
     successfulOptions.value = [
         {id: 'all', value: 'All'},
-        {id: 'true', value: 'Successful'},
-        {id: 'false', value: 'Unsuccessful'},
+        {id: 'true', value: 'Dispensed'},
+        {id: 'false', value: 'Failed'},
     ]
     tagOptions.value = [
         { id: 'all', name: 'All' },       // default

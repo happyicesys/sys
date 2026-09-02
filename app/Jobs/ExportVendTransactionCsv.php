@@ -175,6 +175,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Location Type',
                 'Operator',
                 'Payment Status',
+                'Dispense Status',
                 'Is Refunded',
                 'Is Multiple',
                 'Multiple Qty',
@@ -231,6 +232,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                     'products.code AS product_code',
                     'products.name AS product_name',
                     'payment_methods.name AS payment_method_name',
+                    'payment_methods.payment_gateway_id AS payment_method_gateway_id', // payment rail for SaleFacts
                     'unit_costs.cost',
                     'vend_channels.product_id AS vend_channel_product_id',
                     'vend_channels.amount AS vend_channel_amount',
@@ -358,7 +360,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->vend_channel_error_code,
                             $txn->location_type_name,
                             $txn->operator_code,
-                            in_array($txn->vend_channel_error_code, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                            // Paid/Refunded and Dispensed/Failed are separate facts —
+                            // same rule as the on-screen grid (App\Support\SaleStatus).
+                            \App\Support\SaleStatus::payment(\App\Support\SaleFacts::fromRow($txn)),
+                            \App\Support\SaleStatus::dispense(\App\Support\SaleFacts::fromRow($txn)), // blank on a multiple: its item rows carry the verdict
                             $txn->is_refunded ? 'Yes' : '',
                             $txn->is_multiple ? 'Yes' : 'No',
                             $txn->is_multiple ? $txnItems->count() : 1,
@@ -402,7 +407,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
                                 $txn->operator_code,
-                                '',
+                                '', // Payment Status lives on the parent row
+                                \App\Support\SaleStatus::itemDispense(
+                                    $item->vend_channel_error_code ?? ($item->vendChannelError->code ?? null)
+                                ),
                                 // Inherit the parent's refund flag so item rows of a
                                 // refunded multiple-purchase get filtered out together
                                 // with the parent (keeps Amount/Breakdown columns tallied).
@@ -421,9 +429,9 @@ class ExportVendTransactionCsv implements ShouldQueue
 
             // Append dispensed-but-unreported gateway revenue so the CSV total
             // tallies with the dashboard "Total Sales" (from the cutoff onward).
-            // 28 = this job's header width (no Dispense Attempted?/Refund
+            // 29 = this job's header width (no Dispense Attempted?/Refund
             // Request/Refund Status columns; the chunk export has those three).
-            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom, 28);
+            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom, 29);
 
             rewind($stream);
 

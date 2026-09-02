@@ -35,19 +35,19 @@ trait AppendsUnreportedGatewayCsvRows
      * @param  array<int, int>|null  $allowedProductIds  null = unrestricted
      * @param  string|null  $transactionAccessFrom  'Y-m-d' cut-off, null = unrestricted
      * @param  int  $columnCount  width of the CALLER's header. The rows below are
-     *                            built for the chunk export's 31-column layout;
-     *                            the single-file export's header is 28 wide (it
+     *                            built for the chunk export's 32-column layout;
+     *                            the single-file export's header is 29 wide (it
      *                            has no Dispense Attempted?/Refund Request/Refund
      *                            Status columns), and without this the appended
      *                            rows spilled three cells past its header.
      */
-    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null, int $columnCount = 31): void
+    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null, int $columnCount = 32): void
     {
         if ($allowedProductIds !== null) {
             $this->putGatewayRow($stream, array_merge(
                 ['', '', '', '', '', '', '', '', ''],
                 ['Unreported Gateway Revenue (omitted - product-restricted view)'],
-                array_fill(0, 21, '')
+                array_fill(0, 22, '')
             ), $columnCount);
 
             return;
@@ -100,7 +100,11 @@ trait AppendsUnreportedGatewayCsvRows
                         '',                                                              // Error Code
                         '',                                                              // Location Type
                         $log->operatorPaymentGateway->operator->code ?? '',              // Operator
-                        'Unreported Gateway',                                            // Payment Status
+                        // Paid (gateway approved) but the machine never reported — the two
+                        // facts the split Payment/Dispense columns carry (App\Support\SaleStatus).
+                        // Product Name above stays the row's "Unreported Gateway Revenue" marker.
+                        \App\Support\SaleStatus::PAID,                                   // Payment Status
+                        \App\Support\SaleStatus::NO_REPORT,                              // Dispense Status
                         '',                                                              // Is Refunded
                         'No',                                                            // Is Multiple
                         1,                                                               // Multiple Qty

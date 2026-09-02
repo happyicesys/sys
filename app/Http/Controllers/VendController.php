@@ -387,6 +387,10 @@ class VendController extends Controller
             'product_mappings.remarks AS product_mapping_remarks',
             'product_mappings.is_smart AS product_mapping_is_smart',
             'vends.machine_type',
+            // Smart Chiller (CityBox) row: identity + their last-poll status, plain columns (no join).
+            'vends.citybox_equipment_id',
+            'vends.citybox_status_json',
+            'vends.citybox_synced_at',
             'operators.code AS operator_code',
             'operators.name AS operator_name',
             'vend_configs.name AS vend_config_name',
@@ -1186,6 +1190,11 @@ class VendController extends Controller
                 'product_mappings.remarks AS product_mapping_remarks',
                 'product_mappings.is_smart AS product_mapping_is_smart',
                 'vends.machine_type',
+                // Smart Chiller (CityBox) row: identity + their last-poll status. Plain
+                // columns on the vends row — NOT a join (this query is join-sensitive).
+                'vends.citybox_equipment_id',
+                'vends.citybox_status_json',
+                'vends.citybox_synced_at',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
@@ -3731,6 +3740,12 @@ class VendController extends Controller
                     'vend_transactions.refund_request_status',
                     'vend_transactions.refund_request_is_dropped',
                     'vend_transactions.is_payment_received',
+                    // Payment Status / Dispense Status columns (App\Support\SaleStatus).
+                    'vend_transactions.settlement_status',
+                    'vend_transactions.is_found_in_transaction',
+                    'vend_transactions.is_retained_credit_settlement',
+                    'vend_transactions.qty',
+                    'vend_transactions.success_qty',
                     'vend_transactions.card_settlement_synced_at',
                     'payment_methods.payment_gateway_id AS payment_method_gateway_id',
                     'payment_methods.code AS payment_method_code',

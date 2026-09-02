@@ -3,41 +3,47 @@
 namespace App\Jobs;
 
 use App\Jobs\Concerns\AppendsUnreportedGatewayCsvRows;
-use App\Models\Operator;
-use App\Models\RefundTicketItem;
-use App\Models\VendTransaction;
-use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
 use App\Models\ExportJobChunk;
+use App\Models\Operator;
+use App\Models\RefundTicketItem;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\VendTransaction;
+use App\Models\VendTransactionItem;
 use App\Support\ProductAccess;
 use App\Support\TransactionAccess;
 use DB;
-use App\Jobs\ZipVendTransactionCsvExport;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Request;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 
 class ExportVendTransactionCsvChunk implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, AppendsUnreportedGatewayCsvRows;
+    use AppendsUnreportedGatewayCsvRows, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 1;
+
     public $timeout = 1800; // 30-minute hard cap
 
     protected $chunkIndex;
+
     protected $chunkSize;
+
     protected $jobId;
+
     protected $requestData;
+
     protected $userID;
+
     protected $minId; // keyset lower bound (inclusive)
+
     protected $maxId; // keyset upper bound (inclusive)
 
     /**
@@ -97,15 +103,16 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
     public function handle()
     {
         $job = ExportJob::find($this->jobId);
-        if (!$job)
+        if (! $job) {
             return;
+        }
 
         $chunk = ExportJobChunk::where('export_job_id', $this->jobId)
             ->where('chunk_index', $this->chunkIndex)
             ->first();
-        if (!$chunk)
+        if (! $chunk) {
             return;
-
+        }
 
         $user = User::find($this->userID ?? $job->user_id);
 
@@ -115,10 +122,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone(config('app.timezone'))->startOfDay() : Carbon::today()->setTimezone(config('app.timezone'))->startOfDay(),
                 'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone(config('app.timezone'))->endOfDay() : Carbon::today()->setTimezone(config('app.timezone'))->endOfDay(),
                 'sortKey' => $request->sortKey ?? 'transaction_datetime',
-                'sortBy' => $request->sortBy ?? false
+                'sortBy' => $request->sortBy ?? false,
             ]);
 
-            if (!$request->operators) {
+            if (! $request->operators) {
                 if ($user->operator->code == 'HIPL') {
                     $request->merge([
                         'operators' => [
@@ -127,22 +134,21 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             Operator::where('code', 'LEA')->first()?->id,
                             Operator::where('code', 'HIESG')->first()?->id,
                             Operator::where('code', 'UL-ST')->first()?->id,
-                        ]
+                        ],
                     ]);
                 } else {
                     $request->merge(['operators' => [$user->operator_id]]);
                 }
             }
 
-            $filename = 'vend_transactions_' . now()->format('Ymd_His') . "_part{$this->chunkIndex}.csv";
+            $filename = 'vend_transactions_'.now()->format('Ymd_His')."_part{$this->chunkIndex}.csv";
 
             $spacesPath = "sys/exports/{$filename}";
 
             // Align with the transaction page aggregate cards: exclude testing
             // machines and non-settled rows (see filters on the query below) so
             // the exported Amount total tallies with the dashboard "Total Sales".
-            $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-                DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+            $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
             );
 
             $stream = fopen('php://temp', 'r+');
@@ -168,6 +174,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Location Type',
                 'Operator',
                 'Payment Status',
+                'Dispense Status',
                 'Is Refunded',
                 'Is Multiple',
                 'Multiple Qty',
@@ -202,11 +209,11 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 // "Access Product(s)" - MUST stay identical to the id-boundary query
                 // in VendController@exportTransactionCsv, or the chunk boundaries
                 // stop lining up with the rows each chunk actually emits.
-                ->tap(fn($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
+                ->tap(fn ($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
                 // "Transaction Access From": same hand-in reason as the product
                 // allow-list directly above - TransactionAccessScope cannot fire
                 // in a worker, so the resolved date has to travel with the job.
-                ->tap(fn($query) => TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime', $this->transactionAccessFrom))
+                ->tap(fn ($query) => TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime', $this->transactionAccessFrom))
                 ->filterTransactionIndex($request)
                 // Mirror the aggregate-cards query (VendController@transactionIndex):
                 // only settled sales (excludes in-flight PENDING and voided REFUNDED
@@ -216,7 +223,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 // NOTE: kept in sync with the id-boundary query in
                 // VendController@exportTransactionCsv.
                 ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
-                ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 ->select([
                     'vend_transactions.*',
                     'vends.code AS vend_code',
@@ -232,6 +239,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     'products.code AS product_code',
                     'products.name AS product_name',
                     'payment_methods.name AS payment_method_name',
+                    'payment_methods.payment_gateway_id AS payment_method_gateway_id', // payment rail for SaleFacts
                     'unit_costs.cost',
                     'vend_channels.product_id AS vend_channel_product_id',
                     'vend_channels.amount AS vend_channel_amount',
@@ -249,7 +257,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 }, function ($q) {
                     // Legacy fallback for any jobs already in-queue without ID bounds
                     $q->skip($this->chunkIndex * $this->chunkSize)
-                      ->take($this->chunkSize);
+                        ->take($this->chunkSize);
                 })
                 ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
@@ -273,7 +281,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     // selected on each row; one bounded, index-backed lookup per chunk
                     // (refund_ticket_items.refund_ticket_id is indexed).
                     $refundTicketIds = $transactions
-                        ->filter(fn($t) => $t->is_multiple && filled($t->refund_request_id))
+                        ->filter(fn ($t) => $t->is_multiple && filled($t->refund_request_id))
                         ->pluck('refund_request_id')
                         ->unique()
                         ->values()
@@ -290,20 +298,22 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     $rawLabelVals = $transactions->pluck('label_ids_json')
                         ->filter()
                         ->flatMap(function ($val) {
-                        if (is_array($val))
-                            return $val;
-                        $arr = json_decode($val, true);
-                        return is_array($arr) ? $arr : [];
-                    });
+                            if (is_array($val)) {
+                                return $val;
+                            }
+                            $arr = json_decode($val, true);
+
+                            return is_array($arr) ? $arr : [];
+                        });
 
                     $tagIds = $rawLabelVals
-                        ->filter(fn($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
-                        ->map(fn($v) => (int) $v)
+                        ->filter(fn ($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
+                        ->map(fn ($v) => (int) $v)
                         ->unique()
                         ->values();
 
                     $tagNames = $rawLabelVals
-                        ->filter(fn($v) => is_string($v) && !ctype_digit($v))
+                        ->filter(fn ($v) => is_string($v) && ! ctype_digit($v))
                         ->unique()
                         ->values();
 
@@ -319,10 +329,11 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             ->orWhereIn('slug', $tagNames)
                             ->get(['id', 'name', 'slug'])
                             ->reduce(function ($carry, $tag) {
-                            $carry[$tag->name] = $tag;
-                            $carry[$tag->slug] = $tag;
-                            return $carry;
-                        }, []);
+                                $carry[$tag->name] = $tag;
+                                $carry[$tag->slug] = $tag;
+
+                                return $carry;
+                            }, []);
 
                     foreach ($transactions as $txn) {
                         // Normalize label values for this txn (could be ints or strings)
@@ -333,13 +344,14 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         // Build Labels string honoring provided order
                         $labelStr = collect($vals)
                             ->map(function ($v) use ($tagsById, $tagsByNameSlug) {
-                            if (is_int($v) || (is_string($v) && ctype_digit($v))) {
-                                $t = $tagsById->get((int) $v);
-                            } else {
-                                $t = $tagsByNameSlug[$v] ?? null;
-                            }
-                            return $t->name ?? $t->slug ?? (string) $v;
-                        })
+                                if (is_int($v) || (is_string($v) && ctype_digit($v))) {
+                                    $t = $tagsById->get((int) $v);
+                                } else {
+                                    $t = $tagsByNameSlug[$v] ?? null;
+                                }
+
+                                return $t->name ?? $t->slug ?? (string) $v;
+                            })
                             ->implode(', ');
 
                         // existing JSON parsing
@@ -355,14 +367,14 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
                         $main_amount = $txn->amount / 100;
                         $multipleBreakdown = $txn->is_multiple
-                            ? ($txn->amount - $txnItems->sum(fn($item) => $item->vendChannel?->amount ?? 0)) / 100
+                            ? ($txn->amount - $txnItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
                         // Wrap order_id in Excel text-formula so long numeric IDs
                         // do not get converted to scientific notation when the
                         // CSV is opened directly in Excel.
                         $orderIdCell = $txn->order_id !== null && $txn->order_id !== ''
-                            ? '="' . $txn->order_id . '"'
+                            ? '="'.$txn->order_id.'"'
                             : '';
 
                         // "Dispense Attempted?" mirrors the Payment Gateway
@@ -381,9 +393,9 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $ticketItems = $refundTicketItems->get($txn->refund_request_id);
                             if ($ticketItems && $ticketItems->isNotEmpty()) {
                                 $refundTargetItemIds = $ticketItems->pluck('vend_transaction_item_id')
-                                    ->filter()->map(fn($v) => (int) $v)->unique()->all();
+                                    ->filter()->map(fn ($v) => (int) $v)->unique()->all();
                                 $refundTargetChannelCodes = $ticketItems->pluck('vend_channel_code')
-                                    ->filter()->map(fn($v) => (string) $v)->unique()->all();
+                                    ->filter()->map(fn ($v) => (string) $v)->unique()->all();
                                 foreach ($txnItems as $it) {
                                     if (in_array((int) $it->id, $refundTargetItemIds, true)
                                         || (filled($it->vend_channel_code)
@@ -396,9 +408,9 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         }
                         // Parent row shows the refund reference only when it is NOT
                         // pinned to a specific item row.
-                        $headerRefundRef = ($txn->refund_request_reference && !$refundOnItems)
+                        $headerRefundRef = ($txn->refund_request_reference && ! $refundOnItems)
                             ? $txn->refund_request_reference : '';
-                        $headerRefundStatus = ($txn->refund_request_reference && !$refundOnItems)
+                        $headerRefundStatus = ($txn->refund_request_reference && ! $refundOnItems)
                             ? ($txn->refund_request_status ?? '') : '';
 
                         // ✏️ Parent row — append $labelStr at the end
@@ -412,7 +424,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $txn->customer_name,
                             $txn->vend_channel_code ?? '',
                             $txn->product_code,
-                            $txn->vend_channel_code == 0 && !$txn->product_code ? 'Multiple Purchase' : $txn->product_name,
+                            $txn->vend_channel_code == 0 && ! $txn->product_code ? 'Multiple Purchase' : $txn->product_name,
                             $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
                             $main_amount,
                             $multipleBreakdown,
@@ -425,14 +437,17 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $txn->vend_channel_error_code,
                             $txn->location_type_name,
                             $txn->operator_code,
-                            in_array($txn->vend_channel_error_code, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                            // Paid/Refunded and Dispensed/Failed are separate facts —
+                            // same rule as the on-screen grid (App\Support\SaleStatus).
+                            \App\Support\SaleStatus::payment(\App\Support\SaleFacts::fromRow($txn)),
+                            \App\Support\SaleStatus::dispense(\App\Support\SaleFacts::fromRow($txn)), // blank on a multiple: its item rows carry the verdict
                             $txn->is_refunded ? 'Yes' : '',
                             $txn->is_multiple ? 'Yes' : 'No',
                             $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
                             $meta_json['hid_card_id'] ?? '',
-                            (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
+                            (! empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
                             $labelStr, // 👈 new
                             $dispenseAttempted,
                             $headerRefundRef,
@@ -477,7 +492,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
                                 $txn->operator_code,
-                                '',
+                                '', // Payment Status lives on the parent row
+                                \App\Support\SaleStatus::itemDispense(
+                                    $item->vend_channel_error_code ?? ($item->vendChannelError->code ?? null)
+                                ),
                                 // Inherit the parent's refund flag so item rows of a
                                 // refunded multiple-purchase get filtered out together
                                 // with the parent (keeps Amount/Breakdown columns tallied).
@@ -529,10 +547,9 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 ->where('status', '!=', 'completed')
                 ->exists();
 
-            if (!$pending) {
+            if (! $pending) {
                 ZipVendTransactionCsvExport::dispatch($this->jobId);
             }
-
 
         } catch (\Throwable $e) {
             $job->update([

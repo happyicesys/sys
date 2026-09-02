@@ -6,6 +6,7 @@ use App\Models\Scopes\OperatorTransactionFilterScope;
 use App\Models\Scopes\OperatorUserTransactionFilterScope;
 use App\Models\Scopes\ProductAccessTransactionScope;
 use App\Models\Scopes\TransactionAccessScope;
+use App\Support\SaleStatus;
 use App\Support\SiteSearch;
 use App\Traits\GetUserTimezone;
 use DB;
@@ -656,24 +657,61 @@ class VendTransaction extends Model
                     }
                 }
             })
+            // "Dispense Status" filter. The request key stays `is_payment_received`
+            // so bookmarked URLs keep working, but it has always been a DISPENSE
+            // filter: the column it mirrored is the dispense verdict under a
+            // payment name (App\Support\SaleStatus). Single vends are judged on the
+            // header error code, multiples on their items — a partial basket
+            // matches both sides, as before. The old `is_payment_received = true`
+            // short-circuit is gone: processMapping forces that flag on for every
+            // QR gateway sale, so a failed QR vend used to list as "Successful".
             ->when($isPaymentReceived, function ($query, $search) {
-                if ($search != 'all') {
-                    if ($search == 'true') {
-                        $query->where(function ($query) {
-                            $query->where('vend_transactions.is_payment_received', true)
-                                ->orWhereHas('vendTransactionItems.vendChannelError', function ($query) {
-                                    $query->whereIn('code', [0, 6]);
+                if ($search == 'all') {
+                    return;
+                }
+                $okCodes = SaleStatus::DISPENSED_CODES;
+                $okErrorIds = VendChannelError::select('id')->whereIn('code', $okCodes);
+
+                // Rows with no verdict yet — a gateway row still SETTLEMENT_PENDING, or
+                // settled but never confirmed by a TRADE (is_found_in_transaction = 0) —
+                // are "Pending" / "No report" in the column (SaleStatus::dispense) and
+                // must sit on NEITHER side of this filter; their NULL codes would
+                // otherwise read as "no fault" and list them under Dispensed.
+                $query->where('vend_transactions.is_found_in_transaction', true)
+                    ->where('vend_transactions.settlement_status', '!=', self::SETTLEMENT_PENDING);
+
+                if ($search == 'true') {
+                    $query->where(function ($query) use ($okCodes, $okErrorIds) {
+                        $query->where(function ($single) use ($okErrorIds) {
+                            $single->where('vend_transactions.is_multiple', false)
+                                ->where(function ($ok) use ($okErrorIds) {
+                                    $ok->whereNull('vend_transactions.vend_channel_error_id')
+                                        ->orWhereIn('vend_transactions.vend_channel_error_id', $okErrorIds);
+                                });
+                        })->orWhere(function ($multi) use ($okCodes) {
+                            $multi->where('vend_transactions.is_multiple', true)
+                                ->whereHas('vendTransactionItems', function ($item) use ($okCodes) {
+                                    $item->where(function ($ok) use ($okCodes) {
+                                        $ok->whereNull('vend_transaction_items.vend_channel_error_code')
+                                            ->orWhereIn('vend_transaction_items.vend_channel_error_code', $okCodes);
+                                    });
                                 });
                         });
-                        // $query->where('is_payment_received', true);
-                    } else {
-                        $query->where(function ($query) {
-                            $query->where('vend_transactions.is_payment_received', false)
-                                ->orWhereHas('vendTransactionItems.vendChannelError', function ($query) {
-                                    $query->whereNotIn('code', [0, 6]);
+                    });
+                } else {
+                    $query->where(function ($query) use ($okCodes, $okErrorIds) {
+                        $query->where(function ($single) use ($okErrorIds) {
+                            $single->where('vend_transactions.is_multiple', false)
+                                ->whereNotNull('vend_transactions.vend_channel_error_id')
+                                ->whereNotIn('vend_transactions.vend_channel_error_id', $okErrorIds);
+                        })->orWhere(function ($multi) use ($okCodes) {
+                            $multi->where('vend_transactions.is_multiple', true)
+                                ->whereHas('vendTransactionItems', function ($item) use ($okCodes) {
+                                    $item->whereNotNull('vend_transaction_items.vend_channel_error_code')
+                                        ->whereNotIn('vend_transaction_items.vend_channel_error_code', $okCodes);
                                 });
                         });
-                    }
+                    });
                 }
             })
             ->when($request->member_code, function ($query, $search) {

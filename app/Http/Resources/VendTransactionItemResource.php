@@ -63,6 +63,12 @@ class VendTransactionItemResource extends JsonResource
             'vend_channel_id' => $this->vend_channel_id,
             'vend_channel_code' => $this->vend_channel_code,
             'vend_channel_error_code' => $this->vend_channel_error_code,
+            // This line's own dispense verdict (Dispensed / Failed) — same rule as
+            // the parent row's Dispense Status column (App\Support\SaleStatus).
+            'dispense_status' => \App\Support\SaleStatus::itemDispense(
+                $this->vend_channel_error_code
+                    ?? ($this->relationLoaded('vendChannelError') ? $this->vendChannelError?->code : null)
+            ),
             'vendChannelError' => VendChannelErrorResource::make($this->whenLoaded('vendChannelError')),
             'vend_channel_error_id' => $this->vend_channel_error_id,
             'vendTransaction' => VendTransactionResource::make($this->whenLoaded('vendTransaction')),

@@ -159,8 +159,18 @@ been returned, and always together with `auto_refund_source`
   machine-by-machine as the OTA lands; the backfill excludes err 7 outright
   since trade-time versions are unknowable). `VendTransactionService::isCardTerminalReversal` marks it
   `card_terminal_reversal` for terminals in
-  `config('refund.card_reversal_terminals')` (NETS family; widen only after a
-  field check of that terminal type).
+  `config('refund.card_reversal_terminals')` — **which is EMPTY since
+  2026-09-02**: for NETS the reversal now comes from the acquirer's settlement
+  report, not TRADE-time inference. The NETS MerchantConnect daily CSV carries
+  an explicit reversal line per reversal ("Reversal Code = Y", negative
+  amount, same terminal — the "Void Txn Indicator" column is never set);
+  `CardSettlementMatcher` pairs it with the purchase line it undoes and
+  `CardSettlementSyncService` writes `is_refunded` +
+  `auto_refund_source = settlement_report_reversal` on Sync (Transactions ›
+  Card Settlement; see `CARD_SETTLEMENT_2026-09-01.md`). Consequence: a NETS
+  reversal is only known to mark1 once that day's report is uploaded and
+  synced, not at TRADE time. The inference code path stays for any terminal
+  type without a report to reconcile against.
 - Every write of `is_refunded` must also call
   `RefundTicketService::markAutoRefundedByCharge` so an open ticket's frozen
   verdict crosses and approved/scheduled ones are pulled out of payout.
@@ -185,6 +195,45 @@ Manual PayNow/PayPal payouts never set `is_refunded` — they live on
 `refund_tickets`. History + reasoning: `REFUND_INTEGRITY_AUDIT_2026-08-23.md`.
 Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,
 `tests/Unit/CardTerminalReversalPredicateTest.php`.
+
+## Payment vs dispense: `is_payment_received` is not a payment flag
+
+The machine's TRADE carries only the dispense verdict (`SErr` per channel;
+`ISOK` is hard-coded 1 on APK-built frames). There is no "payment collected"
+field, and `vend_transactions.is_payment_received` is derived from the error
+code in `VendTransactionService::processMapping` (0/6 → true, forced true for
+QR gateways) — on cash and card sales it is the dispense result under a
+payment name. Never read it as "was the money taken".
+
+Both labels are deduced in one place, `App\Support\SaleStatus`, from
+`App\Support\SaleFacts::fromRow($row)` (Brian's rule, 2026-09-02):
+
+- **Payment** — only what a payment rail has CONFIRMED. Gateway sales
+  (payment method with a `payment_gateway_id`: Omise / Midtrans / Fiuu) are
+  Paid because the gateway API created the row, Refunded when the API/webhook
+  or `refund:sync-omise` returned the money. NETS card sales are Settled once
+  the uploaded acquirer report matched them (`card_settlement_synced_at`) and
+  Refunded when that report carried the reversal line. Not reconciled by any
+  rail — cash, a card sale before its report is synced — stays **blank**.
+  Retained-credit rows read "Retained credit" (the sale that consumed banked
+  credit, `is_retained_credit_settlement`) and "Re-vended" (the failed sale it
+  made whole, `auto_refund_source = retained_credit_revend`) — goods, not
+  money; see the card-terminal bullet above.
+- **Dispense** — the machine's verdict: 0/6 or no code = Dispensed, else
+  Failed. A single sale carries it on its row; a **multiple purchase carries
+  it on each item row and the parent row is blank**. Gateway rows with no
+  TRADE are Pending / No report, never Dispensed.
+
+The Sales Transactions grid, both CSV export jobs (+ the appended unreported
+gateway rows) and the refund screen's related transactions all call it — add
+a new consumer there, do not re-derive; a consumer's query must select the
+`payment_methods.payment_gateway_id AS payment_method_gateway_id` alias (or
+load `paymentMethod`) or every row reads as unconfirmed. The grid's "Dispense
+Status" filter still travels as request key `is_payment_received` (bookmarked
+URLs) and lists neither Pending nor No-report rows on either side.
+Regression coverage: `tests/Unit/SaleStatusTest.php`,
+`tests/Feature/TransactionIndexDispenseFilterTest.php`,
+`tests/Feature/TransactionIndexStatusColumnsTest.php`.
 
 ## Smart Chiller (CityBox): not a vending machine with extra fields
 

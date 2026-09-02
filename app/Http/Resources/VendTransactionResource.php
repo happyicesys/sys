@@ -15,8 +15,20 @@ class VendTransactionResource extends JsonResource
      */
     public function toArray($request)
     {
+        // Payment vs dispense are two facts and the row's is_payment_received is
+        // the dispense verdict under a payment name — App\Support\SaleStatus
+        // deduces both from SaleFacts. Needs settlement_status,
+        // is_found_in_transaction, is_refunded, auto_refund_source,
+        // is_retained_credit_settlement, card_settlement_synced_at and the
+        // payment_method_gateway_id alias selected (VendController::transactionIndex
+        // does all of it); a multiple's verdict is on its item rows.
+        $sale = \App\Support\SaleFacts::fromRow($this->resource);
+
         return [
             'id' => $this->id,
+            'payment_status' => \App\Support\SaleStatus::payment($sale),
+            'payment_note' => \App\Support\SaleStatus::paymentNote($sale),
+            'dispense_status' => \App\Support\SaleStatus::dispense($sale),
             'amount' => $this->amount / 100,
             'avg_seven_days_amount' => isset($this->avg_seven_days_amount) ? $this->avg_seven_days_amount : null,
             'cashless_mfg' => $this->cashless_mfg,
