@@ -28,8 +28,15 @@ return [
      * a different hour makes the row AMBIGUOUS instead of guessing.
      */
 
-    // Attachment storage folder for uploaded report files.
-    'storage_folder' => 'sys/card-settlements',
+    /*
+     * Where uploaded report files live. Private object storage (DO Spaces,
+     * S3-compatible) by default — never the app's public disk — served only
+     * through the authed /card-settlements/{id}/download route. Falls back to
+     * 'local' when the Spaces credentials are absent (dev / test), see
+     * CardSettlementReport::storageDisk().
+     */
+    'storage_disk' => env('CARD_SETTLEMENT_DISK', 'digitaloceanspaces'),
+    'storage_folder' => 'card-settlements',
 
     // Max upload size (KB) for a settlement report file.
     'max_upload_kb' => 20480,

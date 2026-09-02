@@ -120,6 +120,12 @@ class NetsMerchantConnectParser implements SettlementReportParser
 
         $seq = $get('Txn Sequence Number');
 
+        // A reversal is its own line: Reversal Code = Y with the NEGATIVE
+        // amount. (The "Void Txn Indicator" column has never been Y in a
+        // real file, but honour it too.)
+        $isReversal = strcasecmp($get('Reversal Code'), 'Y') === 0
+            || strcasecmp($get('Void Txn Indicator'), 'Y') === 0;
+
         return new ParsedRow(
             rowNo: $rowNo,
             txnType: $get('Transaction Type'),
@@ -131,6 +137,7 @@ class NetsMerchantConnectParser implements SettlementReportParser
             timeIsPartial: $partial,
             amountCents: $amountCents,
             sequenceNo: $seq === '' ? null : $seq,
+            isReversal: $isReversal,
         );
     }
 

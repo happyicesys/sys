@@ -11,6 +11,7 @@ use App\Services\CardSettlement\CardSettlementSyncService;
 use App\Services\CardSettlement\ParserRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /**
@@ -25,7 +26,7 @@ class CardSettlementController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['permission:read card-settlements'])->only(['index', 'show']);
+        $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download']);
         $this->middleware(['permission:create card-settlements'])->only(['store']);
         $this->middleware(['permission:update card-settlements'])->only(['rematch', 'resolveRow', 'ignoreRow', 'sync']);
         $this->middleware(['permission:delete card-settlements'])->only(['destroy']);
@@ -85,19 +86,30 @@ class CardSettlementController extends Controller
         ]);
 
         $file = $request->file('file');
-        $dir = config('card_settlement.storage_folder', 'sys/card-settlements');
-        $storedPath = $file->storePublicly($dir);
+
+        // Private object storage (DO Spaces / S3), never the public app disk:
+        // a settlement report is finance data. It is only ever served through
+        // the authed download route below, so full_url points there.
+        $disk = CardSettlementReport::storageDisk();
+        $dir = config('card_settlement.storage_folder', 'card-settlements');
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'csv');
+        $storedPath = Storage::disk($disk)->putFileAs(
+            $dir,
+            $file,
+            now()->format('Ymd_His').'_'.Str::random(8).'.'.$extension
+        );
 
         $report = CardSettlementReport::create([
             'provider' => $validated['provider'],
             'original_filename' => $file->getClientOriginalName(),
+            'storage_disk' => $disk,
             'status' => CardSettlementReport::STATUS_UPLOADED,
             'uploaded_by' => auth()->id(),
         ]);
 
         $report->attachments()->create([
-            'full_url' => Storage::url($storedPath),
-            'local_url' => $dir.'/'.basename($storedPath),
+            'full_url' => route('card-settlements.download', $report->id),
+            'local_url' => $storedPath,
             'name' => $file->getClientOriginalName(),
             'type' => 'card-settlement-report',
         ]);
@@ -119,6 +131,7 @@ class CardSettlementController extends Controller
                 CardSettlementRow::STATUS_AMBIGUOUS,
             ]))
             ->when(is_numeric($status), fn ($q) => $q->where('status', (int) $status))
+            ->when($status === 'reversals', fn ($q) => $q->where('is_reversal', true))
             ->orderBy('terminal_id')
             ->orderBy('transaction_date')
             ->orderBy('transaction_time');
@@ -134,8 +147,21 @@ class CardSettlementController extends Controller
             ->pluck('code', 'id');
         $txns = VendTransaction::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('matched_vend_transaction_id')->filter())
-            ->get(['id', 'transaction_datetime', 'amount', 'is_refunded', 'card_settlement_synced_at'])
+            ->get(['id', 'transaction_datetime', 'amount', 'is_refunded', 'auto_refund_source', 'card_settlement_synced_at'])
             ->keyBy('id');
+
+        // Row numbers of the reversal ↔ purchase counterparts on this page
+        // (a counterpart may live in another report, hence the report id too).
+        $linkedRows = CardSettlementRow::query()
+            ->whereIn('id', $rows->pluck('reverses_row_id')->merge($rows->pluck('reversed_by_row_id'))->filter()->unique())
+            ->get(['id', 'row_no', 'card_settlement_report_id', 'transaction_time'])
+            ->keyBy('id');
+        $linked = fn (?int $id) => ($id && ($r = $linkedRows->get($id))) ? [
+            'id' => $r->id,
+            'row_no' => $r->row_no,
+            'report_id' => $r->card_settlement_report_id,
+            'transaction_time' => $r->transaction_time,
+        ] : null;
 
         // Terminals in this report with no binding — the one-time setup the
         // user must do before those rows can ever match.
@@ -158,12 +184,14 @@ class CardSettlementController extends Controller
                 'status' => $report->status,
                 'total_rows' => $report->total_rows,
                 'purchase_rows' => $report->purchase_rows,
+                'reversal_rows' => $report->reversal_rows,
                 'matched_count' => $report->matched_count,
                 'unmatched_count' => $report->unmatched_count,
                 'ambiguous_count' => $report->ambiguous_count,
                 'duplicate_count' => $report->duplicate_count,
                 'ignored_count' => $report->ignored_count,
                 'synced_count' => $report->synced_count,
+                'refunded_count' => $report->refunded_count,
                 'error_message' => $report->error_message,
                 'uploaded_by' => $report->uploader?->name,
                 'created_at' => $report->created_at?->format('Y-m-d H:i'),
@@ -205,8 +233,12 @@ class CardSettlementController extends Controller
                         'transaction_datetime' => $txn->transaction_datetime?->format('Y-m-d H:i:s'),
                         'amount' => $txn->amount / 100,
                         'is_refunded' => (bool) $txn->is_refunded,
+                        'auto_refund_source' => $txn->auto_refund_source,
                         'synced' => $txn->card_settlement_synced_at !== null,
                     ] : null,
+                    'is_reversal' => $row->is_reversal,
+                    'reverses_row' => $linked($row->reverses_row_id),
+                    'reversed_by_row' => $linked($row->reversed_by_row_id),
                     'match_time_delta' => $row->match_time_delta,
                     'candidates' => $row->candidates_json,
                     'resolution_note' => $row->resolution_note,
@@ -238,6 +270,10 @@ class CardSettlementController extends Controller
         $report = CardSettlementReport::findOrFail($id);
         $row = $report->rows()->findOrFail($rowId);
 
+        // A reversal line never claims a sale itself (the UNIQUE claim stays with
+        // the purchase line it undoes); resolving it would steal that claim and
+        // Sync would then stamp and count the reversal as a purchase.
+        abort_if($row->is_reversal, 422, 'A reversal line is paired with its purchase line, not resolved to a sale.');
         abort_unless(in_array($row->status, [
             CardSettlementRow::STATUS_UNMATCHED,
             CardSettlementRow::STATUS_AMBIGUOUS,
@@ -275,10 +311,19 @@ class CardSettlementController extends Controller
         $report = CardSettlementReport::findOrFail($id);
         $row = $report->rows()->findOrFail($rowId);
 
+        // Ignoring a paired reversal must release its purchase line, or that
+        // sale would still be marked refunded on Sync with no reversal behind it.
+        if ($row->is_reversal && $row->reverses_row_id) {
+            CardSettlementRow::where('id', $row->reverses_row_id)
+                ->where('reversed_by_row_id', $row->id)
+                ->update(['reversed_by_row_id' => null]);
+        }
+
         $row->update([
             'status' => CardSettlementRow::STATUS_IGNORED,
             'matched_vend_transaction_id' => null,
             'match_time_delta' => null,
+            'reverses_row_id' => null,
             'resolution_note' => $request->input('note') ?: 'Ignored by user',
             'resolved_by' => auth()->id(),
             'resolved_at' => now(),
@@ -307,12 +352,25 @@ class CardSettlementController extends Controller
 
         foreach ($report->attachments as $attachment) {
             if ($attachment->local_url) {
-                Storage::delete($attachment->local_url);
+                Storage::disk($report->fileDisk())->delete($attachment->local_url);
             }
             $attachment->delete();
         }
         $report->delete(); // rows cascade
 
         return redirect()->route('card-settlements')->with('message', 'Report deleted.');
+    }
+
+    /** The uploaded file, streamed from private storage to a permitted viewer. */
+    public function download($id)
+    {
+        $report = CardSettlementReport::with('attachment')->findOrFail($id);
+        $attachment = $report->attachment;
+        abort_unless($attachment && $attachment->local_url, 404);
+
+        $disk = Storage::disk($report->fileDisk());
+        abort_unless($disk->exists($attachment->local_url), 404);
+
+        return $disk->download($attachment->local_url, $report->original_filename);
     }
 }

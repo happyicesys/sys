@@ -54,6 +54,53 @@ user-dismissed) / DUPLICATE. Claims are unique both directions (fingerprint UNIQ
 Report: uploaded → matching → review → synced (failed on parser error). Rematch re-runs only
 unresolved rows — the flow for "add missing binding, then Rematch".
 
+## Reversals (added 2026-09-02) — the report replaces the TRADE-time inference
+
+- In the NETS file a reversal is its **own line**: `Reversal Code = Y`, **negative amount**, same
+  terminal, stamped at the moment the reader reversed (240 such lines across August 2026). The
+  `Void Txn Indicator` column is **never** Y in practice; the parser honours both anyway.
+- `CardSettlementMatcher::pairReversal` links each reversal line to the purchase line it undoes:
+  same terminal, same absolute amount, latest purchase at/before the reversal within **5 min** (both
+  lines carry the same terminal clock and the reader reverses within the vend cycle; a wider window
+  risks pairing a different customer's dispensed sale when the true purchase line is missing —
+  tightened from 60 min on 2026-09-02; 15 min circular when the hour was lost). Candidates never
+  include DUPLICATE / IGNORED lines; equal deltas go to the earliest-ingested line. Deleting a report
+  releases the links held by rows in other reports (`CardSettlementReport` `deleting` hook). The purchase may live in an earlier report (reversal after the
+  ~22:30 cutover). Links: `reverses_row_id` (reversal → purchase), `reversed_by_row_id`
+  (purchase → reversal). A reversal with no prior purchase is an UNMATCHED query.
+- **Sync** then marks the purchase's sale refunded: `is_refunded = 1`,
+  `auto_refund_source = settlement_report_reversal`, plus
+  `RefundTicketService::markAutoRefundedByCharge` — the exact write path the inference used. A sale
+  already `is_refunded` (any source) is left as it is. `refunded_count` on the report.
+- **`config('refund.card_reversal_terminals')` is now `[]`** — the TRADE-footprint inference
+  (`card_terminal_reversal`) no longer fires for NETS. Consequence to remember: a NETS reversal is
+  known only after that day's report is uploaded and synced, not at TRADE time, so a refund ticket
+  raised in between is only auto-crossed on Sync. The Show page flags the opposite case too —
+  a sale the old inference marked refunded but the report has no reversal for ("⚠ refunded by
+  inference, no reversal in report") — for the historical August uploads; it does not un-refund.
+- `matched_count` / "Sync N matched" counts purchase lines only; paired reversal lines are MATCHED
+  but claim no sale (the UNIQUE `matched_vend_transaction_id` stays with the purchase line).
+
+## Payment Status, Auto-refunded, Refund Request badge — one source per rail (2026-09-02)
+
+| Rail | "Auto-refunded?" / `is_refunded` | Payment Status (`SaleStatus::payment`) |
+|---|---|---|
+| Omise | API job / `refund.create` webhook / `refund:sync-omise` → `OmiseRefundRecorder` | Paid → Refunded |
+| Midtrans | `refund` / `partial_refund` webhook → same recorder, source `midtrans_external` (**new** — before this the webhook only flipped the gateway log) | Paid → Refunded |
+| NETS card | settlement-report reversal line → `CardSettlementSyncService` (`settlement_report_reversal`) | Paid → **Settled** (stamp) → Refunded (reversal) |
+| Cash | — | Paid |
+
+Every one of those writes goes through `RefundTicketService::markAutoRefundedByCharge`, which sets
+`auto_refund_detected` (and pulls approved/scheduled tickets back to Rejected); the
+`RefundTicketObserver` → `RefundRequestSync` chain then refreshes the denormalised
+`refund_request_*` columns, so the **Refund Request badge** on Sales Transactions follows without
+any extra wiring. Dispense Status is the machine's verdict and never changes from any of this.
+
+**File storage:** uploads go to the private `digitaloceanspaces` disk (S3-compatible;
+`CARD_SETTLEMENT_DISK` to override, `local` fallback without credentials) under `card-settlements/`,
+recorded on `card_settlement_reports.storage_disk`, and are served only via the authed
+`GET /card-settlements/{id}/download`. Nothing lands in the app's public disk.
+
 ## Semantics / invariants
 
 - `card_settlement_synced_at` means "confirmed by an uploaded acquirer settlement report". It is

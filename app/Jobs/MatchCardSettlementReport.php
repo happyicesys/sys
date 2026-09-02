@@ -68,10 +68,10 @@ class MatchCardSettlementReport implements ShouldQueue
             throw new \RuntimeException('Report file attachment is missing.');
         }
 
-        // The attachment lives on the default filesystem disk (possibly
-        // remote); the parser wants a local path, so stage a temp copy.
+        // The file lives on the report's private object-storage disk (DO
+        // Spaces in prod); the parser wants a local path, so stage a temp copy.
         $tmpPath = tempnam(sys_get_temp_dir(), 'card-settlement-');
-        file_put_contents($tmpPath, Storage::get($attachment->local_url));
+        file_put_contents($tmpPath, Storage::disk($report->fileDisk())->get($attachment->local_url));
 
         try {
             $parsed = ParserRegistry::for($report->provider)->parse($tmpPath);
@@ -84,7 +84,8 @@ class MatchCardSettlementReport implements ShouldQueue
             'cutover_date' => $parsed->cutoverDate,
             'report_generated_at' => $parsed->reportGeneratedAt,
             'total_rows' => count($parsed->rows),
-            'purchase_rows' => collect($parsed->rows)->filter(fn ($r) => $r->isPurchase())->count(),
+            'purchase_rows' => collect($parsed->rows)->filter(fn ($r) => $r->isPurchase() && ! $r->isReversal)->count(),
+            'reversal_rows' => collect($parsed->rows)->filter(fn ($r) => $r->isReversal)->count(),
         ])->save();
 
         $now = now();
@@ -126,6 +127,7 @@ class MatchCardSettlementReport implements ShouldQueue
                     'time_is_partial' => $row->timeIsPartial,
                     'amount_cents' => $row->amountCents,
                     'sequence_no' => $row->sequenceNo,
+                    'is_reversal' => $row->isReversal,
                     'fingerprint' => $fingerprint,
                     'status' => $isDuplicate ? CardSettlementRow::STATUS_DUPLICATE : CardSettlementRow::STATUS_PENDING,
                     'resolution_note' => $isDuplicate ? 'Already ingested by an earlier report' : null,

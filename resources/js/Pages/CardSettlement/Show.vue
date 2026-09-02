@@ -8,6 +8,7 @@
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
           <Link href="/card-settlements" class="text-blue-700 hover:underline">Card Settlement</Link>
           <span class="text-gray-400"> / </span>{{ report.original_filename }}
+          <a v-if="report.file_url" :href="report.file_url" class="ml-2 text-xs font-normal text-blue-700 hover:underline">download file</a>
         </h2>
         <div class="flex space-x-1">
           <Button
@@ -65,8 +66,9 @@
           </span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Purchases</div>
-          {{ report.purchase_rows }} / {{ report.total_rows }} rows
+          <div class="text-xs text-gray-400 uppercase">Purchases / Reversals</div>
+          {{ report.purchase_rows }} / <span :class="report.reversal_rows ? 'text-red-600 font-medium' : ''">{{ report.reversal_rows }}</span>
+          <span class="text-xs text-gray-400">of {{ report.total_rows }} rows</span>
         </div>
         <div>
           <div class="text-xs text-gray-400 uppercase">Matched</div>
@@ -81,8 +83,11 @@
           {{ report.duplicate_count }} / {{ report.ignored_count }}
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Synced</div>
-          <span v-if="report.synced_at">{{ report.synced_count }} · {{ report.synced_at }}<span v-if="report.synced_by"> by {{ report.synced_by }}</span></span>
+          <div class="text-xs text-gray-400 uppercase">Synced / Refund-marked</div>
+          <span v-if="report.synced_at">
+            {{ report.synced_count }} / <span :class="report.refunded_count ? 'text-red-600 font-medium' : ''">{{ report.refunded_count }}</span>
+            <span class="text-xs text-gray-400">· {{ report.synced_at }}<span v-if="report.synced_by"> by {{ report.synced_by }}</span></span>
+          </span>
           <span v-else class="text-gray-400">not yet</span>
         </div>
       </div>
@@ -188,7 +193,14 @@
                         {{ row.card_issuer }}
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-right">
-                        {{ row.amount.toFixed(2) }}
+                        <span :class="row.is_reversal ? 'text-red-600 font-medium' : ''">{{ row.amount.toFixed(2) }}</span>
+                        <span
+                          v-if="row.is_reversal"
+                          class="ml-1 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-bold border bg-red-100 text-red-800 border-red-300"
+                          title="Terminal reversal line (Reversal Code = Y)"
+                        >
+                          REVERSAL
+                        </span>
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
                         <span
@@ -199,12 +211,33 @@
                         </span>
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-left">
-                        <template v-if="row.matched_txn">
+                        <!-- reversal line: points at the purchase line it undoes -->
+                        <template v-if="row.is_reversal">
+                          <template v-if="row.reverses_row">
+                            <div>Reverses row #{{ row.reverses_row.row_no }}
+                              <span v-if="row.reverses_row.report_id !== report.id" class="text-xs text-gray-500">(report {{ row.reverses_row.report_id }})</span>
+                            </div>
+                            <div class="text-xs text-gray-500">{{ row.match_time_delta }}s after the purchase</div>
+                          </template>
+                          <span v-else class="text-gray-400">—</span>
+                        </template>
+                        <template v-else-if="row.matched_txn">
                           <div>#{{ row.matched_txn.id }} · {{ row.matched_txn.transaction_datetime }}</div>
                           <div class="text-xs text-gray-500">
                             Δ {{ row.match_time_delta !== null ? row.match_time_delta + 's' : 'manual' }}
                             <span v-if="row.matched_txn.is_refunded" class="text-red-600 font-medium"> · refunded</span>
                             <span v-if="row.matched_txn.synced" class="text-green-600 font-medium"> · synced</span>
+                          </div>
+                          <div v-if="row.reversed_by_row" class="text-xs text-red-600 font-medium">
+                            Reversed by row #{{ row.reversed_by_row.row_no }}
+                            <span v-if="!row.matched_txn.is_refunded" class="text-gray-500 font-normal">→ marked refunded on Sync</span>
+                          </div>
+                          <div
+                            v-else-if="row.matched_txn.auto_refund_source === 'card_terminal_reversal'"
+                            class="text-xs text-amber-700"
+                            title="mark1 inferred a reversal from the TRADE frame, but this report has no reversal line for it — the reader may have retained the credit instead"
+                          >
+                            ⚠ refunded by inference, no reversal in report
                           </div>
                         </template>
                         <span v-else class="text-gray-400">—</span>
@@ -223,7 +256,7 @@
                             <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.is_refunded" class="text-red-600"> · refunded</span></span>
                           </div>
                         </div>
-                        <div v-if="row.status === 2 || row.status === 3" class="flex items-center space-x-1 mt-1">
+                        <div v-if="(row.status === 2 || row.status === 3) && !row.is_reversal" class="flex items-center space-x-1 mt-1">
                           <input v-model="manualTxnId[row.id]" placeholder="Txn ID"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs border-gray-300 rounded-md w-24 px-2 py-1"
                             @keyup.enter="resolveManual(row)" />
@@ -285,6 +318,7 @@ const chips = [
   { key: '1', label: 'Matched' },
   { key: '2', label: 'Unmatched' },
   { key: '3', label: 'Ambiguous' },
+  { key: 'reversals', label: 'Reversals' },
   { key: '5', label: 'Duplicates' },
   { key: '4', label: 'Ignored' },
   { key: 'all', label: 'All rows' },

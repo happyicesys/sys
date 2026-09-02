@@ -13,8 +13,9 @@ class ParsedRow
         public readonly string $transactionDate,    // Y-m-d
         public readonly ?string $transactionTime,   // H:i:s when full; 00:i:s when partial
         public readonly bool $timeIsPartial,        // hour lost (Excel-damaged file)
-        public readonly int $amountCents,
+        public readonly int $amountCents,           // signed: a reversal line carries the negative amount
         public readonly ?string $sequenceNo,
+        public readonly bool $isReversal = false,   // Reversal Code = Y (or Void Txn Indicator = Y)
     ) {}
 
     public function isPurchase(): bool

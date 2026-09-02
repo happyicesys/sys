@@ -1200,6 +1200,7 @@ Route::middleware(['auth', 'cors'])->prefix('card-settlements')->group(function 
     Route::get('/', [CardSettlementController::class, 'index'])->name('card-settlements');
     Route::post('/', [CardSettlementController::class, 'store'])->name('card-settlements.store');
     Route::get('/{id}', [CardSettlementController::class, 'show'])->name('card-settlements.show');
+    Route::get('/{id}/download', [CardSettlementController::class, 'download'])->name('card-settlements.download');
     Route::post('/{id}/rematch', [CardSettlementController::class, 'rematch'])->name('card-settlements.rematch');
     Route::post('/{id}/rows/{rowId}/resolve', [CardSettlementController::class, 'resolveRow'])->name('card-settlements.rows.resolve');
     Route::post('/{id}/rows/{rowId}/ignore', [CardSettlementController::class, 'ignoreRow'])->name('card-settlements.rows.ignore');

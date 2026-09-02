@@ -200,6 +200,117 @@ class CardSettlementMatchTest extends TestCase
         $this->assertCount(2, $row->candidates_json);
     }
 
+    public function test_reversal_line_pairs_with_the_purchase_it_undoes()
+    {
+        $txn = $this->txn('2026-08-29 22:31:07', 240);
+        $report = $this->report();
+        $purchase = $this->row($report, ['transaction_time' => '22:30:58']);
+        $reversal = $this->row($report, [
+            'transaction_time' => '22:31:40',
+            'amount_cents' => -240,
+            'is_reversal' => true,
+        ]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $purchase->refresh();
+        $reversal->refresh();
+        $this->assertSame($txn->id, $purchase->matched_vend_transaction_id);
+        $this->assertSame($reversal->id, $purchase->reversed_by_row_id);
+        $this->assertSame(CardSettlementRow::STATUS_MATCHED, $reversal->status);
+        $this->assertSame($purchase->id, $reversal->reverses_row_id);
+        $this->assertNull($reversal->matched_vend_transaction_id); // the sale stays claimed by the purchase line only
+        $this->assertSame(42, $reversal->match_time_delta);
+        // "Sync N matched" counts purchases, not the paired reversal line.
+        $this->assertSame(1, $report->fresh()->matched_count);
+    }
+
+    /**
+     * Overlapping-cutover re-ingest: the purchase's DUPLICATE copy has the same
+     * time and amount as the original but never a matched sale. The reversal
+     * must pair with the original (MATCHED) line, whichever row the DB returns
+     * first, or the sale is never marked refunded.
+     */
+    public function test_reversal_ignores_a_duplicate_copy_of_the_purchase()
+    {
+        $txn = $this->txn('2026-08-29 22:31:07', 240);
+        $earlier = $this->report();
+        $original = $this->row($earlier, ['transaction_time' => '22:30:58', 'status' => CardSettlementRow::STATUS_MATCHED, 'matched_vend_transaction_id' => $txn->id]);
+        $earlier->update(['status' => CardSettlementReport::STATUS_SYNCED]);
+
+        $report = $this->report();
+        $copy = $this->row($report, ['transaction_time' => '22:30:58', 'status' => CardSettlementRow::STATUS_DUPLICATE]);
+        $reversal = $this->row($report, ['transaction_time' => '22:31:40', 'amount_cents' => -240, 'is_reversal' => true]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame($original->id, $reversal->fresh()->reverses_row_id);
+        $this->assertSame($reversal->id, $original->fresh()->reversed_by_row_id);
+        $this->assertNull($copy->fresh()->reversed_by_row_id);
+        $this->assertSame(CardSettlementRow::STATUS_DUPLICATE, $copy->fresh()->status);
+    }
+
+    /**
+     * Deleting the report that holds one half of a cross-report pair must
+     * release the other half: the purchase line forgets its reversal (else it
+     * is skipped on re-upload and still marked refunded on Sync), and a
+     * reversal line whose purchase vanished goes back to a query.
+     */
+    public function test_deleting_a_report_releases_cross_report_reversal_links()
+    {
+        $a = $this->report();
+        $b = $this->report();
+        $purchase = $this->row($a, ['status' => CardSettlementRow::STATUS_MATCHED]);
+        $reversal = $this->row($b, ['transaction_time' => '22:31:40', 'amount_cents' => -240, 'is_reversal' => true, 'status' => CardSettlementRow::STATUS_MATCHED, 'reverses_row_id' => $purchase->id]);
+        $purchase->update(['reversed_by_row_id' => $reversal->id]);
+
+        $b->delete();
+        $this->assertNull($purchase->fresh()->reversed_by_row_id);
+
+        $c = $this->report();
+        $reversal2 = $this->row($c, ['transaction_time' => '22:31:40', 'amount_cents' => -240, 'is_reversal' => true, 'status' => CardSettlementRow::STATUS_MATCHED, 'reverses_row_id' => $purchase->id]);
+        $purchase->update(['reversed_by_row_id' => $reversal2->id]);
+
+        $a->delete();
+        $reversal2->refresh();
+        $this->assertNull($reversal2->reverses_row_id);
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $reversal2->status);
+    }
+
+    public function test_reversal_with_no_prior_purchase_is_a_query()
+    {
+        $report = $this->report();
+        $reversal = $this->row($report, [
+            'transaction_time' => '22:31:40',
+            'amount_cents' => -240,
+            'is_reversal' => true,
+        ]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $reversal->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $reversal->status);
+        $this->assertSame('No original purchase found for reversal', $reversal->resolution_note);
+    }
+
+    public function test_partial_time_reversal_pairs_within_the_hour()
+    {
+        $this->txn('2026-08-29 14:31:07', 240);
+        $report = $this->report();
+        $purchase = $this->row($report, ['transaction_time' => '00:30:58', 'time_is_partial' => true]);
+        $reversal = $this->row($report, [
+            'transaction_time' => '00:31:33',
+            'time_is_partial' => true,
+            'amount_cents' => -240,
+            'is_reversal' => true,
+        ]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame($reversal->id, $purchase->fresh()->reversed_by_row_id);
+        $this->assertSame(35, $reversal->fresh()->match_time_delta);
+    }
+
     public function test_non_purchase_rows_are_ignored()
     {
         $report = $this->report();

@@ -71,12 +71,24 @@ class CardSettlementMatcher
             ->get()
             ->groupBy('terminal_id');
 
-        $resolvable = collect();
-        foreach ($purchases as $row) {
+        $bindingFor = function (CardSettlementRow $row) use ($bindings): ?CardTerminalBinding {
             $date = $row->transaction_date->toDateString();
-            $binding = ($bindings->get($row->terminal_id) ?? collect())
+
+            return ($bindings->get($row->terminal_id) ?? collect())
                 ->first(fn (CardTerminalBinding $b) => ($b->bound_from === null || $b->bound_from->toDateString() <= $date)
                     && ($b->bound_until === null || $b->bound_until->toDateString() >= $date));
+        };
+
+        // A reversal is its own report line (negative amount); it never
+        // matches a sale directly — it is paired with the purchase line it
+        // undoes, after the purchases have been matched.
+        [$reversals, $purchases] = $purchases->partition(
+            fn (CardSettlementRow $row) => $row->is_reversal || $row->amount_cents < 0
+        );
+
+        $resolvable = collect();
+        foreach ($purchases as $row) {
+            $binding = $bindingFor($row);
 
             if (! $binding) {
                 $row->update([
@@ -97,8 +109,132 @@ class CardSettlementMatcher
 
         $this->assign($resolvable);
 
+        foreach ($reversals as $row) {
+            $row->vend_id = $bindingFor($row)?->vend_id;
+            $this->pairReversal($report, $row);
+        }
+
         $report->forceFill(['matched_at' => now(), 'status' => CardSettlementReport::STATUS_REVIEW])->save();
         $report->refreshCounts();
+    }
+
+    /**
+     * How long after a purchase the reader's reversal line may be stamped.
+     * Both lines are stamped by the same terminal clock and the MDB reader
+     * reverses within the failed vend cycle — seconds, not minutes — so a wide
+     * window only adds risk: with the true purchase line missing, the nearest
+     * earlier same-amount sale on that terminal (a different customer who got
+     * their goods) would be paired and marked refunded. 5 min covers a slow
+     * vend cycle with margin (Brian, 2026-09-02).
+     */
+    const REVERSAL_WINDOW_SECONDS = 300;
+
+    /**
+     * Pair a reversal line with the purchase line it undoes: same terminal,
+     * same absolute amount, the latest purchase at or before the reversal
+     * time within REVERSAL_WINDOW_SECONDS (the MDB reader reverses within
+     * seconds of the failed vend). The purchase may sit in an earlier report
+     * (reversal after the cutover) and may itself be unmatched — the pairing
+     * is between report lines, so the sale is marked refunded at Sync only
+     * when the purchase line has a matched sale.
+     */
+    protected function pairReversal(CardSettlementReport $report, CardSettlementRow $reversal): void
+    {
+        $date = $reversal->transaction_date->toDateString();
+
+        $candidates = CardSettlementRow::query()
+            ->whereHas('report', fn ($q) => $q->where('provider', $report->provider))
+            ->where('terminal_id', $reversal->terminal_id)
+            ->where('is_reversal', false)
+            ->where('amount_cents', abs($reversal->amount_cents))
+            ->whereNull('reversed_by_row_id')
+            // A DUPLICATE copy of the purchase (overlapping-cutover re-ingest) has the
+            // same time and amount as the original but never a matched sale — pairing
+            // with it would leave the real purchase unreversed. Ignored rows are not
+            // purchases either.
+            ->whereNotIn('status', [CardSettlementRow::STATUS_DUPLICATE, CardSettlementRow::STATUS_IGNORED])
+            ->whereBetween('transaction_date', [
+                Carbon::parse($date)->subDay()->toDateString(),
+                $date,
+            ])
+            ->where('id', '!=', $reversal->id)
+            // Deterministic tie-break: on an equal delta the earliest-ingested line wins.
+            ->orderBy('id')
+            ->get();
+
+        $best = null;
+        $bestDelta = null;
+        foreach ($candidates as $purchase) {
+            $delta = $this->reversalDelta($purchase, $reversal);
+            if ($delta === null) {
+                continue;
+            }
+            if ($bestDelta === null || $delta < $bestDelta) {
+                $best = $purchase;
+                $bestDelta = $delta;
+            }
+        }
+
+        if (! $best) {
+            $reversal->update([
+                'status' => CardSettlementRow::STATUS_UNMATCHED,
+                'reverses_row_id' => null,
+                'matched_vend_transaction_id' => null,
+                'match_time_delta' => null,
+                'candidates_json' => null,
+                'resolution_note' => 'No original purchase found for reversal',
+            ]);
+
+            return;
+        }
+
+        $reversal->update([
+            'status' => CardSettlementRow::STATUS_MATCHED,
+            'reverses_row_id' => $best->id,
+            'matched_vend_transaction_id' => null,
+            'match_time_delta' => $bestDelta,
+            'candidates_json' => null,
+            'resolution_note' => 'Reverses row #'.$best->row_no.($best->card_settlement_report_id !== $report->id ? ' of an earlier report' : ''),
+        ]);
+        $best->update(['reversed_by_row_id' => $reversal->id]);
+    }
+
+    /**
+     * Seconds from purchase to reversal (≥ 0, ≤ REVERSAL_WINDOW_SECONDS), or
+     * null. When either side lost its hour, compare circularly on the same
+     * date and cap at 15 minutes — a reversal an hour later is not plausible.
+     */
+    protected function reversalDelta(CardSettlementRow $purchase, CardSettlementRow $reversal): ?int
+    {
+        if ($purchase->transaction_time === null || $reversal->transaction_time === null) {
+            return null;
+        }
+
+        if (! $purchase->time_is_partial && ! $reversal->time_is_partial) {
+            $purchaseAt = Carbon::parse($purchase->transaction_date->toDateString().' '.$purchase->transaction_time);
+            $reversalAt = Carbon::parse($reversal->transaction_date->toDateString().' '.$reversal->transaction_time);
+            $delta = (int) $purchaseAt->diffInSeconds($reversalAt, false);
+
+            return ($delta >= 0 && $delta <= self::REVERSAL_WINDOW_SECONDS) ? $delta : null;
+        }
+
+        if ($purchase->transaction_date->toDateString() !== $reversal->transaction_date->toDateString()) {
+            return null;
+        }
+
+        $delta = ($this->secondOfHour($reversal->transaction_time) - $this->secondOfHour($purchase->transaction_time)) % 3600;
+        if ($delta < 0) {
+            $delta += 3600;
+        }
+
+        return $delta <= 900 ? $delta : null;
+    }
+
+    protected function secondOfHour(string $time): int
+    {
+        [, $i, $s] = explode(':', $time);
+
+        return ((int) $i) * 60 + (int) $s;
     }
 
     /** @param  Collection<int, CardSettlementRow>  $rows  rows with vend_id resolved */

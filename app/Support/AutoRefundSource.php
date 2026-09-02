@@ -34,11 +34,27 @@ final class AutoRefundSource
     public const OMISE_EXTERNAL = 'omise_external';
 
     /**
+     * Midtrans refunded the charge (refund / partial_refund webhook) — the
+     * gateway's own record, mark1 never called a refund API for Midtrans.
+     */
+    public const MIDTRANS_EXTERNAL = 'midtrans_external';
+
+    /**
      * Card terminal (NETS family) reversed the charge at the machine after a
      * single-item dispense failure — recorded from the TRADE footprint
      * (PAY_TYPE=1, single, err ∉ {0,6}, ISOK=0), not from a processor callback.
      */
     public const CARD_TERMINAL_REVERSAL = 'card_terminal_reversal';
+
+    /**
+     * The acquirer's settlement report carried a reversal line for this sale
+     * (NETS "Reversal Code = Y", negative amount) — the terminal DID return
+     * the money. Written by CardSettlementSyncService when the user syncs a
+     * matched report. Since 2026-09-02 this replaces the TRADE-time
+     * card_terminal_reversal inference for NETS (config
+     * refund.card_reversal_terminals is empty).
+     */
+    public const SETTLEMENT_REPORT_REVERSAL = 'settlement_report_reversal';
 
     /**
      * The ONE deliberate exception to "money has been returned": the customer
@@ -59,7 +75,9 @@ final class AutoRefundSource
         self::OMISE_TRADE_FAIL => 'Omise — machine reported a dispense failure',
         self::OMISE_MANUAL => 'Omise — manual refund (artisan)',
         self::OMISE_EXTERNAL => 'Omise — refunded outside mark1 (dashboard / dispute / chargeback)',
+        self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal (NETS)',
+        self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',
         self::RETAINED_CREDIT_REVEND => 'Settled by re-vend from retained credit (no reversal)',
     ];
 

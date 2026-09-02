@@ -39,6 +39,9 @@ class CardSettlementRow extends Model
         'time_is_partial',
         'amount_cents',
         'sequence_no',
+        'is_reversal',
+        'reverses_row_id',
+        'reversed_by_row_id',
         'fingerprint',
         'status',
         'vend_id',
@@ -53,6 +56,7 @@ class CardSettlementRow extends Model
     protected $casts = [
         'transaction_date' => 'date',
         'time_is_partial' => 'boolean',
+        'is_reversal' => 'boolean',
         'candidates_json' => 'json',
         'resolved_at' => 'datetime',
     ];
@@ -71,6 +75,18 @@ class CardSettlementRow extends Model
     {
         return $this->belongsTo(VendTransaction::class, 'matched_vend_transaction_id')
             ->withoutGlobalScopes();
+    }
+
+    /** On a reversal line: the purchase line it undoes. */
+    public function reversedPurchase()
+    {
+        return $this->belongsTo(self::class, 'reverses_row_id');
+    }
+
+    /** On a purchase line: the reversal line that undid it. */
+    public function reversal()
+    {
+        return $this->belongsTo(self::class, 'reversed_by_row_id');
     }
 
     public static function fingerprintFor(

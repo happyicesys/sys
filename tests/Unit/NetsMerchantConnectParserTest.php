@@ -79,6 +79,17 @@ class NetsMerchantConnectParserTest extends TestCase
         $this->assertSame(160, $row->amountCents);
     }
 
+    public function test_flags_reversal_lines_and_keeps_the_negative_amount()
+    {
+        $report = $this->parseString($this->header()."\n"
+            .'EFTPOS,Purchase,2026-08-02,16:54:49.000,DBS PayLah,,11101061018,,23104044,-1.8,0,0,0,,,,Y,,1,,,,,,N');
+
+        $row = $report->rows[0];
+        $this->assertTrue($row->isReversal);
+        $this->assertSame(-180, $row->amountCents);
+        $this->assertTrue($row->isPurchase()); // NETS types it "Purchase"; the Reversal Code is the signal
+    }
+
     public function test_rejects_a_file_without_the_nets_header()
     {
         $this->expectException(SettlementParseException::class);
