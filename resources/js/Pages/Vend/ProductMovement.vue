@@ -173,8 +173,8 @@
 
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
-                                            <span class="font-normal text-gray-600">(self-system ledger: incoming + adjustments)</span><br>
-                                            <span class="font-normal text-gray-900">Last incoming Qty, Date</span>
+                                            <span class="font-normal text-gray-600">(self-system ledger: incoming + adjustments)</span>
+                                            <span class="block mt-2 text-gray-900">Last incoming Qty, Date</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Picked Qty<br>
@@ -248,9 +248,9 @@
                                         <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                             <!-- Last incoming (black): the ledger's latest incoming movement (adjustments excluded). -->
-                                            <div v-if="product.last_incoming_at" class="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-900 leading-tight">
-                                                Last in {{ Number(product.last_incoming_qty).toLocaleString() }}<br>
-                                                {{ moment(product.last_incoming_at).format('YYMMDD') }} ({{ daysAgoLabel(product.last_incoming_at) }})
+                                            <div v-if="product.last_incoming_at" class="mt-2 text-gray-900 leading-tight">
+                                                <div class="text-sm sm:text-base font-semibold">{{ Number(product.last_incoming_qty).toLocaleString() }}</div>
+                                                <div class="text-[10px] sm:text-xs font-normal">{{ daysAgoLabel(product.last_incoming_at) }} ({{ moment(product.last_incoming_at).format('YYMMDD') }})</div>
                                             </div>
                                         </td>
                                         <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-gray-800">
