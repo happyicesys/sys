@@ -40,7 +40,7 @@ MerchantConnect daily report — so this feature lets the user upload it on dema
 | Matcher | `Services/CardSettlement/CardSettlementMatcher` — binding (as of row date) + exact cents + time window; greedy best-first assignment; partial-time rows circular within the hour; excludes `is_retained_credit_settlement` (no card presented — never settles) |
 | Ingest+match job | `Jobs/MatchCardSettlementReport` (`low` queue, tries 1) |
 | Sync | `Services/CardSettlement/CardSettlementSyncService` — chunked UPDATE stamping `vend_transactions.card_settlement_synced_at` |
-| UI | `Pages/CardSettlement/{Index,Show}.vue` (Transactions menu → "Card Settlement"); Sales Transactions grid got a "Settle Sync" ✓/✗ column (card-terminal rows only, plain select column, no extra query) |
+| UI | `Pages/CardSettlement/{Index,Show}.vue` (Transactions menu → "Card Settlement"); Sales Transactions grid got a "Settle Sync" ✓/✗ column — card-terminal rows from `card_settlement_synced_at`; gateway rows (Omise/Midtrans) from the linked `payment_gateway_logs.status` (2 approved / 98 approved-then-refunded = ✓); cash blank. Page-bounded PK join, no extra query |
 | Permission | `card-settlements` (read/create/update/delete) → superadmin/admin/supervisor, in `RolePermissionSyncSeeder` |
 | Bindings import | `php artisan card-settlement:import-bindings <csv> [--apply]` (dry-run default) |
 
@@ -89,6 +89,12 @@ unresolved rows — the flow for "add missing binding, then Rematch".
 | Midtrans | `refund` / `partial_refund` webhook → same recorder, source `midtrans_external` (**new** — before this the webhook only flipped the gateway log) | Paid → Refunded |
 | NETS card | settlement-report reversal line → `CardSettlementSyncService` (`settlement_report_reversal`) | Paid → **Settled** (stamp) → Refunded (reversal) |
 | Cash | — | Paid |
+
+Both columns are filterable on Sales Transactions: **Payment Status** (request key `payment_status`:
+paid / settled / refunded / unconfirmed / retained_credit / re_vended — `VendTransaction::scopeFilterTransactionIndex`
+is `SaleStatus::payment()` in SQL, pinned by `TransactionIndexPaymentFilterTest`) and **Dispense
+Status** (`is_payment_received`, kept for bookmarks: true / false / pending / no_report). Sync on the
+Card Settlement page applies whatever matched — open queries can be resolved and re-synced later.
 
 Every one of those writes goes through `RefundTicketService::markAutoRefundedByCharge`, which sets
 `auto_refund_detected` (and pulls approved/scheduled tickets back to Rejected); the

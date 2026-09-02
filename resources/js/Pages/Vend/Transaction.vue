@@ -187,6 +187,22 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
+                    Payment Status
+                </label>
+                <MultiSelect
+                    v-model="filters.payment_status"
+                    :options="paymentStatusOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
+                <label for="text" class="block text-sm font-medium text-gray-700">
                     Dispense Status
                 </label>
                 <!-- Request key stays is_payment_received (bookmarked URLs); it has
@@ -874,19 +890,30 @@
                                   v-tooltip="vendTransaction.payment_note">
                                 {{ vendTransaction.payment_status }}
                             </span>
-                            <span v-else class="font-medium" :class="saleStatusClass(vendTransaction.payment_status)">
-                                {{ vendTransaction.payment_status }}
-                            </span>
+                            <div v-else class="flex justify-center">
+                                <CheckCircleIcon v-if="saleStatusIcon(vendTransaction.payment_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="vendTransaction.payment_status" />
+                                <XCircleIcon v-else-if="saleStatusIcon(vendTransaction.payment_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="vendTransaction.payment_status" />
+                                <span v-else class="font-medium" :class="saleStatusClass(vendTransaction.payment_status)">
+                                    {{ vendTransaction.payment_status }}
+                                </span>
+                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <!-- Blank on a multiple purchase: each item row below carries its own verdict. -->
-                            <span class="font-medium" :class="saleStatusClass(vendTransaction.dispense_status)">
-                                {{ vendTransaction.dispense_status }}
-                            </span>
+                            <div class="flex justify-center">
+                                <CheckCircleIcon v-if="saleStatusIcon(vendTransaction.dispense_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="vendTransaction.dispense_status" />
+                                <XCircleIcon v-else-if="saleStatusIcon(vendTransaction.dispense_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="vendTransaction.dispense_status" />
+                                <span v-else class="font-medium" :class="saleStatusClass(vendTransaction.dispense_status)">
+                                    {{ vendTransaction.dispense_status }}
+                                </span>
+                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <!-- Card-terminal sales only: has this sale been confirmed by an
-                                 uploaded acquirer settlement report (Card Settlement page)? -->
+                            <!-- Settle Sync = the payment rail itself confirmed the money.
+                                 Card terminal: the uploaded acquirer report (Card Settlement page).
+                                 Gateway (Omise / Midtrans): the gateway's own approve callback on
+                                 the linked payment_gateway_log (2 = approved; 98 = approved, later
+                                 refunded). Cash: nothing to confirm, blank. -->
                             <div class="flex justify-center" v-if="vendTransaction.payment_method_gateway_id === null && vendTransaction.payment_method_code > 0">
                                 <CheckCircleIcon
                                     v-if="vendTransaction.card_settlement_synced_at"
@@ -899,6 +926,20 @@
                                     class="h-4 w-4 text-gray-400"
                                     aria-hidden="true"
                                     title="Not yet confirmed by a settlement report"
+                                />
+                            </div>
+                            <div class="flex justify-center" v-else-if="vendTransaction.payment_method_gateway_id !== null">
+                                <CheckCircleIcon
+                                    v-if="vendTransaction.payment_gateway_log_status === 2 || vendTransaction.payment_gateway_log_status === 98"
+                                    class="h-4 w-4 text-green-500"
+                                    aria-hidden="true"
+                                    :title="'Approved by gateway ' + (vendTransaction.payment_gateway_approved_at || '') + (vendTransaction.payment_gateway_log_status === 98 ? ' — later refunded' : '')"
+                                />
+                                <XMarkIcon
+                                    v-else
+                                    class="h-4 w-4 text-gray-400"
+                                    aria-hidden="true"
+                                    :title="vendTransaction.payment_gateway_log_status === 99 ? 'Declined by gateway' : 'No gateway approval on record'"
                                 />
                             </div>
                         </TableData>
@@ -1010,9 +1051,13 @@
                         </TableData>
                         <!-- Dispense Status: this line's own verdict -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                            <span class="font-medium" :class="saleStatusClass(vendTransactionItem.dispense_status)">
-                                {{ vendTransactionItem.dispense_status }}
-                            </span>
+                            <div class="flex justify-center">
+                                <CheckCircleIcon v-if="saleStatusIcon(vendTransactionItem.dispense_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="vendTransactionItem.dispense_status" />
+                                <XCircleIcon v-else-if="saleStatusIcon(vendTransactionItem.dispense_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="vendTransactionItem.dispense_status" />
+                                <span v-else class="font-medium" :class="saleStatusClass(vendTransactionItem.dispense_status)">
+                                    {{ vendTransactionItem.dispense_status }}
+                                </span>
+                            </div>
                         </TableData>
                         <!-- Settle Sync column: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
@@ -1082,7 +1127,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon, XMarkIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from '@heroicons/vue/20/solid';
+import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, XCircleIcon, ArrowDownTrayIcon, XMarkIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -1132,6 +1177,16 @@ const refundStatusLabel = (s) => refundStatusLabels[s] || s
 // Payment Status / Dispense Status cell colour. Labels come from
 // App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed
 // red, Re-vended amber, Pending / No report grey (blank = unconfirmed).
+// Tick / cross rendering for the clear-cut verdicts; anything else (Re-vended,
+// Retained credit, Pending, No report) stays as text, and blank stays blank.
+const saleStatusIcon = (s) => ({
+    'Paid': 'check',
+    'Settled': 'check',
+    'Dispensed': 'check',
+    'Refunded': 'cross',
+    'Failed': 'cross',
+}[s] || null)
+
 const saleStatusClass = (s) => ({
     'Paid': 'text-green-700',
     'Settled': 'text-green-700',
@@ -1149,6 +1204,7 @@ const refundStatusClass = (s) => ({
     completed: 'text-gray-500',                    // Completed = no colour
 }[s] || 'bg-gray-100 text-gray-700')
 const successfulOptions = ref([])
+const paymentStatusOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const latestExports = ref([])
@@ -1224,7 +1280,20 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Dispensed'},
         {id: 'false', value: 'Failed'},
+        {id: 'pending', value: 'Pending'},
+        {id: 'no_report', value: 'No report'},
     ]
+    // Mirrors App\Support\SaleStatus payment labels (VendTransaction scope `payment_status`).
+    paymentStatusOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'paid', value: 'Paid'},
+        {id: 'settled', value: 'Settled'},
+        {id: 'refunded', value: 'Refunded'},
+        {id: 'unconfirmed', value: 'Unconfirmed (blank)'},
+        {id: 'retained_credit', value: 'Retained credit'},
+        {id: 're_vended', value: 'Re-vended'},
+    ]
+    filters.value.payment_status = paymentStatusOptions.value[0]
     tagOptions.value = [
         { id: 'all', name: 'All' },       // default
         { id: 'any', name: 'Any' },
@@ -1418,6 +1487,7 @@ function onExportCsvClicked() {
             is_member: filters.value.is_member.id,
             is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
+            payment_status: filters.value.payment_status ? filters.value.payment_status.id : 'all',
             is_refunded: filters.value.is_refunded.id,
             is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map(pm => pm.id),
@@ -1568,6 +1638,7 @@ function onExportExcelClicked() {
             is_member: filters.value.is_member.id,
             is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
+            payment_status: filters.value.payment_status ? filters.value.payment_status.id : 'all',
             is_refunded: filters.value.is_refunded.id,
             is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
@@ -1600,6 +1671,7 @@ function onSearchFilterUpdated() {
         is_member: filters.value.is_member.id,
         is_multiple: filters.value.is_multiple.id,
         is_payment_received: filters.value.is_payment_received.id,
+        payment_status: filters.value.payment_status ? filters.value.payment_status.id : 'all',
         is_refunded: filters.value.is_refunded.id,
         is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
         paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),

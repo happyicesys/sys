@@ -516,6 +516,7 @@ class VendTransaction extends Model
     public function scopeFilterTransactionIndex($query, $request, $skipSort = false)
     {
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
+        $paymentStatus = $request->payment_status != null ? $request->payment_status : 'all';
 
         $query = $query->when($request->date_from, function ($query, $search) {
             $query->where('vend_transactions.transaction_datetime', '>=', $search);
@@ -665,10 +666,88 @@ class VendTransaction extends Model
             // matches both sides, as before. The old `is_payment_received = true`
             // short-circuit is gone: processMapping forces that flag on for every
             // QR gateway sale, so a failed QR vend used to list as "Successful".
+            // "Payment Status" filter — the same rule, in SQL, that
+            // SaleStatus::payment() applies per row (keep the two in step):
+            //   refunded        is_refunded (any source but retained_credit_revend) OR voided
+            //   re_vended       is_refunded via retained_credit_revend
+            //   retained_credit is_retained_credit_settlement, not refunded
+            //   settled         card_settlement_synced_at set (uploaded acquirer report)
+            //   paid            paid through a gateway (Omise / Midtrans / Fiuu)
+            //   unconfirmed     none of the above (cash; card before its report)
+            ->when($paymentStatus, function ($query, $search) {
+                if ($search == 'all') {
+                    return;
+                }
+
+                $revend = \App\Support\AutoRefundSource::RETAINED_CREDIT_REVEND;
+                $gatewayMethodIds = PaymentMethod::query()->whereNotNull('payment_gateway_id')->select('id');
+
+                $notRefunded = function ($q) {
+                    $q->where('vend_transactions.is_refunded', false)
+                        ->where('vend_transactions.settlement_status', '!=', self::SETTLEMENT_REFUNDED);
+                };
+
+                switch ($search) {
+                    case 'refunded':
+                        $query->where(function ($q) use ($revend) {
+                            $q->where(function ($r) use ($revend) {
+                                $r->where('vend_transactions.is_refunded', true)
+                                    ->where(function ($s) use ($revend) {
+                                        $s->whereNull('vend_transactions.auto_refund_source')
+                                            ->orWhere('vend_transactions.auto_refund_source', '!=', $revend);
+                                    });
+                            })->orWhere('vend_transactions.settlement_status', self::SETTLEMENT_REFUNDED);
+                        });
+                        break;
+                    case 're_vended':
+                        $query->where('vend_transactions.is_refunded', true)
+                            ->where('vend_transactions.auto_refund_source', $revend);
+                        break;
+                    case 'retained_credit':
+                        $query->where($notRefunded)
+                            ->where('vend_transactions.is_retained_credit_settlement', true);
+                        break;
+                    case 'settled':
+                        $query->where($notRefunded)
+                            ->where('vend_transactions.is_retained_credit_settlement', false)
+                            ->whereNotNull('vend_transactions.card_settlement_synced_at');
+                        break;
+                    case 'paid':
+                        $query->where($notRefunded)
+                            ->where('vend_transactions.is_retained_credit_settlement', false)
+                            ->whereNull('vend_transactions.card_settlement_synced_at')
+                            ->whereIn('vend_transactions.payment_method_id', $gatewayMethodIds);
+                        break;
+                    case 'unconfirmed':
+                        $query->where($notRefunded)
+                            ->where('vend_transactions.is_retained_credit_settlement', false)
+                            ->whereNull('vend_transactions.card_settlement_synced_at')
+                            ->where(function ($q) use ($gatewayMethodIds) {
+                                $q->whereNull('vend_transactions.payment_method_id')
+                                    ->orWhereNotIn('vend_transactions.payment_method_id', $gatewayMethodIds);
+                            });
+                        break;
+                }
+            })
             ->when($isPaymentReceived, function ($query, $search) {
                 if ($search == 'all') {
                     return;
                 }
+
+                // The two no-verdict states are selectable on their own: a gateway
+                // row still waiting for its TRADE, or one that never got it.
+                if ($search === 'pending') {
+                    $query->where('vend_transactions.settlement_status', self::SETTLEMENT_PENDING);
+
+                    return;
+                }
+                if ($search === 'no_report') {
+                    $query->where('vend_transactions.is_found_in_transaction', false)
+                        ->where('vend_transactions.settlement_status', '!=', self::SETTLEMENT_PENDING);
+
+                    return;
+                }
+
                 $okCodes = SaleStatus::DISPENSED_CODES;
                 $okErrorIds = VendChannelError::select('id')->whereIn('code', $okCodes);
 

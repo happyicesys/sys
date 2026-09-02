@@ -3707,6 +3707,11 @@ class VendController extends Controller
                 ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
                 ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
+                // "Settle Sync" for gateway rails: the gateway's own approve
+                // callback is the settlement confirmation (card terminals use
+                // card_settlement_synced_at from the uploaded report instead).
+                // PK lookup per page row — bounded, same as the other joins here.
+                ->leftJoin('payment_gateway_logs', 'payment_gateway_logs.id', '=', 'vend_transactions.payment_gateway_log_id')
                 ->select(
                     'vend_transactions.id',
                     'vend_transactions.order_id',
@@ -3749,6 +3754,8 @@ class VendController extends Controller
                     'vend_transactions.card_settlement_synced_at',
                     'payment_methods.payment_gateway_id AS payment_method_gateway_id',
                     'payment_methods.code AS payment_method_code',
+                    'payment_gateway_logs.status AS payment_gateway_log_status',
+                    'payment_gateway_logs.approved_at AS payment_gateway_approved_at',
                     'vend_transactions.items_json',
                     'vend_transactions.meta_json',
                     'vend_transactions.vend_transaction_json',
