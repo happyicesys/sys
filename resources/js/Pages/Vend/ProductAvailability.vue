@@ -179,7 +179,8 @@
 
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Qty in Warehouse <br>
-                      <span class="font-normal text-gray-600">(from API)</span>
+                      <span class="font-normal text-gray-600">(from API)</span><br>
+                      <span class="font-normal text-gray-900">Last incoming Qty, Date</span>
                     </th>
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Picked Qty <br>
@@ -296,6 +297,11 @@
                     <!-- Qty in Warehouse (Blue). Manual-ledger products (CityBox SKUs) show the mark1 ledger figure instead of CMS. -->
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                       {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      <!-- Last incoming (black): CMS's last Stock In batch, or the ledger's last incoming movement. -->
+                      <div v-if="product.last_incoming_at" class="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-900 leading-tight">
+                        Last in {{ Number(product.last_incoming_qty).toLocaleString() }}<br>
+                        {{ moment(product.last_incoming_at).format('YYMMDD') }} ({{ daysAgoLabel(product.last_incoming_at) }})
+                      </div>
                       <div v-if="product.warehouse_qty_source === 'ledger'" class="mt-0.5">
                         <Link :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
                           class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
@@ -516,6 +522,11 @@ const filters = ref({
   sortBy: false,
 });
 const today = moment().format('YYYY-MM-DD');
+// Age of the "Last incoming" date by the user's local calendar day: today / 1d ago / Nd ago.
+const daysAgoLabel = (date) => {
+  const days = moment().startOf('day').diff(moment(date).startOf('day'), 'days');
+  return days <= 0 ? 'today' : `${days}d ago`;
+};
 
 const booleanOptions = ref([])
 onMounted(() => {

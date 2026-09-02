@@ -173,7 +173,8 @@
 
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
-                                            <span class="font-normal text-gray-600">(self-system ledger: incoming + adjustments)</span>
+                                            <span class="font-normal text-gray-600">(self-system ledger: incoming + adjustments)</span><br>
+                                            <span class="font-normal text-gray-900">Last incoming Qty, Date</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Picked Qty<br>
@@ -246,6 +247,11 @@
 
                                         <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
+                                            <!-- Last incoming (black): the ledger's latest incoming movement (adjustments excluded). -->
+                                            <div v-if="product.last_incoming_at" class="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-900 leading-tight">
+                                                Last in {{ Number(product.last_incoming_qty).toLocaleString() }}<br>
+                                                {{ moment(product.last_incoming_at).format('YYMMDD') }} ({{ daysAgoLabel(product.last_incoming_at) }})
+                                            </div>
                                         </td>
                                         <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-gray-800">
                                             {{ product.picked_qty_on_date ? Number(product.picked_qty_on_date).toLocaleString() : 0 }}
@@ -423,6 +429,11 @@ const filters = ref({
     sortBy: false,
 });
 const today = moment().format('YYYY-MM-DD');
+// Age of the "Last incoming" date by the user's local calendar day: today / 1d ago / Nd ago.
+const daysAgoLabel = (date) => {
+    const days = moment().startOf('day').diff(moment(date).startOf('day'), 'days');
+    return days <= 0 ? 'today' : `${days}d ago`;
+};
 const booleanOptions = ref([])
 
 const showMovementModal = ref(false)

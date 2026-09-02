@@ -463,6 +463,7 @@ class ProductController extends Controller
                 'products.remarks_updated_by',
                 'products.warehouse_qty_source',
             ])
+            ->withLastLedgerIncoming()
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->when($isUnreadView, function ($query) use ($availUnreadIds) {
@@ -592,14 +593,22 @@ class ProductController extends Controller
                 $product->qty_available_pcs_api = $product->warehouseQty() ?? 0;
                 $product->not_yet_sync_api_qty = 0;
                 $product->net_available_qty_pcs_api = $product->qty_available_pcs_api;
+                // last_incoming_qty / last_incoming_at: the ledger's own, already
+                // selected by withLastLedgerIncoming().
             } elseif (isset($cmsQtyMap[$product->code])) {
                 $cmsQtyAvailableProduct = $cmsQtyMap[$product->code];
                 $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'] ?? 0;
                 $product->net_available_qty_pcs_api = ($cmsQtyAvailableProduct['qty'] ?? 0) - $product->not_yet_sync_api_qty;
+                // CMS's last Stock In batch for this item (pcs + batch date). Null
+                // when the item never had one, or on a CMS build without the fields.
+                $product->last_incoming_qty = $cmsQtyAvailableProduct['last_incoming_qty'] ?? null;
+                $product->last_incoming_at = $cmsQtyAvailableProduct['last_incoming_date'] ?? null;
             } else {
                 // Ensure defaults
                 $product->qty_available_pcs_api = 0;
                 $product->net_available_qty_pcs_api = 0 - $product->not_yet_sync_api_qty;
+                $product->last_incoming_qty = null;
+                $product->last_incoming_at = null;
             }
         }
 

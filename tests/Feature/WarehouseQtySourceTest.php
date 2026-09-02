@@ -285,4 +285,68 @@ class WarehouseQtySourceTest extends TestCase
             ->assertInertia(fn ($page) => $page->component('ProductMovement/TrackingDetails')
                 ->where('movements.data', fn ($rows) => collect($rows)->contains(fn ($r) => (int) ($r['qty'] ?? 0) === 5)));
     }
+
+    public function test_availability_page_shows_last_incoming_from_cms_for_cms_products_and_from_the_ledger_for_manual_ones(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => 'https://cms.test']);
+        \Illuminate\Support\Facades\Http::fake(['cms.test/*' => \Illuminate\Support\Facades\Http::response([
+            ['code' => 'VM1', 'qty' => 350, 'last_incoming_qty' => 200, 'last_incoming_date' => '2026-08-30'],
+            ['code' => 'VM9', 'qty' => 5], // older CMS build / never stocked in: no fields
+        ])]);
+
+        Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id, 'is_available' => 1]);
+        Product::create(['code' => 'VM9', 'name' => 'Vending tea', 'operator_id' => $u->operator_id, 'is_available' => 1]);
+        $cb = Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'is_available' => 1, 'warehouse_qty_source' => 'ledger']);
+        $latestAt = \Carbon\Carbon::parse('2026-08-28 09:00:00');
+        DB::table('product_movements')->insert([
+            ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 12, 'created_at' => '2026-08-20 09:00:00', 'updated_at' => now()],
+            ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 5, 'created_at' => $latestAt, 'updated_at' => now()],
+            // A later adjustment is a correction, not a delivery — must not become "last incoming".
+            ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_ADJUSTMENT, 'qty' => 3, 'created_at' => '2026-09-01 09:00:00', 'updated_at' => now()],
+        ]);
+
+        $this->actingAs($u)->get('/products/availability?operators[]=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Vend/ProductAvailability')
+                ->where('products.data', function ($rows) use ($latestAt) {
+                    $rows = collect($rows);
+                    $vm = $rows->firstWhere('code', 'VM1');
+                    $vm9 = $rows->firstWhere('code', 'VM9');
+                    $cb = $rows->firstWhere('code', '89925');
+
+                    return $vm['last_incoming_qty'] === 200 && $vm['last_incoming_at'] === '2026-08-30'
+                        && $vm9['last_incoming_qty'] === null && $vm9['last_incoming_at'] === null
+                        && $cb['last_incoming_qty'] === 5 && $cb['last_incoming_at'] === $latestAt->toJSON()
+                        && $cb['qty_available_pcs_api'] === 20;
+                }));
+    }
+
+    public function test_movements_page_shows_the_ledgers_last_incoming(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => null]);
+        $stocked = Product::create(['code' => 'L1', 'name' => 'Stocked', 'operator_id' => $u->operator_id]);
+        Product::create(['code' => 'L2', 'name' => 'Never stocked', 'operator_id' => $u->operator_id]);
+        $latestAt = \Carbon\Carbon::parse('2026-08-28 09:00:00');
+        DB::table('product_movements')->insert([
+            // Same calendar day, keyed later with the same created_at → the newer row (higher id) wins.
+            ['product_id' => $stocked->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 40, 'created_at' => $latestAt, 'updated_at' => now()],
+            ['product_id' => $stocked->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 7, 'created_at' => $latestAt, 'updated_at' => now()],
+            ['product_id' => $stocked->id, 'type' => ProductMovement::TYPE_ADJUSTMENT, 'qty' => -2, 'created_at' => '2026-09-01 09:00:00', 'updated_at' => now()],
+        ]);
+
+        $this->actingAs($u)->get('/products/movements?operators[]=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Vend/ProductMovement')
+                ->where('products.data', function ($rows) use ($latestAt) {
+                    $rows = collect($rows);
+                    $s = $rows->firstWhere('code', 'L1');
+                    $n = $rows->firstWhere('code', 'L2');
+
+                    return $s['last_incoming_qty'] === 7 && $s['last_incoming_at'] === $latestAt->toJSON()
+                        && (int) $s['total_movements_qty'] === 45
+                        && $n['last_incoming_qty'] === null && $n['last_incoming_at'] === null;
+                }));
+    }
 }

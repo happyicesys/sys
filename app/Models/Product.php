@@ -405,6 +405,31 @@ class Product extends Model
         return $this->warehouseQtySource() === \App\Enums\WarehouseQtySource::Ledger;
     }
 
+    /**
+     * Latest self-system stock-in per product row, as `last_incoming_qty` and
+     * `last_incoming_at` (the movement's user-keyed created_at). Incoming type
+     * only — adjustments are corrections, not deliveries. Both Warehouse Qty
+     * tabs show it under the warehouse figure; cms-source rows on the API tab
+     * get overwritten with CMS's own last Stock In batch.
+     */
+    public function scopeWithLastLedgerIncoming($query)
+    {
+        $latest = fn (string $column) => function ($sub) use ($column) {
+            $sub->from('product_movements')
+                ->select($column)
+                ->whereColumn('product_movements.product_id', 'products.id')
+                ->where('type', ProductMovement::TYPE_INCOMING)
+                ->where('qty', '>', 0)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->limit(1);
+        };
+
+        return $query
+            ->selectSub($latest('qty'), 'last_incoming_qty')
+            ->selectSub($latest('created_at'), 'last_incoming_at');
+    }
+
     /** CityBox SKUs linked to this product (many-to-one: their catalog has duplicate names). */
     public function cityboxProducts()
     {

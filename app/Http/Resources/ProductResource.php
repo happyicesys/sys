@@ -103,6 +103,14 @@ class ProductResource extends JsonResource
             'picked_value_on_date' => isset($this->picked_value_on_date) ? $this->picked_value_on_date / 100 : 0,
             'calculated_warehouse_qty' => isset($this->calculated_warehouse_qty) ? $this->calculated_warehouse_qty : null,
             'qty_available_pcs_api' => isset($this->qty_available_pcs_api) ? $this->qty_available_pcs_api : null,
+            // Latest stock-in, shown under Qty in Warehouse on both Warehouse Qty
+            // tabs: CMS's last Stock In batch (date only) or the self-system
+            // ledger's last incoming movement (datetime → ISO/UTC so the browser
+            // shows the user's local date).
+            'last_incoming_qty' => isset($this->last_incoming_qty) ? (int) $this->last_incoming_qty : null,
+            'last_incoming_at' => $this->when(isset($this->last_incoming_at), fn () => strlen((string) $this->last_incoming_at) > 10
+                ? \Carbon\Carbon::parse($this->last_incoming_at)->toJSON()
+                : (string) $this->last_incoming_at, null),
             'warehouse_qty_source' => $this->warehouse_qty_source ?: 'cms',
             // Ledger-source products (CityBox / no-CMS) carry their own warehouse
             // figure + units currently inside chillers; cms products keep the CMS

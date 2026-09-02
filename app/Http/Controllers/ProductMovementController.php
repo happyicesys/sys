@@ -590,6 +590,8 @@ class ProductMovementController extends Controller
             }, function ($query) {
                 $query->orderBy('code', 'desc');
             })
+            // Last incoming (qty + date) shown under Qty in Warehouse.
+            ->withLastLedgerIncoming()
             // Calculate needed_qty (same as existing)
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('ops_job_item_channels')
