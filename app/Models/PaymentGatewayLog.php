@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Support\SiteSearch;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Support\SiteSearch;
 
 class PaymentGatewayLog extends Model
 {
     const STATUS_PENDING = 1;
+
     const STATUS_APPROVE = 2;
+
     const STATUS_REFUND = 98;
+
     const STATUS_DECLINE = 99;
 
     const REFUND_PENDING_MINUTES = 10;
@@ -97,8 +100,8 @@ class PaymentGatewayLog extends Model
      * viewer can see, and the ceiling has already been applied.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  int[]  $testingVendIds   Testing machine vend IDs to exclude.
-     * @param  bool   $applyCutoff      Apply the UNREPORTED_GATEWAY_CUTOFF floor.
+     * @param  int[]  $testingVendIds  Testing machine vend IDs to exclude.
+     * @param  bool  $applyCutoff  Apply the UNREPORTED_GATEWAY_CUTOFF floor.
      */
     public function scopeUnreportedDispensed($query, $request, array $testingVendIds = [], bool $applyCutoff = true)
     {
@@ -108,27 +111,27 @@ class PaymentGatewayLog extends Model
             ->whereNoVendTransaction()
             ->whereVisibleToViewer()
             ->excludeSweptOddTransactions()
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('payment_gateway_logs.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('payment_gateway_logs.vend_id', $testingVendIds))
             ->when($request->operators, function ($q) use ($request) {
                 $ops = (array) $request->operators;
-                if (!in_array('all', $ops, true)) {
-                    $q->whereHas('operatorPaymentGateway', fn($sub) => $sub->whereIn('operator_id', $ops));
+                if (! in_array('all', $ops, true)) {
+                    $q->whereHas('operatorPaymentGateway', fn ($sub) => $sub->whereIn('operator_id', $ops));
                 }
             })
-            ->when($request->date_from, fn($q, $search) => $q->where('payment_gateway_logs.approved_at', '>=', $search))
-            ->when($request->date_to, fn($q, $search) => $q->where('payment_gateway_logs.approved_at', '<=', $search))
+            ->when($request->date_from, fn ($q, $search) => $q->where('payment_gateway_logs.approved_at', '>=', $search))
+            ->when($request->date_to, fn ($q, $search) => $q->where('payment_gateway_logs.approved_at', '<=', $search))
             ->when($request->codes, function ($q, $search) {
                 if (strpos($search, ',') !== false) {
                     $codes = array_map('trim', explode(',', $search));
-                    $q->whereHas('vend', fn($sub) => $sub->whereIn('code', $codes));
+                    $q->whereHas('vend', fn ($sub) => $sub->whereIn('code', $codes));
                 } else {
-                    $q->whereHas('vend', fn($sub) => $sub->where('code', 'LIKE', "%{$search}%"));
+                    $q->whereHas('vend', fn ($sub) => $sub->where('code', 'LIKE', "%{$search}%"));
                 }
             })
             ->when($request->customer, function ($q, $search) {
-                $q->whereHas('vend.customer', fn($sub) => SiteSearch::for($search)->applyTo($sub));
+                $q->whereHas('vend.customer', fn ($sub) => SiteSearch::for($search)->applyTo($sub));
             })
-            ->when($applyCutoff, fn($q) => $q->where('payment_gateway_logs.approved_at', '>=', self::UNREPORTED_GATEWAY_CUTOFF));
+            ->when($applyCutoff, fn ($q) => $q->where('payment_gateway_logs.approved_at', '>=', self::UNREPORTED_GATEWAY_CUTOFF));
     }
 
     /**
@@ -210,10 +213,11 @@ class PaymentGatewayLog extends Model
                 ->join('operators', 'operators.id', '=', 'vends.operator_id')
                 ->leftJoin('countries', 'countries.id', '=', 'operators.country_id')
                 ->whereColumn('vends.id', 'payment_gateway_logs.vend_id')
+                ->whereNotIn('vends.code', VendTransaction::ODD_TRANSACTION_RETAIN_VEND_CODES)
                 ->where(function ($w) use ($oddAmounts, $placeholders) {
                     $w->where('operators.code', VendTransaction::ODD_TRANSACTION_OPERATOR_CODE)
                         ->orWhereRaw(
-                            'ROUND(payment_gateway_logs.amount * POW(10, COALESCE(countries.currency_exponent, 2))) IN (' . $placeholders . ')',
+                            'ROUND(payment_gateway_logs.amount * POW(10, COALESCE(countries.currency_exponent, 2))) IN ('.$placeholders.')',
                             $oddAmounts
                         );
                 });
@@ -290,10 +294,10 @@ class PaymentGatewayLog extends Model
                 $query->where('payment_method_id', $search);
             })
             ->when($request->customer, function ($query, $search) {
-                $query->whereHas('vend.customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
+                $query->whereHas('vend.customer', fn ($customer) => SiteSearch::for($search)->applyTo($customer));
             })
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereHas('operatorPaymentGateway', function ($query) use ($search) {
                         $query->whereIn('operator_id', $search);
                     });
@@ -333,11 +337,11 @@ class PaymentGatewayLog extends Model
             // })
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
-                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');

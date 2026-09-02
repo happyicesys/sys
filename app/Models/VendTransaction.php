@@ -51,6 +51,11 @@ class VendTransaction extends Model
 
     const ODD_TRANSACTION_OPERATOR_CODE = 'TEST';
 
+    // Machines whose transactions are never swept, whatever the amount or
+    // operator — kept so multi-day testing on a bench rig survives the nightly
+    // RemoveOddTransactions run. Mirrored in PaymentGatewayLog::scopeExcludeSweptOddTransactions.
+    const ODD_TRANSACTION_RETAIN_VEND_CODES = ['2003'];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorTransactionFilterScope);

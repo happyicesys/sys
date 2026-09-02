@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Operator;
 use App\Models\PaymentMethod;
+use App\Models\Vend;
 use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -17,7 +18,9 @@ class RemoveOddTransactions implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $from;
+
     protected $to;
+
     /**
      * Create a new job instance.
      */
@@ -32,7 +35,7 @@ class RemoveOddTransactions implements ShouldQueue
      */
     public function handle(): void
     {
-        if (!filter_var(env('DELETE_ODD_TRANSACTIONS', false), FILTER_VALIDATE_BOOLEAN)) {
+        if (! filter_var(env('DELETE_ODD_TRANSACTIONS', false), FILTER_VALIDATE_BOOLEAN)) {
             return;
         }
 
@@ -46,8 +49,13 @@ class RemoveOddTransactions implements ShouldQueue
 
         $testOperator = Operator::where('code', VendTransaction::ODD_TRANSACTION_OPERATOR_CODE)->pluck('id')->toArray();
 
+        $retainVendIds = Vend::whereIn('code', VendTransaction::ODD_TRANSACTION_RETAIN_VEND_CODES)
+            ->pluck('id')
+            ->toArray();
+
         VendTransaction::query()
             ->whereNotIn('payment_method_id', $retainPaymentMethod)
+            ->when(! empty($retainVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $retainVendIds))
             ->where(function ($query) use ($testOperator) {
                 $query->whereIn('amount', VendTransaction::ODD_TRANSACTION_AMOUNTS)
                     ->orWhereIn('operator_id', $testOperator);
@@ -57,18 +65,19 @@ class RemoveOddTransactions implements ShouldQueue
             ->chunkById(500, function ($transactions) {
                 $transactionIds = $transactions->pluck('id')->toArray();
 
-                if (!empty($transactionIds)) {
+                if (! empty($transactionIds)) {
                     \App\Models\VendChannelErrorLog::whereIn('vend_transaction_id', $transactionIds)->delete();
                     \App\Models\VendTransactionItem::whereIn('vend_transaction_id', $transactionIds)->delete();
                     VendTransaction::whereIn('id', $transactionIds)->delete();
                 }
             });
 
-        if (!empty($testOperator)) {
+        if (! empty($testOperator)) {
             \App\Models\VendRecord::whereIn('operator_id', $testOperator)
+                ->when(! empty($retainVendIds), fn ($q) => $q->whereNotIn('vend_id', $retainVendIds))
                 ->whereBetween('date', [
                     Carbon::parse($this->from)->startOfDay(),
-                    Carbon::parse($this->to)->endOfDay()
+                    Carbon::parse($this->to)->endOfDay(),
                 ])
                 ->delete();
         }
