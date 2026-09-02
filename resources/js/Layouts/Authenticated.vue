@@ -404,6 +404,39 @@ function firstChildHref(item) {
 const roles = page.props.auth.roles
 const smallLogoUrl = page.props.smallLogoUrl
 
+// Rail flyout open/close is driven HERE, not by floating-vue's hover triggers.
+// With `triggers: ['hover']` + `popper-triggers: ['hover']`, floating-vue's
+// hide() returns early (no timer at all) when the pointer leaves the icon
+// "aiming" at the flyout, and only the flyout's own mouseleave hides it later.
+// If the pointer never actually enters the flyout — curved or fast move past
+// it, out of the window — the flyout stays open for good, and hovering the
+// next icon opens a second one alongside (the stacked-flyouts bug).
+// One `openFlyout` value means at most one flyout at a time; leaving either the
+// icon or the flyout starts a short grace timer that entering either cancels,
+// which is what carries the pointer across the 4px gap.
+const openFlyout = ref(null)
+let flyoutHideTimer = null
+function flyoutEnter(name) {
+    clearTimeout(flyoutHideTimer)
+    openFlyout.value = name
+}
+function flyoutLeave() {
+    clearTimeout(flyoutHideTimer)
+    flyoutHideTimer = setTimeout(() => { openFlyout.value = null }, 200)
+}
+function closeFlyout() {
+    clearTimeout(flyoutHideTimer)
+    openFlyout.value = null
+}
+// floating-vue still hides on its own for click-outside (autoHide) and
+// v-close-popper; mirror that back so `shown` doesn't re-open it.
+function onFlyoutShown(name, shown) {
+    if (!shown && openFlyout.value === name) closeFlyout()
+}
+// Expanding the rail unmounts the dropdowns; without this the remembered
+// section would pop open by itself the moment the rail is collapsed again.
+watch(sidebarCollapsed, closeFlyout)
+
 // Messenger-style unread-note badges, keyed by menu href (shared by
 // HandleInertiaRequests::share → NoteNotificationService). subBadge() reads a
 // single link's count; sectionBadge() rolls children up onto the collapsed
@@ -609,6 +642,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+    clearTimeout(flyoutHideTimer)
     // Layout is being torn down (the page component changed) — report before the
     // instance goes away, then blank the id so nothing can double-report.
     accrueActive()
@@ -674,18 +708,19 @@ onBeforeUnmount(() => {
                                      section's own open state, which has to survive the trip
                                      through the rail.
 
-                                     popper-triggers mirrors triggers: on hover the pointer has to
-                                     cross out of the icon and into the flyout, and without the
-                                     CONTENT counting as hover the popper closes on the way over.
-                                     (A click-triggered popper does not need this.) -->
+                                     No floating-vue triggers: open state is `openFlyout` (see the
+                                     script for why its hover triggers leak stuck flyouts). -->
                                 <VDropdown v-if="sidebarCollapsed && canSee(item)" class="w-full"
                                     placement="right-start" :distance="4"
-                                    :triggers="['hover']" :popper-triggers="['hover']">
+                                    :triggers="[]" :popper-triggers="[]"
+                                    :shown="openFlyout === item.name"
+                                    @update:shown="onFlyoutShown(item.name, $event)">
                                     <!-- No v-tooltip here: a hover tooltip and this popover are
                                          two separate poppers on one element and visibly overlap
                                          while the flyout fades in. The flyout's own header
                                          carries the section name instead. -->
                                     <Link :href="firstChildHref(item) || '#'" :aria-label="item.name"
+                                        @mouseenter="flyoutEnter(item.name)" @mouseleave="flyoutLeave"
                                         :class="[isItemActive(item) ? 'bg-gray-100' : 'bg-white hover:bg-gray-50', 'relative group w-full flex items-center justify-center px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                         <component :is="item.icon"
                                             :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'flex-shrink-0 h-6 w-6']"
@@ -696,7 +731,7 @@ onBeforeUnmount(() => {
                                             class="absolute top-0.5 right-1.5 h-2 w-2 rounded-full bg-red-500"></span>
                                     </Link>
                                     <template #popper>
-                                        <div class="w-60 py-2">
+                                        <div class="w-60 py-2" @mouseenter="flyoutEnter(item.name)" @mouseleave="flyoutLeave">
                                             <div class="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
                                                 {{ item.name }}
                                             </div>
