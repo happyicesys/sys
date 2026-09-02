@@ -150,6 +150,28 @@ class CardSettlementController extends Controller
             ->get(['id', 'transaction_datetime', 'amount', 'is_refunded', 'auto_refund_source', 'card_settlement_synced_at'])
             ->keyBy('id');
 
+        // Which of this page's candidate sales are already taken, and by which
+        // line — so the UI shows "claimed by row #N" instead of a Pick button
+        // that would only bounce with "already claimed".
+        $candidateTxnIds = $rows
+            ->flatMap(fn (CardSettlementRow $r) => collect($r->candidates_json ?? [])->pluck('vend_transaction_id'))
+            ->filter()
+            ->unique();
+        $claimedBy = $candidateTxnIds->isEmpty() ? collect() : CardSettlementRow::query()
+            ->whereIn('matched_vend_transaction_id', $candidateTxnIds)
+            ->get(['matched_vend_transaction_id', 'row_no', 'card_settlement_report_id'])
+            ->keyBy('matched_vend_transaction_id');
+        $decorateCandidates = fn (?array $candidates) => collect($candidates ?? [])->map(function ($c) use ($claimedBy, $report) {
+            $holder = $claimedBy->get($c['vend_transaction_id'] ?? null);
+            $c['claimed_by_row'] = $holder ? [
+                'row_no' => $holder->row_no,
+                'report_id' => $holder->card_settlement_report_id,
+                'same_report' => $holder->card_settlement_report_id === $report->id,
+            ] : null;
+
+            return $c;
+        })->values()->all();
+
         // Row numbers of the reversal ↔ purchase counterparts on this page
         // (a counterpart may live in another report, hence the report id too).
         $linkedRows = CardSettlementRow::query()
@@ -162,6 +184,32 @@ class CardSettlementController extends Controller
             'report_id' => $r->card_settlement_report_id,
             'transaction_time' => $r->transaction_time,
         ] : null;
+
+        // Terminals whose unmatched lines have a fitting sale on ANOTHER
+        // machine — the binding sheet is probably wrong for that TID. Grouped
+        // here so the user fixes the binding once and hits Rematch.
+        $suspectBindings = $report->rows()
+            ->where('status', CardSettlementRow::STATUS_UNMATCHED)
+            ->where('resolution_note', 'like', 'No matching sale on bound machine%')
+            ->get(['terminal_id', 'vend_id', 'candidates_json'])
+            ->groupBy('terminal_id')
+            ->map(function ($lines, $terminalId) use ($vendCodes) {
+                $suggested = $lines
+                    ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code'))
+                    ->countBy()
+                    ->sortDesc();
+
+                return [
+                    'terminal_id' => $terminalId,
+                    'bound_vend_code' => $vendCodes->get($lines->first()->vend_id)
+                        ?? \App\Models\Vend::withoutGlobalScopes()->whereKey($lines->first()->vend_id)->value('code'),
+                    'suggested_vend_code' => $suggested->keys()->first(),
+                    'row_count' => $lines->count(),
+                    'suggested_hits' => $suggested->first() ?? 0,
+                ];
+            })
+            ->sortByDesc('row_count')
+            ->values();
 
         // Terminals in this report with no binding — the one-time setup the
         // user must do before those rows can ever match.
@@ -241,12 +289,13 @@ class CardSettlementController extends Controller
                     'reverses_row' => $linked($row->reverses_row_id),
                     'reversed_by_row' => $linked($row->reversed_by_row_id),
                     'match_time_delta' => $row->match_time_delta,
-                    'candidates' => $row->candidates_json,
+                    'candidates' => $decorateCandidates($row->candidates_json),
                     'resolution_note' => $row->resolution_note,
                 ])->values(),
             ],
             'rowFilters' => ['row_status' => $status],
             'unboundTerminals' => $unboundTerminals,
+            'suspectBindings' => $suspectBindings,
             'statusLabels' => CardSettlementRow::STATUS_LABELS,
         ]);
     }

@@ -118,6 +118,21 @@
         </div>
       </div>
 
+      <!-- suspected wrong bindings: the sale exists, on a different machine -->
+      <div v-if="suspectBindings.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-orange-50 border border-orange-200 rounded-md p-3 my-3 text-sm">
+        <div class="font-semibold text-orange-800 mb-1">Terminals that look bound to the wrong machine</div>
+        <div class="text-orange-800 space-y-0.5">
+          <div v-for="s in suspectBindings" :key="s.terminal_id">
+            <span class="font-mono">{{ s.terminal_id }}</span> is bound to <b>{{ s.bound_vend_code }}</b>, but its sales are on
+            <b>{{ s.suggested_vend_code }}</b> — {{ s.suggested_hits }} of {{ s.row_count }} unmatched lines fit that machine exactly.
+          </div>
+        </div>
+        <div class="mt-1 text-orange-700">
+          Move the terminal on <Link href="/card-terminal-bindings" class="underline font-medium">Card Terminal Bindings</Link>
+          (close the old binding, add the new one from the right date), then hit Rematch.
+        </div>
+      </div>
+
       <!-- row status chips -->
       <div class="flex flex-wrap gap-2 my-3">
         <span v-for="c in chips" :key="c.key"
@@ -252,17 +267,34 @@
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-left">
-                        <div v-if="row.resolution_note" class="text-xs text-gray-500 mb-1">{{ row.resolution_note }}</div>
+                        <div v-if="row.resolution_note" class="text-xs text-gray-500 mb-1"
+                          :title="row.resolution_note === 'All matching sales already claimed'
+                            ? 'Every sale that fits this line is already held by another line — NETS charged more times than mark1 recorded sales here. Likely a double charge (customer tapped twice); check the two lines and refund if so.'
+                            : (row.resolution_note === 'No matching sale in window'
+                              ? 'mark1 has no card sale on this machine at this time/amount — the machine may have been offline (TRADE never arrived) or the terminal is bound to the wrong machine.'
+                              : '')">
+                          {{ row.resolution_note }}
+                        </div>
                         <!-- candidates to pick from (ambiguous / claimed-elsewhere rows) -->
                         <div v-if="(row.status === 3 || row.status === 2) && row.candidates && row.candidates.length" class="space-y-1">
                           <div v-for="c in row.candidates" :key="c.vend_transaction_id" class="flex items-center space-x-1 text-xs">
+                            <!-- A sale another line already holds cannot be picked: it would only bounce.
+                                 Show who holds it — if THAT line is the wrong one, ignore it first. -->
+                            <span
+                              v-if="c.claimed_by_row"
+                              class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-gray-200 text-gray-600"
+                              :title="'Held by row #' + c.claimed_by_row.row_no + (c.claimed_by_row.same_report ? '' : ' of report ' + c.claimed_by_row.report_id) + ' — NETS charged more times than mark1 recorded sales; check for a double charge'"
+                            >
+                              held by row #{{ c.claimed_by_row.row_no }}<span v-if="!c.claimed_by_row.same_report"> (report {{ c.claimed_by_row.report_id }})</span>
+                            </span>
                             <Button
+                              v-else
                               type="button" class="bg-green-500 hover:bg-green-600 px-2 py-1 text-xs text-white"
                               @click="resolveTo(row, c.vend_transaction_id)"
                             >
                               Pick
                             </Button>
-                            <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.is_refunded" class="text-red-600"> · refunded</span></span>
+                            <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.other_vend" class="text-orange-700 font-medium"> · on machine {{ c.vend_code }}</span><span v-if="c.is_refunded" class="text-red-600"> · refunded</span></span>
                           </div>
                         </div>
                         <div v-if="(row.status === 2 || row.status === 3) && !row.is_reversal" class="flex items-center space-x-1 mt-1">
@@ -315,6 +347,7 @@ const props = defineProps({
   rows: { type: Object, required: true },
   rowFilters: { type: Object, default: () => ({}) },
   unboundTerminals: { type: Array, default: () => [] },
+  suspectBindings: { type: Array, default: () => [] },
   statusLabels: { type: Object, default: () => ({}) },
 })
 

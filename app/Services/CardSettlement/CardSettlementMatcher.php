@@ -310,6 +310,7 @@ class CardSettlementMatcher
 
         $assignedRows = [];
         $claimedTxns = [];
+        $noSaleOnBoundVend = [];
         foreach ($pairs as $pair) {
             $rowId = $pair['row']->id;
             $txnId = $pair['candidate']->id;
@@ -340,14 +341,103 @@ class CardSettlementMatcher
                 continue;
             }
             $hadCandidates = ! empty($eligibleByRow[$row->id]);
+            if (! $hadCandidates) {
+                $noSaleOnBoundVend[] = $row;
+
+                continue;
+            }
             $row->update([
                 'status' => CardSettlementRow::STATUS_UNMATCHED,
                 'matched_vend_transaction_id' => null,
                 'match_time_delta' => null,
-                'candidates_json' => $hadCandidates ? $this->candidatesPayload($eligibleByRow[$row->id]) : null,
-                'resolution_note' => $hadCandidates
-                    ? 'All matching sales already claimed'
-                    : 'No matching sale in window',
+                'candidates_json' => $this->candidatesPayload($eligibleByRow[$row->id]),
+                // Every fitting sale was taken by another line: NETS charged
+                // more times than mark1 recorded here (double tap?).
+                'resolution_note' => 'All matching sales already claimed',
+            ]);
+        }
+
+        if (! empty($noSaleOnBoundVend)) {
+            $this->flagSalesOnOtherMachines(collect($noSaleOnBoundVend), $earlySlack, $lateSlack);
+        }
+    }
+
+    /**
+     * Lines with no fitting sale on the machine the terminal is bound to.
+     * Before calling that "no sale", look fleet-wide: the same amount at the
+     * same moment on ANOTHER machine means the terminal is physically there
+     * and the binding sheet is wrong (live case 2026-08-02: TID 23082812
+     * bound to 2787, which recorded nothing all day, while its lines fit
+     * 2696 to the second). The line stays UNMATCHED — a human moves the
+     * binding and rematches — but the note and candidates now say where.
+     *
+     * @param  Collection<int, CardSettlementRow>  $rows  full-time rows only
+     */
+    protected function flagSalesOnOtherMachines(Collection $rows, int $earlySlack, int $lateSlack): void
+    {
+        $from = Carbon::parse($rows->min('transaction_date'))->startOfDay()->subDay();
+        $until = Carbon::parse($rows->max('transaction_date'))->endOfDay()->addDay();
+
+        $fleet = VendTransaction::query()
+            ->withoutGlobalScopes()
+            ->join('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->whereBetween('vend_transactions.transaction_datetime', [$from, $until])
+            ->whereIn('vend_transactions.amount', $rows->pluck('amount_cents')->unique())
+            ->whereNotIn('vend_transactions.vend_id', $rows->pluck('vend_id')->unique())
+            ->whereNull('payment_methods.payment_gateway_id')
+            ->where('payment_methods.code', '>', 0)
+            ->where('vend_transactions.is_retained_credit_settlement', false)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('card_settlement_rows')
+                    ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
+            })
+            ->get([
+                'vend_transactions.id',
+                'vend_transactions.vend_id',
+                'vend_transactions.transaction_datetime',
+                'vend_transactions.amount',
+                'vend_transactions.is_refunded',
+            ]);
+
+        $vendCodes = \App\Models\Vend::withoutGlobalScopes()
+            ->whereIn('id', $fleet->pluck('vend_id')->unique())
+            ->pluck('code', 'id');
+
+        foreach ($rows as $row) {
+            $hits = [];
+            foreach ($fleet as $sale) {
+                if ($sale->amount !== $row->amount_cents) {
+                    continue;
+                }
+                $delta = $this->timeDelta($row, $sale, $earlySlack, $lateSlack);
+                if ($delta !== null) {
+                    $hits[] = ['row' => $row, 'candidate' => $sale, 'delta' => $delta];
+                }
+            }
+
+            $vendsHit = collect($hits)->pluck('candidate.vend_id')->unique();
+            if ($vendsHit->count() === 1) {
+                $code = $vendCodes->get($vendsHit->first()) ?? ('#'.$vendsHit->first());
+                $row->update([
+                    'status' => CardSettlementRow::STATUS_UNMATCHED,
+                    'matched_vend_transaction_id' => null,
+                    'match_time_delta' => null,
+                    'candidates_json' => collect($this->candidatesPayload($hits))
+                        ->map(fn ($c) => $c + ['vend_code' => $code, 'other_vend' => true])
+                        ->all(),
+                    'resolution_note' => 'No matching sale on bound machine — found on machine '.$code,
+                ]);
+
+                continue;
+            }
+
+            $row->update([
+                'status' => CardSettlementRow::STATUS_UNMATCHED,
+                'matched_vend_transaction_id' => null,
+                'match_time_delta' => null,
+                'candidates_json' => null,
+                'resolution_note' => 'No matching sale in window',
             ]);
         }
     }

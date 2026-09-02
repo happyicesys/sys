@@ -339,6 +339,27 @@ class CardSettlementMatchTest extends TestCase
         $this->assertSame(35, $reversal->fresh()->match_time_delta);
     }
 
+    /**
+     * The bound machine has nothing, but another machine has the exact sale:
+     * the terminal is physically there and the binding sheet is wrong. The
+     * line stays a query, but says where the sale is so the binding gets fixed.
+     */
+    public function test_sale_on_another_machine_flags_a_suspect_binding()
+    {
+        $elsewhere = $this->txn('2026-08-29 22:31:07', 240, ['vend_id' => 2696]);
+        $report = $this->report();
+        $row = $this->row($report);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->status);
+        $this->assertNull($row->matched_vend_transaction_id);
+        $this->assertStringStartsWith('No matching sale on bound machine', $row->resolution_note);
+        $this->assertSame($elsewhere->id, $row->candidates_json[0]['vend_transaction_id']);
+        $this->assertTrue($row->candidates_json[0]['other_vend']);
+    }
+
     public function test_non_purchase_rows_are_ignored()
     {
         $report = $this->report();
