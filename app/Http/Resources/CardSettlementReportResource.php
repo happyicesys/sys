@@ -23,6 +23,7 @@ class CardSettlementReportResource extends JsonResource
             'status' => $this->status,
             'total_rows' => $this->total_rows,
             'purchase_rows' => $this->purchase_rows,
+            'partial_time_rows' => $this->partial_time_rows,
             'matched_count' => $this->matched_count,
             'unmatched_count' => $this->unmatched_count,
             'ambiguous_count' => $this->ambiguous_count,

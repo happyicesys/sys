@@ -17,10 +17,16 @@ MerchantConnect daily report — so this feature lets the user upload it on dema
   the terminal clock: the report stamps card-APPROVAL time, our TRADE frame lands **10–25 s later**
   (verified TID 23082824 ↔ vend 2542, 8/8 purchases matched, deltas 9–25 s). Matching window:
   txn − report ∈ [−60 s, +300 s] (`config/card_settlement.php`).
-- **A CSV opened + re-saved in Excel loses the hour**: `21:48:59` becomes `48:59.0` (and Merchant ID
-  becomes `1.11E+11`). 29 of the 30 August files are damaged like this; only the 30/8 file was raw.
-  The parser handles both — damaged rows are flagged `time_is_partial` and match circularly on mm:ss
-  within the hour; two plausible hours ⇒ AMBIGUOUS for the user. **Upload raw portal downloads.**
+- **A CSV opened + re-saved in Excel loses the hour**: `23:12:41` becomes `12:41.0` in the file bytes
+  (and dates become `1/8/2026`, Merchant ID `1.11E+11`). Opening such a file again, Excel's formula
+  bar shows a fake `12:12:41 AM` — that is Excel parsing `12:41.0` as mm:ss with hour 0, NOT the
+  real time (verified: that exact line is the sale at 2026-08-01 **23**:12:52 in prod). **5 of the 30
+  August files are damaged like this** (0801, 0825, 0826, 0827, 0829 — corrected 2026-09-02 from an
+  earlier "29 of 30" note that generalised from one file); the other 25 are raw
+  (`2026-08-02`, `22:46:33.000`). The parser handles both — damaged rows are flagged
+  `time_is_partial` and match circularly on mm:ss within the hour; two plausible hours ⇒ AMBIGUOUS
+  for the user. The report shows `partial_time_rows` as an amber warning. **Upload raw portal
+  downloads** — nothing on import can recover a digit that is not in the file.
 - The NETS business day cuts over ~22:30, so one file spans two calendar dates. The row's own
   Transaction Date drives matching; consecutive daily files can share edge rows — fingerprint dedupe
   (sha1 of provider|tid|date|seq|amount|time, UNIQUE) marks re-ingested lines DUPLICATE.

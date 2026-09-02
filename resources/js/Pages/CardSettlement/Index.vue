@@ -195,6 +195,13 @@
                       </TableData>
                       <TableData :currentIndex="reportIndex" :totalLength="reports.length" inputClass="text-center">
                         {{ report.purchase_rows }} / {{ report.total_rows }}
+                        <span
+                          v-if="report.partial_time_rows"
+                          class="block text-xs text-amber-700"
+                          :title="report.partial_time_rows + ' lines lost their hour (file re-saved in Excel) — matched on minute:second only'"
+                        >
+                          ⚠ no hour on {{ report.partial_time_rows }}
+                        </span>
                       </TableData>
                       <TableData :currentIndex="reportIndex" :totalLength="reports.length" inputClass="text-center">
                         <span class="text-green-700 font-medium">{{ report.matched_count }}</span>

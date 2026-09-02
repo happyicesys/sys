@@ -75,10 +75,46 @@ class CardSettlementIngestTest extends TestCase
         $this->assertSame('2026-08-29', $report->cutover_date->toDateString());
         $this->assertSame(2, $report->total_rows);
         $this->assertSame(1, $report->purchase_rows);
+        $this->assertSame(0, $report->partial_time_rows); // raw portal file: every line keeps its hour
         $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->status);
         $this->assertSame(2, $report->rows()->count());
         // No binding exists → the purchase row surfaces as a query, not an error.
         $this->assertSame(1, $report->rows()->where('resolution_note', 'No terminal binding')->count());
+    }
+
+    /**
+     * An Excel re-save turns "23:12:41" into "12:41.0" — the hour is gone from
+     * the bytes (Excel's own formula bar then shows a fake "12:12:41 AM"). The
+     * report counts such lines so the user is warned to re-download the raw file.
+     */
+    public function test_counts_lines_whose_hour_was_lost_to_excel()
+    {
+        $disk = CardSettlementReport::storageDisk();
+        $path = 'card-settlements/'.uniqid().'.csv';
+        Storage::disk($disk)->put($path, str_replace(
+            'EFTPOS,Purchase,2026-08-29,22:30:58.000,',
+            'EFTPOS,Purchase,29/8/2026,12:41.0,',
+            $this->csv()
+        ));
+
+        $report = CardSettlementReport::create([
+            'provider' => 'nets',
+            'original_filename' => 'MCONNECT_excel_resaved.csv',
+            'storage_disk' => $disk,
+            'status' => CardSettlementReport::STATUS_UPLOADED,
+        ]);
+        $report->attachments()->create([
+            'full_url' => '/card-settlements/'.$report->id.'/download',
+            'local_url' => $path,
+            'type' => 'card-settlement-report',
+        ]);
+
+        (new MatchCardSettlementReport($report->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+
+        $this->assertSame(1, $report->fresh()->partial_time_rows);
+        $row = $report->rows()->where('txn_type', 'Purchase')->first();
+        $this->assertTrue($row->time_is_partial);
+        $this->assertSame('00:12:41', $row->transaction_time); // mm:ss kept, hour unknown (not midnight)
     }
 
     public function test_reingesting_the_same_lines_marks_them_duplicate()

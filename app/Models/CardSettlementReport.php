@@ -28,6 +28,7 @@ class CardSettlementReport extends Model
         'total_rows',
         'purchase_rows',
         'reversal_rows',
+        'partial_time_rows',
         'matched_count',
         'unmatched_count',
         'ambiguous_count',

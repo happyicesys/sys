@@ -86,6 +86,9 @@ class MatchCardSettlementReport implements ShouldQueue
             'total_rows' => count($parsed->rows),
             'purchase_rows' => collect($parsed->rows)->filter(fn ($r) => $r->isPurchase() && ! $r->isReversal)->count(),
             'reversal_rows' => collect($parsed->rows)->filter(fn ($r) => $r->isReversal)->count(),
+            // Lines whose hour was lost to an Excel re-save ("23:12:41" → "12:41.0");
+            // they match on mm:ss only — shown as a warning on the report.
+            'partial_time_rows' => collect($parsed->rows)->filter(fn ($r) => $r->timeIsPartial)->count(),
         ])->save();
 
         $now = now();

@@ -185,6 +185,7 @@ class CardSettlementController extends Controller
                 'total_rows' => $report->total_rows,
                 'purchase_rows' => $report->purchase_rows,
                 'reversal_rows' => $report->reversal_rows,
+                'partial_time_rows' => $report->partial_time_rows,
                 'matched_count' => $report->matched_count,
                 'unmatched_count' => $report->unmatched_count,
                 'ambiguous_count' => $report->ambiguous_count,

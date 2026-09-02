@@ -96,6 +96,15 @@
         {{ report.error_message }}
       </div>
 
+      <!-- Excel-damaged file: the hour is gone from the file itself (Excel shows a fake
+           "12:xx:xx AM" in its formula bar). Rows are matched on minute:second only. -->
+      <div v-if="report.partial_time_rows" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm text-amber-800">
+        <span class="font-semibold">{{ report.partial_time_rows }} of {{ report.total_rows }} lines have no hour</span> —
+        this file was opened and re-saved in Excel, which turns "23:12:41" into "12:41.0". Those lines were matched on
+        minute:second within the hour (same terminal, same amount), so ambiguous ones need a manual pick. For exact
+        matching, re-download the raw CSV from MerchantConnect and upload that instead.
+      </div>
+
       <!-- unbound terminals -->
       <div v-if="unboundTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
         <div class="font-semibold text-amber-800 mb-1">Terminals without a machine binding</div>
