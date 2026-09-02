@@ -8,6 +8,7 @@ use App\Models\RefundPayoutBatch;
 use App\Models\RefundSettlementExport;
 use App\Models\RefundTicket;
 use App\Services\Refund\RefundSettlementService;
+use App\Support\SgMobile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -38,8 +39,8 @@ class RefundSettlementController extends Controller
         $status = $request->input('status');
         // Only open / closed are surfaced; "closed" matches any non-open row.
         $query->when($status && $status !== 'all', function ($q) use ($status) {
-                $status === 'open' ? $q->where('status', 'open') : $q->where('status', '!=', 'open');
-            })
+            $status === 'open' ? $q->where('status', 'open') : $q->where('status', '!=', 'open');
+        })
             ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('settlement_date', '>=', $d))
             ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('settlement_date', '<=', $d))
             ->when($request->input('search'), fn ($q, $s) => $q->where('reference', 'like', "%{$s}%"))
@@ -69,8 +70,8 @@ class RefundSettlementController extends Controller
                 'settlement_date' => optional($s->settlement_date)->format('ymd'),
                 'status' => $s->status === RefundPayoutBatch::STATUS_OPEN ? 'open' : 'closed',
                 'head' => $s->payout_group_id
-                    ? ($groups->get($s->payout_group_id)?->name ?? ('Group #' . $s->payout_group_id))
-                    : ($operators->get($s->operator_id)?->name ?? ('Operator #' . $s->operator_id)),
+                    ? ($groups->get($s->payout_group_id)?->name ?? ('Group #'.$s->payout_group_id))
+                    : ($operators->get($s->operator_id)?->name ?? ('Operator #'.$s->operator_id)),
                 'count' => (int) $s->count,
                 'total' => number_format($s->total_cents / 100, 2),
                 'paynow_count' => (int) ($paynow->c ?? 0),
@@ -86,6 +87,7 @@ class RefundSettlementController extends Controller
         $mkCount = function () {
             $q = RefundPayoutBatch::query()->settlements();
             $this->scopeToUser($q);
+
             return $q;
         };
         $statusCounts = [
@@ -139,6 +141,7 @@ class RefundSettlementController extends Controller
 
         $mapTicket = function (RefundTicket $t) use ($vends, $siteNames, $actors) {
             $site = $t->vend_id && $vends->get($t->vend_id) ? $siteNames->get($vends->get($t->vend_id)->customer_id) : null;
+
             return [
                 'id' => $t->id,
                 'reference' => $t->reference,
@@ -161,8 +164,8 @@ class RefundSettlementController extends Controller
         };
 
         $head = $settlement->payout_group_id
-            ? (PayoutGroup::find($settlement->payout_group_id)?->name ?? ('Group #' . $settlement->payout_group_id))
-            : (Operator::withoutGlobalScopes()->find($settlement->operator_id)?->name ?? ('Operator #' . $settlement->operator_id));
+            ? (PayoutGroup::find($settlement->payout_group_id)?->name ?? ('Group #'.$settlement->payout_group_id))
+            : (Operator::withoutGlobalScopes()->find($settlement->operator_id)?->name ?? ('Operator #'.$settlement->operator_id));
 
         return Inertia::render('RefundSettlement/Show', [
             'settlement' => [
@@ -187,7 +190,7 @@ class RefundSettlementController extends Controller
                 'count' => $e->count,
                 'total' => number_format($e->total_cents / 100, 2),
                 'exported_at' => optional($e->exported_at)->format('ymd h:i a'),
-                'download_url' => '/refund-settlements/' . $settlement->id . '/exports/' . $e->id . '/download',
+                'download_url' => '/refund-settlements/'.$settlement->id.'/exports/'.$e->id.'/download',
             ])->values(),
             'logs' => $settlement->settlementLogs->map(fn ($l) => [
                 'actor_label' => $l->actor_label,
@@ -211,7 +214,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return back()->with('success', $res['pushed'] . ' refund(s) pushed to settlement (' . implode(', ', $res['settlements']) . ').');
+        return back()->with('success', $res['pushed'].' refund(s) pushed to settlement ('.implode(', ', $res['settlements']).').');
     }
 
     public function close(RefundPayoutBatch $settlement)
@@ -246,7 +249,7 @@ class RefundSettlementController extends Controller
 
         return response($res['content'], 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $res['filename'] . '"',
+            'Content-Disposition' => 'attachment; filename="'.$res['filename'].'"',
             'X-Filename' => $res['filename'],
             'Access-Control-Expose-Headers' => 'Content-Disposition, X-Filename',
         ]);
@@ -283,7 +286,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return back()->with('success', $done . ' refund(s) marked done.');
+        return back()->with('success', $done.' refund(s) marked done.');
     }
 
     public function markInsufficientInfo(Request $request, RefundPayoutBatch $settlement)
@@ -298,7 +301,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return back()->with('success', $n . ' refund(s) flagged as insufficient info — handle them on the Refund Requests page.');
+        return back()->with('success', $n.' refund(s) flagged as insufficient info — handle them on the Refund Requests page.');
     }
 
     public function returnToPool(RefundPayoutBatch $settlement, RefundTicket $ticket)
@@ -329,7 +332,7 @@ class RefundSettlementController extends Controller
     {
         $authOperatorId = auth()->user()?->operator_id;
         $isHappyIce = (int) $authOperatorId === 1;
-        if (!$isHappyIce && $authOperatorId) {
+        if (! $isHappyIce && $authOperatorId) {
             $op = Operator::withoutGlobalScopes()->find($authOperatorId);
             $groupId = $op?->payout_group_id;
             $query->where(function ($q) use ($authOperatorId, $groupId) {
@@ -339,13 +342,14 @@ class RefundSettlementController extends Controller
                 }
             });
         }
+
         return $query;
     }
 
     protected function authorizeView(RefundPayoutBatch $settlement): void
     {
         $authOperatorId = auth()->user()?->operator_id;
-        if ((int) $authOperatorId === 1 || !$authOperatorId) {
+        if ((int) $authOperatorId === 1 || ! $authOperatorId) {
             return; // HIPL / unscoped admin
         }
         $op = Operator::withoutGlobalScopes()->find($authOperatorId);
@@ -356,14 +360,6 @@ class RefundSettlementController extends Controller
 
     protected function isValidPaynow(?string $value): bool
     {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return false;
-        }
-        try {
-            return (new \Propaganistas\LaravelPhone\PhoneNumber($value, config('refund.paynow_country', 'SG')))->isValid();
-        } catch (\Throwable $e) {
-            return false;
-        }
+        return SgMobile::isValid($value);
     }
 }

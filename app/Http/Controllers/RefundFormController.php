@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundMatchingService;
 use App\Services\Refund\RefundTicketService;
+use App\Support\SgMobile;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -42,26 +43,12 @@ class RefundFormController extends Controller
     }
 
     /**
-     * Validate a PayNow destination — we only refund to a personal mobile number,
-     * so it must be a valid phone number for the operator's country.
+     * Validate a PayNow destination — we only refund to a personal SG mobile,
+     * so it must be 8 digits starting with 8 or 9 (see App\Support\SgMobile).
      */
-    protected function isValidPaynowDestination(string $value, string $country): bool
+    protected function isValidPaynowDestination(string $value): bool
     {
-        $country = strtoupper($country ?: 'SG');
-
-        try {
-            $phone = new \Propaganistas\LaravelPhone\PhoneNumber($value, $country);
-            if (! $phone->isValid()) {
-                return false;
-            }
-            try {
-                return $phone->isOfType('mobile');
-            } catch (\Throwable $e) {
-                return true; // type lookup unavailable -> accept any valid number
-            }
-        } catch (\Throwable $e) {
-            return false;
-        }
+        return SgMobile::isValid($value);
     }
 
     /**
@@ -286,7 +273,7 @@ class RefundFormController extends Controller
                     'payout_destination' => 'Please enter your PayNow mobile number.',
                 ]);
             }
-            if (! $this->isValidPaynowDestination($dest, config('refund.paynow_country', 'SG'))) {
+            if (! $this->isValidPaynowDestination($dest)) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'payout_destination' => 'Please enter a valid Singapore mobile number registered for PayNow.',
                 ]);

@@ -3,6 +3,7 @@
 namespace App\Services\Refund\BankTemplates;
 
 use App\Models\RefundTicket;
+use App\Support\SgMobile;
 use Illuminate\Support\Collection;
 
 /**
@@ -49,7 +50,7 @@ class CimbBizChannelTemplate implements BankBulkTemplate
         //    meta['originating_account'] — no silent config fallback, so a
         //    third-party operator can never ride HIPL's env account.
         //  - Legacy /refunds direct export: unchanged — operator field, then config.
-        if (!empty($meta['originating_account']['no'])) {
+        if (! empty($meta['originating_account']['no'])) {
             $accountNo = trim((string) $meta['originating_account']['no']);
             $accountName = trim((string) ($meta['originating_account']['name'] ?? ''));
         } else {
@@ -89,24 +90,18 @@ class CimbBizChannelTemplate implements BankBulkTemplate
                 $this->clean(mb_substr((string) $t->reference, 0, 35)), // G remark to counterparty (<=35)
                 '',                                              // H DDA reference (blank for payments)
                 '',                                              // I beneficiary email — left blank (not required)
-            ]) . $d; // trailing delimiter (matches template)
+            ]).$d; // trailing delimiter (matches template)
         }
 
         return implode("\n", $lines);
     }
 
-    /** Format a PayNow mobile to +65 E.164; fall back to the raw value if parsing fails. */
+    /** Format a PayNow mobile to +65 E.164; fall back to the raw value if it is not a valid SG mobile. */
     protected function paynowMobile(?string $value): string
     {
         $value = trim((string) $value);
-        if ($value === '') {
-            return '';
-        }
-        try {
-            return (new \Propaganistas\LaravelPhone\PhoneNumber($value, config('refund.paynow_country', 'SG')))->formatE164();
-        } catch (\Throwable $e) {
-            return $value;
-        }
+
+        return SgMobile::e164($value) ?? $value;
     }
 
     protected function beneficiaryName(RefundTicket $t): string

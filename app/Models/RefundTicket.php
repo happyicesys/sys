@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SgMobile;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,17 +13,26 @@ class RefundTicket extends Model
 
     // ---- status machine ----
     const STATUS_SUBMITTED = 'submitted';
+
     // Manual follow-up: Ops has emailed the customer to get more info. Sits between
     // Received and a decision; Approve/Reject/Drop stay available. No email is sent
     // by the system when a ticket is moved here.
     const STATUS_PENDING = 'pending';
+
     const STATUS_AUTO_RESOLVED = 'auto_resolved';            // Nayax external / already auto-refunded
+
     const STATUS_VERIFIED = 'verified';
+
     const STATUS_REJECTED = 'rejected';
+
     const STATUS_APPROVED = 'approved';
+
     const STATUS_PENDING_TRANSFER_INFO = 'pending_transfer_info';
+
     const STATUS_SCHEDULED = 'scheduled';
+
     const STATUS_COMPLETED = 'completed';
+
     // Payout-stage flag: a scheduled refund the bank could not pay (bad/missing
     // PayNow/transfer info). Kept in its settlement for the record but pulled out
     // of the CIMB export / mark-done flow so an admin can handle it by hand and
@@ -31,19 +41,27 @@ class RefundTicket extends Model
 
     // ---- system recommendation ----
     const REC_PROCEED = 'proceed';
+
     const REC_REVIEW = 'review';
+
     const REC_REJECT = 'reject';
 
     // ---- payment channel ----
     const CHANNEL_QR = 'qr';
+
     const CHANNEL_NAYAX = 'nayax';
+
     const CHANNEL_OTHER_POS = 'other_pos';
+
     const CHANNEL_UNKNOWN = 'unknown';
 
     // ---- refund method ----
     const METHOD_PAYNOW = 'paynow';
+
     const METHOD_PAYPAL = 'paypal';
+
     const METHOD_NAYAX_AUTO = 'nayax_auto';
+
     const METHOD_NONE = 'none';
 
     protected $fillable = [
@@ -139,24 +157,9 @@ class RefundTicket extends Model
             return $raw; // blank, or a PayPal email — leave alone
         }
 
-        $digits = preg_replace('/\D+/', '', $raw); // drop +, spaces, dashes, parens
-        if ($digits === '') {
-            return $raw;
-        }
-
-        // Strip an SG country prefix in front of an 8-digit local number.
-        if (strlen($digits) === 12 && str_starts_with($digits, '0065')) {
-            $digits = substr($digits, 4);
-        } elseif (strlen($digits) === 10 && str_starts_with($digits, '65')) {
-            $digits = substr($digits, 2);
-        }
-
-        // Canonical SG mobile: exactly 8 digits starting 8 or 9.
-        if (preg_match('/^[89]\d{7}$/', $digits)) {
-            return $digits;
-        }
-
-        return $raw; // NRIC / UEN / foreign / partial — keep as entered
+        // Canonical SG mobile: exactly 8 digits starting 8 or 9 (App\Support\SgMobile).
+        return SgMobile::normalise($raw)
+            ?? $raw; // NRIC / UEN / foreign / partial — keep as entered
     }
 
     /** Store PayNow numbers in one canonical 8-digit shape (see normalizePaynowMobile). */
@@ -278,7 +281,7 @@ class RefundTicket extends Model
         $vtId = $this->vend_transaction_id;
         $logId = $this->payment_gateway_log_id;
 
-        if (!$orderId && !$vtId && !$logId) {
+        if (! $orderId && ! $vtId && ! $logId) {
             return null;
         }
 

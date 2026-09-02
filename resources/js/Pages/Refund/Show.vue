@@ -601,11 +601,19 @@ function actionBadge(l) {
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-lg font-bold text-gray-900 tracking-tight">${{ r.amount }}</span>
                         <span class="text-xs text-gray-500">{{ r.payment_method || '—' }}</span>
-                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border"
-                            :class="r.payment_status === 'Successful' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
-                            {{ r.payment_status || '—' }}
+                        <!-- Payment and dispense are separate facts (App\Support\SaleStatus):
+                             Paid / Refunded is about the money, Dispensed / Failed is the
+                             machine's verdict. -->
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border" title="Payment"
+                            :class="['Paid', 'Settled'].includes(r.payment_status) ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
+                            {{ r.payment_status === 'Refunded' ? '↩ Refunded' : (r.payment_status || '—') }}
                         </span>
-                        <span v-if="r.is_refunded" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">↩ Refunded</span>
+                        <span v-if="r.dispense_status" class="text-[11px] font-semibold px-2 py-0.5 rounded-full border" title="Dispense"
+                            :class="r.dispense_status.startsWith('Dispensed') ? 'bg-green-50 text-green-700 border-green-200'
+                                : (r.dispense_status.startsWith('Failed') ? 'bg-red-50 text-red-700 border-red-200'
+                                : (r.dispense_status.startsWith('Partial') ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-600 border-gray-200'))">
+                            {{ r.dispense_status }}
+                        </span>
                     </div>
                     <a :href="r.link" target="_blank" class="shrink-0 text-teal-600 text-xs font-semibold hover:underline"
                         title="Open Sales Transactions filtered to this machine on the same day">View same-day transactions ↗</a>
