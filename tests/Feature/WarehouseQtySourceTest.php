@@ -349,4 +349,49 @@ class WarehouseQtySourceTest extends TestCase
                         && $n['last_incoming_qty'] === null && $n['last_incoming_at'] === null;
                 }));
     }
+
+    public function test_availability_page_sorts_by_last_incoming_across_cms_and_ledger_rows_with_never_stocked_last(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => 'https://cms.test']);
+        \Illuminate\Support\Facades\Http::fake(['cms.test/*' => \Illuminate\Support\Facades\Http::response([
+            ['code' => 'A-OLD', 'qty' => 1, 'last_incoming_qty' => 10, 'last_incoming_date' => '2026-08-01'],
+            ['code' => 'A-NEW', 'qty' => 1, 'last_incoming_qty' => 10, 'last_incoming_date' => '2026-08-30'],
+            ['code' => 'A-NONE', 'qty' => 1],
+        ])]);
+        foreach (['A-OLD', 'A-NEW', 'A-NONE'] as $code) {
+            Product::create(['code' => $code, 'name' => $code, 'operator_id' => $u->operator_id, 'is_available' => 1]);
+        }
+        $cb = Product::create(['code' => 'A-MID', 'name' => 'Ledger', 'operator_id' => $u->operator_id, 'is_available' => 1, 'warehouse_qty_source' => 'ledger']);
+        DB::table('product_movements')->insert(['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 3, 'created_at' => '2026-08-15 09:00:00', 'updated_at' => now()]);
+
+        $codes = fn ($rows) => collect($rows)->pluck('code')->values()->all();
+
+        $this->actingAs($u)->get('/products/availability?operators[]=all&sortKey=last_incoming_at&sortBy=false')
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => $codes($rows) === ['A-NEW', 'A-MID', 'A-OLD', 'A-NONE']));
+
+        $this->actingAs($u)->get('/products/availability?operators[]=all&sortKey=last_incoming_at&sortBy=true')
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => $codes($rows) === ['A-OLD', 'A-MID', 'A-NEW', 'A-NONE']));
+    }
+
+    public function test_movements_page_sorts_by_last_incoming_with_never_stocked_last(): void
+    {
+        $u = $this->plannerUser();
+        config(['app.cms_url' => null]);
+        $old = Product::create(['code' => 'B-OLD', 'name' => 'Old', 'operator_id' => $u->operator_id]);
+        $new = Product::create(['code' => 'B-NEW', 'name' => 'New', 'operator_id' => $u->operator_id]);
+        Product::create(['code' => 'B-NONE', 'name' => 'None', 'operator_id' => $u->operator_id]);
+        DB::table('product_movements')->insert([
+            ['product_id' => $old->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 1, 'created_at' => '2026-08-01 09:00:00', 'updated_at' => now()],
+            ['product_id' => $new->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 1, 'created_at' => '2026-08-30 09:00:00', 'updated_at' => now()],
+        ]);
+
+        $codes = fn ($rows) => collect($rows)->pluck('code')->values()->all();
+
+        $this->actingAs($u)->get('/products/movements?operators[]=all&sortKey=last_incoming_at&sortBy=false')
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => $codes($rows) === ['B-NEW', 'B-OLD', 'B-NONE']));
+
+        $this->actingAs($u)->get('/products/movements?operators[]=all&sortKey=last_incoming_at&sortBy=true')
+            ->assertInertia(fn ($page) => $page->where('products.data', fn ($rows) => $codes($rows) === ['B-OLD', 'B-NEW', 'B-NONE']));
+    }
 }

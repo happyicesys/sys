@@ -586,11 +586,18 @@ class ProductMovementController extends Controller
                 $query->where('products.warehouse_qty_source', \App\Enums\WarehouseQtySource::Ledger->value);
             })
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
-                $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                $dir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+                if ($sortKey === 'last_incoming_at') {
+                    // Subselect alias from withLastLedgerIncoming(); never-stocked
+                    // rows (NULL) go last in both directions.
+                    $query->orderByRaw('last_incoming_at IS NULL')->orderBy('last_incoming_at', $dir);
+                } else {
+                    $query->orderBy($sortKey, $dir);
+                }
             }, function ($query) {
                 $query->orderBy('code', 'desc');
             })
-            // Last incoming (qty + date) shown under Qty in Warehouse.
+            // Last incoming (qty + date) column.
             ->withLastLedgerIncoming()
             // Calculate needed_qty (same as existing)
             ->selectSub(function ($sub) use ($request) {

@@ -481,7 +481,9 @@ class ProductController extends Controller
             })
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
                 // If sorting by calculated fields, keep simple sorts here and handle complex sorts if needed in JS or dedicated query
-                if (! in_array($sortKey, ['needed_qty', 'needed_value', 'not_yet_sync_api_qty', 'picked_value_on_date'])) {
+                // last_incoming_at: cms rows only get theirs from the CMS feed after
+                // the query, so that sort happens on the finished collection below.
+                if (! in_array($sortKey, ['needed_qty', 'needed_value', 'not_yet_sync_api_qty', 'picked_value_on_date', 'last_incoming_at'])) {
                     $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 }
             }, function ($query) {
@@ -645,6 +647,10 @@ class ProductController extends Controller
             $product->net_available_qty_pcs_api = ($product->qty_available_pcs_api ?? 0) - ($product->not_yet_sync_api_qty ?? 0);
         }
 
+        if ($request->sortKey === 'last_incoming_at') {
+            $products = $this->sortByLastIncoming($products, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN));
+        }
+
         return Inertia::render('Vend/ProductAvailability', [
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
@@ -659,6 +665,23 @@ class ProductController extends Controller
             // Same-operator users for the @-mention dropdown in the remarks cell.
             'mentionableUsers' => $authUser ? $noteService->mentionableUsers($authUser) : [],
         ]);
+    }
+
+    /**
+     * Order by last_incoming_at (CMS date or ledger datetime), never-stocked
+     * rows last in both directions — mirrors the ledger page's SQL ordering.
+     */
+    private function sortByLastIncoming($products, bool $asc)
+    {
+        return $products->sort(function ($a, $b) use ($asc) {
+            $ta = $a->last_incoming_at ? strtotime((string) $a->last_incoming_at) : null;
+            $tb = $b->last_incoming_at ? strtotime((string) $b->last_incoming_at) : null;
+            if ($ta === null || $tb === null) {
+                return ($ta === null) <=> ($tb === null);
+            }
+
+            return $asc ? $ta <=> $tb : $tb <=> $ta;
+        })->values();
     }
 
     public function exportAvailability(Request $request)

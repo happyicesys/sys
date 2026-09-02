@@ -133,7 +133,7 @@
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-100 sticky top-0 z-10">
                   <tr>
-                    <th colspan="8" class="bg-gray-100"></th>
+                    <th colspan="9" class="bg-gray-100"></th>
                     <th colspan="3" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
                       Planning
                     </th>
@@ -180,7 +180,21 @@
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Qty in Warehouse <br>
                       <span class="font-normal text-gray-600">(from API)</span>
-                      <span class="block mt-2 text-gray-900">Last incoming Qty, Date</span>
+                    </th>
+                    <!-- Last incoming: CMS's last Stock In batch, or the ledger's last incoming movement. Sorted by date. -->
+                    <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('last_incoming_at')">
+                      <div class="flex items-center justify-center gap-1">
+                          <span>Last incoming</span>
+                          <span v-if="filters.sortKey === 'last_incoming_at'">
+                              <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                              </svg>
+                              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                          </span>
+                      </div>
+                      <span class="font-normal text-gray-600">(Qty, Date)</span>
                     </th>
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Picked Qty <br>
@@ -297,16 +311,19 @@
                     <!-- Qty in Warehouse (Blue). Manual-ledger products (CityBox SKUs) show the mark1 ledger figure instead of CMS. -->
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                       {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
-                      <!-- Last incoming (black): CMS's last Stock In batch, or the ledger's last incoming movement. -->
-                      <div v-if="product.last_incoming_at" class="mt-2 text-gray-900 leading-tight">
-                        <div class="text-sm sm:text-base font-semibold">{{ Number(product.last_incoming_qty).toLocaleString() }}</div>
-                        <div class="text-[10px] sm:text-xs font-normal">{{ daysAgoLabel(product.last_incoming_at) }} ({{ moment(product.last_incoming_at).format('YYMMDD') }})</div>
-                      </div>
                       <div v-if="product.warehouse_qty_source === 'ledger'" class="mt-0.5">
                         <Link :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
                           class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
                           title="Warehouse qty is the self-system ledger (manual incoming − picks), not CMS. Click to key incoming / see history.">Self-system ledger</Link>
                       </div>
+                    </td>
+                    <!-- Last incoming (black): qty over "Nd ago (YYMMDD)"; dash when never stocked in -->
+                    <td class="p-1 sm:p-3 text-center text-gray-900 leading-tight">
+                      <template v-if="product.last_incoming_at">
+                        <div class="text-sm sm:text-lg font-bold">{{ Number(product.last_incoming_qty).toLocaleString() }}</div>
+                        <div class="text-[10px] sm:text-xs font-normal">{{ daysAgoLabel(product.last_incoming_at) }} ({{ moment(product.last_incoming_at).format('YYMMDD') }})</div>
+                      </template>
+                      <span v-else class="text-gray-400">-</span>
                     </td>
                     <!-- Picked Qty (Gray) -->
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-gray-800">
@@ -371,6 +388,8 @@
                         <span>&nbsp;</span>
                       </div>
                     </td>
+                    <!-- Last incoming: no total -->
+                    <td></td>
                     <td class="p-1 sm:p-3 text-center text-gray-800">
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductNotYetSyncApiQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
