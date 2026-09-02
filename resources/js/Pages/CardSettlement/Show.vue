@@ -1,230 +1,376 @@
-<script setup>
-import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
-
-const props = defineProps({
-    report: { type: Object, required: true },
-    rows: { type: Object, required: true },
-    rowFilters: { type: Object, default: () => ({}) },
-    unboundTerminals: { type: Array, default: () => [] },
-    statusLabels: { type: Object, default: () => ({}) },
-});
-
-const rowStatus = ref(props.rowFilters.row_status ?? 'queries');
-
-// Row status codes (CardSettlementRow::STATUS_*)
-const chips = [
-    { key: 'queries', label: 'Queries' },
-    { key: '1', label: 'Matched' },
-    { key: '2', label: 'Unmatched' },
-    { key: '3', label: 'Ambiguous' },
-    { key: '5', label: 'Duplicates' },
-    { key: '4', label: 'Ignored' },
-    { key: 'all', label: 'All rows' },
-];
-
-const rowStatusClass = (s) => ({
-    1: 'bg-green-100 text-green-800',
-    2: 'bg-amber-100 text-amber-800',
-    3: 'bg-orange-100 text-orange-800',
-    4: 'bg-gray-100 text-gray-500',
-    5: 'bg-gray-100 text-gray-500',
-}[s] || 'bg-gray-100 text-gray-700');
-
-function pickStatus(key) {
-    rowStatus.value = key;
-    router.get(`/card-settlements/${props.report.id}`, { row_status: key }, { preserveState: true, preserveScroll: true, replace: true });
-}
-
-function rematch() {
-    router.post(`/card-settlements/${props.report.id}/rematch`, {}, { preserveScroll: true });
-}
-
-function sync() {
-    if (!confirm(`Stamp "settlement synced" onto ${props.report.matched_count} matched transaction(s)?`)) return;
-    router.post(`/card-settlements/${props.report.id}/sync`, {}, { preserveScroll: true });
-}
-
-function destroyReport() {
-    if (!confirm('Delete this report and all its rows?')) return;
-    router.delete(`/card-settlements/${props.report.id}`);
-}
-
-function resolveTo(row, txnId) {
-    router.post(`/card-settlements/${props.report.id}/rows/${row.id}/resolve`,
-        { vend_transaction_id: txnId }, { preserveScroll: true });
-}
-
-const manualTxnId = ref({});
-function resolveManual(row) {
-    const id = parseInt(manualTxnId.value[row.id], 10);
-    if (!id) return;
-    resolveTo(row, id);
-}
-
-function ignoreRow(row) {
-    router.post(`/card-settlements/${props.report.id}/rows/${row.id}/ignore`, {}, { preserveScroll: true });
-}
-
-const queriesCount = props.report.unmatched_count + props.report.ambiguous_count;
-</script>
-
 <template>
-<Head :title="'Card Settlement ' + (report.cutover_date || report.id)" />
-<BreezeAuthenticatedLayout>
+
+  <Head :title="'Card Settlement ' + (report.cutover_date || report.id)" />
+
+  <BreezeAuthenticatedLayout>
     <template #header>
-        <div class="flex items-center justify-between flex-wrap gap-2">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <Link href="/card-settlements" class="text-teal-700 hover:underline">Card Settlement</Link>
-                <span class="text-gray-400"> / </span>{{ report.original_filename }}
-            </h2>
-            <div class="flex gap-2">
-                <button @click="rematch" :disabled="report.status === 'matching'"
-                    class="bg-gray-100 border text-gray-700 rounded-md px-3 py-2 text-sm disabled:opacity-50">Rematch</button>
-                <button @click="sync" :disabled="report.status === 'matching' || !report.matched_count"
-                    class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
-                    Sync {{ report.matched_count }} matched
-                </button>
-                <button v-if="report.status !== 'synced'" @click="destroyReport"
-                    class="bg-white border border-red-200 text-red-600 rounded-md px-3 py-2 text-sm">Delete</button>
-            </div>
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          <Link href="/card-settlements" class="text-blue-700 hover:underline">Card Settlement</Link>
+          <span class="text-gray-400"> / </span>{{ report.original_filename }}
+        </h2>
+        <div class="flex space-x-1">
+          <Button
+            class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+            :class="report.status === 'matching' ? 'opacity-50 cursor-not-allowed' : ''"
+            @click="rematch()"
+          >
+            <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+            <span>
+              Rematch
+            </span>
+          </Button>
+          <Button
+            class="bg-green-500 hover:bg-green-600 px-3 py-2 text-xs text-white flex space-x-1"
+            :class="report.status === 'matching' || !report.matched_count ? 'opacity-50 cursor-not-allowed' : ''"
+            @click="sync()"
+          >
+            <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+            <span>
+              Sync {{ report.matched_count }} Matched
+            </span>
+          </Button>
+          <Button
+            v-if="report.status !== 'synced'"
+            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+            @click="destroyReport()"
+          >
+            <TrashIcon class="w-4 h-4"></TrashIcon>
+            <span>
+              Delete
+            </span>
+          </Button>
         </div>
+      </div>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-        <!-- summary -->
-        <div class="bg-white rounded-md border p-3 mb-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-sm">
-            <div><div class="text-xs text-gray-400">Provider / Account</div>{{ report.provider.toUpperCase() }} · {{ report.merchant_account || '—' }}</div>
-            <div><div class="text-xs text-gray-400">Cutover date</div>{{ report.cutover_date || '—' }}</div>
-            <div><div class="text-xs text-gray-400">Status</div><span class="font-semibold">{{ report.status }}</span></div>
-            <div><div class="text-xs text-gray-400">Purchases</div>{{ report.purchase_rows }} / {{ report.total_rows }} rows</div>
-            <div><div class="text-xs text-gray-400">Matched</div><span class="text-green-700 font-semibold">{{ report.matched_count }}</span></div>
-            <div><div class="text-xs text-gray-400">Queries</div><span :class="queriesCount ? 'text-amber-700 font-semibold' : ''">{{ queriesCount }}</span></div>
-            <div><div class="text-xs text-gray-400">Duplicates / Ignored</div>{{ report.duplicate_count }} / {{ report.ignored_count }}</div>
-            <div>
-                <div class="text-xs text-gray-400">Synced</div>
-                <span v-if="report.synced_at">{{ report.synced_count }} · {{ report.synced_at }}<span v-if="report.synced_by"> by {{ report.synced_by }}</span></span>
-                <span v-else class="text-gray-300">not yet</span>
-            </div>
+      <!-- summary -->
+      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-sm">
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Provider / Account</div>
+          <span class="uppercase">{{ report.provider }}</span> · {{ report.merchant_account || '—' }}
         </div>
-
-        <div v-if="report.error_message" class="bg-red-50 border border-red-200 text-red-700 rounded-md p-3 mb-3 text-sm">
-            {{ report.error_message }}
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Cutover Date</div>
+          {{ report.cutover_date || '—' }}
         </div>
-
-        <!-- unbound terminals -->
-        <div v-if="unboundTerminals.length" class="bg-amber-50 border border-amber-200 rounded-md p-3 mb-3 text-sm">
-            <div class="font-semibold text-amber-800 mb-1">Terminals without a machine binding</div>
-            <div class="text-amber-800">
-                <span v-for="t in unboundTerminals" :key="t.terminal_id" class="inline-block mr-3">
-                    {{ t.terminal_id }} <span class="text-amber-600">({{ t.row_count }} rows)</span>
-                </span>
-            </div>
-            <div class="mt-1 text-amber-700">
-                Add them on <Link href="/card-terminal-bindings" class="underline font-medium">Card Terminal Bindings</Link>, then hit Rematch.
-            </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Status</div>
+          <span
+            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+            :class="statusBadgeClass(report.status)"
+          >
+            {{ report.status }}
+          </span>
         </div>
-
-        <!-- row status chips -->
-        <div class="flex flex-wrap gap-2 mb-3">
-            <span v-for="c in chips" :key="c.key"
-                class="text-xs font-semibold px-3 py-1.5 rounded-full border bg-white cursor-pointer"
-                :class="rowStatus === c.key ? 'border-teal-500 text-teal-700' : 'border-gray-200 text-gray-600'"
-                @click="pickStatus(c.key)">
-                {{ c.label }}
-            </span>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Purchases</div>
+          {{ report.purchase_rows }} / {{ report.total_rows }} rows
         </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Matched</div>
+          <span class="text-green-700 font-medium">{{ report.matched_count }}</span>
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Queries</div>
+          <span :class="queriesCount ? 'text-amber-700 font-bold' : ''">{{ queriesCount }}</span>
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Duplicates / Ignored</div>
+          {{ report.duplicate_count }} / {{ report.ignored_count }}
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Synced</div>
+          <span v-if="report.synced_at">{{ report.synced_count }} · {{ report.synced_at }}<span v-if="report.synced_by"> by {{ report.synced_by }}</span></span>
+          <span v-else class="text-gray-400">not yet</span>
+        </div>
+      </div>
 
-        <!-- rows -->
-        <div class="bg-white rounded-md border overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-                    <tr class="[&>th]:px-3 [&>th]:py-2 [&>th]:whitespace-nowrap [&>th]:text-left">
-                        <th>#</th>
-                        <th>Terminal</th>
-                        <th>Machine</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Card</th>
-                        <th class="text-right">Amount</th>
-                        <th class="text-center">Status</th>
-                        <th>Matched sale</th>
-                        <th>Note / Resolve</th>
-                    </tr>
+      <div v-if="report.error_message" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 text-red-700 rounded-md p-3 my-3 text-sm">
+        {{ report.error_message }}
+      </div>
+
+      <!-- unbound terminals -->
+      <div v-if="unboundTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
+        <div class="font-semibold text-amber-800 mb-1">Terminals without a machine binding</div>
+        <div class="text-amber-800">
+          <span v-for="t in unboundTerminals" :key="t.terminal_id" class="inline-block mr-3">
+            {{ t.terminal_id }} <span class="text-amber-600">({{ t.row_count }} rows)</span>
+          </span>
+        </div>
+        <div class="mt-1 text-amber-700">
+          Add them on <Link href="/card-terminal-bindings" class="underline font-medium">Card Terminal Bindings</Link>, then hit Rematch.
+        </div>
+      </div>
+
+      <!-- row status chips -->
+      <div class="flex flex-wrap gap-2 my-3">
+        <span v-for="c in chips" :key="c.key"
+          class="text-xs font-semibold px-3 py-1.5 rounded-full border bg-white cursor-pointer"
+          :class="rowStatus === c.key ? 'border-green-500 text-green-700' : 'border-gray-200 text-gray-600'"
+          @click="pickStatus(c.key)">
+          {{ c.label }}
+        </span>
+      </div>
+
+      <div class="mt-3 flex flex-col">
+       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+            <table class="min-w-full border-separate" style="border-spacing: 0">
+                <thead class="bg-gray-100">
+                  <tr class="divide-x divide-gray-200">
+                    <TableHead>
+                      #
+                    </TableHead>
+                    <TableHead>
+                      Terminal
+                    </TableHead>
+                    <TableHead>
+                      Machine ID
+                    </TableHead>
+                    <TableHead>
+                      Date
+                    </TableHead>
+                    <TableHead>
+                      Time
+                    </TableHead>
+                    <TableHead>
+                      Card
+                    </TableHead>
+                    <TableHead>
+                      Amount
+                    </TableHead>
+                    <TableHead>
+                      Status
+                    </TableHead>
+                    <TableHead>
+                      Matched Sale
+                    </TableHead>
+                    <TableHead>
+                      Note / Resolve
+                    </TableHead>
+                  </tr>
                 </thead>
-                <tbody>
-                    <tr v-for="row in rows.data" :key="row.id" class="border-t align-top">
-                        <td class="px-3 py-2 text-gray-400">{{ row.row_no }}</td>
-                        <td class="px-3 py-2 whitespace-nowrap">{{ row.terminal_id }}</td>
-                        <td class="px-3 py-2">{{ row.vend_code || '—' }}</td>
-                        <td class="px-3 py-2 whitespace-nowrap">{{ row.transaction_date }}</td>
-                        <td class="px-3 py-2 whitespace-nowrap">
-                            <template v-if="row.time_is_partial">
-                                <span class="text-amber-700" title="Hour lost (file was re-saved in Excel) — matched by minute:second within the hour">
-                                    ??{{ row.transaction_time ? row.transaction_time.slice(2) : '' }}
-                                </span>
-                            </template>
-                            <template v-else>{{ row.transaction_time }}</template>
-                        </td>
-                        <td class="px-3 py-2 whitespace-nowrap text-gray-500">{{ row.card_issuer }}</td>
-                        <td class="px-3 py-2 text-right whitespace-nowrap">{{ row.amount.toFixed(2) }}</td>
-                        <td class="px-3 py-2 text-center">
-                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full" :class="rowStatusClass(row.status)">
-                                {{ row.status_label }}
-                            </span>
-                        </td>
-                        <td class="px-3 py-2 whitespace-nowrap">
-                            <template v-if="row.matched_txn">
-                                <div>#{{ row.matched_txn.id }} · {{ row.matched_txn.transaction_datetime }}</div>
-                                <div class="text-xs text-gray-400">
-                                    Δ {{ row.match_time_delta !== null ? row.match_time_delta + 's' : 'manual' }}
-                                    <span v-if="row.matched_txn.is_refunded" class="text-red-500 font-medium"> · refunded</span>
-                                    <span v-if="row.matched_txn.synced" class="text-green-600 font-medium"> · synced</span>
-                                </div>
-                            </template>
-                            <span v-else class="text-gray-300">—</span>
-                        </td>
-                        <td class="px-3 py-2">
-                            <div v-if="row.resolution_note" class="text-xs text-gray-500 mb-1">{{ row.resolution_note }}</div>
-                            <!-- candidates to pick from (ambiguous / claimed-elsewhere rows) -->
-                            <div v-if="(row.status === 3 || row.status === 2) && row.candidates && row.candidates.length" class="space-y-1">
-                                <div v-for="c in row.candidates" :key="c.vend_transaction_id" class="flex items-center gap-2 text-xs">
-                                    <button @click="resolveTo(row, c.vend_transaction_id)"
-                                        class="bg-teal-50 border border-teal-200 text-teal-700 rounded px-2 py-0.5 hover:bg-teal-100">
-                                        Pick
-                                    </button>
-                                    <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.is_refunded" class="text-red-500"> · refunded</span></span>
-                                </div>
-                            </div>
-                            <div v-if="row.status === 2 || row.status === 3" class="flex items-center gap-1 mt-1">
-                                <input v-model="manualTxnId[row.id]" placeholder="Txn ID" class="border rounded px-2 py-0.5 text-xs w-24" @keyup.enter="resolveManual(row)" />
-                                <button @click="resolveManual(row)" class="text-xs border rounded px-2 py-0.5 text-gray-600 hover:bg-gray-50">Assign</button>
-                                <button @click="ignoreRow(row)" class="text-xs border rounded px-2 py-0.5 text-gray-400 hover:bg-gray-50">Ignore</button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr v-if="!rows.data.length">
-                        <td colspan="10" class="px-4 py-8 text-center text-gray-400">
-                            {{ rowStatus === 'queries' ? 'No open queries — everything matched, duplicated or ignored.' : 'No rows.' }}
-                        </td>
-                    </tr>
-                </tbody>
+                  <tbody class="bg-white">
+                    <tr v-for="(row, rowIndex) in rows.data" :key="row.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        {{ row.row_no }}
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        {{ row.terminal_id }}
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        <a
+                          v-if="row.vend_code"
+                          class="text-blue-700 hover:underline"
+                          target="_blank"
+                          :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'"
+                        >
+                          {{ row.vend_code }}
+                        </a>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        {{ row.transaction_date }}
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        <span
+                          v-if="row.time_is_partial"
+                          class="text-amber-700"
+                          title="Hour lost (file was re-saved in Excel) — matched by minute:second within the hour"
+                        >
+                          ??{{ row.transaction_time ? row.transaction_time.slice(2) : '' }}
+                        </span>
+                        <span v-else>{{ row.transaction_time }}</span>
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        {{ row.card_issuer }}
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-right">
+                        {{ row.amount.toFixed(2) }}
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        <span
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
+                          :class="rowStatusBadgeClass(row.status)"
+                        >
+                          {{ row.status_label }}
+                        </span>
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-left">
+                        <template v-if="row.matched_txn">
+                          <div>#{{ row.matched_txn.id }} · {{ row.matched_txn.transaction_datetime }}</div>
+                          <div class="text-xs text-gray-500">
+                            Δ {{ row.match_time_delta !== null ? row.match_time_delta + 's' : 'manual' }}
+                            <span v-if="row.matched_txn.is_refunded" class="text-red-600 font-medium"> · refunded</span>
+                            <span v-if="row.matched_txn.synced" class="text-green-600 font-medium"> · synced</span>
+                          </div>
+                        </template>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-left">
+                        <div v-if="row.resolution_note" class="text-xs text-gray-500 mb-1">{{ row.resolution_note }}</div>
+                        <!-- candidates to pick from (ambiguous / claimed-elsewhere rows) -->
+                        <div v-if="(row.status === 3 || row.status === 2) && row.candidates && row.candidates.length" class="space-y-1">
+                          <div v-for="c in row.candidates" :key="c.vend_transaction_id" class="flex items-center space-x-1 text-xs">
+                            <Button
+                              type="button" class="bg-green-500 hover:bg-green-600 px-2 py-1 text-xs text-white"
+                              @click="resolveTo(row, c.vend_transaction_id)"
+                            >
+                              Pick
+                            </Button>
+                            <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.is_refunded" class="text-red-600"> · refunded</span></span>
+                          </div>
+                        </div>
+                        <div v-if="row.status === 2 || row.status === 3" class="flex items-center space-x-1 mt-1">
+                          <input v-model="manualTxnId[row.id]" placeholder="Txn ID"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs border-gray-300 rounded-md w-24 px-2 py-1"
+                            @keyup.enter="resolveManual(row)" />
+                          <Button
+                            type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800"
+                            @click="resolveManual(row)"
+                          >
+                            Assign
+                          </Button>
+                          <Button
+                            type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800"
+                            @click="ignoreRow(row)"
+                          >
+                            Ignore
+                          </Button>
+                        </div>
+                      </TableData>
+                      </tr>
+                <tr v-if="!rows.data.length">
+                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                      {{ rowStatus === 'queries' ? 'No open queries — everything matched, duplicated or ignored.' : 'No Results Found' }}
+                  </td>
+                </tr>
+              </tbody>
             </table>
-        </div>
-
-        <!-- pagination -->
-        <div class="flex items-center justify-between mt-3 text-sm text-gray-600">
-            <span>Showing {{ rows.from || 0 }}–{{ rows.to || 0 }} of {{ rows.total }}</span>
-            <div class="flex gap-1">
-                <template v-for="(l, i) in rows.links" :key="i">
-                    <Link v-if="l.url" :href="l.url" v-html="l.label" preserve-scroll
-                        class="px-3 py-1.5 rounded border text-sm"
-                        :class="l.active ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600'" />
-                    <span v-else v-html="l.label" class="px-3 py-1.5 rounded border text-sm text-gray-300"></span>
-                </template>
-            </div>
-        </div>
+            <Paginator v-if="rows.data.length" :links="rows.links" :meta="rows.meta"></Paginator>
+          </div>
+      </div>
     </div>
-</BreezeAuthenticatedLayout>
+  </div>
+  </BreezeAuthenticatedLayout>
 </template>
+
+<script setup>
+import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import Button from '@/Components/Button.vue';
+import Paginator from '@/Components/Paginator.vue';
+import { ArrowPathIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import TableHead from '@/Components/TableHead.vue';
+import TableData from '@/Components/TableData.vue';
+import { computed, ref } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
+
+const props = defineProps({
+  report: { type: Object, required: true },
+  rows: { type: Object, required: true },
+  rowFilters: { type: Object, default: () => ({}) },
+  unboundTerminals: { type: Array, default: () => [] },
+  statusLabels: { type: Object, default: () => ({}) },
+})
+
+const toast = useToast()
+const rowStatus = ref(props.rowFilters.row_status ?? 'queries')
+
+// Row status codes (CardSettlementRow::STATUS_*)
+const chips = [
+  { key: 'queries', label: 'Queries' },
+  { key: '1', label: 'Matched' },
+  { key: '2', label: 'Unmatched' },
+  { key: '3', label: 'Ambiguous' },
+  { key: '5', label: 'Duplicates' },
+  { key: '4', label: 'Ignored' },
+  { key: 'all', label: 'All rows' },
+]
+
+function statusBadgeClass(status) {
+  return {
+    uploaded: 'bg-gray-100 text-gray-700 border-gray-300',
+    matching: 'bg-amber-100 text-amber-800 border-amber-300',
+    review: 'bg-blue-100 text-blue-800 border-blue-300',
+    synced: 'bg-green-100 text-green-800 border-green-300',
+    failed: 'bg-red-100 text-red-800 border-red-300',
+  }[status] || 'bg-gray-100 text-gray-700 border-gray-300'
+}
+
+function rowStatusBadgeClass(status) {
+  return {
+    1: 'bg-green-100 text-green-800 border-green-300',
+    2: 'bg-amber-100 text-amber-800 border-amber-300',
+    3: 'bg-orange-100 text-orange-800 border-orange-300',
+    4: 'bg-gray-100 text-gray-500 border-gray-300',
+    5: 'bg-gray-100 text-gray-500 border-gray-300',
+  }[status] || 'bg-gray-100 text-gray-700 border-gray-300'
+}
+
+// computed, not a const: Pick / Assign / Ignore reload props with preserveState,
+// and the tile must follow the refreshed counts without a hard reload.
+const queriesCount = computed(() => props.report.unmatched_count + props.report.ambiguous_count)
+
+function pickStatus(key) {
+  rowStatus.value = key
+  router.get('/card-settlements/' + props.report.id, { row_status: key }, { preserveState: true, preserveScroll: true, replace: true })
+}
+
+function rematch() {
+  if (props.report.status === 'matching') return
+  router.post('/card-settlements/' + props.report.id + '/rematch', {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Rematch queued", { timeout: 3000 }),
+  })
+}
+
+function sync() {
+  if (props.report.status === 'matching' || !props.report.matched_count) return
+  const approval = confirm('Stamp "settlement synced" onto ' + props.report.matched_count + ' matched transaction(s)?');
+  if (!approval) {
+      return;
+  }
+  router.post('/card-settlements/' + props.report.id + '/sync', {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Matched transactions synced", { timeout: 3000 }),
+    onError: () => toast.error("Failed to sync", { timeout: 3000 }),
+  })
+}
+
+function destroyReport() {
+  const approval = confirm('Are you sure to delete this report and all its rows?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/card-settlements/' + props.report.id, {
+    onSuccess: () => toast.success("Report deleted successfully", { timeout: 3000 }),
+    onError: () => toast.error("Failed to delete report", { timeout: 3000 }),
+  })
+}
+
+function resolveTo(row, txnId) {
+  router.post('/card-settlements/' + props.report.id + '/rows/' + row.id + '/resolve',
+    { vend_transaction_id: txnId }, {
+      preserveScroll: true,
+      onSuccess: () => toast.success("Row resolved", { timeout: 3000 }),
+      onError: () => toast.error("Failed to resolve row", { timeout: 3000 }),
+    })
+}
+
+const manualTxnId = ref({})
+function resolveManual(row) {
+  const id = parseInt(manualTxnId.value[row.id], 10)
+  if (!id) return
+  resolveTo(row, id)
+}
+
+function ignoreRow(row) {
+  router.post('/card-settlements/' + props.report.id + '/rows/' + row.id + '/ignore', {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Row ignored", { timeout: 3000 }),
+  })
+}
+</script>

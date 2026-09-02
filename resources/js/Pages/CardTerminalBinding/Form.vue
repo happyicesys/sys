@@ -3,14 +3,14 @@
     <Modal :open="showModal" @modalClose="$emit('modalClose')">
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
-          <span class="text-gray-600" v-if="props.simcard">
+          <span class="text-gray-600" v-if="props.binding">
             Editing
           </span>
-          <span v-if="props.simcard">
-            {{ props.simcard.name }}
+          <span v-if="props.binding">
+            {{ props.binding.terminal_id }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Simcard
+            Create New Binding
           </span>
         </div>
       </template>
@@ -18,17 +18,12 @@
         <form @submit.prevent="submit" id="submit">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
-              <FormInput v-model="form.code" :error="form.errors.code" required="true">
-                Simcard Number
-              </FormInput>
-            </div>
-            <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                SimCard Package
+                Provider
               </label>
               <MultiSelect
-                v-model="form.telco_id"
-                :options="telcoOptions"
+                v-model="form.provider"
+                :options="providerOptions"
                 trackBy="id"
                 valueProp="id"
                 label="name"
@@ -37,22 +32,15 @@
                 class="mt-1"
               >
               </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.telco_id">
-                {{ form.errors.telco_id }}
+              <div class="text-sm text-red-600" v-if="form.errors.provider">
+                {{ form.errors.provider }}
               </div>
             </div>
             <div class="sm:col-span-6">
-              <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
-                Phone Number
+              <FormInput v-model="form.terminal_id" :error="form.errors.terminal_id" required="true" placeholderStr="e.g. 23082824">
+                Terminal ID (TID)
               </FormInput>
             </div>
-            <div class="sm:col-span-6">
-              <FormInput v-model="form.msisdn" :error="form.errors.msisdn">
-                MSISDN
-              </FormInput>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 mt-3">
             <div class="sm:col-span-6">
               <label for="vend_id" class="flex justify-start text-sm font-medium text-gray-700">
                 Machine ID
@@ -69,6 +57,26 @@
                 :searchable="true"
               >
               </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vend_id">
+                {{ form.errors.vend_id }}
+              </div>
+            </div>
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.bound_from" :error="form.errors.bound_from" inputType="date">
+                Bound From
+              </FormInput>
+            </div>
+            <!-- Blank Bound Until = the binding is CURRENT. Set a date when the
+                 terminal comes off the machine so historical reports still match. -->
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.bound_until" :error="form.errors.bound_until" inputType="date">
+                Bound Until (blank = current)
+              </FormInput>
+            </div>
+            <div class="sm:col-span-6">
+              <FormInput v-model="form.remarks" :error="form.errors.remarks">
+                Remarks
+              </FormInput>
             </div>
           </div>
           <div class="sm:col-span-6">
@@ -110,8 +118,8 @@ import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
-  simcard: Object,
-  telcos: Object,
+  binding: Object,
+  providers: Array,
   vends: Array,
   type: String,
   showModal: Boolean,
@@ -122,63 +130,63 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
-const telcoOptions = ref([])
+const providerOptions = ref([])
 const vendOptions = ref([])
 const toast = useToast()
 
 onMounted(() => {
-  telcoOptions.value = props.telcos.data.map((data) => {return {id: data.id, name: data.name}})
-  vendOptions.value = props.vends
-    .filter(v => typeof v.simcard_id === 'undefined' || v.simcard_id == null || (props.simcard && v.simcard_id == props.simcard.id))
-    .map(v => {
-      let prefix = v.vend_prefix && v.vend_prefix.name ? ' - ' + v.vend_prefix.name : '';
-      let vendName = v.name ? ' - ' + v.name : '';
-      let customerName = v.customer && v.customer.name ? ' - ' + v.customer.name : '';
-      return { id: v.id, name: '(' + v.code + ')' + prefix + vendName + customerName };
-    })
+  providerOptions.value = props.providers.map((p) => ({ id: p, name: p.toUpperCase() }))
+  vendOptions.value = props.vends.map((v) => {
+    let vendName = v.name ? ' - ' + v.name : '';
+    return { id: v.id, name: '(' + v.code + ')' + vendName };
+  })
 
-  let defaultVend = null;
-  if (props.simcard && props.simcard.vends && props.simcard.vends.length > 0) {
-    defaultVend = vendOptions.value.find(v => v.id == props.simcard.vends[0].id);
-  }
-
-  form.value = props.simcard ? useForm({
-    ...props.simcard,
-    telco_id: telcoOptions.value.find((data) => data.id == props.simcard.telco_id),
-    vend_id: defaultVend
+  form.value = props.binding ? useForm({
+    ...props.binding,
+    provider: providerOptions.value.find((data) => data.id == props.binding.provider),
+    vend_id: vendOptions.value.find((v) => v.id == props.binding.vend_id),
+    bound_from: props.binding.bound_from || '',
+    bound_until: props.binding.bound_until || '',
+    remarks: props.binding.remarks || '',
   }) : useForm(getDefaultForm())
 
+  if (!props.binding && providerOptions.value.length) {
+    form.value.provider = providerOptions.value[0]
+  }
 })
 
 function getDefaultForm() {
   return {
-    code: '',
-    phone_number: '',
-    msisdn: '',
-    telco_id: '',
+    provider: null,
+    terminal_id: '',
     vend_id: null,
+    bound_from: '',
+    bound_until: '',
+    remarks: '',
   }
 }
 
 function submit() {
   form.value.clearErrors()
 
+  const transform = (data) => {
+    return {
+      ...data,
+      provider: data.provider ? data.provider.id : null,
+      vend_id: data.vend_id ? data.vend_id.id : null,
+    }
+  }
+
   if(props.type === 'create') {
     form.value
-    .transform((data) => {
-      return {
-        ...data,
-        telco_id: data.telco_id ? data.telco_id.id : null,
-        vend_id: data.vend_id ? data.vend_id.id : null,
-      }
-    })
-    .post('/simcards/store', {
+    .transform(transform)
+    .post('/card-terminal-bindings', {
       onSuccess: () => {
-        toast.success("Simcard created successfully", { timeout: 3000 })
+        toast.success("Binding created successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create simcard", { timeout: 3000 })
+        toast.error("Failed to create binding", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -187,20 +195,14 @@ function submit() {
 
   if(props.type === 'update') {
     form.value
-    .transform((data) => {
-      return {
-        ...data,
-        telco_id: data.telco_id ? data.telco_id.id : null,
-        vend_id: data.vend_id ? data.vend_id.id : null,
-      }
-    })
-      .post('/simcards/' + form.value.id + '/update', {
+    .transform(transform)
+    .put('/card-terminal-bindings/' + form.value.id, {
       onSuccess: () => {
-        toast.success("Simcard updated successfully", { timeout: 3000 })
+        toast.success("Binding updated successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update simcard", { timeout: 3000 })
+        toast.error("Failed to update binding", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

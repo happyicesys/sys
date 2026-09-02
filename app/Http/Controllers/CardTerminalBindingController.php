@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CardTerminalBindingResource;
 use App\Models\CardTerminalBinding;
 use App\Models\Vend;
 use App\Services\CardSettlement\ParserRegistry;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
@@ -13,6 +15,10 @@ use Inertia\Inertia;
  * terminal can move between machines without breaking historical settlement
  * matching. Bulk seeding from the acquirer's binding sheet goes through
  * `php artisan card-settlement:import-bindings`.
+ *
+ * The page is HappyIce-staff only (permission `card-settlements`) and shows
+ * the whole fleet by design — the NETS merchant account is company-wide — so
+ * vend lookups deliberately run withoutGlobalScopes.
  */
 class CardTerminalBindingController extends Controller
 {
@@ -24,45 +30,57 @@ class CardTerminalBindingController extends Controller
 
     public function index(Request $request)
     {
-        $query = CardTerminalBinding::query()
-            ->with('vend:id,code,name')
-            ->when($request->input('provider'), fn ($q, $p) => $p !== 'all' ? $q->where('provider', $p) : $q)
-            ->when($request->input('search'), function ($q, $s) {
-                $q->where(fn ($qq) => $qq
-                    ->where('terminal_id', 'like', "%{$s}%")
-                    ->orWhereIn('vend_id', Vend::withoutGlobalScopes()->where('code', 'like', "%{$s}%")->pluck('id')));
-            })
-            ->when($request->boolean('active_only', true), fn ($q) => $q->effectiveOn(now()->toDateString()))
-            ->orderBy('terminal_id');
+        $request->validate(['numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/']]);
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $sortKey = in_array($request->sortKey, ['terminal_id', 'provider', 'bound_from', 'bound_until'])
+            ? $request->sortKey
+            : 'terminal_id';
+        $sortBy = filter_var($request->sortBy ?? true, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
-        $page = $query->paginate(50)->withQueryString();
+        $query = CardTerminalBinding::query()
+            ->with(['vend' => fn ($q) => $q->withoutGlobalScopes()
+                ->select('id', 'code', 'name', 'customer_id')
+                ->with(['customer' => fn ($qq) => $qq->withoutGlobalScopes()->select('id', 'name')]),
+            ])
+            ->when($request->input('terminal_id'), fn ($q, $s) => $q->where('terminal_id', 'like', "%{$s}%"))
+            ->when($request->input('vend_code'), fn ($q, $s) => $q->whereIn(
+                'vend_id',
+                Vend::withoutGlobalScopes()->where('code', 'like', "%{$s}%")->pluck('id')
+            ))
+            ->when($request->input('provider'), fn ($q, $p) => $p !== 'all' ? $q->where('provider', $p) : $q)
+            ->when($request->boolean('active_only', true), fn ($q) => $q->effectiveOn(now()->toDateString()))
+            ->orderBy($sortKey, $sortBy)
+            ->orderBy('id');
 
         return Inertia::render('CardTerminalBinding/Index', [
-            'bindings' => $page->through(fn (CardTerminalBinding $b) => [
-                'id' => $b->id,
-                'provider' => $b->provider,
-                'terminal_id' => $b->terminal_id,
-                'vend_id' => $b->vend_id,
-                'vend_code' => $b->vend?->code,
-                'vend_name' => $b->vend?->name,
-                'bound_from' => $b->bound_from?->format('Y-m-d'),
-                'bound_until' => $b->bound_until?->format('Y-m-d'),
-                'remarks' => $b->remarks,
-            ]),
+            'bindings' => CardTerminalBindingResource::collection(
+                $query->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)->withQueryString()
+            ),
             'providers' => ParserRegistry::providers(),
+            // Machine picker options for the Form modal — whole active fleet,
+            // labelled like the Simcard form's picker. Disposed machines that
+            // still carry a binding stay listed, or their historical bindings
+            // could never be edited (the picker would resolve vend_id to null).
+            'vends' => Vend::withoutGlobalScopes()
+                ->where(fn ($q) => $q
+                    ->where('is_disposed', false)
+                    ->orWhereIn('id', CardTerminalBinding::query()->select('vend_id')))
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
             'filters' => [
+                'terminal_id' => $request->input('terminal_id', ''),
+                'vend_code' => $request->input('vend_code', ''),
                 'provider' => $request->input('provider', 'all'),
-                'search' => $request->input('search', ''),
                 'active_only' => $request->boolean('active_only', true),
+                'sortKey' => $sortKey,
+                'sortBy' => $request->sortBy ?? true,
             ],
         ]);
     }
 
     public function store(Request $request)
     {
-        $validated = $this->validated($request);
-
-        CardTerminalBinding::create($validated);
+        CardTerminalBinding::create($this->validated($request));
 
         return back()->with('message', 'Binding created.');
     }
@@ -87,15 +105,17 @@ class CardTerminalBindingController extends Controller
         $validated = $request->validate([
             'provider' => ['required', 'string', 'max:20'],
             'terminal_id' => ['required', 'string', 'max:64'],
-            'vend_code' => ['required', 'integer'],
+            'vend_id' => ['required', 'integer'],
             'bound_from' => ['nullable', 'date'],
             'bound_until' => ['nullable', 'date', 'after_or_equal:bound_from'],
             'remarks' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $vend = Vend::withoutGlobalScopes()->where('code', $validated['vend_code'])->first();
+        // ValidationException (not abort 422) so the Inertia form renders the
+        // message inline instead of the generic error modal.
+        $vend = Vend::withoutGlobalScopes()->find($validated['vend_id']);
         if (! $vend) {
-            abort(422, "No machine with code {$validated['vend_code']}.");
+            throw ValidationException::withMessages(['vend_id' => 'Unknown machine.']);
         }
 
         // Refuse a second OPEN-ENDED binding for the same terminal: two
@@ -108,7 +128,9 @@ class CardTerminalBindingController extends Controller
                 ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
                 ->exists();
             if ($clash) {
-                abort(422, 'This terminal already has an open-ended binding — close it (set Bound Until) first.');
+                throw ValidationException::withMessages([
+                    'terminal_id' => 'This terminal already has an open-ended binding — close it (set Bound Until) first.',
+                ]);
             }
         }
 

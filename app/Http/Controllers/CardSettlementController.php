@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CardSettlementReportResource;
 use App\Jobs\MatchCardSettlementReport;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
@@ -32,39 +33,46 @@ class CardSettlementController extends Controller
 
     public function index(Request $request)
     {
+        // Filters arrive from the DatePicker as Y-m-d; validate rather than parse,
+        // so a hand-edited URL is a 422 back to the page, not a 500.
+        $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/'],
+        ]);
+
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $sortKey = in_array($request->sortKey, ['cutover_date', 'original_filename', 'status', 'created_at'])
+            ? $request->sortKey
+            : 'cutover_date';
+        $sortBy = filter_var($request->sortBy ?? false, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
         $query = CardSettlementReport::query()
+            ->with('uploader:id,name')
             ->when($request->input('status'), fn ($q, $s) => $s !== 'all' ? $q->where('status', $s) : $q)
             ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('cutover_date', '>=', $d))
             ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('cutover_date', '<=', $d))
-            ->orderByDesc('cutover_date')
+            ->orderBy($sortKey, $sortBy)
             ->orderByDesc('id');
 
-        $page = $query->paginate(25)->withQueryString();
-
         return Inertia::render('CardSettlement/Index', [
-            'reports' => $page->through(fn (CardSettlementReport $r) => [
-                'id' => $r->id,
-                'provider' => $r->provider,
-                'original_filename' => $r->original_filename,
-                'merchant_account' => $r->merchant_account,
-                'cutover_date' => $r->cutover_date?->format('Y-m-d'),
-                'status' => $r->status,
-                'total_rows' => $r->total_rows,
-                'purchase_rows' => $r->purchase_rows,
-                'matched_count' => $r->matched_count,
-                'unmatched_count' => $r->unmatched_count,
-                'ambiguous_count' => $r->ambiguous_count,
-                'duplicate_count' => $r->duplicate_count,
-                'synced_count' => $r->synced_count,
-                'error_message' => $r->error_message,
-                'created_at' => $r->created_at?->format('Y-m-d H:i'),
-                'synced_at' => $r->synced_at?->format('Y-m-d H:i'),
-            ]),
+            'reports' => CardSettlementReportResource::collection(
+                $query->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)->withQueryString()
+            ),
             'providers' => ParserRegistry::providers(),
+            'statuses' => [
+                CardSettlementReport::STATUS_UPLOADED,
+                CardSettlementReport::STATUS_MATCHING,
+                CardSettlementReport::STATUS_REVIEW,
+                CardSettlementReport::STATUS_SYNCED,
+                CardSettlementReport::STATUS_FAILED,
+            ],
             'filters' => [
                 'status' => $request->input('status', 'all'),
                 'date_from' => $request->input('date_from', ''),
                 'date_to' => $request->input('date_to', ''),
+                'sortKey' => $sortKey,
+                'sortBy' => $request->sortBy ?? false,
             ],
         ]);
     }
@@ -115,7 +123,9 @@ class CardSettlementController extends Controller
             ->orderBy('transaction_date')
             ->orderBy('transaction_time');
 
-        $page = $rowQuery->paginate(100)->withQueryString();
+        $request->validate(['numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/']]);
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $page = $rowQuery->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)->withQueryString();
 
         // Vend code per row + per matched sale, one bounded per-page lookup.
         $rows = collect($page->items());
@@ -162,32 +172,46 @@ class CardSettlementController extends Controller
                 'synced_by' => $report->syncer?->name,
                 'file_url' => $report->attachment?->full_url,
             ],
-            'rows' => $page->through(fn (CardSettlementRow $row) => [
-                'id' => $row->id,
-                'row_no' => $row->row_no,
-                'txn_type' => $row->txn_type,
-                'product' => $row->product,
-                'card_issuer' => $row->card_issuer,
-                'terminal_id' => $row->terminal_id,
-                'transaction_date' => $row->transaction_date->format('Y-m-d'),
-                'transaction_time' => $row->transaction_time,
-                'time_is_partial' => $row->time_is_partial,
-                'amount' => $row->amount_cents / 100,
-                'status' => $row->status,
-                'status_label' => CardSettlementRow::STATUS_LABELS[$row->status] ?? $row->status,
-                'vend_code' => $row->vend_id ? $vendCodes->get($row->vend_id) : null,
-                'matched_vend_transaction_id' => $row->matched_vend_transaction_id,
-                'matched_txn' => ($txn = $txns->get($row->matched_vend_transaction_id)) ? [
-                    'id' => $txn->id,
-                    'transaction_datetime' => $txn->transaction_datetime?->format('Y-m-d H:i:s'),
-                    'amount' => $txn->amount / 100,
-                    'is_refunded' => (bool) $txn->is_refunded,
-                    'synced' => $txn->card_settlement_synced_at !== null,
-                ] : null,
-                'match_time_delta' => $row->match_time_delta,
-                'candidates' => $row->candidates_json,
-                'resolution_note' => $row->resolution_note,
-            ]),
+            // Manually shaped into the resource-collection envelope
+            // (data / links / meta) the shared Paginator component expects.
+            'rows' => [
+                'links' => [
+                    'prev' => $page->previousPageUrl(),
+                    'next' => $page->nextPageUrl(),
+                ],
+                'meta' => [
+                    'from' => $page->firstItem(),
+                    'to' => $page->lastItem(),
+                    'total' => $page->total(),
+                    'links' => $page->linkCollection(),
+                ],
+                'data' => collect($page->items())->map(fn (CardSettlementRow $row) => [
+                    'id' => $row->id,
+                    'row_no' => $row->row_no,
+                    'txn_type' => $row->txn_type,
+                    'product' => $row->product,
+                    'card_issuer' => $row->card_issuer,
+                    'terminal_id' => $row->terminal_id,
+                    'transaction_date' => $row->transaction_date->format('Y-m-d'),
+                    'transaction_time' => $row->transaction_time,
+                    'time_is_partial' => $row->time_is_partial,
+                    'amount' => $row->amount_cents / 100,
+                    'status' => $row->status,
+                    'status_label' => CardSettlementRow::STATUS_LABELS[$row->status] ?? $row->status,
+                    'vend_code' => $row->vend_id ? $vendCodes->get($row->vend_id) : null,
+                    'matched_vend_transaction_id' => $row->matched_vend_transaction_id,
+                    'matched_txn' => ($txn = $txns->get($row->matched_vend_transaction_id)) ? [
+                        'id' => $txn->id,
+                        'transaction_datetime' => $txn->transaction_datetime?->format('Y-m-d H:i:s'),
+                        'amount' => $txn->amount / 100,
+                        'is_refunded' => (bool) $txn->is_refunded,
+                        'synced' => $txn->card_settlement_synced_at !== null,
+                    ] : null,
+                    'match_time_delta' => $row->match_time_delta,
+                    'candidates' => $row->candidates_json,
+                    'resolution_note' => $row->resolution_note,
+                ])->values(),
+            ],
             'rowFilters' => ['row_status' => $status],
             'unboundTerminals' => $unboundTerminals,
             'statusLabels' => CardSettlementRow::STATUS_LABELS,

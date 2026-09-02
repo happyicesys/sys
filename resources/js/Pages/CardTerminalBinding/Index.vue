@@ -1,174 +1,325 @@
-<script setup>
-import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
-
-const props = defineProps({
-    bindings: { type: Object, required: true },
-    providers: { type: Array, default: () => ['nets'] },
-    filters: { type: Object, default: () => ({}) },
-});
-
-const filters = ref({
-    provider: props.filters.provider || 'all',
-    search: props.filters.search || '',
-    active_only: props.filters.active_only ?? true,
-});
-
-function applyFilters() {
-    router.get('/card-terminal-bindings', { ...filters.value, active_only: filters.value.active_only ? 1 : 0 },
-        { preserveState: true, replace: true });
-}
-
-const blankForm = { provider: props.providers[0] || 'nets', terminal_id: '', vend_code: '', bound_from: '', bound_until: '', remarks: '' };
-const form = useForm({ ...blankForm });
-const editingId = ref(null);
-
-function startCreate() {
-    editingId.value = null;
-    Object.assign(form, { ...blankForm });
-    form.clearErrors();
-    showForm.value = true;
-}
-function startEdit(b) {
-    editingId.value = b.id;
-    Object.assign(form, {
-        provider: b.provider,
-        terminal_id: b.terminal_id,
-        vend_code: b.vend_code,
-        bound_from: b.bound_from || '',
-        bound_until: b.bound_until || '',
-        remarks: b.remarks || '',
-    });
-    form.clearErrors();
-    showForm.value = true;
-}
-const showForm = ref(false);
-
-function submit() {
-    const opts = { preserveScroll: true, onSuccess: () => { showForm.value = false; } };
-    if (editingId.value) {
-        form.put(`/card-terminal-bindings/${editingId.value}`, opts);
-    } else {
-        form.post('/card-terminal-bindings', opts);
-    }
-}
-
-function destroyBinding(b) {
-    if (!confirm(`Delete binding ${b.terminal_id} → ${b.vend_code}?`)) return;
-    router.delete(`/card-terminal-bindings/${b.id}`, { preserveScroll: true });
-}
-</script>
-
 <template>
-<Head title="Card Terminal Bindings" />
-<BreezeAuthenticatedLayout>
+
+  <Head title="Card Terminal Bindings" />
+
+  <BreezeAuthenticatedLayout>
     <template #header>
-        <div class="flex items-center justify-between flex-wrap gap-2">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Card Terminal Bindings</h2>
-            <button @click="startCreate" class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-teal-700">New Binding</button>
-        </div>
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        Card Terminal Bindings
+      </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-        <!-- create / edit -->
-        <div v-if="showForm" class="bg-white rounded-md border p-3 mb-3">
-            <div class="text-sm font-semibold text-gray-700 mb-2">{{ editingId ? 'Edit binding' : 'New binding' }}</div>
-            <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-start text-sm">
-                <select v-model="form.provider" class="border rounded-md px-3 py-2">
-                    <option v-for="p in providers" :key="p" :value="p">{{ p.toUpperCase() }}</option>
-                </select>
-                <div>
-                    <input v-model="form.terminal_id" placeholder="Terminal ID (TID)" class="border rounded-md px-3 py-2 w-full" />
-                    <div v-if="form.errors.terminal_id" class="text-xs text-red-600 mt-0.5">{{ form.errors.terminal_id }}</div>
-                </div>
-                <div>
-                    <input v-model="form.vend_code" placeholder="Machine code" class="border rounded-md px-3 py-2 w-full" />
-                    <div v-if="form.errors.vend_code" class="text-xs text-red-600 mt-0.5">{{ form.errors.vend_code }}</div>
-                </div>
-                <div>
-                    <input type="date" v-model="form.bound_from" title="Bound from" class="border rounded-md px-3 py-2 w-full" />
-                    <div class="text-[10px] text-gray-400">Bound from</div>
-                </div>
-                <div>
-                    <input type="date" v-model="form.bound_until" title="Bound until (blank = current)" class="border rounded-md px-3 py-2 w-full" />
-                    <div class="text-[10px] text-gray-400">Bound until (blank = current)</div>
-                    <div v-if="form.errors.bound_until" class="text-xs text-red-600 mt-0.5">{{ form.errors.bound_until }}</div>
-                </div>
-                <div class="flex gap-2">
-                    <button @click="submit" :disabled="form.processing" class="bg-teal-600 text-white rounded-md px-4 py-2 font-medium hover:bg-teal-700 disabled:opacity-50">Save</button>
-                    <button @click="showForm = false" class="bg-gray-100 border rounded-md px-3 py-2 text-gray-600">Cancel</button>
-                </div>
-                <input v-model="form.remarks" placeholder="Remarks" class="border rounded-md px-3 py-2 md:col-span-3" />
-            </div>
+      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
+        <div class="flex justify-end">
+          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          @click="onCreateClicked()"
+          >
+            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+            <span>
+              Create
+            </span>
+          </Button>
         </div>
-
-        <!-- filters -->
-        <div class="bg-white rounded-md border p-3 mb-3 flex flex-wrap gap-2 items-center text-sm">
-            <select v-model="filters.provider" class="border rounded-md px-3 py-2" @change="applyFilters">
-                <option value="all">All providers</option>
-                <option v-for="p in providers" :key="p" :value="p">{{ p.toUpperCase() }}</option>
-            </select>
-            <input v-model="filters.search" placeholder="Terminal ID or machine code" class="border rounded-md px-3 py-2 w-56" @keyup.enter="applyFilters" />
-            <label class="flex items-center gap-1.5 text-gray-600">
-                <input type="checkbox" v-model="filters.active_only" @change="applyFilters" />
-                Current bindings only
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
+          <SearchInput placeholderStr="Terminal ID" v-model="filters.terminal_id">
+            Terminal ID
+          </SearchInput>
+          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
+            Machine ID
+          </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Provider
             </label>
-            <button @click="applyFilters" class="bg-teal-600 text-white rounded-md px-4 py-2 font-medium hover:bg-teal-700">Search</button>
+            <MultiSelect
+              v-model="filters.provider"
+              :options="providerOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Binding
+            </label>
+            <label class="mt-3 flex items-center space-x-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                v-model="filters.active_only"
+                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>Current bindings only</span>
+            </label>
+          </div>
         </div>
 
-        <!-- table -->
-        <div class="bg-white rounded-md border overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-                    <tr class="[&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap [&>th]:text-left">
-                        <th>Provider</th>
-                        <th>Terminal ID</th>
-                        <th>Machine</th>
-                        <th>Bound From</th>
-                        <th>Bound Until</th>
-                        <th>Remarks</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="b in bindings.data" :key="b.id" class="border-t hover:bg-gray-50">
-                        <td class="px-4 py-2 uppercase text-gray-500">{{ b.provider }}</td>
-                        <td class="px-4 py-2 font-semibold text-teal-700 whitespace-nowrap">{{ b.terminal_id }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap">{{ b.vend_code }} <span class="text-gray-400">{{ b.vend_name }}</span></td>
-                        <td class="px-4 py-2 whitespace-nowrap">{{ b.bound_from || '—' }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap">
-                            <span v-if="b.bound_until">{{ b.bound_until }}</span>
-                            <span v-else class="text-green-600 text-xs font-semibold">current</span>
-                        </td>
-                        <td class="px-4 py-2 text-gray-500">{{ b.remarks }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-right">
-                            <button @click="startEdit(b)" class="text-xs border rounded px-2 py-1 text-gray-600 hover:bg-gray-50 mr-1">Edit</button>
-                            <button @click="destroyBinding(b)" class="text-xs border border-red-200 rounded px-2 py-1 text-red-600 hover:bg-red-50">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="!bindings.data.length">
-                        <td colspan="7" class="px-4 py-8 text-center text-gray-400">
-                            No bindings. Seed from the NETS sheet with<br>
-                            <code class="text-xs">php artisan card-settlement:import-bindings database/data/card_terminal_bindings_nets_2026-08.csv --apply</code>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- pagination -->
-        <div class="flex items-center justify-between mt-3 text-sm text-gray-600">
-            <span>Showing {{ bindings.from || 0 }}–{{ bindings.to || 0 }} of {{ bindings.total }}</span>
-            <div class="flex gap-1">
-                <template v-for="(l, i) in bindings.links" :key="i">
-                    <Link v-if="l.url" :href="l.url" v-html="l.label" preserve-scroll
-                        class="px-3 py-1.5 rounded border text-sm"
-                        :class="l.active ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600'" />
-                    <span v-else v-html="l.label" class="px-3 py-1.5 rounded border text-sm text-gray-300"></span>
-                </template>
+        <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
+          <div class="mt-3">
+            <div class="flex flex-col space-y-1 md:flex-row md:space-y-0 md:space-x-1">
+              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              @click="onSearchFilterUpdated()"
+              >
+                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                <span>
+                  Search
+                </span>
+              </Button>
             </div>
+          </div>
+          <div class="flex flex-col space-y-2">
+              <p class="text-sm text-gray-700 leading-5 flex space-x-1">
+                  <span>Showing</span>
+                  <span class="font-medium">{{ bindings.meta.from ?? 0 }}</span>
+                  <span>to</span>
+                  <span class="font-medium">{{ bindings.meta.to ?? 0 }}</span>
+                  <span>of</span>
+                  <span class="font-medium">{{ bindings.meta.total }}</span>
+                  <span>results</span>
+              </p>
+              <MultiSelect
+                  v-model="filters.numberPerPage"
+                  :options="numberPerPageOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  @selected="onSearchFilterUpdated"
+              >
+              </MultiSelect>
+          </div>
         </div>
+      </div>
+
+      <div class="mt-6 flex flex-col">
+       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+            <table class="min-w-full border-separate" style="border-spacing: 0">
+                <thead class="bg-gray-100">
+                  <tr class="divide-x divide-gray-200">
+                    <TableHead>
+                      #
+                    </TableHead>
+                    <TableHeadSort modelName="provider" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('provider')">
+                      Provider
+                    </TableHeadSort>
+                    <TableHeadSort modelName="terminal_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('terminal_id')">
+                      Terminal ID
+                    </TableHeadSort>
+                    <TableHead>
+                      Machine ID
+                    </TableHead>
+                    <TableHead>
+                      Site
+                    </TableHead>
+                    <TableHeadSort modelName="bound_from" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('bound_from')">
+                      Bound From
+                    </TableHeadSort>
+                    <TableHeadSort modelName="bound_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('bound_until')">
+                      Bound Until
+                    </TableHeadSort>
+                    <TableHead>
+                      Remarks
+                    </TableHead>
+                    <TableHead>
+                    </TableHead>
+                  </tr>
+                </thead>
+                  <tbody class="bg-white">
+                    <tr v-for="(binding, bindingIndex) in bindings.data" :key="binding.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-center">
+                        {{ bindings.meta.from + bindingIndex }}
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-center uppercase">
+                        {{ binding.provider }}
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-left">
+                        {{ binding.terminal_id }}
+                      </TableData>
+                      <!-- Same Operation-Dashboard link the Simcard page's Machine ID
+                           column uses, opened in a new tab so filters survive. -->
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-center">
+                        <a
+                          v-if="binding.vend_code"
+                          class="text-blue-700 hover:underline"
+                          target="_blank"
+                          :href="'/vends/customers?codes=' + binding.vend_code + '&autoload=true'"
+                        >
+                          {{ binding.vend_code }}
+                        </a>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-left">
+                        <span v-if="binding.customer_name">{{ binding.customer_name }}</span>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-center">
+                        <span v-if="binding.bound_from">{{ binding.bound_from }}</span>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-center">
+                        <span v-if="binding.bound_until">{{ binding.bound_until }}</span>
+                        <span v-else class="text-xs font-bold text-green-600">current</span>
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-left">
+                        {{ binding.remarks }}
+                      </TableData>
+                      <TableData :currentIndex="bindingIndex" :totalLength="bindings.length" inputClass="text-center">
+                        <div class="flex justify-center space-x-1">
+                          <Button
+                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            @click="onEditClicked(binding)"
+                          >
+                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                            <span>
+                                Edit
+                            </span>
+                          </Button>
+                          <Button
+                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                            @click="onDeleteClicked(binding)"
+                          >
+                            <TrashIcon class="w-4 h-4"></TrashIcon>
+                            <span>
+                                Delete
+                            </span>
+                          </Button>
+                        </div>
+                      </TableData>
+                      </tr>
+                <tr v-if="!bindings.data.length">
+                  <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                      No Results Found
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <Paginator v-if="bindings.data.length" :links="bindings.links" :meta="bindings.meta"></Paginator>
+          </div>
+      </div>
     </div>
-</BreezeAuthenticatedLayout>
+  </div>
+  <Form
+      v-if="showModal"
+      :binding="binding"
+      :providers="providers"
+      :vends="vends"
+      :type="type"
+      :showModal="showModal"
+      @modalClose="onModalClose"
+  >
+  </Form>
+  </BreezeAuthenticatedLayout>
 </template>
+
+<script setup>
+import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import Button from '@/Components/Button.vue';
+import Form from '@/Pages/CardTerminalBinding/Form.vue';
+import Paginator from '@/Components/Paginator.vue';
+import SearchInput from '@/Components/SearchInput.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
+import { MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import TableHead from '@/Components/TableHead.vue';
+import TableData from '@/Components/TableData.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { ref, onMounted } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
+
+const props = defineProps({
+  bindings: Object,
+  providers: Array,
+  vends: Array,
+  filters: Object,
+})
+
+const filters = ref({
+  terminal_id: props.filters.terminal_id || '',
+  vend_code: props.filters.vend_code || '',
+  provider: props.filters.provider || 'all',
+  active_only: props.filters.active_only ?? true,
+  sortKey: props.filters.sortKey || 'terminal_id',
+  // Query-string round-trips turn the boolean into "true"/"false" strings.
+  sortBy: String(props.filters.sortBy ?? true) !== 'false',
+  numberPerPage: 100,
+})
+const showModal = ref(false)
+const binding = ref()
+const type = ref('')
+const toast = useToast()
+const numberPerPageOptions = ref([])
+const providerOptions = ref([])
+
+onMounted(() => {
+  numberPerPageOptions.value = [
+    { id: 100, value: 100 },
+    { id: 200, value: 200 },
+    { id: 500, value: 500 },
+    { id: 'All', value: 'All' },
+  ]
+  filters.value.numberPerPage = numberPerPageOptions.value[0]
+  providerOptions.value = [
+    { id: 'all', name: 'All' },
+    ...props.providers.map((p) => ({ id: p, name: p.toUpperCase() })),
+  ]
+  filters.value.provider = providerOptions.value.find((o) => o.id === filters.value.provider) || providerOptions.value[0]
+})
+
+function onCreateClicked() {
+  type.value = 'create'
+  binding.value = null
+  showModal.value = true
+}
+
+function onEditClicked(bindingValue) {
+  type.value = 'update'
+  binding.value = bindingValue
+  showModal.value = true
+}
+
+function onDeleteClicked(binding) {
+  const approval = confirm('Are you sure to delete binding ' + binding.terminal_id + ' → ' + (binding.vend_code ?? '?') + '?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/card-terminal-bindings/' + binding.id, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Binding deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete binding", { timeout: 3000 })
+    }
+  })
+}
+
+function onSearchFilterUpdated() {
+  router.get('/card-terminal-bindings', {
+      ...filters.value,
+      provider: filters.value.provider ? filters.value.provider.id : 'all',
+      active_only: filters.value.active_only ? 1 : 0,
+      numberPerPage: filters.value.numberPerPage.id,
+  }, {
+      preserveState: true,
+      replace: true,
+  })
+}
+
+function sortTable(sortKey) {
+  filters.value.sortKey = sortKey
+  filters.value.sortBy = !filters.value.sortBy
+  onSearchFilterUpdated()
+}
+
+function onModalClose() {
+  showModal.value = false
+}
+</script>
