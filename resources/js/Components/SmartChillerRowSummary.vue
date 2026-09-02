@@ -234,8 +234,10 @@ const machine = computed(() => {
     stateLabel: state ? (STATE_LABELS[state] || state) : 'Not polled',
     stateClass: (state && STATE_CLASSES[state]) || 'bg-gray-50 text-gray-500 border-gray-200',
     stateAt: j.device_state_at || null,
-    // FREE is the only state their API will open a door from; unknown (never polled) is not blocked.
-    doorBlocked: state !== null && state !== 'FREE',
+    // Only a KNOWN busy state blocks (door open / customer session / maintenance). NOT_FOUND
+    // does not: prod 2026-09-02 shows units online per box_list yet NOT_FOUND on the status
+    // call (C6001/C6002, no planogram yet) — their open-door API is the arbiter there.
+    doorBlocked: state !== null && ['OPENING', 'BUSY', 'MAINTENANCE'].includes(state),
     layersUsed,
     layerCount: 5,
     prices,

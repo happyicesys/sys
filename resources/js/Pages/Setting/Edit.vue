@@ -1661,12 +1661,18 @@ const props = defineProps({
 const isChiller = computed(() => props.vend && props.vend.machine_type === 'smart_chiller')
 
 // Why Open Door cannot be pressed right now, from CityBox's last poll (ChillerStatus):
-// null = go ahead. Unknown/never-polled state does not block — their API decides then.
+// null = go ahead. Only a KNOWN busy state blocks (door open / customer session /
+// maintenance). NOT_FOUND is not a block: prod 2026-09-02 shows units online per
+// box_list yet NOT_FOUND on get_device_status_new (C6001/C6002, no planogram yet) —
+// their open-door API is the arbiter there, and a refusal comes back as a toast.
+const DOOR_BUSY_STATES = ['OPENING', 'BUSY', 'MAINTENANCE']
 const openDoorBlockedReason = computed(() => {
   const s = props.chillerStatus
   if (!isChiller.value || !s || !s.is_known) return null
   if (!s.online) return 'Offline — CityBox cannot open the door. Pull to re-check.'
-  if (s.device_state && !s.can_open_door) return 'CityBox reports the machine is ' + (s.device_state_label || s.device_state).toLowerCase() + ' — try again when idle.'
+  if (s.device_state && DOOR_BUSY_STATES.includes(String(s.device_state).toUpperCase())) {
+    return 'CityBox reports the machine is ' + (s.device_state_label || s.device_state).toLowerCase() + ' — try again when idle.'
+  }
   return null
 })
 
