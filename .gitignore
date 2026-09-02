@@ -29,3 +29,8 @@ debug_scripts/
 
 # local scratch area (Claude sessions park junk here; never commit)
 /_to_delete/
+
+# published by composer's post-update-cmd (vendor:publish --tag=laravel-assets); prod publishes its own
+/public/vendor/
+# per-machine Claude Code launch config
+/.claude/

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Log;
  */
 class DeviceSyncService
 {
-    public function __construct(private ChillerGateway $gateway) {}
+    public function __construct(private ChillerGateway $gateway, private CityboxDeviceRegistry $registry) {}
 
     /** Scheduler guard: any Smart Chiller linked at all? Indexed EXISTS. */
     public static function hasLinkedVends(): bool
@@ -42,7 +42,9 @@ class DeviceSyncService
             return ['devices' => collect(), 'vends' => $vends, 'matched' => 0, 'missing' => [], 'unknown' => []];
         }
 
-        $devices = $this->gateway->listDevices()->keyBy(fn (ChillerDevice $d) => $d->equipmentId);
+        // One box_list call per sweep; the registry keeps the fleet (linked or
+        // not) as rows, so the Create page and reports never need this call.
+        $devices = $this->registry->record($this->gateway->listDevices());
 
         $matched = 0;
         foreach ($devices as $equipmentId => $device) {
@@ -65,8 +67,7 @@ class DeviceSyncService
     public function refreshOne(Vend $vend): ChillerDevice
     {
         $equipmentId = (string) $vend->citybox_equipment_id;
-        $device = $this->gateway->listDevices(['equipment_id' => $equipmentId])
-            ->first(fn (ChillerDevice $d) => $d->equipmentId === $equipmentId);
+        $device = $this->registry->refresh(['equipment_id' => $equipmentId])->get($equipmentId);
 
         if (! $device) {
             throw new CityboxApiException("Citybox does not know equipment_id {$equipmentId}");

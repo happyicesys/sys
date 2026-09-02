@@ -1554,7 +1554,9 @@ class OpsJobController extends Controller
         $opsJob = OpsJobItem::findOrFail($id)->opsJob;
         $opsJobItem = OpsJobItem::query()
             ->with([
-                'vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id',
+                // machine_type + citybox_equipment_id feed OpsJobItemResource.is_citybox_chiller,
+                // which hides "Implement New Mapping" for a Smart Chiller on this page.
+                'vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,machine_type,citybox_equipment_id',
                 'vend.productMapping.productMappingItemsNormalSequence.product',
                 'vend.productMapping.productMappingItemsNormalSequence.product.thumbnail',
                 'vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
@@ -2337,6 +2339,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
         $stockActionType = $request->stock_action_type;
+        $this->assertStockActionAllowedForMachine($opsJobItem, $stockActionType);
 
         $opsJobItem->update([
             'stock_action_type' => $stockActionType,
@@ -2438,6 +2441,17 @@ class OpsJobController extends Controller
         ]);
 
         foreach ($opsJob->opsJobItems as $item) {
+            // A Smart Chiller cannot take "implement new mapping" (supplier-owned
+            // planogram, no APK to push to). The flag must NOT land on the item:
+            // completion keys on stock_action_type to run the old-stock auto-return
+            // and the channel-frame push. Leave the item without a stock action.
+            if ($request->stock_action_type === 'implement_new_mapping' && $this->isSmartChillerItem($item)) {
+                $item->update(['stock_action_type' => null]);
+                $item->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+
+                continue;
+            }
+
             $item->update(['stock_action_type' => $request->stock_action_type]);
             if ($request->stock_action_type === 'implement_new_mapping') {
                 $this->applyNewMappingToItem($item);
@@ -2482,10 +2496,50 @@ class OpsJobController extends Controller
         $currentMapping->setRelation('upcomingProductMapping', null);
     }
 
+    /**
+     * Stock actions a machine kind cannot perform. Today: "implement new
+     * mapping" on a Smart Chiller (supplier-owned planogram, no APK to push
+     * to). Item-level only; the job-level bulk path skips per item instead.
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    private function assertStockActionAllowedForMachine(OpsJobItem $opsJobItem, ?string $stockActionType): void
+    {
+        if ($stockActionType !== 'implement_new_mapping') {
+            return;
+        }
+        if ($this->isSmartChillerItem($opsJobItem)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'stock_action_type' => 'Implement New Mapping does not apply to a Smart Chiller — its planogram comes from the CityBox portal.',
+            ]);
+        }
+    }
+
+    /**
+     * Unscoped on purpose: the operator global scope on Vend must not turn
+     * "another operator's chiller" into "not a chiller" and let a guard lapse.
+     */
+    private function isSmartChillerItem(OpsJobItem $opsJobItem): bool
+    {
+        return Vend::withoutGlobalScopes()
+            ->where('id', $opsJobItem->vend_id)
+            ->where('machine_type', Vend::MACHINE_TYPE_SMART_CHILLER)
+            ->exists();
+    }
+
     private function applyNewMappingToItem($opsJobItem)
     {
         $vend = $opsJobItem->vend;
         if (! $vend) {
+            return;
+        }
+        // Defensive: callers already skip/refuse chiller items (see
+        // updateJobStockAction / assertStockActionAllowedForMachine). A Smart
+        // Chiller's planogram is CityBox's — nothing to stage, and completion
+        // would push an APK channel frame the machine cannot receive.
+        if ($vend->isSmartChiller()) {
+            $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+
             return;
         }
 

@@ -20,7 +20,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Vending Machine </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ isChiller ? 'Smart Chiller' : 'Vending Machine' }} </span>
                 </div>
               </div>
             </div>
@@ -204,7 +204,17 @@
                     *
                   </span>
                 </label>
+                <!-- Chiller: the model is derived from CityBox's `type` (visual-2 → F5, visual-8 → C5)
+                     at provisioning and re-read every poll — a hand edit would be overwritten. -->
+                <input
+                  v-if="isChiller"
+                  type="text"
+                  :value="form.vend_model_id ? form.vend_model_id.name : (vend.vend_model_name || '—')"
+                  disabled
+                  class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 text-gray-700 shadow-sm sm:text-sm"
+                />
                 <MultiSelect
+                  v-else
                   v-model="form.vend_model_id"
                   :options="vendModelOptions"
                   trackBy="id"
@@ -215,12 +225,13 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <p v-if="isChiller" class="mt-1 text-xs text-gray-500">From CityBox (`type`) — not editable.</p>
                 <FieldAudit :entry="fieldAudit.vend_model_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
                   {{ form.errors.vend_model_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Machine Sticker
                 </label>
@@ -236,7 +247,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 <div class="flex space-x-2 items-center">
                     <span>
@@ -265,7 +276,7 @@
                   {{ form.errors.key_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Machine Key
                 </label>
@@ -334,7 +345,7 @@
             </div>
 
             <hr class="sm:col-span-6">
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Setting Chart
@@ -365,7 +376,7 @@
                   {{ form.errors.vend_config_id }}
                 </div>
             </div>
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Current Version
                 </label>
@@ -384,7 +395,7 @@
                   {{ form.errors.vend_vend_config_version }}
                 </div>
             </div>
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Latest Version
                 </label>
@@ -427,7 +438,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Simcard &amp; Number
                 </label>
@@ -448,7 +459,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Card Terminal
                 </label>
@@ -469,7 +480,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
                     Modem Model
@@ -496,7 +507,7 @@
                   {{ form.errors.modem_type_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
                     <span>
@@ -524,7 +535,7 @@
                   {{ form.errors.modem_unit_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Menu Frame
                   <span class="text-red-500">
@@ -591,7 +602,7 @@
                   {{ form.errors.claw_machine_board_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LCD Monitor
                   <span class="text-red-500">
@@ -613,7 +624,7 @@
                   {{ form.errors.lcd_monitor_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LED Matrix Panel
                 </label>
@@ -632,7 +643,7 @@
                   {{ form.errors.led_matrix_panel_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Is Using Server Price?
                 </label>
@@ -661,7 +672,7 @@
                   {{ form.errors.is_using_server_price }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Fan speed signal available?
                 </label>
@@ -745,6 +756,36 @@
                   {{ form.errors.citybox_equipment_id }}
                 </div>
             </div>
+
+            <!-- CityBox status layer: THEIR view of the device (ops status, online, heartbeat), from the
+                 last poll on this row — no API call. Sits beside mark1's own Status; neither writes
+                 the other (mark1's Status also carries factory/disposed/sold, which their API has no
+                 opinion about). -->
+            <div class="sm:col-span-6" v-if="isChiller && chillerStatus">
+              <label class="flex justify-start text-sm font-medium text-gray-700">CityBox status</label>
+              <div class="mt-1 rounded-md border p-3 text-sm"
+                   :class="!chillerStatus.is_known ? 'border-gray-200 bg-gray-50' : chillerStatus.is_stale ? 'border-amber-300 bg-amber-50' : chillerStatus.is_retired ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'">
+                <div class="flex flex-wrap gap-x-6 gap-y-1 items-center">
+                  <span>
+                    <span class="text-gray-500">Ops status:</span>
+                    <span :class="chillerStatus.is_running ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">{{ chillerStatus.ops_label }}</span>
+                  </span>
+                  <span>
+                    <span class="text-gray-500">Connection:</span>
+                    <span :class="chillerStatus.online ? 'text-green-700' : 'text-gray-700'">{{ chillerStatus.online ? 'online' : 'offline' }}</span>
+                    <span v-if="!chillerStatus.online && chillerStatus.heartbeat_last_offline" class="text-xs text-gray-500"> since {{ chillerStatus.heartbeat_last_offline }}</span>
+                  </span>
+                  <span><span class="text-gray-500">Model:</span> {{ chillerStatus.model }}</span>
+                  <span v-if="chillerStatus.name"><span class="text-gray-500">CityBox name:</span> {{ chillerStatus.name }}</span>
+                  <span class="text-xs" :class="chillerStatus.is_stale ? 'text-amber-800 font-medium' : 'text-gray-500'">
+                    <template v-if="!chillerStatus.is_known">Not polled yet.</template>
+                    <template v-else-if="chillerStatus.is_stale">Stale — last sync {{ formatDatetime(chillerStatus.synced_at) }}. Press Pull.</template>
+                    <template v-else>Synced {{ formatDatetime(chillerStatus.synced_at) }}</template>
+                  </span>
+                </div>
+                <p v-if="chillerStatus.is_retired" class="mt-2 text-xs text-red-700">CityBox reports this unit as removed (已撤机). Set mark1's Status to Inactive if it is no longer in service.</p>
+              </div>
+            </div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now
                  lists ALL active mappings (name asc) and no longer depends on the prefix,
                  so the v-if="form.vend_prefix_id" gate was removed. -->
@@ -762,7 +803,19 @@
                     </span>
                   </div>
                 </label>
+                <!-- Chiller: ChillerPlanogram creates this mapping and re-points the vend at it on
+                     every sync. Re-binding by hand breaks the mirror, so it is display-only here. -->
+                <template v-if="isChiller">
+                  <input
+                    type="text"
+                    :value="form.product_mapping_id ? form.product_mapping_id.name : (vend.product_mapping_name || 'Created on first sync')"
+                    disabled
+                    class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 text-gray-700 shadow-sm sm:text-sm"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Read-only mirror of the CityBox Pre-Stock Setup. Change it in the CityBox portal, then press Pull.</p>
+                </template>
                 <MultiSelect
+                  v-else
                   v-model="form.product_mapping_id"
                   :options="filteredProductMappingOptions"
                   trackBy="id"
@@ -780,7 +833,7 @@
                   {{ form.errors.product_mapping_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3">
+            <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (upcoming)
@@ -1103,7 +1156,7 @@
                   <Button
                     type="button"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="vend && vend.customer && permissions.includes('update vend-settings')"
+                    v-if="!isChiller && vend && vend.customer && permissions.includes('update vend-settings')"
                     @click.prevent="unbindCustomer(form.id)"
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
@@ -1114,7 +1167,7 @@
                   <Button
                     type="button"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="vend && vend.customer && permissions.includes('update vend-settings')"
+                    v-if="!isChiller && vend && vend.customer && permissions.includes('update vend-settings')"
                     @click.prevent="unbindCustomerDeactivate(form.id)"
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
@@ -1176,7 +1229,7 @@
           </template>
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div v-if="!isChiller" class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -1186,7 +1239,7 @@
                 </div>
               </div>
             </div>
-            <div class="sm:col-span-6 flex justify-between">
+            <div v-if="!isChiller" class="sm:col-span-6 flex justify-between">
               <div class="flex space-x-2 items-center">
                 <div>
                   <DatePicker
@@ -1206,7 +1259,7 @@
                 </Button>
               </div>
             </div>
-            <div class="sm:col-span-6 flex flex-col mt-3">
+            <div v-if="!isChiller" class="sm:col-span-6 flex flex-col mt-3">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
               <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -1251,7 +1304,7 @@
             </div>
             </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div v-if="!isChiller" class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -1262,7 +1315,7 @@
               </div>
             </div>
 
-             <div class="sm:col-span-2">
+             <div v-if="!isChiller" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Grab Enabled?
                 </label>
@@ -1272,7 +1325,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Display Screen Available?
                 </label>
@@ -1282,7 +1335,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   QR Payment Method
                 </label>
@@ -1292,7 +1345,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Cash Payment Method
                 </label>
@@ -1302,7 +1355,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-             <div class="sm:col-span-2">
+             <div v-if="!isChiller" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Credit Card Payment Method
                 </label>
@@ -1312,7 +1365,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div class="sm:col-span-2">
+            <div v-if="!isChiller" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   HID Payment Method
                 </label>
@@ -1334,7 +1387,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6 mb-4 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
+            <div v-if="!isChiller" class="sm:col-span-6 mb-4 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
               <div class="flex">
                 <div class="flex-shrink-0">
                   <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -1394,7 +1447,7 @@
               </span>
             </div>
 
-            <div class="sm:col-span-6">
+            <div v-if="!isChiller" class="sm:col-span-6">
               <span class="flex space-x-1">
                 <Button
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
@@ -1597,7 +1650,15 @@ const props = defineProps({
     vendSerialNumberOptions: Object,
     stickerOptions: Object,
     versionOptions: Object,
+    // ChillerStatus::toArray() — null for anything but a Smart Chiller.
+    chillerStatus: Object,
   })
+
+// One question, asked once: is this a CityBox Smart Chiller? Every
+// vending-machine-only block on this page (hardware pickers, APK sections,
+// VMC/APK buttons, unbind) is gated on it. Keyed on the persisted vend, not the
+// form, so a mis-set picker can never expose or hide the wrong controls.
+const isChiller = computed(() => props.vend && props.vend.machine_type === 'smart_chiller')
 
 const form = ref(
   useForm(getDefaultForm())
@@ -2119,7 +2180,8 @@ onMounted(() => {
     trigger_log_date: moment().format('YYYY-MM-DD'),
     upcoming_product_mapping_id: computeUpcomingSelection(props.vend.upcoming_product_mapping_id),
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
-    vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id).version : null : null,
+    // Null-safe: a stored config id with no matching option must not crash the page.
+    vend_config_version: props.vend ? props.vend.vend_config_id ? (vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id)?.version ?? null) : null : null,
     vend_contract_id: props.vend ? props.vend.vend_contract_id ? vendContractOptions.value.find(vendContract => vendContract.id == props.vend.vend_contract_id) : null : null,
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id == props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id == props.vend.vend_prefix_id) : null : null,

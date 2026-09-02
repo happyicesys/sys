@@ -15,7 +15,6 @@ use App\Services\Citybox\DTO\ChillerDevice;
 use App\Services\HistoryService;
 use App\Services\RunningNumberService;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -36,43 +35,40 @@ use Illuminate\Support\Facades\Log;
  */
 class DeviceProvisioningService
 {
-    private const UNLINKED_CACHE_KEY = 'citybox:provisioning:devices';
-
     public function __construct(
         private ChillerGateway $gateway,
         private DeviceSyncService $deviceSync,
+        private CityboxDeviceRegistry $registry,
         private HistoryService $history,
         private RunningNumberService $runningNumbers,
     ) {}
 
     /**
      * Devices in their fleet that are NOT yet linked to a mark1 vend — the
-     * Create-page dropdown source. Cached 60 s so ten people opening the page
-     * is one API call. Includes a "linked to vend X" annotation for the rest
-     * so the UI can explain why an id is missing.
+     * Create-page dropdown source. Served from the citybox_devices registry,
+     * which the poller keeps current every minute; only refreshed from their
+     * API when the registry is stale/empty or the user presses Refresh.
+     * Includes a "linked to vend X" annotation for the rest so the UI can
+     * explain why an id is missing.
      *
      * @return array{unlinked: Collection<int,ChillerDevice>, linked: array<string,int>}
      */
     public function devices(bool $fresh = false): array
     {
-        if ($fresh) {
-            Cache::forget(self::UNLINKED_CACHE_KEY);
-        }
-        $all = Cache::remember(self::UNLINKED_CACHE_KEY, 60, fn () => $this->gateway->listDevices()->all());
+        $unlinked = $this->registry->unlinked($fresh);
         $linked = Vend::withoutGlobalScopes()->whereNotNull('citybox_equipment_id')
             ->pluck('id', 'citybox_equipment_id')->all();
 
         return [
-            'unlinked' => collect($all)->reject(fn (ChillerDevice $d) => isset($linked[$d->equipmentId]))->values(),
+            'unlinked' => $unlinked->values(),
             'linked' => $linked,
         ];
     }
 
-    /** One device by id, or null. Cheap: served from the same 60 s cache. */
+    /** One device by id from the registry (refreshed if stale), or null. */
     public function device(string $equipmentId): ?ChillerDevice
     {
-        return collect(Cache::remember(self::UNLINKED_CACHE_KEY, 60, fn () => $this->gateway->listDevices()->all()))
-            ->first(fn (ChillerDevice $d) => $d->equipmentId === $equipmentId);
+        return $this->registry->find($equipmentId);
     }
 
     /** Preview-card data for a chosen device: live state + product count. Best-effort. */
@@ -163,7 +159,6 @@ class DeviceProvisioningService
                 $this->history->syncVendCustomerMovement($vend, $customer, true);
             }
 
-            Cache::forget(self::UNLINKED_CACHE_KEY);
             Log::info('Citybox vend provisioned', ['vend_id' => $vend->id, 'equipment_id' => $device->equipmentId, 'customer_id' => $customer?->id, 'user_id' => $by->id]);
 
             return $vend->refresh();

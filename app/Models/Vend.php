@@ -94,6 +94,26 @@ class Vend extends Model
     ];
 
     /**
+     * A CityBox Smart Chiller: not our hardware, no APK/VMC, supplier-owned
+     * planogram. Every "does this vending-machine concept apply?" gate keys on
+     * this — never on the bound mapping or on citybox_equipment_id alone.
+     */
+    public function isSmartChiller(): bool
+    {
+        return $this->machine_type === self::MACHINE_TYPE_SMART_CHILLER;
+    }
+
+    /**
+     * The CityBox-side status layer (their ops status, heartbeat, online) as a
+     * value object, or null for any other machine kind. Reads the last poll
+     * result from the row; never calls their API.
+     */
+    public function chillerStatus(): ?\App\Services\Citybox\ChillerStatus
+    {
+        return $this->isSmartChiller() ? \App\Services\Citybox\ChillerStatus::forVend($this) : null;
+    }
+
+    /**
      * Whether a mapping may be bound to a machine of the given type. NULL mapping (unbinding)
      * and the machine-agnostic "N/A" placeholder are always allowed; otherwise the mapping's
      * machine_type must equal the vend's (both sides defaulting legacy NULL to vending_machine).

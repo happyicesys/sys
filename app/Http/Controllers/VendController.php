@@ -5311,6 +5311,16 @@ class VendController extends Controller
             ]);
         }
 
+        // A Smart Chiller has none of the vending-machine hardware these rules
+        // describe (no menu frame, no LCD, no APK config chart → no "N/A" chart to
+        // relax on), and its mapping/prefix are written by provisioning and the
+        // poller, not by this form. Before 2026-09-02 the unconditional 'required'
+        // rules meant a chiller with NULL lcd/menu could never be saved from
+        // Setting/Edit (vends 1363/1364 in prod). Keep them required for everything else.
+        $isChiller = $requestedType === Vend::MACHINE_TYPE_SMART_CHILLER;
+        $hardwareRule = $isChiller ? 'nullable' : 'required';
+        $bindingRule = ($isNA || $isChiller) ? 'nullable' : 'required';
+
         $request->validate([
             'citybox_equipment_id' => [
                 'sometimes', 'nullable', 'string', 'max:64',
@@ -5320,14 +5330,14 @@ class VendController extends Controller
                         && ($request->machine_type ?: $vend->machine_type) !== Vend::MACHINE_TYPE_SMART_CHILLER
                 ),
             ],
-            'lcd_monitor_id' => 'required',
+            'lcd_monitor_id' => $hardwareRule,
             'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
-            'menu_frame_id' => 'required',
+            'menu_frame_id' => $hardwareRule,
             'operator_id' => 'required',
-            'product_mapping_id' => $isNA ? 'nullable' : 'required',
+            'product_mapping_id' => $bindingRule,
             // 'vend_config_id' => 'required',
             'vend_model_id' => 'required',
-            'vend_prefix_id' => $isNA ? 'nullable' : 'required',
+            'vend_prefix_id' => $bindingRule,
         ]);
 
         // --- Machine-type ↔ mapping compatibility (2026-08-12) ---------------------------------

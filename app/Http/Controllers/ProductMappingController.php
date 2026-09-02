@@ -842,6 +842,7 @@ class ProductMappingController extends Controller
 
     public function createItem(Request $request, $productMappingId)
     {
+        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('channel_code');
         $validated = $request->validate([
             'channel_code' => ['required'],
             'product_id' => ['required', 'exists:products,id'],
@@ -888,6 +889,7 @@ class ProductMappingController extends Controller
     public function deleteItem($productMappingItemID)
     {
         $item = ProductMappingItem::findOrFail($productMappingItemID);
+        $item->assertMappingEditable('channel_code');
         $productMappingId = $item->product_mapping_id;
         $item->delete();
 
@@ -987,6 +989,7 @@ class ProductMappingController extends Controller
 
     public function update(Request $request, $productMappingId)
     {
+        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('name');
         $request->merge(['name' => trim((string) $request->name)]);
         $request->validate([
             'name' => ['required', $this->uniqueNameRule((int) $productMappingId)],
@@ -1086,6 +1089,7 @@ class ProductMappingController extends Controller
     public function updateItem(Request $request, $productMappingItemID)
     {
         $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
+        $productMappingItem->assertMappingEditable('channel_code');
 
         // Same one-product-per-slot rule as create — a channel_code edit must not
         // collide with another item in a smart planogram (this row excepted).
@@ -1118,6 +1122,7 @@ class ProductMappingController extends Controller
      */
     public function reorderBasket(Request $request, $productMappingId)
     {
+        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('basket');
         $validated = $request->validate([
             'basket' => ['required', 'integer', 'min:1', 'max:6'],
             'product_ids' => ['required', 'array'],
@@ -1162,6 +1167,7 @@ class ProductMappingController extends Controller
 
     public function updateItemSequence(Request $request, ProductMappingItem $item)
     {
+        $item->assertMappingEditable('sequence');
         $data = $request->validate([
             'sequence' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -1214,6 +1220,7 @@ class ProductMappingController extends Controller
 
     public function delete($productMappingId)
     {
+        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('delete');
         $productMapping = ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId);
 
         if (! $productMapping->operator_id) {
@@ -1300,6 +1307,7 @@ class ProductMappingController extends Controller
 
     public function bindVends(Request $request, $productMappingId)
     {
+        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('vends');
         $productMapping = ProductMapping::findOrFail($productMappingId);
 
         $requestedVendIds = collect($request->productMappingVends)->pluck('id')->toArray();
@@ -1396,6 +1404,7 @@ class ProductMappingController extends Controller
 
     public function toggleActivateDeactivate($productMappingID)
     {
+        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingID)->assertEditable('is_active');
         $productMapping = ProductMapping::findOrFail($productMappingID);
         $productMapping->is_active = ! $productMapping->is_active;
         $productMapping->save();

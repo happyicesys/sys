@@ -41,6 +41,13 @@
       </div>
     </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 overflow-visible">
+      <!-- CityBox mirror: ChillerPlanogram rewrites every row on each poll, so nothing here is
+           editable — the server refuses writes too (ProductMapping::assertEditable). -->
+      <div v-if="isCityboxMirror" class="mt-4 rounded-md bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-900">
+        <span class="font-semibold">Read-only mirror of a CityBox chiller's Pre-Stock Setup.</span>
+        Channels, products and prices are pulled from the CityBox portal and overwritten on every sync.
+        To change them, edit the machine in the CityBox portal, then press <b>Pull from CityBox</b> on the machine's settings page.
+      </div>
       <div class="mt-6 flex flex-col overflow-visible">
         <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 overflow-visible">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-visible p-5">
@@ -213,7 +220,7 @@
                   </div>
                 </div>
 
-                <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
+                <div class="sm:col-span-1" v-if="form.id && !form.is_smart && !isCityboxMirror">
                   <Button
                     type="button"
                     @click.prevent="bindProductMappingItem()"
@@ -334,6 +341,7 @@
                               </td> -->
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
+                                  v-if="!isCityboxMirror"
                                   class="bg-red-400 hover:bg-red-500 text-white"
                                   @click="unbindProductMappingItem(productMappingItem)"
                                 >
@@ -404,7 +412,7 @@
                       </span>
                     </Button>
 
-                    <Button type="button" v-if="form.id" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+                    <Button type="button" v-if="form.id && !isCityboxMirror" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                       <div>
                         <span class="flex flex-col space-y-1" v-if="form.is_active">
                           <span class="flex space-x-1 items-center">
@@ -439,7 +447,7 @@
                       </Button>
                     </Link>
 
-                    <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                    <Button v-if="!isCityboxMirror" type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
                         Save
@@ -494,6 +502,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['modalClose'])
+
+// A CityBox chiller's mirror mapping (ProductMappingResource.is_citybox_mirror):
+// every write control on this page is hidden for it; the server refuses writes too.
+const isCityboxMirror = computed(() => !!(props.productMapping && props.productMapping.data && props.productMapping.data.is_citybox_mirror))
 
 const form = ref(
   useForm(getDefaultForm())

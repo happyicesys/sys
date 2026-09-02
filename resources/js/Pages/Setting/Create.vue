@@ -83,12 +83,20 @@
               <div class="sm:col-span-4">
                 <label class="flex justify-start text-sm font-medium text-gray-700">CityBox device</label>
                 <div class="flex space-x-2 mt-1">
-                  <select v-model="cb.equipment_id" @change="onDevicePicked" class="flex-1 rounded-md border-gray-300 text-sm">
-                    <option :value="null">— select a device —</option>
-                    <option v-for="d in cb.devices" :key="d.equipment_id" :value="d.equipment_id">
-                      {{ d.equipment_id }} · {{ d.name }} · {{ d.type }} · {{ d.online ? 'online' : ('offline' + (d.offline_since ? ' since ' + d.offline_since : '')) }}
-                    </option>
-                  </select>
+                  <!-- Searchable picker (not a plain select): the fleet is keyed by serial,
+                       so ops need to type either the serial or the CityBox name to find one. -->
+                  <MultiSelect
+                    v-model="cb.device"
+                    :options="deviceOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="label"
+                    placeholder="Search a device by ID or name…"
+                    open-direction="bottom"
+                    class="flex-1"
+                    :canClear="true"
+                  >
+                  </MultiSelect>
                   <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="loadDevices(true)" :disabled="cb.loading">
                     <ArrowPathIcon class="w-4 h-4" :class="cb.loading ? 'animate-spin' : ''" />
                   </Button>
@@ -186,7 +194,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
 import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import axios from 'axios';
-import { reactive, watch } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
@@ -215,8 +223,16 @@ const props = defineProps({
   const now = ref(moment().format('HH:mm:ss'))
   const cityboxEnabled = usePage().props.cityboxEnabled ?? false
   const source = ref('standard')
-  const cb = reactive({ devices: [], loaded: false, loading: false, error: null, equipment_id: null, preview: null,
+  const cb = reactive({ devices: [], loaded: false, loading: false, error: null, device: null, equipment_id: null, preview: null,
                         customerMode: 'new', customerQuery: '', customerResults: [], searchTimer: null })
+
+  // MultiSelect searches on `label`, so everything ops might type — serial, CityBox
+  // name, model, online state — has to live in that one string.
+  const deviceOptions = computed(() => cb.devices.map(d => ({
+    ...d,
+    id: d.equipment_id,
+    label: `${d.equipment_id} · ${d.name} · ${d.type} · ${d.online ? 'online' : ('offline' + (d.offline_since ? ' since ' + d.offline_since : ''))}`,
+  })))
 
 onMounted(() => {
     typeName.value = 'Create New'
@@ -245,12 +261,18 @@ async function loadDevices(fresh) {
     if (data.error) cb.error = data.error
     cb.devices = data.unlinked || []
     cb.loaded = true
+    // A refresh can retire the picked device (someone else linked it) — drop the
+    // selection rather than posting a serial CityBox no longer offers.
+    if (cb.device && !cb.devices.some(d => d.equipment_id === cb.device.equipment_id)) cb.device = null
   } catch (e) {
     cb.error = 'Could not load CityBox devices.'
   } finally { cb.loading = false }
 }
 
+watch(() => cb.device, onDevicePicked)
+
 async function onDevicePicked() {
+  cb.equipment_id = cb.device ? cb.device.equipment_id : null
   form.value.equipment_id = cb.equipment_id
   cb.preview = null
   if (!cb.equipment_id) return

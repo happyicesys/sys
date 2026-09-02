@@ -463,7 +463,15 @@ class SettingController extends Controller
             }
         }
 
+        // NOTE: every option list below is loaded for every machine kind, chillers
+        // included. Edit.vue hides the vending-machine pickers for a chiller but
+        // still resolves the vend's stored ids against these lists (and posts them
+        // back), so an empty list would null hidden columns on save — and crash on
+        // vend_config_version for a chiller that still carries a config chart.
         return Inertia::render('Setting/Edit', [
+            // CityBox-side status layer (their ops status / heartbeat / online),
+            // read from the last poll on the row — no API call. Null for other kinds.
+            'chillerStatus' => $vend->chillerStatus()?->toArray(),
             // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populates
             // the new "Card Terminal" dropdown on the vend edit form.
             'cardTerminalOptions' => CardTerminalResource::collection(

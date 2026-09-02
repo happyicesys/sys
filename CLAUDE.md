@@ -186,6 +186,40 @@ Manual PayNow/PayPal payouts never set `is_refunded` — they live on
 Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,
 `tests/Unit/CardTerminalReversalPredicateTest.php`.
 
+## Smart Chiller (CityBox): not a vending machine with extra fields
+
+A `machine_type = smart_chiller` vend is CityBox's hardware running CityBox's
+software. It has no APK, no VMC, no modem/simcard/terminal of ours, and its
+planogram is theirs. Three rules follow, each enforced in code — extend them
+rather than adding a new `if (citybox)` somewhere else:
+
+- **`Vend::isSmartChiller()` is the one question.** Setting/Edit gates every
+  vending-machine-only control on it (`isChiller` computed); `VendController::update`
+  relaxes the hardware/binding `required` rules on it. A new vending-machine
+  field on that page must be gated the same way, or a chiller can no longer be
+  saved (prod 2026-09-02: vends 1363/1364 were unsavable for exactly this
+  reason). `SettingController::edit` still loads every option list for a
+  chiller on purpose: hidden pickers keep resolving and posting the stored ids,
+  so an empty list would null hidden columns on save.
+- **A chiller's ProductMapping is a read-only mirror.** `ChillerPlanogram`
+  overwrites it every poll; `ProductMapping::isCityboxMirror()` /
+  `assertEditable()` refuse every human write path, and the ops-job
+  `implement_new_mapping` action is refused/skipped for chiller items (it
+  would push an APK channel frame). Keep the mapping — ops jobs read it.
+- **Their status is a separate layer, not our Status.** `ChillerStatus`
+  (`Vend::chillerStatus()`) is their ops status / online / heartbeat, built
+  from the last poll on the row and shown read-only. mark1's Status
+  (active / factory / disposed / sold) stays manual; nothing auto-flips
+  `is_active` from their API (`ChillerStatus::isRetired()` is the hook if that
+  is ever decided).
+
+The fleet lives in `citybox_devices` (`CityboxDeviceRegistry` is the only
+writer — one upsert per poll, rows never deleted, `in_fleet` marks presence in
+the latest complete listing). Read it; never write it from a controller.
+Regression coverage: `tests/Feature/CityboxChillerGuardsTest.php`,
+`tests/Feature/CityboxDeviceRegistryTest.php`, `tests/Unit/CityboxChillerStatusTest.php`.
+Field-by-field reasoning: `CHILLER_SETTINGS_AUDIT_2026-09-02.md`.
+
 ---
 
 # Laravel Boost guidelines
