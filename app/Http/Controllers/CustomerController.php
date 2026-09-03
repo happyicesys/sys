@@ -2,39 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CategoryGroupResource;
-use App\Http\Resources\CategoryResource;
-use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerPeriodSummaryResource;
 use App\Http\Resources\CustomerResource;
-use App\Http\Resources\LocationTypeResource;
-use App\Http\Resources\OperatorResource;
-use App\Http\Resources\PriceTemplateResource;
-use App\Http\Resources\ProfileResource;
-use App\Http\Resources\TagResource;
-use App\Http\Resources\UserResource;
-use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendConfigResource;
-use App\Http\Resources\VendPrefixResource;
-use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Models\Category;
-use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerContractLog;
 use App\Models\CustomerScheduledContract;
-use App\Models\LocationType;
 use App\Models\Operator;
-use App\Models\OpsJobItem;
-use App\Models\PriceTemplate;
 use App\Models\Profile;
 use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendConfig;
-use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\Zone;
 use App\Services\CmsPersonPullService;
@@ -43,17 +26,16 @@ use App\Services\MapService;
 use App\Services\PerformanceReportContentService;
 use App\Services\TagBindingService;
 use App\Services\VendPricingSourceService;
+use App\Support\SiteSearch;
 use App\Traits\ExportOptimizationTrait;
 use App\Traits\HasFilter;
 use App\Traits\SearchAddress;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Rap2hpoutre\FastExcel\FastExcel;
-use App\Support\SiteSearch;
 
 class CustomerController extends Controller
 {
@@ -81,14 +63,16 @@ class CustomerController extends Controller
     }
 
     protected $historyService;
+
     protected $mapService;
+
     protected $vendPricingSourceService;
 
     public function __construct(HistoryService $historyService, VendPricingSourceService $vendPricingSourceService)
     {
         $this->historyService = $historyService;
         $this->vendPricingSourceService = $vendPricingSourceService;
-        $this->mapService = new MapService();
+        $this->mapService = new MapService;
     }
 
     public function index(Request $request)
@@ -110,7 +94,7 @@ class CustomerController extends Controller
         //         $request->merge(['operators' => ['all']]);
         //     }
         // }
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
 
         $customers = Customer::with([
             'deliveryAddress',
@@ -137,7 +121,7 @@ class CustomerController extends Controller
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id')
@@ -201,7 +185,7 @@ class CustomerController extends Controller
                         'id' => $index,
                         'name' => $status,
                     ];
-                })
+                }),
             ],
             'tags' => $optionsService->tags($className),
             'users' => $optionsService->users(),
@@ -252,7 +236,7 @@ class CustomerController extends Controller
         // "@Me Mentioned" view — sites whose Site Note @-mentions this user.
         $isMentionView = $request->boolean('mentioned');
         $isPartialReload = $request->hasHeader('X-Inertia-Partial-Data');
-        if ($authUser && !$request->boolean('searched') && !$isPartialReload) {
+        if ($authUser && ! $request->boolean('searched') && ! $isPartialReload) {
             $noteService->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_SUMMARY);
         }
         $summaryUnreadSince = $authUser
@@ -271,9 +255,9 @@ class CustomerController extends Controller
         // an explicit unread toggle (unread present in the request, incl.
         // unread=0 "Show All"), or the mention view all opt out. Sorting stays
         // Note Last Updated desc via the override below.
-        if (!$request->has('unread')
-            && !$request->boolean('searched')
-            && !$isMentionView
+        if (! $request->has('unread')
+            && ! $request->boolean('searched')
+            && ! $isMentionView
             && $summaryUnreadCount > 0) {
             $isUnreadView = true;
         }
@@ -328,7 +312,7 @@ class CustomerController extends Controller
         // Applied ONLY on a fresh load (no `searched` flag). An explicit search
         // sends searched=1, so deselecting every operator to "see all" is still
         // honoured instead of snapping back to this default.
-        if (!$request->boolean('searched') && empty($request->operators)) {
+        if (! $request->boolean('searched') && empty($request->operators)) {
             $user = auth()->user();
             if ($user && $user->operator_id) {
                 $defaultOperatorIds = [(int) $user->operator_id];
@@ -646,10 +630,11 @@ class CustomerController extends Controller
                 $useStored = $cr->locked_at !== null
                     || $cr->contract_log_id !== null
                     || isset($reactivatedIds[(int) $cr->customer_id])
-                    || !$c;
+                    || ! $c;
                 if ($useStored) {
                     $locationFeesTotal += (int) $cr->location_fees_cents;
                     $locationEarningTotal += (int) $cr->location_earning_cents;
+
                     continue;
                 }
 
@@ -686,7 +671,7 @@ class CustomerController extends Controller
                 $locationEarningTotal += (int) $cr->gross_earning_cents - ($liveFee - $liveExt);
 
                 // Did the to-date cap actually reduce this row's flat fee?
-                if (!$totalsHasToDateProration) {
+                if (! $totalsHasToDateProration) {
                     $fullRatio = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                         $c->active_date ?? $c->begin_date,
                         $c->removed_date,
@@ -797,7 +782,7 @@ class CustomerController extends Controller
             ])
             ->where(function ($q) {
                 $q->where('contract_auto_renewal', false)
-                  ->orWhereNull('contract_auto_renewal');
+                    ->orWhereNull('contract_auto_renewal');
             })
             ->count();
 
@@ -868,7 +853,7 @@ class CustomerController extends Controller
         $totals['paid_period_cents'] = (int) ($settlementPeriodTotals->paid_cents ?? 0);
         $totals['waived_period_cents'] = (int) ($settlementPeriodTotals->waived_cents ?? 0);
 
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Summary', [
@@ -944,7 +929,7 @@ class CustomerController extends Controller
         $customerIds = $this->resolvePerformanceCustomerIds($request);
         $matrix = $this->buildPerformanceMatrix($customerIds);
 
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Performance', [
@@ -1003,11 +988,12 @@ class CustomerController extends Controller
                     ? ''
                     : $this->formatPerformanceCell($metrics, $r['key'], $col['key'], $r['format']);
             }
+
             return $out;
         });
 
         return (new FastExcel($rows))->download(
-            'SitePerformance' . now()->format('YmdHis') . '.xlsx'
+            'SitePerformance'.now()->format('YmdHis').'.xlsx'
         );
     }
 
@@ -1031,7 +1017,7 @@ class CustomerController extends Controller
 
         // Mirror summary()/CustomerIndex default operator set on a fresh load
         // (the user's own operator, plus HIMD/LEA/HIESG/UL-ST for HIPL admins).
-        if (!$request->boolean('searched') && empty($request->operators)) {
+        if (! $request->boolean('searched') && empty($request->operators)) {
             $user = auth()->user();
             if ($user && $user->operator_id) {
                 $defaultOperatorIds = [(int) $user->operator_id];
@@ -1121,15 +1107,15 @@ class CustomerController extends Controller
             ['Net Location Fees', 'Avg per machine', 'nlf_avg_per_machine_cents', 'money'],
         ];
         foreach ($b as $k => $label) {
-            $rows[] = ['Net Location Fees', $label, 'nlf_' . $k, 'int'];
+            $rows[] = ['Net Location Fees', $label, 'nlf_'.$k, 'int'];
         }
         $rows[] = ['Vend Earning', 'Avg per machine', 've_avg_per_machine_cents', 'money'];
         foreach ($b as $k => $label) {
-            $rows[] = ['Vend Earning', $label, 've_' . $k, 'int'];
+            $rows[] = ['Vend Earning', $label, 've_'.$k, 'int'];
         }
         $rows[] = ['Accumulated Vend Earning', 'Avg per machine', 'ave_avg_per_machine_cents', 'money'];
         foreach ($a as $k => $label) {
-            $rows[] = ['Accumulated Vend Earning', $label, 'ave_' . $k, 'int'];
+            $rows[] = ['Accumulated Vend Earning', $label, 'ave_'.$k, 'int'];
         }
 
         return array_map(fn ($r) => [
@@ -1154,7 +1140,8 @@ class CustomerController extends Controller
             case 'money_pct':
                 $sales = $metrics['sales_cents'][$colKey] ?? 0;
                 $pct = $sales != 0 ? round(($val / $sales) * 100, 1) : null;
-                return $money($val) . ($pct !== null ? ' (' . $pct . '%)' : '');
+
+                return $money($val).($pct !== null ? ' ('.$pct.'%)' : '');
             case 'int':
             default:
                 return (string) (int) $val;
@@ -1268,6 +1255,7 @@ class CustomerController extends Controller
             $M['vend_earning_cents'][$col] = (int) $mr->sum('location_earning_cents');
             $M['sales_excl_cents'][$col] = (int) $mr->reduce(function ($carry, $r) use ($operatorGst) {
                 $gst = $operatorGst[$r->operator_id] ?? 0;
+
                 return $carry + ((int) $r->sales_cents) / (1 + $gst / 100);
             }, 0);
 
@@ -1363,12 +1351,13 @@ class CustomerController extends Controller
         $base[] = 've_avg_per_machine_cents';
         $base[] = 'ave_avg_per_machine_cents';
         foreach ($bands as $b) {
-            $base[] = 'nlf_' . $b;
-            $base[] = 've_' . $b;
+            $base[] = 'nlf_'.$b;
+            $base[] = 've_'.$b;
         }
         foreach ($accBands as $b) {
-            $base[] = 'ave_' . $b;
+            $base[] = 'ave_'.$b;
         }
+
         return $base;
     }
 
@@ -1399,7 +1388,7 @@ class CustomerController extends Controller
 
         foreach ($custIds as $cid) {
             $c = $customers->get($cid);
-            if (!$c) {
+            if (! $c) {
                 continue;
             }
             $first = $contractFirstUpload[$cid] ?? null;
@@ -1409,7 +1398,7 @@ class CustomerController extends Controller
                 $M['contract_avail_no'][$col]++;
             }
 
-            if ($c->contract_until && !$c->contract_auto_renewal) {
+            if ($c->contract_until && ! $c->contract_auto_renewal) {
                 $until = Carbon::parse($c->contract_until);
                 if ($until->gte($ref) && $until->lte($r60)) {
                     $M['contract_end_60'][$col]++;
@@ -1444,9 +1433,9 @@ class CustomerController extends Controller
             }
             $perMachine = $val / $vc;
             $band = $acc ? $this->accBand($perMachine) : $this->feeBand($perMachine);
-            $M[$prefix . '_' . $band][$col]++;
+            $M[$prefix.'_'.$band][$col]++;
         }
-        $M[$prefix . '_avg_per_machine_cents'][$col] = $sumMachines > 0
+        $M[$prefix.'_avg_per_machine_cents'][$col] = $sumMachines > 0
             ? (int) round($sumVal / $sumMachines)
             : 0;
     }
@@ -1454,28 +1443,58 @@ class CustomerController extends Controller
     /** Net-fee / vend-earning per-machine band (cents in → band key). */
     protected function feeBand(float $cents): string
     {
-        if ($cents < 0) return 'neg';
+        if ($cents < 0) {
+            return 'neg';
+        }
         $d = $cents / 100;
-        if ($d <= 50) return 'b0_50';
-        if ($d <= 100) return 'b51_100';
-        if ($d <= 150) return 'b101_150';
-        if ($d <= 200) return 'b151_200';
-        if ($d <= 300) return 'b201_300';
-        if ($d <= 500) return 'b301_500';
+        if ($d <= 50) {
+            return 'b0_50';
+        }
+        if ($d <= 100) {
+            return 'b51_100';
+        }
+        if ($d <= 150) {
+            return 'b101_150';
+        }
+        if ($d <= 200) {
+            return 'b151_200';
+        }
+        if ($d <= 300) {
+            return 'b201_300';
+        }
+        if ($d <= 500) {
+            return 'b301_500';
+        }
+
         return 'b500p';
     }
 
     /** Accumulated vend-earning per-machine band (cents in → band key). */
     protected function accBand(float $cents): string
     {
-        if ($cents < 0) return 'neg';
+        if ($cents < 0) {
+            return 'neg';
+        }
         $d = $cents / 100;
-        if ($d <= 500) return 'a0_500';
-        if ($d <= 1000) return 'a500_1000';
-        if ($d <= 5000) return 'a1000_5000';
-        if ($d <= 10000) return 'a5000_10000';
-        if ($d <= 20000) return 'a10k_20k';
-        if ($d <= 30000) return 'a20k_30k';
+        if ($d <= 500) {
+            return 'a0_500';
+        }
+        if ($d <= 1000) {
+            return 'a500_1000';
+        }
+        if ($d <= 5000) {
+            return 'a1000_5000';
+        }
+        if ($d <= 10000) {
+            return 'a5000_10000';
+        }
+        if ($d <= 20000) {
+            return 'a10k_20k';
+        }
+        if ($d <= 30000) {
+            return 'a20k_30k';
+        }
+
         return 'a30kp';
     }
 
@@ -1492,8 +1511,7 @@ class CustomerController extends Controller
         $windowStart = $today->copy()->subDays(29)->startOfDay();
         $windowEnd = $today->copy()->endOfDay();
 
-        $testingVendIds = \Illuminate\Support\Facades\Cache::remember('testing_vend_ids', 3600, fn () =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
+        $testingVendIds = \Illuminate\Support\Facades\Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         // Sales per site over the window — mirrors CustomerSummaryAggregator's
@@ -1503,17 +1521,17 @@ class CustomerController extends Controller
             ->whereIn('vend_transactions.customer_id', $customerIds)
             ->where(function ($q) use ($windowStart, $windowEnd) {
                 $q->whereBetween('vend_transactions.transaction_datetime', [$windowStart, $windowEnd])
-                  ->orWhere(function ($or) use ($windowStart, $windowEnd) {
-                      $or->whereNull('vend_transactions.transaction_datetime')
-                         ->whereBetween('vend_transactions.created_at', [$windowStart, $windowEnd]);
-                  });
+                    ->orWhere(function ($or) use ($windowStart, $windowEnd) {
+                        $or->whereNull('vend_transactions.transaction_datetime')
+                            ->whereBetween('vend_transactions.created_at', [$windowStart, $windowEnd]);
+                    });
             })
             ->where(function ($q) {
                 $q->whereIn('vend_channel_errors.code', [0, 6])
-                  ->orWhereNull('vend_channel_errors.code')
-                  ->orWhere('vend_transactions.is_multiple', true);
+                    ->orWhereNull('vend_channel_errors.code')
+                    ->orWhere('vend_transactions.is_multiple', true);
             })
-            ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             // "Transaction Access From": a raw DB::table() query, so no Eloquent
             // global scope can reach it. applyToColumn() is a no-op when the
@@ -1544,7 +1562,7 @@ class CustomerController extends Controller
         $perCustVe = [];
         foreach ($activeIds as $cid) {
             $c = $customers->get($cid);
-            if (!$c) {
+            if (! $c) {
                 continue;
             }
             $sales = (int) round((float) ($salesByCust[$cid] ?? 0));
@@ -1690,14 +1708,15 @@ class CustomerController extends Controller
     protected function periodReportMonthsBack(?string $id): ?int
     {
         $map = [
-            'last_1_month'   => 1,
-            'last_2_months'  => 2,
-            'last_3_months'  => 3,
-            'last_6_months'  => 6,
+            'last_1_month' => 1,
+            'last_2_months' => 2,
+            'last_3_months' => 3,
+            'last_6_months' => 6,
             'last_12_months' => 12,
             'last_24_months' => 24,
             'last_36_months' => 36,
         ];
+
         return $map[$id] ?? null;
     }
 
@@ -1743,7 +1762,7 @@ class CustomerController extends Controller
                 }
             };
             $start = $parse($from) ?: $currentMonthStart->copy();
-            $end   = $parse($to)   ?: $currentMonthStart->copy();
+            $end = $parse($to) ?: $currentMonthStart->copy();
 
             // Reversed range → swap so start <= end.
             if ($start->gt($end)) {
@@ -1765,6 +1784,7 @@ class CustomerController extends Controller
             if ($start->gt($end)) {
                 $start = $end->copy();
             }
+
             return [$start, $end];
         }
 
@@ -1773,12 +1793,13 @@ class CustomerController extends Controller
         // N=1 (previous month); the 2/3 variants are exactly the same single
         // month behaviour, just two or three months ago (month start to end).
         $onlyMonthsBack = [
-            'last_month_only'   => 1,
+            'last_month_only' => 1,
             'last_2_month_only' => 2,
             'last_3_month_only' => 3,
         ][$id] ?? null;
         if ($onlyMonthsBack !== null) {
             $anchor = $currentMonthStart->copy()->subMonthsNoOverflow($onlyMonthsBack)->startOfMonth();
+
             return [$anchor, $anchor->copy()];
         }
 
@@ -1788,6 +1809,7 @@ class CustomerController extends Controller
             // each customer's group, then walk back N finished months.
             $rangeEnd = $currentMonthStart->copy();                              // current month (incomplete)
             $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow($monthsBack);   // N months back from current
+
             return [$rangeStart->startOfMonth(), $rangeEnd->startOfMonth()];
         }
 
@@ -1804,6 +1826,7 @@ class CustomerController extends Controller
             if ($rangeStart->lt($floor)) {
                 $rangeStart = $floor;
             }
+
             return [$rangeStart, $currentMonthStart->copy()];
         }
 
@@ -1822,7 +1845,7 @@ class CustomerController extends Controller
      */
     protected function isAggregatedPeriodReport(?string $id): bool
     {
-        return $id !== null && !in_array($id, [
+        return $id !== null && ! in_array($id, [
             'current',
             'last_month_only',
             'last_2_month_only',
@@ -1854,7 +1877,7 @@ class CustomerController extends Controller
             $q->whereRaw(
                 '(SELECT COUNT(*) FROM customer_period_summaries s_rep
                   WHERE s_rep.customer_id = customer_period_summaries.customer_id
-                    AND s_rep.`year_month` = customer_period_summaries.`year_month`) ' . $op . ' 1'
+                    AND s_rep.`year_month` = customer_period_summaries.`year_month`) '.$op.' 1'
             );
         }
         if (in_array($request->period_locked, ['true', 'false'], true)) {
@@ -1963,7 +1986,7 @@ class CustomerController extends Controller
     public function lockCustomerPeriodSummary(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to lock summary rows.');
         }
 
@@ -1974,7 +1997,7 @@ class CustomerController extends Controller
         // the removal and the prorated payment may need to clear in advance, so
         // the row can be settled early even if the Removed Date is a few days
         // out. See summaryRemovedInPeriod().
-        if ($summary->is_current_month && !$this->summaryRemovedInPeriod($summary)) {
+        if ($summary->is_current_month && ! $this->summaryRemovedInPeriod($summary)) {
             return back()->withErrors(['lock' => 'The current month cannot be locked until it is complete.']);
         }
         if ($summary->locked_at !== null) {
@@ -1997,7 +2020,7 @@ class CustomerController extends Controller
     {
         $c = $summary->customer; // eager-loaded by both lock endpoints
         $removed = $c ? $c->removed_date : null;
-        if (!$removed || !$summary->year_month) {
+        if (! $removed || ! $summary->year_month) {
             return false;
         }
         $rd = $removed instanceof \Carbon\Carbon
@@ -2105,7 +2128,7 @@ class CustomerController extends Controller
     public function unlockCustomerPeriodSummary(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
+        if (! $user || ! $user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
             abort(403, 'You do not have permission to unlock summary rows.');
         }
 
@@ -2140,7 +2163,7 @@ class CustomerController extends Controller
     public function markPaidCustomerPeriodSummary(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to mark summary rows Paid.');
         }
 
@@ -2177,8 +2200,8 @@ class CustomerController extends Controller
             'waived_remarks.required_if' => 'Please enter a remark explaining why this period is waived.',
         ]);
 
-        $isWaived = !empty($validated['is_waived']);
-        $paidDate = !empty($validated['paid_date'])
+        $isWaived = ! empty($validated['is_waived']);
+        $paidDate = ! empty($validated['paid_date'])
             ? \Carbon\Carbon::parse($validated['paid_date'])->toDateString()
             : now()->toDateString();
 
@@ -2217,19 +2240,19 @@ class CustomerController extends Controller
                     ? \Carbon\Carbon::parse($summary->year_month)->format('M Y')
                     : '';
                 $entry = \App\Models\CustomerSettlement::create([
-                    'customer_id'  => $summary->customer_id,
-                    'operator_id'  => $summary->operator_id,
-                    'entry_date'   => $paidDate,
-                    'year_month'   => $summary->year_month,
-                    'entry_type'   => $isWaived
+                    'customer_id' => $summary->customer_id,
+                    'operator_id' => $summary->operator_id,
+                    'entry_date' => $paidDate,
+                    'year_month' => $summary->year_month,
+                    'entry_type' => $isWaived
                         ? \App\Models\CustomerSettlement::TYPE_WAIVER
                         : \App\Models\CustomerSettlement::TYPE_PAYMENT,
                     'amount_cents' => -$amountCents,   // credit — reduces what we owe.
-                    'item'         => ($isWaived ? 'Waived' : 'Payment') . ($monthLabel ? ' — ' . $monthLabel : ''),
-                    'remarks'      => $ledgerRemarks,
+                    'item' => ($isWaived ? 'Waived' : 'Payment').($monthLabel ? ' — '.$monthLabel : ''),
+                    'remarks' => $ledgerRemarks,
                     'customer_period_summary_id' => $summary->id,
-                    'source'       => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
-                    'created_by'   => $user->id,
+                    'source' => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
+                    'created_by' => $user->id,
                 ]);
 
                 // Audit the money action (who recorded the payment / waiver, when).
@@ -2238,7 +2261,7 @@ class CustomerController extends Controller
                     $isWaived
                         ? \App\Models\CustomerSettlementLog::ACTION_WAIVER
                         : \App\Models\CustomerSettlementLog::ACTION_PAYMENT,
-                    ($isWaived ? 'Waived' : 'Payment recorded') . ($monthLabel ? ' for ' . $monthLabel : ''),
+                    ($isWaived ? 'Waived' : 'Payment recorded').($monthLabel ? ' for '.$monthLabel : ''),
                     null,
                     $amountCents,
                     \App\Models\CustomerSettlement::SOURCE_PAID_ACTION
@@ -2260,7 +2283,7 @@ class CustomerController extends Controller
     public function markUnpaidCustomerPeriodSummary(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
+        if (! $user || ! $user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
             abort(403, 'You do not have permission to mark summary rows Unpaid.');
         }
 
@@ -2320,7 +2343,7 @@ class CustomerController extends Controller
     public function batchLockCustomerPeriodSummaries(Request $request)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to lock summary rows.');
         }
 
@@ -2342,7 +2365,7 @@ class CustomerController extends Controller
                 if ($summary->locked_at !== null) {
                     continue;
                 }
-                if ($summary->is_current_month && !$this->summaryRemovedInPeriod($summary)) {
+                if ($summary->is_current_month && ! $this->summaryRemovedInPeriod($summary)) {
                     continue;
                 }
                 $this->applyLockToSummary($summary, $user->id);
@@ -2368,7 +2391,7 @@ class CustomerController extends Controller
     public function batchMarkPaidCustomerPeriodSummaries(Request $request)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to mark summary rows Paid.');
         }
 
@@ -2380,7 +2403,7 @@ class CustomerController extends Controller
             'paid_date.date' => 'Payment date must be a valid date.',
         ]);
 
-        $paidDate = !empty($validated['paid_date'])
+        $paidDate = ! empty($validated['paid_date'])
             ? \Carbon\Carbon::parse($validated['paid_date'])->toDateString()
             : now()->toDateString();
 
@@ -2429,22 +2452,22 @@ class CustomerController extends Controller
                         ? \Carbon\Carbon::parse($summary->year_month)->format('M Y')
                         : '';
                     $entry = \App\Models\CustomerSettlement::create([
-                        'customer_id'  => $summary->customer_id,
-                        'operator_id'  => $summary->operator_id,
-                        'entry_date'   => $paidDate,
-                        'year_month'   => $summary->year_month,
-                        'entry_type'   => \App\Models\CustomerSettlement::TYPE_PAYMENT,
+                        'customer_id' => $summary->customer_id,
+                        'operator_id' => $summary->operator_id,
+                        'entry_date' => $paidDate,
+                        'year_month' => $summary->year_month,
+                        'entry_type' => \App\Models\CustomerSettlement::TYPE_PAYMENT,
                         'amount_cents' => -$netLocFee,   // credit — reduces what we owe.
-                        'item'         => 'Payment' . ($monthLabel ? ' — ' . $monthLabel : ''),
-                        'remarks'      => null,
+                        'item' => 'Payment'.($monthLabel ? ' — '.$monthLabel : ''),
+                        'remarks' => null,
                         'customer_period_summary_id' => $summary->id,
-                        'source'       => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
-                        'created_by'   => $user->id,
+                        'source' => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
+                        'created_by' => $user->id,
                     ]);
                     $this->logSettlement(
                         $entry,
                         \App\Models\CustomerSettlementLog::ACTION_PAYMENT,
-                        'Payment recorded' . ($monthLabel ? ' for ' . $monthLabel : '') . ' (batch)',
+                        'Payment recorded'.($monthLabel ? ' for '.$monthLabel : '').' (batch)',
                         null,
                         $netLocFee,
                         \App\Models\CustomerSettlement::SOURCE_PAID_ACTION
@@ -2472,7 +2495,7 @@ class CustomerController extends Controller
     public function exportCommissionBankFile(Request $request)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to export commission payments.');
         }
 
@@ -2492,7 +2515,7 @@ class CustomerController extends Controller
         // selection spans operators — each file debits its own account.
         return response($res['content'], 200, [
             'Content-Type' => $res['mime'],
-            'Content-Disposition' => 'attachment; filename="' . $res['filename'] . '"',
+            'Content-Disposition' => 'attachment; filename="'.$res['filename'].'"',
             'X-Filename' => $res['filename'],
             'Access-Control-Expose-Headers' => 'Content-Disposition, X-Filename',
         ]);
@@ -2570,7 +2593,7 @@ class CustomerController extends Controller
 
         $activeChanged = optional($oldA)->toDateString() !== optional($newA)->toDateString();
         $removedChanged = optional($oldR)->toDateString() !== optional($newR)->toDateString();
-        if (!$activeChanged && !$removedChanged) {
+        if (! $activeChanged && ! $removedChanged) {
             return;
         }
 
@@ -2796,7 +2819,7 @@ class CustomerController extends Controller
         // current-month row. Keyed maps keep the later lookups O(1).
         $prevDateByCustomer = [];   // customer_id => 'Y-m-01' (previous month)
         foreach ($collection as $row) {
-            if (!$row->is_current_month || $row->customer_id === null || !$row->year_month) {
+            if (! $row->is_current_month || $row->customer_id === null || ! $row->year_month) {
                 continue;
             }
             $prevDateByCustomer[$row->customer_id] = $row->year_month
@@ -2835,7 +2858,7 @@ class CustomerController extends Controller
             ->whereIn('customer_id', $customerIds)
             ->whereIn('year_month', $prevDates)
             ->get()
-            ->keyBy(fn ($r) => $r->customer_id . '|' . \Carbon\Carbon::parse($r->year_month)->toDateString());
+            ->keyBy(fn ($r) => $r->customer_id.'|'.\Carbon\Carbon::parse($r->year_month)->toDateString());
 
         // Current contract + operator GST per customer — used to re-derive the
         // LIVE figures for unlocked previous months. Same source/shape as
@@ -2863,15 +2886,17 @@ class CustomerController extends Controller
             ->keyBy('id');
 
         foreach ($collection as $row) {
-            if (!$row->is_current_month || $row->customer_id === null || !$row->year_month) {
+            if (! $row->is_current_month || $row->customer_id === null || ! $row->year_month) {
                 $row->previous_month_summary = null;
+
                 continue;
             }
 
             $prevKey = $prevDateByCustomer[$row->customer_id] ?? null;
-            $p = $prevKey ? $prevRows->get($row->customer_id . '|' . $prevKey) : null;
-            if (!$p) {
+            $p = $prevKey ? $prevRows->get($row->customer_id.'|'.$prevKey) : null;
+            if (! $p) {
                 $row->previous_month_summary = null;
+
                 continue;
             }
 
@@ -2970,6 +2995,7 @@ class CustomerController extends Controller
             foreach ($collection as $row) {
                 $row->contract_diff = $default;
             }
+
             return;
         }
 
@@ -2992,10 +3018,10 @@ class CustomerController extends Controller
                 $c = $row->customer;
                 $liveByCustomer[$cid] = [
                     'type' => $c->contract_commission_type,
-                    'val'  => $c->contract_commission_value,
+                    'val' => $c->contract_commission_value,
                     'val2' => $c->contract_commission_value2,
-                    'ps'   => $c->contract_ps_term,
-                    'sub'  => ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                    'ps' => $c->contract_ps_term,
+                    'sub' => ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
                         ? (float) $c->external_subsidize_amount : null,
                 ];
             }
@@ -3006,20 +3032,20 @@ class CustomerController extends Controller
         // show the customer's live contract (falling back to the snapshot when
         // the live terms aren't available).
         $effective = function ($s) use ($liveByCustomer) {
-            $isLocked  = $s->locked_at !== null;
+            $isLocked = $s->locked_at !== null;
             $isSegment = $s->contract_log_id !== null;
 
-            if (!$isLocked && !$isSegment && isset($liveByCustomer[$s->customer_id])) {
+            if (! $isLocked && ! $isSegment && isset($liveByCustomer[$s->customer_id])) {
                 return $liveByCustomer[$s->customer_id];
             }
 
             return [
                 'type' => $s->contract_commission_type,
-                'val'  => $s->contract_commission_value,
+                'val' => $s->contract_commission_value,
                 'val2' => $s->contract_commission_value2,
-                'ps'   => $s->contract_ps_term,
+                'ps' => $s->contract_ps_term,
                 // Snapshot external subsidize is stored in cents on the row.
-                'sub'  => $s->external_subsidize_cents !== null
+                'sub' => $s->external_subsidize_cents !== null
                     ? ((int) $s->external_subsidize_cents) / 100.0 : null,
             ];
         };
@@ -3046,8 +3072,9 @@ class CustomerController extends Controller
             $cid = $row->customer_id;
             $list = $summariesByCustomer->get($cid);
 
-            if ($cid === null || $list === null || !$row->period_start) {
+            if ($cid === null || $list === null || ! $row->period_start) {
                 $row->contract_diff = $default;
+
                 continue;
             }
 
@@ -3065,17 +3092,18 @@ class CustomerController extends Controller
             // No preceding period → no baseline → first period isn't flagged.
             if ($prev === null) {
                 $row->contract_diff = $default;
+
                 continue;
             }
 
-            $cur     = $effective($row);
+            $cur = $effective($row);
             $prevEff = $effective($prev);
 
             $placementChanged =
                 $str($cur['type']) !== $str($prevEff['type'])
-                || $num($cur['val'])  !== $num($prevEff['val'])
+                || $num($cur['val']) !== $num($prevEff['val'])
                 || $num($cur['val2']) !== $num($prevEff['val2'])
-                || $num($cur['ps'])   !== $num($prevEff['ps']);
+                || $num($cur['ps']) !== $num($prevEff['ps']);
 
             $row->contract_diff = array_merge($default, [
                 'placement_type' => $placementChanged,
@@ -3209,6 +3237,7 @@ class CustomerController extends Controller
                 $row->is_latest_row = false;
                 $row->is_replaced_machine = false;
             }
+
             return;
         }
 
@@ -3244,6 +3273,7 @@ class CustomerController extends Controller
                     break; // ordered asc → no later bind applies
                 }
             }
+
             return $found;
         };
 
@@ -3294,7 +3324,7 @@ class CustomerController extends Controller
                 ]
                 : null;
 
-            $groupKey = $cid . '|' . (optional($row->year_month)->toDateString() ?? (string) $row->year_month);
+            $groupKey = $cid.'|'.(optional($row->year_month)->toDateString() ?? (string) $row->year_month);
             $prev = $prevVendByGroup[$groupKey] ?? null;
             $isSwap = ($vid !== null && $prev !== null && $prev !== $vid);
             $row->is_new_machine = $isSwap;
@@ -3345,7 +3375,7 @@ class CustomerController extends Controller
             $pe = $row->period_end instanceof \Carbon\Carbon
                 ? $row->period_end->toDateString()
                 : (string) $row->period_end;
-            $tuples[$cid][$ps . '|' . $pe] = true;
+            $tuples[$cid][$ps.'|'.$pe] = true;
         }
 
         if (empty($tuples)) {
@@ -3379,8 +3409,8 @@ class CustomerController extends Controller
             ])
             ->keyBy(function ($inv) {
                 return $inv->customer_id
-                    . '|' . $inv->period_start->toDateString()
-                    . '|' . $inv->period_end->toDateString();
+                    .'|'.$inv->period_start->toDateString()
+                    .'|'.$inv->period_end->toDateString();
             });
 
         foreach ($collection as $row) {
@@ -3390,7 +3420,7 @@ class CustomerController extends Controller
             $pe = $row->period_end instanceof \Carbon\Carbon
                 ? $row->period_end->toDateString()
                 : (string) $row->period_end;
-            $key = $row->customer_id . '|' . $ps . '|' . $pe;
+            $key = $row->customer_id.'|'.$ps.'|'.$pe;
             if (isset($invoices[$key])) {
                 $inv = $invoices[$key];
                 $row->existing_invoice = [
@@ -3451,8 +3481,8 @@ class CustomerController extends Controller
      * instead of the old hardcoded customer_id/year_month order.
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  string|null  $rawSortKey   request sortKey (defaults to notes_updated_at)
-     * @param  string|null  $rawSortBy    request sortBy ('true' = asc, else desc)
+     * @param  string|null  $rawSortKey  request sortKey (defaults to notes_updated_at)
+     * @param  string|null  $rawSortBy  request sortBy ('true' = asc, else desc)
      * @param  bool  $isAggregated  multi-month view → cluster a customer's months
      */
     protected function applySummaryOrdering($query, $rawSortKey, $rawSortBy, bool $isAggregated): void
@@ -3512,7 +3542,7 @@ class CustomerController extends Controller
             $query->orderByRaw(
                 '(SELECT v.code FROM vends v
                    WHERE v.customer_id = customer_period_summaries.customer_id
-                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) '.$sortDirection
             );
         } elseif ($sortKey === 'machine_prefix') {
             $nullsLastRaw(
@@ -3550,7 +3580,7 @@ class CustomerController extends Controller
                           / NULLIF(COUNT(DISTINCT s2.`year_month`), 0)
                   FROM customer_period_summaries s2
                   WHERE s2.customer_id = customer_period_summaries.customer_id
-                    AND s2.`year_month` >= \'' . self::summaryFloorDate() . '\'
+                    AND s2.`year_month` >= \''.self::summaryFloorDate().'\'
                     AND s2.`year_month` <= customer_period_summaries.`year_month`',
                 $sortDirection
             );
@@ -3651,7 +3681,7 @@ class CustomerController extends Controller
         // Final tie-breaker: customer_id (when the branch above didn't already
         // cluster by it) + year_month DESC so a customer's most recent month
         // sits at the top of their cluster.
-        if (!$clusterByCustomerFirst) {
+        if (! $clusterByCustomerFirst) {
             $query->orderBy('customer_id', 'asc');
         }
         $query->orderBy('year_month', 'desc');
@@ -3814,40 +3844,45 @@ class CustomerController extends Controller
         $currencySymbol = $operatorCountry?->currency_symbol ?? '$';
 
         $contractTypeLabels = [
-            'F'     => 'Free Placement',
-            'S'     => 'Subsidized Plan',
-            'R'     => 'Fix Rental',
-            'U'     => 'Utility Only',
-            'R+U'   => 'Fix Rental + Utility',
-            'PS'    => 'Profit Sharing Only',
-            'PS+U'  => 'PS + Utility',
+            'F' => 'Free Placement',
+            'S' => 'Subsidized Plan',
+            'R' => 'Fix Rental',
+            'U' => 'Utility Only',
+            'R+U' => 'Fix Rental + Utility',
+            'PS' => 'Profit Sharing Only',
+            'PS+U' => 'PS + Utility',
             'PSORU' => 'PS OR Utility (whichever higher)',
         ];
 
         $formatLocationFeesRate = function ($row) {
             $type = $row->contract_commission_type;
-            if (!$type) return '';
+            if (! $type) {
+                return '';
+            }
             $val = $row->contract_commission_value;
             $val2 = $row->contract_commission_value2;
             $psTerm = $row->contract_ps_term;
             if (in_array($type, ['PS', 'PS+U', 'PSORU'], true)) {
-                $base = $val !== null ? rtrim(rtrim(number_format((float) $val, 2, '.', ''), '0'), '.') . '%' : '';
+                $base = $val !== null ? rtrim(rtrim(number_format((float) $val, 2, '.', ''), '0'), '.').'%' : '';
                 if (in_array($type, ['PS+U', 'PSORU'], true) && $val2 !== null) {
                     $sep = $type === 'PSORU' ? ' or $' : ' + $';
-                    $base .= $sep . rtrim(rtrim(number_format((float) $val2, 2, '.', ''), '0'), '.');
+                    $base .= $sep.rtrim(rtrim(number_format((float) $val2, 2, '.', ''), '0'), '.');
                 }
                 if ($psTerm !== null) {
-                    $base .= ' (PS Term ' . rtrim(rtrim(number_format((float) $psTerm, 2, '.', ''), '0'), '.') . '%)';
+                    $base .= ' (PS Term '.rtrim(rtrim(number_format((float) $psTerm, 2, '.', ''), '0'), '.').'%)';
                 }
+
                 return $base;
             }
             if ($type === 'R+U') {
                 // Flat Fix Rental + Utility, both dollar amounts.
-                $rental  = $val !== null ? '$' . number_format((float) $val, 2) : '$0.00';
-                $utility = $val2 !== null ? '$' . number_format((float) $val2, 2) : '$0.00';
-                return $rental . ' + ' . $utility;
+                $rental = $val !== null ? '$'.number_format((float) $val, 2) : '$0.00';
+                $utility = $val2 !== null ? '$'.number_format((float) $val2, 2) : '$0.00';
+
+                return $rental.' + '.$utility;
             }
-            return $val !== null ? '$' . number_format((float) $val, 2) : '';
+
+            return $val !== null ? '$'.number_format((float) $val, 2) : '';
         };
 
         // Pre-fetch lifetime "Accumulate Vending Earning" per customer so the
@@ -3979,8 +4014,8 @@ class CustomerController extends Controller
             ->get(['customer_id', 'period_start', 'period_end', 'cms_transaction_id', 'summary_snapshot'])
             ->keyBy(function ($inv) {
                 return $inv->customer_id
-                    . '|' . $inv->period_start->toDateString()
-                    . '|' . $inv->period_end->toDateString();
+                    .'|'.$inv->period_start->toDateString()
+                    .'|'.$inv->period_end->toDateString();
             });
 
         // Per-site Outstanding($) — the same settlement balance the on-screen
@@ -3998,7 +4033,7 @@ class CustomerController extends Controller
 
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('CustomersSummary', 'xlsx'),
-            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $avgSalesMap, $invoiceSnapshots, $settlementBalanceMap) {
+            function ($row) use (&$rowIndex, $divisor, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $avgSalesMap, $invoiceSnapshots, $settlementBalanceMap) {
                 $rowIndex++;
                 $customer = $row->customer;
                 $address = $customer?->deliveryAddress;
@@ -4011,12 +4046,20 @@ class CustomerController extends Controller
                 $fullAddress = '';
                 if ($address) {
                     $parts = [];
-                    if ($address->block_num)   $parts[] = 'Blk ' . ucwords(strtolower($address->block_num));
-                    if ($address->unit_num)    $parts[] = '#' . $address->unit_num;
-                    if ($address->building)    $parts[] = ucwords(strtolower($address->building));
-                    if ($address->street_name) $parts[] = ucwords(strtolower($address->street_name));
+                    if ($address->block_num) {
+                        $parts[] = 'Blk '.ucwords(strtolower($address->block_num));
+                    }
+                    if ($address->unit_num) {
+                        $parts[] = '#'.$address->unit_num;
+                    }
+                    if ($address->building) {
+                        $parts[] = ucwords(strtolower($address->building));
+                    }
+                    if ($address->street_name) {
+                        $parts[] = ucwords(strtolower($address->street_name));
+                    }
                     $joined = implode(', ', $parts);
-                    $fullAddress = $joined ? ($joined . ($address->postcode ? ', ' . $address->postcode : '')) : ($address->postcode ?? '');
+                    $fullAddress = $joined ? ($joined.($address->postcode ? ', '.$address->postcode : '')) : ($address->postcode ?? '');
                 }
 
                 // Snapshot override: if an API Invoice was created for this
@@ -4028,7 +4071,7 @@ class CustomerController extends Controller
                 $pe = $row->period_end instanceof \Carbon\Carbon
                     ? $row->period_end->toDateString()
                     : (string) $row->period_end;
-                $invKey = $row->customer_id . '|' . $ps . '|' . $pe;
+                $invKey = $row->customer_id.'|'.$ps.'|'.$pe;
                 $cmsTxnId = null;
                 if (isset($invoiceSnapshots[$invKey])) {
                     $inv = $invoiceSnapshots[$invKey];
@@ -4036,9 +4079,9 @@ class CustomerController extends Controller
                     $snap = $inv->summary_snapshot;
                     if (is_array($snap)) {
                         foreach (['sales_cents', 'gross_earning_cents', 'location_fees_cents',
-                                  'location_earning_cents', 'location_earning_rate',
-                                  'contract_commission_type', 'contract_commission_value',
-                                  'contract_commission_value2', 'contract_ps_term'] as $f) {
+                            'location_earning_cents', 'location_earning_rate',
+                            'contract_commission_type', 'contract_commission_value',
+                            'contract_commission_value2', 'contract_ps_term'] as $f) {
                             if (array_key_exists($f, $snap)) {
                                 $row->{$f} = $snap[$f];
                             }
@@ -4149,11 +4192,14 @@ class CustomerController extends Controller
                     // status_id resolved to its label); Removed rows also carry
                     // the removal date, same as the badge's "Removed 251031".
                     'Site Status' => (function () use ($customer) {
-                        if (!$customer) return null;
+                        if (! $customer) {
+                            return null;
+                        }
                         $label = Customer::STATUSES_MAPPING[$customer->status_id] ?? null;
                         if ($label === 'Removed' && $customer->removed_date) {
-                            $label .= ' ' . \Carbon\Carbon::parse($customer->removed_date)->format('ymd');
+                            $label .= ' '.\Carbon\Carbon::parse($customer->removed_date)->format('ymd');
                         }
+
                         return $label;
                     })(),
                     // Company = billing company from the morphOne Contact
@@ -4169,7 +4215,7 @@ class CustomerController extends Controller
                     // for unlocked rows), falling back to the live customer tier
                     // for rows locked before the snapshot column existed.
                     'Ref Price' => ($rpTier = ($row->contract_selling_price_type ?? $customer?->selling_price_type))
-                        ? ('RP' . $rpTier) : null,
+                        ? ('RP'.$rpTier) : null,
                     // New: Begin Date + Contract Attachment — the on-screen
                     // Customer cell stacks these below the name.
                     'Begin Date' => $customer?->begin_date ? \Carbon\Carbon::parse($customer->begin_date)->format('ymd') : null,
@@ -4181,6 +4227,7 @@ class CustomerController extends Controller
                             ? $row->period_start->toDateString()
                             : \Carbon\Carbon::parse($row->period_start)->toDateString();
                         $cents = $avgSalesMap[$row->customer_id][$psKey] ?? null;
+
                         return $cents !== null ? round(((int) $cents) / $divisor, 2) : null;
                     })(),
                     'Contract Attachment' => $hasContract ? 'Yes' : 'No',
@@ -4293,18 +4340,20 @@ class CustomerController extends Controller
      * don't render a meaningless "-, -, -" string.
      *
      * @param  \App\Models\Customer|null  $customer
-     * @return string|null
      */
     protected function formatLocationGradingForExport($customer): ?string
     {
-        if (!$customer) return null;
+        if (! $customer) {
+            return null;
+        }
         $p = $customer->location_grading_placement;
         $a = $customer->location_grading_access;
         $f = $customer->location_grading_flexibility;
         if ($p === null && $a === null && $f === null) {
             return null;
         }
-        return ($p ?: '-') . ', ' . ($a ?: '-') . ', ' . ($f ?: '-');
+
+        return ($p ?: '-').', '.($a ?: '-').', '.($f ?: '-');
     }
 
     /**
@@ -4326,7 +4375,7 @@ class CustomerController extends Controller
     {
         $request->validate([
             'period_start' => 'required|date',
-            'period_end'   => 'required|date|after_or_equal:period_start',
+            'period_end' => 'required|date|after_or_equal:period_start',
         ]);
 
         $customer = Customer::findOrFail($id);
@@ -4339,10 +4388,11 @@ class CustomerController extends Controller
             if ($wantsJson) {
                 return response()->json(['message' => $message], $status);
             }
+
             return redirect()->back()->withErrors(['send_performance_report' => $message]);
         };
 
-        if (!$customer->is_report_email_enabled || empty($customer->report_email)) {
+        if (! $customer->is_report_email_enabled || empty($customer->report_email)) {
             return $fail('This customer has not opted-in to performance report emails. Enable it from the customer edit page first.', 422);
         }
 
@@ -4363,7 +4413,7 @@ class CustomerController extends Controller
             ->where('period_end', $request->period_end)
             ->first();
 
-        if (!$summary) {
+        if (! $summary) {
             return $fail('Could not find the matching summary row for that period.', 404);
         }
 
@@ -4380,6 +4430,7 @@ class CustomerController extends Controller
 
         if ($wantsJson) {
             $user = auth()->user();
+
             return response()->json([
                 'message' => $message,
                 'report_emailed_at' => optional($summary->report_emailed_at)->toDateTimeString(),
@@ -4404,7 +4455,7 @@ class CustomerController extends Controller
     {
         $request->validate([
             'period_start' => 'required|date',
-            'period_end'   => 'required|date|after_or_equal:period_start',
+            'period_end' => 'required|date|after_or_equal:period_start',
         ]);
 
         // Eager-load the operator so PerformanceReportContentService can read
@@ -4413,7 +4464,7 @@ class CustomerController extends Controller
         $customer = Customer::with('operator:id,gst_vat_rate')->findOrFail($id);
 
         $periodStart = \Carbon\Carbon::parse($request->period_start);
-        $periodEnd   = \Carbon\Carbon::parse($request->period_end);
+        $periodEnd = \Carbon\Carbon::parse($request->period_end);
 
         // Find the summary row(s) whose period overlaps the requested window.
         // We fetch the FULL rows (not a SUM-only projection) because the
@@ -4440,7 +4491,7 @@ class CustomerController extends Controller
             $summaryRow->sales_cents = (int) $summaryRows->sum('sales_cents');
         }
 
-        $service = new PerformanceReportContentService();
+        $service = new PerformanceReportContentService;
         $content = $service->generate($customer, $periodStart, $periodEnd, $summaryRow);
 
         return response()->json($content);
@@ -4468,29 +4519,29 @@ class CustomerController extends Controller
     public function batchPerformanceReportContent(Request $request)
     {
         $validated = $request->validate([
-            'rows'                => 'required|array|min:1|max:500',
-            'rows.*.customer_id'  => 'required|integer',
+            'rows' => 'required|array|min:1|max:500',
+            'rows.*.customer_id' => 'required|integer',
             'rows.*.period_start' => 'required|date',
-            'rows.*.period_end'   => 'required|date',
+            'rows.*.period_end' => 'required|date',
         ]);
 
-        $service = new PerformanceReportContentService();
+        $service = new PerformanceReportContentService;
         $customerCache = [];
         $out = [];
 
         foreach ($validated['rows'] as $r) {
             $customerId = (int) $r['customer_id'];
 
-            if (!array_key_exists($customerId, $customerCache)) {
+            if (! array_key_exists($customerId, $customerCache)) {
                 $customerCache[$customerId] = Customer::with('operator:id,gst_vat_rate')->find($customerId);
             }
             $customer = $customerCache[$customerId];
-            if (!$customer) {
+            if (! $customer) {
                 continue;
             }
 
             $periodStart = \Carbon\Carbon::parse($r['period_start']);
-            $periodEnd   = \Carbon\Carbon::parse($r['period_end']);
+            $periodEnd = \Carbon\Carbon::parse($r['period_end']);
             if ($periodEnd->lt($periodStart)) {
                 continue;
             }
@@ -4514,10 +4565,10 @@ class CustomerController extends Controller
             }
 
             $out[] = [
-                'customer_id'  => $customer->id,
+                'customer_id' => $customer->id,
                 'period_start' => $periodStart->toDateString(),
-                'period_end'   => $periodEnd->toDateString(),
-                'content'      => $service->generate($customer, $periodStart, $periodEnd, $summaryRow),
+                'period_end' => $periodEnd->toDateString(),
+                'content' => $service->generate($customer, $periodStart, $periodEnd, $summaryRow),
             ];
         }
 
@@ -4534,7 +4585,7 @@ class CustomerController extends Controller
     public function batchPaidReport(Request $request)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to export the paid report.');
         }
 
@@ -4553,20 +4604,20 @@ class CustomerController extends Controller
             ])
             ->get();
 
-        $money = fn ($cents) => 'S$' . number_format(((int) $cents) / 100, 2);
+        $money = fn ($cents) => 'S$'.number_format(((int) $cents) / 100, 2);
 
         $out = [];
-        foreach ($rows->groupBy(fn ($s) => $s->customer_id . '|' . optional($s->year_month)->toDateString()) as $group) {
+        foreach ($rows->groupBy(fn ($s) => $s->customer_id.'|'.optional($s->year_month)->toDateString()) as $group) {
             $first = $group->first();
             $c = $first->customer;
-            if (!$c) {
+            if (! $c) {
                 continue;
             }
             $month = $first->year_month ? \Carbon\Carbon::parse($first->year_month) : null;
             $monthLabel = $month ? $month->format('M Y') : '—';
             $monthCode = $month ? $month->format('ym') : '';
             $siteId = $c->id + \App\Models\Customer::RUNNING_NUMBER_INIT;
-            $siteName = $c->name ?: ('Site #' . $c->id);
+            $siteName = $c->name ?: ('Site #'.$c->id);
             $billing = ($c->contact && $c->contact->company) ? $c->contact->company : $siteName;
             $ref = $first->commissionSettlement?->reference ?? '';
 
@@ -4576,25 +4627,25 @@ class CustomerController extends Controller
 
             $pad = fn ($label) => str_pad($label, 23);
             $body = implode("\n", [
-                'Dear Valued Partner: "' . $billing . '",',
+                'Dear Valued Partner: "'.$billing.'",',
                 '',
-                $pad('Payment reference') . ': ' . $ref,
-                $pad('Site ID') . ': ' . $siteId,
-                $pad('Site') . ': ' . $siteName,
-                $pad('Period') . ': ' . $monthLabel . ($monthCode ? ' (' . $monthCode . ')' : ''),
+                $pad('Payment reference').': '.$ref,
+                $pad('Site ID').': '.$siteId,
+                $pad('Site').': '.$siteName,
+                $pad('Period').': '.$monthLabel.($monthCode ? ' ('.$monthCode.')' : ''),
                 '',
                 'We are pleased to confirm that the location fee for the above period',
                 'has been paid to you.',
                 '',
-                '  ' . str_pad('Amount paid', 14) . ': ' . $money($net),
-                '  ' . str_pad('Payment date', 14) . ': ' . $paidDateStr,
+                '  '.str_pad('Amount paid', 14).': '.$money($net),
+                '  '.str_pad('Payment date', 14).': '.$paidDateStr,
                 '',
                 'Thank you.',
             ]);
 
             $out[] = [
                 'to' => $c->report_email ?? '',
-                'subject' => 'Location Fee Payment Advice — ' . $siteName . ' (' . $monthLabel . ')',
+                'subject' => 'Location Fee Payment Advice — '.$siteName.' ('.$monthLabel.')',
                 'body' => $body,
                 'site_id' => $siteId,
                 'site_name' => $siteName,
@@ -4633,8 +4684,8 @@ class CustomerController extends Controller
     {
         $request->validate([
             'period_start' => 'required|date',
-            'period_end'   => 'required|date|after_or_equal:period_start',
-            'force'        => 'nullable|boolean',
+            'period_end' => 'required|date|after_or_equal:period_start',
+            'force' => 'nullable|boolean',
         ]);
 
         // Eager-load operator so CustomerInvoiceService can read
@@ -4644,7 +4695,7 @@ class CustomerController extends Controller
 
         $service = app(\App\Services\CustomerInvoiceService::class);
 
-        if (!$service->isInvoiceable($customer)) {
+        if (! $service->isInvoiceable($customer)) {
             return redirect()->back()->withErrors([
                 'sync_cms_invoice' => 'This customer cannot be invoiced via API: missing CMS person_id, non-invoiceable contract type (F/S), or incomplete contract values.',
             ]);
@@ -4657,7 +4708,7 @@ class CustomerController extends Controller
         }
 
         $periodStart = \Carbon\Carbon::parse($request->period_start)->toDateString();
-        $periodEnd   = \Carbon\Carbon::parse($request->period_end)->toDateString();
+        $periodEnd = \Carbon\Carbon::parse($request->period_end)->toDateString();
 
         $existing = \App\Models\CustomerPeriodSummaryInvoice::query()
             ->where('customer_id', $customer->id)
@@ -4667,7 +4718,7 @@ class CustomerController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        if ($existing && !$request->boolean('force')) {
+        if ($existing && ! $request->boolean('force')) {
             return redirect()->back()->withErrors([
                 'sync_cms_invoice' => "Invoice already exists for this period (transaction #{$existing->cms_transaction_id}). Pass force=1 to re-create.",
             ]);
@@ -4757,20 +4808,22 @@ class CustomerController extends Controller
             // operator->gst_vat_rate for PS-family GST de-grossing without
             // an extra lazy query per bulk entry.
             $customer = Customer::with('operator:id,gst_vat_rate')->find($entry['customer_id']);
-            if (!$customer) {
+            if (! $customer) {
                 $errors[] = "Customer #{$entry['customer_id']} not found.";
                 $skipped++;
+
                 continue;
             }
-            if (!$service->isInvoiceable($customer)) {
+            if (! $service->isInvoiceable($customer)) {
                 $errors[] = "Customer #{$customer->id} ({$customer->name}) is not invoiceable.";
                 $skipped++;
+
                 continue;
             }
 
             $periodStart = \Carbon\Carbon::parse($entry['period_start'])->toDateString();
-            $periodEnd   = \Carbon\Carbon::parse($entry['period_end'])->toDateString();
-            $force = !empty($entry['force']);
+            $periodEnd = \Carbon\Carbon::parse($entry['period_end'])->toDateString();
+            $force = ! empty($entry['force']);
 
             $existing = \App\Models\CustomerPeriodSummaryInvoice::query()
                 ->where('customer_id', $customer->id)
@@ -4780,9 +4833,10 @@ class CustomerController extends Controller
                 ->orderByDesc('id')
                 ->first();
 
-            if ($existing && !$force) {
+            if ($existing && ! $force) {
                 $errors[] = "{$customer->name}: already invoiced (#{$existing->cms_transaction_id}).";
                 $skipped++;
+
                 continue;
             }
 
@@ -4827,7 +4881,7 @@ class CustomerController extends Controller
             'API Invoices: %d queued, %d skipped.%s',
             $queued,
             $skipped,
-            $errors ? ' ' . implode(' ', $errors) : ''
+            $errors ? ' '.implode(' ', $errors) : ''
         ));
     }
 
@@ -4855,7 +4909,7 @@ class CustomerController extends Controller
             // empty list so Create.vue's Object.values() mapping stays safe.
             'cmsCustomerOptions' => [],
             'countries' => $optionsService->countries(),
-            'customer' => new Customer(),
+            'customer' => new Customer,
             'operatorOptions' => $optionsService->operators(),
             'bankOptions' => $optionsService->banks(),
             'vendOptions' => Vend::query()
@@ -4974,11 +5028,11 @@ class CustomerController extends Controller
         $ledger = $this->buildSettlementLedger($id);
 
         return response()->json([
-            'data'              => $ledger['rows'],
+            'data' => $ledger['rows'],
             'outstanding_cents' => $ledger['outstanding_cents'],
-            'since_date'        => $ledger['since_date'],
-            'site_label'        => $ledger['site_label'],
-            'logs'              => $ledger['logs'],
+            'since_date' => $ledger['since_date'],
+            'site_label' => $ledger['site_label'],
+            'logs' => $ledger['logs'],
         ]);
     }
 
@@ -5013,23 +5067,23 @@ class CustomerController extends Controller
             $wasEdited = $r->updated_by !== null;
 
             return [
-                'id'           => $r->id,
+                'id' => $r->id,
                 'reference_no' => $r->reference_no,
-                'entry_date'   => optional($r->entry_date)->toDateString(),
-                'year_month'   => optional($r->year_month)->toDateString(),
-                'entry_type'   => $r->entry_type,
-                'item'         => $r->item,
-                'remarks'      => $r->remarks,
+                'entry_date' => optional($r->entry_date)->toDateString(),
+                'year_month' => optional($r->year_month)->toDateString(),
+                'entry_type' => $r->entry_type,
+                'item' => $r->item,
+                'remarks' => $r->remarks,
                 'amount_cents' => $amount,
                 // SOA-style split: DR = charge we owe, CR = payment we make.
-                'debit_cents'  => $amount > 0 ? $amount : 0,
+                'debit_cents' => $amount > 0 ? $amount : 0,
                 'credit_cents' => $amount < 0 ? -$amount : 0,
                 'balance_cents' => $balance,
-                'source'       => $r->source,
-                'created_by'   => $r->createdBy?->name,
-                'created_at'   => optional($r->created_at)->toIso8601String(),
-                'edited_by'    => $wasEdited ? $r->updatedBy?->name : null,
-                'edited_at'    => $wasEdited ? optional($r->updated_at)->toIso8601String() : null,
+                'source' => $r->source,
+                'created_by' => $r->createdBy?->name,
+                'created_at' => optional($r->created_at)->toIso8601String(),
+                'edited_by' => $wasEdited ? $r->updatedBy?->name : null,
+                'edited_at' => $wasEdited ? optional($r->updated_at)->toIso8601String() : null,
             ];
         })->values();
 
@@ -5046,15 +5100,15 @@ class CustomerController extends Controller
                 ->limit(100)
                 ->get()
                 ->map(fn ($l) => [
-                    'action'           => $l->action,
-                    'reference_no'     => $l->reference_no,
-                    'entry_type'       => $l->entry_type,
-                    'note'             => $l->note,
+                    'action' => $l->action,
+                    'reference_no' => $l->reference_no,
+                    'entry_type' => $l->entry_type,
+                    'note' => $l->note,
                     'old_amount_cents' => $l->old_amount_cents,
                     'new_amount_cents' => $l->new_amount_cents,
-                    'by'               => $l->changedBy?->name,
-                    'source'           => $l->source,
-                    'at'               => optional($l->created_at)->toIso8601String(),
+                    'by' => $l->changedBy?->name,
+                    'source' => $l->source,
+                    'at' => optional($l->created_at)->toIso8601String(),
                 ])
                 ->values();
         }
@@ -5062,13 +5116,13 @@ class CustomerController extends Controller
         $sinceRow = $rows->first();
 
         return [
-            'customer'          => $customer,
-            'ref_id'            => $refId,
-            'site_label'        => $refId . ' · ' . ($customer->name ?: $customer->company_remark ?: ('#' . $customer->id)),
-            'rows'              => $data,
+            'customer' => $customer,
+            'ref_id' => $refId,
+            'site_label' => $refId.' · '.($customer->name ?: $customer->company_remark ?: ('#'.$customer->id)),
+            'rows' => $data,
             'outstanding_cents' => $balance,
-            'since_date'        => $sinceRow ? optional($sinceRow->entry_date)->toDateString() : null,
-            'logs'              => $logs,
+            'since_date' => $sinceRow ? optional($sinceRow->entry_date)->toDateString() : null,
+            'logs' => $logs,
         ];
     }
 
@@ -5094,29 +5148,29 @@ class CustomerController extends Controller
     public function storeSettlement(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to add settlement entries.');
         }
 
         $customer = Customer::query()->select(['id', 'operator_id'])->findOrFail($id);
 
         $validated = $request->validate([
-            'entry_type'   => ['required', 'string', 'in:payment,waiver,adjustment'],
-            'entry_date'   => ['required', 'date'],
-            'item'         => ['required', 'string', 'max:255'],
+            'entry_type' => ['required', 'string', 'in:payment,waiver,adjustment'],
+            'entry_date' => ['required', 'date'],
+            'item' => ['required', 'string', 'max:255'],
             // Magnitude in minor units (cents); always > 0. Sign applied below.
             'amount_cents' => ['required', 'integer', 'min:1'],
             // Only meaningful for an adjustment: which way it moves the balance.
-            'direction'    => ['nullable', 'string', 'in:debit,credit', 'required_if:entry_type,adjustment'],
-            'remarks'      => ['nullable', 'string', 'max:1000'],
+            'direction' => ['nullable', 'string', 'in:debit,credit', 'required_if:entry_type,adjustment'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ], [
-            'item.required'        => 'Please enter a description for this entry.',
-            'amount_cents.min'     => 'Amount must be greater than zero.',
+            'item.required' => 'Please enter a description for this entry.',
+            'amount_cents.min' => 'Amount must be greater than zero.',
             'direction.required_if' => 'Please choose whether this adjustment is a charge or a credit.',
         ]);
 
-        $type       = $validated['entry_type'];
-        $magnitude  = abs((int) $validated['amount_cents']);
+        $type = $validated['entry_type'];
+        $magnitude = abs((int) $validated['amount_cents']);
         $isAdjustment = $type === \App\Models\CustomerSettlement::TYPE_ADJUSTMENT;
 
         // payment/waiver are credits. An adjustment is a debit (+) only when
@@ -5126,38 +5180,38 @@ class CustomerController extends Controller
             : -$magnitude;
 
         $entry = \App\Models\CustomerSettlement::create([
-            'customer_id'  => $customer->id,
-            'operator_id'  => $customer->operator_id,
-            'entry_date'   => \Carbon\Carbon::parse($validated['entry_date'])->toDateString(),
-            'year_month'   => null,   // ad-hoc — not tied to a specific accounting month.
-            'entry_type'   => $type,
+            'customer_id' => $customer->id,
+            'operator_id' => $customer->operator_id,
+            'entry_date' => \Carbon\Carbon::parse($validated['entry_date'])->toDateString(),
+            'year_month' => null,   // ad-hoc — not tied to a specific accounting month.
+            'entry_type' => $type,
             'amount_cents' => $signed,
-            'item'         => trim($validated['item']),
-            'remarks'      => $validated['remarks'] ?? null,
+            'item' => trim($validated['item']),
+            'remarks' => $validated['remarks'] ?? null,
             'customer_period_summary_id' => null,
-            'source'       => \App\Models\CustomerSettlement::SOURCE_MANUAL,
-            'created_by'   => $user->id,
+            'source' => \App\Models\CustomerSettlement::SOURCE_MANUAL,
+            'created_by' => $user->id,
         ]);
 
         // Map entry type → audit action. Adjustment has no dedicated action, so
         // it logs as a generic "created".
         $action = [
             \App\Models\CustomerSettlement::TYPE_PAYMENT => \App\Models\CustomerSettlementLog::ACTION_PAYMENT,
-            \App\Models\CustomerSettlement::TYPE_WAIVER  => \App\Models\CustomerSettlementLog::ACTION_WAIVER,
+            \App\Models\CustomerSettlement::TYPE_WAIVER => \App\Models\CustomerSettlementLog::ACTION_WAIVER,
         ][$type] ?? \App\Models\CustomerSettlementLog::ACTION_CREATED;
 
         $this->logSettlement(
             $entry,
             $action,
-            $this->settlementTypeLabel($type) . ' added from Payment History',
+            $this->settlementTypeLabel($type).' added from Payment History',
             null,
             $entry->amount_cents,
             'user'
         );
 
         $messages = [
-            \App\Models\CustomerSettlement::TYPE_PAYMENT    => 'Paid entry added.',
-            \App\Models\CustomerSettlement::TYPE_WAIVER     => 'Waived entry added.',
+            \App\Models\CustomerSettlement::TYPE_PAYMENT => 'Paid entry added.',
+            \App\Models\CustomerSettlement::TYPE_WAIVER => 'Waived entry added.',
             \App\Models\CustomerSettlement::TYPE_ADJUSTMENT => 'Adjustment added.',
         ];
 
@@ -5203,13 +5257,13 @@ class CustomerController extends Controller
     public function updateSettlement(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to edit settlement entries.');
         }
 
         $settlement = \App\Models\CustomerSettlement::findOrFail($id);
 
-        if (!$this->isManuallyEditableSettlement($settlement)) {
+        if (! $this->isManuallyEditableSettlement($settlement)) {
             return response()->json([
                 'message' => 'Only opening balance, adjustment, and manually-added paid/waived entries can be edited. For an auto-posted location fee or the per-row Paid action, add an adjustment instead.',
             ], 422);
@@ -5217,7 +5271,7 @@ class CustomerController extends Controller
 
         $validated = $request->validate([
             'amount_cents' => ['required', 'integer'],
-            'remarks'      => ['nullable', 'string', 'max:1000'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $oldAmount = (int) $settlement->amount_cents;
@@ -5235,7 +5289,7 @@ class CustomerController extends Controller
         $this->logSettlement(
             $settlement,
             \App\Models\CustomerSettlementLog::ACTION_EDITED,
-            $this->settlementTypeLabel($settlement->entry_type) . ' edited',
+            $this->settlementTypeLabel($settlement->entry_type).' edited',
             $oldAmount,
             $newAmount,
             'user'
@@ -5254,13 +5308,13 @@ class CustomerController extends Controller
     public function deleteSettlement($id)
     {
         $user = auth()->user();
-        if (!$user || !$user->can('admin-access customers')) {
+        if (! $user || ! $user->can('admin-access customers')) {
             abort(403, 'You do not have permission to delete settlement entries.');
         }
 
         $settlement = \App\Models\CustomerSettlement::findOrFail($id);
 
-        if (!$this->isManuallyEditableSettlement($settlement)) {
+        if (! $this->isManuallyEditableSettlement($settlement)) {
             return response()->json([
                 'message' => 'Only manually-added entries can be deleted. Auto-posted location fees and per-row Paid credits cannot be removed here.',
             ], 422);
@@ -5271,7 +5325,7 @@ class CustomerController extends Controller
         $this->logSettlement(
             $settlement,
             \App\Models\CustomerSettlementLog::ACTION_DELETED,
-            $this->settlementTypeLabel($settlement->entry_type) . ' deleted from Payment History',
+            $this->settlementTypeLabel($settlement->entry_type).' deleted from Payment History',
             (int) $settlement->amount_cents,
             null,
             'user'
@@ -5296,16 +5350,16 @@ class CustomerController extends Controller
         string $source = 'user'
     ): void {
         \App\Models\CustomerSettlementLog::create([
-            'customer_id'            => $settlement->customer_id,
+            'customer_id' => $settlement->customer_id,
             'customer_settlement_id' => $settlement->id,
-            'reference_no'           => $settlement->reference_no,
-            'action'                 => $action,
-            'entry_type'             => $settlement->entry_type,
-            'old_amount_cents'       => $oldAmount,
-            'new_amount_cents'       => $newAmount,
-            'note'                   => $note,
-            'changed_by'             => auth()->id(),
-            'source'                 => $source,
+            'reference_no' => $settlement->reference_no,
+            'action' => $action,
+            'entry_type' => $settlement->entry_type,
+            'old_amount_cents' => $oldAmount,
+            'new_amount_cents' => $newAmount,
+            'note' => $note,
+            'changed_by' => auth()->id(),
+            'source' => $source,
         ]);
     }
 
@@ -5314,10 +5368,10 @@ class CustomerController extends Controller
     {
         return [
             \App\Models\CustomerSettlement::TYPE_OPENING_BALANCE => 'Opening Balance',
-            \App\Models\CustomerSettlement::TYPE_LOCATION_FEE    => 'Location Fee',
-            \App\Models\CustomerSettlement::TYPE_PAYMENT         => 'Payment',
-            \App\Models\CustomerSettlement::TYPE_WAIVER          => 'Waiver',
-            \App\Models\CustomerSettlement::TYPE_ADJUSTMENT      => 'Adjustment',
+            \App\Models\CustomerSettlement::TYPE_LOCATION_FEE => 'Location Fee',
+            \App\Models\CustomerSettlement::TYPE_PAYMENT => 'Payment',
+            \App\Models\CustomerSettlement::TYPE_WAIVER => 'Waiver',
+            \App\Models\CustomerSettlement::TYPE_ADJUSTMENT => 'Adjustment',
         ][$type] ?? ($type ?: '—');
     }
 
@@ -5334,14 +5388,14 @@ class CustomerController extends Controller
 
         $rows = collect($ledger['rows'])->map(function ($r) use ($divisor) {
             return [
-                'Ref'         => $r['reference_no'],
-                'Date'        => $r['entry_date'],
-                'Type'        => $this->settlementTypeLabel($r['entry_type']),
+                'Ref' => $r['reference_no'],
+                'Date' => $r['entry_date'],
+                'Type' => $this->settlementTypeLabel($r['entry_type']),
                 'Description' => $r['item'],
-                'Debit'       => $r['debit_cents'] ? round($r['debit_cents'] / $divisor, 2) : null,
-                'Credit'      => $r['credit_cents'] ? round($r['credit_cents'] / $divisor, 2) : null,
-                'Balance'     => round($r['balance_cents'] / $divisor, 2),
-                'Remarks'     => $r['remarks'],
+                'Debit' => $r['debit_cents'] ? round($r['debit_cents'] / $divisor, 2) : null,
+                'Credit' => $r['credit_cents'] ? round($r['credit_cents'] / $divisor, 2) : null,
+                'Balance' => round($r['balance_cents'] / $divisor, 2),
+                'Remarks' => $r['remarks'],
                 'Recorded By' => $r['created_by'],
             ];
         });
@@ -5355,7 +5409,7 @@ class CustomerController extends Controller
             'Remarks' => '', 'Recorded By' => '',
         ]);
 
-        $fileName = 'PaymentHistory_' . $ledger['ref_id'] . '_' . now()->format('YmdHis') . '.xlsx';
+        $fileName = 'PaymentHistory_'.$ledger['ref_id'].'_'.now()->format('YmdHis').'.xlsx';
 
         return (new FastExcel($rows))->download($fileName);
     }
@@ -5374,10 +5428,10 @@ class CustomerController extends Controller
         $symbol = $operatorCountry?->currency_symbol ?? '$';
 
         return response()->view('exports.settlement-statement', [
-            'ledger'   => $ledger,
-            'divisor'  => $divisor,
-            'symbol'   => $symbol,
-            'company'  => auth()->user()->operator?->name ?? config('app.name', 'Happy Ice'),
+            'ledger' => $ledger,
+            'divisor' => $divisor,
+            'symbol' => $symbol,
+            'company' => auth()->user()->operator?->name ?? config('app.name', 'Happy Ice'),
             'typeLabel' => fn ($t) => $this->settlementTypeLabel($t),
             'generatedAt' => now(),
         ]);
@@ -5520,21 +5574,21 @@ class CustomerController extends Controller
         $validated = $request->validate([
             // Must be a real future date — scheduling "today or earlier" makes
             // no sense (use the normal contract fields for an immediate change).
-            'effective_date'             => 'required|date|after:today',
-            'contract_commission_type'   => 'nullable|in:F,S,R,U,R+U,PS,PS+U,PSORU',
-            'contract_commission_value'  => [
+            'effective_date' => 'required|date|after:today',
+            'contract_commission_type' => 'nullable|in:F,S,R,U,R+U,PS,PS+U,PSORU',
+            'contract_commission_value' => [
                 'nullable', 'numeric', 'min:0',
                 ...($commissionType && in_array($commissionType, $psTypes, true) ? ['max:100'] : []),
             ],
             'contract_commission_value2' => 'nullable|numeric|min:0',
-            'contract_ps_term'           => 'nullable|numeric|min:0|max:100',
-            'is_external_subsidize'      => 'nullable|boolean',
-            'external_subsidize_amount'  => 'nullable|numeric|min:0',
-            'contract_from'              => 'nullable|date',
-            'contract_until'             => 'nullable|date',
-            'contract_auto_renewal'      => 'nullable|boolean',
-            'contract_notice_period'     => 'nullable|string|in:' . implode(',', Customer::NOTICE_PERIOD_OPTIONS),
-            'contract_remarks'           => 'nullable|string|max:5000',
+            'contract_ps_term' => 'nullable|numeric|min:0|max:100',
+            'is_external_subsidize' => 'nullable|boolean',
+            'external_subsidize_amount' => 'nullable|numeric|min:0',
+            'contract_from' => 'nullable|date',
+            'contract_until' => 'nullable|date',
+            'contract_auto_renewal' => 'nullable|boolean',
+            'contract_notice_period' => 'nullable|string|in:'.implode(',', Customer::NOTICE_PERIOD_OPTIONS),
+            'contract_remarks' => 'nullable|string|max:5000',
         ]);
 
         // Mirror the live-form rule: never persist a subsidy amount while the
@@ -5543,22 +5597,22 @@ class CustomerController extends Controller
         $externalSubsidizeAmount = $isExternalSubsidize ? ($validated['external_subsidize_amount'] ?? null) : null;
 
         $payload = [
-            'customer_id'                => $customer->id,
-            'effective_date'             => \Carbon\Carbon::parse($validated['effective_date'])->toDateString(),
-            'status'                     => CustomerScheduledContract::STATUS_PENDING,
-            'applied_at'                 => null,
-            'contract_commission_type'   => $validated['contract_commission_type'] ?? null,
-            'contract_commission_value'  => $validated['contract_commission_value'] ?? null,
+            'customer_id' => $customer->id,
+            'effective_date' => \Carbon\Carbon::parse($validated['effective_date'])->toDateString(),
+            'status' => CustomerScheduledContract::STATUS_PENDING,
+            'applied_at' => null,
+            'contract_commission_type' => $validated['contract_commission_type'] ?? null,
+            'contract_commission_value' => $validated['contract_commission_value'] ?? null,
             'contract_commission_value2' => $validated['contract_commission_value2'] ?? null,
-            'contract_ps_term'           => $validated['contract_ps_term'] ?? null,
-            'is_external_subsidize'      => $isExternalSubsidize,
-            'external_subsidize_amount'  => $externalSubsidizeAmount,
-            'contract_from'              => !empty($validated['contract_from']) ? \Carbon\Carbon::parse($validated['contract_from'])->toDateString() : null,
-            'contract_until'             => !empty($validated['contract_until']) ? \Carbon\Carbon::parse($validated['contract_until'])->toDateString() : null,
-            'contract_auto_renewal'      => (bool) ($validated['contract_auto_renewal'] ?? false),
-            'contract_notice_period'     => $validated['contract_notice_period'] ?? null,
-            'contract_remarks'           => $validated['contract_remarks'] ?? null,
-            'updated_by'                 => auth()->id(),
+            'contract_ps_term' => $validated['contract_ps_term'] ?? null,
+            'is_external_subsidize' => $isExternalSubsidize,
+            'external_subsidize_amount' => $externalSubsidizeAmount,
+            'contract_from' => ! empty($validated['contract_from']) ? \Carbon\Carbon::parse($validated['contract_from'])->toDateString() : null,
+            'contract_until' => ! empty($validated['contract_until']) ? \Carbon\Carbon::parse($validated['contract_until'])->toDateString() : null,
+            'contract_auto_renewal' => (bool) ($validated['contract_auto_renewal'] ?? false),
+            'contract_notice_period' => $validated['contract_notice_period'] ?? null,
+            'contract_remarks' => $validated['contract_remarks'] ?? null,
+            'updated_by' => auth()->id(),
         ];
 
         // One pending row per customer: reuse the existing one if present so we
@@ -5606,14 +5660,13 @@ class CustomerController extends Controller
             ->with([
                 'contact',
                 'vend:id,code,customer_id',
-                'deliveryAddress'
+                'deliveryAddress',
             ])
             ->whereIn('id', $input->pluck('customer_id'))
             ->get()
             ->sortBy(function ($customer) use ($input) {
                 return $input->firstWhere('customer_id', $customer->id)['sequence'];
             })->values(); // Resetting the keys of the collection
-
 
         return CustomerResource::collection($customers);
     }
@@ -5624,14 +5677,14 @@ class CustomerController extends Controller
         $customers = Customer::query()
             ->with([
                 'operator:id,name',
-                'vend:id,code,customer_id'
+                'vend:id,code,customer_id',
             ])
             ->has('vend')
             ->where(function ($query) use ($search) {
                 SiteSearch::for($search)->applyTo($query);
 
                 $query->orWhereHas('vend', function ($query) use ($search) {
-                    $query->where('code', 'LIKE', '%' . $search . '%');
+                    $query->where('code', 'LIKE', '%'.$search.'%');
                 });
             })
             ->whereNull('operator_id')
@@ -5647,15 +5700,15 @@ class CustomerController extends Controller
      * address); otherwise we persist the dedicated billing payload. No-ops
      * when the chosen source has no postcode.
      *
-     * @param array|null $deliveryAddr
-     * @param array|null $billingAddr
+     * @param  array|null  $deliveryAddr
+     * @param  array|null  $billingAddr
      */
     private function syncBillingAddress(Customer $customer, bool $same, $deliveryAddr, $billingAddr): void
     {
         $fields = ['postcode', 'unit_num', 'block_num', 'building', 'street_name', 'country_id', 'latitude', 'longitude'];
         $src = $same ? $deliveryAddr : $billingAddr;
 
-        if (!is_array($src) || empty($src['postcode'])) {
+        if (! is_array($src) || empty($src['postcode'])) {
             return;
         }
 
@@ -5680,12 +5733,12 @@ class CustomerController extends Controller
     private function describeBoundCustomer(Customer $customer): string
     {
         $siteId = $customer->id + Customer::RUNNING_NUMBER_INIT;
-        $name = $customer->name ?: ($customer->virtual_customer_code ?: ('customer #' . $customer->id));
-        $label = 'Site ' . $siteId . ' (' . e($name) . ')';
+        $name = $customer->name ?: ($customer->virtual_customer_code ?: ('customer #'.$customer->id));
+        $label = 'Site '.$siteId.' ('.e($name).')';
 
-        return '<a href="/customers/' . $customer->id . '/edit" target="_blank" rel="noopener noreferrer" class="underline font-medium">'
-            . $label
-            . '</a>';
+        return '<a href="/customers/'.$customer->id.'/edit" target="_blank" rel="noopener noreferrer" class="underline font-medium">'
+            .$label
+            .'</a>';
     }
 
     public function store(Request $request)
@@ -5732,11 +5785,11 @@ class CustomerController extends Controller
                     }
                     $existing = Customer::where('person_id', $value)->first();
                     if ($existing) {
-                        $fail('The CMS Linking ID ' . $value . ' is already bound to ' . $this->describeBoundCustomer($existing) . '.');
+                        $fail('The CMS Linking ID '.$value.' is already bound to '.$this->describeBoundCustomer($existing).'.');
                     }
                 }],
             ];
-            if (!$billingSame) {
+            if (! $billingSame) {
                 // "Billing Address same as Delivery" is unchecked → the billing
                 // fields are shown and must be filled.
                 $rules['billing_address.postcode'] = 'required';
@@ -5760,7 +5813,7 @@ class CustomerController extends Controller
             $statusId = (isset($createData['status_id']) && $createData['status_id'] !== '' && $createData['status_id'] !== null)
                 ? (int) $createData['status_id']
                 : Customer::STATUS_ACTIVE;
-            if (!array_key_exists($statusId, Customer::STATUSES_MAPPING)) {
+            if (! array_key_exists($statusId, Customer::STATUSES_MAPPING)) {
                 $statusId = Customer::STATUS_ACTIVE;
             }
             $createData['status_id'] = $statusId;
@@ -5778,7 +5831,7 @@ class CustomerController extends Controller
             // aggregator also falls back to begin_date, but seeding it keeps the
             // customer record explicit.
             if ($statusId === Customer::STATUS_ACTIVE && empty($createData['active_date'])) {
-                $createData['active_date'] = !empty($createData['begin_date'])
+                $createData['active_date'] = ! empty($createData['begin_date'])
                     ? \Carbon\Carbon::parse($createData['begin_date'])->toDateString()
                     : \Carbon\Carbon::today()->toDateString();
             }
@@ -5786,7 +5839,7 @@ class CustomerController extends Controller
             // New site created directly as "Removed": seed removed_date (from the
             // status prompt, else today) so the Summary commission cutoff is set.
             if ($statusId === Customer::STATUS_REMOVED) {
-                $createData['removed_date'] = !empty($createData['removed_date'])
+                $createData['removed_date'] = ! empty($createData['removed_date'])
                     ? \Carbon\Carbon::parse($createData['removed_date'])->toDateString()
                     : \Carbon\Carbon::today()->toDateString();
             }
@@ -5885,7 +5938,7 @@ class CustomerController extends Controller
         $statusId = (isset($requestCustomerArr['status_id']) && $requestCustomerArr['status_id'] !== '' && $requestCustomerArr['status_id'] !== null)
             ? (int) $requestCustomerArr['status_id']
             : Customer::STATUS_ACTIVE;
-        if (!array_key_exists($statusId, Customer::STATUSES_MAPPING)) {
+        if (! array_key_exists($statusId, Customer::STATUSES_MAPPING)) {
             $statusId = Customer::STATUS_ACTIVE;
         }
         $requestCustomerArr['status_id'] = $statusId;
@@ -5908,8 +5961,8 @@ class CustomerController extends Controller
         // status label stays the same — e.g. correcting a Removed Date on a
         // site that is already Removed) as a loggable event.
         $dateOnlyChanged = false;
-        if ($customer && !$statusActuallyChanged) {
-            $toDate = fn ($v) => !empty($v) ? \Carbon\Carbon::parse($v)->toDateString() : null;
+        if ($customer && ! $statusActuallyChanged) {
+            $toDate = fn ($v) => ! empty($v) ? \Carbon\Carbon::parse($v)->toDateString() : null;
             if ($statusId === Customer::STATUS_ACTIVE) {
                 $dateOnlyChanged = $toDate($requestCustomerArr['active_date'] ?? null) !== $toDate($customer->active_date);
             } elseif ($statusId === Customer::STATUS_REMOVED) {
@@ -5920,7 +5973,7 @@ class CustomerController extends Controller
         $statusLogDate = null;
         if ($statusChanged) {
             if ($statusId === Customer::STATUS_ACTIVE) {
-                $activeDate = !empty($requestCustomerArr['active_date'])
+                $activeDate = ! empty($requestCustomerArr['active_date'])
                     ? \Carbon\Carbon::parse($requestCustomerArr['active_date'])->toDateString()
                     : \Carbon\Carbon::today()->toDateString();
                 $requestCustomerArr['active_date'] = $activeDate;
@@ -5931,7 +5984,7 @@ class CustomerController extends Controller
                 }
                 $statusLogDate = $activeDate;
             } elseif ($statusId === Customer::STATUS_REMOVED) {
-                $removedDate = !empty($requestCustomerArr['removed_date'])
+                $removedDate = ! empty($requestCustomerArr['removed_date'])
                     ? \Carbon\Carbon::parse($requestCustomerArr['removed_date'])->toDateString()
                     : \Carbon\Carbon::today()->toDateString();
                 $requestCustomerArr['removed_date'] = $removedDate;
@@ -5953,7 +6006,7 @@ class CustomerController extends Controller
             'customer' => $requestCustomerArr,
         ]);
 
-        if (!$customer) {
+        if (! $customer) {
             if ($request->is_existing) {
                 $request->validate([
                     'customer_id' => 'required',
@@ -5977,7 +6030,7 @@ class CustomerController extends Controller
                 }
             }
             $isMovement = false;
-            if (!$vend->customer_id && $customer->id) {
+            if (! $vend->customer_id && $customer->id) {
                 $isMovement = true;
             }
             $vend->customer_id = $customer->id;
@@ -5995,56 +6048,56 @@ class CustomerController extends Controller
             $twoValueTypes = ['PS+U', 'PSORU', 'R+U'];
 
             $contractRules = [
-                'customer.contract_commission_type'        => 'nullable|in:F,S,R,U,R+U,PS,PS+U,PSORU',
-                'customer.contract_commission_value'       => [
+                'customer.contract_commission_type' => 'nullable|in:F,S,R,U,R+U,PS,PS+U,PSORU',
+                'customer.contract_commission_value' => [
                     'nullable',
                     'numeric',
                     'min:0',
                     ...($commissionType && in_array($commissionType, $psTypes) ? ['max:100'] : []),
                 ],
-                'customer.contract_commission_value2'      => 'nullable|numeric|min:0',
-                'customer.contract_ps_term'                => 'nullable|numeric|min:0|max:100',
+                'customer.contract_commission_value2' => 'nullable|numeric|min:0',
+                'customer.contract_ps_term' => 'nullable|numeric|min:0|max:100',
                 // External Subsidize — toggle + optional dollar amount.
-                'customer.is_external_subsidize'           => 'nullable|boolean',
-                'customer.external_subsidize_amount'       => 'nullable|numeric|min:0',
-                'customer.contract_from'                   => 'nullable|date',
-                'customer.contract_until'                  => 'nullable|date',
+                'customer.is_external_subsidize' => 'nullable|boolean',
+                'customer.external_subsidize_amount' => 'nullable|numeric|min:0',
+                'customer.contract_from' => 'nullable|date',
+                'customer.contract_until' => 'nullable|date',
                 // Site lifecycle dates entered via the status-change prompt.
-                'customer.active_date'                     => 'nullable|date',
-                'customer.removed_date'                    => 'nullable|date',
+                'customer.active_date' => 'nullable|date',
+                'customer.removed_date' => 'nullable|date',
                 // Termination Date — hard end for the site (ignores notice
                 // period). Drives prorated profit-sharing cutoff in the Summary
                 // aggregator; nullable so un-terminated sites are unaffected.
-                'customer.termination_date'                => 'nullable|date',
-                'customer.contract_auto_renewal'           => 'nullable|boolean',
-                'customer.contract_notice_period'          => 'nullable|string|in:' . implode(',', Customer::NOTICE_PERIOD_OPTIONS),
-                'customer.contract_remarks'                => 'nullable|string|max:5000',
+                'customer.termination_date' => 'nullable|date',
+                'customer.contract_auto_renewal' => 'nullable|boolean',
+                'customer.contract_notice_period' => 'nullable|string|in:'.implode(',', Customer::NOTICE_PERIOD_OPTIONS),
+                'customer.contract_remarks' => 'nullable|string|max:5000',
                 // Performance Report Email opt-in (see migration
                 // 2026_05_09_000000_add_report_email_to_customers).
-                'customer.report_email'                    => 'nullable|email|max:191',
-                'customer.is_report_email_enabled'         => 'nullable|boolean',
+                'customer.report_email' => 'nullable|email|max:191',
+                'customer.is_report_email_enabled' => 'nullable|boolean',
                 // Location Grading — A/B/C per category, nullable. See
                 // Customer::LOCATION_GRADING_CATEGORIES for the rubric.
-                'customer.location_grading_placement'      => 'nullable|in:A,B,C',
-                'customer.location_grading_access'         => 'nullable|in:A,B,C',
-                'customer.location_grading_flexibility'    => 'nullable|in:A,B,C',
+                'customer.location_grading_placement' => 'nullable|in:A,B,C',
+                'customer.location_grading_access' => 'nullable|in:A,B,C',
+                'customer.location_grading_flexibility' => 'nullable|in:A,B,C',
                 // "Payment To" tracking (sys-only) — who Location Fees are
                 // paid to, and whether that payee is GST registered.
-                'customer.payment_to'                      => 'nullable|string|max:191',
-                'customer.is_gst_registered'               => 'nullable|boolean',
+                'customer.payment_to' => 'nullable|string|max:191',
+                'customer.is_gst_registered' => 'nullable|boolean',
                 // Site-level contact (stored on customers table). Phone is plain
                 // text — no country code (single-country localized deployment).
-                'customer.site_contact_person'             => 'nullable|string|max:191',
-                'customer.site_phone_number'               => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
-                'customer.site_alt_phone_number'           => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
+                'customer.site_contact_person' => 'nullable|string|max:191',
+                'customer.site_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
+                'customer.site_alt_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
                 // Free-text remarks for the delivery address.
-                'customer.address_remarks'                 => 'nullable|string|max:5000',
+                'customer.address_remarks' => 'nullable|string|max:5000',
                 // CMS Linking ID — unique across customers (ignoring this row),
                 // so two sites can't link to the same CMS person. Empty → null
                 // (nullable), so unlinked sites are unaffected. Closure (instead
                 // of the plain `unique` rule) so the rejection names the site
                 // already holding the ID, e.g. "...already bound to ABC - Foo".
-                'customer.person_id'                       => ['nullable', 'integer', function ($attribute, $value, $fail) use ($customer) {
+                'customer.person_id' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($customer) {
                     if ($value === null || $value === '') {
                         return;
                     }
@@ -6052,7 +6105,7 @@ class CustomerController extends Controller
                         ->where('id', '!=', $customer->id)
                         ->first();
                     if ($existing) {
-                        $fail('The CMS Linking ID ' . $value . ' is already bound to ' . $this->describeBoundCustomer($existing) . '.');
+                        $fail('The CMS Linking ID '.$value.' is already bound to '.$this->describeBoundCustomer($existing).'.');
                     }
                 }],
             ];
@@ -6063,7 +6116,7 @@ class CustomerController extends Controller
             $request->validate($contractRules, [], ['customer.person_id' => 'CMS Linking ID']);
 
             // Billing address required only when "same as delivery" is off.
-            if (!filter_var($requestCustomerArr['is_billing_same_as_delivery'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
+            if (! filter_var($requestCustomerArr['is_billing_same_as_delivery'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
                 $request->validate([
                     'customer.billing_address.postcode' => 'required',
                     'customer.billing_address.country_id' => 'required',
@@ -6071,7 +6124,7 @@ class CustomerController extends Controller
             }
 
             // Bank Details — required together (nested under customer.* on update).
-            if (!empty($requestCustomerArr['bank_id']) || !empty($requestCustomerArr['bank_account_name']) || !empty($requestCustomerArr['bank_account_number'])) {
+            if (! empty($requestCustomerArr['bank_id']) || ! empty($requestCustomerArr['bank_account_name']) || ! empty($requestCustomerArr['bank_account_number'])) {
                 $request->validate([
                     'customer.bank_id' => 'required|integer',
                     'customer.bank_account_name' => 'required|string|max:191',
@@ -6115,14 +6168,15 @@ class CustomerController extends Controller
             // "New" badge even though nothing actually changed. Normalise each
             // field by its real type before comparing so only genuine edits log.
             $boolFields = ['is_external_subsidize', 'contract_auto_renewal'];
-            $numFields  = ['contract_commission_value', 'contract_commission_value2', 'contract_ps_term', 'external_subsidize_amount'];
+            $numFields = ['contract_commission_value', 'contract_commission_value2', 'contract_ps_term', 'external_subsidize_amount'];
             $dateFields = ['contract_from', 'contract_until'];
 
             $normBool = fn ($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN);
-            $normNum  = function ($v) {
+            $normNum = function ($v) {
                 if ($v === null || $v === '') {
                     return null;
                 }
+
                 return number_format((float) $v, 4, '.', '');
             };
             $normDate = function ($v) {
@@ -6263,7 +6317,7 @@ class CustomerController extends Controller
                 $vend = Vend::find($request->customer['vend_id']);
 
                 $isMovement = false;
-                if (!$vend->customer_id && $customer->id) {
+                if (! $vend->customer_id && $customer->id) {
                     $isMovement = true;
                 }
                 $vend->customer_id = $customer->id;
@@ -6276,7 +6330,7 @@ class CustomerController extends Controller
         }
 
         if ($customer->deliveryAddress) {
-            if ((!$customer->deliveryAddress->latitude or !$customer->deliveryAddress->longitude) and $customer->deliveryAddress->country->code == 'SG') {
+            if ((! $customer->deliveryAddress->latitude or ! $customer->deliveryAddress->longitude) and $customer->deliveryAddress->country->code == 'SG') {
                 $location = $this->getAddressResult($customer->deliveryAddress->postcode);
 
                 if ($location) {
@@ -6327,9 +6381,10 @@ class CustomerController extends Controller
             $customer->attachments()->create([
                 'type' => 1,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . $fileName,
+                'local_url' => $dir.'/'.$fileName,
             ]);
         }
+
         return true;
     }
 
@@ -6346,9 +6401,10 @@ class CustomerController extends Controller
             $customer->photos()->create([
                 'type' => 2,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . $fileName,
+                'local_url' => $dir.'/'.$fileName,
             ]);
         }
+
         return true;
     }
 
@@ -6366,9 +6422,10 @@ class CustomerController extends Controller
                 'name' => $fileName,
                 'type' => Customer::FILE_TYPE_CONTRACT,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . basename($storedPath),
+                'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
         return true;
     }
 
@@ -6408,7 +6465,7 @@ class CustomerController extends Controller
                     SELECT vend_id, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id')
@@ -6434,13 +6491,13 @@ class CustomerController extends Controller
         $query = $this->filterOperator($query);
 
         $commissionTypeLabels = [
-            'F'     => 'Free Placement',
-            'S'     => 'Subsidized Plan',
-            'R'     => 'Fix Rental',
-            'U'     => 'Utility Only',
-            'R+U'   => 'Fix Rental + Utility',
-            'PS'    => 'Profit Sharing Only',
-            'PS+U'  => 'PS + Utility',
+            'F' => 'Free Placement',
+            'S' => 'Subsidized Plan',
+            'R' => 'Fix Rental',
+            'U' => 'Utility Only',
+            'R+U' => 'Fix Rental + Utility',
+            'PS' => 'Profit Sharing Only',
+            'PS+U' => 'PS + Utility',
             'PSORU' => 'PS OR Utility (whichever higher)',
         ];
 
@@ -6457,17 +6514,17 @@ class CustomerController extends Controller
                     ? []
                     : ($customer->totals_json ?? []);
 
-                $lifetimeSales      = isset($totals['vend_records_amount_latest'])
+                $lifetimeSales = isset($totals['vend_records_amount_latest'])
                     ? round($totals['vend_records_amount_latest'] / $divisor, 2) : null;
-                $avgSalesDay        = isset($totals['vend_records_amount_average_day'])
+                $avgSalesDay = isset($totals['vend_records_amount_average_day'])
                     ? round($totals['vend_records_amount_average_day'] / $divisor, 2) : null;
-                $avgDailySales30d   = isset($totals['vend_records_thirty_days_amount_average'])
+                $avgDailySales30d = isset($totals['vend_records_thirty_days_amount_average'])
                     ? round($totals['vend_records_thirty_days_amount_average'] / $divisor, 2) : null;
-                $sales30d           = isset($totals['vend_records_thirty_days_amount'])
+                $sales30d = isset($totals['vend_records_thirty_days_amount'])
                     ? round($totals['vend_records_thirty_days_amount'] / $divisor, 2) : null;
-                $grossMargin30d     = isset($totals['thirty_days_gross_profit'])
+                $grossMargin30d = isset($totals['thirty_days_gross_profit'])
                     ? round($totals['thirty_days_gross_profit'] / $divisor, 2) : null;
-                $fullLoadValue      = isset($customer->total_full_load_amount)
+                $fullLoadValue = isset($customer->total_full_load_amount)
                     ? round($customer->total_full_load_amount / 100, 2) : null;
                 // Computed in SQL straight off customers.totals_json, so the
                 // $totals blanking above cannot reach it.
@@ -6476,57 +6533,57 @@ class CustomerController extends Controller
 
                 $contractType = $customer->contract_commission_type;
                 $contractTypeLabel = $contractType
-                    ? ($contractType . ': ' . ($commissionTypeLabels[$contractType] ?? $contractType))
+                    ? ($contractType.': '.($commissionTypeLabels[$contractType] ?? $contractType))
                     : null;
 
                 // Label the value column based on type for clarity
-                $contractValueLabel = match($contractType) {
-                    'S'             => 'Subsidized Amt',
-                    'R'             => 'Fix Rental Amt',
-                    'U'             => 'Utility Amt',
-                    'R+U'           => 'Fix Rental + Utility Amt',
+                $contractValueLabel = match ($contractType) {
+                    'S' => 'Subsidized Amt',
+                    'R' => 'Fix Rental Amt',
+                    'U' => 'Utility Amt',
+                    'R+U' => 'Fix Rental + Utility Amt',
                     'PS', 'PS+U', 'PSORU' => 'Commission (%)',
-                    default         => null,
+                    default => null,
                 };
 
                 return [
                     // ── Identity ──────────────────────────────────────────────
-                    'Customer ID'                   => $customer->id + 20000,
-                    'Customer Name'                 => $customer->name,
-                    'Machine ID'                    => $customer->vend_code,
-                    'Machine Prefix'                => $customer->vend?->vendPrefix?->name,
-                    'Delivery Address'              => $customer->deliveryAddress?->full_address,
-                    'Postcode'                      => $customer->postcode,
-                    'Tags'                          => $customer->tagBindings?->pluck('name')->implode(', '),
-                    'Refilling Route'               => $customer->zone_name,
-                    'Status'                        => Customer::STATUSES_MAPPING[$customer->status_id] ?? '—',
-                    'Operator'                      => $customer->operator_code,
-                    'Ref Price Type'                => 'RP' . $customer->selling_price_type,
-                    'Begin Date'                    => $customer->begin_date
+                    'Customer ID' => $customer->id + 20000,
+                    'Customer Name' => $customer->name,
+                    'Machine ID' => $customer->vend_code,
+                    'Machine Prefix' => $customer->vend?->vendPrefix?->name,
+                    'Delivery Address' => $customer->deliveryAddress?->full_address,
+                    'Postcode' => $customer->postcode,
+                    'Tags' => $customer->tagBindings?->pluck('name')->implode(', '),
+                    'Refilling Route' => $customer->zone_name,
+                    'Status' => Customer::STATUSES_MAPPING[$customer->status_id] ?? '—',
+                    'Operator' => $customer->operator_code,
+                    'Ref Price Type' => 'RP'.$customer->selling_price_type,
+                    'Begin Date' => $customer->begin_date
                                                         ? Carbon::parse($customer->begin_date)->format('Y-m-d') : null,
 
                     // ── Sales & Performance ───────────────────────────────────
-                    'Lifetime Sales'                => $lifetimeSales,
-                    'Avg Sales/Day'                 => $avgSalesDay,
-                    'AvgDailySales (Last30d)'       => $avgDailySales30d,
-                    'Sales (Last30d)'               => $sales30d,
-                    'Gross Margin (Last30d)'        => $grossMargin30d,
-                    'Full Load Value'               => $fullLoadValue,
-                    'Avg30dSales / Full Load'       => $ratio30dOverFullLoad,
+                    'Lifetime Sales' => $lifetimeSales,
+                    'Avg Sales/Day' => $avgSalesDay,
+                    'AvgDailySales (Last30d)' => $avgDailySales30d,
+                    'Sales (Last30d)' => $sales30d,
+                    'Gross Margin (Last30d)' => $grossMargin30d,
+                    'Full Load Value' => $fullLoadValue,
+                    'Avg30dSales / Full Load' => $ratio30dOverFullLoad,
 
                     // ── Contract ──────────────────────────────────────────────
-                    'Contract Type'                 => $contractTypeLabel,
-                    'Contract Value Label'          => $contractValueLabel,
-                    'Contract Value'                => $customer->contract_commission_value,
-                    'Contract Value 2'              => $customer->contract_commission_value2,
-                    'PS Term (%)'                   => $customer->contract_ps_term,
-                    'Contract From'                 => $customer->contract_from
+                    'Contract Type' => $contractTypeLabel,
+                    'Contract Value Label' => $contractValueLabel,
+                    'Contract Value' => $customer->contract_commission_value,
+                    'Contract Value 2' => $customer->contract_commission_value2,
+                    'PS Term (%)' => $customer->contract_ps_term,
+                    'Contract From' => $customer->contract_from
                                                         ? Carbon::parse($customer->contract_from)->format('Y-m-d') : null,
-                    'Contract Until'                => $customer->contract_until
+                    'Contract Until' => $customer->contract_until
                                                         ? Carbon::parse($customer->contract_until)->format('Y-m-d') : null,
-                    'Auto Renewal'                  => $customer->contract_auto_renewal ? 'Yes' : 'No',
-                    'Notice Period'                 => $customer->contract_notice_period,
-                    'Contract Remarks'              => $customer->contract_remarks,
+                    'Auto Renewal' => $customer->contract_auto_renewal ? 'Yes' : 'No',
+                    'Notice Period' => $customer->contract_notice_period,
+                    'Contract Remarks' => $customer->contract_remarks,
                 ];
             }
         );

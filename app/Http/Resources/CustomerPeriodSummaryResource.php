@@ -167,7 +167,7 @@ class CustomerPeriodSummaryResource extends JsonResource
         // flat fee — surfaced as loc_fee_prorated_to_date for the Summary badge.
         $locFeeProratedToDate = false;
 
-        if (!$isLocked && !$isSegment && !$isReactivated && $this->relationLoaded('customer') && $this->customer) {
+        if (! $isLocked && ! $isSegment && ! $isReactivated && $this->relationLoaded('customer') && $this->customer) {
             $c = $this->customer;
 
             // Live contract terms straight off the customer record.
@@ -410,6 +410,7 @@ class CustomerPeriodSummaryResource extends JsonResource
             'contract_ps_term' => $contractPsTerm,
             'customer' => $this->whenLoaded('customer', function () {
                 $c = $this->customer;
+
                 return [
                     'id' => $c->id,
                     'ref_id' => $c->id ? $c->id + \App\Models\Customer::RUNNING_NUMBER_INIT : null,
@@ -469,7 +470,7 @@ class CustomerPeriodSummaryResource extends JsonResource
                     // and any contract type with missing required values.
                     // Computed via PerformanceReportContentService so the
                     // Vue button stays in sync with the actual API response.
-                    'has_report_content' => (new \App\Services\PerformanceReportContentService())->isAvailable($c),
+                    'has_report_content' => (new \App\Services\PerformanceReportContentService)->isAvailable($c),
                     // Contract values needed for the contract_commission_value(2)
                     // contract_ps_term — the Vue side already has these for
                     // some columns but the modal/action layer needs them too.
@@ -540,8 +541,8 @@ class CustomerPeriodSummaryResource extends JsonResource
                             ->values()
                             ->map(function ($v) {
                                 return [
-                                    'id'     => $v->id,
-                                    'code'   => $v->code,
+                                    'id' => $v->id,
+                                    'code' => $v->code,
                                     'prefix' => $v->relationLoaded('vendPrefix') && $v->vendPrefix
                                         ? $v->vendPrefix->name
                                         : null,
@@ -557,12 +558,14 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'delivery_platforms' => $c->relationLoaded('vends')
                         ? $c->vends
                             ->flatMap(function ($v) {
-                                if (!$v->relationLoaded('deliveryProductMappingVends')) {
+                                if (! $v->relationLoaded('deliveryProductMappingVends')) {
                                     return [];
                                 }
+
                                 return $v->deliveryProductMappingVends->map(function ($dpmv) {
                                     $platform = optional(optional($dpmv->deliveryProductMapping)
                                         ->deliveryPlatformOperator)->deliveryPlatform;
+
                                     return $platform ? $platform->name : null;
                                 });
                             })
