@@ -526,6 +526,7 @@
                         </a>
                         <div
                           class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit h-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+                          v-if="customer.selling_price_type && !(customer.vend && customer.vend.machine_type === 'smart_chiller')"
                         >
                           RP{{ customer.selling_price_type }}
                         </div>

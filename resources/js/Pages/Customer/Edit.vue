@@ -231,6 +231,9 @@
                     <div class="text-sm text-red-600" v-if="form.errors['customer.selling_price_type']">
                       {{ form.errors['customer.selling_price_type'] }}
                     </div>
+                    <p class="mt-1 text-xs text-gray-500" v-if="customer.vend && customer.vend.machine_type === 'smart_chiller'">
+                      Not used for CityBox chillers — their product mapping and prices come from the CityBox API.
+                    </p>
                   </div>
 
                   <!-- Operator — moved up from its own section; placed right after
@@ -1465,7 +1468,7 @@
                                   <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
                                 </div>
                               </th>
-                              <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> Ref Price {{ form.selling_price_type ? form.selling_price_type.id : '' }} </th>
+                              <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> Ref Price<template v-if="!(customer.vend && customer.vend.machine_type === 'smart_chiller')"> {{ form.selling_price_type ? form.selling_price_type.id : '' }}</template> </th>
                             </tr>
                           </thead>
                           <tbody class="bg-white">

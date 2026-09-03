@@ -1672,9 +1672,17 @@ class OpsJobController extends Controller
             ->pluck('amount', 'product_id')
             ->all();
 
+        // CityBox chillers: mapping + prices come from their API, so the Site's
+        // RP1..RP5 tier carries no meaning there - suppress the label.
+        $isCityboxChiller = $opsJobItem->vend
+            && $opsJobItem->vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER
+            && (bool) $opsJobItem->vend->citybox_equipment_id;
+
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),
-            'referencePriceType' => SellingPrice::TYPE_MAPPINGS[$referencePriceType] ?? ('RP'.$referencePriceType),
+            'referencePriceType' => $isCityboxChiller
+                ? null
+                : (SellingPrice::TYPE_MAPPINGS[$referencePriceType] ?? ('RP'.$referencePriceType)),
             'referencePrices' => $referencePrices,
         ]);
     }

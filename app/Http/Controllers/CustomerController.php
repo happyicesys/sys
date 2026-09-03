@@ -448,7 +448,7 @@ class CustomerController extends Controller
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
-            'customer.vend:id,customer_id,code,vend_prefix_id',
+            'customer.vend:id,customer_id,code,vend_prefix_id,machine_type',
             'customer.vend.vendPrefix:id,name',
             // All vends bound to the customer — used to expand the "+N more"
             // hint into a line-broken list (ascending) in the Vend ID column.
@@ -3770,7 +3770,7 @@ class CustomerController extends Controller
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
-            'customer.vend:id,customer_id,code,vend_prefix_id',
+            'customer.vend:id,customer_id,code,vend_prefix_id,machine_type',
             'customer.vend.vendPrefix:id,name',
             // Drives the Company + Contact Person + Contact Phone columns (morphOne).
             // `company` = the Edit form's "Bill From" billing-company field.

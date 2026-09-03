@@ -515,8 +515,9 @@
                                 column's header comment for why.
                               -->
                               <div class="basis-full flex items-center space-x-2 pl-6 text-xs">
+                                <!-- No RP chip on CityBox chiller mappings: their mapping + prices come from the CityBox API. -->
                                 <span
-                                  v-if="vend.customer && vend.customer.selling_price_type"
+                                  v-if="vend.customer && vend.customer.selling_price_type && productMapping.machine_type !== 'smart_chiller'"
                                   class="inline-flex rounded px-0.5 py-0.5 border bg-indigo-100 text-indigo-800 border-indigo-300"
                                 >
                                   RP{{ vend.customer.selling_price_type }}

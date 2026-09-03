@@ -567,7 +567,7 @@
                           <div class="flex flex-col space-y-1">
                             <div
                               class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
-                              v-if="vend.customer && vend.customer.selling_price_type"
+                              v-if="vend.customer && vend.customer.selling_price_type && vend.machine_type !== 'smart_chiller'"
                             >
                               RP{{ vend.customer.selling_price_type }}
                             </div>

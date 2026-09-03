@@ -902,7 +902,7 @@
                                 <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
                               </div>
                             </th>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Ref Price {{ vend?.customer?.selling_price_type }} </th>
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Ref Price<template v-if="!isChiller"> {{ vend?.customer?.selling_price_type }}</template> </th>
                           </tr>
                         </thead>
                         <tbody class="bg-white">

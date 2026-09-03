@@ -602,9 +602,20 @@
                                   </span>
                                   {{ row.customer && row.customer.name ? row.customer.name : ''}}
                                 </span>
+                                <!--
+                                  CityBox rows: mapping + prices come from their API,
+                                  so the Site's RP1..RP5 tier is meaningless there.
+                                  Show a CityBox pill instead of the RP badge.
+                                -->
+                                <span
+                                  class="inline-flex rounded px-1 py-0.5 text-xs font-semibold border align-middle ml-1 bg-indigo-100 text-indigo-800 border-indigo-300 whitespace-nowrap"
+                                  v-if="row.is_citybox_chiller"
+                                >
+                                  CityBox
+                                </span>
                                 <span
                                   class="inline-flex rounded px-0.5 py-0.5 text-xs border align-middle ml-1 bg-indigo-100 text-indigo-800 border-indigo-300"
-                                  v-if="row.customer && row.customer.selling_price_type"
+                                  v-else-if="row.customer && row.customer.selling_price_type"
                                 >
                                   RP{{ row.customer.selling_price_type }}
                                 </span>

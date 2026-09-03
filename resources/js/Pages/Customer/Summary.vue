@@ -941,7 +941,7 @@
                           {{ row.customer.status_name }}<template v-if="row.customer.status_name === 'Removed' && row.removed_date">&nbsp;{{ formatYYMMDD(row.removed_date) }}</template>
                         </span>
                         <span
-                          v-if="row.customer.selling_price_type"
+                          v-if="row.customer.selling_price_type && row.customer.vend?.machine_type !== 'smart_chiller'"
                           class="inline-flex rounded px-0.5 py-0.5 text-[10px] border w-fit h-fit bg-indigo-100 text-indigo-800 border-indigo-300"
                         >
                           RP{{ row.customer.selling_price_type }}

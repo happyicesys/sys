@@ -525,6 +525,8 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'vend' => $c->relationLoaded('vend') && $c->vend ? [
                         'id' => $c->vend->id,
                         'code' => $c->vend->code,
+                        // Lets the Summary hide the RP badge on CityBox chiller sites.
+                        'machine_type' => $c->vend->machine_type ?: 'vending_machine',
                         'prefix' => $c->vend->relationLoaded('vendPrefix') && $c->vend->vendPrefix
                             ? $c->vend->vendPrefix->name
                             : null,
