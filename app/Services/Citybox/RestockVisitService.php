@@ -120,6 +120,22 @@ class RestockVisitService
      */
     public function submitCount(OpsJobItem $item): bool
     {
+        return $this->pushCounts($item, 'submit');
+    }
+
+    /**
+     * Undo Stock In (Brian, 2026-09-03): put CityBox back to what the driver
+     * walked in to — actual_before_qty per channel — so their portal matches
+     * mark1 at every step. Same session, same endpoint; status 'reverted' on
+     * success. A later Stock In pushes the fresh count again via the observer.
+     */
+    public function revertCount(OpsJobItem $item): bool
+    {
+        return $this->pushCounts($item, 'revert');
+    }
+
+    private function pushCounts(OpsJobItem $item, string $mode): bool
+    {
         $vend = $item->vend;
         if (! $vend || $vend->machine_type !== Vend::MACHINE_TYPE_SMART_CHILLER || ! $vend->citybox_equipment_id) {
             return false;
@@ -157,7 +173,9 @@ class RestockVisitService
             if ($cid === null) {
                 continue; // channel not in the current planogram — nothing to tell CityBox
             }
-            $counts[$cid] = max(0, (int) $ch->actual_before_qty + (int) $ch->actual_qty);
+            $counts[$cid] = $mode === 'revert'
+                ? max(0, (int) $ch->actual_before_qty)
+                : max(0, (int) $ch->actual_before_qty + (int) $ch->actual_qty);
         }
         if ($counts === []) {
             $this->markSubmit($item, 'failed', 'No chiller channels on this item map to the CityBox planogram.');
@@ -169,9 +187,16 @@ class RestockVisitService
             $session = new RestockSession((string) $vend->citybox_equipment_id, $item->citybox_msg_id, '', now()->toImmutable());
             $this->gateway->submitCount($session, StockCount::of($counts));
         } catch (\Throwable $e) {
-            $this->markSubmit($item, 'failed', $e->getMessage());
+            $this->markSubmit($item, 'failed', ($mode === 'revert' ? 'Revert: ' : '').$e->getMessage());
 
             return false;
+        }
+
+        if ($mode === 'revert') {
+            $this->markSubmit($item, 'reverted', null);
+            Log::info('Citybox stock reverted to pre-restock count', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts)]);
+
+            return true;
         }
 
         $this->markSubmit($item, 'ok', null);
@@ -199,7 +224,7 @@ class RestockVisitService
     {
         $item->forceFill([
             'citybox_submit_status' => $status,
-            'citybox_submitted_at' => $status === 'ok' ? now() : $item->citybox_submitted_at,
+            'citybox_submitted_at' => in_array($status, ['ok', 'reverted'], true) ? now() : $item->citybox_submitted_at,
             'citybox_submit_attempts' => $item->citybox_submit_attempts + 1,
             'citybox_submit_error' => $error,
         ])->saveQuietly(); // quietly: don't re-trigger the observer

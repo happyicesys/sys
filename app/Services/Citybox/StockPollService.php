@@ -241,8 +241,9 @@ class StockPollService
     protected function submitPendingFor(Vend $vend): bool
     {
         return \App\Models\OpsJobItem::where('vend_id', $vend->id)
-            ->whereIn('citybox_submit_status', ['pending', 'failed'])
-            ->where('completed_at', '>=', now()->subHours(2))
+            ->whereIn('citybox_submit_status', ['pending', 'failed', 'reverting'])
+            ->where(fn ($q) => $q->where('completed_at', '>=', now()->subHours(2))
+                ->orWhere('undo_completed_at', '>=', now()->subHours(2)))
             ->exists();
     }
 

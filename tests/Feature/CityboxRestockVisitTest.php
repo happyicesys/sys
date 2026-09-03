@@ -230,6 +230,73 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertSame($session->msgId, $this->gw->submits[0]['msgId']);
     }
 
+    // ── undo stock in → revert ───────────────────────────────────────────────
+
+    /** Brian, 2026-09-03: Undo Stock In puts CityBox back to the pre-restock count. */
+    public function test_undo_stock_in_restores_the_previous_count_in_citybox(): void
+    {
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->stockIn([101 => 5, 102 => 4]); // before: 101=0, 102=1
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+        $this->assertSame('ok', $this->item->fresh()->citybox_submit_status);
+
+        Queue::fake();
+        $this->actingAs($this->driver);
+        app(\App\Http\Controllers\OpsJobController::class)->undoItemStatus($this->item->id);
+
+        $item = $this->item->fresh();
+        $this->assertSame((string) OpsJob::STATUS_PICKED, (string) $item->status);
+        $this->assertSame('reverting', $item->citybox_submit_status);
+        Queue::assertPushed(SubmitCityboxCount::class, fn ($j) => $j->opsJobItemId === $this->item->id && $j->revert === true);
+
+        (new SubmitCityboxCount($this->item->id, true))->handle(app(RestockVisitService::class));
+
+        $item = $this->item->fresh();
+        $this->assertSame('reverted', $item->citybox_submit_status);
+        $this->assertNotNull($item->citybox_submitted_at);
+        $this->assertCount(2, $this->gw->submits);
+        $reverted = collect($this->gw->submits[1]['rows'])->pluck('reality_stock', 'product_id')->all();
+        $this->assertSame([90338 => 0, 90340 => 1], $reverted);
+    }
+
+    public function test_stock_in_again_after_a_revert_pushes_the_fresh_count(): void
+    {
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->stockIn([101 => 5, 102 => 4]);
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+        $this->actingAs($this->driver);
+        app(\App\Http\Controllers\OpsJobController::class)->undoItemStatus($this->item->id);
+        (new SubmitCityboxCount($this->item->id, true))->handle(app(RestockVisitService::class));
+        $this->assertSame('reverted', $this->item->fresh()->citybox_submit_status);
+
+        $this->item->refresh(); // the undo ran on another instance
+        $this->stockIn([101 => 2, 102 => 3]); // observer arms 'pending' again
+        $this->assertSame('pending', $this->item->fresh()->citybox_submit_status);
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $this->assertSame('ok', $this->item->fresh()->citybox_submit_status);
+        $this->assertCount(3, $this->gw->submits);
+        $fresh = collect($this->gw->submits[2]['rows'])->pluck('reality_stock', 'product_id')->all();
+        $this->assertSame([90338 => 2, 90340 => 4], $fresh);
+    }
+
+    public function test_revert_job_is_a_no_op_once_the_item_is_stocked_in_again(): void
+    {
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->stockIn([101 => 5]);
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+        $this->actingAs($this->driver);
+        app(\App\Http\Controllers\OpsJobController::class)->undoItemStatus($this->item->id);
+        $this->item->refresh();
+        $this->stockIn([101 => 3]); // re-stocked before the queued revert ran
+        $this->assertSame('pending', $this->item->fresh()->citybox_submit_status);
+
+        (new SubmitCityboxCount($this->item->id, true))->handle(app(RestockVisitService::class));
+
+        $this->assertSame('pending', $this->item->fresh()->citybox_submit_status); // untouched
+        $this->assertCount(1, $this->gw->submits);
+    }
+
     public function test_failed_submit_requeues_with_backoff_until_max_attempts(): void
     {
         Queue::fake();

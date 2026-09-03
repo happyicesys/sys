@@ -2166,6 +2166,7 @@ class OpsJobController extends Controller
                 $opsJobItem->undo_completed_at = Carbon::now();
                 $opsJobItem->undo_completed_by = auth()->id();
                 $opsJobItem->save();
+                $this->revertCityboxCountOnUndo($opsJobItem);
                 break;
             case OpsJob::STATUS_VERIFIED:
                 $opsJobItem->status = OpsJob::STATUS_DELIVERED;
@@ -2192,6 +2193,28 @@ class OpsJobController extends Controller
         }
 
         return redirect()->back();
+    }
+
+    /**
+     * Smart Chiller (Brian, 2026-09-03): Undo Stock In also puts CityBox back to
+     * the pre-restock count, so their portal matches mark1. Only when the push
+     * had gone through ('ok'); queued + retried like the push, never blocks the undo.
+     */
+    private function revertCityboxCountOnUndo(OpsJobItem $opsJobItem): void
+    {
+        if ($opsJobItem->citybox_submit_status !== 'ok' || ! config('citybox.openapi.enabled')) {
+            return;
+        }
+        try {
+            $vend = $opsJobItem->vend;
+            if (! $vend || ! $vend->isSmartChiller() || ! $vend->citybox_equipment_id) {
+                return;
+            }
+            $opsJobItem->forceFill(['citybox_submit_status' => 'reverting', 'citybox_submit_error' => null])->saveQuietly();
+            \App\Jobs\SubmitCityboxCount::dispatch($opsJobItem->id, true)->onQueue('high');
+        } catch (\Throwable $e) {
+            Log::warning('Could not queue CityBox count revert for ops_job_item '.$opsJobItem->id.': '.$e->getMessage());
+        }
     }
 
     public function update(Request $request, $id)

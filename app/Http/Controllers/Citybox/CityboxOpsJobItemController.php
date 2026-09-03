@@ -58,7 +58,12 @@ class CityboxOpsJobItemController extends Controller
     {
         $item = $this->chillerItemOr403($request, $id);
         if ((int) $item->status < (int) \App\Models\OpsJob::STATUS_DELIVERED) {
-            return redirect()->back()->withErrors(['citybox' => 'Item is not Stocked-In yet — nothing to push.']);
+            // Not Stocked-In: the only count that belongs in CityBox is the
+            // pre-restock one (an Undo whose revert failed). Re-run the revert.
+            $item->forceFill(['citybox_submit_status' => 'reverting', 'citybox_submit_error' => null])->saveQuietly();
+            SubmitCityboxCount::dispatch($item->id, true)->onQueue('high');
+
+            return redirect()->back()->with('success', 'Restoring the previous count in CityBox…');
         }
         $item->forceFill(['citybox_submit_status' => 'pending', 'citybox_submit_error' => null])->saveQuietly();
         SubmitCityboxCount::dispatch($item->id)->onQueue('high');

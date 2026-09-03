@@ -137,8 +137,15 @@
               <div v-else-if="opsJobItem.citybox_submit_status === 'pending'" class="rounded-md bg-sky-50 border border-sky-200 p-2 text-xs text-sky-800">
                 Pushing your count to CityBox…
               </div>
-              <div v-else-if="opsJobItem.citybox_submit_status === 'ok'" class="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-800">
+              <div v-else-if="opsJobItem.citybox_submit_status === 'reverting'" class="rounded-md bg-sky-50 border border-sky-200 p-2 text-xs text-sky-800">
+                Restoring the previous count in CityBox…
+              </div>
+              <!-- 'ok' only while still Stocked-In: after an Undo the pushed count is no longer what mark1 says. -->
+              <div v-else-if="opsJobItem.citybox_submit_status === 'ok' && opsJobItem.status >= 3" class="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-800">
                 Count pushed to CityBox at {{ opsJobItem.citybox_submitted_at }}.
+              </div>
+              <div v-else-if="opsJobItem.citybox_submit_status === 'reverted'" class="rounded-md bg-gray-50 border border-gray-200 p-2 text-xs text-gray-700">
+                Stock In undone — previous count restored in CityBox at {{ opsJobItem.citybox_submitted_at }}. Stock In again to push a fresh count.
               </div>
               <details class="text-xs text-gray-600" @toggle="onDoorOpensToggle">
                 <summary class="cursor-pointer select-none">Door opens on this chiller</summary>

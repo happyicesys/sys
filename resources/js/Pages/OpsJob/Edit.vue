@@ -810,7 +810,8 @@
                                   compact
                                 />
                                 <div class="text-[10px] mt-0.5" v-if="row.citybox_submit_status === 'failed'"><span class="text-amber-700 font-semibold">CityBox push failed</span></div>
-                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok'"><span class="text-green-700">Count pushed</span></div>
+                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok' && row.status >= 3"><span class="text-green-700">Count pushed</span></div>
+                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'reverted'"><span class="text-gray-600">Count reverted</span></div>
                               </div>
                               <Button
                                 class="bg-blue-500 hover:bg-blue-600 text-white"
