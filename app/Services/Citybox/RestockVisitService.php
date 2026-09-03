@@ -6,10 +6,12 @@ use App\Contracts\Citybox\ChillerGateway;
 use App\Exceptions\CityboxApiException;
 use App\Jobs\SubmitCityboxCount;
 use App\Models\CityboxDoorOpenLog;
+use App\Models\CityboxInventoryPoll;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\User;
 use App\Models\Vend;
+use App\Models\VendChannelRecord;
 use App\Services\Citybox\DTO\RestockSession;
 use App\Services\Citybox\DTO\StockCount;
 use Illuminate\Http\Request;
@@ -183,6 +185,12 @@ class RestockVisitService
             return false;
         }
 
+        if ($mode === 'submit') {
+            // Before Refill = CityBox's last minute-poll before the Stock In click,
+            // captured before our submit overwrites it (Brian, 2026-09-03).
+            $this->captureBefore($item, $vend, $codes);
+        }
+
         try {
             $session = new RestockSession((string) $vend->citybox_equipment_id, $item->citybox_msg_id, '', now()->toImmutable());
             $this->gateway->submitCount($session, StockCount::of($counts));
@@ -194,17 +202,124 @@ class RestockVisitService
 
         if ($mode === 'revert') {
             $this->markSubmit($item, 'reverted', null);
+            $this->clearAfter($item); // the After column described a stock-in that no longer stands
             Log::info('Citybox stock reverted to pre-restock count', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts)]);
 
             return true;
         }
 
         $this->markSubmit($item, 'ok', null);
-        // A frame: CityBox's stock as it now stands (their camera after our submit).
-        $this->pushFrame($vend, 'A');
+        // After Refill = one fresh pull now that CityBox has accepted the count — so
+        // we can see whether their system reflects what we submitted. Also mirrored
+        // onto the vend and pushed as the A frame (vend_channels qty).
+        $this->captureAfter($item, $vend, $codes);
         Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts)]);
 
         return true;
+    }
+
+    /**
+     * Before Refill for a chiller: the last CityBox minute-poll snapshot taken
+     * before the Stock In click (never the door-open frame — Brian, 2026-09-03:
+     * "before the latest stock-in click"). Written onto the item's own
+     * vend_channel_records row (created here, linked by vend_channel_record_id)
+     * so the ops page reads it like a VMC B frame, without the ±30 min matching.
+     */
+    private function captureBefore(OpsJobItem $item, Vend $vend, array $codes): void
+    {
+        try {
+            $at = $item->completed_at ?? now();
+            $poll = CityboxInventoryPoll::where('vend_id', $vend->id)
+                ->whereNull('error')->where('polled_at', '<=', $at)
+                ->orderByDesc('polled_at')->first();
+            if (! $poll) {
+                return;
+            }
+            $channels = $this->snapshotToChannels($poll->snapshot_json ?? [], $codes);
+            $record = $this->itemRecord($item, $vend);
+            $record->fill([
+                'before_data_json' => ['channels' => $channels, 'label' => 'B', 'source' => 'citybox_poll', 'poll_id' => $poll->id],
+                'before_data_created_at' => $poll->polled_at,
+                'before_label' => 'B',
+            ])->save();
+            $this->writeVmcQty($item, $channels, 'vmc_before_qty');
+        } catch (\Throwable $e) {
+            Log::warning('Citybox before-refill capture failed', ['ops_job_item_id' => $item->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /** After Refill: fresh pull post-submit onto the item's record + vmc_after_qty; also the A frame. */
+    private function captureAfter(OpsJobItem $item, Vend $vend, array $codes): void
+    {
+        try {
+            $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
+            $this->stock->applyStockOnly($vend, $lines);
+            $this->stock->pushChannels($vend, $lines, 'A', force: true);
+
+            $byProduct = $lines->keyBy(fn ($l) => (int) $l->cityboxProductId);
+            $channels = [];
+            foreach ($codes as $cid => $c) {
+                $channels[] = ['channel_code' => (int) $c['code'], 'qty' => (int) ($byProduct->get((int) $cid)?->quantity ?? 0), 'capacity' => (int) $c['par']];
+            }
+            usort($channels, fn ($a, $b) => $a['channel_code'] <=> $b['channel_code']);
+            $record = $this->itemRecord($item, $vend);
+            $record->fill([
+                'after_data_json' => ['channels' => $channels, 'label' => 'A', 'source' => 'citybox_pull'],
+                'after_data_created_at' => now(),
+                'after_label' => 'A',
+            ])->save();
+            $this->writeVmcQty($item, $channels, 'vmc_after_qty');
+        } catch (\Throwable $e) {
+            Log::warning('Citybox after-refill capture failed', ['ops_job_item_id' => $item->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    private function clearAfter(OpsJobItem $item): void
+    {
+        try {
+            if ($item->vend_channel_record_id) {
+                VendChannelRecord::whereKey($item->vend_channel_record_id)->update(['after_data_json' => null, 'after_data_created_at' => null, 'after_label' => null]);
+            }
+            $item->opsJobItemChannels()->update(['vmc_after_qty' => null]);
+        } catch (\Throwable $e) {
+            Log::warning('Citybox after-refill clear failed', ['ops_job_item_id' => $item->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /** The item's own record (one per item, reused across retries / re-stock-ins). */
+    private function itemRecord(OpsJobItem $item, Vend $vend): VendChannelRecord
+    {
+        $record = $item->vend_channel_record_id ? VendChannelRecord::find($item->vend_channel_record_id) : null;
+        if (! $record) {
+            $record = VendChannelRecord::create(['vend_id' => $vend->id, 'customer_id' => $vend->customer_id, 'operator_id' => $vend->operator_id]);
+            $item->forceFill(['vend_channel_record_id' => $record->id])->saveQuietly();
+        }
+
+        return $record;
+    }
+
+    /** @return array<int,array{channel_code:int,qty:int,capacity:int}> */
+    private function snapshotToChannels(array $snapshot, array $codes): array
+    {
+        $channels = [];
+        foreach ($codes as $cid => $c) {
+            $line = $snapshot['p'.$cid] ?? null;
+            $channels[] = ['channel_code' => (int) $c['code'], 'qty' => (int) ($line['quantity'] ?? 0), 'capacity' => (int) $c['par']];
+        }
+        usort($channels, fn ($a, $b) => $a['channel_code'] <=> $b['channel_code']);
+
+        return $channels;
+    }
+
+    private function writeVmcQty(OpsJobItem $item, array $channels, string $column): void
+    {
+        $byCode = collect($channels)->keyBy('channel_code');
+        foreach ($item->opsJobItemChannels as $ch) {
+            $line = $byCode->get((int) $ch->vend_channel_code);
+            if ($line !== null) {
+                $ch->forceFill([$column => $line['qty']])->saveQuietly();
+            }
+        }
     }
 
     /** Fresh pull + frame with a B/A label; failures logged, never thrown (the visit must not depend on it). */

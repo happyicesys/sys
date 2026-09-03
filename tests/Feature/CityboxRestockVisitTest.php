@@ -297,6 +297,51 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertCount(1, $this->gw->submits);
     }
 
+    // ── before / after refill from CityBox (Brian, 2026-09-03) ──────────────
+
+    public function test_stock_in_files_before_from_the_last_poll_and_after_from_a_fresh_pull(): void
+    {
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $lastPoll = \App\Models\CityboxInventoryPoll::where('vend_id', $this->vend->id)->orderByDesc('polled_at')->first();
+        $this->assertNotNull($lastPoll); // setUp's syncAll polled: 90338→0, 90340→1
+        $this->stockIn([101 => 5, 102 => 4]);
+
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $item = $this->item->fresh();
+        $this->assertNotNull($item->vend_channel_record_id);
+        $rec = VendChannelRecord::find($item->vend_channel_record_id);
+        $this->assertSame('B', $rec->before_label);
+        $this->assertSame($lastPoll->polled_at->toDateTimeString(), $rec->before_data_created_at->toDateTimeString());
+        $this->assertSame('citybox_poll', $rec->before_data_json['source']);
+        $this->assertSame('A', $rec->after_label);
+        $this->assertNotNull($rec->after_data_created_at);
+
+        $byCode = $item->opsJobItemChannels->keyBy('vend_channel_code');
+        $this->assertSame([0, 1], [(int) $byCode[101]->vmc_before_qty, (int) $byCode[102]->vmc_before_qty]);
+        // The fake mirrors their behaviour: submitted numbers become the live stock.
+        $this->assertSame([5, 5], [(int) $byCode[101]->vmc_after_qty, (int) $byCode[102]->vmc_after_qty]);
+    }
+
+    public function test_undo_revert_clears_the_after_refill_but_keeps_before(): void
+    {
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->stockIn([101 => 5, 102 => 4]);
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+        $this->actingAs($this->driver);
+        app(\App\Http\Controllers\OpsJobController::class)->undoItemStatus($this->item->id);
+        (new SubmitCityboxCount($this->item->id, true))->handle(app(RestockVisitService::class));
+
+        $item = $this->item->fresh();
+        $rec = VendChannelRecord::find($item->vend_channel_record_id);
+        $this->assertSame('B', $rec->before_label);
+        $this->assertNull($rec->after_data_created_at);
+        $this->assertNull($rec->after_data_json);
+        $byCode = $item->opsJobItemChannels->keyBy('vend_channel_code');
+        $this->assertSame(0, (int) $byCode[101]->vmc_before_qty);
+        $this->assertNull($byCode[101]->vmc_after_qty);
+    }
+
     public function test_failed_submit_requeues_with_backoff_until_max_attempts(): void
     {
         Queue::fake();
