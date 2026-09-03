@@ -28,7 +28,7 @@ class CardSettlementController extends Controller
     {
         $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download']);
         $this->middleware(['permission:create card-settlements'])->only(['store']);
-        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'resolveRow', 'ignoreRow', 'sync']);
+        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
         $this->middleware(['permission:delete card-settlements'])->only(['destroy']);
     }
 
@@ -384,6 +384,36 @@ class CardSettlementController extends Controller
         $report->refreshCounts();
 
         return back()->with('message', 'Row ignored.');
+    }
+
+    /** Ignore many query lines at once (checkbox selection on the report page). */
+    public function ignoreRows(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'row_ids' => ['required', 'array', 'min:1', 'max:1000'],
+            'row_ids.*' => ['integer'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $report = CardSettlementReport::findOrFail($id);
+
+        // Only open queries can be batch-ignored — never a matched line (that
+        // would silently drop a settled sale) or a paired reversal.
+        $count = $report->rows()
+            ->whereIn('id', $validated['row_ids'])
+            ->whereIn('status', [CardSettlementRow::STATUS_UNMATCHED, CardSettlementRow::STATUS_AMBIGUOUS])
+            ->update([
+                'status' => CardSettlementRow::STATUS_IGNORED,
+                'matched_vend_transaction_id' => null,
+                'match_time_delta' => null,
+                'resolution_note' => $validated['note'] ?? 'Ignored by user (batch)',
+                'resolved_by' => auth()->id(),
+                'resolved_at' => now(),
+                'updated_at' => now(),
+            ]);
+        $report->refreshCounts();
+
+        return back()->with('message', "Ignored {$count} line(s).");
     }
 
     public function sync($id, CardSettlementSyncService $syncService)

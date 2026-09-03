@@ -1203,6 +1203,7 @@ Route::middleware(['auth', 'cors'])->prefix('card-settlements')->group(function 
     Route::get('/{id}/download', [CardSettlementController::class, 'download'])->name('card-settlements.download');
     Route::post('/{id}/rematch', [CardSettlementController::class, 'rematch'])->name('card-settlements.rematch');
     Route::post('/{id}/rows/{rowId}/resolve', [CardSettlementController::class, 'resolveRow'])->name('card-settlements.rows.resolve');
+    Route::post('/{id}/rows/ignore-batch', [CardSettlementController::class, 'ignoreRows'])->name('card-settlements.rows.ignore-batch');
     Route::post('/{id}/rows/{rowId}/ignore', [CardSettlementController::class, 'ignoreRow'])->name('card-settlements.rows.ignore');
     Route::post('/{id}/sync', [CardSettlementController::class, 'sync'])->name('card-settlements.sync');
     Route::delete('/{id}', [CardSettlementController::class, 'destroy'])->name('card-settlements.destroy');

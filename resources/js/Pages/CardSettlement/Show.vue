@@ -133,14 +133,27 @@
         </div>
       </div>
 
-      <!-- row status chips -->
-      <div class="flex flex-wrap gap-2 my-3">
-        <span v-for="c in chips" :key="c.key"
-          class="text-xs font-semibold px-3 py-1.5 rounded-full border bg-white cursor-pointer"
-          :class="rowStatus === c.key ? 'border-green-500 text-green-700' : 'border-gray-200 text-gray-600'"
-          @click="pickStatus(c.key)">
-          {{ c.label }}
-        </span>
+      <!-- row status chips + batch actions on the checked lines -->
+      <div class="flex flex-wrap items-center justify-between gap-2 my-3">
+        <div class="flex flex-wrap gap-2">
+          <span v-for="c in chips" :key="c.key"
+            class="text-xs font-semibold px-3 py-1.5 rounded-full border bg-white cursor-pointer"
+            :class="rowStatus === c.key ? 'border-green-500 text-green-700' : 'border-gray-200 text-gray-600'"
+            @click="pickStatus(c.key)">
+            {{ c.label }}
+          </span>
+        </div>
+        <div v-if="ignorableRows.length" class="flex items-center space-x-2">
+          <span class="text-xs text-gray-500">{{ selected.length }} of {{ ignorableRows.length }} selected</span>
+          <Button
+            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+            :class="selected.length ? '' : 'opacity-50 cursor-not-allowed'"
+            @click="ignoreSelected()"
+          >
+            <EyeSlashIcon class="w-4 h-4"></EyeSlashIcon>
+            <span>Ignore {{ selected.length ? selected.length + ' ' : '' }}Selected</span>
+          </Button>
+        </div>
       </div>
 
       <div class="mt-3 flex flex-col">
@@ -149,6 +162,16 @@
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">
+                    <TableHead>
+                      <input
+                        type="checkbox"
+                        class="cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        :checked="allSelected"
+                        :disabled="!ignorableRows.length"
+                        title="Select every open query on this page"
+                        @change="toggleAll"
+                      />
+                    </TableHead>
                     <TableHead>
                       #
                     </TableHead>
@@ -182,7 +205,17 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(row, rowIndex) in rows.data" :key="row.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                    <tr v-for="(row, rowIndex) in rows.data" :key="row.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100" :class="selected.includes(row.id) ? '!bg-indigo-50' : ''">
+                      <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
+                        <!-- Only open queries (Unmatched / Ambiguous) can be batch-ignored. -->
+                        <input
+                          v-if="isIgnorable(row)"
+                          type="checkbox"
+                          class="cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          :checked="selected.includes(row.id)"
+                          @change="toggleRow(row.id)"
+                        />
+                      </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
                         {{ row.row_no }}
                       </TableData>
@@ -317,7 +350,7 @@
                       </TableData>
                       </tr>
                 <tr v-if="!rows.data.length">
-                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                       {{ rowStatus === 'queries' ? 'No open queries — everything matched, duplicated or ignored.' : 'No Results Found' }}
                   </td>
                 </tr>
@@ -335,7 +368,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { ArrowPathIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, CheckCircleIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { computed, ref } from 'vue';
@@ -451,6 +484,31 @@ function pickCandidate(row, c) {
     }
   }
   resolveTo(row, c.vend_transaction_id)
+}
+
+// Batch ignore: checkboxes on the open queries (Unmatched / Ambiguous) of the
+// current page; the selection is per page and cleared once applied.
+const selected = ref([])
+const isIgnorable = (row) => (row.status === 2 || row.status === 3) && !row.is_reversal
+const ignorableRows = computed(() => props.rows.data.filter(isIgnorable))
+const allSelected = computed(() => ignorableRows.value.length > 0 && ignorableRows.value.every((r) => selected.value.includes(r.id)))
+function toggleRow(id) {
+  selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id]
+}
+function toggleAll() {
+  selected.value = allSelected.value ? [] : ignorableRows.value.map((r) => r.id)
+}
+function ignoreSelected() {
+  if (!selected.value.length) return
+  const approval = confirm('Ignore ' + selected.value.length + ' selected line(s)? They will leave the queries list and never match a sale.');
+  if (!approval) {
+      return;
+  }
+  router.post('/card-settlements/' + props.report.id + '/rows/ignore-batch', { row_ids: selected.value }, {
+    preserveScroll: true,
+    onSuccess: () => { selected.value = []; toast.success("Selected lines ignored", { timeout: 3000 }) },
+    onError: () => toast.error("Failed to ignore the selected lines", { timeout: 3000 }),
+  })
 }
 
 const manualTxnId = ref({})

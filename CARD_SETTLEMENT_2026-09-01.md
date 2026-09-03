@@ -68,7 +68,10 @@ IGNORED (Logon, user-dismissed) / DUPLICATE. UNMATCHED notes, and what each mean
 | `No matching sale in window` | nothing on any machine at that time/amount — TRADE never reached mark1 (machine offline) | manual Assign if the sale is found later, else Ignore |
 
 Candidates a line cannot take (held by another line) are shown as "held by row #N", not as a Pick
-button — Pick would only bounce with "already claimed". Claims are unique both directions (fingerprint UNIQUE;
+button — Pick would only bounce with "already claimed". Picking a sale on another machine asks for
+confirmation ("Moving this line from machine A to machine B…") and the line then follows that
+machine. Open queries carry a checkbox (header = select all on the page) and an **Ignore Selected**
+batch button (`POST /card-settlements/{id}/rows/ignore-batch`, Unmatched/Ambiguous only). Claims are unique both directions (fingerprint UNIQUE;
 `matched_vend_transaction_id` UNIQUE across ALL reports ever).
 
 Report: uploaded → matching → review → synced (failed on parser error). Rematch re-runs only
