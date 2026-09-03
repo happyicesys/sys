@@ -13,7 +13,7 @@ use Tests\TestCase;
  * simcards:sync-usage (Brian, 2026-08-27): every 10 min, pull live sim status
  * from telco usage APIs (VoicePing first) onto simcards.usage_* for the Index
  * "Status" column. Only telcos carrying usage_provider are polled; requests
- * chunk to the provider's max (VoicePing: 50); HTTP 429 logs a warning and
+ * chunk to the provider's max (VoicePing: 10); HTTP 429 logs a warning and
  * backs off to the next run; the cron write never touches updated_at, which
  * the "Updated By" column reads as "when a human last edited this row".
  */
