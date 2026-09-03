@@ -252,18 +252,29 @@ class SyncVendChannels implements ShouldQueue
     // get vend channel status by custom logic
     private function getVendChannelStatus($channel)
     {
-        if ($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
-            return true;
-        } else {
-            return false;
-        }
+        return $channel['capacity'] > 0 && $this->isCodeInRange((int) $channel['channel_code']);
     }
 
     private function getValidVendChannel($channel)
     {
-        if ($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
+        if ($channel['capacity'] > 0 && $this->isCodeInRange((int) $channel['channel_code'])) {
             return true;
         }
+    }
+
+    /**
+     * Vending / freezer boards address channels 10–69 (<row><column>). A CityBox
+     * chiller uses three digits, <layer><position 2 digits> = 101–699, because a
+     * layer can hold more than nine SKUs (ChillerPlanogram). Anything else is
+     * inactive noise from a board.
+     */
+    private function isCodeInRange(int $code): bool
+    {
+        if ($this->vend->isSmartChiller()) {
+            return \App\Services\Citybox\ChillerPlanogram::isChillerCode($code);
+        }
+
+        return $code >= 10 && $code <= 69;
     }
 
     private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)

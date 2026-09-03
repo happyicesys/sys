@@ -65,7 +65,7 @@ class CityboxRestockVisitTest extends TestCase
             ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
             ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
         ]);
-        // Bring channels into existence via a poll (codes: 90338→11, 90340→12)
+        // Bring channels into existence via a poll (codes: 90338→101, 90340→102)
         app(CityboxOpenapiSync::class)->syncAll();
         foreach (VendChannel::where('vend_id', $this->vend->id)->get() as $vc) {
             OpsJobItemChannel::create(['ops_job_id' => $this->job->id, 'ops_job_item_id' => $this->item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => $vc->code, 'vend_code' => $this->vend->code, 'product_id' => $vc->product_id ?? 1, 'qty' => $vc->qty, 'capacity' => $vc->capacity, 'picked_qty' => 0]);
@@ -135,7 +135,7 @@ class CityboxRestockVisitTest extends TestCase
     public function test_observer_marks_pending_and_queues_the_delayed_submit_only_for_chillers(): void
     {
         Queue::fake();
-        $this->stockIn([11 => 5, 12 => 4]);
+        $this->stockIn([101 => 5, 102 => 4]);
 
         $this->assertSame('pending', $this->item->fresh()->citybox_submit_status);
         Queue::assertPushed(SubmitCityboxCount::class, fn ($j) => $j->opsJobItemId === $this->item->id && $j->delay !== null);
@@ -151,7 +151,7 @@ class CityboxRestockVisitTest extends TestCase
     public function test_submit_pushes_before_plus_stock_in_per_product_marks_ok_and_dispatches_a_frame(): void
     {
         app(RestockVisitService::class)->openDoor($this->item, $this->driver); // msg_id
-        $this->stockIn([11 => 5, 12 => 4]);   // Suntory: 0+5, Peach: 1+4
+        $this->stockIn([101 => 5, 102 => 4]);   // Suntory: 0+5, Peach: 1+4
 
         (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
 
@@ -167,12 +167,12 @@ class CityboxRestockVisitTest extends TestCase
         $rec = VendChannelRecord::where('vend_id', $this->vend->id)->latest('id')->first();
         $this->assertSame('A', $rec->after_label);
         // and the fake mirrored the submit into live stock, so channels show the new on-hand
-        $this->assertSame(5, VendChannel::where('vend_id', $this->vend->id)->where('code', 12)->first()->qty);
+        $this->assertSame(5, VendChannel::where('vend_id', $this->vend->id)->where('code', 102)->first()->qty);
     }
 
     public function test_submit_without_door_open_fails_with_a_clear_reason_and_never_blocks_the_item(): void
     {
-        $this->stockIn([11 => 5]);
+        $this->stockIn([101 => 5]);
         (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
 
         $item = $this->item->fresh();
@@ -186,7 +186,7 @@ class CityboxRestockVisitTest extends TestCase
     {
         Queue::fake();
         app(RestockVisitService::class)->openDoor($this->item, $this->driver);
-        $this->stockIn([11 => 5]);
+        $this->stockIn([101 => 5]);
         $failing = new class extends FakeChillerGateway
         {
             public function submitCount(\App\Services\Citybox\DTO\RestockSession $s, \App\Services\Citybox\DTO\StockCount $c): void
@@ -206,13 +206,13 @@ class CityboxRestockVisitTest extends TestCase
 
     public function test_poller_skips_channel_writes_while_a_submit_is_pending_but_still_records_the_poll(): void
     {
-        $this->stockIn([11 => 5]);                       // observer → pending
+        $this->stockIn([101 => 5]);                       // observer → pending
         $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 0, 'layer' => 1]]); // their PRE-restock number
-        $before = VendChannel::where('vend_id', $this->vend->id)->where('code', 12)->first()->qty;
+        $before = VendChannel::where('vend_id', $this->vend->id)->where('code', 102)->first()->qty;
 
         app(CityboxOpenapiSync::class)->syncAll();
 
-        $this->assertSame($before, VendChannel::where('vend_id', $this->vend->id)->where('code', 12)->first()->qty); // NOT overwritten
+        $this->assertSame($before, VendChannel::where('vend_id', $this->vend->id)->where('code', 102)->first()->qty); // NOT overwritten
         $this->assertSame(2, \App\Models\CityboxInventoryPoll::count()); // poll still logged
     }
 
@@ -289,7 +289,7 @@ class CityboxRestockVisitTest extends TestCase
     {
         Queue::fake();
         app(RestockVisitService::class)->openDoor($this->item, $this->driver);
-        $this->stockIn([11 => 5]);
+        $this->stockIn([101 => 5]);
         $this->item->forceFill(['citybox_submit_status' => 'failed', 'citybox_submit_error' => 'boom'])->saveQuietly();
 
         $this->actingAs($this->driver)->post("/ops-jobs/items/{$this->item->id}/citybox-retry-submit")->assertRedirect()->assertSessionHas('success');

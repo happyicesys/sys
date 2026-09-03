@@ -52,7 +52,7 @@ class CityboxVendActionController extends Controller
         $vend = $this->chillerOr403($id);
         $status = $vend->citybox_status_json ?? [];
 
-        // Channel rows are the truth for qty/capacity/amount/product; layer = first digit of the code.
+        // Channel rows are the truth for qty/capacity/amount/product; layer = hundreds digit of the code (101…699).
         $channels = $vend->vendChannels()->where('is_active', true)->with('product:id,code,name')->orderBy('code')->get();
         // CityBox name/thumbnail per channel: match by product via the catalog, else by the snapshot's layer/order.
         $catalog = \App\Models\CityboxProduct::whereIn('product_id', $channels->pluck('product_id')->filter())->get()->keyBy('product_id');
@@ -62,7 +62,7 @@ class CityboxVendActionController extends Controller
             $layers[$l] = ['layer' => $l, 'channels' => [], 'qty' => 0, 'capacity' => 0];
         }
         foreach ($channels as $ch) {
-            $layer = intdiv((int) $ch->code, 10);
+            $layer = \App\Services\Citybox\ChillerPlanogram::layerOf((int) $ch->code);
             if ($layer < 1 || $layer > 5) {
                 continue;
             }

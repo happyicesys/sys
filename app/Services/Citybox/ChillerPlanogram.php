@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
  * single source of truth). One ProductMapping per chiller vend
  * (machine_type = smart_chiller), items = one per (layer, position):
  *
- *   channel_code = <layer><position>, position = 1..n by CityBox product id
+ *   channel_code = <layer><position 2 digits> (101…699), position = 1..n by CityBox product id
  *   within the layer (deterministic → re-sync is idempotent)
  *   product_id   = via citybox_products link (NULL until a human maps)
  *   server_amount= their list price
@@ -110,21 +110,57 @@ class ChillerPlanogram
      * @param  Collection<int,ChillerStockLine>  $lines
      * @return array<int,array{code:int,par:int,layer:int,price:int,active:int}>
      */
+    /**
+     * Chiller channel code = <layer><position, two digits>: 101…199, 201…299 … 599.
+     * Three digits (Brian, 2026-09-03) because a layer of small snacks can hold
+     * more than nine SKUs and the vending scheme's <layer><position> two-digit
+     * code stopped at 9. The first digit is still the layer, which is what the
+     * index rows and the planogram view group by. Vending machines keep 10–69;
+     * SyncVendChannels accepts this range only for smart_chiller vends.
+     */
+    public const MAX_LAYERS = 6;
+
+    public const POSITIONS_PER_LAYER = 99;
+
+    public const CODE_MIN = 101;
+
+    public const CODE_MAX = 699;
+
+    public static function channelCode(int $layer, int $position): int
+    {
+        return $layer * 100 + $position;
+    }
+
+    public static function layerOf(int $code): int
+    {
+        return intdiv($code, 100);
+    }
+
+    public static function positionOf(int $code): int
+    {
+        return $code % 100;
+    }
+
+    public static function isChillerCode(int $code): bool
+    {
+        return $code >= self::CODE_MIN && $code <= self::CODE_MAX && self::positionOf($code) >= 1;
+    }
+
     public static function assignCodes(Collection $lines): array
     {
         $out = [];
-        $byLayer = $lines->filter(fn (ChillerStockLine $l) => $l->layer !== null && $l->layer >= 1 && $l->layer <= 6)
+        $byLayer = $lines->filter(fn (ChillerStockLine $l) => $l->layer !== null && $l->layer >= 1 && $l->layer <= self::MAX_LAYERS)
             ->groupBy(fn (ChillerStockLine $l) => $l->layer);
         foreach ($byLayer as $layer => $group) {
             $pos = 0;
             foreach ($group->sortBy(fn (ChillerStockLine $l) => $l->cityboxProductId)->values() as $line) {
                 $pos++;
-                if ($pos > 9) {
-                    Log::warning('Citybox planogram: more than 9 products on one layer — 10th+ dropped from channel codes', ['layer' => $layer]);
+                if ($pos > self::POSITIONS_PER_LAYER) {
+                    Log::warning('Citybox planogram: more than '.self::POSITIONS_PER_LAYER.' products on one layer — extra dropped from channel codes', ['layer' => $layer]);
                     break;
                 }
                 $out[$line->cityboxProductId] = [
-                    'code' => (int) $layer * 10 + $pos, 'par' => $line->quantity, 'layer' => (int) $layer,
+                    'code' => self::channelCode((int) $layer, $pos), 'par' => $line->quantity, 'layer' => (int) $layer,
                     // Their list/effective price from the par config, so a product the
                     // live-stock call has never reported still gets a priced channel.
                     'price' => $line->priceCents ?? 0, 'active' => $line->effectivePriceCents() ?? ($line->priceCents ?? 0),

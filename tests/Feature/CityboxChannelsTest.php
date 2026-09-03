@@ -65,9 +65,9 @@ class CityboxChannelsTest extends TestCase
 
         $codes = ChillerPlanogram::assignCodes($lines);
 
-        $this->assertSame(11, $codes[90338]['code']); // lowest id first
-        $this->assertSame(12, $codes[90340]['code']);
-        $this->assertSame(31, $codes[89925]['code']);
+        $this->assertSame(101, $codes[90338]['code']); // lowest id first
+        $this->assertSame(102, $codes[90340]['code']);
+        $this->assertSame(301, $codes[89925]['code']);
         $this->assertSame(4, $codes[89925]['par']);
         $again = ChillerPlanogram::assignCodes($lines->reverse()->values());
         ksort($codes);
@@ -119,7 +119,7 @@ class CityboxChannelsTest extends TestCase
         $item = $mapping->productMappingItems()->where('channel_code', (string) $codes[90998]['code'])->first();
         $this->assertNotNull($item, 'mapping item must exist in the SAME pass, not the next one');
         $this->assertSame($row->product_id, $item->product_id);
-        $this->assertSame(31, $codes[90998]['code']); // layer 3, position 1
+        $this->assertSame(301, $codes[90998]['code']); // layer 3, position 1
     }
 
     public function test_resync_overwrites_local_edits_and_removes_delisted_rows(): void
@@ -132,8 +132,8 @@ class CityboxChannelsTest extends TestCase
         app(ChillerPlanogram::class)->sync($this->vend);
         $mapping = ProductMapping::withoutGlobalScopes()->find($this->vend->fresh()->product_mapping_id);
         // A "local edit": someone adds a rogue item and changes a price.
-        ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => '51', 'product_id' => Product::first()->id, 'server_amount' => 9.99]);
-        $mapping->productMappingItems()->where('channel_code', '11')->update(['server_amount' => 99900]);
+        ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => '501', 'product_id' => Product::first()->id, 'server_amount' => 9.99]);
+        $mapping->productMappingItems()->where('channel_code', '101')->update(['server_amount' => 99900]);
 
         // Their portal drops one product
         $this->gw->seedPar('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10']]);
@@ -141,7 +141,7 @@ class CityboxChannelsTest extends TestCase
 
         $items = $mapping->fresh()->productMappingItems;
         $this->assertSame(1, $items->count());           // rogue 51 + delisted rows gone
-        $this->assertSame('11', $items->first()->channel_code); // sole remaining product → position 1
+        $this->assertSame('101', $items->first()->channel_code); // sole remaining product → position 1
         $this->assertEqualsWithDelta(0.10, (float) $items->first()->server_amount, 0.001); // price restored from their side
     }
 
@@ -150,19 +150,19 @@ class CityboxChannelsTest extends TestCase
     public function test_adapter_builds_channel_rows_with_par_as_capacity(): void
     {
         $stock = collect([ChillerStockLine::fromApi(['product_id' => '90340', 'name' => 'x', 'quantity' => '1', 'layer' => '1', 'price' => '0.10', 'active_price' => '0.08'])]);
-        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 11, 'par' => 5, 'layer' => 1]], 'B');
+        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 101, 'par' => 5, 'layer' => 1]], 'B');
 
-        $this->assertSame([['channel_code' => 11, 'qty' => 1, 'capacity' => 5, 'amount' => 8, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
+        $this->assertSame([['channel_code' => 101, 'qty' => 1, 'capacity' => 5, 'amount' => 8, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
         $this->assertSame('B', $frame->toArray()['label']);
     }
 
     public function test_adapter_ignores_products_not_in_planogram_but_keeps_every_planogram_channel(): void
     {
         $stock = collect([ChillerStockLine::fromApi(['product_id' => '77777', 'name' => 'stranger', 'quantity' => '3', 'layer' => '1'])]);
-        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 11, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 10]]);
+        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 101, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 10]]);
 
         // The stranger gets no channel; the planogram product does, at qty 0 with the par price.
-        $this->assertSame([['channel_code' => 11, 'qty' => 0, 'capacity' => 5, 'amount' => 10, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
+        $this->assertSame([['channel_code' => 101, 'qty' => 0, 'capacity' => 5, 'amount' => 10, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
     }
 
     public function test_adapter_builds_a_channel_for_every_planogram_product_even_when_live_stock_omits_it(): void
@@ -170,15 +170,15 @@ class CityboxChannelsTest extends TestCase
         // Prod 2026-09-03 (unit 10002): shipping_product lists 7 SKUs, device_product only
         // ever the 3 drinks — the never-stocked snacks must still become channels.
         $codes = [
-            90340 => ['code' => 11, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 8],
-            90330 => ['code' => 21, 'par' => 4, 'layer' => 2, 'price' => 150, 'active' => 150],
-            90328 => ['code' => 41, 'par' => 7, 'layer' => 4, 'price' => 120, 'active' => 120],
+            90340 => ['code' => 101, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 8],
+            90330 => ['code' => 201, 'par' => 4, 'layer' => 2, 'price' => 150, 'active' => 150],
+            90328 => ['code' => 401, 'par' => 7, 'layer' => 4, 'price' => 120, 'active' => 120],
         ];
         $stock = collect([ChillerStockLine::fromApi(['product_id' => '90340', 'name' => 'Peach', 'quantity' => '1', 'layer' => '1', 'price' => '0.10', 'active_price' => '0.09'])]);
 
         $frame = (new ChannelFrameAdapter)->toFrame($stock, $codes);
 
-        $this->assertSame([11, 21, 41], array_column($frame->channels, 'channel_code'));
+        $this->assertSame([101, 201, 401], array_column($frame->channels, 'channel_code'));
         $this->assertSame([1, 0, 0], array_column($frame->channels, 'qty'));
         $this->assertSame([5, 4, 7], array_column($frame->channels, 'capacity'));
         $this->assertSame([9, 150, 120], array_column($frame->channels, 'amount'));   // live price wins where present
@@ -188,8 +188,8 @@ class CityboxChannelsTest extends TestCase
     public function test_adapter_tolerates_a_cached_code_map_without_prices(): void
     {
         // Planogram maps cached before 2026-09-03 carry no price keys for up to an hour.
-        $frame = (new ChannelFrameAdapter)->toFrame(collect(), [90340 => ['code' => 11, 'par' => 5, 'layer' => 1]]);
-        $this->assertSame([['channel_code' => 11, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'amount2' => 0, 'error_code' => 0]], $frame->channels);
+        $frame = (new ChannelFrameAdapter)->toFrame(collect(), [90340 => ['code' => 101, 'par' => 5, 'layer' => 1]]);
+        $this->assertSame([['channel_code' => 101, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'amount2' => 0, 'error_code' => 0]], $frame->channels);
     }
 
     // ── end to end: poll → real vend_channels rows ─────────────────────────
@@ -209,13 +209,13 @@ class CityboxChannelsTest extends TestCase
 
         $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
         $this->assertCount(3, $channels);
-        $peach = $channels->firstWhere('code', 13); // 90340 is the highest id → position 3
+        $peach = $channels->firstWhere('code', 103); // 90340 is the highest id → position 3
         $this->assertSame(1, $peach->qty);
         $this->assertSame(5, $peach->capacity);
         $this->assertSame(10, $peach->amount);
         $this->assertSame($product->id, $peach->product_id); // stamped by syncChannelsByVend from the mirror
         $this->assertTrue((bool) $peach->is_active);
-        $this->assertNull($channels->firstWhere('code', 11)->product_id); // unmapped SKU: channel exists, no product
+        $this->assertNull($channels->firstWhere('code', 101)->product_id); // unmapped SKU: channel exists, no product
     }
 
     public function test_second_poll_updates_qty_in_place_no_duplicate_channels(): void
@@ -230,9 +230,9 @@ class CityboxChannelsTest extends TestCase
         // product the live call reports carries its qty, the other two sit at 0.
         $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
         $this->assertSame(3, $channels->count());
-        $this->assertSame(2, $channels->firstWhere('code', 13)->qty); // 90340 = highest id → position 3
-        $this->assertSame(0, $channels->firstWhere('code', 11)->qty);
-        $this->assertSame(5, $channels->firstWhere('code', 11)->capacity);
+        $this->assertSame(2, $channels->firstWhere('code', 103)->qty); // 90340 = highest id → position 3
+        $this->assertSame(0, $channels->firstWhere('code', 101)->qty);
+        $this->assertSame(5, $channels->firstWhere('code', 101)->capacity);
     }
 
     public function test_sku_added_mid_hour_gets_product_channel_and_qty_on_the_next_poll(): void
@@ -259,7 +259,7 @@ class CityboxChannelsTest extends TestCase
         ]);
         app(CityboxOpenapiSync::class)->syncAll(); // still within the cache TTL
 
-        $ch = VendChannel::where('vend_id', $this->vend->id)->where('code', 21)->first();
+        $ch = VendChannel::where('vend_id', $this->vend->id)->where('code', 201)->first();
         $this->assertNotNull($ch, 'new SKU must get a channel on the very next poll');
         $this->assertSame(6, $ch->qty);
         $this->assertSame(6, $ch->capacity);
@@ -289,12 +289,41 @@ class CityboxChannelsTest extends TestCase
         app(CityboxOpenapiSync::class)->syncAll();
 
         $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
-        $this->assertSame([11, 12, 13, 21, 31, 41, 51], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
-        $bread = $channels->firstWhere('code', 21);
+        $this->assertSame([101, 102, 103, 201, 301, 401, 501], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $bread = $channels->firstWhere('code', 201);
         $this->assertSame(0, $bread->qty);
         $this->assertSame(4, $bread->capacity);
         $this->assertSame(150, $bread->amount); // priced from the par config
         $this->assertSame(15, $channels->sum('capacity') - 19); // drinks 15 + snacks 19 = 34, as OpsPro shows
+    }
+
+    public function test_three_digit_code_migration_remaps_existing_chiller_rows_only(): void
+    {
+        // A chiller provisioned under the 2-digit scheme, plus a vending machine that must not move.
+        $mapping = ProductMapping::create(['name' => 'CityBox E1 (mirror)', 'machine_type' => Vend::MACHINE_TYPE_SMART_CHILLER, 'is_active' => true, 'operator_id' => 1]);
+        $this->vend->forceFill(['product_mapping_id' => $mapping->id])->save();
+        $product = Product::create(['code' => 'X', 'name' => 'X']);
+        foreach ([11, 12, 21, 51] as $code) {
+            VendChannel::create(['vend_id' => $this->vend->id, 'code' => $code, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'is_active' => 1]);
+            ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => (string) $code, 'product_id' => $product->id, 'sequence' => $code]);
+        }
+        $vm = Vend::create(['code' => 9501, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1, 'operator_id' => 1]);
+        VendChannel::create(['vend_id' => $vm->id, 'code' => 11, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'is_active' => 1]);
+        $job = \App\Models\OpsJob::create(['code' => 900200, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => 1, 'operator_id' => 1]);
+        $item = \App\Models\OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $this->vend->id, 'customer_id' => 1, 'status' => 1]);
+        $vc = VendChannel::where('vend_id', $this->vend->id)->where('code', 12)->first();
+        \App\Models\OpsJobItemChannel::create(['ops_job_id' => $job->id, 'ops_job_item_id' => $item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => 12, 'vend_code' => $this->vend->code, 'product_id' => $product->id, 'qty' => 0, 'capacity' => 5, 'picked_qty' => 0]);
+
+        (require database_path('migrations/2026_09_03_100000_citybox_channel_codes_to_three_digits.php'))->up();
+
+        $this->assertSame([101, 102, 201, 501], VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $this->assertSame(['101', '102', '201', '501'], $mapping->productMappingItems()->orderBy('sequence')->pluck('channel_code')->all());
+        $this->assertSame(102, (int) \App\Models\OpsJobItemChannel::where('ops_job_item_id', $item->id)->value('vend_channel_code'));
+        $this->assertSame(11, (int) VendChannel::where('vend_id', $vm->id)->value('code')); // vending machine untouched
+
+        // Idempotent: a second run has nothing in 10–69 left to move.
+        (require database_path('migrations/2026_09_03_100000_citybox_channel_codes_to_three_digits.php'))->up();
+        $this->assertSame([101, 102, 201, 501], VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->pluck('code')->map(fn ($c) => (int) $c)->all());
     }
 
     public function test_pull_refreshes_planogram_immediately_bypassing_the_hourly_cache(): void
@@ -311,10 +340,10 @@ class CityboxChannelsTest extends TestCase
             ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
         ]);
         app(CityboxOpenapiSync::class)->syncAll();
-        $this->assertSame(5, VendChannel::where('vend_id', $this->vend->id)->where('code', 13)->first()->capacity);
+        $this->assertSame(5, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->capacity);
 
         app(CityboxOpenapiSync::class)->pull($this->vend);
-        $this->assertSame(8, VendChannel::where('vend_id', $this->vend->id)->where('code', 13)->first()->capacity);
+        $this->assertSame(8, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->capacity);
     }
 
     public function test_planogram_endpoint_returns_five_layers_top_first_with_channels_and_totals(): void
@@ -338,7 +367,7 @@ class CityboxChannelsTest extends TestCase
         $this->assertCount(3, $r['layers'][4]['channels']);
         $this->assertSame([1, 15], [$r['total_qty'], $r['total_capacity']]);
         $this->assertSame(2, $r['unmapped_count']);
-        $peach = collect($r['layers'][4]['channels'])->firstWhere('code', 13);
+        $peach = collect($r['layers'][4]['channels'])->firstWhere('code', 103);
         $this->assertSame('KSF Peach', $peach['product']['name']);
         $this->assertSame('https://cdn/p.png', $peach['thumbnail']);
         $this->assertTrue($peach['mapped']);

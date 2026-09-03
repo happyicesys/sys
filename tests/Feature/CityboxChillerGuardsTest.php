@@ -131,9 +131,9 @@ class CityboxChillerGuardsTest extends TestCase
     {
         $mirror = $this->mirror();
         $product = Product::create(['code' => 'CB-1', 'name' => 'Peach']);
-        $item = ProductMappingItem::create(['product_mapping_id' => $mirror->id, 'channel_code' => '11', 'product_id' => $product->id]);
+        $item = ProductMappingItem::create(['product_mapping_id' => $mirror->id, 'channel_code' => '101', 'product_id' => $product->id]);
 
-        $this->post('/product-mappings/'.$mirror->id.'/items/create', ['channel_code' => '12', 'product_id' => $product->id])
+        $this->post('/product-mappings/'.$mirror->id.'/items/create', ['channel_code' => '102', 'product_id' => $product->id])
             ->assertSessionHasErrors('channel_code');
         $this->post('/product-mappings/items/'.$item->id.'/update', ['product_id' => $product->id])
             ->assertSessionHasErrors('channel_code');
