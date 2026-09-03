@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class DeliveryProductMappingVendChannel extends Model
 {
@@ -47,9 +47,24 @@ class DeliveryProductMappingVendChannel extends Model
     protected function amount(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMapping ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
-            set: fn (string $value) => $value * ($this->deliveryProductMappingVend->deliveryProductMapping ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+            get: fn (string $value) => $value / $this->currencyDivisor(),
+            set: fn (string $value) => $value * $this->currencyDivisor(),
         );
+    }
+
+    /**
+     * Minor units per major unit for this row's operator country.
+     *
+     * Every link in the chain is optional at mutation time: on create() the
+     * amount is filled before the foreign key is set, and the operator itself
+     * can resolve to null. Falls back to 100 (exponent 2), matching the
+     * previous behaviour when the mapping was missing.
+     */
+    protected function currencyDivisor(): int
+    {
+        $exponent = $this->deliveryProductMappingVend?->deliveryProductMapping?->operator?->country?->currency_exponent;
+
+        return $exponent === null ? 100 : (int) pow(10, $exponent);
     }
 
     // relationships

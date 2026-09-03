@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Scopes\OperatorDeliveryProductMappingScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,6 @@ class DeliveryProductMapping extends Model
         // rule this table actually needs; see the scope class.
         static::addGlobalScope(new OperatorDeliveryProductMappingScope);
     }
-
 
     protected $fillable = [
         'category_json',
@@ -58,7 +58,11 @@ class DeliveryProductMapping extends Model
 
     public function operator()
     {
-        return $this->belongsTo(Operator::class);
+        // Deactivating an operator must not hide it from its own historical
+        // mapping rows: OperatorActiveScope would resolve this to null and
+        // every downstream ->operator->country chain (currency exponent) would
+        // fatal. The scope is a listing filter, not a data-integrity rule.
+        return $this->belongsTo(Operator::class)->withoutGlobalScope(OperatorActiveScope::class);
     }
 
     public function productMapping()
