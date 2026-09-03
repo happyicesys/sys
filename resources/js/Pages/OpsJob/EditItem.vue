@@ -62,9 +62,10 @@
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
-            <div class="px-2 border-b mb-2 border-gray-100 text-left relative flex justify-between items-center">
-              <div></div>
-              <div class="absolute right-0 top-0 mt-2 mr-2 flex items-center space-x-2">
+            <!-- In normal flow (was absolute): an absolute button floated over whatever
+                 came next — on a chiller, the CityBox banner and its Retry button. -->
+            <div class="px-2 pb-2 border-b mb-2 border-gray-100 text-left flex justify-end items-center">
+              <div class="flex items-center space-x-2">
                 <!-- Smart Chiller (CityBox): driver door-open, right beside Stock Action (design §6b.2). -->
                 <CityboxOpenDoorButton
                   v-if="opsJobItem.is_citybox_chiller"
@@ -74,8 +75,6 @@
                   :customer-name="opsJobItem.customer?.name"
                   :offline="opsJobItem.vend ? !opsJobItem.vend.is_online : false"
                   :offline-since="opsJobItem.vend?.citybox_status_json?.heartbeat_last_offline"
-                  :disabled="opsJobItem.status >= 3"
-                  :disabled-reason="opsJobItem.status >= 3 ? 'Item already stocked in' : null"
                   source="ops_job_item_page"
                   label="Open Door (Restock)"
                   @opened="reloadDoorOpens"
@@ -436,7 +435,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                           <div class="flex flex-col space-y-1 items-center">
                             <span>
-                              From VMC
+                              From {{ machineLabel }}
                             </span>
                             <div
                               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -506,7 +505,7 @@
                               </div>
                             </span>
                             <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              VMC Inventory Count
+                              {{ machineLabel }} Inventory Count
                             </span>
                           </div>
                         </th>
@@ -524,7 +523,7 @@
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                          VMC Inventory Not Tally, Fixed?
+                          {{ machineLabel }} Inventory Not Tally, Fixed?
                         </th>
                       </tr>
                     </thead>
@@ -632,7 +631,7 @@
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <span :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']">
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ machineLabel }}</span>
                                 <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
                                   {{ Number(channel.qty) + Number(channel.refill) }}
                                 </span>
@@ -754,7 +753,7 @@
                             </span>
                             <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <div class="flex justify-between space-x-1 items-center text-center">
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ machineLabel }}</span>
                                 <span>
                                   {{ getSubtotalVMCInventoryCount() }}
                                 </span>
@@ -861,7 +860,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                           <div class="flex flex-col space-y-1 items-center">
                             <span>
-                              From VMC
+                              From {{ machineLabel }}
                             </span>
                             <div
                               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -922,7 +921,7 @@
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          VMC Inventory Count
+                          {{ machineLabel }} Inventory Count
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                           <div class="flex flex-col space-y-1">
@@ -962,7 +961,7 @@
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                          VMC Inventory Not Tally, Fixed?
+                          {{ machineLabel }} Inventory Not Tally, Fixed?
                         </th>
                       </tr>
                     </thead>
@@ -1730,6 +1729,9 @@ const channels = ref([])
 const AUTO_PICK_STOCK_ACTIONS = ['return_stock', 'onsite_adjustment', 'melted_stock']
 const operatorCountry = usePage().props.auth.operatorCountry
 const opsJobItem = ref([])
+// Header wording: a vending board is a VMC; a CityBox chiller is not, so its
+// inventory columns are labelled by the supplier instead.
+const machineLabel = computed(() => opsJobItem.value?.is_citybox_chiller ? 'Citybox' : 'VMC')
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
 
@@ -2343,12 +2345,13 @@ function onConfirmClicked() {
     isConfirm = true;
   }
 
-  if(form.value.status == 2 && form.value.cash_amount == 0) {
+  // Cash checks only where cash exists — a CityBox chiller has no cash block.
+  if(form.value.status == 2 && showsCash.value && form.value.cash_amount == 0) {
     confirmText += 'Cash Collected = 0; ';
     isConfirm = true;
   }
 
-  if(form.value.status == 2 && form.value.temp_cash_amount_from_vmc == 0) {
+  if(form.value.status == 2 && showsCash.value && form.value.temp_cash_amount_from_vmc == 0) {
     confirmText += 'VMC Cash Amount = 0; ';
     isConfirm = true;
   }

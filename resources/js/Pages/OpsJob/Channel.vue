@@ -106,7 +106,7 @@
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                         <div class="flex flex-col space-y-1 items-center">
                           <span>
-                            From VMC
+                            From {{ machineLabel }}
                           </span>
                           <div
                             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -173,7 +173,7 @@
                             </div>
                           </span>
                           <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            VMC Inventory Count
+                            {{ machineLabel }} Inventory Count
                           </span>
                         </div>
                       </th>
@@ -191,7 +191,7 @@
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                        VMC Inventory Not Tally, Fixed?
+                        {{ machineLabel }} Inventory Not Tally, Fixed?
                       </th>
                     </tr>
                   </thead>
@@ -345,7 +345,7 @@
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                         <div class="flex flex-col space-y-1 items-center">
                           <span>
-                            From VMC
+                            From {{ machineLabel }}
                           </span>
                           <div
                             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -406,7 +406,7 @@
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                        VMC Inventory Count
+                        {{ machineLabel }} Inventory Count
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div class="flex flex-col space-y-1">
@@ -446,7 +446,7 @@
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                        VMC Inventory Not Tally, Fixed?
+                        {{ machineLabel }} Inventory Not Tally, Fixed?
                       </th>
                     </tr>
                   </thead>
@@ -847,7 +847,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import TableHead from '@/Components/TableHead.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { router, usePage, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -855,6 +855,8 @@ const props = defineProps({
   opsJobItem: Object,
   showModal: Boolean,
 })
+// Header wording: a vending board is a VMC; a CityBox chiller is not.
+const machineLabel = computed(() => props.opsJobItem?.is_citybox_chiller ? 'Citybox' : 'VMC')
 
 const channels = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
@@ -988,12 +990,14 @@ function onConfirmClicked() {
     isConfirm = true;
   }
 
-  if(form.value.status == 2 && form.value.cash_amount == 0) {
+  // Cash checks only where cash exists — a CityBox chiller has no cash block.
+  const hasCash = !props.opsJobItem?.is_citybox_chiller;
+  if(form.value.status == 2 && hasCash && form.value.cash_amount == 0) {
     confirmText += 'Cash Collected = 0; ';
     isConfirm = true;
   }
 
-  if(form.value.status == 2 && form.value.temp_cash_amount_from_vmc == 0) {
+  if(form.value.status == 2 && hasCash && form.value.temp_cash_amount_from_vmc == 0) {
     confirmText += 'VMC Cash Amount = 0; ';
     isConfirm = true;
   }

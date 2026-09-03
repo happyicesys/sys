@@ -806,8 +806,6 @@
                                   :customer-name="row.customer?.name"
                                   :offline="row.vend ? !row.vend.is_online : false"
                                   :offline-since="row.vend?.citybox_status_json?.heartbeat_last_offline"
-                                  :disabled="row.status >= 3"
-                                  :disabled-reason="row.status >= 3 ? 'Item already stocked in' : null"
                                   source="ops_job_page"
                                   compact
                                 />

@@ -90,6 +90,36 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertNotNull($rec->before_data_created_at);
     }
 
+    /** Brian, 2026-09-03: the door stays openable after Stocked-In (rearranging goods);
+     *  an open on an item whose push failed for want of a session re-queues the push
+     *  and does NOT file a B frame (the goods are already in — not a "before"). */
+    public function test_open_after_stocked_in_rearms_a_failed_push_and_files_no_b_frame(): void
+    {
+        Queue::fake();
+        $this->item->forceFill(['status' => OpsJob::STATUS_DELIVERED, 'completed_at' => now(), 'citybox_submit_status' => 'failed', 'citybox_submit_error' => 'No door-open session'])->saveQuietly();
+
+        $session = app(RestockVisitService::class)->openDoor($this->item, $this->driver, CityboxDoorOpenLog::SOURCE_OPS_JOB_PAGE);
+
+        $fresh = $this->item->fresh();
+        $this->assertSame($session->msgId, $fresh->citybox_msg_id);
+        $this->assertSame('pending', $fresh->citybox_submit_status);
+        $this->assertNull($fresh->citybox_submit_error);
+        Queue::assertPushed(SubmitCityboxCount::class, fn ($j) => $j->opsJobItemId === $this->item->id);
+        $this->assertSame(1, CityboxDoorOpenLog::where('ops_job_item_id', $this->item->id)->count()); // movement logged
+        $this->assertNull(VendChannelRecord::where('vend_id', $this->vend->id)->first()); // no B frame
+    }
+
+    public function test_open_after_stocked_in_with_a_successful_push_does_not_resubmit(): void
+    {
+        Queue::fake();
+        $this->item->forceFill(['status' => OpsJob::STATUS_DELIVERED, 'completed_at' => now(), 'citybox_submit_status' => 'ok', 'citybox_msg_id' => 'old'])->saveQuietly();
+
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+
+        $this->assertSame('ok', $this->item->fresh()->citybox_submit_status);
+        Queue::assertNotPushed(SubmitCityboxCount::class);
+    }
+
     public function test_second_open_overwrites_msg_id_with_latest(): void
     {
         $svc = app(RestockVisitService::class);
@@ -180,6 +210,24 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertStringContainsString('Open Door', $item->citybox_submit_error);
         $this->assertSame((string) OpsJob::STATUS_DELIVERED, (string) $item->status); // still stocked in
         $this->assertCount(0, $this->gw->submits);
+    }
+
+    /** Brian, 2026-09-03: the push must not depend on an item-page door open. A door
+     *  opened any other way (Settings page here) is the same physical visit — its
+     *  session is adopted onto the item and the count goes through. */
+    public function test_submit_adopts_the_chillers_latest_door_open_from_any_source(): void
+    {
+        $session = app(RestockVisitService::class)->openDoor($this->vend, $this->driver, CityboxDoorOpenLog::SOURCE_VEND_SETTINGS);
+        $this->assertNull($this->item->fresh()->citybox_msg_id);
+        $this->stockIn([101 => 5, 102 => 4]);
+
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $item = $this->item->fresh();
+        $this->assertSame('ok', $item->citybox_submit_status);
+        $this->assertSame($session->msgId, $item->citybox_msg_id);
+        $this->assertCount(1, $this->gw->submits);
+        $this->assertSame($session->msgId, $this->gw->submits[0]['msgId']);
     }
 
     public function test_failed_submit_requeues_with_backoff_until_max_attempts(): void

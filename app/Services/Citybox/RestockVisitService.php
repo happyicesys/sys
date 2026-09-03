@@ -4,7 +4,9 @@ namespace App\Services\Citybox;
 
 use App\Contracts\Citybox\ChillerGateway;
 use App\Exceptions\CityboxApiException;
+use App\Jobs\SubmitCityboxCount;
 use App\Models\CityboxDoorOpenLog;
+use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\User;
 use App\Models\Vend;
@@ -83,14 +85,26 @@ class RestockVisitService
             // Latest open wins: a driver may open twice in one visit; the submit must use the newest msg_id.
             $item->forceFill(['citybox_msg_id' => $session->msgId])->save();
         }
+        // Re-arm (Brian, 2026-09-03): the door stays openable after Stocked-In so a
+        // driver can rearrange goods — every open is logged above. If the count push
+        // had failed for want of a session, this open supplies one: queue it again.
+        $rearm = $item && $item->citybox_submit_status === 'failed' && (int) $item->status >= (int) OpsJob::STATUS_DELIVERED;
+        if ($rearm) {
+            $item->forceFill(['citybox_submit_status' => 'pending', 'citybox_submit_error' => null])->saveQuietly();
+            SubmitCityboxCount::dispatch($item->id)->onQueue('high');
+        }
         // Stopgap mirror for the Settings page (kept until phase-3 cleanup).
         $status = $vend->citybox_status_json ?? [];
         $status['last_ops_open'] = ['msg_id' => $session->msgId, 'open_log_id' => $session->openLogId, 'user_id' => $by?->id, 'source' => $source, 'at' => $session->openedAt->toDateTimeString()];
         $vend->forceFill(['citybox_status_json' => $status])->save();
 
         // B frame: fresh count of what the driver walked in to (§6c.2). Planogram
-        // re-mirrored too, so a portal edit made this morning is reflected.
-        $this->pushFrame($vend, 'B');
+        // re-mirrored too, so a portal edit made this morning is reflected. Not on
+        // a post-Stocked-In open: the goods are already in, so that count is not
+        // a "before" and would overwrite the visit's real one.
+        if (! $item || (int) $item->status < (int) OpsJob::STATUS_DELIVERED) {
+            $this->pushFrame($vend, 'B');
+        }
 
         Log::info('Citybox door opened (ops)', ['vend_id' => $vend->id, 'ops_job_item_id' => $item?->id, 'user_id' => $by?->id, 'source' => $source, 'msg_id' => $session->msgId]);
 
@@ -110,8 +124,23 @@ class RestockVisitService
         if (! $vend || $vend->machine_type !== Vend::MACHINE_TYPE_SMART_CHILLER || ! $vend->citybox_equipment_id) {
             return false;
         }
+        // Session: the item's own open, else the chiller's latest successful open
+        // from ANY source (Settings page, job page). Brian, 2026-09-03: the push
+        // must not depend on the driver opening from the item page — a door opened
+        // any other way is the same physical visit. Stored on the item so retries
+        // reuse it; if CityBox rejects a stale one, their message lands in the banner.
         if (! $item->citybox_msg_id) {
-            $this->markSubmit($item, 'failed', 'No door-open session (msg_id) on this item — press Open Door, then re-try the push.');
+            $latest = CityboxDoorOpenLog::where('vend_id', $vend->id)
+                ->where('result', CityboxDoorOpenLog::RESULT_OPENED)
+                ->whereNotNull('msg_id')
+                ->latest('requested_at')->first();
+            if ($latest) {
+                $item->forceFill(['citybox_msg_id' => $latest->msg_id])->saveQuietly();
+                Log::info('Citybox stock submit using the chiller\'s latest door-open session', ['ops_job_item_id' => $item->id, 'door_open_log_id' => $latest->id, 'source' => $latest->source, 'opened_at' => (string) $latest->requested_at]);
+            }
+        }
+        if (! $item->citybox_msg_id) {
+            $this->markSubmit($item, 'failed', 'No door-open session (msg_id) for this chiller — press Open Door; the push re-runs on its own.');
 
             return false;
         }
