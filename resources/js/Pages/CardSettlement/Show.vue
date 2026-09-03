@@ -290,7 +290,7 @@
                             <Button
                               v-else
                               type="button" class="bg-green-500 hover:bg-green-600 px-2 py-1 text-xs text-white"
-                              @click="resolveTo(row, c.vend_transaction_id)"
+                              @click="pickCandidate(row, c)"
                             >
                               Pick
                             </Button>
@@ -434,6 +434,23 @@ function resolveTo(row, txnId) {
       onSuccess: () => toast.success("Row resolved", { timeout: 3000 }),
       onError: () => toast.error("Failed to resolve row", { timeout: 3000 }),
     })
+}
+
+// A candidate on a DIFFERENT machine than the terminal is bound to means the
+// binding sheet is probably wrong — make the user say so before the line moves.
+function pickCandidate(row, c) {
+  if (c.other_vend && String(c.vend_code) !== String(row.vend_code)) {
+    const approval = confirm(
+      'Moving this line from machine ' + row.vend_code + ' to machine ' + c.vend_code + '.\n\n' +
+      'Terminal ' + row.terminal_id + ' is bound to ' + row.vend_code + ' but this sale is on ' + c.vend_code + '. ' +
+      'If the terminal has moved, also update it on Card Terminal Bindings so future reports match on their own.\n\n' +
+      'Do you confirm?'
+    )
+    if (!approval) {
+      return
+    }
+  }
+  resolveTo(row, c.vend_transaction_id)
 }
 
 const manualTxnId = ref({})

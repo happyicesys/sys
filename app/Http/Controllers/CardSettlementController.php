@@ -345,6 +345,9 @@ class CardSettlementController extends Controller
         $row->update([
             'status' => CardSettlementRow::STATUS_MATCHED,
             'matched_vend_transaction_id' => $txn->id,
+            // The line follows the sale it was assigned to — a cross-machine
+            // pick (wrong binding) must not keep showing the old machine.
+            'vend_id' => $txn->vend_id,
             'match_time_delta' => null,
             'candidates_json' => null,
             'resolution_note' => 'Resolved manually',
