@@ -76,7 +76,8 @@
                       <img v-if="ch.thumbnail" :src="ch.thumbnail" loading="lazy" class="w-full h-full object-contain p-1" />
                       <span v-else class="text-3xl text-gray-300">🧃</span>
                     </div>
-                    <div class="mt-1.5 text-xs sm:text-[13px] font-medium text-gray-900 leading-snug line-clamp-2 min-h-[2.5em]" :title="ch.product ? ch.product.name : (ch.citybox_name || '')">
+                    <div v-if="ch.product && ch.product.code" class="mt-1.5 text-[11px] font-mono text-gray-500 truncate" :title="`Product code ${ch.product.code}`">{{ ch.product.code }}</div>
+                    <div class="text-xs sm:text-[13px] font-medium text-gray-900 leading-snug line-clamp-2 min-h-[2.5em]" :class="ch.product && ch.product.code ? 'mt-0.5' : 'mt-1.5'" :title="ch.product ? ch.product.name : (ch.citybox_name || '')">
                       {{ ch.product ? ch.product.name : (ch.citybox_name || 'Unmapped SKU') }}
                     </div>
                     <div class="mt-auto pt-1 flex items-end justify-between gap-1">
