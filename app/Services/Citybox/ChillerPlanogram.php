@@ -35,7 +35,7 @@ class ChillerPlanogram
      * Pull shipping_product for the vend and overwrite its mirror mapping.
      * Returns the code map the adapter needs: citybox_product_id => [code, par, layer].
      *
-     * @return array<int,array{code:int,par:int,layer:int}>
+     * @return array<int,array{code:int,par:int,layer:int,price:int,active:int}>
      */
     public function sync(Vend $vend): array
     {
@@ -108,7 +108,7 @@ class ChillerPlanogram
      * position 1..n → code = layer*10 + position. Same planogram, same codes.
      *
      * @param  Collection<int,ChillerStockLine>  $lines
-     * @return array<int,array{code:int,par:int,layer:int}>
+     * @return array<int,array{code:int,par:int,layer:int,price:int,active:int}>
      */
     public static function assignCodes(Collection $lines): array
     {
@@ -123,7 +123,12 @@ class ChillerPlanogram
                     Log::warning('Citybox planogram: more than 9 products on one layer — 10th+ dropped from channel codes', ['layer' => $layer]);
                     break;
                 }
-                $out[$line->cityboxProductId] = ['code' => (int) $layer * 10 + $pos, 'par' => $line->quantity, 'layer' => (int) $layer];
+                $out[$line->cityboxProductId] = [
+                    'code' => (int) $layer * 10 + $pos, 'par' => $line->quantity, 'layer' => (int) $layer,
+                    // Their list/effective price from the par config, so a product the
+                    // live-stock call has never reported still gets a priced channel.
+                    'price' => $line->priceCents ?? 0, 'active' => $line->effectivePriceCents() ?? ($line->priceCents ?? 0),
+                ];
             }
         }
 

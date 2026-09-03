@@ -156,10 +156,40 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame('B', $frame->toArray()['label']);
     }
 
-    public function test_adapter_ignores_products_not_in_planogram(): void
+    public function test_adapter_ignores_products_not_in_planogram_but_keeps_every_planogram_channel(): void
     {
         $stock = collect([ChillerStockLine::fromApi(['product_id' => '77777', 'name' => 'stranger', 'quantity' => '3', 'layer' => '1'])]);
-        $this->assertTrue((new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 11, 'par' => 5, 'layer' => 1]])->isEmpty());
+        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 11, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 10]]);
+
+        // The stranger gets no channel; the planogram product does, at qty 0 with the par price.
+        $this->assertSame([['channel_code' => 11, 'qty' => 0, 'capacity' => 5, 'amount' => 10, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
+    }
+
+    public function test_adapter_builds_a_channel_for_every_planogram_product_even_when_live_stock_omits_it(): void
+    {
+        // Prod 2026-09-03 (unit 10002): shipping_product lists 7 SKUs, device_product only
+        // ever the 3 drinks — the never-stocked snacks must still become channels.
+        $codes = [
+            90340 => ['code' => 11, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 8],
+            90330 => ['code' => 21, 'par' => 4, 'layer' => 2, 'price' => 150, 'active' => 150],
+            90328 => ['code' => 41, 'par' => 7, 'layer' => 4, 'price' => 120, 'active' => 120],
+        ];
+        $stock = collect([ChillerStockLine::fromApi(['product_id' => '90340', 'name' => 'Peach', 'quantity' => '1', 'layer' => '1', 'price' => '0.10', 'active_price' => '0.09'])]);
+
+        $frame = (new ChannelFrameAdapter)->toFrame($stock, $codes);
+
+        $this->assertSame([11, 21, 41], array_column($frame->channels, 'channel_code'));
+        $this->assertSame([1, 0, 0], array_column($frame->channels, 'qty'));
+        $this->assertSame([5, 4, 7], array_column($frame->channels, 'capacity'));
+        $this->assertSame([9, 150, 120], array_column($frame->channels, 'amount'));   // live price wins where present
+        $this->assertSame([10, 150, 120], array_column($frame->channels, 'amount2'));
+    }
+
+    public function test_adapter_tolerates_a_cached_code_map_without_prices(): void
+    {
+        // Planogram maps cached before 2026-09-03 carry no price keys for up to an hour.
+        $frame = (new ChannelFrameAdapter)->toFrame(collect(), [90340 => ['code' => 11, 'par' => 5, 'layer' => 1]]);
+        $this->assertSame([['channel_code' => 11, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'amount2' => 0, 'error_code' => 0]], $frame->channels);
     }
 
     // ── end to end: poll → real vend_channels rows ─────────────────────────
@@ -196,8 +226,13 @@ class CityboxChannelsTest extends TestCase
         $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 2, 'layer' => 1]]);
         app(CityboxOpenapiSync::class)->syncAll();
 
-        $this->assertSame(1, VendChannel::where('vend_id', $this->vend->id)->count());
-        $this->assertSame(2, VendChannel::where('vend_id', $this->vend->id)->first()->qty);
+        // One channel per planogram product (3), no duplicates across polls; the
+        // product the live call reports carries its qty, the other two sit at 0.
+        $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
+        $this->assertSame(3, $channels->count());
+        $this->assertSame(2, $channels->firstWhere('code', 13)->qty); // 90340 = highest id → position 3
+        $this->assertSame(0, $channels->firstWhere('code', 11)->qty);
+        $this->assertSame(5, $channels->firstWhere('code', 11)->capacity);
     }
 
     public function test_sku_added_mid_hour_gets_product_channel_and_qty_on_the_next_poll(): void
@@ -232,6 +267,34 @@ class CityboxChannelsTest extends TestCase
         $row = \App\Models\CityboxProduct::where('citybox_product_id', 90999)->first();
         $this->assertNotNull($row->product_id);
         $this->assertSame($row->product_id, $ch->product_id);
+    }
+
+    public function test_poll_creates_channels_for_snacks_the_live_call_never_reports(): void
+    {
+        $this->gw->seedPar('E1', [
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10'],
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
+            ['id' => 90330, 'name' => 'Daliyuan bread', 'qty' => 4, 'layer' => 2, 'price' => '1.50'],
+            ['id' => 90332, 'name' => 'KSF cup noodle', 'qty' => 5, 'layer' => 3, 'price' => '2.00'],
+            ['id' => 90328, 'name' => 'Want Want crackers', 'qty' => 7, 'layer' => 4, 'price' => '1.20'],
+            ['id' => 90347, 'name' => 'Cheese bread', 'qty' => 3, 'layer' => 5, 'price' => '1.80'],
+        ]);
+        $this->gw->seedStock('E1', [
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 0, 'layer' => 1, 'price' => '0.11'],
+        ]);
+
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
+        $this->assertSame([11, 12, 13, 21, 31, 41, 51], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $bread = $channels->firstWhere('code', 21);
+        $this->assertSame(0, $bread->qty);
+        $this->assertSame(4, $bread->capacity);
+        $this->assertSame(150, $bread->amount); // priced from the par config
+        $this->assertSame(15, $channels->sum('capacity') - 19); // drinks 15 + snacks 19 = 34, as OpsPro shows
     }
 
     public function test_pull_refreshes_planogram_immediately_bypassing_the_hourly_cache(): void
