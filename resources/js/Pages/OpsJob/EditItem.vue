@@ -530,6 +530,14 @@
                     </thead>
                     <tbody class="bg-white">
                       <template v-for="(channel, channelIndex) in channels" :key="channel.id">
+                      <!-- Smart Chiller: a bold divider where the layer changes (hundreds digit of the code),
+                           so the driver reads the pick list rack by rack. Vending rows are unchanged. -->
+                      <tr v-if="layerDividerBefore(channelIndex)" class="bg-indigo-50">
+                        <td colspan="12" class="border-t-4 border-indigo-400 py-1.5 pl-4 sm:pl-6 text-left text-[11px] font-bold uppercase tracking-wider text-indigo-800">
+                          Layer {{ layerOf(channel.code) }}
+                          <span class="ml-2 font-medium normal-case tracking-normal text-indigo-600">{{ layerSkuCount(channel.code) }} SKU{{ layerSkuCount(channel.code) === 1 ? '' : 's' }}</span>
+                        </td>
+                      </tr>
                       <tr :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50')))), isBlindParent(channel) ? '!bg-indigo-50 border-t-2 border-indigo-300' : '']">
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-left text-gray-800 text-center">
                           <div class="flex flex-col space-y-1">
@@ -960,6 +968,14 @@
                     </thead>
                     <tbody class="bg-white">
                       <template v-for="(channel, channelIndex) in channels" :key="channel.id">
+                      <!-- Smart Chiller: a bold divider where the layer changes (hundreds digit of the code),
+                           so the driver reads the pick list rack by rack. Vending rows are unchanged. -->
+                      <tr v-if="layerDividerBefore(channelIndex)" class="bg-indigo-50">
+                        <td colspan="12" class="border-t-4 border-indigo-400 py-1.5 pl-4 sm:pl-6 text-left text-[11px] font-bold uppercase tracking-wider text-indigo-800">
+                          Layer {{ layerOf(channel.code) }}
+                          <span class="ml-2 font-medium normal-case tracking-normal text-indigo-600">{{ layerSkuCount(channel.code) }} SKU{{ layerSkuCount(channel.code) === 1 ? '' : 's' }}</span>
+                        </td>
+                      </tr>
                       <tr :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50')))), isBlindParent(channel) ? '!bg-indigo-50 border-t-2 border-indigo-300' : '']">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800" :class="[isBlindParent(channel) ? 'border-l-4 border-indigo-400' : '']">
                           <div class="flex flex-col items-center space-y-1">
@@ -2663,6 +2679,23 @@ function onVerifyClicked(verify) {
 
 function formatDatetime(value) {
   return moment(value).format('YYMMDD hh:mm A');
+}
+
+// Chiller channel code = <layer><position 2 digits> (101…699; legacy 2-digit = <layer><pos>).
+function layerOf(code) {
+  const s = String(code ?? '')
+  return s.length >= 3 ? Number(s.slice(0, -2)) : Number(s[0])
+}
+function layerDividerBefore(i) {
+  if (!opsJobItem.value?.is_citybox_chiller) return false
+  const cur = channels.value[i]
+  if (!cur) return false
+  const prev = channels.value[i - 1]
+  return !prev || layerOf(prev.code) !== layerOf(cur.code)
+}
+function layerSkuCount(code) {
+  const layer = layerOf(code)
+  return channels.value.filter(c => layerOf(c.code) === layer).length
 }
 
 // Vend::disallowedStockActions, flattened onto the item by OpsJobItemResource.
