@@ -210,7 +210,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+                $relatedCodes = \App\Support\OperatorScope::PARENT_GROUP_CODES; // one definition of the sibling group
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -579,7 +579,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+                $relatedCodes = \App\Support\OperatorScope::PARENT_GROUP_CODES; // one definition of the sibling group
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -2229,7 +2229,7 @@ class VendController extends Controller
         // scope, so a tampered operators[] in the POST body cannot widen it.
         $userOperator = auth()->user()->operator;
         if ($userOperator && $userOperator->code === 'HIPL') {
-            $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+            $relatedCodes = \App\Support\OperatorScope::PARENT_GROUP_CODES; // one definition of the sibling group
             $scopeOperatorIds = Operator::whereIn('code', $relatedCodes)->pluck('id')->filter()->values()->toArray();
         } else {
             $scopeOperatorIds = array_values(array_filter([$userOperator?->id]));

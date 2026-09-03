@@ -13,7 +13,7 @@ use App\Models\User;
  * enforced inline (VendController::indexCustomer, ::index and
  * ::customerIndexAggregates):
  *
- *      HIPL staff  => HIPL + its sibling operators (HIMD, LEA, HIESG, UL-ST)
+ *      HIPL staff  => HIPL + its sibling operators (HIMD, LEA, HIESG, UL-ST, CB)
  *      everyone else => their own operator, and nothing else
  *
  * ==========================================================================
@@ -38,8 +38,13 @@ class OperatorScope
     /**
      * HIPL and the operators it administers on the same tenancy. Kept in one
      * place so adding a sibling is a one-line change instead of a grep.
+     *
+     * CB (Citybox) joined 2026-09-03: the Smart Chillers sit under their own
+     * operator so settlement never mixes with vending, but HIPL ops staff run
+     * them from the same Dashboard and Machines index — without CB here the
+     * default (empty) Operator filter hid every chiller from them.
      */
-    public const PARENT_GROUP_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+    public const PARENT_GROUP_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'CB'];
 
     /**
      * Per-request memo, keyed by user id — the ceiling is asked for several

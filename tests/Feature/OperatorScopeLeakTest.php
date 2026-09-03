@@ -307,6 +307,22 @@ class OperatorScopeLeakTest extends TestCase
      * A request-supplied operator filter is a preference, not an entitlement:
      * asking for someone else's operator must return nothing, not their data.
      */
+    public function test_hipl_ceiling_includes_the_citybox_operator_but_a_sibling_ceiling_does_not(): void
+    {
+        // CB (Smart Chillers) is a dedicated operator for settlement, yet HIPL ops
+        // staff run the chillers from the same Dashboard: with an empty Operator
+        // filter they must still see them (2026-09-03: machine 10002 returned
+        // "No Results Found" until CB joined the sibling group).
+        $cb = $this->operator('CB');
+        $himd = $this->operator('HIMD');
+        $hiplUser = $this->userFor($this->hipl);
+        $himdUser = $this->userFor($himd);
+
+        $this->assertContains((int) $cb->id, OperatorScope::forUser($hiplUser));
+        $this->assertContains((int) $himd->id, OperatorScope::forUser($hiplUser));
+        $this->assertSame([(int) $himd->id], OperatorScope::forUser($himdUser)); // siblings still see only themselves
+    }
+
     public function test_requested_operator_filter_cannot_widen_the_viewer_ceiling(): void
     {
         $vendA = $this->makeVend($this->opA, 1001);
