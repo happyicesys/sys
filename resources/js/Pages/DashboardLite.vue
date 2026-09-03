@@ -87,29 +87,7 @@
                             </MultiSelect>
                         </div>
                         <div v-if="permissions.includes('admin-access dashboard')">
-                            <div class="flex items-center justify-between">
-                              <label for="text" class="block text-sm font-medium text-gray-700">Operator</label>
-                              <button
-                                v-if="filters.operators && filters.operators.length"
-                                type="button"
-                                class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                                @click="filters.operators = []"
-                              >
-                                Clear
-                              </button>
-                            </div>
-                            <MultiSelect
-                                v-model="filters.operators"
-                                :options="operatorOptions"
-                                trackBy="id"
-                                valueProp="id"
-                                label="full_name"
-                                placeholder="Select"
-                                open-direction="bottom"
-                                class="mt-1"
-                                mode="tags"
-                            >
-                            </MultiSelect>
+                            <OperatorFilter v-model="filters.operators" />
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -610,6 +588,7 @@
     import Button from '@/Components/Button.vue';
     import Graph from '@/Components/Graph.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
+import OperatorFilter from '@/Components/OperatorFilter.vue';
     import SearchInput from '@/Components/SearchInput.vue';
     import { ref, onBeforeMount, watch, onMounted } from 'vue';
     import { Head, Link, router, usePage } from '@inertiajs/vue3';

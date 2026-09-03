@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Operator;
+use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -91,6 +93,30 @@ class HandleInertiaRequests extends Middleware
                 return array_merge($this->cachedZiggyArray(), [
                     'location' => $request->url(),
                 ]);
+            },
+            // Every page's Operator filter (Components/OperatorFilter.vue) reads
+            // this instead of a per-controller operatorOptions prop, so its
+            // All / Active toggle can offer deactivated operators as well.
+            // Only the active scope is bypassed; OperatorFilterScope still pins
+            // operator users to their own row. Closure so partial reloads that
+            // ask for specific props skip the query.
+            'operatorFilterOptions' => function () use ($user) {
+                if (! $user) {
+                    return [];
+                }
+
+                return Operator::withoutGlobalScope(OperatorActiveScope::class)
+                    ->orderBy('name')
+                    ->get(['id', 'code', 'name', 'is_active'])
+                    ->map(fn ($o) => [
+                        'id' => $o->id,
+                        'code' => $o->code,
+                        'name' => $o->name,
+                        'full_name' => $o->code.' - '.$o->name,
+                        'is_active' => (bool) $o->is_active,
+                    ])
+                    ->values()
+                    ->all();
             },
             'logoUrl' => $logoUrl,
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,

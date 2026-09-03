@@ -138,28 +138,7 @@
             ></MultiSelect>
           </div>
           <div v-if="permissions.includes('admin-access customers')">
-            <div class="flex items-center justify-between">
-              <label for="text" class="block text-sm font-medium text-gray-700">Operator</label>
-              <button
-                v-if="filters.operators && filters.operators.length"
-                type="button"
-                class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                @click="filters.operators = []"
-              >
-                Clear
-              </button>
-            </div>
-            <MultiSelect
-              v-model="filters.operators"
-              :options="operatorOptions"
-              trackBy="id"
-              valueProp="id"
-              label="full_name"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-              mode="tags"
-            ></MultiSelect>
+            <OperatorFilter v-model="filters.operators" />
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -836,6 +815,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import OperatorFilter from '@/Components/OperatorFilter.vue';
 import { ArrowDownTrayIcon, BackspaceIcon, ExclamationCircleIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';

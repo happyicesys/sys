@@ -51,29 +51,7 @@
                                     Product Name
                                 </SearchInput>
                                 <div>
-                                    <div class="flex items-center justify-between">
-                                      <label for="text" class="block text-sm font-medium text-gray-700">Operator</label>
-                                      <button
-                                        v-if="filters.operators && filters.operators.length"
-                                        type="button"
-                                        class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                                        @click="filters.operators = []"
-                                      >
-                                        Clear
-                                      </button>
-                                    </div>
-                                    <MultiSelect
-                                        v-model="filters.operators"
-                                        :options="operatorOptions"
-                                        trackBy="id"
-                                        valueProp="id"
-                                        label="full_name"
-                                        placeholder="Select"
-                                        open-direction="bottom"
-                                        class="mt-1"
-                                        mode="tags"
-                                    >
-                                    </MultiSelect>
+                                    <OperatorFilter v-model="filters.operators" />
                                 </div>
                                 <div>
                                     <label for="text" class="block text-sm font-medium text-gray-700">
@@ -413,6 +391,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { Head, router, usePage, useForm, Link } from '@inertiajs/vue3'
 import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/vue/24/solid'
 import MultiSelect from '@/Components/MultiSelect.vue'
+import OperatorFilter from '@/Components/OperatorFilter.vue';
 import BlindFlavourChips from '@/Components/BlindFlavourChips.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import SearchInput from '@/Components/SearchInput.vue'

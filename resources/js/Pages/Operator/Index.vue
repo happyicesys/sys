@@ -163,13 +163,15 @@
                             </span>
                           </Button> -->
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
-                            @click="onDeleteClicked(operator)"
-                            v-if="permissions.includes('delete operators') && permissions.includes('admin-access operators')"
+                            type="button" class="px-3 py-2 text-xs flex space-x-1"
+                            :class="operator.is_active ? 'bg-red-300 hover:bg-red-400 text-red-800' : 'bg-green-300 hover:bg-green-400 text-green-800'"
+                            @click="onToggleActiveClicked(operator)"
+                            v-if="permissions.includes('update operators') && permissions.includes('admin-access operators')"
                           >
-                            <TrashIcon class="w-4 h-4"></TrashIcon>
+                            <FolderMinusIcon v-if="operator.is_active" class="w-4 h-4"></FolderMinusIcon>
+                            <FolderPlusIcon v-else class="w-4 h-4"></FolderPlusIcon>
                             <span>
-                                Delete
+                                {{ operator.is_active ? 'Deactivate' : 'Activate' }}
                             </span>
                           </Button>
                         </div>
@@ -213,7 +215,7 @@ import Form from '@/Pages/Operator/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, FolderMinusIcon, FolderPlusIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -276,17 +278,21 @@ function onCreateClicked() {
   showModal.value = true
 }
 
-function onDeleteClicked(operator) {
-  const approval = confirm('Are you sure to delete ' + operator.name + '?');
+// Operators are never deleted - only deactivated, so they can be brought back.
+function onToggleActiveClicked(operator) {
+  const action = operator.is_active ? 'deactivate' : 'activate'
+  const approval = confirm('Are you sure to ' + action + ' ' + operator.name + '?');
   if (!approval) {
       return;
   }
-  router.delete('/operators/' + operator.id, {
+  router.post('/operators/' + operator.id + '/toggle-activate-deactivate', {}, {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
-      toast.success("Operator deleted successfully", { timeout: 3000 })
+      toast.success('Operator ' + action + 'd successfully', { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete operator", { timeout: 3000 })
+      toast.error('Failed to ' + action + ' operator', { timeout: 3000 })
     }
   })
 }

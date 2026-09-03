@@ -26,9 +26,7 @@
           </SearchInput>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Operator</label>
-            <MultiSelect class="mt-1" v-model="f.operators" :options="filterOptions.operators"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="All" />
+            <OperatorFilter v-model="f.operators" placeholder="All" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Location Type</label>
@@ -172,6 +170,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import OperatorFilter from '@/Components/OperatorFilter.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import { computed, reactive, h } from 'vue';
@@ -202,7 +201,12 @@ const f = reactive({
   date_to: props.filters.date_to || '',
   codes: props.filters.codes || '',
   customer: props.filters.customer || '',
-  operators: toObjects(props.filterOptions.operators, props.filters.operators),
+  // Restored from the shared list (plus OperatorFilter's 'all' sentinel) so
+  // the tags carry full_name like OperatorFilter's options.
+  operators: toObjects(
+    [{ id: 'all', full_name: 'All' }, ...(usePage().props.operatorFilterOptions || [])],
+    props.filters.operators,
+  ),
   location_type_ids: toObjects(props.filterOptions.locationTypes, props.filters.location_type_ids),
   vend_prefix_ids: toObjects(props.filterOptions.vendPrefixes, props.filters.vend_prefix_ids),
   vend_model_ids: toObjects(props.filterOptions.vendModels, props.filters.vend_model_ids),

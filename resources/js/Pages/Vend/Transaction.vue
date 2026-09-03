@@ -145,29 +145,7 @@
                 </SearchInput>
             </div>
             <div v-if="permissions.includes('admin-access transactions')">
-                <div class="flex items-center justify-between">
-                  <label for="text" class="block text-sm font-medium text-gray-700">Operator</label>
-                  <button
-                    v-if="filters.operators && filters.operators.length"
-                    type="button"
-                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                    @click="filters.operators = []"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <MultiSelect
-                    v-model="filters.operators"
-                    :options="operatorOptions"
-                    trackBy="id"
-                    valueProp="id"
-                    label="full_name"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                    mode="tags"
-                >
-                </MultiSelect>
+                <OperatorFilter v-model="filters.operators" />
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
@@ -1129,6 +1107,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, XCircleIcon, ArrowDownTrayIcon, XMarkIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import OperatorFilter from '@/Components/OperatorFilter.vue';
 import moment from 'moment';
 import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';

@@ -19,24 +19,23 @@ use App\Models\OperatorPaymentGateway;
 use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
 use App\Models\Product;
-use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\Scopes\OperatorActiveScope;
+use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vend;
-use App\Traits\HasFilter;
 use App\Support\ProductAccess;
-use Carbon\Carbon;
+use App\Support\SiteSearch;
+use App\Traits\HasFilter;
 use DateTimeZone;
 use DB;
-use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Intervention\Image\Encoders\AutoEncoder;
 use Intervention\Image\Laravel\Facades\Image;
-use Inertia\Inertia;
-use App\Support\SiteSearch;
 
 class OperatorController extends Controller
 {
@@ -46,7 +45,7 @@ class OperatorController extends Controller
     {
         $this->middleware(['permission:read operators']);
         $this->middleware(['permission:create operators'])->only(['create', 'store']);
-        $this->middleware(['permission:delete operators'])->only(['delete']);
+        $this->middleware(['permission:admin-access operators'])->only(['toggleActivateDeactivate']);
     }
 
     public function index(Request $request)
@@ -201,7 +200,7 @@ class OperatorController extends Controller
                             }
                         })
                         ->when($request->vend_code, function ($query, $search) {
-                            $query->where('code', 'LIKE', '%' . $search . '%');
+                            $query->where('code', 'LIKE', '%'.$search.'%');
                         });
                     $query->select('id', 'code', 'name', 'customer_id', 'operator_id');
                 },
@@ -209,8 +208,8 @@ class OperatorController extends Controller
                     $query
                         ->when($request->prefix_code, function ($query, $search) {
                             $query->where(function ($query) use ($search) {
-                                $query->where('virtual_customer_prefix', 'LIKE', '%' . $search . '%')
-                                    ->orWhere('virtual_customer_code', 'LIKE', '%' . $search . '%');
+                                $query->where('virtual_customer_prefix', 'LIKE', '%'.$search.'%')
+                                    ->orWhere('virtual_customer_code', 'LIKE', '%'.$search.'%');
                             });
                         })
                         ->when($request->name, function ($query, $search) {
@@ -227,7 +226,7 @@ class OperatorController extends Controller
         $timezones = DateTimeZone::listIdentifiers();
         $setting = Setting::query()->first();
         $logoOverrideOperatorIds = collect($setting?->allow_overwrite_logo_operator_ids_array ?? [])
-            ->map(fn($value) => (int) $value)
+            ->map(fn ($value) => (int) $value)
             ->filter()
             ->unique()
             ->values()
@@ -241,26 +240,22 @@ class OperatorController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
-            'countryDeliveryPlatforms' =>
-                DeliveryPlatformResource::collection(
-                    DeliveryPlatform::with(['country'])
-                        ->when($request->country_id, function ($query, $search) {
-                            $query->where('country_id', $search);
-                        })
-                        ->orderBy('name')
-                        ->get()
-                )
-            ,
-            'countryPaymentGateways' =>
-                PaymentGatewayResource::collection(
-                    PaymentGateway::with(['country'])
-                        ->orderBy('name')
-                        ->get()
-                )
-            ,
+            'countryDeliveryPlatforms' => DeliveryPlatformResource::collection(
+                DeliveryPlatform::with(['country'])
+                    ->when($request->country_id, function ($query, $search) {
+                        $query->where('country_id', $search);
+                    })
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'countryPaymentGateways' => PaymentGatewayResource::collection(
+                PaymentGateway::with(['country'])
+                    ->orderBy('name')
+                    ->get()
+            ),
             'deliveryPlatformOperatorTypes' => [
-                DeliveryPlatformOperator::TYPE_SANDBOX,
-                DeliveryPlatformOperator::TYPE_PRODUCTION
+            DeliveryPlatformOperator::TYPE_SANDBOX,
+            DeliveryPlatformOperator::TYPE_PRODUCTION,
             ],
             'emailUserOptions' => UserResource::collection(
                 User::query()
@@ -269,7 +264,7 @@ class OperatorController extends Controller
                     ->where(function ($query) {
                         $operatorId = auth()->user()->operator_id;
                         $isHappyIce = $operatorId == 1;
-                        if (!$isHappyIce && $operatorId) {
+                        if (! $isHappyIce && $operatorId) {
                             // Include users from current operator OR superuser group (operator_id = 1)
                             $query->where(function ($q) use ($operatorId) {
                                 $q->whereHas('operator', function ($oq) use ($operatorId) {
@@ -284,12 +279,13 @@ class OperatorController extends Controller
                     ->get()
                     ->map(function ($user) {
                         $user->email = $user->email ?: 'no email';
+
                         return $user;
                     })
             ),
             'operatorPaymentGatewayTypes' => [
                 OperatorPaymentGateway::TYPE_SANDBOX,
-                OperatorPaymentGateway::TYPE_PRODUCTION
+                OperatorPaymentGateway::TYPE_PRODUCTION,
             ],
             'operator' => OperatorResource::make(
                 $operator
@@ -299,14 +295,13 @@ class OperatorController extends Controller
             // withoutGlobalScope(ProductAccessProductScope): an admin who is
             // themselves product-restricted must still be able to grant the
             // full range here. Operator ownership scoping stays on.
-            'unbindedProducts' => fn () =>
-                ProductResource::collection(
-                    Product::withoutGlobalScope(ProductAccessProductScope::class)
-                        ->where('products.operator_id', $id)
-                        ->where('is_active', true)
-                        ->orderBy('code')
-                        ->get(['id', 'code', 'name'])
-                ),
+            'unbindedProducts' => fn () => ProductResource::collection(
+                Product::withoutGlobalScope(ProductAccessProductScope::class)
+                    ->where('products.operator_id', $id)
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get(['id', 'code', 'name'])
+            ),
             'type' => 'update',
         ]);
     }
@@ -354,7 +349,7 @@ class OperatorController extends Controller
             'email_recipients.*.label' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if (!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
+        if (! $request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
             $request->merge(['gst_vat_rate' => 0]);
         }
         $operator = Operator::create(
@@ -363,11 +358,11 @@ class OperatorController extends Controller
 
         // Save recipients into json column
         $operator->email_recipients_json = collect($request->input('email_recipients', []))
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'email' => strtolower(trim($r['email'] ?? '')),
                 'label' => trim($r['label'] ?? ''),
             ])
-            ->filter(fn($r) => !empty($r['email']))
+            ->filter(fn ($r) => ! empty($r['email']))
             ->unique('email')
             ->values()
             ->all();
@@ -380,7 +375,6 @@ class OperatorController extends Controller
             ->pluck('email');
         // dd($userEmails);
         $this->syncAlertEmailItemsGeneric($operator, $userEmails->merge($customEmails));
-
 
         // return redirect()->route('operators');
         return redirect()->route('operators.edit', [$operator->id]);
@@ -448,16 +442,16 @@ class OperatorController extends Controller
 
             $uploadedLogo = $request->file('logo');
             $image = Image::read($uploadedLogo)
-                ->scaleDown(400, 400, fn($constraint) => $constraint->upsize());
+                ->scaleDown(400, 400, fn ($constraint) => $constraint->upsize());
 
             $extension = $uploadedLogo->getClientOriginalExtension() ?: 'png';
-            $filename = Str::uuid() . '.' . strtolower($extension);
-            $relativePath = 'sys/operators/logos/' . $filename;
+            $filename = Str::uuid().'.'.strtolower($extension);
+            $relativePath = 'sys/operators/logos/'.$filename;
 
             $disk = $this->logoStorageDisk();
             Storage::disk($disk)->put(
                 $relativePath,
-                (string) $image->encode(new AutoEncoder()),
+                (string) $image->encode(new AutoEncoder),
                 ['visibility' => 'public']
             );
 
@@ -570,14 +564,14 @@ class OperatorController extends Controller
 
         // Normalize the JSON we keep for the UI
         $userIds = collect($request->input('email_user_ids', []))
-            ->map(fn($v) => (int) $v)->filter()->values();
+            ->map(fn ($v) => (int) $v)->filter()->values();
 
         $customs = collect($request->input('email_customs', []))
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'email' => strtolower(trim($r['email'] ?? '')),
                 'label' => trim($r['label'] ?? ''),
             ])
-            ->filter(fn($r) => !empty($r['email']))
+            ->filter(fn ($r) => ! empty($r['email']))
             ->unique('email')
             ->values();
 
@@ -591,13 +585,13 @@ class OperatorController extends Controller
         $userEmailItems = User::whereIn('id', $userIds)
             ->whereNotNull('email')
             ->get(['id', 'email'])
-            ->map(fn($u) => [
+            ->map(fn ($u) => [
                 'email' => strtolower(trim((string) $u->email)),
                 'user_id' => (int) $u->id,
             ]);
 
         $customEmailItems = $customs->pluck('email')
-            ->map(fn($e) => [
+            ->map(fn ($e) => [
                 'email' => strtolower(trim((string) $e)),
                 'user_id' => null,
             ]);
@@ -633,14 +627,24 @@ class OperatorController extends Controller
         return redirect()->route('operators.edit', [$operatorId]);
     }
 
-
-
-    public function delete($operatorId)
+    /**
+     * Operators are never deleted - vends, transactions, users and product
+     * mappings all hang off operator_id. Flip is_active instead so the row
+     * can be brought back. Mirrors the is_active branch of update().
+     */
+    public function toggleActivateDeactivate($operatorId)
     {
-        $operator = Operator::findOrFail($operatorId);
-        $operator->delete();
+        // The active scope would hide the row we are trying to reactivate.
+        $operator = Operator::withoutGlobalScope(OperatorActiveScope::class)->findOrFail($operatorId);
 
-        return redirect()->route('operators');
+        $isActive = ! $operator->is_active;
+        $operator->is_active = $isActive;
+        $operator->deactivated_at = $isActive ? null : now();
+        $operator->save();
+
+        // Keep the caller's filters (status=inactive etc.) instead of
+        // bouncing to the default active-only listing.
+        return redirect()->back();
     }
 
     public function bindCustomer(Request $request)
@@ -709,12 +713,12 @@ class OperatorController extends Controller
 
     protected function deleteOperatorLogo(Operator $operator): void
     {
-        if (!$operator->relationLoaded('logo')) {
+        if (! $operator->relationLoaded('logo')) {
             $operator->load('logo');
         }
 
         $logo = $operator->logo;
-        if (!$logo) {
+        if (! $logo) {
             return;
         }
 
@@ -758,20 +762,23 @@ class OperatorController extends Controller
                     if (is_array($e)) {
                         $email = strtolower(trim((string) ($e['email'] ?? '')));
                         $userId = isset($e['user_id']) && is_numeric($e['user_id']) ? (int) $e['user_id'] : null;
+
                         return ['email' => $email, 'user_id' => $userId];
                     }
                     $email = strtolower(trim((string) $e));
+
                     return ['email' => $email, 'user_id' => null];
                 })
-                ->filter(fn($it) => $it['email'] !== '')
+                ->filter(fn ($it) => $it['email'] !== '')
                 ->unique('email')
                 ->values();
 
-            if ($items->isEmpty())
+            if ($items->isEmpty()) {
                 return;
+            }
 
             $now = now();
-            $rows = $items->map(fn($it) => [
+            $rows = $items->map(fn ($it) => [
                 'operator_id' => $operator?->id,
                 'user_id' => $it['user_id'],
                 'email' => $it['email'],

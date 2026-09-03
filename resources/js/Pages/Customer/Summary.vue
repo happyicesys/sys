@@ -60,23 +60,7 @@
           </div>
 
           <div v-if="showAllFilters && permissions.includes('admin-access customers')">
-            <div class="flex items-center justify-between">
-              <label class="block text-sm font-medium text-gray-700">Operator</label>
-              <button
-                v-if="filters.operators && filters.operators.length"
-                type="button"
-                class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                @click="filters.operators = []"
-              >
-                Clear
-              </button>
-            </div>
-            <MultiSelect
-              v-model="filters.operators"
-              :options="operatorOptions"
-              trackBy="id" valueProp="id" label="full_name" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
-            />
+            <OperatorFilter v-model="filters.operators" />
           </div>
 
           <div v-if="showAllFilters">
@@ -3062,6 +3046,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import OperatorFilter from '@/Components/OperatorFilter.vue';
 import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BanknotesIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon, ReceiptPercentIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';

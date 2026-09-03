@@ -4,6 +4,7 @@ import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import { MagnifyingGlassIcon, BackspaceIcon, ArrowDownTrayIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid'
 import axios from 'axios'
 import MultiSelect from '@/Components/MultiSelect.vue'
+import OperatorFilter from '@/Components/OperatorFilter.vue';
 import DatePicker from '@/Components/DatePicker.vue'
 import SearchInput from '@/Components/SearchInput.vue'
 import moment from 'moment'
@@ -182,29 +183,7 @@ const onExcelExportClicked = () => {
                         </SearchInput>
                     </div>
                     <div class="col-span-5 md:col-span-1">
-                        <div class="flex items-center justify-between">
-                          <label class="block text-sm font-medium text-gray-700">Operator</label>
-                          <button
-                            v-if="filters.operators && filters.operators.length"
-                            type="button"
-                            class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                            @click="filters.operators = []"
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <MultiSelect
-                            v-model="filters.operators"
-                            :options="operatorOptions"
-                            trackBy="id"
-                            valueProp="id"
-                            label="full_name"
-                            placeholder="Select"
-                            open-direction="bottom"
-                            class="mt-1"
-                            mode="tags"
-                        >
-                        </MultiSelect>
+                        <OperatorFilter v-model="filters.operators" />
                     </div>
                     <div class="col-span-5 md:col-span-1">
                         <DatePicker v-model="filters.date_from">From</DatePicker>

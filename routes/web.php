@@ -510,7 +510,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{id}/edit', [OperatorController::class, 'edit'])->name('operators.edit')
             ->middleware('can:read operators');
         Route::post('/{id}/update', [OperatorController::class, 'update']);
-        Route::delete('/{id}', [OperatorController::class, 'delete']);
+        // Operators are never deleted (2026-09-03): every vend, transaction
+        // and user hangs off operator_id. Deactivate/reactivate instead.
+        Route::post('/{id}/toggle-activate-deactivate', [OperatorController::class, 'toggleActivateDeactivate']);
         Route::post('/bind-customer', [OperatorController::class, 'bindCustomer']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
         Route::post('/unbind-customer', [OperatorController::class, 'unbindCustomer']);
