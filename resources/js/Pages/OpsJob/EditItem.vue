@@ -91,8 +91,10 @@
                   <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
                     <MenuItems class="absolute right-0 z-10 mt-2 w-auto origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div class="py-1">
-                        <!-- Never for a Smart Chiller: its planogram is CityBox's (server refuses too). -->
-                        <MenuItem v-slot="{ active }" v-if="upcomingMapping && !opsJobItem.is_citybox_chiller">
+                        <!-- Actions the machine kind refuses (opsJobItem.disallowed_stock_actions, from
+                             Vend::disallowedStockActions) are hidden; the server refuses them too. A Smart
+                             Chiller drops Implement New Mapping (planogram is CityBox's) and Melted Ice Cream. -->
+                        <MenuItem v-slot="{ active }" v-if="upcomingMapping && stockActionAllowed('implement_new_mapping')">
                           <button type="button" @click="onUpdateStockAction('implement_new_mapping')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
                             Implement New Mapping <span class="text-gray-600">换新菜单</span>
                           </button>
@@ -107,7 +109,7 @@
                             Stock Adjustment <span class="text-gray-600">调整货量</span>
                           </button>
                         </MenuItem>
-                        <MenuItem v-slot="{ active }">
+                        <MenuItem v-slot="{ active }" v-if="stockActionAllowed('melted_stock')">
                           <button type="button" @click="onUpdateStockAction('melted_stock')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
                             Melted Ice Cream <span class="text-gray-600">溶撤丢</span>
                           </button>
@@ -2661,6 +2663,12 @@ function onVerifyClicked(verify) {
 
 function formatDatetime(value) {
   return moment(value).format('YYMMDD hh:mm A');
+}
+
+// Vend::disallowedStockActions, flattened onto the item by OpsJobItemResource.
+function stockActionAllowed(type) {
+  const list = opsJobItem.value?.disallowed_stock_actions
+  return !Array.isArray(list) || !list.includes(type)
 }
 
 function onUpdateStockAction(type) {

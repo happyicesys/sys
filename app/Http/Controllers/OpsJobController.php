@@ -2441,11 +2441,13 @@ class OpsJobController extends Controller
         ]);
 
         foreach ($opsJob->opsJobItems as $item) {
-            // A Smart Chiller cannot take "implement new mapping" (supplier-owned
-            // planogram, no APK to push to). The flag must NOT land on the item:
-            // completion keys on stock_action_type to run the old-stock auto-return
-            // and the channel-frame push. Leave the item without a stock action.
-            if ($request->stock_action_type === 'implement_new_mapping' && $this->isSmartChillerItem($item)) {
+            // Actions the item's machine kind refuses (Vend::disallowedStockActions —
+            // a Smart Chiller: implement_new_mapping, melted_stock) must NOT land on
+            // the item: completion keys on stock_action_type to run the old-stock
+            // auto-return, the channel-frame push or the melted discard. A mixed
+            // job leaves such items without a stock action instead of failing.
+            $ruleVend = $this->vendForStockActionRule($item);
+            if ($ruleVend && ! $ruleVend->allowsStockAction($request->stock_action_type)) {
                 $item->update(['stock_action_type' => null]);
                 $item->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
 
@@ -2505,26 +2507,28 @@ class OpsJobController extends Controller
      */
     private function assertStockActionAllowedForMachine(OpsJobItem $opsJobItem, ?string $stockActionType): void
     {
-        if ($stockActionType !== 'implement_new_mapping') {
+        $vend = $this->vendForStockActionRule($opsJobItem);
+        if (! $vend || $vend->allowsStockAction($stockActionType)) {
             return;
         }
-        if ($this->isSmartChillerItem($opsJobItem)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'stock_action_type' => 'Implement New Mapping does not apply to a Smart Chiller — its planogram comes from the CityBox portal.',
-            ]);
-        }
+        $label = match ($stockActionType) {
+            'implement_new_mapping' => 'Implement New Mapping',
+            'melted_stock' => 'Melted Ice Cream',
+            default => ucfirst(str_replace('_', ' ', (string) $stockActionType)),
+        };
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'stock_action_type' => $label.' does not apply to a '.(Vend::MACHINE_TYPE_MAPPINGS[$vend->machine_type] ?? $vend->machine_type).'.',
+        ]);
     }
 
     /**
-     * Unscoped on purpose: the operator global scope on Vend must not turn
-     * "another operator's chiller" into "not a chiller" and let a guard lapse.
+     * The item's machine for the stock-action rule (Vend::disallowedStockActions).
+     * Unscoped on purpose: the rule is about the machine kind, not about what
+     * the viewer may see, and a driver's operator scope must not hide it.
      */
-    private function isSmartChillerItem(OpsJobItem $opsJobItem): bool
+    private function vendForStockActionRule(OpsJobItem $opsJobItem): ?Vend
     {
-        return Vend::withoutGlobalScopes()
-            ->where('id', $opsJobItem->vend_id)
-            ->where('machine_type', Vend::MACHINE_TYPE_SMART_CHILLER)
-            ->exists();
+        return Vend::withoutGlobalScopes()->find($opsJobItem->vend_id);
     }
 
     private function applyNewMappingToItem($opsJobItem)

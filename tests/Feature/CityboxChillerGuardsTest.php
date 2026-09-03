@@ -172,6 +172,43 @@ class CityboxChillerGuardsTest extends TestCase
         $this->assertNull($item->fresh()->stock_action_type);
     }
 
+    public function test_melted_stock_is_refused_for_a_chiller_and_hidden_from_its_menu(): void
+    {
+        $customer = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => 1, 'status_id' => Customer::STATUS_ACTIVE]);
+        $vend = $this->chiller(['customer_id' => $customer->id, 'product_mapping_id' => $this->mirror()->id]);
+        $job = OpsJob::create(['code' => 900102, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $this->user->id, 'operator_id' => 1]);
+        $item = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PENDING]);
+
+        $this->post('/ops-jobs/items/'.$item->id.'/update/stock-action', ['stock_action_type' => 'melted_stock'])
+            ->assertSessionHasErrors('stock_action_type');
+        $this->assertNull($item->fresh()->stock_action_type);
+
+        // The counts-based actions still work on a chiller.
+        $this->post('/ops-jobs/items/'.$item->id.'/update/stock-action', ['stock_action_type' => 'onsite_adjustment'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('onsite_adjustment', $item->fresh()->stock_action_type);
+
+        // The rule the menu reads, flat on the item resource.
+        $this->assertSame(['implement_new_mapping', 'melted_stock'], $vend->disallowedStockActions());
+        $this->assertSame([], Vend::create(['code' => 9002, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1, 'operator_id' => 1])->disallowedStockActions());
+    }
+
+    public function test_job_level_melted_stock_leaves_the_chiller_item_without_an_action(): void
+    {
+        $customer = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => 1, 'status_id' => Customer::STATUS_ACTIVE]);
+        $vend = $this->chiller(['customer_id' => $customer->id, 'product_mapping_id' => $this->mirror()->id]);
+        $vm = Vend::create(['code' => 9003, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1, 'operator_id' => 1, 'customer_id' => $customer->id]);
+        $job = OpsJob::create(['code' => 900103, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $this->user->id, 'operator_id' => 1]);
+        $chillerItem = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PENDING]);
+        $vmItem = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vm->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PENDING]);
+
+        $this->post('/ops-jobs/'.$job->id.'/update/stock-action', ['stock_action_type' => 'melted_stock'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($chillerItem->fresh()->stock_action_type);
+        $this->assertSame('melted_stock', $vmItem->fresh()->stock_action_type);
+    }
+
     public function test_job_level_bulk_action_skips_the_chiller_item_instead_of_pushing_a_frame(): void
     {
         $customer = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => 1, 'status_id' => Customer::STATUS_ACTIVE]);

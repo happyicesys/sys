@@ -104,6 +104,27 @@ class Vend extends Model
     }
 
     /**
+     * Ops-job stock actions this machine kind cannot perform. A CityBox chiller:
+     *  - implement_new_mapping — its planogram is CityBox's (mark1 mirrors it) and
+     *    the completion path pushes an APK channel frame it cannot receive;
+     *  - melted_stock — the melted-ice-cream discard flow; a chiller sells drinks.
+     * Return-all-stock and onsite adjustment remain valid (they are counts).
+     * One list, read by the item-level refusal, the job-level bulk skip and the
+     * Stock Action menu — extend here, not at the call sites.
+     *
+     * @return list<string>
+     */
+    public function disallowedStockActions(): array
+    {
+        return $this->isSmartChiller() ? ['implement_new_mapping', 'melted_stock'] : [];
+    }
+
+    public function allowsStockAction(?string $type): bool
+    {
+        return $type === null || ! in_array($type, $this->disallowedStockActions(), true);
+    }
+
+    /**
      * The CityBox-side status layer (their ops status, heartbeat, online) as a
      * value object, or null for any other machine kind. Reads the last poll
      * result from the row; never calls their API.

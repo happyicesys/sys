@@ -130,6 +130,9 @@ class OpsJobItemResource extends JsonResource
             'is_citybox_chiller' => $this->relationLoaded('vend') && $this->vend
                 ? ($this->vend->machine_type === \App\Models\Vend::MACHINE_TYPE_SMART_CHILLER && (bool) $this->vend->citybox_equipment_id)
                 : false,
+            // Stock actions the machine kind refuses (Vend::disallowedStockActions);
+            // the Stock Action menu hides them, the server refuses them anyway.
+            'disallowed_stock_actions' => $this->relationLoaded('vend') && $this->vend ? $this->vend->disallowedStockActions() : [],
             'citybox_msg_id' => $this->citybox_msg_id ?? null,
             'citybox_submit_status' => $this->citybox_submit_status ?? null,
             'citybox_submitted_at' => isset($this->citybox_submitted_at) ? \Carbon\Carbon::parse($this->citybox_submitted_at)->format('ymd h:i a (D)') : null,
