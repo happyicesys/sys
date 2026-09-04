@@ -1,7 +1,7 @@
 <template>
   <!-- Inline "who last changed this field, and when", derived from user_logs.
        Renders nothing when there is no recorded change for the field. -->
-  <p v-if="entry && entry.who" class="mt-1 text-xs text-gray-400 italic">
+  <p v-if="entry && entry.who" class="mt-1 text-xs text-blue-600 italic">
     {{ entry.who }} &middot; {{ fmt(entry.at) }}
   </p>
 </template>

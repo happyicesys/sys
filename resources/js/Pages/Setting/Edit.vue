@@ -117,7 +117,7 @@
                   disabled
                 />
               </div>
-              <p class="mt-1 text-xs text-gray-500">
+              <p class="mt-1 text-xs text-blue-600">
                 Set when the machine was created — not editable. Restricts the mapping lists below to mappings built for this machine kind.
               </p>
               <div class="text-sm text-red-600" v-if="form.errors.machine_type">
@@ -225,7 +225,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <p v-if="isChiller" class="mt-1 text-xs text-gray-500">From CityBox (`type`) — not editable.</p>
+                <p v-if="isChiller" class="mt-1 text-xs text-blue-600">From CityBox (`type`) — not editable.</p>
                 <FieldAudit :entry="fieldAudit.vend_model_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
                   {{ form.errors.vend_model_id }}
@@ -669,9 +669,9 @@
                 </MultiSelect>
                 <!-- The RP tier is the Site's (Customer edit → Ref Price Type); the machine
                      only chooses whether to follow it. No per-machine RP override. -->
-                <p class="mt-1 text-xs text-gray-500">
+                <p class="mt-1 text-xs text-blue-600">
                   <template v-if="siteSellingPriceType">
-                    Site's pricing is <span class="font-semibold text-gray-700">RP{{ siteSellingPriceType }}</span> — change it in the Site (Customer) edit page.
+                    Site's pricing is <span class="font-semibold text-blue-800">RP{{ siteSellingPriceType }}</span> — change it in the Site (Customer) edit page.
                   </template>
                   <template v-else>
                     No Site bound / no Ref Price Type on the Site — the machine falls back to machine price until one is set.
@@ -744,7 +744,7 @@
                     <a v-if="cbRepair.devices.length" href="#" class="ml-1 text-indigo-600 hover:underline" @click.prevent="cbRepair.manual = !cbRepair.manual">{{ cbRepair.manual ? 'pick from list' : 'type it instead' }}</a>
                   </p>
                 </template>
-                <p class="mt-1 text-xs text-gray-500">
+                <p class="mt-1 text-xs text-blue-600">
                   <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation · last synced {{ vend.citybox_synced_at ? formatDatetime(vend.citybox_synced_at) : 'never' }} · not editable.</template>
                   <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — set it here only to repair a lost link.</template>
                 </p>
@@ -818,7 +818,7 @@
                     disabled
                     class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 text-gray-700 shadow-sm sm:text-sm"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Read-only mirror of the CityBox Pre-Stock Setup. Change it in the CityBox portal, then press Pull.</p>
+                  <p class="mt-1 text-xs text-blue-600">Read-only mirror of the CityBox Pre-Stock Setup. Change it in the CityBox portal, then press Pull.</p>
                 </template>
                 <MultiSelect
                   v-else
