@@ -3,6 +3,8 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { LockOpenIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
+import DatePicker from '@/Components/DatePicker.vue';
+import moment from 'moment';
 
 const props = defineProps({
     settlement: { type: Object, required: true },
@@ -13,6 +15,12 @@ const props = defineProps({
 
 const msg = ref('');
 const busy = ref(false);
+
+// Bank value date for the batch — the day the CIMB transfer actually cleared,
+// which is often not the day the admin gets round to ticking the rows. Defaults
+// to today; posted to mark-done, which stores it as CustomerPeriodSummary.paid_date
+// and as the ledger entry_date.
+const paidDate = ref(moment().format('YYYY-MM-DD'));
 
 const isOpen = computed(() => props.settlement.status === 'open');
 const isClosed = computed(() => !isOpen.value);
@@ -64,8 +72,9 @@ function returnToPool(summaryId, label) {
 function markDone() {
     const ids = selectedSummaryIds();
     if (!ids.length) { msg.value = 'Tick the rows that were actually paid.'; return; }
-    if (!confirm('Mark ' + selected.value.length + ' site payment(s) as paid? This records the payment in the settlement ledger.')) return;
-    post(`/site-settlements/${props.settlement.id}/mark-done`, { ids }, true);
+    if (!paidDate.value) { msg.value = 'Pick the paid date.'; return; }
+    if (!confirm('Mark ' + selected.value.length + ' site payment(s) as paid on ' + paidDate.value + '? This records the payment in the settlement ledger.')) return;
+    post(`/site-settlements/${props.settlement.id}/mark-done`, { ids, paid_date: paidDate.value }, true);
 }
 
 async function exportCimb() {
@@ -187,8 +196,11 @@ function actionBadge(l) { return actionBadges[l.action] || null; }
 
             <template v-if="!allDone && rows.length">
                 <p class="mt-3 text-xs text-gray-500">Pay the sites (export the CIMB file), then tick the rows that were actually paid and mark them done. This records each payment in the settlement ledger.</p>
-                <div class="mt-2">
-                    <button @click="markDone" :disabled="busy || !selected.length"
+                <div class="mt-2 flex flex-wrap items-end gap-3">
+                    <div class="w-56">
+                        <DatePicker v-model="paidDate" :clearable="false" :isPreviousNextButton="false">Paid date</DatePicker>
+                    </div>
+                    <button @click="markDone" :disabled="busy || !selected.length || !paidDate"
                         class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected as Paid ({{ selected.length }})</button>
                 </div>
             </template>

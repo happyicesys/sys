@@ -9,6 +9,7 @@ use App\Models\RefundSettlementExport;
 use App\Models\RefundSettlementLog;
 use App\Models\RefundTicket;
 use App\Services\Refund\BankTemplates\BankTemplateRegistry;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -248,14 +249,24 @@ class RefundSettlementService
      * settlement for fix / return-to-pool. When every member is completed the
      * settlement flips to DONE.
      */
-    public function markDone(RefundPayoutBatch $settlement, array $ticketIds, ?int $userId = null, ?string $actorLabel = 'Admin'): int
+    public function markDone(RefundPayoutBatch $settlement, array $ticketIds, ?int $userId = null, ?string $actorLabel = 'Admin', ?string $paidDate = null): int
     {
         $this->assertSettlement($settlement);
         // Marking a refund done is allowed whether the settlement is open or closed:
         // the admin may pay a row via PayNow/PayPal and tick it done before formally
         // closing the batch. Membership + not-already-completed are still enforced below.
 
-        $completed = DB::transaction(function () use ($settlement, $ticketIds, $userId, $actorLabel) {
+        // Bank value date, picked by the admin on the settlement page — the day the
+        // PayNow / PayPal payout actually left, which is usually earlier than the day
+        // the rows get ticked. It lands on paid_at; completed_at stays the moment it
+        // was recorded. Today keeps the wall-clock time so a same-day batch is not
+        // backdated to midnight. Mirrors CommissionSettlementService::markDone.
+        $paidAt = $paidDate ? Carbon::parse($paidDate)->startOfDay() : now();
+        if ($paidAt->isToday()) {
+            $paidAt = now();
+        }
+
+        $completed = DB::transaction(function () use ($settlement, $ticketIds, $userId, $actorLabel, $paidAt) {
             $tickets = RefundTicket::whereIn('id', $ticketIds)
                 ->where('payout_batch_id', $settlement->id)
                 // Insufficient-info rows (bank couldn't pay) can also be marked done
@@ -271,7 +282,7 @@ class RefundSettlementService
                 $from = $ticket->status;
                 $ticket->update([
                     'status' => RefundTicket::STATUS_COMPLETED,
-                    'paid_at' => $ticket->paid_at ?? now(),
+                    'paid_at' => $paidAt,
                     'completed_at' => now(),
                 ]);
                 $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund done via settlement ' . $settlement->reference, $actorLabel ?? 'Admin', $userId);

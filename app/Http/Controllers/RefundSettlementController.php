@@ -154,6 +154,7 @@ class RefundSettlementController extends Controller
                 'is_done' => $t->status === RefundTicket::STATUS_COMPLETED,
                 'is_insufficient' => $t->status === RefundTicket::STATUS_INSUFFICIENT_INFO,
                 'completed_at' => optional($t->completed_at)->format('ymd h:i a'),
+                'paid_date' => optional($t->paid_at)->format('ymd'),
                 'done_actor' => $actors[$t->id]['done'] ?? null,
                 'insufficient_actor' => $actors[$t->id]['insufficient'] ?? null,
                 // PayNow proxy sanity flag (invalid numbers ship a bad CIMB row).
@@ -279,9 +280,11 @@ class RefundSettlementController extends Controller
         $data = $request->validate([
             'ticket_ids' => ['required', 'array', 'min:1'],
             'ticket_ids.*' => ['integer'],
+            // Bank value date picked on the settlement page; defaults to today.
+            'paid_date' => ['nullable', 'date'],
         ]);
         try {
-            $done = $this->settlements->markDone($settlement, $data['ticket_ids'], auth()->id(), auth()->user()?->name ?? 'Admin');
+            $done = $this->settlements->markDone($settlement, $data['ticket_ids'], auth()->id(), auth()->user()?->name ?? 'Admin', $data['paid_date'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }

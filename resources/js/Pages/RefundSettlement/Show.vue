@@ -3,6 +3,8 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { LockClosedIcon, LockOpenIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
+import DatePicker from '@/Components/DatePicker.vue';
+import moment from 'moment';
 
 const props = defineProps({
     settlement: { type: Object, required: true },
@@ -14,6 +16,12 @@ const props = defineProps({
 
 const msg = ref('');
 const busy = ref(false);
+
+// Bank value date for the batch — the day the PayNow / PayPal payout actually
+// left, which is often not the day the admin gets round to ticking the rows.
+// Defaults to today; posted to mark-done, which stores it as the ticket's paid_at
+// (completed_at stays the moment it was recorded).
+const paidDate = ref(moment().format('YYYY-MM-DD'));
 
 // Only two states: open / closed. Anything not open counts as closed.
 const isOpen = computed(() => props.settlement.status === 'open');
@@ -88,8 +96,9 @@ function returnToPool(ticketId, ref_) {
 }
 function markDone() {
     if (!selected.value.length) { msg.value = 'Tick the rows the bank / PayPal actually paid.'; return; }
-    if (!confirm('Mark ' + selected.value.length + ' refund(s) as done? A completion email is sent to each (or logged while emails are off).')) return;
-    post(`/refund-settlements/${props.settlement.id}/mark-done`, { ticket_ids: selected.value }, true);
+    if (!paidDate.value) { msg.value = 'Pick the paid date.'; return; }
+    if (!confirm('Mark ' + selected.value.length + ' refund(s) as done, paid on ' + paidDate.value + '? A completion email is sent to each (or logged while emails are off).')) return;
+    post(`/refund-settlements/${props.settlement.id}/mark-done`, { ticket_ids: selected.value, paid_date: paidDate.value }, true);
 }
 function markInsufficientInfo() {
     if (!selected.value.length) { msg.value = 'Tick the rows the bank could not pay (bad / missing PayNow info).'; return; }
@@ -216,7 +225,7 @@ function actionBadge(l) {
                         </td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">
                             <template v-if="t.is_done">
-                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed</span>
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed<template v-if="t.paid_date"> · {{ t.paid_date }}</template></span>
                                 <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
                                     <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
                                     <span class="block">{{ t.done_actor.at }}</span>
@@ -263,7 +272,7 @@ function actionBadge(l) {
                         <td class="px-4 py-2 text-center">{{ t.payout_destination }}</td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">
                             <template v-if="t.is_done">
-                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed</span>
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed<template v-if="t.paid_date"> · {{ t.paid_date }}</template></span>
                                 <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
                                     <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
                                     <span class="block">{{ t.done_actor.at }}</span>
@@ -328,11 +337,12 @@ function actionBadge(l) {
             <template v-if="!allDone && allTickets.length">
                 <!-- Mark selected as Completed -->
                 <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3">
-                    <div class="sm:w-72 shrink-0">
-                        <button @click="markDone" :disabled="busy || !selected.length"
+                    <div class="sm:w-72 shrink-0 space-y-2">
+                        <DatePicker v-model="paidDate" :clearable="false" :isPreviousNextButton="false">Paid date</DatePicker>
+                        <button @click="markDone" :disabled="busy || !selected.length || !paidDate"
                             class="w-full bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected as Completed ({{ selected.length }})</button>
                     </div>
-                    <p class="text-sm text-gray-600 flex-1">PayNow info correct and refund completed. Tick the refund rows, then click this button — it will trigger an email to customers to inform them the refund is completed.</p>
+                    <p class="text-sm text-gray-600 flex-1">PayNow info correct and refund completed. Set the date the payout actually left, tick the refund rows, then click this button — it will trigger an email to customers to inform them the refund is completed.</p>
                 </div>
                 <hr class="border-gray-200" />
 
