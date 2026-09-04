@@ -235,6 +235,27 @@ Regression coverage: `tests/Unit/SaleStatusTest.php`,
 `tests/Feature/TransactionIndexDispenseFilterTest.php`,
 `tests/Feature/TransactionIndexStatusColumnsTest.php`.
 
+## Per-field attribution on Machine Settings: every editable field carries one
+
+Setting/Edit shows "who last changed this, and when" under each control
+(`Components/FieldAudit.vue`, fed by `VendController::fieldAudit`). Nothing is
+stored for it — the endpoint derives it from the app-wide `user_logs` audit
+(`App\Services\UserLogger`), taking the newest row per changed column. So:
+
+- **A new editable field on that page needs its `<FieldAudit :entry="fieldAudit.<column>" />` line**,
+  and nothing else. No migration, no controller change — the audit is already
+  being written.
+- The endpoint discards type-only diffs (`is_active [1 -> true]`, `key_id
+  [100 -> "100"]`), because the form posts booleans/strings against int
+  columns and an unchanged save would otherwise stamp every field.
+- **A pivot is invisible to it.** `belongsToMany::sync()` fires no Eloquent
+  event on the parent, so the Machine Stickers picker calls
+  `UserLogger::recordChanges($vend, ['sticker_ids' => [$before, $after]])` by
+  hand — a synthetic column named after the form field. Any future pivot on
+  this page does the same.
+- The lines re-read after each save (`loadFieldAudit()`); the page stays
+  mounted across Inertia's redirect-back, so `onMounted` alone lags a save.
+
 ## Smart Chiller (CityBox): not a vending machine with extra fields
 
 A `machine_type = smart_chiller` vend is CityBox's hardware running CityBox's

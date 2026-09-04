@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Services\UserLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -107,5 +108,34 @@ class UserLogTest extends TestCase
         $res2 = $this->actingAs($user)->getJson('/user-logs?type=Product&id='.$product->id.'&before='.$before);
         $res2->assertOk();
         $this->assertLessThanOrEqual(10, count($res2->json('data')));
+    }
+
+    public function test_record_changes_logs_a_pivot_edit_eloquent_events_cannot_see(): void
+    {
+        $user = $this->actingWebUser();
+        $product = Product::create(['code' => 'AUD6', 'name' => 'Pivot']);
+        DB::table('user_logs')->delete();
+
+        // Shape a belongsToMany sync() would leave behind, which fires no model
+        // event on the parent (the Machine Stickers picker on Setting/Edit).
+        UserLogger::recordChanges($product, ['sticker_ids' => [[1], [1, 2]]]);
+
+        $row = DB::table('user_logs')->where('auditable_id', $product->id)->latest('id')->first();
+        $this->assertNotNull($row, 'a manual change must be logged');
+        $this->assertSame('updated', $row->event);
+        $this->assertSame($user->id, (int) $row->user_id);
+        $this->assertSame([[1], [1, 2]], json_decode($row->changes, true)['sticker_ids']);
+    }
+
+    public function test_record_changes_is_skipped_without_a_web_user(): void
+    {
+        Auth::guard('web')->logout();
+        $product = Product::create(['code' => 'AUD7', 'name' => 'No actor']);
+        DB::table('user_logs')->delete();
+
+        UserLogger::recordChanges($product, ['sticker_ids' => [[], [1]]]);
+
+        $this->assertSame(0, DB::table('user_logs')->count(),
+            'actor-less manual changes must not be logged');
     }
 }

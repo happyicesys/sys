@@ -91,6 +91,7 @@ use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
+use App\Services\UserLogger;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
 use App\Services\VendJobService;
@@ -5493,7 +5494,21 @@ class VendController extends Controller
         // touch the pivot when the key was sent, so other callers of update()
         // that don't manage stickers never clear existing bindings.
         if ($request->has('sticker_ids')) {
-            $vend->stickers()->sync($request->input('sticker_ids', []) ?: []);
+            $stickersBefore = $vend->stickers()->pluck('vend_stickers.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            $stickersAfter = collect($request->input('sticker_ids', []) ?: [])
+                ->map(fn ($id) => (int) $id)->filter()->unique()->sort()->values()->all();
+
+            $vend->stickers()->sync($stickersAfter);
+
+            // sync() fires no Eloquent event on the vend, so the app-wide audit
+            // (UserLogger) never sees a sticker change. Record it by hand under a
+            // synthetic 'sticker_ids' column so the machine edit screen can
+            // attribute this field like any other.
+            if ($stickersBefore !== $stickersAfter) {
+                UserLogger::recordChanges($vend, [
+                    'sticker_ids' => [$stickersBefore, $stickersAfter],
+                ]);
+            }
         }
 
         return redirect()->back();

@@ -246,6 +246,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.sticker_ids" />
             </div>
             <div v-if="!isChiller" class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -339,6 +340,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.vend_contract_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_contract_id">
                   {{ form.errors.vend_contract_id }}
                 </div>
@@ -391,6 +393,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.vend_vend_config_version" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_vend_config_version">
                   {{ form.errors.vend_vend_config_version }}
                 </div>
@@ -531,6 +534,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.modem_unit_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.modem_unit_id">
                   {{ form.errors.modem_unit_id }}
                 </div>
@@ -553,6 +557,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.menu_frame_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.modem_frame_id">
                   {{ form.errors.modem_frame_id }}
                 </div>
@@ -576,6 +581,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.claw_machine_body_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.claw_machine_body_id">
                   {{ form.errors.claw_machine_body_id }}
                 </div>
@@ -598,6 +604,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.claw_machine_board_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.claw_machine_board_id">
                   {{ form.errors.claw_machine_board_id }}
                 </div>
@@ -620,6 +627,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.lcd_monitor_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.lcd_monitor_id">
                   {{ form.errors.lcd_monitor_id }}
                 </div>
@@ -639,6 +647,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.led_matrix_panel_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.led_matrix_panel_id">
                   {{ form.errors.led_matrix_panel_id }}
                 </div>
@@ -668,6 +677,7 @@
                     No Site bound / no Ref Price Type on the Site — the machine falls back to machine price until one is set.
                   </template>
                 </p>
+                <FieldAudit :entry="fieldAudit.is_using_server_price" />
                 <div class="text-sm text-red-600" v-if="form.errors.is_using_server_price">
                   {{ form.errors.is_using_server_price }}
                 </div>
@@ -687,6 +697,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.is_fan_enabled" />
                 <div class="text-sm text-red-600" v-if="form.errors.is_fan_enabled">
                   {{ form.errors.is_fan_enabled }}
                 </div>
@@ -737,6 +748,7 @@
                   <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation · last synced {{ vend.citybox_synced_at ? formatDatetime(vend.citybox_synced_at) : 'never' }} · not editable.</template>
                   <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — set it here only to repair a lost link.</template>
                 </p>
+                <FieldAudit :entry="fieldAudit.citybox_equipment_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.citybox_equipment_id">
                   {{ form.errors.citybox_equipment_id }}
                 </div>
@@ -820,6 +832,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.product_mapping_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
                   {{ form.errors.vend_prefix_id }}
                 </div>
@@ -852,6 +865,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.upcoming_product_mapping_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
                   {{ form.errors.upcoming_product_mapping_id }}
                 </div>
@@ -1062,6 +1076,7 @@
                     class="mt-1"
                   >
                   </MultiSelect>
+                  <FieldAudit :entry="fieldAudit.customer_id" />
                 </div>
               </div>
 
@@ -1077,6 +1092,7 @@
                     disabled
                   />
                 </div>
+                <FieldAudit :entry="fieldAudit.customer_id" />
               </div>
               <div class="sm:col-span-6" v-if="vend.customer && !vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -1090,6 +1106,7 @@
                     disabled
                   />
                 </div>
+                <FieldAudit :entry="fieldAudit.customer_id" />
               </div>
 
               <!-- <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(vend.customer.id && !vend.customer.person_id) || (!vend.customer.id && isExisting != 1)"> -->
@@ -2040,16 +2057,23 @@ async function loadCityboxRepairDevices() {
   } finally { cbRepair.loading = false; }
 }
 
+// Per-field audit (who/when) for this machine, derived from user_logs. Re-read
+// after every successful save: the page stays mounted across Inertia's
+// redirect-back, so onMounted alone would leave the lines a save behind.
+function loadFieldAudit() {
+  if (!props.vend || !props.vend.id) {
+    return;
+  }
+  axios.get('/vends/' + props.vend.id + '/field-audit')
+    .then((res) => { fieldAudit.value = res.data || {} })
+    .catch(() => {})
+}
+
 onMounted(() => {
   loadCityboxRepairDevices();
   stickerOptions.value = [{ id: '', name: '--- Clear ---' }, ...(((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map(s => ({ id: s.id, name: s.name })))]
 
-  // Per-field audit (who/when) for this machine, derived from user_logs.
-  if (props.vend && props.vend.id) {
-    axios.get('/vends/' + props.vend.id + '/field-audit')
-      .then((res) => { fieldAudit.value = res.data || {} })
-      .catch(() => {})
-  }
+  loadFieldAudit();
 
   // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populated from
   // CardTerminalResource::collection in SettingController@edit.
@@ -2720,7 +2744,9 @@ function replaceProductMapping(vendID) {
   form.value
     .post('/vends/' + vendID + '/replace-product-mapping', {
     onSuccess: () => {
-
+      // preserveState keeps this page mounted, so the mapping's audit line
+      // would otherwise still name whoever changed it last.
+      loadFieldAudit();
     },
     preserveState: true,
     replace: true,
@@ -2848,6 +2874,7 @@ function saveVend(vendID) {
       toast.success("Successfully Saved", {
         timeout: 3000
       });
+      loadFieldAudit();
     },
     onError: (errors) => {
       const errorCount = Object.keys(errors).length;

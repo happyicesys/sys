@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -87,24 +88,70 @@ class UserLogger
                 return;
             }
 
-            // Raw insert: deliberately bypasses Eloquent events so writing the
-            // log can never re-trigger this listener (no recursion) and stays cheap.
-            DB::table('user_logs')->insert([
-                'user_id' => $user?->getKey(),
-                'user_name' => $user?->name,
-                'event' => $event,
-                'auditable_type' => $class,
-                'auditable_id' => $model->getKey(),
-                'changes' => $changes === [] ? null : json_encode($changes),
-                'source' => 'web',
-                'ip' => request()->ip(),
-                'url' => mb_substr((string) request()->path(), 0, 2048),
-                'created_at' => now(),
-            ]);
+            self::insert($event, $model, $class, $user, $changes);
         } catch (Throwable $e) {
             // Auditing must never break the user's action.
             report($e);
         }
+    }
+
+    /**
+     * Record a change the Eloquent events cannot see, in the same shape as an
+     * 'updated' row: { column: [old, new] }.
+     *
+     * Needed because a belongsToMany sync() fires no event on the parent model,
+     * so a pivot edit made from an edit form (e.g. a Vend's Machine Stickers)
+     * would otherwise leave no "who / when" behind. The column name is
+     * synthetic — it names the form field, not a real DB column.
+     *
+     * @param  array<string, array{0: mixed, 1: mixed}>  $changes
+     */
+    public static function recordChanges(Model $model, array $changes): void
+    {
+        try {
+            if (! config('userlog.enabled', true)) {
+                return;
+            }
+
+            // Same two gates as record(): a human web action, on a model that
+            // is not deny-listed.
+            if (Auth::guard('web')->guest()) {
+                return;
+            }
+
+            $class = get_class($model);
+            if (in_array(class_basename($class), (array) config('userlog.deny', []), true)) {
+                return;
+            }
+
+            if ($changes === []) {
+                return;
+            }
+
+            self::insert('updated', $model, $class, Auth::guard('web')->user(), $changes);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * Raw insert: deliberately bypasses Eloquent events so writing the log can
+     * never re-trigger the wildcard listeners (no recursion) and stays cheap.
+     */
+    private static function insert(string $event, Model $model, string $class, ?Authenticatable $user, array $changes): void
+    {
+        DB::table('user_logs')->insert([
+            'user_id' => $user?->getKey(),
+            'user_name' => $user?->name,
+            'event' => $event,
+            'auditable_type' => $class,
+            'auditable_id' => $model->getKey(),
+            'changes' => $changes === [] ? null : json_encode($changes),
+            'source' => 'web',
+            'ip' => request()->ip(),
+            'url' => mb_substr((string) request()->path(), 0, 2048),
+            'created_at' => now(),
+        ]);
     }
 
     /**
