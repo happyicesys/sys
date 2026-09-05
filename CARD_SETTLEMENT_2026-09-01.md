@@ -71,7 +71,7 @@ Candidates a line cannot take (held by another line) are shown as "held by row #
 button — Pick would only bounce with "already claimed". Picking a sale on another machine asks for
 confirmation ("Moving this line from machine A to machine B…") and the line then follows that
 machine. Open queries carry a checkbox (header = select all on the page) and an **Ignore Selected**
-batch button (`POST /card-settlements/{id}/rows/ignore-batch`, Unmatched/Ambiguous only). Claims are unique both directions (fingerprint UNIQUE;
+batch button (`POST /card-settlements/{id}/rows/ignore-batch`, Unmatched/Ambiguous only). The manual **Txn ID / Order ID** box takes either the sale's numeric id (`#5963112`, as the page prints it) or the Order ID shown on Sales Transactions (17–19 digits; unique per machine, so a duplicate across machines is refused with a hint to use the numeric id). Claims are unique both directions (fingerprint UNIQUE;
 `matched_vend_transaction_id` UNIQUE across ALL reports ever).
 
 Report: uploaded → matching → review → synced (failed on parser error). Rematch re-runs only

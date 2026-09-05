@@ -508,7 +508,9 @@ class CardSettlementController extends Controller
     public function resolveRow(Request $request, $id, $rowId)
     {
         $validated = $request->validate([
-            'vend_transaction_id' => ['required', 'integer'],
+            // vend_transactions.id (the #123456 the page shows) OR the machine's
+            // Order ID from Sales Transactions (17–19 digits) — see resolveSale().
+            'vend_transaction_id' => ['required', 'regex:/^\d{1,20}$/'],
         ]);
 
         $report = CardSettlementReport::findOrFail($id);
@@ -524,7 +526,13 @@ class CardSettlementController extends Controller
             CardSettlementRow::STATUS_MATCHED,
         ]), 422, 'Row cannot be resolved.');
 
-        $txn = VendTransaction::withoutGlobalScopes()->findOrFail($validated['vend_transaction_id']);
+        $txn = $this->resolveSale($validated['vend_transaction_id'], $row->vend_id);
+        if (! $txn) {
+            return back()->withErrors(['vend_transaction_id' => 'No sale found for that Txn ID / Order ID.']);
+        }
+        if ($txn === 'ambiguous') {
+            return back()->withErrors(['vend_transaction_id' => 'That Order ID exists on more than one machine — use the numeric Txn ID (#…) instead.']);
+        }
 
         if ($txn->amount !== $row->amount_cents) {
             return back()->withErrors(['vend_transaction_id' => 'Sale amount does not match the report row.']);
@@ -578,6 +586,39 @@ class CardSettlementController extends Controller
         $report->refreshCounts();
 
         return back()->with('message', 'Row ignored.');
+    }
+
+    /**
+     * The "Txn ID" box accepts either identifier a user can see: the sale's
+     * numeric id (as the page prints it, #5963112) or the machine's Order ID
+     * as shown on Sales Transactions (yyyymmddHHMMSS + trade counter, 17–19
+     * digits). Order IDs are unique per machine, not globally, so a bound
+     * machine narrows the lookup; without one, a duplicate is refused.
+     *
+     * @return VendTransaction|'ambiguous'|null
+     */
+    protected function resolveSale(string $identifier, ?int $vendId)
+    {
+        if (strlen($identifier) < 12) {
+            return VendTransaction::withoutGlobalScopes()->find((int) $identifier);
+        }
+
+        $matches = VendTransaction::withoutGlobalScopes()
+            ->where('order_id', $identifier)
+            ->when($vendId, fn ($q) => $q->where('vend_id', $vendId))
+            ->limit(2)
+            ->get();
+
+        if ($matches->isEmpty() && $vendId) {
+            // Wrong-binding case: the sale may be on another machine.
+            $matches = VendTransaction::withoutGlobalScopes()->where('order_id', $identifier)->limit(2)->get();
+        }
+
+        if ($matches->count() > 1) {
+            return 'ambiguous';
+        }
+
+        return $matches->first();
     }
 
     /** Ignore many query lines at once (checkbox selection on the report page). */

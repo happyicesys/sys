@@ -372,7 +372,7 @@
                           </div>
                         </div>
                         <div v-if="(row.status === 2 || row.status === 3) && !row.is_reversal" class="flex items-center space-x-1 mt-1">
-                          <input v-model="manualTxnId[row.id]" placeholder="Txn ID"
+                          <input v-model="manualTxnId[row.id]" placeholder="Txn ID / Order ID" title="Either the sale's numeric Txn ID (#…, as shown here) or its Order ID from Sales Transactions"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs border-gray-300 rounded-md w-24 px-2 py-1"
                             @keyup.enter="resolveManual(row)" />
                           <Button
@@ -602,8 +602,8 @@ function ignoreSelected() {
 
 const manualTxnId = ref({})
 function resolveManual(row) {
-  const id = parseInt(manualTxnId.value[row.id], 10)
-  if (!id) return
+  const id = String(manualTxnId.value[row.id] || '').trim().replace(/^#/, '')
+  if (!/^\d{1,20}$/.test(id)) return
   resolveTo(row, id)
 }
 
