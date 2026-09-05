@@ -177,6 +177,169 @@ class CardTerminalUnitTest extends TestCase
         }
     }
 
+    /** Terminal IDs the listing returns, in order. */
+    private function listed(array $query = []): array
+    {
+        $response = $this->get('/card-terminal-units?'.http_build_query($query));
+        $response->assertOk();
+
+        return collect($response->viewData('page')['props']['cardTerminalUnits']['data'])
+            ->pluck('terminal_id')->all();
+    }
+
+    /** A terminal on a machine, plus one that was taken off it last year. */
+    private function seedBoundAndUnbound(): array
+    {
+        $vend = $this->makeVend(7030);
+
+        CardTerminalUnit::create(['terminal_id' => 'BND00001', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'FREE0001', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'FREE0002', 'card_terminal_id' => $this->nets->id]);
+
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'BND00001',
+            'vend_id' => $vend->id, 'bound_from' => '2026-01-01',
+        ]);
+        // Ended binding: this terminal is a spare again, so "No" must list it.
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'FREE0001',
+            'vend_id' => $vend->id, 'bound_from' => '2025-01-01', 'bound_until' => '2025-06-30',
+        ]);
+
+        return [$vend];
+    }
+
+    public function test_bound_filter_yes_lists_only_terminals_on_a_machine_today(): void
+    {
+        $this->seedBoundAndUnbound();
+        $this->actingAs($this->staff(['read card-terminals']));
+
+        $this->assertSame(['BND00001'], $this->listed(['is_bound' => 'yes']));
+    }
+
+    public function test_bound_filter_no_lists_only_terminals_not_on_a_machine(): void
+    {
+        $this->seedBoundAndUnbound();
+        $this->actingAs($this->staff(['read card-terminals']));
+
+        // FREE0001's binding ended, FREE0002 never had one — both are spares.
+        $this->assertSame(['FREE0001', 'FREE0002'], $this->listed(['is_bound' => 'no']));
+    }
+
+    public function test_bound_filter_defaults_to_all(): void
+    {
+        $this->seedBoundAndUnbound();
+        $this->actingAs($this->staff(['read card-terminals']));
+
+        $this->assertCount(3, $this->listed());
+        $this->assertCount(3, $this->listed(['is_bound' => 'all']));
+    }
+
+    public function test_a_binding_to_a_machine_that_no_longer_exists_counts_as_unbound(): void
+    {
+        // The Machine ID column shows nothing for such a row, so the filter has
+        // to agree with it or "No" would hide a terminal that reads as free.
+        CardTerminalUnit::create(['terminal_id' => 'ORPHAN01', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'ORPHAN01',
+            'vend_id' => 999999, 'bound_from' => '2026-01-01',
+        ]);
+        $this->actingAs($this->staff(['read card-terminals']));
+
+        $this->assertSame(['ORPHAN01'], $this->listed(['is_bound' => 'no']));
+        $this->assertSame([], $this->listed(['is_bound' => 'yes']));
+    }
+
+    public function test_machine_id_column_sorts_by_machine_with_spares_last(): void
+    {
+        $low = $this->makeVend(7031);
+        $high = $this->makeVend(7032);
+        $user = $this->staff(['read card-terminals']);
+
+        // Terminal IDs deliberately in the opposite order to their machines, so
+        // a passing sort cannot be the default terminal_id ordering.
+        CardTerminalUnit::create(['terminal_id' => 'SRT00003', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'SRT00002', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'SRT00001', 'card_terminal_id' => $this->nets->id]);
+
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'SRT00003',
+            'vend_id' => $low->id, 'bound_from' => '2026-01-01',
+        ]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'SRT00002',
+            'vend_id' => $high->id, 'bound_from' => '2026-01-01',
+        ]);
+
+        $this->actingAs($user);
+
+        // Ascending by machine: 7031, then 7032, then the spare.
+        $this->assertSame(
+            ['SRT00003', 'SRT00002', 'SRT00001'],
+            $this->listed(['sortKey' => 'vend_code', 'sortBy' => 'true'])
+        );
+
+        // Descending flips the bound ones but must NOT float the spare to the
+        // top — a terminal on no machine belongs at the bottom either way.
+        $this->assertSame(
+            ['SRT00002', 'SRT00003', 'SRT00001'],
+            $this->listed(['sortKey' => 'vend_code', 'sortBy' => 'false'])
+        );
+    }
+
+    public function test_export_can_be_sorted_by_machine_too(): void
+    {
+        // The export iterates with cursor(), a different code path from the
+        // grid's paginate(). Ordering on a correlated subquery has to survive
+        // it, or the file comes out in a different order from the screen.
+        $low = $this->makeVend(7040);
+        $high = $this->makeVend(7041);
+
+        CardTerminalUnit::create(['terminal_id' => 'XPS00003', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'XPS00002', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'XPS00001', 'card_terminal_id' => $this->nets->id]);
+
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'XPS00003',
+            'vend_id' => $low->id, 'bound_from' => '2026-01-01',
+        ]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'XPS00002',
+            'vend_id' => $high->id, 'bound_from' => '2026-01-01',
+        ]);
+
+        $this->actingAs($this->staff(['read card-terminals', 'export card-terminals']));
+
+        $this->assertSame(
+            ['XPS00003', 'XPS00002', 'XPS00001'],
+            collect($this->exportSheet(['sortKey' => 'vend_code', 'sortBy' => 'true']))
+                ->pluck('Terminal ID')->all()
+        );
+    }
+
+    public function test_an_unknown_sort_key_falls_back_to_terminal_id(): void
+    {
+        CardTerminalUnit::create(['terminal_id' => 'SAF00002', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'SAF00001', 'card_terminal_id' => $this->nets->id]);
+        $this->actingAs($this->staff(['read card-terminals']));
+
+        $this->assertSame(
+            ['SAF00001', 'SAF00002'],
+            $this->listed(['sortKey' => 'remarks); drop table card_terminal_units; --'])
+        );
+    }
+
+    public function test_export_honours_the_bound_filter(): void
+    {
+        $this->seedBoundAndUnbound();
+        $this->actingAs($this->staff(['read card-terminals', 'export card-terminals']));
+
+        $this->assertSame(
+            ['BND00001'],
+            collect($this->exportSheet(['is_bound' => 'yes']))->pluck('Terminal ID')->all()
+        );
+    }
+
     public function test_export_columns_carry_the_terminal_its_company_and_its_machine(): void
     {
         $vend = $this->makeVend(7022);

@@ -44,6 +44,22 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Bound to Machine
+            </label>
+            <MultiSelect
+              v-model="filters.is_bound"
+              :options="boundFilterOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
           <SearchInput placeholderStr="Remarks" v-model="filters.remarks">
             Remarks
           </SearchInput>
@@ -127,9 +143,9 @@
                     <TableHeadSort modelName="card_terminal_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('card_terminal_id')">
                       Card Terminal Company
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Machine ID
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Remarks
                     </TableHead>
@@ -241,6 +257,7 @@ const filters = ref({
   terminal_id: props.filters?.terminal_id ?? '',
   card_terminal_id: null,
   vend_code: props.filters?.vend_code ?? '',
+  is_bound: null,
   remarks: props.filters?.remarks ?? '',
   sortKey: props.filters?.sortKey ?? 'terminal_id',
   sortBy: props.filters?.sortBy ?? true,
@@ -252,6 +269,14 @@ const type = ref('')
 const toast = useToast()
 const numberPerPageOptions = ref([])
 const loading = ref(false)
+
+// Yes = on a machine today, No = spare on the shelf. Same question the
+// Machine ID column answers, so the two always agree.
+const boundFilterOptions = [
+  { id: 'all', name: 'All' },
+  { id: 'yes', name: 'Yes' },
+  { id: 'no', name: 'No' },
+]
 
 // 'none' is a real filter, not a placeholder: 5 backfilled terminals came off
 // machines that carry no company, and they need to be findable to be fixed.
@@ -269,6 +294,8 @@ onMounted(() => {
   // filter is rehydrated from the id the server echoed back.
   filters.value.card_terminal_id = companyFilterOptions.value
     .find(o => String(o.id) === String(props.filters?.card_terminal_id ?? 'all')) ?? companyFilterOptions.value[0]
+  filters.value.is_bound = boundFilterOptions
+    .find(o => o.id === (props.filters?.is_bound ?? 'all')) ?? boundFilterOptions[0]
 
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
@@ -313,6 +340,7 @@ function onSearchFilterUpdated() {
   router.get('/card-terminal-units', {
       ...filters.value,
       card_terminal_id: filters.value.card_terminal_id?.id ?? 'all',
+      is_bound: filters.value.is_bound?.id ?? 'all',
       numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,
   }, {
       preserveState: true,
@@ -320,7 +348,18 @@ function onSearchFilterUpdated() {
   })
 }
 
+// Clear the local refs as well as navigating: the two dropdowns hold option
+// OBJECTS, and whether Inertia remounts this component (re-running onMounted,
+// which is what rehydrates them) is not something to depend on. Without this a
+// Reset could leave "Nets-Auresys" showing over an unfiltered grid.
 function resetFilters() {
+  filters.value.terminal_id = ''
+  filters.value.vend_code = ''
+  filters.value.remarks = ''
+  filters.value.card_terminal_id = companyFilterOptions.value[0]
+  filters.value.is_bound = boundFilterOptions[0]
+  filters.value.sortKey = 'terminal_id'
+  filters.value.sortBy = true
   router.get('/card-terminal-units')
 }
 
@@ -335,6 +374,7 @@ function onExportExcelClicked() {
     params: {
       ...filters.value,
       card_terminal_id: filters.value.card_terminal_id?.id ?? 'all',
+      is_bound: filters.value.is_bound?.id ?? 'all',
       numberPerPage: undefined,
     },
     responseType: 'blob',
