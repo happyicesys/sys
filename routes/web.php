@@ -836,6 +836,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('simcards')->group(function () {
         Route::get('/', [SimcardController::class, 'index'])->name('simcards');
+        Route::get('/excel', [SimcardController::class, 'exportExcel'])->name('simcards.excel');
         Route::post('/store', [SimcardController::class, 'store']);
         Route::post('/{id}/update', [SimcardController::class, 'update']);
         Route::delete('/{id}', [SimcardController::class, 'delete']);

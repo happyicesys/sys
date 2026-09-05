@@ -32,9 +32,15 @@ class Simcard extends Model
     ];
 
     // relationships
+
+    // The foreign keys are named after the columns, NOT Eloquent's default:
+    // belongsTo() infers created_by_id / updated_by_id from the method names,
+    // and simcards has created_by / updated_by. Left to infer, the relation
+    // reads a column that does not exist, resolves to null and the Index's
+    // "Updated By" reads '—' for every row — which is exactly how it shipped.
     public function createdBy()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function operator()
@@ -54,6 +60,6 @@ class Simcard extends Model
 
     public function updatedBy()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }
