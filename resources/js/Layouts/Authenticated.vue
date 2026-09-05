@@ -380,6 +380,18 @@ const showingNavigationDropdown = ref(false);
 // default. Bumping the key is what lets "default collapsed" actually reach
 // those browsers once; their choice from then on sticks under the new key.
 const sidebarCollapsed = useStorage('mark1-sidebar-collapsed-v2', true)
+
+// Safety net: HeadlessUI dialogs lock scrolling with overflow:hidden +
+// padding-right on <html> and restore it on close. A dialog unmounted
+// mid-open (this layout remounts on every Inertia navigation) can leave that
+// lock behind, freezing scroll and — under device emulation — squeezing the
+// page. If no dialog is open after mount, drop any leftover lock.
+onMounted(() => {
+    if (!document.querySelector('[role="dialog"]')) {
+        document.documentElement.style.removeProperty('overflow')
+        document.documentElement.style.removeProperty('padding-right')
+    }
+})
 const logoUrl = computed(() => page.props.logoUrl)
 const permissions = page.props.auth.permissions
 

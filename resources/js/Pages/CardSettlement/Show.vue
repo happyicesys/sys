@@ -7,7 +7,7 @@
       <div class="flex items-center justify-between flex-wrap gap-2">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
           <Link href="/card-settlements" class="text-blue-700 hover:underline">Card Settlement</Link>
-          <span class="text-gray-400"> / </span>{{ report.original_filename }}
+          <span class="text-gray-400"> / </span><span class="break-all">{{ report.original_filename }}</span>
           <a v-if="report.file_url" :href="report.file_url" class="ml-2 text-xs font-normal text-blue-700 hover:underline">download file</a>
         </h2>
         <div class="flex space-x-1">

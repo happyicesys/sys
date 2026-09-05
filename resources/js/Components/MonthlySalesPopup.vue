@@ -1,19 +1,26 @@
 <template>
     <TransitionRoot as="template" :show="open">
-        <Dialog as="div" class="relative z-[60]" @close="dismiss">
+        <!-- A plain overlay, NOT a HeadlessUI Dialog: Dialog locks page scroll by
+             putting overflow:hidden + padding-right (= innerWidth − clientWidth) on
+             <html>. This popup outlives Authenticated.vue remounts on every Inertia
+             navigation, so that lock was re-applied/left behind — under DevTools
+             device emulation the two widths differ by hundreds of px and the whole
+             page squeezed to ~40% (2026-09-05, /card-settlements on mobile). The
+             overlay covers the page, so nothing needs locking. -->
+        <div class="relative z-[60]" role="dialog" aria-modal="true" aria-label="Monthly sales">
             <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0" enter-to="opacity-100"
                              leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
                 <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"/>
             </TransitionChild>
 
-            <div class="fixed inset-0 z-[60] overflow-y-auto">
+            <div class="fixed inset-0 z-[60] overflow-y-auto" @click="dismiss">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <TransitionChild as="template" enter="ease-out duration-300"
                                      enter-from="opacity-0 translate-y-6 scale-95"
                                      enter-to="opacity-100 translate-y-0 scale-100" leave="ease-in duration-200"
                                      leave-from="opacity-100 translate-y-0 scale-100"
                                      leave-to="opacity-0 translate-y-6 scale-95">
-                        <DialogPanel
+                        <div
                             class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white text-center shadow-2xl ring-1 ring-black/5"
                             @click.stop>
                             <!-- Refresh (top-left) -->
@@ -159,18 +166,18 @@
                                     Got it
                                 </button>
                             </div>
-                        </DialogPanel>
+                        </div>
                     </TransitionChild>
                 </div>
             </div>
-        </Dialog>
+        </div>
     </TransitionRoot>
 </template>
 
 <script setup>
-import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
+import { TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { ArrowDownRightIcon, ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, InformationCircleIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 
 const open = ref(false)
@@ -258,6 +265,15 @@ const decPart = computed(() => {
     const cents = Math.round((display.value - Math.floor(display.value)) * 100)
     return String(cents).padStart(2, '0')
 })
+
+// Escape closes — the one Dialog behaviour worth keeping after dropping it.
+function onKeydown(e) {
+    if (e.key === 'Escape' && open.value) {
+        dismiss()
+    }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 function dismiss() {
     open.value = false
