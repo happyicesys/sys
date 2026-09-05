@@ -177,10 +177,16 @@ class CityboxCatalogSyncTest extends TestCase
     }
 
     /** Literal product_list shape (2026-08-19), incl. the dead product_id=0 SKU field. */
-    private function catalogRow(int $id, string $name, string $img = 'https://cdn/x.png'): array
+    /** $status null = omit the field entirely, as their API did before 2026-09-05. */
+    private function catalogRow(int $id, string $name, string $img = 'https://cdn/x.png', ?int $status = null): array
     {
-        return ['id' => (string) $id, 'product_id' => '0', 'product_name' => $name, 'img_url' => $img,
+        $row = ['id' => (string) $id, 'product_id' => '0', 'product_name' => $name, 'img_url' => $img,
             'vision_img' => 'https://cdn/v.png', 'vision_img2' => '', 'vision_img3' => '', 'vision_img4' => ''];
+        if ($status !== null) {
+            $row['status'] = (string) $status;
+        }
+
+        return $row;
     }
 
     // ── catalog run: add / update / unchanged / delist ─────────────────────

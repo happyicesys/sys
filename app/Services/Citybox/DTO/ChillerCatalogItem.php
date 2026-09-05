@@ -2,9 +2,23 @@
 
 namespace App\Services\Citybox\DTO;
 
-/** One row of `product_list` (merchant catalog): identity + images only. */
+/**
+ * One row of `product_list` (merchant catalog): identity, images and their
+ * enabled/disabled `status`.
+ *
+ * `status` is UNDOCUMENTED — absent from their 2026-08-14 spec, present live
+ * since (confirmed 2026-09-05). It is the only signal that a SKU is retired:
+ * their catalog returns disabled rows forever, so absence never fires. Kept
+ * as their raw number so an unfamiliar value stays visible; 0 = disabled,
+ * 1 = enabled, 99 seen once and unconfirmed. Anything that is not 1 counts
+ * as not-enabled, which is the safe reading for a value we cannot explain.
+ */
 final readonly class ChillerCatalogItem
 {
+    public const STATUS_DISABLED = 0;
+
+    public const STATUS_ENABLED = 1;
+
     public function __construct(
         public int $cityboxProductId,
         public string $name,
@@ -12,7 +26,22 @@ final readonly class ChillerCatalogItem
         public ?string $imgUrl,
         /** @var string[] */
         public array $visionImgs,
+        public ?int $status = null,  // their `status`; null when they omit it
     ) {}
+
+    /** True only for their explicit enabled value. Unknown ⇒ not enabled. */
+    public function isEnabled(): bool
+    {
+        return $this->status === self::STATUS_ENABLED;
+    }
+
+    /** A value we have no meaning for — worth a log line, never a silent guess. */
+    public function hasUnknownStatus(): bool
+    {
+        return $this->status !== null
+            && $this->status !== self::STATUS_ENABLED
+            && $this->status !== self::STATUS_DISABLED;
+    }
 
     public static function fromApi(array $r): self
     {
@@ -27,6 +56,7 @@ final readonly class ChillerCatalogItem
                 $r['vision_img'] ?? null, $r['vision_img2'] ?? null,
                 $r['vision_img3'] ?? null, $r['vision_img4'] ?? null,
             ], fn ($u) => is_string($u) && $u !== '')),
+            status: isset($r['status']) && is_numeric($r['status']) ? (int) $r['status'] : null,
         );
     }
 }

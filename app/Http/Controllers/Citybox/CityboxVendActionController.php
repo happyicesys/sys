@@ -53,7 +53,7 @@ class CityboxVendActionController extends Controller
         $status = $vend->citybox_status_json ?? [];
 
         // Channel rows are the truth for qty/capacity/amount/product; layer = hundreds digit of the code (101…699).
-        $channels = $vend->vendChannels()->where('is_active', true)->with('product:id,code,name')->orderBy('code')->get();
+        $channels = $vend->vendChannels()->where('is_active', true)->with('product:id,code,name,is_active')->orderBy('code')->get();
         // CityBox name/thumbnail per channel: match by product via the catalog, else by the snapshot's layer/order.
         $catalog = \App\Models\CityboxProduct::whereIn('product_id', $channels->pluck('product_id')->filter())->get()->keyBy('product_id');
 
@@ -72,7 +72,11 @@ class CityboxVendActionController extends Controller
                 'qty' => (int) $ch->qty,
                 'capacity' => (int) $ch->capacity,
                 'amount_cents' => (int) $ch->amount,
-                'product' => $ch->product ? ['id' => $ch->product->id, 'code' => $ch->product->code, 'name' => $ch->product->name] : null,
+                'product' => $ch->product ? [
+                    'id' => $ch->product->id, 'code' => $ch->product->code, 'name' => $ch->product->name,
+                    // CityBox disabled the SKU: the channel is greyed out, never dropped (Brian, 2026-09-05).
+                    'is_active' => (bool) $ch->product->is_active,
+                ] : null,
                 'citybox_name' => $cb?->name,
                 'thumbnail' => $cb?->img_url,
                 'mapped' => $ch->product_id !== null,

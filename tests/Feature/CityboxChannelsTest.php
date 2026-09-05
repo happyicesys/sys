@@ -371,6 +371,30 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame('KSF Peach', $peach['product']['name']);
         $this->assertSame('https://cdn/p.png', $peach['thumbnail']);
         $this->assertTrue($peach['mapped']);
+        $this->assertTrue($peach['product']['is_active']);
+    }
+
+    /**
+     * A SKU CityBox disabled keeps its channel and its stock — the popup greys
+     * it out (Brian, 2026-09-05). Dropping it would hide a shelf that is still
+     * physically loaded, which is exactly what ops must not be shown.
+     */
+    public function test_planogram_keeps_a_deactivated_product_and_flags_it_for_greying(): void
+    {
+        $product = Product::create(['code' => 'KSF-P', 'name' => 'KSF Peach']);
+        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Peach', 'product_id' => $product->id, 'first_seen_at' => now()]);
+        $this->seedPar();
+        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 4, 'layer' => 1, 'price' => '0.10']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $product->forceFill(['is_active' => false])->save();
+
+        $r = $this->actingAs(\App\Models\User::factory()->create())
+            ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        $peach = collect($r['layers'][4]['channels'])->firstWhere('code', 103);
+        $this->assertNotNull($peach, 'the channel must survive its product being deactivated');
+        $this->assertFalse($peach['product']['is_active']);
+        $this->assertSame(4, $peach['qty']);
     }
 
     public function test_planogram_endpoint_is_403_for_non_chiller(): void

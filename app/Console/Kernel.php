@@ -34,6 +34,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('citybox:openapi-poll')->everyMinute();
         // Hourly mirror of their SKU catalog (§5). Same enabled guard inside.
         $schedule->command('citybox:sync-products')->hourly();
+        // Their enabled/disabled `status` every minute (Brian, 2026-09-05). It is
+        // the only retirement signal they give — disabled SKUs keep appearing in
+        // product_list forever — and ops want a disable acted on promptly. One
+        // extra product_list call per minute, writes only on an actual change;
+        // withoutOverlapping so a slow run cannot race the next one into
+        // creating a second product for the same SKU.
+        $schedule->command('citybox:sync-product-status')->everyMinute()->withoutOverlapping();
         // Poll-row retention (movements are never pruned) — §5b.2.
         $schedule->command('citybox:prune-polls')->dailyAt('01:50')->withoutOverlapping();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
