@@ -81,7 +81,7 @@ class CardSettlementFixBindingsTest extends TestCase
      * A line the matcher parked as "the sale exists, but on another machine" —
      * the only shape suspectBindings() reads.
      */
-    private function suspectRow(CardSettlementReport $report, Vend $boundTo, int $suggestedCode, string $date): CardSettlementRow
+    private function suspectRow(CardSettlementReport $report, Vend $boundTo, int $suggestedCode, string $date, string $terminalId = self::TID): CardSettlementRow
     {
         static $n = 0;
         $n++;
@@ -90,7 +90,7 @@ class CardSettlementFixBindingsTest extends TestCase
             'card_settlement_report_id' => $report->id,
             'row_no' => $n,
             'txn_type' => 'Purchase',
-            'terminal_id' => self::TID,
+            'terminal_id' => $terminalId,
             'transaction_date' => $date,
             'transaction_time' => '22:30:58',
             'time_is_partial' => false,
@@ -370,6 +370,46 @@ class CardSettlementFixBindingsTest extends TestCase
         $this->assertNull(CardTerminalBinding::where('terminal_id', self::TID)->first()->bound_until);
         $this->assertSame(0, CardTerminalBinding::where('vend_id', $right->id)->count());
         Queue::assertNotPushed(MatchCardSettlementReport::class);
+    }
+
+    /**
+     * The panel's ticks decide which suggestions run. An unticked terminal —
+     * typically one the impact badge says would break more than it fixes —
+     * must be left exactly as it was.
+     */
+    public function test_only_the_ticked_terminals_are_moved(): void
+    {
+        $wrong = $this->makeVend(2443);
+        $right = $this->makeVend(2518);
+        $otherWrong = $this->makeVend(2871);
+        $otherRight = $this->makeVend(2337);
+        $this->unit();
+        $this->unit('23107352');
+
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => self::TID,
+            'vend_id' => $wrong->id, 'bound_from' => '2025-09-26',
+        ]);
+        $untouched = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23107352',
+            'vend_id' => $otherWrong->id, 'bound_from' => '2025-09-26',
+        ]);
+
+        $report = $this->report();
+        $this->suspectRow($report, $wrong, 2518, '2026-09-01');
+        $this->suspectRow($report, $otherWrong, 2337, '2026-09-01', terminalId: '23107352');
+
+        $this->actingAs($this->staff())
+            ->post('/card-settlements/'.$report->id.'/fix-bindings', ['terminal_ids' => [self::TID]])
+            ->assertRedirect();
+
+        // Ticked one moved...
+        $this->assertSame(1, CardTerminalBinding::where('vend_id', $right->id)->count());
+        // ...unticked one is untouched: still open, still on its old machine,
+        // and never even reported as skipped.
+        $this->assertNull($untouched->fresh()->bound_until);
+        $this->assertSame($otherWrong->id, $untouched->fresh()->vend_id);
+        $this->assertSame(0, CardTerminalBinding::where('vend_id', $otherRight->id)->count());
     }
 
     public function test_it_needs_the_update_permission(): void

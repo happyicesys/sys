@@ -405,12 +405,27 @@ class CardSettlementController extends Controller
      * record, an ambiguous machine code, a date another binding already claims)
      * is skipped with its reason rather than forced.
      */
-    public function fixBindings($id, CardTerminalBindingService $bindings)
+    public function fixBindings(Request $request, $id, CardTerminalBindingService $bindings)
     {
+        $validated = $request->validate([
+            'terminal_ids' => ['nullable', 'array', 'max:200'],
+            'terminal_ids.*' => ['string', 'max:64'],
+        ]);
+
         $report = CardSettlementReport::findOrFail($id);
         abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
 
         $suspects = $this->suspectBindings($report);
+
+        // The page ticks only the suggestions the user accepts, so act on those
+        // and no others. The suggestion set is always recomputed here rather
+        // than trusted from the request — the ticks choose WHICH terminal to
+        // move, never which machine to move it to or from when.
+        if (! empty($validated['terminal_ids'])) {
+            $chosen = collect($validated['terminal_ids'])->map(fn ($t) => (string) $t)->all();
+            $suspects = $suspects->whereIn('terminal_id', $chosen)->values();
+        }
+
         $moved = [];
         $skipped = [];
 

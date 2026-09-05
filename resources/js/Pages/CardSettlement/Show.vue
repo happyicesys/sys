@@ -121,9 +121,28 @@
 
       <!-- suspected wrong bindings: the sale exists, on a different machine -->
       <div v-if="suspectBindings.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-orange-50 border border-orange-200 rounded-md p-3 my-3 text-sm">
-        <div class="font-semibold text-orange-800 mb-1">Terminals that look bound to the wrong machine</div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="font-semibold text-orange-800">Terminals that look bound to the wrong machine</div>
+          <label class="flex items-center space-x-1 text-xs text-orange-700 cursor-pointer">
+            <input
+              type="checkbox"
+              class="cursor-pointer rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+              :checked="allSuspectsSelected"
+              @change="toggleAllSuspects"
+            />
+            <span>Select all</span>
+          </label>
+        </div>
         <div class="text-orange-800 space-y-0.5">
-          <div v-for="s in suspectBindings" :key="s.terminal_id">
+          <div v-for="s in suspectBindings" :key="s.terminal_id" class="flex items-start space-x-2">
+            <input
+              type="checkbox"
+              class="mt-1 cursor-pointer rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+              :checked="selectedTerminals.includes(s.terminal_id)"
+              :title="'Move ' + s.terminal_id + ' to machine ' + s.suggested_vend_code"
+              @change="toggleSuspect(s.terminal_id)"
+            />
+            <div>
             <span class="font-mono">{{ s.terminal_id }}</span> is bound to <b>{{ s.bound_vend_code }}</b>, but its sales are on
             <b>{{ s.suggested_vend_code }}</b> — {{ s.suggested_hits }} of {{ s.row_count }} unmatched lines fit that machine exactly,
             from <b>{{ s.from_date }}</b>.
@@ -135,17 +154,18 @@
                 : 'bg-green-100 text-green-800 border-green-300')">
               fixes {{ s.would_fix }} · breaks {{ s.would_break }}<span v-if="s.would_break_synced"> ({{ s.would_break_synced }} already synced — skipped)</span>
             </span>
+            </div>
           </div>
         </div>
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <Button
             type="button"
             class="bg-orange-600 hover:bg-orange-700 px-3 py-2 text-xs text-white flex space-x-1"
-            :class="report.status === 'matching' ? 'opacity-50 cursor-not-allowed' : ''"
+            :class="report.status === 'matching' || !selectedTerminals.length ? 'opacity-50 cursor-not-allowed' : ''"
             @click="fixBindings()"
           >
             <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-            <span>Move {{ suspectBindings.length }} terminal{{ suspectBindings.length === 1 ? '' : 's' }} &amp; rematch</span>
+            <span>Move {{ selectedTerminals.length }} terminal{{ selectedTerminals.length === 1 ? '' : 's' }} &amp; rematch</span>
           </Button>
           <span class="text-orange-700">
             …or do it by hand from the RIGHT machine's Settings page — pick this Terminal ID there and set Bound From to the
@@ -392,7 +412,7 @@ import Paginator from '@/Components/Paginator.vue';
 import { ArrowPathIcon, CheckCircleIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -460,15 +480,37 @@ function rematch() {
 // One-click repair of every suspected wrong binding, then rematch. Bindings are
 // dated and global, so this changes how EVERY report resolves those terminals —
 // hence the confirm, and the server's per-terminal report in the flash message.
+// Pick which suggestions to act on. A suggestion that would BREAK existing
+// matches starts unchecked — the bulk click must never take one by accident;
+// it has to be an explicit tick.
+const selectedTerminals = ref([])
+watch(() => props.suspectBindings, (list) => {
+  selectedTerminals.value = (list || []).filter((s) => !s.would_break).map((s) => s.terminal_id)
+}, { immediate: true })
+
+const allSuspectsSelected = computed(() =>
+  props.suspectBindings.length > 0 && selectedTerminals.value.length === props.suspectBindings.length)
+
+function toggleSuspect(terminalId) {
+  selectedTerminals.value = selectedTerminals.value.includes(terminalId)
+    ? selectedTerminals.value.filter((t) => t !== terminalId)
+    : [...selectedTerminals.value, terminalId]
+}
+
+function toggleAllSuspects() {
+  selectedTerminals.value = allSuspectsSelected.value ? [] : props.suspectBindings.map((s) => s.terminal_id)
+}
+
 function fixBindings() {
-  if (props.report.status === 'matching' || !props.suspectBindings.length) return
-  const lines = props.suspectBindings
+  if (props.report.status === 'matching' || !selectedTerminals.value.length) return
+  const chosen = props.suspectBindings.filter((s) => selectedTerminals.value.includes(s.terminal_id))
+  const lines = chosen
     .map((s) => '  ' + s.terminal_id + ': ' + s.bound_vend_code + ' → ' + s.suggested_vend_code + ' from ' + s.from_date +
       ' (fixes ' + s.would_fix + ', breaks ' + s.would_break + ')' +
       (s.would_break_synced ? ' — SKIPPED, ' + s.would_break_synced + ' already synced' : ''))
     .join('\n')
   const approval = confirm(
-    'Move ' + props.suspectBindings.length + ' terminal(s) onto the machine their sales are on, and rematch?\n\n' +
+    'Move ' + chosen.length + ' terminal(s) onto the machine their sales are on, and rematch?\n\n' +
     lines + '\n\n' +
     'This closes each current binding and opens a new one from that date. It affects every settlement report, ' +
     'not just this one. Anything ambiguous is left alone and listed back to you.'
@@ -476,7 +518,7 @@ function fixBindings() {
   if (!approval) {
     return
   }
-  router.post('/card-settlements/' + props.report.id + '/fix-bindings', {}, {
+  router.post('/card-settlements/' + props.report.id + '/fix-bindings', { terminal_ids: selectedTerminals.value }, {
     preserveScroll: true,
     onSuccess: () => toast.success("Bindings updated — rematch queued", { timeout: 4000 }),
     onError: () => toast.error("Failed to update bindings", { timeout: 3000 }),
