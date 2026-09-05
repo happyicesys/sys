@@ -116,6 +116,130 @@ class CardTerminalUnitTest extends TestCase
         $this->assertSame($unit->id, CardTerminalUnit::first()->id);
     }
 
+    public function test_machine_id_filter_matches_the_terminal_on_that_machine_today(): void
+    {
+        $onMachine = $this->makeVend(7020);
+        $other = $this->makeVend(7021);
+        $user = $this->staff(['read card-terminals']);
+
+        CardTerminalUnit::create(['terminal_id' => 'AAA11111', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'BBB22222', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'CCC33333', 'card_terminal_id' => $this->nets->id]);
+
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'AAA11111',
+            'vend_id' => $onMachine->id, 'bound_from' => '2026-01-01',
+        ]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'BBB22222',
+            'vend_id' => $other->id, 'bound_from' => '2026-01-01',
+        ]);
+        // Was on 7020 but has since been taken off: the filter asks "what is on
+        // that machine NOW", so this must not come back.
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'CCC33333',
+            'vend_id' => $onMachine->id, 'bound_from' => '2025-01-01', 'bound_until' => '2025-06-01',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/card-terminal-units?vend_code='.$onMachine->code)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('cardTerminalUnits.meta.total', 1)
+                ->where('cardTerminalUnits.data.0.terminal_id', 'AAA11111')
+                ->where('cardTerminalUnits.data.0.current_vend_id', $onMachine->id)
+                ->where('filters.vend_code', (string) $onMachine->code)
+            );
+    }
+
+    /**
+     * Download the export and read it back. FastExcel streams the file, so the
+     * response has to be spooled to disk before it can be reopened.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function exportSheet(array $query = []): array
+    {
+        $response = $this->get('/card-terminal-units/excel?'.http_build_query($query));
+        $response->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/filename="?CardTerminals_\d{8}_\d{6}\.xlsx"?/',
+            (string) $response->headers->get('content-disposition')
+        );
+
+        $path = tempnam(sys_get_temp_dir(), 'card_terminal_export').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+
+        try {
+            return (new \Rap2hpoutre\FastExcel\FastExcel)->importSheets($path)[0] ?? [];
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    public function test_export_columns_carry_the_terminal_its_company_and_its_machine(): void
+    {
+        $vend = $this->makeVend(7022);
+        $unbound = CardTerminalUnit::create(['terminal_id' => 'EXP22222', 'card_terminal_id' => $this->auresys->id]);
+        CardTerminalUnit::create(['terminal_id' => 'EXP11111', 'card_terminal_id' => $this->nets->id, 'remarks' => 'spare']);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'EXP11111',
+            'vend_id' => $vend->id, 'bound_from' => '2026-03-04',
+        ]);
+
+        $this->actingAs($this->staff(['read card-terminals', 'export card-terminals']));
+        $rows = $this->exportSheet();
+
+        $this->assertSame(
+            ['Terminal ID', 'Card Terminal Company', 'Machine ID', 'Site', 'Bound From', 'Remarks'],
+            array_keys($rows[0])
+        );
+
+        $bound = collect($rows)->firstWhere('Terminal ID', 'EXP11111');
+        $this->assertSame('Nets', $bound['Card Terminal Company']);
+        $this->assertSame((string) $vend->code, (string) $bound['Machine ID']);
+        $this->assertSame('Site 7022', $bound['Site']);
+        $this->assertSame('2026-03-04', $bound['Bound From']);
+        $this->assertSame('spare', $bound['Remarks']);
+
+        // A terminal on no machine still exports, with the machine cells empty.
+        $free = collect($rows)->firstWhere('Terminal ID', $unbound->terminal_id);
+        $this->assertNotNull($free);
+        $this->assertEmpty($free['Machine ID']);
+    }
+
+    public function test_export_honours_the_page_filters(): void
+    {
+        $vend = $this->makeVend(7023);
+        CardTerminalUnit::create(['terminal_id' => 'FIL11111', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalUnit::create(['terminal_id' => 'FIL22222', 'card_terminal_id' => $this->auresys->id]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'FIL11111',
+            'vend_id' => $vend->id, 'bound_from' => '2026-01-01',
+        ]);
+
+        $this->actingAs($this->staff(['read card-terminals', 'export card-terminals']));
+
+        $this->assertSame(
+            ['FIL22222'],
+            collect($this->exportSheet(['card_terminal_id' => $this->auresys->id]))->pluck('Terminal ID')->all()
+        );
+
+        // The Machine ID filter must reach the export too, or the file would
+        // not match the grid the user is looking at.
+        $this->assertSame(
+            ['FIL11111'],
+            collect($this->exportSheet(['vend_code' => $vend->code]))->pluck('Terminal ID')->all()
+        );
+    }
+
+    public function test_export_is_refused_without_the_export_permission(): void
+    {
+        $this->actingAs($this->staff(['read card-terminals']))
+            ->get('/card-terminal-units/excel')
+            ->assertForbidden();
+    }
+
     public function test_terminal_can_be_created_updated_and_deleted_but_never_bound_here(): void
     {
         $vend = $this->makeVend(7002);

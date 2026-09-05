@@ -5,10 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Resources\CardTerminalResource;
 use App\Http\Resources\CardTerminalUnitResource;
 use App\Models\CardTerminal;
+use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
+use App\Models\Vend;
+use App\Traits\ExportOptimizationTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 /**
  * Data Management → Card Terminal. CRUD over the physical terminal units:
@@ -25,9 +30,12 @@ use Inertia\Inertia;
  */
 class CardTerminalUnitController extends Controller
 {
+    use ExportOptimizationTrait;
+
     public function __construct()
     {
         $this->middleware(['permission:read card-terminals'])->only(['index']);
+        $this->middleware(['permission:export card-terminals'])->only(['exportExcel']);
         $this->middleware(['permission:create card-terminals'])->only(['create']);
         $this->middleware(['permission:update card-terminals'])->only(['update']);
         $this->middleware(['permission:delete card-terminals'])->only(['delete']);
@@ -45,7 +53,7 @@ class CardTerminalUnitController extends Controller
 
         $today = now()->toDateString();
 
-        $query = CardTerminalUnit::query()
+        $query = $this->filtered($request, $today)
             ->with([
                 'company',
                 // Whole fleet by design: a terminal can sit on any machine and
@@ -54,17 +62,6 @@ class CardTerminalUnitController extends Controller
                 'bindings' => fn ($q) => $q->effectiveOn($today)
                     ->with(['vend' => fn ($qq) => $qq->withoutGlobalScopes()->select('id', 'code', 'name')]),
             ])
-            ->when($request->input('terminal_id'), fn ($q, $s) => $q->where('terminal_id', 'like', "%{$s}%"))
-            ->when($request->input('card_terminal_id'), function ($q, $company) {
-                if ($company === 'all') {
-                    return $q;
-                }
-
-                return $company === 'none'
-                    ? $q->whereNull('card_terminal_id')
-                    : $q->where('card_terminal_id', $company);
-            })
-            ->when($request->input('remarks'), fn ($q, $s) => $q->where('remarks', 'like', "%{$s}%"))
             ->orderBy($sortKey, $sortBy)
             ->orderBy('id');
 
@@ -76,11 +73,103 @@ class CardTerminalUnitController extends Controller
             'filters' => [
                 'terminal_id' => $request->input('terminal_id', ''),
                 'card_terminal_id' => $request->input('card_terminal_id', 'all'),
+                'vend_code' => $request->input('vend_code', ''),
                 'remarks' => $request->input('remarks', ''),
                 'sortKey' => $sortKey,
                 'sortBy' => $request->sortBy ?? true,
             ],
         ]);
+    }
+
+    /**
+     * Same rows as the listing, every filter honoured, no pagination.
+     *
+     * The machine columns come from a terminal_id → machine map built in ONE
+     * query rather than an eager load: `cursor()` resolves relations per model,
+     * so `with()` here would be a query per row.
+     */
+    public function exportExcel(Request $request)
+    {
+        $today = now()->toDateString();
+        $sortKey = in_array($request->sortKey, ['terminal_id', 'card_terminal_id'])
+            ? $request->sortKey
+            : 'terminal_id';
+        $sortBy = filter_var($request->sortBy ?? true, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
+        $machines = $this->currentMachineByTerminal($today);
+        $companies = CardTerminal::pluck('name', 'id');
+
+        $query = $this->filtered($request, $today)
+            ->orderBy($sortKey, $sortBy)
+            ->orderBy('id');
+
+        return (new FastExcel($this->exportWithCursor($query)))->download(
+            $this->formatExportFilename('CardTerminals', 'xlsx'),
+            function (CardTerminalUnit $unit) use ($machines, $companies) {
+                $machine = $machines->get($unit->terminal_id);
+
+                return [
+                    'Terminal ID' => $unit->terminal_id,
+                    'Card Terminal Company' => $companies[$unit->card_terminal_id] ?? null,
+                    'Machine ID' => $machine?->vend_code,
+                    'Site' => $machine?->customer_name,
+                    'Bound From' => $machine?->bound_from?->format('Y-m-d'),
+                    'Remarks' => $unit->remarks,
+                ];
+            }
+        );
+    }
+
+    /** Every filter the listing offers, shared with the export. */
+    private function filtered(Request $request, string $today): Builder
+    {
+        return CardTerminalUnit::query()
+            ->when($request->input('terminal_id'), fn ($q, $s) => $q->where('terminal_id', 'like', "%{$s}%"))
+            ->when($request->input('card_terminal_id'), function ($q, $company) {
+                if ($company === 'all') {
+                    return $q;
+                }
+
+                return $company === 'none'
+                    ? $q->whereNull('card_terminal_id')
+                    : $q->where('card_terminal_id', $company);
+            })
+            // Machine filter resolves through the binding effective TODAY, so
+            // it answers "which terminal is on machine X now", not "was ever".
+            ->when($request->input('vend_code'), function ($q, $search) use ($today) {
+                return $q->whereIn('terminal_id', CardTerminalBinding::query()
+                    ->effectiveOn($today)
+                    ->whereIn('vend_id', Vend::withoutGlobalScopes()
+                        ->where('code', 'like', "%{$search}%")
+                        ->pluck('id'))
+                    ->pluck('terminal_id'));
+            })
+            ->when($request->input('remarks'), fn ($q, $s) => $q->where('remarks', 'like', "%{$s}%"));
+    }
+
+    /**
+     * terminal_id → { vend_code, customer_name, bound_from } for the binding in
+     * force today. Whole fleet, unscoped, same rationale as the listing.
+     */
+    private function currentMachineByTerminal(string $today)
+    {
+        return CardTerminalBinding::query()
+            ->effectiveOn($today)
+            ->leftJoin('vends', 'vends.id', '=', 'card_terminal_bindings.vend_id')
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->orderBy('card_terminal_bindings.id')
+            ->get([
+                'card_terminal_bindings.terminal_id',
+                'card_terminal_bindings.bound_from',
+                'vends.code AS vend_code',
+                'customers.name AS customer_name',
+            ])
+            // unique() before keyBy: keyBy would let the LAST row win, while
+            // the grid takes the first effective binding. Overlapping ranges
+            // for one terminal should not exist, but if they ever do the file
+            // and the screen must still say the same thing.
+            ->unique('terminal_id')
+            ->keyBy('terminal_id');
     }
 
     public function create(Request $request)

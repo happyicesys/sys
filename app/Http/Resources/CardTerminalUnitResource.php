@@ -28,6 +28,10 @@ class CardTerminalUnitResource extends JsonResource
             'card_terminal_name' => $this->company?->name,
             'terminal_id' => $this->terminal_id,
             'remarks' => $this->remarks,
+            // vend id as well as code: the Machine ID cell links straight to
+            // that machine's Setting/Edit page (/settings/vend/{id}/update),
+            // which is where its terminal binding is actually changed.
+            'current_vend_id' => $binding?->vend?->id,
             'current_vend_code' => $binding?->vend?->code,
             'current_vend_name' => $binding?->vend?->name,
         ];

@@ -172,6 +172,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
     // Binding a unit to a machine is NOT here — see Setting/Edit.
     Route::prefix('card-terminal-units')->group(function () {
         Route::get('/', [CardTerminalUnitController::class, 'index'])->name('card-terminal-units');
+        Route::get('/excel', [CardTerminalUnitController::class, 'exportExcel'])->name('card-terminal-units.excel');
         Route::post('/create', [CardTerminalUnitController::class, 'create']);
         Route::post('/{id}/update', [CardTerminalUnitController::class, 'update']);
         Route::delete('/{id}', [CardTerminalUnitController::class, 'delete']);
