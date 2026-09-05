@@ -40,7 +40,7 @@
       <div class="flex flex-col space-y-1">
         <Badge :title="machine.stateLabel" :sub="machine.stateAt ? shortAgo(machine.stateAt) : 'not polled'" :cls="active ? machine.stateBadge : 'bg-gray-200 text-gray-400'" tip="Live session state (get_device_status_new)" />
         <Badge v-if="status.recoveredAt" title="Last back online" :sub="status.recoveredAt" :cls="active ? 'bg-gray-100' : 'bg-gray-200 text-gray-400'" />
-        <Badge v-if="machine.lastOpen" title="Last door open" :sub="machine.lastOpen.at + (machine.lastOpen.source ? ' · ' + sourceLabel(machine.lastOpen.source) : '')" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" tip="Last ops door-open through mark1" />
+        <Badge v-if="machine.lastOpen" title="Last door open" :sub="machine.lastOpen.at + (machine.lastOpen.source ? ' · ' + sourceLabel(machine.lastOpen.source) : '')" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" tip="Last ops door-open through ConnectVend" />
         <Badge v-if="machine.poll" title="Last poll" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU, ' + machine.poll.duration_ms + ' ms' : 'failed')" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
       </div>
     </TableData>

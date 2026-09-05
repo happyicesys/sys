@@ -25,7 +25,7 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="rounded-md bg-indigo-50 p-3 mb-3 text-xs text-indigo-800">
         Mirrors CityBox's own product list (their ERP) every hour and whenever a chiller shows a new SKU.
-        Each SKU automatically gets a mark1 product under the <b>Citybox</b> operator — product code = CityBox id, name and image follow CityBox,
+        Each SKU automatically gets a ConnectVend product under the <b>Citybox</b> operator — product code = CityBox id, name and image follow CityBox,
         warehouse qty from the self-system ledger. Nothing to map by hand; edit costs on the product itself.
         <span v-if="counts.unlinked" class="text-red-700 font-semibold">{{ counts.unlinked }} SKU(s) have no product — is the Citybox operator seeded?</span>
       </div>
@@ -81,7 +81,7 @@
               <th class="px-3 py-2 text-left w-16">Image</th>
               <th class="px-3 py-2 text-left">CityBox SKU</th>
               <th class="px-3 py-2 text-left">Details</th>
-              <th class="px-3 py-2 text-left">mark1 product</th>
+              <th class="px-3 py-2 text-left">ConnectVend product</th>
             </tr>
           </thead>
           <tbody>

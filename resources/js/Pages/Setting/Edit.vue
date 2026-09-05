@@ -848,7 +848,7 @@
                   Last poll {{ chillerStatus.poll.at }} · {{ chillerStatus.poll.ok ? chillerStatus.poll.products_seen + ' SKU seen, ' + chillerStatus.poll.duration_ms + ' ms' : 'failed: ' + (chillerStatus.poll.error || 'error') }}
                   <span v-if="chillerStatus.last_ops_open"> · Last ops door-open {{ chillerStatus.last_ops_open.at }}</span>
                 </p>
-                <p v-if="chillerStatus.is_retired" class="mt-2 text-xs text-red-700">CityBox reports this unit as removed (已撤机). Set mark1's Status to Inactive if it is no longer in service.</p>
+                <p v-if="chillerStatus.is_retired" class="mt-2 text-xs text-red-700">CityBox reports this unit as removed (已撤机). Set ConnectVend's Status to Inactive if it is no longer in service.</p>
               </div>
             </div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now

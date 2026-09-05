@@ -86,7 +86,7 @@
                       </span>
                       <span class="text-xs text-gray-600 tabular-nums">S${{ (ch.amount_cents / 100).toFixed(2) }}</span>
                     </div>
-                    <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in mark1</span>
+                    <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
                   </div>
                 </div>
               </div>

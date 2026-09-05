@@ -129,7 +129,7 @@
             <div v-if="opsJobItem.is_citybox_chiller" class="mb-3 space-y-2">
               <div v-if="opsJobItem.citybox_submit_status === 'failed'" class="rounded-md bg-amber-50 border border-amber-300 p-3 text-sm text-amber-900 flex items-start justify-between gap-3">
                 <div>
-                  <b>CityBox push failed</b> — your count was saved in mark1 but not yet in CityBox's system.
+                  <b>CityBox push failed</b> — your count was saved in ConnectVend but not yet in CityBox's system.
                   <div class="text-xs mt-1 text-amber-800">{{ opsJobItem.citybox_submit_error }}</div>
                 </div>
                 <Button type="button" class="bg-amber-600 hover:bg-amber-700 text-white text-xs whitespace-nowrap" @click.prevent="retryCityboxSubmit">Retry push</Button>

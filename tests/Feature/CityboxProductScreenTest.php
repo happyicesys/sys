@@ -113,7 +113,7 @@ class CityboxProductScreenTest extends TestCase
 
         $this->actingAs($this->editor())->from('/citybox/products')->post('/citybox/products/sync')
             ->assertRedirect('/citybox/products')
-            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 new') && str_contains($m, '1 mark1 product(s) created'));
+            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 new') && str_contains($m, '1 ConnectVend product(s) created'));
 
         $this->assertSame(CityboxProductSyncLog::SOURCE_CATALOG_MANUAL, CityboxProductSyncLog::sole()->source);
     }

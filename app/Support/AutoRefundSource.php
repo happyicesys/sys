@@ -74,7 +74,7 @@ final class AutoRefundSource
         self::OMISE_STALE_APPROVE => 'Omise — paid after the QR expired',
         self::OMISE_TRADE_FAIL => 'Omise — machine reported a dispense failure',
         self::OMISE_MANUAL => 'Omise — manual refund (artisan)',
-        self::OMISE_EXTERNAL => 'Omise — refunded outside mark1 (dashboard / dispute / chargeback)',
+        self::OMISE_EXTERNAL => 'Omise — refunded outside ConnectVend (dashboard / dispute / chargeback)',
         self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal (NETS)',
         self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',

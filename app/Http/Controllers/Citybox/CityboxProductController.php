@@ -110,7 +110,7 @@ class CityboxProductController extends Controller
         $created = count($log->details_json['products_created'] ?? []);
 
         return redirect()->back()->with('success', sprintf(
-            'CityBox synced — %s; %d mark1 product(s) created.', $log->summaryLine(), $created,
+            'CityBox synced — %s; %d ConnectVend product(s) created.', $log->summaryLine(), $created,
         ));
     }
 

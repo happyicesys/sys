@@ -114,7 +114,7 @@
           </span>
         </div>
         <div class="mt-1 text-red-700">
-          mark1 has never seen these terminals. Create each one under
+          ConnectVend has never seen these terminals. Create each one under
           <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>,
           then put it on its machine from that machine's Settings page, and hit Rematch.
         </div>
@@ -346,7 +346,7 @@
                           <div
                             v-else-if="row.matched_txn.auto_refund_source === 'card_terminal_reversal'"
                             class="text-xs text-amber-700"
-                            title="mark1 inferred a reversal from the TRADE frame, but this report has no reversal line for it — the reader may have retained the credit instead"
+                            title="ConnectVend inferred a reversal from the TRADE frame, but this report has no reversal line for it — the reader may have retained the credit instead"
                           >
                             ⚠ refunded by inference, no reversal in report
                           </div>
@@ -356,9 +356,9 @@
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-left">
                         <div v-if="row.resolution_note" class="text-xs text-gray-500 mb-1"
                           :title="row.resolution_note === 'All matching sales already claimed'
-                            ? 'Every sale that fits this line is already held by another line — NETS charged more times than mark1 recorded sales here. Likely a double charge (customer tapped twice); check the two lines and refund if so.'
+                            ? 'Every sale that fits this line is already held by another line — NETS charged more times than ConnectVend recorded sales here. Likely a double charge (customer tapped twice); check the two lines and refund if so.'
                             : (row.resolution_note === 'No matching sale in window'
-                              ? 'mark1 has no card sale on this machine at this time/amount — the machine may have been offline (TRADE never arrived) or the terminal is bound to the wrong machine.'
+                              ? 'ConnectVend has no card sale on this machine at this time/amount — the machine may have been offline (TRADE never arrived) or the terminal is bound to the wrong machine.'
                               : '')">
                           {{ row.resolution_note }}
                         </div>
@@ -370,7 +370,7 @@
                             <span
                               v-if="c.claimed_by_row"
                               class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-gray-200 text-gray-600"
-                              :title="'Held by row #' + c.claimed_by_row.row_no + (c.claimed_by_row.same_report ? '' : ' of report ' + c.claimed_by_row.report_id) + ' — NETS charged more times than mark1 recorded sales; check for a double charge'"
+                              :title="'Held by row #' + c.claimed_by_row.row_no + (c.claimed_by_row.same_report ? '' : ' of report ' + c.claimed_by_row.report_id) + ' — NETS charged more times than ConnectVend recorded sales; check for a double charge'"
                             >
                               held by row #{{ c.claimed_by_row.row_no }}<span v-if="!c.claimed_by_row.same_report"> (report {{ c.claimed_by_row.report_id }})</span>
                             </span>

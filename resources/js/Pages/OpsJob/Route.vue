@@ -572,13 +572,13 @@ function buildClaudePrompt() {
       + ' lng ' + (address?.longitude ?? '?');
   });
 
-  return 'Plan the driver route for mark1 ops job ' + opsJob.value.id
+  return 'Plan the driver route for ConnectVend ops job ' + opsJob.value.id
     + ' (' + (opsJob.value.date_formatted ?? '') + ', driver: ' + (opsJob.value.deliveredBy?.name ?? 'unassigned') + ').\n\n'
     + 'Stops to order:\n' + stopLines.join('\n') + '\n\n'
     + 'Use the read-only sys-happyice MCP where helpful: past visiting order for these sites '
     + '(ops_job_items.sequence on earlier ops_jobs for the same customer_id/driver), site timing patterns, '
     + 'and anything else in the DB. Order the stops to minimise travel and respect timing patterns.\n\n'
-    + 'If the mark1 MCP offers the apply_route_sequence tool, apply the route directly with it '
+    + 'If the ConnectVend MCP offers the apply_route_sequence tool, apply the route directly with it '
     + '(dry_run first, then apply after I confirm). Otherwise reply with ONLY this JSON '
     + '(stops in visiting order, include every stop listed above) for me to paste into the route page:\n'
     + '{"ops_job_id": ' + opsJob.value.id + ', "stops": [{"type": "item", "id": 123}, {"type": "task", "id": 456}]}';

@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 use Laravel\Passport\Passport;
 
 class AuthServiceProvider extends ServiceProvider
@@ -33,7 +33,7 @@ class AuthServiceProvider extends ServiceProvider
         Passport::tokensCan([
             'mart.partner_api' => 'Grab Mart Delivery API',
             'food.partner_api' => 'Grab Food Delivery API',
-            'mcp' => 'Query the mark1 database (read-only) through Claude',
+            'mcp' => 'Query the ConnectVend database (read-only) through Claude',
         ]);
 
         // Passport::loadKeysFrom(__DIR__.'/../secrets/oauth');
