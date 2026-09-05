@@ -27,6 +27,9 @@ use Inertia\Inertia;
  */
 class CardSettlementController extends Controller
 {
+    /** Fitting lines a wrong-binding suggestion needs before the bulk move will act on it. */
+    const MIN_LINES_TO_MOVE_TERMINAL = 2;
+
     public function __construct()
     {
         $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download']);
@@ -359,6 +362,11 @@ class CardSettlementController extends Controller
                     'row_count' => $lines->count(),
                     'suggested_hits' => $fitting->count(),
                     'from_date' => $fromDate,
+                    // One line is a coincidence, not a move: live 2026-09-03 a
+                    // single \$1.60 whose sale sat 19 s BEFORE the terminal time
+                    // flipped TID 23102952 onto 2337 for a day and back. Two or
+                    // more fitting lines before the bulk button will act.
+                    'weak' => $fitting->count() < self::MIN_LINES_TO_MOVE_TERMINAL,
                 ] + $this->bindingMoveImpact((string) $terminalId, $suggestedCode, $fromDate);
             })
             ->sortByDesc('row_count')
@@ -464,6 +472,12 @@ class CardSettlementController extends Controller
 
         foreach ($suspects as $suspect) {
             $terminalId = $suspect['terminal_id'];
+
+            if (! empty($suspect['weak'])) {
+                $skipped[] = "{$terminalId}: only {$suspect['suggested_hits']} line fits {$suspect['suggested_vend_code']} — not enough to move it; bind by hand if you know it moved";
+
+                continue;
+            }
 
             $unit = CardTerminalUnit::where('terminal_id', $terminalId)->first();
             if (! $unit) {
@@ -571,16 +585,15 @@ class CardSettlementController extends Controller
                 ['card_terminal_id' => $vend->card_terminal_id, 'remarks' => "Created from settlement report #{$report->id}"]
             );
 
+            // moveToVend, not assignToVend: when the terminal is ALREADY on this
+            // machine but the binding starts after these lines (the live
+            // pattern — bound_from was set to the date the first report got
+            // reviewed, leaving Aug 5–20 unbound), it pulls bound_from back
+            // over the gap instead of answering "already current".
             $before = $bindings->currentUnitFor($vend)?->terminal_id;
-            try {
-                $changed = $bindings->assignToVend($vend, $unit, $t['from_date']);
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                $skipped[] = "{$terminalId}: ".collect($e->errors())->flatten()->first();
-
-                continue;
-            }
-            if (! $changed) {
-                $skipped[] = "{$terminalId}: already the current terminal on {$vend->code}";
+            $result = $bindings->moveToVend($unit, $vend, $t['from_date']);
+            if (! $result['moved']) {
+                $skipped[] = "{$terminalId}: {$result['note']}";
 
                 continue;
             }
@@ -588,7 +601,7 @@ class CardSettlementController extends Controller
             UserLogger::recordChanges($vend, [
                 'card_terminal_unit_id' => [$before, $unit->terminal_id],
             ]);
-            $bound[] = "{$terminalId} → {$vend->code} from {$t['from_date']}";
+            $bound[] = "{$terminalId} → {$vend->code} ({$result['note']})";
         }
 
         if ($bound) {

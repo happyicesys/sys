@@ -197,16 +197,18 @@
         <div class="text-orange-800 space-y-0.5">
           <div v-for="s in suspectBindings" :key="s.terminal_id" class="flex items-start space-x-2">
             <input
+              v-if="!s.weak"
               type="checkbox"
               class="mt-1 cursor-pointer rounded border-orange-300 text-orange-600 focus:ring-orange-500"
               :checked="selectedTerminals.includes(s.terminal_id)"
               :title="'Move ' + s.terminal_id + ' to machine ' + s.suggested_vend_code"
               @change="toggleSuspect(s.terminal_id)"
             />
+            <span v-else class="mt-1 inline-block w-4" title="Only one line fits — not enough evidence to move the terminal automatically"></span>
             <div>
             <span class="font-mono">{{ s.terminal_id }}</span> is bound to <b>{{ s.bound_vend_code }}</b>, but its sales are on
             <b>{{ s.suggested_vend_code }}</b> — {{ s.suggested_hits }} of {{ s.row_count }} unmatched lines fit that machine exactly,
-            from <b>{{ s.from_date }}</b>.
+            from <b>{{ s.from_date }}</b>.<span v-if="s.weak" class="ml-1 text-orange-600">One line is a coincidence, not a move — bind by hand if you know it moved.</span>
             <!-- Impact across EVERY report from that date, counted before the
                  move: what it recovers vs what it would knock back to a query. -->
             <span class="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold border"
@@ -593,11 +595,11 @@ function rematch() {
 // it has to be an explicit tick.
 const selectedTerminals = ref([])
 watch(() => props.suspectBindings, (list) => {
-  selectedTerminals.value = (list || []).filter((s) => !s.would_break).map((s) => s.terminal_id)
+  selectedTerminals.value = (list || []).filter((s) => !s.would_break && !s.weak).map((s) => s.terminal_id)
 }, { immediate: true })
 
 const allSuspectsSelected = computed(() =>
-  props.suspectBindings.length > 0 && selectedTerminals.value.length === props.suspectBindings.length)
+  props.suspectBindings.filter((s) => !s.weak).length > 0 && selectedTerminals.value.length === props.suspectBindings.filter((s) => !s.weak).length)
 
 function toggleSuspect(terminalId) {
   selectedTerminals.value = selectedTerminals.value.includes(terminalId)
@@ -606,7 +608,7 @@ function toggleSuspect(terminalId) {
 }
 
 function toggleAllSuspects() {
-  selectedTerminals.value = allSuspectsSelected.value ? [] : props.suspectBindings.map((s) => s.terminal_id)
+  selectedTerminals.value = allSuspectsSelected.value ? [] : props.suspectBindings.filter((s) => !s.weak).map((s) => s.terminal_id)
 }
 
 function fixBindings() {

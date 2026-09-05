@@ -159,3 +159,22 @@ recorded on `card_settlement_reports.storage_disk`, and are served only via the 
   ever uploaded, matching needs those effective-dated rows (import another CSV, same command).
 - No index on `vend_transactions.card_settlement_synced_at` yet — add one if an "unsynced card
   sales" filter is ever queried at scale.
+
+## Reconciliation review 2026-09-05 (35 reports, Aug 1 – Sep 4) — patterns and guards added
+
+- Match rate 98.8% (79,499 / ~80,500 purchase lines). Unmatched: 650 "no sale in window" (0.8%, 219
+  terminals — TRADE loss), 202 double taps (135 terminals, diffuse = customers, not machines), 147 on
+  6 unbound TIDs, ~40 "on another machine".
+- **Nothing was synced** — every report sat in `review`; matching alone stamps nothing.
+- Binding churn: 24 TIDs with ≥ 2 bindings. Real moves have a clean cut in the per-day matched
+  machine (23104047: 2810 → 2637 on Aug 12; 23102916: 2310 → 4609 by Aug 7; 23082812: 2696 → 2003 on
+  Sep 2). A batch of bindings dated Aug 21 is an artefact: `bound_from` = the day the report was
+  reviewed, not the day the terminal moved, leaving Aug 5–20 unbound for 23005588 / 23107346 /
+  23100703 / 23100717 → `bindUnbound` now widens back via `moveToVend` instead of "already current".
+- False flip: 23102952 went 4183 → 2337 → 4183 for one day on ONE \$1.60 line whose sale sat 19 s
+  BEFORE the terminal time (bystander; 4183 was offline that afternoon). Suspect suggestions with
+  < `MIN_LINES_TO_MOVE_TERMINAL` (2) fitting lines are now `weak`: shown, no checkbox, skipped by
+  the bulk move.
+- Machines losing TRADEs (NETS has the sale, ConnectVend doesn't): 2518 (Aug 30–31, 0 sales recorded
+  on Aug 31 while NETS has 15; also the slowest TRADE lag, avg 40 s), 4605 (Aug 6–9, ~50% loss),
+  2399 (chronic ~13%). Most reversals: 2673 (11), then 2475 / 2573 / 2674 / 2749 / 2737 (7 each).

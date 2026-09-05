@@ -168,6 +168,7 @@ class CardSettlementFixBindingsTest extends TestCase
         $report = $this->report();
         $this->suspectRow($report, $wrong, 2518, '2026-08-20');
         $this->suspectRow($report, $wrong, 2518, '2026-08-15');
+        $this->suspectRow($report, $wrong, 2518, '2026-08-16');
 
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings')
@@ -230,6 +231,7 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $report = $this->report();
         $this->suspectRow($report, $wrong, 2518, '2026-08-25');
+        $this->suspectRow($report, $wrong, 2518, '2026-08-26'); // a move needs ≥ 2 fitting lines
 
         $this->actingAs($this->staff())->post('/card-settlements/'.$report->id.'/fix-bindings');
 
@@ -242,6 +244,7 @@ class CardSettlementFixBindingsTest extends TestCase
         CardTerminalBinding::where('vend_id', $wrong->id)->update(['bound_until' => '2026-08-01']);
         $older = $this->report();
         $this->suspectRow($older, $wrong, 2518, '2026-08-10');
+        $this->suspectRow($older, $wrong, 2518, '2026-08-11');
 
         $this->actingAs($this->staff())->post('/card-settlements/'.$older->id.'/fix-bindings');
 
@@ -264,6 +267,7 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $report = $this->report();
         $this->suspectRow($report, $wrong, 2518, '2026-08-10'); // inside the closed binding
+        $this->suspectRow($report, $wrong, 2518, '2026-08-11');
 
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings')
@@ -284,6 +288,7 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $report = $this->report();
         $this->suspectRow($report, $wrong, 2518, '2026-08-15');
+        $this->suspectRow($report, $wrong, 2518, '2026-08-16');
 
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings')
@@ -304,6 +309,7 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $report = $this->report();
         $this->suspectRow($report, $wrong, 9999, '2026-08-15');
+        $this->suspectRow($report, $wrong, 9999, '2026-08-16');
 
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings')
@@ -360,6 +366,7 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $report = $this->report();
         $this->suspectRow($report, $wrong, 2518, '2026-08-15');
+        $this->suspectRow($report, $wrong, 2518, '2026-08-16');
         $this->matchedRow($report, $wrong, '2026-08-17', synced: true);
 
         $this->actingAs($this->staff())
@@ -397,7 +404,9 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $report = $this->report();
         $this->suspectRow($report, $wrong, 2518, '2026-09-01');
+        $this->suspectRow($report, $wrong, 2518, '2026-09-02');
         $this->suspectRow($report, $otherWrong, 2337, '2026-09-01', terminalId: '23107352');
+        $this->suspectRow($report, $otherWrong, 2337, '2026-09-02', terminalId: '23107352');
 
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings', ['terminal_ids' => [self::TID]])
@@ -410,6 +419,37 @@ class CardSettlementFixBindingsTest extends TestCase
         $this->assertNull($untouched->fresh()->bound_until);
         $this->assertSame($otherWrong->id, $untouched->fresh()->vend_id);
         $this->assertSame(0, CardTerminalBinding::where('vend_id', $otherRight->id)->count());
+    }
+
+    /**
+     * One fitting line is a coincidence, not a move: live 2026-09-03 a single
+     * $1.60 whose sale sat 19 s BEFORE the terminal time flipped a terminal onto
+     * another machine for a day. The panel still shows it (flagged weak); the
+     * bulk button refuses to act on it.
+     */
+    public function test_a_single_fitting_line_is_too_weak_to_move_a_terminal(): void
+    {
+        $wrong = $this->makeVend(2443);
+        $this->makeVend(2518);
+        $this->unit();
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => self::TID,
+            'vend_id' => $wrong->id, 'bound_from' => '2025-09-26',
+        ]);
+
+        $report = $this->report();
+        $this->suspectRow($report, $wrong, 2518, '2026-08-15');
+
+        $this->actingAs($this->staff())
+            ->get('/card-settlements/'.$report->id)
+            ->assertInertia(fn ($page) => $page->where('suspectBindings.0.weak', true));
+
+        $this->actingAs($this->staff())
+            ->post('/card-settlements/'.$report->id.'/fix-bindings')
+            ->assertSessionHas('message', fn ($m) => str_contains($m, 'not enough to move it'));
+
+        $this->assertNull(CardTerminalBinding::where('terminal_id', self::TID)->first()->bound_until);
+        Queue::assertNotPushed(MatchCardSettlementReport::class);
     }
 
     public function test_it_needs_the_update_permission(): void
