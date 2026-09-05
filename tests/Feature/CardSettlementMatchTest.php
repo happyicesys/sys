@@ -404,6 +404,27 @@ class CardSettlementMatchTest extends TestCase
         $this->assertTrue($row->candidates_json[0]['other_vend']);
     }
 
+    /**
+     * The suggestion is a vote across the terminal's lines: a bystander
+     * machine that happens to fit one common-price line must not veto the
+     * machine that fits every line.
+     */
+    public function test_unbound_terminal_suggestion_is_a_vote_not_a_per_line_veto()
+    {
+        $a1 = $this->txn('2026-08-29 22:31:07', 240, ['vend_id' => 2830]);
+        $a2 = $this->txn('2026-08-29 23:02:35', 150, ['vend_id' => 2830]);
+        $this->txn('2026-08-29 22:34:20', 240, ['vend_id' => 2718]); // bystander: fits line 1 only (+3:13)
+        $report = $this->report();
+        $l1 = $this->row($report, ['terminal_id' => '99999999', 'transaction_time' => '22:30:58']);
+        $l2 = $this->row($report, ['terminal_id' => '99999999', 'transaction_time' => '23:02:24', 'amount_cents' => 150]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $this->assertSame($a1->id, $l1->fresh()->candidates_json[0]['vend_transaction_id']);
+        $this->assertSame($a2->id, $l2->fresh()->candidates_json[0]['vend_transaction_id']);
+        $this->assertCount(1, $l1->fresh()->candidates_json); // the bystander is not offered
+    }
+
     public function test_non_purchase_rows_are_ignored()
     {
         $report = $this->report();

@@ -376,11 +376,17 @@ class CardSettlementMatcher
     /**
      * A TID with no binding at all still leaves footprints: its lines are
      * sales that happened somewhere in the fleet at that second for that
-     * amount. When every fitting sale of a line sits on ONE machine, record
-     * that machine as the suggestion (candidates_json, other_vend) so the
-     * report page can say "23104114 — likely on 2835 (14 of 16 lines fit)"
-     * and offer to create/bind it in one click. The note stays "No terminal
-     * binding": nothing is matched until a human accepts the binding.
+     * amount. The machine is found by a VOTE across the terminal's lines,
+     * not line by line: a common price inside the 6-minute window grazes a
+     * bystander machine now and then, but only the real machine fits most of
+     * the lines (live 2026-08-23: TID 23107346 → 2830 fits every line, 2718
+     * fits one). The winner must fit at least half the lines (and 2 of them,
+     * unless the terminal only has one) and beat the runner-up outright.
+     *
+     * Lines the winner fits get it as candidates_json (other_vend) so the
+     * report page can say "23107346 — likely on 2830 (9 of 9 lines fit)" and
+     * offer to create/bind it in one click. The note stays "No terminal
+     * binding": nothing matches until a human accepts the binding.
      *
      * Full-time rows only — an hour-less line matches too many machines.
      *
@@ -424,29 +430,60 @@ class CardSettlementMatcher
             ->whereIn('id', $fleet->pluck('vend_id')->unique())
             ->pluck('code', 'id');
 
-        foreach ($rows as $row) {
+        foreach ($rows->groupBy('terminal_id') as $terminalRows) {
+            // hits[rowId][vendId] = best (closest to the expected lag) pair on that machine
             $hits = [];
-            foreach ($fleet as $sale) {
-                if ($sale->amount !== $row->amount_cents) {
+            foreach ($terminalRows as $row) {
+                $hits[$row->id] = [];
+                foreach ($fleet as $sale) {
+                    if ($sale->amount !== $row->amount_cents) {
+                        continue;
+                    }
+                    $delta = $this->timeDelta($row, $sale, $earlySlack, $lateSlack);
+                    if ($delta === null) {
+                        continue;
+                    }
+                    $pair = ['row' => $row, 'candidate' => $sale, 'delta' => $delta];
+                    $prev = $hits[$row->id][$sale->vend_id] ?? null;
+                    if (! $prev || abs($delta - self::EXPECTED_LAG_SECONDS) < abs($prev['delta'] - self::EXPECTED_LAG_SECONDS)) {
+                        $hits[$row->id][$sale->vend_id] = $pair;
+                    }
+                }
+            }
+
+            // The vote: how many of this terminal's lines does each machine fit?
+            $votes = [];
+            foreach ($hits as $byVend) {
+                foreach (array_keys($byVend) as $vendId) {
+                    $votes[$vendId] = ($votes[$vendId] ?? 0) + 1;
+                }
+            }
+            if (! $votes) {
+                continue;
+            }
+            arsort($votes);
+            $winner = array_key_first($votes);
+            $winnerVotes = $votes[$winner];
+            $runnerUp = count($votes) > 1 ? array_values($votes)[1] : 0;
+            $lines = $terminalRows->count();
+            $needed = $lines === 1 ? 1 : max(2, (int) ceil($lines / 2));
+
+            if ($winnerVotes < $needed || $winnerVotes === $runnerUp) {
+                continue; // no clear machine — leave "bind by hand"
+            }
+
+            $code = $vendCodes->get($winner) ?? ('#'.$winner);
+            foreach ($terminalRows as $row) {
+                $pair = $hits[$row->id][$winner] ?? null;
+                if (! $pair) {
                     continue;
                 }
-                $delta = $this->timeDelta($row, $sale, $earlySlack, $lateSlack);
-                if ($delta !== null) {
-                    $hits[] = ['row' => $row, 'candidate' => $sale, 'delta' => $delta];
-                }
+                $row->update([
+                    'candidates_json' => collect($this->candidatesPayload([$pair]))
+                        ->map(fn ($c) => $c + ['vend_code' => $code, 'other_vend' => true])
+                        ->all(),
+                ]);
             }
-
-            $vendsHit = collect($hits)->pluck('candidate.vend_id')->unique();
-            if ($vendsHit->count() !== 1) {
-                continue; // nothing, or several machines — no suggestion
-            }
-
-            $code = $vendCodes->get($vendsHit->first()) ?? ('#'.$vendsHit->first());
-            $row->update([
-                'candidates_json' => collect($this->candidatesPayload($hits))
-                    ->map(fn ($c) => $c + ['vend_code' => $code, 'other_vend' => true])
-                    ->all(),
-            ]);
         }
     }
 
