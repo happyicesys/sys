@@ -12,7 +12,7 @@
 
      <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+       <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
@@ -254,7 +254,7 @@
 
               <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
                 <div class="mt-6 flex flex-col">
-                  <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
+                  <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 px-3">
                       <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
                         <table class="min-w-full border-separate" style="border-spacing: 0">
                             <thead class="bg-gray-100">
@@ -462,7 +462,7 @@
 
               <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
                 <div class="mt-6 flex flex-col">
-                  <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
+                  <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 px-3">
                       <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
                         <table class="min-w-full border-separate" style="border-spacing: 0">
                             <thead class="bg-gray-100">

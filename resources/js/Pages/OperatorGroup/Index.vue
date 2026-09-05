@@ -14,7 +14,7 @@
         An operator group shares ONE originating CIMB account for refund settlements. Assign the operators that pay from the same account (e.g. HIPL + HIMD, HIESG, UL-ST, LEA).
       </p>
 
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onCreateClicked()"
@@ -67,7 +67,7 @@
       </div>
 
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+       <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">

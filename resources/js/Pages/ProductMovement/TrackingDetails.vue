@@ -160,7 +160,7 @@ const onExcelExportClicked = () => {
         </template>
 
         <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-            <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
+            <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
                     <div class="col-span-5 md:col-span-1">
                         <label class="block text-sm font-medium text-gray-700">Product</label>
@@ -225,7 +225,7 @@ const onExcelExportClicked = () => {
             </div>
 
             <div class="mt-6 flex flex-col">
-                <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+                <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
                     <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
                         <table class="table-auto min-w-full border-separate" style="border-spacing: 0">
                             <thead class="">

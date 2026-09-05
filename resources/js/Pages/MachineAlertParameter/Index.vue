@@ -9,7 +9,7 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
           <SearchInput placeholderStr="Machine ID" v-model="filters.code" @keyup.enter="onSearch">
             Machine ID
@@ -62,7 +62,7 @@
       </div>
 
       <div class="mt-6 flex flex-col">
-        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
+        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 px-3">
           <div class="bg-white border rounded-md shadow-sm p-4">
             <div class="flex flex-col space-y-4 lg:space-y-0 lg:flex-row lg:items-end lg:justify-between">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end w-full lg:w-auto">

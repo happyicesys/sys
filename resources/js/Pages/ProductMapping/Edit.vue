@@ -49,7 +49,7 @@
         To change them, edit the machine in the CityBox portal, then press <b>Pull from CityBox</b> on the machine's settings page.
       </div>
       <div class="mt-6 flex flex-col overflow-visible">
-        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 overflow-visible">
+        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 overflow-visible">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-visible p-5">
             <form @submit.prevent="submit" id="submit">
               <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">

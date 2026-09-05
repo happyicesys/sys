@@ -60,7 +60,7 @@
     </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+       <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
             <!-- In normal flow (was absolute): an absolute button floated over whatever
                  came next — on a chiller, the CityBox banner and its Retry button. -->

@@ -10,7 +10,7 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end mb-4">
           <Link href="/delivery-platform-ref-numbers/create" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
@@ -104,7 +104,7 @@
       </div>
 
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
+       <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 px-3">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">

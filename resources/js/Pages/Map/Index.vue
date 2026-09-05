@@ -8,7 +8,7 @@
           Vending Machine Map
       </h2>
     </template>
-      <!-- <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 "> -->
+      <!-- <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 "> -->
       <div class="overflow-hidden bg-white shadow sm:rounded-md">
           <div class="">
             <div class="mt-2 border-2 items-center justify-center py-3 pl-3 pr-4 text-sm space-y-3">

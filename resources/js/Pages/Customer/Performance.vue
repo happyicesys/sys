@@ -15,7 +15,7 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
@@ -112,7 +112,7 @@
       </div>
 
       <!-- Matrix -->
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border border-gray-300 my-3 overflow-auto max-h-[80vh]">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border border-gray-300 my-3 overflow-auto max-h-[80vh]">
         <table class="min-w-full border-separate text-sm [&_th]:border-gray-300 [&_td]:border-gray-300" style="border-spacing: 0">
           <thead>
             <tr class="bg-gray-50">

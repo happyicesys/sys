@@ -15,7 +15,7 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput v-if="showAllFilters" placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
@@ -598,7 +598,7 @@
 
       <!-- Table -->
       <div class="mt-6 flex flex-col">
-        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <!--
             max-h + overflow-scroll mirror CustomerIndex.vue — a fixed-height
             scroll container is what lets TableHead's built-in

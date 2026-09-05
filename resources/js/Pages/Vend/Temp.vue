@@ -154,7 +154,7 @@
               </div>
           </div>
           <div class="px-1 mt-2 flex flex-col">
-              <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+              <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
                   <div class="inline-block min-w-full py-2 align-middle">
                       <div class="shadow-sm ring-1 ring-black ring-opacity-5">
                           <div class="flex flex-col space-y-1">

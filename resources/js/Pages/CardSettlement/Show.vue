@@ -47,7 +47,7 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <!-- summary -->
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-sm">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-sm">
         <div>
           <div class="text-xs text-gray-400 uppercase">Provider / Account</div>
           <span class="uppercase">{{ report.provider }}</span> · {{ report.merchant_account || '—' }}
@@ -92,13 +92,13 @@
         </div>
       </div>
 
-      <div v-if="report.error_message" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 text-red-700 rounded-md p-3 my-3 text-sm">
+      <div v-if="report.error_message" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 text-red-700 rounded-md p-3 my-3 text-sm">
         {{ report.error_message }}
       </div>
 
       <!-- Excel-damaged file: the hour is gone from the file itself (Excel shows a fake
            "12:xx:xx AM" in its formula bar). Rows are matched on minute:second only. -->
-      <div v-if="report.partial_time_rows" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm text-amber-800">
+      <div v-if="report.partial_time_rows" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm text-amber-800">
         <span class="font-semibold">{{ report.partial_time_rows }} of {{ report.total_rows }} lines have no hour</span> —
         this file was opened and re-saved in Excel, which turns "23:12:41" into "12:41.0". Those lines were matched on
         minute:second within the hour (same terminal, same amount), so ambiguous ones need a manual pick. For exact
@@ -106,7 +106,7 @@
       </div>
 
       <!-- unbound terminals: two different chores, shown apart; each line carries the matcher's machine suggestion -->
-      <div v-if="unknownTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 rounded-md p-3 my-3 text-sm">
+      <div v-if="unknownTerminals.length" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
           <div class="font-semibold text-red-800">Terminal IDs not created yet</div>
           <label v-if="unknownTerminals.some((t) => t.suggested_vend_code)" class="flex items-center space-x-1 text-xs text-red-700 cursor-pointer">
@@ -143,7 +143,7 @@
           <span class="text-red-700">…or by hand: create it under <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>, put it on its machine from that machine's Settings page, and hit Rematch.</span>
         </div>
       </div>
-      <div v-if="unassignedTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
+      <div v-if="unassignedTerminals.length" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
           <div class="font-semibold text-amber-800">Terminal IDs not bound to any machine yet</div>
           <label v-if="unassignedTerminals.some((t) => t.suggested_vend_code)" class="flex items-center space-x-1 text-xs text-amber-700 cursor-pointer">
@@ -181,7 +181,7 @@
         </div>
       </div>
       <!-- suspected wrong bindings: the sale exists, on a different machine -->
-      <div v-if="suspectBindings.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-orange-50 border border-orange-200 rounded-md p-3 my-3 text-sm">
+      <div v-if="suspectBindings.length" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-orange-50 border border-orange-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
           <div class="font-semibold text-orange-800">Terminals that look bound to the wrong machine</div>
           <label class="flex items-center space-x-1 text-xs text-orange-700 cursor-pointer">
@@ -259,7 +259,7 @@
       </div>
 
       <div class="mt-3 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+       <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">

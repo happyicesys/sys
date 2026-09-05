@@ -11,7 +11,7 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+       <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
           <form @submit.prevent="submit" id="submit">
             <!-- Machine source fork (design §8c.2): a radio, because the two branches ask different questions. -->

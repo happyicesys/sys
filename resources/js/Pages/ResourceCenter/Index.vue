@@ -9,7 +9,7 @@
       </h2>
     </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <!-- <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 "> -->
+      <!-- <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 "> -->
         <div class="bg-white shadow sm:rounded-md border-t border-gray-100 pb-10 divide-y divide-gray-900" v-if="indexes.length > 0">
           <dl class="divide-y divide-gray-100 py-3 px-4">
             <div v-for="(parent, parentIndex) in indexes" class="py-2">
