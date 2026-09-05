@@ -1654,7 +1654,13 @@
                                 </span>
                                  {{ customerVendBinding?.vend.code }}
                               </span>
-                              <span class="text-sm text-gray-500">{{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}</span>
+                              <span class="text-sm text-gray-500">
+                                {{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}
+                                <!-- Who did it. Pre-2025 rows have no user_id
+                                     (the column was added later), so fall back
+                                     to a dash rather than showing nothing. -->
+                                <span class="ml-1">&middot; by {{ customerVendBinding.user ? customerVendBinding.user.name : '—' }}</span>
+                              </span>
                             </span>
                           </span>
                         </template>

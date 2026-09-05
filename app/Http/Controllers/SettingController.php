@@ -288,6 +288,9 @@ class SettingController extends Controller
                 'customer.deliveryAddress',
                 'customer.contact',
                 'customerVendBindings.customer',
+                // Who bound/unbound the site — rendered next to the
+                // timestamp in the "Site Binding History" list.
+                'customerVendBindings.user:id,name',
                 'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
                 'key',
                 'logs',

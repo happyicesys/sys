@@ -5458,6 +5458,9 @@ class CustomerController extends Controller
                 'contact',
                 'customerVendBindings.vend:id,code,customer_id',
                 'customerVendBindings.vendPrefix',
+                // Who bound/unbound the machine — rendered next to the
+                // timestamp in the "Machine Binding History" list.
+                'customerVendBindings.user:id,name',
                 'deliveryAddress',
                 'firstTransaction',
                 'photos',
