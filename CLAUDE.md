@@ -272,10 +272,19 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   CRUD on the TID + company only; its Machine ID column is read-only display.
   Adding a machine field there would let ops write bindings with no dated
   history, which is what breaks settlement.
-- **`VendController::update` is the only writer**, through
-  `App\Services\CardSettlement\CardTerminalBindingService`. It only acts when
-  the request carries `card_terminal_unit_id`, so the APK/API callers of
-  `update()` never close a live binding.
+- **Two writers, both through `App\Services\CardSettlement\CardTerminalBindingService`.**
+  `VendController::update` (`assignToVend`) only acts when the request carries
+  `card_terminal_unit_id`, so the APK/API callers of `update()` never close a
+  live binding. `CardSettlementController::fixBindings` (`moveToVend`) is the
+  Card Settlement page's "Move N terminals & rematch" button: it repairs every
+  terminal the report shows selling on another machine, dating each new binding
+  from the earliest line that PROVES the terminal was there, and rematches.
+  It refuses rather than guesses — no `card_terminal_units` row, a machine code
+  that is not unique, a terminal with two open bindings, or a back-date another
+  binding already covers is skipped with its reason in the flash message.
+  `moveToVend` may pull an existing binding's `bound_from` EARLIER (only into a
+  window nothing else claims), which `assignToVend` will never do; that is what
+  makes a month of reports uploaded out of order converge.
 - **A terminal that moves is never edited in place.** The old row is CLOSED
   (`bound_until`) and a new one opened on the same date, because
   `CardSettlementMatcher` resolves a report line by (provider, terminal_id)

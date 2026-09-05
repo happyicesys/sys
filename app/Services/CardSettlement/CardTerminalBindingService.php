@@ -82,6 +82,103 @@ class CardTerminalBindingService
         });
     }
 
+    /**
+     * Put `$unit` on `$vend` effective `$date` for the Card Settlement page's
+     * one-click binding repair, where `$date` is the earliest report line that
+     * already proves the terminal was sitting on that machine.
+     *
+     * Separate from assignToVend() because the two have opposite defaults.
+     * That one serves a human editing ONE machine and treats "already the open
+     * terminal" as a silent no-op; this one runs unattended across a whole
+     * report and must instead (a) say WHY it left a terminal alone, so the
+     * summary can show it, and (b) pull an existing binding's bound_from
+     * EARLIER when a back-dated report proves the terminal was already there —
+     * reports uploaded newest-first would otherwise never match their opening
+     * days, and assignToVend() would report "nothing changed".
+     *
+     * @param  string  $date  Y-m-d the terminal is proven to have been on $vend.
+     * @return array{moved: bool, note: string}
+     */
+    public function moveToVend(CardTerminalUnit $unit, Vend $vend, string $date): array
+    {
+        $date = $this->resolveDate($date);
+
+        $open = CardTerminalBinding::query()
+            ->where('terminal_id', $unit->terminal_id)
+            ->whereNull('bound_until')
+            ->orderBy('id')
+            ->get();
+
+        // Two open bindings for one TID is the invariant this service exists to
+        // prevent; if history already broke it, a human picks which one dies.
+        if ($open->count() > 1) {
+            return ['moved' => false, 'note' => 'has '.$open->count().' open bindings — fix by hand'];
+        }
+
+        $current = $open->first();
+
+        if ($current && (int) $current->vend_id === (int) $vend->id) {
+            if ($current->bound_from === null || $current->bound_from->toDateString() <= $date) {
+                return ['moved' => false, 'note' => 'already on '.$vend->code];
+            }
+
+            return $this->widenBackTo($current, $unit, $vend, $date);
+        }
+
+        // Whatever else is open on the target machine gets closed by
+        // assignToVend() — name it, so the summary can show what was displaced.
+        $displaced = $this->openBindingsForVend($vend)->get()
+            ->reject(fn (CardTerminalBinding $b) => $b->terminal_id === $unit->terminal_id)
+            ->pluck('terminal_id');
+
+        try {
+            $changed = $this->assignToVend($vend, $unit, $date);
+        } catch (ValidationException $e) {
+            return ['moved' => false, 'note' => collect($e->errors())->flatten()->first() ?? 'refused'];
+        }
+
+        if (! $changed) {
+            return ['moved' => false, 'note' => 'nothing to change'];
+        }
+
+        return [
+            'moved' => true,
+            'note' => $displaced->isEmpty()
+                ? 'from '.$date
+                : 'from '.$date.', closed '.$displaced->implode(', ').' on '.$vend->code,
+        ];
+    }
+
+    /**
+     * The terminal is already on the right machine, but the binding starts
+     * AFTER a report line that proves it was there earlier. Pull bound_from
+     * back, but only into a window nothing else claims — widening over another
+     * binding would hand the same date two answers, and the matcher would then
+     * resolve a settled report line onto the wrong machine.
+     *
+     * @return array{moved: bool, note: string}
+     */
+    private function widenBackTo(CardTerminalBinding $current, CardTerminalUnit $unit, Vend $vend, string $date): array
+    {
+        $from = $current->bound_from->toDateString();
+        $gapEnd = Carbon::parse($from)->subDay()->toDateString();
+
+        $claimed = CardTerminalBinding::query()
+            ->where('id', '!=', $current->id)
+            ->where(fn ($q) => $q->where('terminal_id', $unit->terminal_id)->orWhere('vend_id', $vend->id))
+            ->where(fn ($q) => $q->whereNull('bound_from')->orWhere('bound_from', '<=', $gapEnd))
+            ->where(fn ($q) => $q->whereNull('bound_until')->orWhere('bound_until', '>=', $date))
+            ->exists();
+
+        if ($claimed) {
+            return ['moved' => false, 'note' => 'on '.$vend->code.' only from '.$from.', and an earlier binding covers '.$date];
+        }
+
+        $current->update(['bound_from' => $date]);
+
+        return ['moved' => true, 'note' => 'back-dated on '.$vend->code.' to '.$date];
+    }
+
     /** The terminal currently on this machine, if any. */
     public function currentUnitFor(Vend $vend): ?CardTerminalUnit
     {

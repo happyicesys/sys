@@ -69,6 +69,11 @@ class CardSettlementMatcher
             ->where('provider', $report->provider)
             ->whereIn('terminal_id', $purchases->pluck('terminal_id')->unique())
             ->get()
+            // Newest binding first. Moving a terminal closes the old row and
+            // opens the new one on the SAME date, and effectiveOn is inclusive
+            // at both ends, so that one day resolves twice — the machine the
+            // terminal moved TO is the answer that matches its later lines.
+            ->sortByDesc(fn (CardTerminalBinding $b) => $b->bound_from?->toDateString() ?? '')
             ->groupBy('terminal_id');
 
         $bindingFor = function (CardSettlementRow $row) use ($bindings): ?CardTerminalBinding {

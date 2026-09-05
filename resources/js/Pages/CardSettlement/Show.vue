@@ -125,12 +125,32 @@
         <div class="text-orange-800 space-y-0.5">
           <div v-for="s in suspectBindings" :key="s.terminal_id">
             <span class="font-mono">{{ s.terminal_id }}</span> is bound to <b>{{ s.bound_vend_code }}</b>, but its sales are on
-            <b>{{ s.suggested_vend_code }}</b> — {{ s.suggested_hits }} of {{ s.row_count }} unmatched lines fit that machine exactly.
+            <b>{{ s.suggested_vend_code }}</b> — {{ s.suggested_hits }} of {{ s.row_count }} unmatched lines fit that machine exactly,
+            from <b>{{ s.from_date }}</b>.
+            <!-- Impact across EVERY report from that date, counted before the
+                 move: what it recovers vs what it would knock back to a query. -->
+            <span class="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold border"
+              :class="s.would_break_synced ? 'bg-red-100 text-red-800 border-red-300'
+                : (s.would_break ? 'bg-amber-100 text-amber-800 border-amber-300'
+                : 'bg-green-100 text-green-800 border-green-300')">
+              fixes {{ s.would_fix }} · breaks {{ s.would_break }}<span v-if="s.would_break_synced"> ({{ s.would_break_synced }} already synced — skipped)</span>
+            </span>
           </div>
         </div>
-        <div class="mt-1 text-orange-700">
-          Move the terminal from the RIGHT machine's Settings page — pick this Terminal ID there and set Bound From to the
-          date it moved. That closes the old binding and opens the new one automatically. Then hit Rematch.
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            class="bg-orange-600 hover:bg-orange-700 px-3 py-2 text-xs text-white flex space-x-1"
+            :class="report.status === 'matching' ? 'opacity-50 cursor-not-allowed' : ''"
+            @click="fixBindings()"
+          >
+            <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+            <span>Move {{ suspectBindings.length }} terminal{{ suspectBindings.length === 1 ? '' : 's' }} &amp; rematch</span>
+          </Button>
+          <span class="text-orange-700">
+            …or do it by hand from the RIGHT machine's Settings page — pick this Terminal ID there and set Bound From to the
+            date it moved, then hit Rematch.
+          </span>
         </div>
       </div>
 
@@ -434,6 +454,32 @@ function rematch() {
   router.post('/card-settlements/' + props.report.id + '/rematch', {}, {
     preserveScroll: true,
     onSuccess: () => toast.success("Rematch queued", { timeout: 3000 }),
+  })
+}
+
+// One-click repair of every suspected wrong binding, then rematch. Bindings are
+// dated and global, so this changes how EVERY report resolves those terminals —
+// hence the confirm, and the server's per-terminal report in the flash message.
+function fixBindings() {
+  if (props.report.status === 'matching' || !props.suspectBindings.length) return
+  const lines = props.suspectBindings
+    .map((s) => '  ' + s.terminal_id + ': ' + s.bound_vend_code + ' → ' + s.suggested_vend_code + ' from ' + s.from_date +
+      ' (fixes ' + s.would_fix + ', breaks ' + s.would_break + ')' +
+      (s.would_break_synced ? ' — SKIPPED, ' + s.would_break_synced + ' already synced' : ''))
+    .join('\n')
+  const approval = confirm(
+    'Move ' + props.suspectBindings.length + ' terminal(s) onto the machine their sales are on, and rematch?\n\n' +
+    lines + '\n\n' +
+    'This closes each current binding and opens a new one from that date. It affects every settlement report, ' +
+    'not just this one. Anything ambiguous is left alone and listed back to you.'
+  )
+  if (!approval) {
+    return
+  }
+  router.post('/card-settlements/' + props.report.id + '/fix-bindings', {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Bindings updated — rematch queued", { timeout: 4000 }),
+    onError: () => toast.error("Failed to update bindings", { timeout: 3000 }),
   })
 }
 

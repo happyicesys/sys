@@ -1217,6 +1217,7 @@ Route::middleware(['auth', 'cors'])->prefix('card-settlements')->group(function 
     Route::get('/{id}', [CardSettlementController::class, 'show'])->name('card-settlements.show');
     Route::get('/{id}/download', [CardSettlementController::class, 'download'])->name('card-settlements.download');
     Route::post('/{id}/rematch', [CardSettlementController::class, 'rematch'])->name('card-settlements.rematch');
+    Route::post('/{id}/fix-bindings', [CardSettlementController::class, 'fixBindings'])->name('card-settlements.fix-bindings');
     Route::post('/{id}/rows/{rowId}/resolve', [CardSettlementController::class, 'resolveRow'])->name('card-settlements.rows.resolve');
     Route::post('/{id}/rows/ignore-batch', [CardSettlementController::class, 'ignoreRows'])->name('card-settlements.rows.ignore-batch');
     Route::post('/{id}/rows/{rowId}/ignore', [CardSettlementController::class, 'ignoreRow'])->name('card-settlements.rows.ignore');

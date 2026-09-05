@@ -6,9 +6,12 @@ use App\Http\Resources\CardSettlementReportResource;
 use App\Jobs\MatchCardSettlementReport;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
+use App\Models\CardTerminalUnit;
 use App\Models\VendTransaction;
 use App\Services\CardSettlement\CardSettlementSyncService;
+use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\ParserRegistry;
+use App\Services\UserLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,7 +31,7 @@ class CardSettlementController extends Controller
     {
         $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download']);
         $this->middleware(['permission:create card-settlements'])->only(['store']);
-        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
+        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'fixBindings', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
         $this->middleware(['permission:delete card-settlements'])->only(['destroy']);
     }
 
@@ -185,31 +188,7 @@ class CardSettlementController extends Controller
             'transaction_time' => $r->transaction_time,
         ] : null;
 
-        // Terminals whose unmatched lines have a fitting sale on ANOTHER
-        // machine — the binding sheet is probably wrong for that TID. Grouped
-        // here so the user fixes the binding once and hits Rematch.
-        $suspectBindings = $report->rows()
-            ->where('status', CardSettlementRow::STATUS_UNMATCHED)
-            ->where('resolution_note', 'like', 'No matching sale on bound machine%')
-            ->get(['terminal_id', 'vend_id', 'candidates_json'])
-            ->groupBy('terminal_id')
-            ->map(function ($lines, $terminalId) use ($vendCodes) {
-                $suggested = $lines
-                    ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code'))
-                    ->countBy()
-                    ->sortDesc();
-
-                return [
-                    'terminal_id' => $terminalId,
-                    'bound_vend_code' => $vendCodes->get($lines->first()->vend_id)
-                        ?? \App\Models\Vend::withoutGlobalScopes()->whereKey($lines->first()->vend_id)->value('code'),
-                    'suggested_vend_code' => $suggested->keys()->first(),
-                    'row_count' => $lines->count(),
-                    'suggested_hits' => $suggested->first() ?? 0,
-                ];
-            })
-            ->sortByDesc('row_count')
-            ->values();
+        $suspectBindings = $this->suspectBindings($report);
 
         // Terminals in this report with no binding — the one-time setup the
         // user must do before those rows can ever match.
@@ -298,6 +277,206 @@ class CardSettlementController extends Controller
             'suspectBindings' => $suspectBindings,
             'statusLabels' => CardSettlementRow::STATUS_LABELS,
         ]);
+    }
+
+    /**
+     * Terminals whose unmatched lines have a fitting sale on ANOTHER machine —
+     * the binding sheet is probably wrong for that TID. Grouped so the user
+     * fixes the binding once, either by hand or through fixBindings() below.
+     *
+     * `from_date` is the earliest line that fits the suggested machine, i.e.
+     * the earliest date this report can prove the terminal was already there —
+     * so a repair never claims more history than the evidence covers.
+     */
+    private function suspectBindings(CardSettlementReport $report)
+    {
+        $lines = $report->rows()
+            ->where('status', CardSettlementRow::STATUS_UNMATCHED)
+            ->where('resolution_note', 'like', 'No matching sale on bound machine%')
+            ->get(['terminal_id', 'vend_id', 'transaction_date', 'candidates_json']);
+
+        $vendCodes = \App\Models\Vend::withoutGlobalScopes()
+            ->whereIn('id', $lines->pluck('vend_id')->filter()->unique())
+            ->pluck('code', 'id');
+
+        return $lines
+            ->groupBy('terminal_id')
+            ->map(function ($lines, $terminalId) use ($vendCodes) {
+                $suggestedCode = $lines
+                    ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code'))
+                    ->countBy()
+                    ->sortDesc()
+                    ->keys()
+                    ->first();
+
+                // Date the evidence from the lines that fit the SUGGESTED
+                // machine; a line fitting some third machine must not drag the
+                // binding further back than this move can justify.
+                $fitting = $lines->filter(fn ($l) => collect($l->candidates_json ?? [])
+                    ->contains(fn ($c) => ($c['other_vend'] ?? false)
+                        && (string) ($c['vend_code'] ?? '') === (string) $suggestedCode));
+
+                $fromDate = ($fitting->isNotEmpty() ? $fitting : $lines)
+                    ->min(fn ($l) => $l->transaction_date->toDateString());
+
+                return [
+                    'terminal_id' => (string) $terminalId,
+                    'bound_vend_code' => $vendCodes->get($lines->first()->vend_id),
+                    'suggested_vend_code' => $suggestedCode,
+                    'row_count' => $lines->count(),
+                    'suggested_hits' => $fitting->count(),
+                    'from_date' => $fromDate,
+                ] + $this->bindingMoveImpact((string) $terminalId, $suggestedCode, $fromDate);
+            })
+            ->sortByDesc('row_count')
+            ->values();
+    }
+
+    /**
+     * What moving this terminal would cost as well as fix, counted BEFORE the
+     * move so the trade-off is visible on the button rather than discovered in
+     * the rematch afterwards.
+     *
+     * A binding is global, so the blast radius is EVERY report from `$fromDate`
+     * on, not just the one on screen:
+     *  - `would_fix`   unmatched lines that have a fitting sale on the machine
+     *                  we would move to — the point of the exercise.
+     *  - `would_break` lines matched TODAY whose sale sits on some other
+     *                  machine; re-resolving the terminal takes their binding
+     *                  away and they fall back to unmatched.
+     *  - `would_break_synced` the subset of those already stamped onto a sale
+     *                  by Sync. Those are settled finance data, so a move that
+     *                  breaks any of them wants a human, not a bulk button.
+     *
+     * Counted from `card_settlement_rows.vend_id`, which a matched row carries
+     * as the machine its sale was found on — no join to 5M vend_transactions.
+     *
+     * @return array{would_fix: int, would_break: int, would_break_synced: int}
+     */
+    private function bindingMoveImpact(string $terminalId, $suggestedVendCode, ?string $fromDate): array
+    {
+        $empty = ['would_fix' => 0, 'would_break' => 0, 'would_break_synced' => 0];
+
+        if (! $fromDate || $suggestedVendCode === null) {
+            return $empty;
+        }
+
+        $target = \App\Models\Vend::withoutGlobalScopes()->where('code', $suggestedVendCode)->get(['id']);
+        if ($target->count() !== 1) {
+            return $empty;
+        }
+        $targetId = (int) $target->first()->id;
+
+        $affected = CardSettlementRow::query()
+            ->where('terminal_id', $terminalId)
+            ->whereDate('transaction_date', '>=', $fromDate)
+            ->whereIn('status', [CardSettlementRow::STATUS_MATCHED, CardSettlementRow::STATUS_UNMATCHED])
+            ->get(['id', 'status', 'vend_id', 'matched_vend_transaction_id', 'candidates_json']);
+
+        [$matched, $unmatched] = $affected->partition(
+            fn (CardSettlementRow $r) => $r->status === CardSettlementRow::STATUS_MATCHED
+        );
+
+        $breaking = $matched->reject(fn (CardSettlementRow $r) => (int) $r->vend_id === $targetId);
+
+        $syncedTxnIds = $breaking->pluck('matched_vend_transaction_id')->filter();
+        $syncedCount = $syncedTxnIds->isEmpty() ? 0 : VendTransaction::withoutGlobalScopes()
+            ->whereIn('id', $syncedTxnIds)
+            ->whereNotNull('card_settlement_synced_at')
+            ->count();
+
+        return [
+            'would_fix' => $unmatched->filter(fn (CardSettlementRow $r) => collect($r->candidates_json ?? [])
+                ->contains(fn ($c) => ($c['other_vend'] ?? false)
+                    && (string) ($c['vend_code'] ?? '') === (string) $suggestedVendCode))->count(),
+            'would_break' => $breaking->count(),
+            'would_break_synced' => $syncedCount,
+        ];
+    }
+
+    /**
+     * Move every suspected wrong binding in this report onto the machine its
+     * sales are actually on, then rematch — the one-click form of the manual
+     * "go to the right machine's Settings page" instruction.
+     *
+     * Bindings are global and dated, so this changes how EVERY report resolves
+     * that terminal, not just this one; each move is therefore reported back by
+     * name, and anything the service will not do unattended (no terminal
+     * record, an ambiguous machine code, a date another binding already claims)
+     * is skipped with its reason rather than forced.
+     */
+    public function fixBindings($id, CardTerminalBindingService $bindings)
+    {
+        $report = CardSettlementReport::findOrFail($id);
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+
+        $suspects = $this->suspectBindings($report);
+        $moved = [];
+        $skipped = [];
+
+        foreach ($suspects as $suspect) {
+            $terminalId = $suspect['terminal_id'];
+
+            $unit = CardTerminalUnit::where('terminal_id', $terminalId)->first();
+            if (! $unit) {
+                $skipped[] = "{$terminalId}: no terminal record — add it under Data Management → Card Terminal";
+
+                continue;
+            }
+
+            // withoutGlobalScopes to match the matcher's own fleet lookup: an
+            // operator-scoped read would silently skip another operator's
+            // machine and leave those lines unmatched forever.
+            $candidates = \App\Models\Vend::withoutGlobalScopes()
+                ->where('code', $suspect['suggested_vend_code'])->get();
+            if ($candidates->count() !== 1) {
+                $skipped[] = "{$terminalId}: machine {$suspect['suggested_vend_code']} "
+                    .($candidates->isEmpty() ? 'not found' : 'is not unique');
+
+                continue;
+            }
+            $vend = $candidates->first();
+
+            // Breaking a line Sync already stamped onto a sale is un-settling
+            // finance data. The bulk button never does that unattended — the
+            // Settings page is still there for a human who means it.
+            if ($suspect['would_break_synced'] > 0) {
+                $skipped[] = "{$terminalId}: would break {$suspect['would_break_synced']} already-synced line(s) — move it by hand from machine {$vend->code}'s Settings page";
+
+                continue;
+            }
+
+            $before = $bindings->currentUnitFor($vend)?->terminal_id;
+            $result = $bindings->moveToVend($unit, $vend, $suspect['from_date']);
+
+            if (! $result['moved']) {
+                $skipped[] = "{$terminalId}: {$result['note']}";
+
+                continue;
+            }
+
+            // Bindings live on their own table, so the app-wide audit never
+            // sees this as a vend change — record it by hand under the same
+            // synthetic column VendController uses for the Settings page.
+            UserLogger::recordChanges($vend, [
+                'card_terminal_unit_id' => [$before, $unit->terminal_id],
+            ]);
+
+            $moved[] = "{$terminalId} → {$vend->code} ({$result['note']})";
+        }
+
+        if ($moved) {
+            MatchCardSettlementReport::dispatch($report->id);
+        }
+
+        $message = $moved
+            ? 'Moved '.count($moved).' of '.$suspects->count().' terminal(s) — rematch queued: '.implode('; ', $moved).'.'
+            : 'No binding was changed.';
+        if ($skipped) {
+            $message .= ' Left alone: '.implode('; ', $skipped).'.';
+        }
+
+        return back()->with('message', $message);
     }
 
     public function rematch($id)

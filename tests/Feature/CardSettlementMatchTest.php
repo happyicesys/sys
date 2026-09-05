@@ -360,6 +360,34 @@ class CardSettlementMatchTest extends TestCase
         $this->assertTrue($row->candidates_json[0]['other_vend']);
     }
 
+    /**
+     * A move closes the old binding and opens the new one on the SAME date,
+     * and effectiveOn is inclusive at both ends — so the changeover day
+     * resolves twice. It must land on the machine the terminal moved TO, or
+     * the whole first day of every rebind stays unmatched.
+     */
+    public function test_a_move_on_the_changeover_day_resolves_to_the_new_machine()
+    {
+        CardTerminalBinding::where('terminal_id', '23082824')->update(['bound_until' => '2026-08-29']);
+        CardTerminalBinding::create([
+            'provider' => 'nets',
+            'terminal_id' => '23082824',
+            'vend_id' => 2696,
+            'bound_from' => '2026-08-29',
+        ]);
+
+        $moved = $this->txn('2026-08-29 22:31:07', 240, ['vend_id' => 2696]);
+        $report = $this->report();
+        $row = $this->row($report);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_MATCHED, $row->status);
+        $this->assertSame($moved->id, $row->matched_vend_transaction_id);
+        $this->assertSame(2696, $row->vend_id);
+    }
+
     public function test_non_purchase_rows_are_ignored()
     {
         $report = $this->report();
