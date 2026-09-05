@@ -105,17 +105,30 @@
         matching, re-download the raw CSV from MerchantConnect and upload that instead.
       </div>
 
-      <!-- unbound terminals -->
-      <div v-if="unboundTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
-        <div class="font-semibold text-amber-800 mb-1">Terminals without a machine binding</div>
+      <!-- unbound terminals: two different chores, shown apart -->
+      <div v-if="unknownTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 rounded-md p-3 my-3 text-sm">
+        <div class="font-semibold text-red-800 mb-1">Terminal IDs not created yet</div>
+        <div class="text-red-800">
+          <span v-for="t in unknownTerminals" :key="t.terminal_id" class="inline-block mr-3">
+            {{ t.terminal_id }} <span class="text-red-600">({{ t.row_count }} rows)</span>
+          </span>
+        </div>
+        <div class="mt-1 text-red-700">
+          mark1 has never seen these terminals. Create each one under
+          <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>,
+          then put it on its machine from that machine's Settings page, and hit Rematch.
+        </div>
+      </div>
+      <div v-if="unassignedTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
+        <div class="font-semibold text-amber-800 mb-1">Terminal IDs not bound to any machine yet</div>
         <div class="text-amber-800">
-          <span v-for="t in unboundTerminals" :key="t.terminal_id" class="inline-block mr-3">
+          <span v-for="t in unassignedTerminals" :key="t.terminal_id" class="inline-block mr-3">
             {{ t.terminal_id }} <span class="text-amber-600">({{ t.row_count }} rows)</span>
           </span>
         </div>
         <div class="mt-1 text-amber-700">
-          Add the terminal under <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>,
-          then put it on its machine from that machine's Settings page, and hit Rematch.
+          These terminals exist in Data Management but have no machine for the dates in this report.
+          Open the machine's Settings page, pick the Terminal ID there (set Bound From to the date it went on), and hit Rematch.
         </div>
       </div>
 
@@ -427,6 +440,10 @@ const props = defineProps({
 
 const toast = useToast()
 const rowStatus = ref(props.rowFilters.row_status ?? 'queries')
+
+// "No terminal binding" split by whether the TID exists in Data Management at all.
+const unknownTerminals = computed(() => props.unboundTerminals.filter((t) => !t.unit_exists))
+const unassignedTerminals = computed(() => props.unboundTerminals.filter((t) => t.unit_exists))
 
 // Row status codes (CardSettlementRow::STATUS_*)
 const chips = [

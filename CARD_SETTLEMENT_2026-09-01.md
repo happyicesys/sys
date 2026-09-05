@@ -62,7 +62,7 @@ IGNORED (Logon, user-dismissed) / DUPLICATE. UNMATCHED notes, and what each mean
 
 | Note | Meaning | What to do |
 |---|---|---|
-| `No terminal binding` | TID not in Card Terminal Bindings | add binding → Rematch |
+| `No terminal binding` | no binding covers the line's date. The Show page splits these: **"Terminal IDs not created yet"** (red — no `card_terminal_units` row; create it under Data Management → Card Terminal, then assign) vs **"Terminal IDs not bound to any machine yet"** (amber — unit exists, assign it from the machine's Settings page) | create / assign → Rematch |
 | `No matching sale on bound machine — found on machine X` | the sale exists, on another machine: **the binding sheet is wrong** for this TID (live: 23082812 said 2787, sales on 2696) — the Show page groups these as "Terminals that look bound to the wrong machine" | move the binding (close old, open new from the right date) → Rematch |
 | `All matching sales already claimed` | every fitting sale is held by another line — **NETS charged more times than mark1 recorded** (live: two $9.80 taps 44 s apart, one 5-item sale) — likely a double tap | check the two lines; refund the extra charge if real; Ignore the line |
 | `No matching sale in window` | nothing on any machine at that time/amount — TRADE never reached mark1 (machine offline) | manual Assign if the sale is found later, else Ignore |

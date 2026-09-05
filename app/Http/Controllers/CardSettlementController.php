@@ -200,6 +200,20 @@ class CardSettlementController extends Controller
             ->orderByDesc('row_count')
             ->get();
 
+        // Two different chores hide behind "no binding": the TID is not in
+        // Data Management → Card Terminal at all (create it first), or it is
+        // there but nobody has put it on a machine yet (assign it from the
+        // machine's Settings page). Tell the user which one each TID is.
+        $knownUnits = CardTerminalUnit::query()
+            ->whereIn('terminal_id', $unboundTerminals->pluck('terminal_id'))
+            ->pluck('terminal_id')
+            ->flip();
+        $unboundTerminals = $unboundTerminals->map(fn ($t) => [
+            'terminal_id' => $t->terminal_id,
+            'row_count' => (int) $t->row_count,
+            'unit_exists' => $knownUnits->has($t->terminal_id),
+        ])->values();
+
         return Inertia::render('CardSettlement/Show', [
             'report' => [
                 'id' => $report->id,
