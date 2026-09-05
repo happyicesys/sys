@@ -31,7 +31,7 @@ class CardSettlementController extends Controller
     {
         $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download']);
         $this->middleware(['permission:create card-settlements'])->only(['store']);
-        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'fixBindings', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
+        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'fixBindings', 'bindUnbound', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
         $this->middleware(['permission:delete card-settlements'])->only(['destroy']);
     }
 
@@ -192,27 +192,7 @@ class CardSettlementController extends Controller
 
         // Terminals in this report with no binding — the one-time setup the
         // user must do before those rows can ever match.
-        $unboundTerminals = $report->rows()
-            ->where('status', CardSettlementRow::STATUS_UNMATCHED)
-            ->where('resolution_note', 'No terminal binding')
-            ->groupBy('terminal_id')
-            ->selectRaw('terminal_id, COUNT(*) AS row_count')
-            ->orderByDesc('row_count')
-            ->get();
-
-        // Two different chores hide behind "no binding": the TID is not in
-        // Data Management → Card Terminal at all (create it first), or it is
-        // there but nobody has put it on a machine yet (assign it from the
-        // machine's Settings page). Tell the user which one each TID is.
-        $knownUnits = CardTerminalUnit::query()
-            ->whereIn('terminal_id', $unboundTerminals->pluck('terminal_id'))
-            ->pluck('terminal_id')
-            ->flip();
-        $unboundTerminals = $unboundTerminals->map(fn ($t) => [
-            'terminal_id' => $t->terminal_id,
-            'row_count' => (int) $t->row_count,
-            'unit_exists' => $knownUnits->has($t->terminal_id),
-        ])->values();
+        $unboundTerminals = $this->unboundTerminals($report);
 
         return Inertia::render('CardSettlement/Show', [
             'report' => [
@@ -302,6 +282,45 @@ class CardSettlementController extends Controller
      * the earliest date this report can prove the terminal was already there —
      * so a repair never claims more history than the evidence covers.
      */
+    /**
+     * TIDs in this report with no binding on the lines' dates, split by whether
+     * the terminal exists in Data Management at all, each with the machine the
+     * matcher suggests (the ONE machine every fitting sale of its lines sits on
+     * — see CardSettlementMatcher::suggestMachineForUnbound) and how many
+     * lines back that suggestion.
+     */
+    private function unboundTerminals(CardSettlementReport $report)
+    {
+        $lines = $report->rows()
+            ->where('status', CardSettlementRow::STATUS_UNMATCHED)
+            ->where('resolution_note', 'No terminal binding')
+            ->get(['terminal_id', 'transaction_date', 'candidates_json']);
+
+        $knownUnits = CardTerminalUnit::query()
+            ->whereIn('terminal_id', $lines->pluck('terminal_id')->unique())
+            ->pluck('terminal_id')
+            ->flip();
+
+        return $lines->groupBy('terminal_id')
+            ->map(function ($group, $terminalId) use ($knownUnits) {
+                $suggested = $group
+                    ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code')->unique())
+                    ->countBy()
+                    ->sortDesc();
+
+                return [
+                    'terminal_id' => (string) $terminalId,
+                    'row_count' => $group->count(),
+                    'unit_exists' => $knownUnits->has($terminalId),
+                    'suggested_vend_code' => $suggested->keys()->first(),
+                    'suggested_hits' => (int) ($suggested->first() ?? 0),
+                    'from_date' => $group->min('transaction_date')?->toDateString(),
+                ];
+            })
+            ->sortByDesc('row_count')
+            ->values();
+    }
+
     private function suspectBindings(CardSettlementReport $report)
     {
         $lines = $report->rows()
@@ -501,6 +520,84 @@ class CardSettlementController extends Controller
         $message = $moved
             ? 'Moved '.count($moved).' of '.$suspects->count().' terminal(s) — rematch queued: '.implode('; ', $moved).'.'
             : 'No binding was changed.';
+        if ($skipped) {
+            $message .= ' Left alone: '.implode('; ', $skipped).'.';
+        }
+
+        return back()->with('message', $message);
+    }
+
+    /**
+     * Accept the matcher's machine suggestion for TIDs that have no binding:
+     * create the terminal in Data Management if it is new, put it on the
+     * suggested machine from the first date this report saw it, then rematch.
+     * Only the ticked TIDs are acted on; the suggestion set is recomputed
+     * server-side, never trusted from the request.
+     */
+    public function bindUnbound(Request $request, $id, CardTerminalBindingService $bindings)
+    {
+        $validated = $request->validate([
+            'terminal_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'terminal_ids.*' => ['string', 'max:64'],
+        ]);
+
+        $report = CardSettlementReport::findOrFail($id);
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+
+        $chosen = collect($validated['terminal_ids'])->map(fn ($t) => (string) $t)->all();
+        $targets = $this->unboundTerminals($report)
+            ->whereIn('terminal_id', $chosen)
+            ->filter(fn ($t) => $t['suggested_vend_code'] !== null);
+
+        $bound = [];
+        $skipped = [];
+
+        foreach ($targets as $t) {
+            $terminalId = $t['terminal_id'];
+
+            $vends = \App\Models\Vend::withoutGlobalScopes()->where('code', $t['suggested_vend_code'])->get();
+            if ($vends->count() !== 1) {
+                $skipped[] = "{$terminalId}: machine {$t['suggested_vend_code']} ".($vends->isEmpty() ? 'not found' : 'is not unique');
+
+                continue;
+            }
+            $vend = $vends->first();
+
+            // A new TID gets its Data Management row here, under the same
+            // supplying company as the machine it lands on (mirrors the
+            // import command), so it is editable from Settings afterwards.
+            $unit = CardTerminalUnit::firstOrCreate(
+                ['terminal_id' => $terminalId],
+                ['card_terminal_id' => $vend->card_terminal_id, 'remarks' => "Created from settlement report #{$report->id}"]
+            );
+
+            $before = $bindings->currentUnitFor($vend)?->terminal_id;
+            try {
+                $changed = $bindings->assignToVend($vend, $unit, $t['from_date']);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $skipped[] = "{$terminalId}: ".collect($e->errors())->flatten()->first();
+
+                continue;
+            }
+            if (! $changed) {
+                $skipped[] = "{$terminalId}: already the current terminal on {$vend->code}";
+
+                continue;
+            }
+
+            UserLogger::recordChanges($vend, [
+                'card_terminal_unit_id' => [$before, $unit->terminal_id],
+            ]);
+            $bound[] = "{$terminalId} → {$vend->code} from {$t['from_date']}";
+        }
+
+        if ($bound) {
+            MatchCardSettlementReport::dispatch($report->id);
+        }
+
+        $message = $bound
+            ? 'Bound '.count($bound).' terminal(s) — rematch queued: '.implode('; ', $bound).'.'
+            : 'No binding was created.';
         if ($skipped) {
             $message .= ' Left alone: '.implode('; ', $skipped).'.';
         }

@@ -105,33 +105,81 @@
         matching, re-download the raw CSV from MerchantConnect and upload that instead.
       </div>
 
-      <!-- unbound terminals: two different chores, shown apart -->
+      <!-- unbound terminals: two different chores, shown apart; each line carries the matcher's machine suggestion -->
       <div v-if="unknownTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 rounded-md p-3 my-3 text-sm">
-        <div class="font-semibold text-red-800 mb-1">Terminal IDs not created yet</div>
-        <div class="text-red-800">
-          <span v-for="t in unknownTerminals" :key="t.terminal_id" class="inline-block mr-3">
-            {{ t.terminal_id }} <span class="text-red-600">({{ t.row_count }} rows)</span>
-          </span>
+        <div class="flex items-center justify-between mb-1">
+          <div class="font-semibold text-red-800">Terminal IDs not created yet</div>
+          <label v-if="unknownTerminals.some((t) => t.suggested_vend_code)" class="flex items-center space-x-1 text-xs text-red-700 cursor-pointer">
+            <input type="checkbox" class="cursor-pointer rounded border-red-300 text-red-600 focus:ring-red-500"
+              :checked="allSelectedIn(unknownTerminals)" @change="toggleAllIn(unknownTerminals)" />
+            <span>Select all suggested</span>
+          </label>
         </div>
-        <div class="mt-1 text-red-700">
-          ConnectVend has never seen these terminals. Create each one under
-          <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>,
-          then put it on its machine from that machine's Settings page, and hit Rematch.
+        <div class="text-red-800 space-y-0.5">
+          <div v-for="t in unknownTerminals" :key="t.terminal_id" class="flex items-start space-x-2">
+            <input v-if="t.suggested_vend_code" type="checkbox"
+              class="mt-1 cursor-pointer rounded border-red-300 text-red-600 focus:ring-red-500"
+              :checked="selectedUnbound.includes(t.terminal_id)"
+              :title="'Bind ' + t.terminal_id + ' to machine ' + t.suggested_vend_code"
+              @change="toggleUnbound(t.terminal_id)" />
+            <span v-else class="mt-1 inline-block w-4"></span>
+            <div>
+              <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-red-600">({{ t.row_count }} rows)</span>
+              <template v-if="t.suggested_vend_code">
+                — likely on <b>{{ t.suggested_vend_code }}</b>: {{ t.suggested_hits }} of {{ t.row_count }} lines fit that machine exactly, from <b>{{ t.from_date }}</b>
+              </template>
+              <span v-else class="text-red-600">— no single machine fits its lines; bind it by hand</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <Button v-if="unknownTerminals.some((t) => t.suggested_vend_code)" type="button"
+            class="bg-red-600 hover:bg-red-700 px-3 py-2 text-xs text-white flex space-x-1"
+            :class="report.status === 'matching' || !selectedIn(unknownTerminals).length ? 'opacity-50 cursor-not-allowed' : ''"
+            @click="bindUnbound(unknownTerminals)">
+            <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+            <span>Create &amp; bind {{ selectedIn(unknownTerminals).length }} terminal{{ selectedIn(unknownTerminals).length === 1 ? '' : 's' }} &amp; rematch</span>
+          </Button>
+          <span class="text-red-700">…or by hand: create it under <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>, put it on its machine from that machine's Settings page, and hit Rematch.</span>
         </div>
       </div>
       <div v-if="unassignedTerminals.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
-        <div class="font-semibold text-amber-800 mb-1">Terminal IDs not bound to any machine yet</div>
-        <div class="text-amber-800">
-          <span v-for="t in unassignedTerminals" :key="t.terminal_id" class="inline-block mr-3">
-            {{ t.terminal_id }} <span class="text-amber-600">({{ t.row_count }} rows)</span>
-          </span>
+        <div class="flex items-center justify-between mb-1">
+          <div class="font-semibold text-amber-800">Terminal IDs not bound to any machine yet</div>
+          <label v-if="unassignedTerminals.some((t) => t.suggested_vend_code)" class="flex items-center space-x-1 text-xs text-amber-700 cursor-pointer">
+            <input type="checkbox" class="cursor-pointer rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+              :checked="allSelectedIn(unassignedTerminals)" @change="toggleAllIn(unassignedTerminals)" />
+            <span>Select all suggested</span>
+          </label>
         </div>
-        <div class="mt-1 text-amber-700">
-          These terminals exist in Data Management but have no machine for the dates in this report.
-          Open the machine's Settings page, pick the Terminal ID there (set Bound From to the date it went on), and hit Rematch.
+        <div class="text-amber-800 space-y-0.5">
+          <div v-for="t in unassignedTerminals" :key="t.terminal_id" class="flex items-start space-x-2">
+            <input v-if="t.suggested_vend_code" type="checkbox"
+              class="mt-1 cursor-pointer rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+              :checked="selectedUnbound.includes(t.terminal_id)"
+              :title="'Bind ' + t.terminal_id + ' to machine ' + t.suggested_vend_code"
+              @change="toggleUnbound(t.terminal_id)" />
+            <span v-else class="mt-1 inline-block w-4"></span>
+            <div>
+              <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-amber-600">({{ t.row_count }} rows)</span>
+              <template v-if="t.suggested_vend_code">
+                — likely on <b>{{ t.suggested_vend_code }}</b>: {{ t.suggested_hits }} of {{ t.row_count }} lines fit that machine exactly, from <b>{{ t.from_date }}</b>
+              </template>
+              <span v-else class="text-amber-600">— no single machine fits its lines; bind it by hand</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <Button v-if="unassignedTerminals.some((t) => t.suggested_vend_code)" type="button"
+            class="bg-amber-600 hover:bg-amber-700 px-3 py-2 text-xs text-white flex space-x-1"
+            :class="report.status === 'matching' || !selectedIn(unassignedTerminals).length ? 'opacity-50 cursor-not-allowed' : ''"
+            @click="bindUnbound(unassignedTerminals)">
+            <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+            <span>Bind {{ selectedIn(unassignedTerminals).length }} terminal{{ selectedIn(unassignedTerminals).length === 1 ? '' : 's' }} &amp; rematch</span>
+          </Button>
+          <span class="text-amber-700">…or by hand: open the machine's Settings page, pick the Terminal ID there (Bound From = the date it went on), and hit Rematch.</span>
         </div>
       </div>
-
       <!-- suspected wrong bindings: the sale exists, on a different machine -->
       <div v-if="suspectBindings.length" class="-mx-4 sm:-mx-6 lg:-mx-8 bg-orange-50 border border-orange-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
@@ -444,6 +492,49 @@ const rowStatus = ref(props.rowFilters.row_status ?? 'queries')
 // "No terminal binding" split by whether the TID exists in Data Management at all.
 const unknownTerminals = computed(() => props.unboundTerminals.filter((t) => !t.unit_exists))
 const unassignedTerminals = computed(() => props.unboundTerminals.filter((t) => t.unit_exists))
+
+// Accept the matcher's machine suggestion for unbound TIDs. Suggested ones
+// start ticked; TIDs with no single fitting machine have no box at all.
+const selectedUnbound = ref([])
+watch(() => props.unboundTerminals, (list) => {
+  selectedUnbound.value = (list || []).filter((t) => t.suggested_vend_code).map((t) => t.terminal_id)
+}, { immediate: true })
+const selectedIn = (list) => list.filter((t) => t.suggested_vend_code && selectedUnbound.value.includes(t.terminal_id))
+const allSelectedIn = (list) => {
+  const suggestable = list.filter((t) => t.suggested_vend_code)
+  return suggestable.length > 0 && suggestable.every((t) => selectedUnbound.value.includes(t.terminal_id))
+}
+function toggleUnbound(terminalId) {
+  selectedUnbound.value = selectedUnbound.value.includes(terminalId)
+    ? selectedUnbound.value.filter((t) => t !== terminalId)
+    : [...selectedUnbound.value, terminalId]
+}
+function toggleAllIn(list) {
+  const ids = list.filter((t) => t.suggested_vend_code).map((t) => t.terminal_id)
+  selectedUnbound.value = allSelectedIn(list)
+    ? selectedUnbound.value.filter((t) => !ids.includes(t))
+    : [...new Set([...selectedUnbound.value, ...ids])]
+}
+function bindUnbound(list) {
+  const chosen = selectedIn(list)
+  if (props.report.status === 'matching' || !chosen.length) return
+  const creating = chosen.some((t) => !t.unit_exists)
+  const lines = chosen.map((t) => '  ' + t.terminal_id + ' → ' + t.suggested_vend_code + ' from ' + t.from_date +
+    ' (' + t.suggested_hits + ' of ' + t.row_count + ' lines fit)').join('\n')
+  const approval = confirm(
+    (creating ? 'Create ' + chosen.length + ' terminal(s) in Data Management and bind' : 'Bind ' + chosen.length + ' terminal(s)') +
+    ' to the machine their sales are on, then rematch?\n\n' + lines + '\n\n' +
+    'Each binding starts on the first date this report saw the terminal. It affects every settlement report, not just this one.'
+  )
+  if (!approval) {
+    return
+  }
+  router.post('/card-settlements/' + props.report.id + '/bind-unbound', { terminal_ids: chosen.map((t) => t.terminal_id) }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Terminals bound — rematch queued", { timeout: 4000 }),
+    onError: () => toast.error("Failed to bind the terminals", { timeout: 3000 }),
+  })
+}
 
 // Row status codes (CardSettlementRow::STATUS_*)
 const chips = [

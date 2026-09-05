@@ -388,6 +388,22 @@ class CardSettlementMatchTest extends TestCase
         $this->assertSame(2696, $row->vend_id);
     }
 
+    /** A TID with no binding at all still gets a machine suggested from where its sales are. */
+    public function test_unbound_terminal_gets_a_machine_suggestion_from_the_fleet()
+    {
+        $elsewhere = $this->txn('2026-08-29 22:31:07', 240, ['vend_id' => 2696]);
+        $report = $this->report();
+        $row = $this->row($report, ['terminal_id' => '99999999']); // no binding for this TID
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $row->status);
+        $this->assertSame('No terminal binding', $row->resolution_note); // still a human decision
+        $this->assertSame($elsewhere->id, $row->candidates_json[0]['vend_transaction_id']);
+        $this->assertTrue($row->candidates_json[0]['other_vend']);
+    }
+
     public function test_non_purchase_rows_are_ignored()
     {
         $report = $this->report();

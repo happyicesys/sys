@@ -92,6 +92,7 @@ class CardSettlementMatcher
         );
 
         $resolvable = collect();
+        $unbound = collect();
         foreach ($purchases as $row) {
             $binding = $bindingFor($row);
 
@@ -104,6 +105,7 @@ class CardSettlementMatcher
                     'candidates_json' => null,
                     'resolution_note' => 'No terminal binding',
                 ]);
+                $unbound->push($row);
 
                 continue;
             }
@@ -113,6 +115,10 @@ class CardSettlementMatcher
         }
 
         $this->assign($resolvable);
+
+        if ($unbound->isNotEmpty()) {
+            $this->suggestMachineForUnbound($unbound);
+        }
 
         foreach ($reversals as $row) {
             $row->vend_id = $bindingFor($row)?->vend_id;
@@ -364,6 +370,83 @@ class CardSettlementMatcher
 
         if (! empty($noSaleOnBoundVend)) {
             $this->flagSalesOnOtherMachines(collect($noSaleOnBoundVend), $earlySlack, $lateSlack);
+        }
+    }
+
+    /**
+     * A TID with no binding at all still leaves footprints: its lines are
+     * sales that happened somewhere in the fleet at that second for that
+     * amount. When every fitting sale of a line sits on ONE machine, record
+     * that machine as the suggestion (candidates_json, other_vend) so the
+     * report page can say "23104114 — likely on 2835 (14 of 16 lines fit)"
+     * and offer to create/bind it in one click. The note stays "No terminal
+     * binding": nothing is matched until a human accepts the binding.
+     *
+     * Full-time rows only — an hour-less line matches too many machines.
+     *
+     * @param  Collection<int, CardSettlementRow>  $rows
+     */
+    protected function suggestMachineForUnbound(Collection $rows): void
+    {
+        $rows = $rows->reject(fn (CardSettlementRow $row) => $row->time_is_partial || $row->transaction_time === null);
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        $earlySlack = (int) config('card_settlement.match_early_slack_seconds', 60);
+        $lateSlack = (int) config('card_settlement.match_late_slack_seconds', 300);
+
+        $from = Carbon::parse($rows->min('transaction_date'))->startOfDay()->subDay();
+        $until = Carbon::parse($rows->max('transaction_date'))->endOfDay()->addDay();
+
+        $fleet = VendTransaction::query()
+            ->withoutGlobalScopes()
+            ->join('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->whereBetween('vend_transactions.transaction_datetime', [$from, $until])
+            ->whereIn('vend_transactions.amount', $rows->pluck('amount_cents')->unique())
+            ->whereNull('payment_methods.payment_gateway_id')
+            ->where('payment_methods.code', '>', 0)
+            ->where('vend_transactions.is_retained_credit_settlement', false)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('card_settlement_rows')
+                    ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
+            })
+            ->get([
+                'vend_transactions.id',
+                'vend_transactions.vend_id',
+                'vend_transactions.transaction_datetime',
+                'vend_transactions.amount',
+                'vend_transactions.is_refunded',
+            ]);
+
+        $vendCodes = \App\Models\Vend::withoutGlobalScopes()
+            ->whereIn('id', $fleet->pluck('vend_id')->unique())
+            ->pluck('code', 'id');
+
+        foreach ($rows as $row) {
+            $hits = [];
+            foreach ($fleet as $sale) {
+                if ($sale->amount !== $row->amount_cents) {
+                    continue;
+                }
+                $delta = $this->timeDelta($row, $sale, $earlySlack, $lateSlack);
+                if ($delta !== null) {
+                    $hits[] = ['row' => $row, 'candidate' => $sale, 'delta' => $delta];
+                }
+            }
+
+            $vendsHit = collect($hits)->pluck('candidate.vend_id')->unique();
+            if ($vendsHit->count() !== 1) {
+                continue; // nothing, or several machines — no suggestion
+            }
+
+            $code = $vendCodes->get($vendsHit->first()) ?? ('#'.$vendsHit->first());
+            $row->update([
+                'candidates_json' => collect($this->candidatesPayload($hits))
+                    ->map(fn ($c) => $c + ['vend_code' => $code, 'other_vend' => true])
+                    ->all(),
+            ]);
         }
     }
 
