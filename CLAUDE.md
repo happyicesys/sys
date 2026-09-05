@@ -256,6 +256,46 @@ stored for it — the endpoint derives it from the app-wide `user_logs` audit
 - The lines re-read after each save (`loadFieldAudit()`); the page stays
   mounted across Inertia's redirect-back, so `onMounted` alone lags a save.
 
+## Card terminals: three tables, and only one of them binds a machine
+
+Easy to confuse, so name them precisely:
+
+| Table | UI name | What it is |
+|---|---|---|
+| `card_terminals` | Data Management → **Card Terminal Company** | The supplier list: Nayax, Nets, Nets-Auresys, PAX, MLS, HID. `vends.card_terminal_id` points here. |
+| `card_terminal_units` | Data Management → **Card Terminal** | One physical terminal: acquirer TID + its company. `terminal_id` is unique fleet-wide. |
+| `card_terminal_bindings` | machine **Setting/Edit** | That terminal sat on that machine over a date range. |
+
+The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then:
+
+- **Data Management can never bind a machine.** `CardTerminalUnitController` does
+  CRUD on the TID + company only; its Machine ID column is read-only display.
+  Adding a machine field there would let ops write bindings with no dated
+  history, which is what breaks settlement.
+- **`VendController::update` is the only writer**, through
+  `App\Services\CardSettlement\CardTerminalBindingService`. It only acts when
+  the request carries `card_terminal_unit_id`, so the APK/API callers of
+  `update()` never close a live binding.
+- **A terminal that moves is never edited in place.** The old row is CLOSED
+  (`bound_until`) and a new one opened on the same date, because
+  `CardSettlementMatcher` resolves a report line by (provider, terminal_id)
+  **effective on that line's transaction date** — rewriting the row would
+  re-point last month's report at this month's machine. One open-ended binding
+  per terminal, always; two make matching pick a machine arbitrarily.
+- **`provider` is derived from the company**, via
+  `config('card_settlement.company_provider')` (`CardTerminalUnit::settlementProvider()`).
+  Nets **and** Nets-Auresys both resolve to `'nets'` — Auresys terminals appear
+  on the same NETS MerchantConnect report, and all 312 pre-2026-09-05 rows carry
+  `'nets'`. A company with no entry gets a slug of its own name, which matches
+  no report on purpose: better unreconciled than mis-assigned to NETS.
+- `card-settlement:import-bindings` creates the `card_terminal_units` row
+  alongside the binding, or the imported terminal would be invisible in the
+  Setting/Edit picker and could never be moved.
+
+Regression coverage: `tests/Feature/CardTerminalUnitTest.php` (including an
+end-to-end proof that a terminal bound from Setting/Edit still matches a
+settlement report).
+
 ## Smart Chiller (CityBox): not a vending machine with extra fields
 
 A `machine_type = smart_chiller` vend is CityBox's hardware running CityBox's

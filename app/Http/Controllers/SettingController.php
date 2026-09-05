@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\CardTerminalResource;
+use App\Http\Resources\CardTerminalUnitResource;
 use App\Http\Resources\CashlessTerminalResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CategoryResource;
@@ -25,6 +26,7 @@ use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendStickerResource;
 use App\Jobs\PublishMqtt;
 use App\Models\CardTerminal;
+use App\Models\CardTerminalUnit;
 use App\Models\CashlessTerminal;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -46,6 +48,7 @@ use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendSerialNumber;
 use App\Models\VendSticker;
+use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\VendParameterService;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -472,11 +475,31 @@ class SettingController extends Controller
             // CityBox-side status layer (their ops status / heartbeat / online),
             // read from the last poll on the row — no API call. Null for other kinds.
             'chillerStatus' => $vend->chillerStatus()?->toArray(),
-            // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populates
-            // the new "Card Terminal" dropdown on the vend edit form.
+            // Card Terminal COMPANY (Nayax / Nets / Nets-Auresys / PAX / MLS / HID)
+            // — populates the "Card Terminal Company" dropdown on the vend edit form.
+            // Renamed from "Card Terminal" 2026-09-05, when the terminal ITSELF
+            // became its own field below; the vends column stays card_terminal_id.
             'cardTerminalOptions' => CardTerminalResource::collection(
                 CardTerminal::orderBy('name')->get()
             ),
+            // The physical terminals (Data Management → Card Terminal). This page
+            // is the ONLY place a terminal is put on a machine — the standalone
+            // Card Terminal Bindings page was removed 2026-09-05.
+            'cardTerminalUnitOptions' => CardTerminalUnitResource::collection(
+                CardTerminalUnit::with('company')->orderBy('terminal_id')->get()
+            ),
+            // Current binding for this machine, so the form opens on what is
+            // actually fitted rather than on an empty picker.
+            'cardTerminalBinding' => (function () use ($vend) {
+                $binding = app(CardTerminalBindingService::class)->currentBindingFor($vend);
+
+                return [
+                    'card_terminal_unit_id' => $binding
+                        ? CardTerminalUnit::where('terminal_id', $binding->terminal_id)->value('id')
+                        : null,
+                    'bound_from' => $binding?->bound_from?->format('Y-m-d'),
+                ];
+            })(),
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
             ),

@@ -7,8 +7,8 @@ use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CardSettlementController;
-use App\Http\Controllers\CardTerminalBindingController;
 use App\Http\Controllers\CardTerminalController;
+use App\Http\Controllers\CardTerminalUnitController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
@@ -158,11 +158,23 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [AttachmentController::class, 'delete']);
     });
 
+    // Data Management → Card Terminal Company (the supplier list: Nayax, Nets,
+    // Nets-Auresys, PAX, MLS, HID). Renamed from "Card Terminals" 2026-09-05;
+    // the URL is left alone so bookmarks and the ?id= deep links still work.
     Route::prefix('card-terminals')->group(function () {
         Route::get('/', [CardTerminalController::class, 'index'])->name('card-terminals');
         Route::post('/create', [CardTerminalController::class, 'create']);
         Route::post('/{id}/update', [CardTerminalController::class, 'update']);
         Route::delete('/{id}', [CardTerminalController::class, 'delete']);
+    });
+
+    // Data Management → Card Terminal (the physical units: TID + company).
+    // Binding a unit to a machine is NOT here — see Setting/Edit.
+    Route::prefix('card-terminal-units')->group(function () {
+        Route::get('/', [CardTerminalUnitController::class, 'index'])->name('card-terminal-units');
+        Route::post('/create', [CardTerminalUnitController::class, 'create']);
+        Route::post('/{id}/update', [CardTerminalUnitController::class, 'update']);
+        Route::delete('/{id}', [CardTerminalUnitController::class, 'delete']);
     });
 
     Route::prefix('cashless-terminals')->group(function () {
@@ -1211,12 +1223,13 @@ Route::middleware(['auth', 'cors'])->prefix('card-settlements')->group(function 
     Route::delete('/{id}', [CardSettlementController::class, 'destroy'])->name('card-settlements.destroy');
 });
 
-Route::middleware(['auth', 'cors'])->prefix('card-terminal-bindings')->group(function () {
-    Route::get('/', [CardTerminalBindingController::class, 'index'])->name('card-terminal-bindings');
-    Route::post('/', [CardTerminalBindingController::class, 'store'])->name('card-terminal-bindings.store');
-    Route::put('/{id}', [CardTerminalBindingController::class, 'update'])->name('card-terminal-bindings.update');
-    Route::delete('/{id}', [CardTerminalBindingController::class, 'destroy'])->name('card-terminal-bindings.destroy');
-});
+/*
+| The standalone /card-terminal-bindings page was removed 2026-09-05. Terminal
+| units are now maintained in Data Management → Card Terminal, and a unit is
+| put on a machine from that machine's Setting/Edit page (VendController).
+| The `card_terminal_bindings` table, its model and the import command all
+| stay — CardSettlementMatcher reads them.
+*/
 
 /*
 | Site Settlement — batch site location-fee / commission payouts, export CIMB,

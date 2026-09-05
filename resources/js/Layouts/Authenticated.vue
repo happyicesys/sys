@@ -95,7 +95,6 @@ const navigation = computed(() => [
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
             {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},
             {name: 'Card Settlement', href: '/card-settlements', permission: 'read card-settlements'},
-            {name: 'Card Terminal Bindings', href: '/card-terminal-bindings', permission: 'read card-settlements'},
         ]
     },
     {
@@ -222,7 +221,8 @@ const navigation = computed(() => [
             {name: 'Machine Models', href: '/vend-models', permission: 'read vend-models'},
             {name: 'Machine Key No', href: '/keys', permission: 'read keys'},
             {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},
-            {name: 'Card Terminals', href: '/card-terminals', permission: 'read card-terminals'},
+            {name: 'Card Terminal Company', href: '/card-terminals', permission: 'read card-terminals'},
+            {name: 'Card Terminal', href: '/card-terminal-units', permission: 'read card-terminals'},
             {name: 'Machine Sticker', href: '/machine-stickers', permission: 'read machine-stickers'},
             {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
             {name: 'SimCard Package', href: '/telcos', permission: 'read telcos'},

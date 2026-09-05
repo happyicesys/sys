@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Card Terminal" />
+  <Head title="Card Terminal Company" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Card Terminal)
+        Data Management (Card Terminal Company)
       </h2>
     </template>
 
@@ -192,10 +192,10 @@ function onDeleteClicked(cardTerminal) {
   }
   router.delete('/card-terminals/' + cardTerminal.id, {
     onSuccess: () => {
-      toast.success("Card terminal deleted successfully", { timeout: 3000 })
+      toast.success("Card terminal company deleted successfully", { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete card terminal", { timeout: 3000 })
+      toast.error("Failed to delete card terminal company", { timeout: 3000 })
     }
   })
 }

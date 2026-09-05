@@ -114,7 +114,8 @@
           </span>
         </div>
         <div class="mt-1 text-amber-700">
-          Add them on <Link href="/card-terminal-bindings" class="underline font-medium">Card Terminal Bindings</Link>, then hit Rematch.
+          Add the terminal under <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>,
+          then put it on its machine from that machine's Settings page, and hit Rematch.
         </div>
       </div>
 
@@ -128,8 +129,8 @@
           </div>
         </div>
         <div class="mt-1 text-orange-700">
-          Move the terminal on <Link href="/card-terminal-bindings" class="underline font-medium">Card Terminal Bindings</Link>
-          (close the old binding, add the new one from the right date), then hit Rematch.
+          Move the terminal from the RIGHT machine's Settings page — pick this Terminal ID there and set Bound From to the
+          date it moved. That closes the old binding and opens the new one automatically. Then hit Rematch.
         </div>
       </div>
 

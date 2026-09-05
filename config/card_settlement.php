@@ -40,4 +40,28 @@ return [
 
     // Max upload size (KB) for a settlement report file.
     'max_upload_kb' => 20480,
+
+    /*
+     * Card Terminal Company (`card_terminals.name`, lower-cased) → the
+     * `card_terminal_bindings.provider` value a binding for one of its
+     * terminals must carry. The matcher filters bindings by the REPORT's
+     * provider, so this mapping is what decides whether a terminal's sales can
+     * ever be reconciled.
+     *
+     * Nets-Auresys is a NETS terminal behind an Auresys front end: its 15 TIDs
+     * appear on the same NETS MerchantConnect report and have always been
+     * stored as 'nets' — keep them there or those machines stop matching.
+     *
+     * A company with no entry gets a slug of its own name (Nayax → 'nayax'),
+     * which deliberately matches no report: there is no parser for it, so its
+     * sales are simply never reconciled rather than being mis-assigned to NETS.
+     */
+    'company_provider' => [
+        'nets' => 'nets',
+        'nets-auresys' => 'nets',
+    ],
+
+    // Provider for a terminal with no company set at all. 'nets' is the
+    // historical column default and what all 312 pre-2026-09-05 rows carry.
+    'default_provider' => 'nets',
 ];

@@ -10,7 +10,7 @@
             {{ props.cardTerminal.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Card Terminal
+            Create New Card Terminal Company
           </span>
         </div>
       </template>
@@ -88,11 +88,11 @@ function submit() {
     form.value
     .post('/card-terminals/create', {
       onSuccess: () => {
-        toast.success("Card terminal created successfully", { timeout: 3000 })
+        toast.success("Card terminal company created successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create card terminal", { timeout: 3000 })
+        toast.error("Failed to create card terminal company", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -103,11 +103,11 @@ function submit() {
     form.value
       .post('/card-terminals/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Card terminal updated successfully", { timeout: 3000 })
+        toast.success("Card terminal company updated successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update card terminal", { timeout: 3000 })
+        toast.error("Failed to update card terminal company", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

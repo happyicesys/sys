@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\CardTerminalBinding;
+use App\Models\CardTerminalUnit;
 use App\Models\Vend;
 use Illuminate\Console\Command;
 
@@ -95,6 +96,7 @@ class ImportCardTerminalBindings extends Command
 
             $this->line("BIND {$row['terminal_id']} -> {$row['vend_code']}".($row['bound_from'] ?? '' ? " from {$row['bound_from']}" : ''));
             if ($this->option('apply')) {
+                $this->ensureTerminalUnit($row['terminal_id'], $vend);
                 CardTerminalBinding::create([
                     'provider' => $provider,
                     'terminal_id' => $row['terminal_id'],
@@ -112,5 +114,20 @@ class ImportCardTerminalBindings extends Command
         $this->info("{$mode}: {$created} new, {$skipped} already bound, {$conflicts} conflicts, {$missing} unknown machines.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Keep Data Management → Card Terminal in step with what we import.
+     * Without a `card_terminal_units` row the terminal is invisible in the
+     * machine Setting/Edit picker, so ops could never move it afterwards.
+     * The company is taken from the machine it lands on, matching how the
+     * 2026-09-05 backfill seeded the list.
+     */
+    private function ensureTerminalUnit(string $terminalId, Vend $vend): void
+    {
+        CardTerminalUnit::firstOrCreate(
+            ['terminal_id' => $terminalId],
+            ['card_terminal_id' => $vend->card_terminal_id]
+        );
     }
 }

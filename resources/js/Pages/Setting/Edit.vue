@@ -464,7 +464,14 @@
 
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Card Terminal
+                  <div class="flex space-x-2">
+                    Card Terminal Company
+                    <span v-if="form.card_terminal_id && form.card_terminal_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/card-terminals'">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.card_terminal_id"
@@ -480,6 +487,58 @@
                 <FieldAudit :entry="fieldAudit.card_terminal_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_id">
                   {{ form.errors.card_terminal_id }}
+                </div>
+            </div>
+
+            <!--
+              Card terminal binding. THIS is the only place a terminal is put on
+              a machine — Data Management → Card Terminal maintains the terminal
+              list itself and cannot bind. Saving a different terminal closes the
+              current binding and opens a new one, so card settlement can still
+              resolve last month's report to last month's machine.
+            -->
+            <div v-if="!isChiller" class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  <div class="flex space-x-2">
+                    Card Terminal (Terminal ID)
+                    <span>
+                      <a class="text-blue-700" target="_blank" :href="'/card-terminal-units'">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
+                </label>
+                <MultiSelect
+                  v-model="form.card_terminal_unit_id"
+                  :options="cardTerminalUnitOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <FieldAudit :entry="fieldAudit.card_terminal_unit_id" />
+                <div class="text-sm text-red-600" v-if="form.errors.card_terminal_unit_id">
+                  {{ form.errors.card_terminal_unit_id }}
+                </div>
+            </div>
+
+            <div v-if="!isChiller" class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Card Terminal Bound From
+                </label>
+                <input
+                  type="date"
+                  v-model="form.card_terminal_bound_from"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Leave blank to bind from today. Only used when the terminal above changes.
+                </p>
+                <div class="text-sm text-red-600" v-if="form.errors.card_terminal_bound_from">
+                  {{ form.errors.card_terminal_bound_from }}
                 </div>
             </div>
 
@@ -1640,6 +1699,8 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
     adminCustomerOptions: Object,
     cardTerminalOptions: Object,
+    cardTerminalUnitOptions: Object,
+    cardTerminalBinding: Object,
     cashlessTerminalOptions: Object,
     clawMachineBoardOptions: [Array, Object],
     clawMachineBodyOptions: [Array, Object],
@@ -1715,6 +1776,7 @@ const statusOptions = ref([
 ])
 
 const cardTerminalOptions = ref([])
+const cardTerminalUnitOptions = ref([])
 const cashlessTerminalOptions = ref([])
 const clawMachineBoardOptions = ref([])
 const clawMachineBodyOptions = ref([])
@@ -1984,6 +2046,8 @@ function getDefaultForm() {
     begin_date: '',
     machine_type: null,
     card_terminal_id: '',
+    card_terminal_unit_id: '',
+    card_terminal_bound_from: '',
     cashless_terminal_id: '',
     claw_machine_board_id: '',
     claw_machine_body_id: '',
@@ -2075,13 +2139,23 @@ onMounted(() => {
 
   loadFieldAudit();
 
-  // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populated from
-  // CardTerminalResource::collection in SettingController@edit.
+  // Card Terminal COMPANY (Nayax / Nets / Nets-Auresys / PAX / MLS / HID) —
+  // populated from CardTerminalResource::collection in SettingController@edit.
   cardTerminalOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...((props.cardTerminalOptions?.data) ?? []).map(terminal => ({
       id: terminal.id,
       name: terminal.name,
+    })),
+  ]
+  // The physical terminals themselves (Data Management → Card Terminal).
+  // Labelled "TID — Company" so a NETS and an Auresys unit are distinguishable
+  // in a list of 300-odd bare 8-digit numbers.
+  cardTerminalUnitOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...((props.cardTerminalUnitOptions?.data) ?? []).map(unit => ({
+      id: unit.id,
+      name: unit.card_terminal_name ? `${unit.terminal_id} — ${unit.card_terminal_name}` : unit.terminal_id,
     })),
   ]
   cashlessTerminalOptions.value = [
@@ -2198,6 +2272,11 @@ onMounted(() => {
   form.value = props.vend ? useForm({
     ...props.vend,
     card_terminal_id: props.vend.card_terminal_id ? cardTerminalOptions.value.find(t => t.id == props.vend.card_terminal_id) : null,
+    // Binding state comes from card_terminal_bindings, not from the vend row.
+    card_terminal_unit_id: props.cardTerminalBinding?.card_terminal_unit_id
+      ? cardTerminalUnitOptions.value.find(u => u.id == props.cardTerminalBinding.card_terminal_unit_id)
+      : null,
+    card_terminal_bound_from: props.cardTerminalBinding?.bound_from ?? '',
     cashless_terminal_id: props.vend.cashless_terminal_id ? cashlessTerminalOptions.value.find(t => t.id == props.vend.cashless_terminal_id) : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
@@ -2834,6 +2913,10 @@ function saveVend(vendID) {
     .transform((data) => ({
       ...data,
       card_terminal_id: data.card_terminal_id ? data.card_terminal_id.id : null,
+      // '' (the "--- Clear ---" option) means "no terminal on this machine",
+      // which closes the open binding server-side.
+      card_terminal_unit_id: data.card_terminal_unit_id && data.card_terminal_unit_id.id ? data.card_terminal_unit_id.id : null,
+      card_terminal_bound_from: data.card_terminal_bound_from && data.card_terminal_bound_from != 'Invalid date' ? data.card_terminal_bound_from : null,
       cashless_terminal_id: data.cashless_terminal_id ? data.cashless_terminal_id.id : null,
       claw_machine_board_id: data.claw_machine_board_id ? data.claw_machine_board_id.id : null,
       claw_machine_body_id: data.claw_machine_body_id ? data.claw_machine_body_id.id : null,

@@ -44,6 +44,7 @@ use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Campaign;
 use App\Models\CampaignItem;
 use App\Models\CardTerminal;
+use App\Models\CardTerminalUnit;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -83,6 +84,7 @@ use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\Zone;
 use App\Services\CampaignWireSerializer;
+use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CmsService;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
@@ -5353,6 +5355,10 @@ class VendController extends Controller
                         && ($request->machine_type ?: $vend->machine_type) !== Vend::MACHINE_TYPE_SMART_CHILLER
                 ),
             ],
+            // Card terminal binding — optional on every machine (a machine may
+            // simply have no card reader) and never sent by a chiller's form.
+            'card_terminal_unit_id' => 'sometimes|nullable|integer',
+            'card_terminal_bound_from' => 'sometimes|nullable|date',
             'lcd_monitor_id' => $hardwareRule,
             'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
             'menu_frame_id' => $hardwareRule,
@@ -5511,7 +5517,50 @@ class VendController extends Controller
             }
         }
 
+        $this->syncCardTerminalBinding($request, $vend);
+
         return redirect()->back();
+    }
+
+    /**
+     * Put the selected card terminal on this machine — the ONLY place a
+     * `card_terminal_bindings` row is created since the standalone Card
+     * Terminal Bindings page was removed (2026-09-05). Data Management → Card
+     * Terminal maintains the terminals themselves and cannot bind a machine.
+     *
+     * Only acts when the form sent the key, so the APK/API callers of update()
+     * that know nothing about terminals never close a live binding. Smart
+     * Chillers are skipped outright: a chiller carries none of our hardware
+     * (see Vend::isSmartChiller()), and the field is hidden on its form.
+     */
+    private function syncCardTerminalBinding(Request $request, Vend $vend): void
+    {
+        if (! $request->has('card_terminal_unit_id') || $vend->isSmartChiller()) {
+            return;
+        }
+
+        $service = app(CardTerminalBindingService::class);
+
+        $before = $service->currentUnitFor($vend)?->terminal_id;
+        $unitId = $request->input('card_terminal_unit_id');
+        $unit = $unitId ? CardTerminalUnit::find($unitId) : null;
+
+        if ($unitId && ! $unit) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'card_terminal_unit_id' => 'Unknown card terminal.',
+            ]);
+        }
+
+        if (! $service->assignToVend($vend, $unit, $request->input('card_terminal_bound_from'))) {
+            return;
+        }
+
+        // Bindings live on their own table, so the app-wide audit never sees
+        // this as a vend change — record it by hand under a synthetic column,
+        // exactly as the sticker pivot above does.
+        UserLogger::recordChanges($vend, [
+            'card_terminal_unit_id' => [$before, $unit?->terminal_id],
+        ]);
     }
 
     /**
