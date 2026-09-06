@@ -191,6 +191,20 @@
 						>
 						</MultiSelect>
 				</div>
+				<div v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
+					<label class="block text-sm font-medium text-gray-700">
+						No Site Binding Machines
+					</label>
+					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
+						title="One row per machine, including machines not bound to any site (site columns blank, judged active by the machine's own flag). Sites with no machine drop out while this is on. Every other filter still applies.">
+						<input type="checkbox" v-model="filters.include_unbound_vends"
+							class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+						<span class="flex flex-col leading-tight">
+							<span>Include unbound?</span>
+							<span class="text-xs text-gray-500">(show all machines)</span>
+						</span>
+					</label>
+				</div>
 				<SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					Last Visited Day &gt;&gt;
 				</SearchInput>
@@ -1344,7 +1358,7 @@
 					class="cv-row divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100"
 					:style="groupRowStyle(vend)">
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="isShowOperationDiv">
-						<input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+						<input type="checkbox" v-model="vend.is_selected" :disabled="!vend.customer_id" :title="vend.customer_id ? '' : 'Unbound machine — no site to assign a job to'" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40">
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 						{{ vends.meta.from + vendIndex }}
@@ -1435,7 +1449,14 @@
 								</span>
 
 							</span>
-							<span v-if="vend.person_id" class="flex flex-col">
+							<!-- Unbound machine (Include unbound? on): no site row at all, so
+							     no site link, no CMS badge and no site-keyed editors. -->
+							<span v-if="!vend.customer_id"
+								class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold border w-fit bg-amber-100 text-amber-800 border-amber-400"
+								v-tooltip="'This machine is not bound to any site'">
+								No site (unbound)
+							</span>
+							<span v-else-if="vend.person_id" class="flex flex-col">
 								<span v-if="permissions.includes('admin-access vend-customers')">
 									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
 											{{ vend.customer_id + 20000 }}
@@ -2469,7 +2490,7 @@
 									the height can still grow with content — that's
 									what "height remain" is referring to.
 								-->
-								<div v-if="indexType === 'customers'" class="mt-1 flex flex-col w-[82px]">
+								<div v-if="indexType === 'customers' && vend.customer_id" class="mt-1 flex flex-col w-[82px]">
 									<textarea
 										v-model="vend.ops_note"
 										@change="onOpsNoteChanged(vend)"
@@ -2695,7 +2716,7 @@
 								the Ops Note sizing. rows=4 + autoGrowTextarea are
 								preserved so the box still expands with content.
 							-->
-							<div v-if="indexType === 'customers'" class="mt-2 flex flex-col w-[82px]">
+							<div v-if="indexType === 'customers' && vend.customer_id" class="mt-2 flex flex-col w-[82px]">
 								<MentionTextarea
 									:model-value="vend.notes"
 									@update:model-value="vend.notes = $event"
@@ -3663,6 +3684,11 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			// Defaults ON for the Operation Dashboard (customers view); the
 			// machines view leaves it off since grouping is site-based.
 			group_siblings: props.indexType === 'customers',
+			// "Include unbound?" — top-row checkbox (customers view only). When
+			// on, machines with no site binding are listed too, standing in for
+			// the retired Vend/Index page. Plain boolean; spread into router.get.
+			// Permission-gated again server-side (admin-access vend-customers).
+			include_unbound_vends: false,
 	})
 
 	const showAssignJobModal = ref(false)
@@ -3948,6 +3974,7 @@ if(urlParams.has('channel_codes')) {
 
 		if(key === 'sortBy') filters.value.sortBy = (value === 'true');
 		if(cleanKey === 'group_siblings') filters.value.group_siblings = (value === 'true' || value === '1');
+		if(cleanKey === 'include_unbound_vends') filters.value.include_unbound_vends = (value === 'true' || value === '1');
 
 		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
 		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;
@@ -4989,7 +5016,9 @@ function onOpsNoteChanged(vend) {
 function toggleSelectAll() {
 	if(isSelectedAll.value) {
 			vends.value.data.forEach((vend) => {
-					vend.is_selected = true
+					// Unbound machines (Include unbound? on) have no site, so
+					// nothing to assign a job to — leave them unselected.
+					vend.is_selected = !!vend.customer_id
 			})
 	} else {
 			vends.value.data.forEach((vend) => {

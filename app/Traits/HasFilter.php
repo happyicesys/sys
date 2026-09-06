@@ -1,17 +1,25 @@
 <?php
 
 namespace App\Traits;
-use App\Models\Vend;
+
 use App\Models\Customer;
+use App\Models\Vend;
 use App\Models\VendTemp;
+use App\Support\SiteSearch;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Http;
-use App\Support\SiteSearch;
 
 trait HasFilter
 {
+    /**
+     * "Is this Operation Dashboard row active?" — the site's flag, or the
+     * machine's own flag when the row is a site-less machine (customers.* is
+     * NULL only on the RIGHT JOIN rows VendController::customerIndexBaseQuery
+     * produces). Used both in the grid's SELECT and in the is_active filter so
+     * the two can never disagree.
+     */
+    public const CUSTOMER_INDEX_IS_ACTIVE_SQL = 'CASE WHEN customers.id IS NULL THEN vends.is_active ELSE customers.is_active END';
 
     public function filterUserHasOperator($query)
     {
@@ -27,6 +35,7 @@ trait HasFilter
                 });
             }
         }
+
         return $query;
     }
 
@@ -49,12 +58,23 @@ trait HasFilter
                 $query->whereIn('vends.id', $vendIds);
             }
         }
+
         return $query;
     }
 
+    /**
+     * Viewer ceiling for grids rooted at a joined table.
+     *
+     * @param  string|\Illuminate\Contracts\Database\Query\Expression  $model
+     *                                                                         Table whose operator_id is the ceiling, or a raw column expression
+     *                                                                         — the Operation Dashboard passes COALESCE(customers…, vends…) while
+     *                                                                         it lists unbound machines (VendController::customerIndexOperatorColumn).
+     */
     public function filterOperatorDB($query, $model = 'vends')
     {
-        $columnName = $model . '.operator_id';
+        $columnName = $model instanceof \Illuminate\Contracts\Database\Query\Expression
+            ? $model
+            : $model.'.operator_id';
 
         if (auth()->check()) {
             $operatorId = auth()->user()->operator_id;
@@ -71,6 +91,7 @@ trait HasFilter
                 $query->whereIn('vends.id', $vendIds);
             }
         }
+
         return $query;
     }
 
@@ -91,6 +112,7 @@ trait HasFilter
                 $query->whereIn('vends.id', $vendIds);
             }
         }
+
         return $query;
     }
 
@@ -144,7 +166,7 @@ trait HasFilter
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_transactions.operator_id', $search);
                 }
             })
@@ -155,17 +177,17 @@ trait HasFilter
                 $query->where('products.name', 'LIKE', "%{$search}%");
             })
             ->when($request->vendContracts, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_transactions.vend_contract_id', $search);
                 }
             })
             ->when($request->vendModels, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_transactions.vend_model_id', $search);
                 }
             })
             ->when($request->vendPrefixes, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     if (in_array('single-ud', $search)) {
                         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                         unset($search[array_search('single-ud', $search)]);
@@ -195,7 +217,7 @@ trait HasFilter
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
                     $codes = array_filter(array_map('trim', explode(',', $search)));
-                    if (!empty($codes)) {
+                    if (! empty($codes)) {
                         $query->whereIn('vends.code', $codes);
                     }
                 } else {
@@ -229,7 +251,7 @@ trait HasFilter
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                if (is_array($search) && !in_array('all', $search, true)) {
+                if (is_array($search) && ! in_array('all', $search, true)) {
                     $query->whereIn('gm.operator_id', $search);
                 }
             })
@@ -240,17 +262,17 @@ trait HasFilter
                 $query->where('products.name', 'LIKE', "%{$search}%");
             })
             ->when($request->vendContracts, function ($query, $search) {
-                if (is_array($search) && !in_array('all', $search, true)) {
+                if (is_array($search) && ! in_array('all', $search, true)) {
                     $query->whereIn('gm.vend_contract_id', $search);
                 }
             })
             ->when($request->vendModels, function ($query, $search) {
-                if (is_array($search) && !in_array('all', $search, true)) {
+                if (is_array($search) && ! in_array('all', $search, true)) {
                     $query->whereIn('gm.vend_model_id', $search);
                 }
             })
             ->when($request->vendPrefixes, function ($query, $search) {
-                if (is_array($search) && !in_array('all', $search, true)) {
+                if (is_array($search) && ! in_array('all', $search, true)) {
                     if (in_array('single-ud', $search, true)) {
                         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                         $index = array_search('single-ud', $search, true);
@@ -263,8 +285,8 @@ trait HasFilter
             })
             ->when($request->productMappings, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vends.product_mapping_id', $ids);
                 }
             });
@@ -285,21 +307,21 @@ trait HasFilter
             ->when($request->categories, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
                 $ids = array_filter($ids);
-                if (!empty($ids)) {
+                if (! empty($ids)) {
                     $query->whereIn('customers.category_id', $ids);
                 }
             })
             ->when($request->categoryGroups, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
                 $ids = array_filter($ids);
-                if (!empty($ids)) {
+                if (! empty($ids)) {
                     $query->whereIn('categories.category_group_id', $ids);
                 }
             })
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
                     $codes = array_filter(array_map('trim', explode(',', $search)));
-                    if (!empty($codes)) {
+                    if (! empty($codes)) {
                         $query->whereIn('vends.code', $codes);
                     }
                 } else {
@@ -335,22 +357,22 @@ trait HasFilter
             })
             ->when($request->operators, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vr.operator_id', $ids);
                 }
             })
             ->when($request->vendContracts, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vends.vend_contract_id', $ids);
                 }
             })
             ->when($request->vendModels, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vr.vend_model_id', $ids);
                 }
             })
@@ -358,17 +380,17 @@ trait HasFilter
                 $ids = is_array($search) ? $search : [$search];
                 if (in_array('single-ud', $ids, true)) {
                     $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
-                    $ids = array_values(array_filter($ids, fn($value) => $value !== 'single-ud'));
+                    $ids = array_values(array_filter($ids, fn ($value) => $value !== 'single-ud'));
                 }
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vr.vend_prefix_id', $ids);
                 }
             })
             ->when($request->productMappings, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vends.product_mapping_id', $ids);
                 }
             });
@@ -524,11 +546,11 @@ trait HasFilter
                 $search = $request->fan_rpm;
                 if ($search == '0') {
                     $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', 0);
-                } else if ($search == '>0') {
+                } elseif ($search == '>0') {
                     $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', '>', 0);
-                } else if ($search == 'N/A') {
+                } elseif ($search == 'N/A') {
                     $query->where('vends.is_fan_enabled', false);
-                } else if ($search == '--') {
+                } elseif ($search == '--') {
                     $query->where('vends.is_fan_enabled', true)->where(function ($q) {
                         $q->whereNull('vends.parameter_json->fan');
                     });
@@ -562,9 +584,9 @@ trait HasFilter
                             break;
                         case 'inactive':
                             $query->where('vends.is_active', false)
-                                  ->where('vends.is_testing', false)
-                                  ->where('vends.is_disposed', false)
-                                  ->where('vends.is_sold', false);
+                                ->where('vends.is_testing', false)
+                                ->where('vends.is_disposed', false)
+                                ->where('vends.is_sold', false);
                             break;
                         case 'disposed':
                             $query->where('vends.is_disposed', true);
@@ -577,10 +599,19 @@ trait HasFilter
                 // dd($query->toSql());
             })
             ->when($request->is_active, function ($query, $search) use ($request) {
-                if ($request->indexType == 'customers') {
-                    $columnName = $request->indexType ? $request->indexType . '.is_active' : 'vends.is_active';
-                    if ($search != 'all') {
-                        $query->where($columnName, filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                if ($request->indexType == 'customers' && $search != 'all') {
+                    $flag = filter_var($search, FILTER_VALIDATE_BOOLEAN);
+                    if ($request->boolean('include_unbound_vends')) {
+                        // Operation Dashboard "Include unbound?": a site-less
+                        // machine row has no site to be active, and the page
+                        // sends is_active=true by default with no visible
+                        // control — so judge such rows by the machine's own flag
+                        // (same expression the grid SELECTs as is_active, so the
+                        // filter and the displayed flag agree). Bound rows are
+                        // still judged by the site exactly as before.
+                        $query->whereRaw('('.self::CUSTOMER_INDEX_IS_ACTIVE_SQL.') = ?', [(int) $flag]);
+                    } else {
+                        $query->where('customers.is_active', $flag);
                     }
                 }
             })
@@ -664,7 +695,7 @@ trait HasFilter
             ->when($request->operator_id, function ($query, $search) use ($request) {
                 if ($search != 'all') {
                     if ($request->indexType) {
-                        $query->where($request->indexType . '.operator_id', $search);
+                        $query->where($request->indexType.'.operator_id', $search);
                     } else {
                         $query->where('vends.operator_id', $search);
                     }
@@ -672,7 +703,7 @@ trait HasFilter
             })
             ->when($request->operators, function ($query, $search) {
                 $operators = Arr::wrap($search);
-                if (!in_array('all', $operators)) {
+                if (! in_array('all', $operators)) {
                     $query->whereIn('vends.operator_id', $operators);
                 }
             })
@@ -732,12 +763,12 @@ trait HasFilter
                 }
             })
             ->when($request->vendConfigs, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vends.vend_config_id', $search);
                 }
             })
             ->when($request->vendContracts, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_contract_id', $search);
                 }
             })
@@ -769,12 +800,12 @@ trait HasFilter
             //     }
             // })
             ->when($request->vendModels, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vends.vend_model_id', $search);
                 }
             })
             ->when($request->vendPrefixes, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     if (in_array('single-ud', $search)) {
                         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                         unset($search[array_search('single-ud', $search)]);
@@ -784,8 +815,8 @@ trait HasFilter
             })
             ->when($request->productMappings, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
-                if (!in_array('all', $ids, true) && !empty($ids)) {
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (! in_array('all', $ids, true) && ! empty($ids)) {
                     $query->whereIn('vends.product_mapping_id', $ids);
                 }
             })
@@ -802,44 +833,44 @@ trait HasFilter
             // there is no machine to schedule a mapping change for.
             ->when($request->upcomingProductMappings, function ($query, $search) {
                 $ids = is_array($search) ? $search : [$search];
-                $ids = array_values(array_filter($ids, fn($value) => $value !== null && $value !== ''));
+                $ids = array_values(array_filter($ids, fn ($value) => $value !== null && $value !== ''));
 
                 if (empty($ids) || in_array('all', $ids, true)) {
                     return;
                 }
 
-                $wantsNone  = in_array('none', $ids, true);
+                $wantsNone = in_array('none', $ids, true);
                 // Cast to int before interpolation — these ids are inlined into
                 // raw SQL (a bound IN list can't be mixed with the raw COALESCE
                 // expression cleanly), so they must not be attacker-shaped.
                 $mappingIds = array_values(array_unique(array_map(
                     'intval',
-                    array_filter($ids, fn($value) => is_numeric($value))
+                    array_filter($ids, fn ($value) => is_numeric($value))
                 )));
 
-                if (empty($mappingIds) && !$wantsNone) {
+                if (empty($mappingIds) && ! $wantsNone) {
                     return;
                 }
 
                 $expression = $this->effectiveUpcomingMappingSql();
 
                 $query->where(function ($query) use ($expression, $mappingIds, $wantsNone) {
-                    if (!empty($mappingIds)) {
-                        $query->orWhereRaw($expression . ' IN (' . implode(',', $mappingIds) . ')');
+                    if (! empty($mappingIds)) {
+                        $query->orWhereRaw($expression.' IN ('.implode(',', $mappingIds).')');
                     }
                     if ($wantsNone) {
-                        $query->orWhereRaw('vends.id IS NOT NULL AND ' . $expression . ' IS NULL');
+                        $query->orWhereRaw('vends.id IS NOT NULL AND '.$expression.' IS NULL');
                     }
                 });
             })
             ->when($request->zones, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('zone_id', $search);
                 }
             })
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
@@ -852,28 +883,28 @@ trait HasFilter
                         $search === 'totals_json->thirty_days_gross_profit' or
                         $search === 'thirty_days_stock_in_delta_percent'
                     ) {
-                        $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . $direction);
+                        $query->orderByRaw('(CAST(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) '.$direction);
                         $query->orderBy($search, $direction);
                     } elseif ($search === 'totals_json->today_amount') {
                         // Use the stored generated column instead of JSON extraction — allows
                         // MySQL to use idx_customers_active_today_amount and skip filesort.
                         $query->orderBy('customers.today_amount_sort', $direction);
                     } else {
-                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . $direction);
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.$direction);
                         $query->orderBy($search, $direction);
                     }
                 } else {
                     if ($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
                         $excludedModelIds = \App\Models\VendModel::where('is_sortable', false)->pluck('id')->toArray();
 
-                        if (!empty($excludedModelIds)) {
+                        if (! empty($excludedModelIds)) {
                             $excludedModelIdsString = implode(',', $excludedModelIds);
-                            $query->orderByRaw('vends.vend_model_id IN (' . $excludedModelIdsString . ') ASC');
+                            $query->orderByRaw('vends.vend_model_id IN ('.$excludedModelIdsString.') ASC');
                         }
 
-                        $query->orderByRaw('ISNULL(' . $search . '), ' . $search . ' ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } elseif ($search == 'temp_diff') {
-                        $query->orderByRaw('(temp - CAST(json_unquote(json_extract(parameter_json, "$.t2")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('(temp - CAST(json_unquote(json_extract(parameter_json, "$.t2")) AS DECIMAL(10,2))) '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     }
@@ -929,10 +960,10 @@ trait HasFilter
         // when that preset is the N/A sentinel — so COALESCE falls through to
         // "no upcoming" in exactly the cases the badge does.
         $presetUpcoming = '(SELECT pm_upcoming.upcoming_product_mapping_id'
-            . ' FROM product_mappings pm_upcoming'
-            . ' WHERE pm_upcoming.id = vends.product_mapping_id'
-            . ($naList !== '' ? " AND pm_upcoming.upcoming_product_mapping_id NOT IN ({$naList})" : '')
-            . ')';
+            .' FROM product_mappings pm_upcoming'
+            .' WHERE pm_upcoming.id = vends.product_mapping_id'
+            .($naList !== '' ? " AND pm_upcoming.upcoming_product_mapping_id NOT IN ({$naList})" : '')
+            .')';
 
         return $expression = "COALESCE({$ownUpcoming}, {$presetUpcoming})";
     }
@@ -994,17 +1025,17 @@ trait HasFilter
                 $search = $request->fan_rpm;
                 if ($search == '0') {
                     $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', 0);
-                } else if ($search == '>0') {
+                } elseif ($search == '>0') {
                     $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', '>', 0);
-                } else if ($search == 'N/A') {
+                } elseif ($search == 'N/A') {
                     $query->where('vends.is_fan_enabled', false);
-                } else if ($search == '--') {
+                } elseif ($search == '--') {
                     $query->where('vends.is_fan_enabled', true)->where(function ($q) {
                         $q->whereNull('vends.parameter_json->fan');
                     });
                 }
             })
-            ->when($request->is_active, function ($query, $search) use ($request) {
+            ->when($request->is_active, function ($query, $search) {
                 if ($search != 'all') {
                     $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 }
@@ -1090,11 +1121,11 @@ trait HasFilter
             })
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
-                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
@@ -1218,8 +1249,6 @@ trait HasFilter
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             });
 
-
         return $query;
     }
-
 }

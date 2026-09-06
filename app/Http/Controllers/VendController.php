@@ -65,6 +65,7 @@ use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\RefundTicket;
 use App\Models\RefundTicketItem;
+use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\Tag;
@@ -553,6 +554,18 @@ class VendController extends Controller
             || auth()->user()->hasRole('observer_transactions')
             || auth()->user()->isDriver();
 
+        // "Include unbound?" — the top-row checkbox on Vend/CustomerIndex.vue.
+        // Lists machines with no site binding (vends.customer_id NULL) as
+        // well, standing in for the retired Vend/Index page. Off by default,
+        // so the page is byte-identical to before the toggle existed.
+        // Decided ONCE here — permission-gated, so a driver or a tampered
+        // query string cannot switch it on — and merged back so every helper
+        // that rebuilds the row source (Grouped? seed, pre-Search cards)
+        // reads the same decision. See customerIndexBaseQuery().
+        $includeUnboundVends = $request->boolean('include_unbound_vends')
+            && auth()->user()->can('admin-access vend-customers');
+        $request->merge(['include_unbound_vends' => $includeUnboundVends]);
+
         if ($request->indexType === 'customers') {
             // 5-value Customer Status (matches Customer::STATUSES_MAPPING),
             // replacing the binary "Customer Active?" filter on this page.
@@ -694,7 +707,7 @@ class VendController extends Controller
         $initialStats = null;
 
         if ($shouldAutoload) {
-            $vends = Customer::query()
+            $vends = $this->customerIndexBaseQuery($includeUnboundVends)
                 ->with([
                     'deliveryAddress',
                     // Customer Tag chips + last-edited-by audit line for the
@@ -758,27 +771,8 @@ class VendController extends Controller
                     'vend.apkSettings.campaigns:id,name,is_active,start_at,end_at',
                 ]);
 
-            // Conditional Joins for performance
-            // Restore unconditional joins for required select columns
-            $vends->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-                ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-                ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-                ->leftJoin('addresses', function ($query) {
-                    $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2);
-                })
-                ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-                // Card terminal type (Nayax / Nets / Nets-Auresys / PAX / MLS). Joined so we
-                // can SELECT card_terminals.name AS card_terminal_name and expose
-                // it on the Customer Index "Card Terminal" badge / filter without
-                // an N+1 lazy load.
-                ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+            // Joins live in customerIndexBaseQuery() — shared with the Grouped?
+            // seed and the pre-Search cards so all three read one population.
 
             // ── Grouped "travel together" (Operation Dashboard) ─────────────────
             // When the "Grouped?" toggle is on, a co-located cluster must appear as
@@ -798,8 +792,19 @@ class VendController extends Controller
                 // fetched (see the $groupOn pagination branch below). Doing it there
                 // keeps clusters contiguous even when they'd straddle a page break,
                 // and lets a cluster sit at its ranked position instead of the top.
-                $expandedGroupIds = $this->groupedExpandedCustomerIds($request);
-                $vends->whereIn('customers.id', $expandedGroupIds ?: [-1]);
+                $expanded = $this->groupedExpandedIds($request);
+                if ($expanded['unbound_vends']) {
+                    // Site-less machines have no customers.id to whitelist, so
+                    // they are OR-ed in by vends.id. They carry no
+                    // customer_group_id, so the cluster placement below simply
+                    // leaves them in their sorted slot.
+                    $vends->where(function ($q) use ($expanded) {
+                        $q->whereIn('customers.id', $expanded['customers'] ?: [-1])
+                            ->orWhereIn('vends.id', $expanded['unbound_vends']);
+                    });
+                } else {
+                    $vends->whereIn('customers.id', $expanded['customers'] ?: [-1]);
+                }
                 $sortReq = new Request([
                     'indexType' => 'customers',
                     'visited' => true,
@@ -810,7 +815,7 @@ class VendController extends Controller
             } else {
                 $vends = $this->filterVendsDB($vends, $request);
             }
-            $vends = $this->filterOperatorDB($vends, 'customers');
+            $vends = $this->filterOperatorDB($vends, $this->customerIndexOperatorColumn($includeUnboundVends));
 
             $countQuery = clone $vends;
             $total = $countQuery->count();
@@ -1089,7 +1094,10 @@ class VendController extends Controller
                 'vends.apk_ver_json',
                 'vends.balance_percent',
                 'vends.serial_num',
-                DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
+                // `customers.id IS NULL` = unbound machine (RIGHT JOIN row, see
+                // customerIndexBaseQuery): there is no site snapshot to fall
+                // back to, so read the live machine columns.
+                DB::raw("CASE WHEN customers.id IS NULL OR customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
                 'vends.temp_updated_at',
                 'vends.coin_amount',
                 'vends.firmware_ver',
@@ -1122,12 +1130,12 @@ class VendController extends Controller
                 'vends.internet_network',
                 'vends.internet_updated_at',
                 'vends.out_of_stock_sku_percent',
-                DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
+                DB::raw('CASE WHEN customers.id IS NULL OR customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
                 'vends.private_key',
                 'vends.is_fan_enabled',
                 'vends.vend_channel_totals_json',
-                DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
+                DB::raw('CASE WHEN customers.id IS NULL OR customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
                 'customers.totals_json AS vend_transaction_totals_json',
                 'vends.vend_type_id',
                 'vends.vend_channels_json',
@@ -1149,7 +1157,10 @@ class VendController extends Controller
                 'customers.is_external_subsidize',
                 'customers.external_subsidize_amount',
                 'customers.frequency_per_week_status',
-                'customers.is_active AS is_active',
+                // `is_active` drives the row colouring in the Vue (grey when
+                // off). A site owns it; an unbound machine has no site, so its
+                // own flag stands in. customer_is_active stays the raw column.
+                DB::raw(self::CUSTOMER_INDEX_IS_ACTIVE_SQL.' AS is_active'),
                 'customers.is_active AS customer_is_active',
                 'customers.location_type_id',
                 'customers.name',
@@ -6192,14 +6203,55 @@ class VendController extends Controller
      * filterVendsDB / filterOperatorDB branch resolves its tables), then unions
      * the sibling ids. Returns an int[] (possibly empty when nothing matches).
      */
-    private function groupedExpandedCustomerIds(Request $request): array
+    /**
+     * Row source shared by the Operation Dashboard grid (indexCustomer), its
+     * Grouped? seed (groupedExpandedIds) and its pre-Search cards
+     * (computeCustomerIndexCardStats), so the three can never drift apart —
+     * a card drawn from a different population than the grid is the leak
+     * signature CLAUDE.md warns about.
+     *
+     * Rooted at customers: one row per site (plus one per extra machine on a
+     * multi-machine site). With $includeUnboundVends the vends join flips to
+     * a RIGHT JOIN, so a machine with no site (vends.customer_id NULL) still
+     * yields a row — one whose customers.* columns are all NULL. That is the
+     * only way such a row can arise, so `customers.id IS NULL` is the
+     * "unbound machine" test everywhere downstream. Two consequences:
+     *
+     *  - Customer's OperatorCustomerFilterScope (an EXISTS on
+     *    customers.operator_id) would silently drop every unbound row for a
+     *    non-HIPL viewer, so it is lifted here and the viewer ceiling is
+     *    re-applied by filterOperatorDB on customerIndexOperatorColumn()
+     *    instead. Every caller must pass that column, never bare 'customers'.
+     *    Prod check 2026-09-06: vends.operator_id equals customers.operator_id
+     *    on every bound machine, so the COALESCE ceiling moves no bound row.
+     *  - The operators join follows the same COALESCE so an unbound row still
+     *    carries operator_code / operator_name / gst_vat_rate.
+     *
+     * With the toggle off the query is byte-identical to the pre-toggle one.
+     * Join-sensitive (see indexCustomer): add columns, not joins.
+     */
+    private function customerIndexBaseQuery(bool $includeUnboundVends)
     {
-        $seed = Customer::query()
-            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+        $query = Customer::query();
+
+        if ($includeUnboundVends) {
+            $query->withoutGlobalScope(OperatorCustomerFilterScope::class)
+                ->rightJoin('vends', 'vends.customer_id', '=', 'customers.id');
+        } else {
+            $query->leftJoin('vends', 'vends.customer_id', '=', 'customers.id');
+        }
+
+        $query->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id');
+
+        if ($includeUnboundVends) {
+            $query->leftJoin('operators', 'operators.id', '=', DB::raw('COALESCE(customers.operator_id, vends.operator_id)'));
+        } else {
+            $query->leftJoin('operators', 'operators.id', '=', 'customers.operator_id');
+        }
+
+        return $query
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
             ->leftJoin('addresses', function ($query) {
@@ -6209,17 +6261,58 @@ class VendController extends Controller
             })
             ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            // Card terminal type (Nayax / Nets / Nets-Auresys / PAX / MLS). Joined so we
+            // can SELECT card_terminals.name AS card_terminal_name and expose
+            // it on the Customer Index "Card Terminal" badge / filter without
+            // an N+1 lazy load.
             ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+    }
 
+    /**
+     * Column filterOperatorDB pins the viewer ceiling to on the Operation
+     * Dashboard. See customerIndexBaseQuery() for why it changes shape.
+     *
+     * @return string|\Illuminate\Contracts\Database\Query\Expression
+     */
+    private function customerIndexOperatorColumn(bool $includeUnboundVends)
+    {
+        return $includeUnboundVends
+            ? DB::raw('COALESCE(customers.operator_id, vends.operator_id)')
+            : 'customers';
+    }
+
+    /**
+     * Grouped? seed: the ids the grid is restricted to when the toggle is on.
+     * Runs the grid's own filter chain on the grid's own row source, then
+     * widens every matched site to its whole cluster.
+     *
+     * @return array{customers: int[], unbound_vends: int[]} matched site ids ∪
+     *                                                       their group-mates; and, only when "Include unbound?" is on, the
+     *                                                       vend ids of the matched site-less machines — they have no
+     *                                                       customers.id to whitelist, so the grid ORs them in by vends.id.
+     */
+    private function groupedExpandedIds(Request $request): array
+    {
+        $includeUnboundVends = $request->boolean('include_unbound_vends');
+
+        $seed = $this->customerIndexBaseQuery($includeUnboundVends);
         $seed = $this->filterVendsDB($seed, $request);
-        $seed = $this->filterOperatorDB($seed, 'customers');
+        $seed = $this->filterOperatorDB($seed, $this->customerIndexOperatorColumn($includeUnboundVends));
 
         // reorder() drops the ORDER BY filterVendsDB added — irrelevant for an
         // id pluck and some sort keys reference SELECT aliases we don't expose.
-        $seedIds = $seed->reorder()->distinct()->pluck('customers.id')->all();
+        $seed->reorder();
+
+        $unboundVendIds = $includeUnboundVends
+            ? (clone $seed)->whereNull('customers.id')->distinct()->pluck('vends.id')->map(fn ($v) => (int) $v)->all()
+            : [];
+
+        // An unbound row plucks a NULL customers.id — drop it here rather than
+        // with a WHERE so the toggle-off SQL stays exactly as it was.
+        $seedIds = array_values(array_filter($seed->distinct()->pluck('customers.id')->all()));
 
         if (empty($seedIds)) {
-            return [];
+            return ['customers' => [], 'unbound_vends' => $unboundVendIds];
         }
 
         $groupIds = DB::table('customers')
@@ -6230,7 +6323,7 @@ class VendController extends Controller
             ->all();
 
         if (empty($groupIds)) {
-            return $seedIds; // no grouped sites in the match → no expansion
+            return ['customers' => $seedIds, 'unbound_vends' => $unboundVendIds]; // no grouped sites in the match → no expansion
         }
 
         $siblingIds = DB::table('customers')
@@ -6238,32 +6331,21 @@ class VendController extends Controller
             ->pluck('id')
             ->all();
 
-        return array_values(array_unique(array_merge($seedIds, $siblingIds)));
+        return [
+            'customers' => array_values(array_unique(array_merge($seedIds, $siblingIds))),
+            'unbound_vends' => $unboundVendIds,
+        ];
     }
 
     private function computeCustomerIndexCardStats(Request $request): array
     {
-        // Same unconditional joins as the main indexCustomer query so every
-        // filterVendsDB/filterOperatorDB branch finds the tables it expects.
-        $query = Customer::query()
-            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-            ->leftJoin('addresses', function ($query) {
-                $query->on('addresses.modelable_id', '=', 'customers.id')
-                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                    ->where('addresses.type', '=', 2);
-            })
-            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+        // Same row source and viewer ceiling as the grid, so the cards can
+        // never be drawn from a different population than the rows below them.
+        $includeUnboundVends = $request->boolean('include_unbound_vends');
+        $query = $this->customerIndexBaseQuery($includeUnboundVends);
 
         $query = $this->filterVendsDB($query, $request);
-        $query = $this->filterOperatorDB($query, 'customers');
+        $query = $this->filterOperatorDB($query, $this->customerIndexOperatorColumn($includeUnboundVends));
 
         // reorder() drops the ORDER BY filterVendsDB added — sorting is
         // irrelevant for aggregation and some sort keys reference SELECT
@@ -6689,9 +6771,14 @@ class VendController extends Controller
             return ProductScopedSales::vendIdOf($item);
         })->filter()->unique()->toArray();
 
+        // values(): filter() keeps the collection's keys, and the raw
+        // DB::select() calls below bind these POSITIONALLY (key + 1). A gap in
+        // the keys — which appears the moment a page holds a site-less machine
+        // row (customer_id NULL, Operation Dashboard "Include unbound?") —
+        // skips a placeholder and MySQL rejects the statement (HY093).
         $customerIds = $items->map(function ($item) {
             return $item->customer_id ?? $item->id;
-        })->filter()->unique()->toArray();
+        })->filter()->unique()->values()->toArray();
 
         if (empty($vendIds) && empty($customerIds)) {
             return $items;
