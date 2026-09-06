@@ -405,7 +405,7 @@
                 <input
                   type="text"
                   class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed mt-1"
-                  :value="form.vend_config_id ? form.vend_config_version : ''"
+                  :value="latestVersion ?? ''"
                   disabled
                 />
             </div>
@@ -1731,7 +1731,7 @@ const props = defineProps({
     vendPrefixOptions: Object,
     vendSerialNumberOptions: Object,
     stickerOptions: Object,
-    versionOptions: Object,
+    versionOptions: [Array, Object],
     // ChillerStatus::toArray() — null for anything but a Smart Chiller.
     chillerStatus: Object,
   })
@@ -1992,7 +1992,34 @@ const vendPrefixOptions = ref([])
 const vendSerialNumberOptions = ref([])
 const stickerOptions = ref([])
 const fieldAudit = ref({})
-const versionOptions = ref([])
+// Setting-chart versions are letters in alphabetical sequence (VendConfig::VERSION).
+// "Latest Version" is whatever the selected Setting Chart carries; "Current Version"
+// is what the technician flashed onto the machine, so it can never legitimately be
+// AHEAD of the chart's latest. The dropdown is therefore bounded to <= latest so a
+// technician who just upgraded a->b cannot pick c by mistake (Setting/Index and the
+// customer list paint current != latest red). No chart / N/A chart = no bound.
+const latestVersion = computed(() => {
+  const v = form.value?.vend_config_id?.version
+  return v ? String(v) : null
+})
+const versionLetters = computed(() => Object.values(props.versionOptions || {}).map(String))
+const versionRank = (v) => versionLetters.value.indexOf(String(v))
+const versionOptions = computed(() => {
+  const all = versionLetters.value.map(version => ({id: version, value: version}))
+  const latestRank = latestVersion.value ? versionRank(latestVersion.value) : -1
+  const allowed = latestRank < 0 ? all : all.filter(o => versionRank(o.id) <= latestRank)
+  return [{ id: '-', value: '-'}, ...allowed]
+})
+// Switching the Setting Chart after load can leave the flashed version above the new
+// chart's latest; drop it so the save cannot carry a version ahead of the chart.
+// First assignment (form build on load) is left alone: a stored legacy mismatch stays
+// visible instead of being silently rewritten by opening the page.
+watch(latestVersion, (newLatest, oldLatest) => {
+  if (!hasMounted || newLatest === oldLatest || !newLatest) return
+  const current = form.value?.vend_vend_config_version?.id
+  if (!current || current === '-') return
+  if (versionRank(current) > versionRank(newLatest)) form.value.vend_vend_config_version = null
+})
 const isPromoting = ref(false)
 let hasMounted = false;
 
@@ -2101,7 +2128,6 @@ function getDefaultForm() {
     is_fan_enabled: {id: 'true', value: 'Yes'},
     upcoming_product_mapping_id: '',
     vend_config_id: '',
-    vend_config_version: '',
     vend_contract_id: '',
     vend_model_id: '',
     vend_prefix_id: '',
@@ -2253,11 +2279,6 @@ onMounted(() => {
       name: vendSerialNumber.code,
     }))
   ]
-  versionOptions.value = [
-    { id: '-', value: '-'},
-    ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
-  ]
-
   // Keep any "N/A" choice at the bottom of every dropdown that has one
   // (Product Mapping, Machine Prefix, Setting Chart, etc.). No-op for
   // lists without an N/A entry. Relative order of the other options is
@@ -2303,8 +2324,6 @@ onMounted(() => {
     trigger_log_date: moment().format('YYYY-MM-DD'),
     upcoming_product_mapping_id: computeUpcomingSelection(props.vend.upcoming_product_mapping_id),
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
-    // Null-safe: a stored config id with no matching option must not crash the page.
-    vend_config_version: props.vend ? props.vend.vend_config_id ? (vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id)?.version ?? null) : null : null,
     vend_contract_id: props.vend ? props.vend.vend_contract_id ? vendContractOptions.value.find(vendContract => vendContract.id == props.vend.vend_contract_id) : null : null,
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id == props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id == props.vend.vend_prefix_id) : null : null,

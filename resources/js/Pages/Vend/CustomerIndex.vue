@@ -1391,7 +1391,10 @@
 							</span>
 							<div
 								class="text-left"
-								:class="settingChartIsOutdated(vend) ? 'text-red-600' : 'text-gray-800'"
+								:class="[
+									settingChartIsOutdated(vend) ? 'text-red-600' : 'text-gray-800',
+									settingChartSkippedVersion(vend) ? 'w-fit border border-red-600 rounded px-1' : '',
+								]"
 								v-if="vend.vend_config_name"
 								v-tooltip="settingChartVersionTooltip(vend)"
 							>
@@ -4432,11 +4435,31 @@ function settingChartIsOutdated(vend) {
 	return settingChartVersion(vend.vend_vend_config_version).toLowerCase() !== latest.toLowerCase()
 }
 
+// How many versions the machine trails the chart by, walking the alphabetical
+// sequence (VendConfig::VERSION is a..z): current a / latest c = 2. Null when
+// either side is unset or not a single letter — an unknown gap, not a gap of 0.
+function settingChartVersionsBehind(vend) {
+	const current = settingChartVersion(vend.vend_vend_config_version).toLowerCase()
+	const latest = settingChartVersion(vend.vend_config_version).toLowerCase()
+	if (!/^[a-z]$/.test(current) || !/^[a-z]$/.test(latest)) return null
+	return latest.charCodeAt(0) - current.charCodeAt(0)
+}
+
+// Red text says "not on latest"; the red border on top of it says "skipped at
+// least one version" (a -> c with b never applied), so machines that have gone
+// unupgraded through more than one release stand out from those one step behind.
+function settingChartSkippedVersion(vend) {
+	const behind = settingChartVersionsBehind(vend)
+	return behind !== null && behind >= 2
+}
+
 function settingChartVersionTooltip(vend) {
 	if (!settingChartIsOutdated(vend)) return ''
 	const current = settingChartVersion(vend.vend_vend_config_version)
+	const behind = settingChartVersionsBehind(vend)
 	return 'Current Version: ' + (current || '-')
 		+ ' | Latest Version: ' + settingChartVersion(vend.vend_config_version)
+		+ (behind !== null && behind >= 2 ? ' | ' + behind + ' versions behind' : '')
 }
 
 // Name-only wrapper — kept because the Last 2 Job / Upcoming Job columns render
