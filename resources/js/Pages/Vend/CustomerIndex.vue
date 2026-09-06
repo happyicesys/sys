@@ -193,7 +193,7 @@
 				</div>
 				<div v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					<label class="block text-sm font-medium text-gray-700">
-						No Site Binding Machines
+						Machine with no Site
 					</label>
 					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
 						title="One row per machine, including machines not bound to any site (site columns blank, judged active by the machine's own flag). Sites with no machine drop out while this is on. Every other filter still applies.">
