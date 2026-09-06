@@ -43,11 +43,11 @@ class CardSettlementIngestTest extends TestCase
         ]);
     }
 
-    private function uploadedReport(): CardSettlementReport
+    private function uploadedReport(?string $csv = null): CardSettlementReport
     {
         $disk = CardSettlementReport::storageDisk();
         $path = 'card-settlements/'.uniqid().'.csv';
-        Storage::disk($disk)->put($path, $this->csv());
+        Storage::disk($disk)->put($path, $csv ?? $this->csv());
 
         $report = CardSettlementReport::create([
             'provider' => 'nets',
@@ -129,6 +129,32 @@ class CardSettlementIngestTest extends TestCase
             2,
             $second->rows()->where('status', CardSettlementRow::STATUS_DUPLICATE)->count()
         );
+        $this->assertSame(2, $second->fresh()->duplicate_count);
+    }
+
+    /**
+     * The same day sent twice, the second time as an Excel re-save: the dates
+     * are d/m/Y and every time has lost its hour ("22:30:58" → "30:58.0").
+     * Nothing about the bytes matches the first upload, so an hour-sensitive
+     * fingerprint would have re-ingested the lot and matched every sale a
+     * second time. The key ignores the hour, so they are caught.
+     */
+    public function test_an_excel_resave_of_an_already_ingested_day_is_still_duplicate()
+    {
+        $first = $this->uploadedReport();
+        (new MatchCardSettlementReport($first->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+
+        $excel = str_replace(
+            ['2026-08-29,22:30:58.000,', '2026-08-30,08:45:33.000,'],
+            ['29/8/2026,30:58.0,', '30/8/2026,45:33.0,'],
+            $this->csv()
+        );
+
+        $second = $this->uploadedReport($excel);
+        (new MatchCardSettlementReport($second->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+
+        $this->assertSame(2, $second->fresh()->partial_time_rows);
+        $this->assertSame(2, $second->rows()->where('status', CardSettlementRow::STATUS_DUPLICATE)->count());
         $this->assertSame(2, $second->fresh()->duplicate_count);
     }
 }

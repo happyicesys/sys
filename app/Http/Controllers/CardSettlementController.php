@@ -7,6 +7,7 @@ use App\Jobs\MatchCardSettlementReport;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\CardTerminalUnit;
+use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\CardSettlement\CardSettlementSyncService;
 use App\Services\CardSettlement\CardTerminalBindingService;
@@ -32,7 +33,7 @@ class CardSettlementController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download']);
+        $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download', 'downloadConverted']);
         $this->middleware(['permission:create card-settlements'])->only(['store']);
         $this->middleware(['permission:update card-settlements'])->only(['rematch', 'fixBindings', 'bindUnbound', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
         $this->middleware(['permission:delete card-settlements'])->only(['destroy']);
@@ -132,6 +133,9 @@ class CardSettlementController extends Controller
 
         $status = $request->input('row_status', 'queries');
         $rowQuery = $report->rows()
+            // Logon lines never reach the review list, not even under "All
+            // rows" — they carry no money and nothing can be done to them.
+            ->saleLines()
             ->when($status === 'queries', fn ($q) => $q->whereIn('status', [
                 CardSettlementRow::STATUS_UNMATCHED,
                 CardSettlementRow::STATUS_AMBIGUOUS,
@@ -148,7 +152,7 @@ class CardSettlementController extends Controller
 
         // Vend code per row + per matched sale, one bounded per-page lookup.
         $rows = collect($page->items());
-        $vendCodes = \App\Models\Vend::withoutGlobalScopes()
+        $vendCodes = Vend::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('vend_id')->filter()->unique())
             ->pluck('code', 'id');
         $txns = VendTransaction::withoutGlobalScopes()
@@ -224,6 +228,7 @@ class CardSettlementController extends Controller
                 'synced_at' => $report->synced_at?->format('Y-m-d H:i'),
                 'synced_by' => $report->syncer?->name,
                 'file_url' => $report->attachment?->full_url,
+                'converted_url' => route('card-settlements.download-converted', $report->id),
             ],
             // Manually shaped into the resource-collection envelope
             // (data / links / meta) the shared Paginator component expects.
@@ -814,5 +819,89 @@ class CardSettlementController extends Controller
         abort_unless($disk->exists($attachment->local_url), 404);
 
         return $disk->download($attachment->local_url, $report->original_filename);
+    }
+
+    /**
+     * The same report with the times readable.
+     *
+     * MerchantConnect's raw CSV opens in Excel as "12:41.0" — Excel reads the
+     * hour-less m:ss it writes as a duration, and re-saving then destroys the
+     * hour for good. This export is built from the parsed rows instead, so the
+     * time is plain "23:12:41" text and Excel has nothing to reinterpret.
+     *
+     * Sale lines only, matching the review list: the ~320 daily $0 Logon lines
+     * are terminal housekeeping and are nobody's to check. The original file
+     * sits next to this one for anyone who needs every line NETS sent.
+     */
+    public function downloadConverted($id)
+    {
+        $report = CardSettlementReport::findOrFail($id);
+
+        $vendCodes = Vend::withoutGlobalScopes()
+            ->whereIn('id', $report->rows()->saleLines()->whereNotNull('vend_id')->distinct()->pluck('vend_id'))
+            ->pluck('code', 'id');
+
+        $filename = pathinfo($report->original_filename, PATHINFO_FILENAME).'_readable-time.csv';
+
+        return response()->streamDownload(function () use ($report, $vendCodes) {
+            $out = fopen('php://output', 'w');
+
+            // Excel needs the BOM to read the file as UTF-8 on a double-click.
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [
+                'Line No',
+                'Transaction Type',
+                'Terminal ID',
+                'Machine',
+                'Transaction Date',
+                'Transaction Time',
+                'Transaction Datetime',
+                'Time Note',
+                'Amount (S$)',
+                'Txn Sequence Number',
+                'Card Issuer',
+                'Reversal',
+                'Status',
+                'Matched Sale ID',
+                'Note',
+            ]);
+
+            $report->rows()
+                ->saleLines()
+                ->orderBy('row_no')
+                ->chunk(500, function ($rows) use ($out, $vendCodes) {
+                    foreach ($rows as $row) {
+                        $date = $row->transaction_date->format('Y-m-d');
+
+                        // A partial row lost its hour to an Excel re-save; it is
+                        // stored as 00:mm:ss, which would read as a real
+                        // midnight time. Say so rather than assert an hour.
+                        $time = $row->time_is_partial
+                            ? '??'.substr((string) $row->transaction_time, 2)
+                            : $row->transaction_time;
+
+                        fputcsv($out, [
+                            $row->row_no,
+                            $row->txn_type,
+                            $row->terminal_id,
+                            $row->vend_id ? $vendCodes->get($row->vend_id) : null,
+                            $date,
+                            $time,
+                            $row->time_is_partial ? null : $date.' '.$row->transaction_time,
+                            $row->time_is_partial ? 'Hour lost to an Excel re-save — minute:second only' : null,
+                            number_format($row->amount_cents / 100, 2, '.', ''),
+                            $row->sequence_no,
+                            $row->card_issuer,
+                            $row->is_reversal ? 'Y' : 'N',
+                            CardSettlementRow::STATUS_LABELS[$row->status] ?? $row->status,
+                            $row->matched_vend_transaction_id,
+                            $row->resolution_note,
+                        ]);
+                    }
+                });
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

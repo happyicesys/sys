@@ -354,6 +354,73 @@ class CardSettlementFixBindingsTest extends TestCase
             );
     }
 
+    /**
+     * "All rows" means all rows a human could act on. NETS puts ~320 $0 Logon
+     * lines in every file; showing them buries the queries under noise.
+     */
+    public function test_logon_lines_never_reach_the_review_list(): void
+    {
+        $report = $this->report();
+        CardSettlementRow::create([
+            'card_settlement_report_id' => $report->id,
+            'row_no' => 901,
+            'txn_type' => 'Logon',
+            'terminal_id' => self::TID,
+            'transaction_date' => '2026-08-17',
+            'transaction_time' => '02:35:02',
+            'amount_cents' => 0,
+            'fingerprint' => sha1('logon-review-list'),
+            'status' => CardSettlementRow::STATUS_IGNORED,
+        ]);
+
+        $this->actingAs($this->staff())
+            ->get('/card-settlements/'.$report->id.'?row_status=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rows.data', fn ($rows) => collect($rows)
+                ->doesntContain(fn ($row) => $row['txn_type'] === 'Logon')
+            ));
+    }
+
+    /**
+     * The whole point of the converted file: a time Excel cannot re-mangle.
+     * A row whose hour was already lost must not be dressed up as midnight.
+     */
+    public function test_converted_download_writes_readable_times(): void
+    {
+        $report = $this->report();
+        $this->makeRow($report, 1, 'Purchase', '23:12:41', false);
+        $this->makeRow($report, 2, 'Purchase', '00:12:41', true);
+        $this->makeRow($report, 3, 'Logon', '02:35:02', false);
+
+        $response = $this->actingAs($this->staff())
+            ->get('/card-settlements/'.$report->id.'/download-converted')
+            ->assertOk();
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('2026-08-17 23:12:41', $csv);
+        // Hour unknown: shown as ??:12:41 with no datetime asserted for it.
+        $this->assertStringContainsString('??:12:41', $csv);
+        $this->assertStringNotContainsString('2026-08-17 00:12:41', $csv);
+        $this->assertStringNotContainsString('Logon', $csv);
+    }
+
+    private function makeRow(CardSettlementReport $report, int $rowNo, string $type, string $time, bool $partial): void
+    {
+        CardSettlementRow::create([
+            'card_settlement_report_id' => $report->id,
+            'row_no' => $rowNo,
+            'txn_type' => $type,
+            'terminal_id' => self::TID,
+            'transaction_date' => '2026-08-17',
+            'transaction_time' => $time,
+            'time_is_partial' => $partial,
+            'amount_cents' => 160,
+            'fingerprint' => sha1('converted-'.$rowNo),
+            'status' => $type === 'Logon' ? CardSettlementRow::STATUS_IGNORED : CardSettlementRow::STATUS_UNMATCHED,
+        ]);
+    }
+
     public function test_it_will_not_break_an_already_synced_line_unattended(): void
     {
         $wrong = $this->makeVend(2443);
@@ -450,6 +517,20 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $this->assertNull(CardTerminalBinding::where('terminal_id', self::TID)->first()->bound_until);
         Queue::assertNotPushed(MatchCardSettlementReport::class);
+    }
+
+    /**
+     * The converted file carries terminal IDs, amounts and matched sale IDs —
+     * the same data as the original download, so the same read permission.
+     */
+    public function test_converted_download_needs_the_read_permission(): void
+    {
+        Permission::findOrCreate('read card-settlements', 'web');
+        $report = $this->report();
+
+        $this->actingAs(User::factory()->create())
+            ->get('/card-settlements/'.$report->id.'/download-converted')
+            ->assertForbidden();
     }
 
     public function test_it_needs_the_update_permission(): void

@@ -4,13 +4,33 @@
 
   <BreezeAuthenticatedLayout>
     <template #header>
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          <Link href="/card-settlements" class="text-blue-700 hover:underline">Card Settlement</Link>
-          <span class="text-gray-400"> / </span><span class="break-all">{{ report.original_filename }}</span>
-          <a v-if="report.file_url" :href="report.file_url" class="ml-2 text-xs font-normal text-blue-700 hover:underline">download file</a>
-        </h2>
-        <div class="flex space-x-1">
+      <div class="flex items-start justify-between flex-wrap gap-x-4 gap-y-3">
+        <!-- Filename on its own line, downloads beneath it: the two used to sit
+             inline with the action buttons, which crowded a long NETS filename. -->
+        <div class="min-w-0">
+          <div class="text-xs text-gray-400 uppercase tracking-wide">
+            <Link href="/card-settlements" class="text-blue-700 hover:underline">Card Settlement</Link>
+          </div>
+          <h2 class="font-semibold text-xl text-gray-800 leading-tight break-all">{{ report.original_filename }}</h2>
+          <div class="mt-1.5 flex items-center flex-wrap gap-2">
+            <a
+              v-if="report.file_url" :href="report.file_url"
+              class="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              <ArrowDownTrayIcon class="w-3.5 h-3.5 text-gray-400"></ArrowDownTrayIcon>
+              <span>Download original file</span>
+            </a>
+            <a
+              :href="report.converted_url"
+              class="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+              title="Same lines with the time as plain 23:12:41 text — Excel cannot turn it back into 12:41.0"
+            >
+              <ArrowDownTrayIcon class="w-3.5 h-3.5 text-blue-400"></ArrowDownTrayIcon>
+              <span>Download converted time file</span>
+            </a>
+          </div>
+        </div>
+        <div class="flex items-center flex-wrap gap-1 shrink-0">
           <Button
             class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
             :class="report.status === 'matching' ? 'opacity-50 cursor-not-allowed' : ''"
@@ -47,7 +67,7 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <!-- summary -->
-      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-sm">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
         <div>
           <div class="text-xs text-gray-400 uppercase">Provider / Account</div>
           <span class="uppercase">{{ report.provider }}</span> · {{ report.merchant_account || '—' }}
@@ -65,10 +85,15 @@
             {{ report.status }}
           </span>
         </div>
+        <!-- One number per tile, so Purchases / Matched / Queries / Duplicates
+             read exactly as they do on the Index row for this report. -->
         <div>
-          <div class="text-xs text-gray-400 uppercase">Purchases / Reversals</div>
-          {{ report.purchase_rows }} / <span :class="report.reversal_rows ? 'text-red-600 font-medium' : ''">{{ report.reversal_rows }}</span>
-          <span class="text-xs text-gray-400">of {{ report.total_rows }} rows</span>
+          <div class="text-xs text-gray-400 uppercase">Purchases</div>
+          {{ report.purchase_rows }}
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Reversals</div>
+          <span :class="report.reversal_rows ? 'text-red-600 font-medium' : 'text-gray-400'">{{ report.reversal_rows }}</span>
         </div>
         <div>
           <div class="text-xs text-gray-400 uppercase">Matched</div>
@@ -79,8 +104,12 @@
           <span :class="queriesCount ? 'text-amber-700 font-bold' : ''">{{ queriesCount }}</span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Duplicates / Ignored</div>
-          {{ report.duplicate_count }} / {{ report.ignored_count }}
+          <div class="text-xs text-gray-400 uppercase">Duplicates</div>
+          <span :class="report.duplicate_count ? '' : 'text-gray-400'">{{ report.duplicate_count }}</span>
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 uppercase">Ignored</div>
+          <span :class="report.ignored_count ? '' : 'text-gray-400'">{{ report.ignored_count }}</span>
         </div>
         <div>
           <div class="text-xs text-gray-400 uppercase">Synced / Refund-marked</div>
@@ -99,7 +128,7 @@
       <!-- Excel-damaged file: the hour is gone from the file itself (Excel shows a fake
            "12:xx:xx AM" in its formula bar). Rows are matched on minute:second only. -->
       <div v-if="report.partial_time_rows" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm text-amber-800">
-        <span class="font-semibold">{{ report.partial_time_rows }} of {{ report.total_rows }} lines have no hour</span> —
+        <span class="font-semibold">{{ report.partial_time_rows }} lines have no hour</span> —
         this file was opened and re-saved in Excel, which turns "23:12:41" into "12:41.0". Those lines were matched on
         minute:second within the hour (same terminal, same amount), so ambiguous ones need a manual pick. For exact
         matching, re-download the raw CSV from MerchantConnect and upload that instead.
@@ -472,7 +501,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { ArrowPathIcon, CheckCircleIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowPathIcon, CheckCircleIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { computed, ref, watch } from 'vue';

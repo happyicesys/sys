@@ -194,7 +194,7 @@
                         </span>
                       </TableData>
                       <TableData :currentIndex="reportIndex" :totalLength="reports.length" inputClass="text-center">
-                        {{ report.purchase_rows }} / {{ report.total_rows }}
+                        {{ report.purchase_rows }}
                         <span
                           v-if="report.partial_time_rows"
                           class="block text-xs text-amber-700"

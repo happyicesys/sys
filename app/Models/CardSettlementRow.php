@@ -66,6 +66,20 @@ class CardSettlementRow extends Model
         return $this->belongsTo(CardSettlementReport::class, 'card_settlement_report_id');
     }
 
+    /**
+     * Purchase lines only — the lines that can ever represent money.
+     *
+     * NETS ships terminal housekeeping in the same file: ~320 zero-dollar
+     * "Logon" lines a day, one per card terminal checking in with the host
+     * (303 distinct terminals on the 2026-09-04 file). They can never match a
+     * sale and ops can never act on them, so they are kept for file
+     * reconciliation but never shown or counted (Brian, 2026-09-06).
+     */
+    public function scopeSaleLines($query)
+    {
+        return $query->where('txn_type', 'Purchase');
+    }
+
     public function vend()
     {
         return $this->belongsTo(Vend::class);
@@ -89,6 +103,22 @@ class CardSettlementRow extends Model
         return $this->belongsTo(self::class, 'reversed_by_row_id');
     }
 
+    /**
+     * The identity of one settlement line, for cross-report dedupe.
+     *
+     * The time contributes only its MINUTE AND SECOND. An Excel re-save
+     * destroys the hour ("23:12:41" → "12:41.0", stored as 00:12:41), so an
+     * hour-sensitive key would see a round-tripped copy of an already-ingested
+     * day as 2000 brand-new lines and match them all a second time. On
+     * mm:ss the two spellings of one transaction collide, which is the point.
+     *
+     * Safe because terminal + date + sequence number + amount is already
+     * near-unique: over 91,748 lines (35 daily files, Aug 1 – Sep 4 2026) and
+     * again over all 94,943 rows in prod, this key produced ZERO collisions
+     * between genuinely different transactions. Dropping the time entirely
+     * does NOT hold — FlashPay stamps every line sequence 0, so two equal
+     * FlashPay sales on one terminal in a day collide (126 such pairs).
+     */
     public static function fingerprintFor(
         string $provider,
         string $terminalId,
@@ -97,6 +127,23 @@ class CardSettlementRow extends Model
         int $amountCents,
         ?string $time
     ): string {
-        return sha1(implode('|', [$provider, $terminalId, $date, $sequenceNo ?? '', $amountCents, $time ?? '']));
+        return sha1(implode('|', [
+            $provider,
+            $terminalId,
+            $date,
+            $sequenceNo ?? '',
+            $amountCents,
+            self::minuteSecond($time),
+        ]));
+    }
+
+    /** "23:12:41" → "12:41"; the hour is deliberately dropped (see above). */
+    public static function minuteSecond(?string $time): string
+    {
+        if ($time === null || $time === '') {
+            return '';
+        }
+
+        return preg_match('/^\d{1,2}:(\d{2}:\d{2})/', $time, $m) ? $m[1] : $time;
     }
 }

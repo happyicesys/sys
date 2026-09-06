@@ -98,9 +98,12 @@ class MatchCardSettlementReport implements ShouldQueue
             ));
 
             // A fingerprint seen before means this line was already ingested —
-            // either the same file re-uploaded or an overlapping cutover window
-            // (the NETS business day spans two calendar dates). Keep the line
-            // for the audit trail, marked DUPLICATE, never matched again.
+            // the same file re-uploaded, the same day sent again as an
+            // Excel-damaged copy (the key ignores the hour precisely so those
+            // two spellings collide), or an overlapping cutover window: the
+            // NETS business day cuts over inside the 22:00 hour and stragglers
+            // settle a day late, so consecutive files can carry one line twice.
+            // Keep it for the audit trail, marked DUPLICATE, never matched again.
             $existing = CardSettlementRow::query()
                 ->whereIn('fingerprint', $fingerprints)
                 ->pluck('fingerprint')

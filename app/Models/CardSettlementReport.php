@@ -150,7 +150,12 @@ class CardSettlementReport extends Model
             'unmatched_count' => $byStatus->get(CardSettlementRow::STATUS_UNMATCHED, 0),
             'ambiguous_count' => $byStatus->get(CardSettlementRow::STATUS_AMBIGUOUS, 0),
             'duplicate_count' => $byStatus->get(CardSettlementRow::STATUS_DUPLICATE, 0),
-            'ignored_count' => $byStatus->get(CardSettlementRow::STATUS_IGNORED, 0),
+            // Sale lines only: the auto-ignored Logon lines are not a review
+            // artefact, so Ignored counts what a user actually dismissed.
+            'ignored_count' => $this->rows()
+                ->where('status', CardSettlementRow::STATUS_IGNORED)
+                ->saleLines()
+                ->count(),
         ])->save();
     }
 }

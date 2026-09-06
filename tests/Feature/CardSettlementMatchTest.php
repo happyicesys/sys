@@ -434,4 +434,24 @@ class CardSettlementMatchTest extends TestCase
 
         $this->assertSame(CardSettlementRow::STATUS_IGNORED, $row->fresh()->status);
     }
+
+    /**
+     * Ignored is a review artefact — "a user dismissed this query". The ~320
+     * Logon lines NETS puts in every file are dismissed by no one and must not
+     * inflate it, or the count reads as work someone did.
+     */
+    public function test_ignored_count_excludes_logon_lines()
+    {
+        $report = $this->report();
+        $this->row($report, ['txn_type' => 'Logon', 'amount_cents' => 0]);
+        $this->row($report, ['txn_type' => 'Logon', 'amount_cents' => 0]);
+        $dismissed = $this->row($report, ['txn_type' => 'Purchase', 'amount_cents' => 150]);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $dismissed->update(['status' => CardSettlementRow::STATUS_IGNORED]);
+        $report->refreshCounts();
+
+        $this->assertSame(1, $report->fresh()->ignored_count);
+    }
 }
