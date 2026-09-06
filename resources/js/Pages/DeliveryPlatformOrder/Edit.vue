@@ -92,7 +92,7 @@
                   Vending Machine
                 </label>
                 <div class="mt-1" v-if="form.deliveryProductMappingVend && form.deliveryProductMappingVend.vend">
-                  <a :href="'/vends?codes=' + form.deliveryProductMappingVend.vend.code" target="_blank">
+                  <a :href="'/vends?codes=' + form.deliveryProductMappingVend.vend.code" target="_blank" v-if="permissions.includes('read machine-view')">
                     <input
                       type="text"
                       class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-pointer text-blue-600 font-medium"
@@ -100,6 +100,14 @@
                       readonly
                     />
                   </a>
+                  <!-- Roles without Machines View access still see the machine, just not as a link -->
+                  <input
+                    v-else
+                    type="text"
+                    class="shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200"
+                    :value="form.deliveryProductMappingVend.vend.full_name"
+                    readonly
+                  />
                 </div>
               </div>
               <div class="sm:col-span-6">
@@ -388,6 +396,7 @@ const form = ref(
 const deliveryPlatformOrder = ref([])
 const editOrderItems = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry
+const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
     form.value = props.deliveryPlatformOrder ? useForm(props.deliveryPlatformOrder.data) : useForm(getDefaultForm())

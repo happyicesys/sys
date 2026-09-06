@@ -528,7 +528,7 @@
                     Save Site
                   </span>
                 </Button> -->
-                <Link :href="'/vends'">
+                <Link :href="permissions.includes('read machine-view') ? '/vends' : '/settings'">
                   <Button
                     class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
                   >

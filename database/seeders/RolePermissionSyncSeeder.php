@@ -338,7 +338,12 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'machine-view',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb', 'operator_admin', 'operator_supervisor'],
+                // 2026-09-06 (Brian): Machines View is admin-only. - supervisor,
+                // technician, production_jb, operator_admin, operator_supervisor.
+                // This gates the /vends ROUTE (VendController::index) and the
+                // sidebar link; /vends/{vend}/logs stays reachable via
+                // `read vend-customers`, and Machines Settings is untouched.
+                ['superadmin', 'admin'],
             ],
 
             [
