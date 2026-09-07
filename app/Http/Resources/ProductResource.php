@@ -17,6 +17,9 @@ class ProductResource extends JsonResource
         return [
             'id' => $this->id,
             'avg_seven_days_count' => isset($this->avg_seven_days_count) ? $this->avg_seven_days_count : null,
+            // Yesterday's sold qty, shown under the 7-day average on both
+            // Warehouse Qty pages (same measure, one day instead of a mean).
+            'yesterday_sold_count' => isset($this->yesterday_sold_count) ? (int) $this->yesterday_sold_count : null,
             'code' => $this->code,
             // 'created_at' => $this->created_at,
             'name' => $this->name,
@@ -111,6 +114,12 @@ class ProductResource extends JsonResource
             'last_incoming_at' => $this->when(isset($this->last_incoming_at), fn () => strlen((string) $this->last_incoming_at) > 10
                 ? \Carbon\Carbon::parse($this->last_incoming_at)->toJSON()
                 : (string) $this->last_incoming_at, null),
+            // The stock-in BEFORE that one — the pages show the last two, so a
+            // planner sees the delivery rhythm, not just the newest drop.
+            'prev_incoming_qty' => isset($this->prev_incoming_qty) ? (int) $this->prev_incoming_qty : null,
+            'prev_incoming_at' => $this->when(isset($this->prev_incoming_at), fn () => strlen((string) $this->prev_incoming_at) > 10
+                ? \Carbon\Carbon::parse($this->prev_incoming_at)->toJSON()
+                : (string) $this->prev_incoming_at, null),
             'warehouse_qty_source' => $this->warehouse_qty_source ?: 'cms',
             // Ledger-source products (CityBox / no-CMS) carry their own warehouse
             // figure + units currently inside chillers; cms products keep the CMS
@@ -120,6 +129,12 @@ class ProductResource extends JsonResource
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
             'sellingPrices' => SellingPriceResource::collection($this->whenLoaded('sellingPrices')),
+            // CityBox-owned SKU (their catalog created it; code = their product id).
+            // The edit page hides Selling Price(s) for these — a chiller's channel
+            // amounts come from the CityBox API, so an RP tier here would be a
+            // number nothing reads. Only present when the caller eager-loads the
+            // relation, which keeps index listings free of an N+1.
+            'is_citybox_owned' => $this->whenLoaded('cityboxProducts', fn () => $this->isCityboxOwned()),
             'tagBindings' => TagBindingResource::collection($this->whenLoaded('tagBindings')),
             'this_month_count' => $this->this_month_count,
             'this_month_revenue' => $this->this_month_revenue / 100,

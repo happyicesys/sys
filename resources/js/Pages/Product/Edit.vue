@@ -365,12 +365,15 @@
                   </div>
                 </div>
               </div>
-              <div class="sm:col-span-3" v-if="form.id">
+              <div class="sm:col-span-6 text-sm text-gray-500 text-center" v-if="form.id && isCityboxOwned">
+                Set in the CityBox portal — a chiller charges the price their API reports, so a price keyed here would be read by nothing.
+              </div>
+              <div class="sm:col-span-3" v-if="form.id && !isCityboxOwned">
                 <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
                   Amount
                 </FormInput>
               </div>
-              <div class="sm:col-span-3" v-if="form.id">
+              <div class="sm:col-span-3" v-if="form.id && !isCityboxOwned">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Ref Price Type
                 </label>
@@ -386,7 +389,7 @@
                 >
                 </MultiSelect>
               </div>
-              <div class="sm:col-span-6 flex justify-start" v-if="form.id">
+              <div class="sm:col-span-6 flex justify-start" v-if="form.id && !isCityboxOwned">
                 <Button
                   type="button"
                   @click="addSellingPrice"
@@ -403,7 +406,7 @@
                   </span>
                 </Button>
               </div>
-              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id && !isCityboxOwned">
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                   <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                     <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -654,6 +657,10 @@ const priceTypeOptions = ref([]);
 const product = ref([]);
 const productTagOptions = ref([]);
 const sellingPrices = ref([]);
+// CityBox owns this SKU (their catalog created it, code = their product id), so a
+// chiller charges whatever their API reports and Selling Price(s) is hidden. Unit
+// Cost stays: that one is ours and still drives COGS/GP.
+const isCityboxOwned = computed(() => !!props.product?.data?.is_citybox_owned);
 
 onMounted(() => {
   product.value = props.product.data ? props.product.data : {};

@@ -14,10 +14,7 @@ class VendTransactionSalesAggregator
     /**
      * Build an aggregated query that returns total sold item counts and amounts per product.
      *
-     * @param  Carbon  $start
-     * @param  Carbon  $end
      * @param  Closure|null  $applyFilter  Receives an Eloquent builder to allow additional filtering (e.g. scopes).
-     * @return Builder
      */
     public static function productTotals(Carbon $start, Carbon $end, ?Closure $applyFilter = null, bool $includeAll = false): Builder
     {
@@ -42,7 +39,7 @@ class VendTransactionSalesAggregator
                     ->orWhereNull('vend_transactions.is_multiple');
             });
 
-        if (!$includeAll) {
+        if (! $includeAll) {
             $singleQuery->where(function (EloquentBuilder $query) {
                 $query->whereNull('vend_transactions.vend_channel_error_id')
                     ->orWhereIn('vend_transactions.vend_channel_error_id', [1, 5]);
@@ -107,13 +104,26 @@ class VendTransactionSalesAggregator
     }
 
     /**
+     * Sold qty per product for a SINGLE day, keyed by product_id.
+     *
+     * Deliberately the same definition as the 7-day average shown beside it on
+     * the Warehouse Qty pages (SyncAvgSalesQtyProducts): detailed product count,
+     * attempted (failed) sales included, because demand planning cares about what
+     * customers tried to buy. Keeping both numbers on one definition is the whole
+     * point — "Y'day sold" is meant to be read against "average last 7 days".
+     *
+     * @return \Illuminate\Support\Collection product_id => total_count
+     */
+    public static function productDayCounts(Carbon $date)
+    {
+        return self::productTotals($date->copy()->startOfDay(), $date->copy()->endOfDay(), null, true)
+            ->pluck('total_count', 'product_id');
+    }
+
+    /**
      * Build an aggregated query that calculates the "Basket Total" for each product.
      * This mimics the "Total Qty" column on the Transactions page, which sums ALL items
      * in the transaction (basket) if the transaction is included (i.e., contains the product).
-     *
-     * @param  Carbon  $start
-     * @param  Carbon  $end
-     * @return Builder
      */
     public static function productBasketTotals(Carbon $start, Carbon $end): Builder
     {
@@ -173,4 +183,3 @@ class VendTransactionSalesAggregator
         $builder->getQuery()->unionOrders = null;
     }
 }
-

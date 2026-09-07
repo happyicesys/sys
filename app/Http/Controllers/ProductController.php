@@ -26,6 +26,7 @@ use App\Models\VendChannel;
 use App\Services\CmsService;
 use App\Services\TagBindingService;
 use App\Services\VendChannelService;
+use App\Services\VendTransactionSalesAggregator;
 use App\Services\VendTransactionService;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -527,6 +528,10 @@ class ProductController extends Controller
             ->get()
             ->keyBy('product_id');
 
+        // Y'day sold — the same measure as the 7-day average beside it, for the
+        // single day before today. One indexed day-scan of vend_transactions.
+        $yesterdaySold = VendTransactionSalesAggregator::productDayCounts(Carbon::yesterday());
+
         // "Available in # of VM" — distinct live machines currently carrying each
         // product on an active channel, plus how many of those still hold stock.
         $vendCountData = $this->availableVendCounts($productIds);
@@ -581,6 +586,7 @@ class ProductController extends Controller
             $product->available_vend_low_stock_count = $vendCountData->get($product->id)?->vend_low_stock_count ?? 0;
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $product->picked_value_on_date = $pickedValueData->get($product->id)?->value ?? 0;
+            $product->yesterday_sold_count = (int) ($yesterdaySold[$product->id] ?? 0);
 
             // Map Max Ops Job Pick Limit & Created By System from eager loaded relation
             $limit = $product->productLimits->first();
@@ -605,12 +611,19 @@ class ProductController extends Controller
                 // when the item never had one, or on a CMS build without the fields.
                 $product->last_incoming_qty = $cmsQtyAvailableProduct['last_incoming_qty'] ?? null;
                 $product->last_incoming_at = $cmsQtyAvailableProduct['last_incoming_date'] ?? null;
+                // ... and the batch before it. Overwrite unconditionally: the
+                // ledger subselects always ran, and a cms-source product must
+                // never show a stray mark1-ledger movement here.
+                $product->prev_incoming_qty = $cmsQtyAvailableProduct['prev_incoming_qty'] ?? null;
+                $product->prev_incoming_at = $cmsQtyAvailableProduct['prev_incoming_date'] ?? null;
             } else {
                 // Ensure defaults
                 $product->qty_available_pcs_api = 0;
                 $product->net_available_qty_pcs_api = 0 - $product->not_yet_sync_api_qty;
                 $product->last_incoming_qty = null;
                 $product->last_incoming_at = null;
+                $product->prev_incoming_qty = null;
+                $product->prev_incoming_at = null;
             }
         }
 
@@ -621,7 +634,8 @@ class ProductController extends Controller
             $products,
             $neededData->map(fn ($r) => $r->needed_qty),
             $notYetSyncData->map(fn ($r) => $r->qty),
-            'not_yet_sync_api_qty'
+            'not_yet_sync_api_qty',
+            $yesterdaySold
         );
         // Blind flavours carry no vend_channels of their own — machines
         // "carrying" or "needing" a flavour are the ones carrying/needing its
@@ -845,7 +859,10 @@ class ProductController extends Controller
             ]);
         }
 
-        if ($request->has('sellingPrices')) {
+        // A CityBox-owned SKU is priced by their portal, and the edit page hides the
+        // block; refuse the write here too so a stale tab or a hand-rolled request
+        // cannot leave a price nothing reads.
+        if ($request->has('sellingPrices') && ! $product->load('cityboxProducts')->isCityboxOwned()) {
             $sellingPrices = $request->sellingPrices;
             if ($sellingPrices) {
                 foreach ($sellingPrices as $sellingPrice) {
@@ -991,6 +1008,8 @@ class ProductController extends Controller
             'attachments',
             'category',
             'categoryGroup',
+            // Selling Price(s) are hidden for a CityBox-owned SKU (Product::isCityboxOwned).
+            'cityboxProducts:id,product_id,citybox_product_id',
             'latestUnitCost',
             'operator',
             'productUoms.uom',

@@ -13,6 +13,7 @@ use App\Models\OpsJobItemChannel;
 use App\Models\Product;
 use App\Models\ProductMovement;
 use App\Services\BlindPlanningService;
+use App\Services\VendTransactionSalesAggregator;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -37,9 +38,13 @@ class ProductMovementController extends Controller
     {
         $products = $this->getProductQuery($request)->get();
 
+        // Y'day sold — same measure as the 7-day average beside it, for the single
+        // day before today. One indexed day-scan of vend_transactions.
+        $yesterdaySold = VendTransactionSalesAggregator::productDayCounts(Carbon::yesterday());
+
         foreach ($products as $product) {
             $product->calculated_warehouse_qty = $product->total_movements_qty - $product->total_delivered_qty;
-
+            $product->yesterday_sold_count = (int) ($yesterdaySold[$product->id] ?? 0);
         }
 
         // Blind SKU: split each housing's To-Pick / Picked / Daily-Sold down to its
@@ -68,7 +73,8 @@ class ProductMovementController extends Controller
                 $products,
                 $this->parentNeededMap($blindParentIds, $date),
                 $parentPicked,
-                'picked_qty_on_date'
+                'picked_qty_on_date',
+                $yesterdaySold
             );
         }
 

@@ -147,6 +147,8 @@
                                                 </span>
                                             </div>
                                             <span class="font-normal text-gray-600">(average last 7days)</span>
+                                            <br>
+                                            <span class="font-semibold text-red-600">Y'day sold</span>
                                         </th>
 
                                         <!-- Last incoming: the ledger's latest incoming movement (adjustments excluded). Sorted by date. -->
@@ -163,6 +165,8 @@
                                             </span>
                                             </div>
                                             <span class="font-normal text-gray-600">(Qty, Date)</span>
+                                            <br>
+                                            <span class="font-semibold text-red-600">Last 2 incoming</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
@@ -233,8 +237,15 @@
                                                 <BlindFlavourChips v-if="product.is_parent_sku" :product="product" />
                                             </div>
                                         </td>
-                                        <td class="whitespace-nowrap py-1 pl-1 pr-1 text-xs font-medium sm:py-4 sm:pl-6 sm:pr-3 sm:text-sm text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
-                                          {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                                        <td class="whitespace-nowrap py-1 pl-1 pr-1 sm:py-4 sm:pl-6 sm:pr-3 text-center border-r border-gray-300 leading-tight">
+                                          <div class="text-xs sm:text-sm font-medium" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                                            {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                                          </div>
+                                          <!-- Y'day sold: same measure as the 7-day average above it, for yesterday alone. -->
+                                          <div class="text-xs sm:text-sm font-semibold mt-0.5" :class="[product.is_available ? 'text-red-600' : 'text-gray-400']"
+                                            v-tooltip="{ content: 'Sold yesterday (' + yesterdayLabel + '), counted the same way as the 7-day average above.' }">
+                                            Y'day {{ Number(product.yesterday_sold_count ?? 0).toLocaleString() }}
+                                          </div>
                                         </td>
 
                                         <!-- Last incoming (black): qty over "Nd ago (YYMMDD)"; dash when never stocked in -->
@@ -242,6 +253,11 @@
                                             <template v-if="product.last_incoming_at">
                                                 <div class="text-sm sm:text-lg font-bold">{{ Number(product.last_incoming_qty).toLocaleString() }}</div>
                                                 <div class="text-[10px] sm:text-xs font-normal">{{ daysAgoLabel(product.last_incoming_at) }} ({{ moment(product.last_incoming_at).format('YYMMDD') }})</div>
+                                                <!-- The stock-in before that one, so the delivery rhythm is visible. -->
+                                                <div v-if="product.prev_incoming_at" class="mt-1 border-t border-dashed border-gray-200 pt-1 text-gray-500">
+                                                    <span class="text-xs sm:text-sm font-semibold">{{ Number(product.prev_incoming_qty).toLocaleString() }}</span>
+                                                    <span class="text-[10px] sm:text-xs font-normal"> · {{ daysAgoLabel(product.prev_incoming_at) }} ({{ moment(product.prev_incoming_at).format('YYMMDD') }})</span>
+                                                </div>
                                             </template>
                                             <span v-else class="text-gray-400">-</span>
                                         </td>
@@ -427,6 +443,8 @@ const filters = ref({
     sortBy: false,
 });
 const today = moment().format('YYYY-MM-DD');
+// Yesterday's calendar date, for the "Y'day sold" tooltip.
+const yesterdayLabel = moment().subtract(1, 'days').format('YYMMDD');
 // Age of the "Last incoming" date by the user's local calendar day: today / 1d ago / Nd ago.
 const daysAgoLabel = (date) => {
     const days = moment().startOf('day').diff(moment(date).startOf('day'), 'days');

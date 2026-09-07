@@ -118,6 +118,18 @@ Machine Settings save, the per-machine column on APK Settings → Edit, and a Si
 RP change — each tells the terminal to re-read settings **and** re-fetch its
 menu. Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
 
+**CityBox chillers are outside all of this.** A CityBox-owned product — one
+their catalog sync created, so `products.code` IS the `citybox_product_id`
+(`Product::isCityboxOwned()`) — is priced by their portal: channel amounts come
+from their API through `ChillerPlanogram` / `ChannelFrameAdapter`, never from
+`selling_prices`. So Product → Edit hides the Selling Price(s) block for one and
+`ProductController@update` refuses the write, the same way OpsJob → Edit Item
+already suppresses the RP label for a chiller. **Unit Cost is NOT affected** —
+that one is ours and still drives COGS/GP, and every CB product is missing it
+today. A product a human mapped by hand to a CityBox SKU keeps its own code, is
+not "owned", and keeps its selling prices — it may also sell in vending
+machines. Regression coverage: `tests/Feature/ProductEditCityboxPricingTest.php`.
+
 ## Auto-refund integrity: `is_refunded` means the money has already gone back
 
 `vend_transactions.is_refunded` is the ONE boolean every refund surface reads —

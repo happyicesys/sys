@@ -286,38 +286,46 @@ class WarehouseQtySourceTest extends TestCase
                 ->where('movements.data', fn ($rows) => collect($rows)->contains(fn ($r) => (int) ($r['qty'] ?? 0) === 5)));
     }
 
-    public function test_availability_page_shows_last_incoming_from_cms_for_cms_products_and_from_the_ledger_for_manual_ones(): void
+    public function test_availability_page_shows_the_last_two_incomings_from_cms_for_cms_products_and_from_the_ledger_for_manual_ones(): void
     {
         $u = $this->plannerUser();
         config(['app.cms_url' => 'https://cms.test']);
         \Illuminate\Support\Facades\Http::fake(['cms.test/*' => \Illuminate\Support\Facades\Http::response([
-            ['code' => 'VM1', 'qty' => 350, 'last_incoming_qty' => 200, 'last_incoming_date' => '2026-08-30'],
+            ['code' => 'VM1', 'qty' => 350, 'last_incoming_qty' => 200, 'last_incoming_date' => '2026-08-30',
+                'prev_incoming_qty' => 120, 'prev_incoming_date' => '2026-08-12'],
             ['code' => 'VM9', 'qty' => 5], // older CMS build / never stocked in: no fields
         ])]);
 
         Product::create(['code' => 'VM1', 'name' => 'Vending coke', 'operator_id' => $u->operator_id, 'is_available' => 1]);
-        Product::create(['code' => 'VM9', 'name' => 'Vending tea', 'operator_id' => $u->operator_id, 'is_available' => 1]);
+        $vm9 = Product::create(['code' => 'VM9', 'name' => 'Vending tea', 'operator_id' => $u->operator_id, 'is_available' => 1]);
         $cb = Product::create(['code' => '89925', 'name' => 'Chiller coke', 'operator_id' => $u->operator_id, 'is_available' => 1, 'warehouse_qty_source' => 'ledger']);
         $latestAt = \Carbon\Carbon::parse('2026-08-28 09:00:00');
+        $prevAt = \Carbon\Carbon::parse('2026-08-20 09:00:00');
         DB::table('product_movements')->insert([
-            ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 12, 'created_at' => '2026-08-20 09:00:00', 'updated_at' => now()],
+            ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 12, 'created_at' => $prevAt, 'updated_at' => now()],
             ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 5, 'created_at' => $latestAt, 'updated_at' => now()],
             // A later adjustment is a correction, not a delivery — must not become "last incoming".
             ['product_id' => $cb->id, 'type' => ProductMovement::TYPE_ADJUSTMENT, 'qty' => 3, 'created_at' => '2026-09-01 09:00:00', 'updated_at' => now()],
+            // A cms-source product with a stray ledger movement must still read CMS
+            // (which knows of no batch for it) — never this row.
+            ['product_id' => $vm9->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => 99, 'created_at' => $prevAt, 'updated_at' => now()],
         ]);
 
         $this->actingAs($u)->get('/products/availability?operators[]=all')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('Vend/ProductAvailability')
-                ->where('products.data', function ($rows) use ($latestAt) {
+                ->where('products.data', function ($rows) use ($latestAt, $prevAt) {
                     $rows = collect($rows);
                     $vm = $rows->firstWhere('code', 'VM1');
                     $vm9 = $rows->firstWhere('code', 'VM9');
                     $cb = $rows->firstWhere('code', '89925');
 
                     return $vm['last_incoming_qty'] === 200 && $vm['last_incoming_at'] === '2026-08-30'
+                        && $vm['prev_incoming_qty'] === 120 && $vm['prev_incoming_at'] === '2026-08-12'
                         && $vm9['last_incoming_qty'] === null && $vm9['last_incoming_at'] === null
+                        && $vm9['prev_incoming_qty'] === null && $vm9['prev_incoming_at'] === null
                         && $cb['last_incoming_qty'] === 5 && $cb['last_incoming_at'] === $latestAt->toJSON()
+                        && $cb['prev_incoming_qty'] === 12 && $cb['prev_incoming_at'] === $prevAt->toJSON()
                         && $cb['qty_available_pcs_api'] === 20;
                 }));
     }
@@ -345,8 +353,11 @@ class WarehouseQtySourceTest extends TestCase
                     $n = $rows->firstWhere('code', 'L2');
 
                     return $s['last_incoming_qty'] === 7 && $s['last_incoming_at'] === $latestAt->toJSON()
+                        // The batch before it: same created_at, lower id.
+                        && $s['prev_incoming_qty'] === 40 && $s['prev_incoming_at'] === $latestAt->toJSON()
                         && (int) $s['total_movements_qty'] === 45
-                        && $n['last_incoming_qty'] === null && $n['last_incoming_at'] === null;
+                        && $n['last_incoming_qty'] === null && $n['last_incoming_at'] === null
+                        && $n['prev_incoming_qty'] === null && $n['prev_incoming_at'] === null;
                 }));
     }
 

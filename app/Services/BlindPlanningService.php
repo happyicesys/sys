@@ -24,15 +24,18 @@ use Illuminate\Support\Collection;
 class BlindPlanningService
 {
     /**
-     * @param  iterable  $products      displayed products (Eloquent models, mutated in place)
+     * @param  iterable  $products  displayed products (Eloquent models, mutated in place)
      * @param  array|Collection  $neededByPid  product_id => To-Pick value (MUST include parents)
      * @param  array|Collection  $pickedByPid  product_id => Picked value (MUST include parents)
-     * @param  string  $pickedField   the product attribute the Picked bonus is added to
+     * @param  string  $pickedField  the product attribute the Picked bonus is added to
+     * @param  array|Collection|null  $yesterdayByPid  product_id => yesterday's sold qty
+     *                                                 (MUST include parents); split like Daily Sold
      */
-    public static function attributeToChildren($products, $neededByPid, $pickedByPid, string $pickedField): void
+    public static function attributeToChildren($products, $neededByPid, $pickedByPid, string $pickedField, $yesterdayByPid = null): void
     {
         $neededByPid = collect($neededByPid);
         $pickedByPid = collect($pickedByPid);
+        $yesterdayByPid = collect($yesterdayByPid ?? []);
 
         // Parents referenced by the displayed flavours (robust: works even when the
         // housing itself isn't in the current result set).
@@ -69,10 +72,11 @@ class BlindPlanningService
         $bonusNeeded = [];
         $bonusPicked = [];
         $bonusDaily = [];
+        $bonusYesterday = [];
 
         foreach ($parentIds as $pid) {
             $kids = $linksByParent->get($pid);
-            if (!$kids || $kids->isEmpty()) {
+            if (! $kids || $kids->isEmpty()) {
                 continue;
             }
 
@@ -80,7 +84,8 @@ class BlindPlanningService
             $parentAvailable = (bool) (optional($base->get($pid))->is_available ?? false);
             $parentNeeded = $parentAvailable ? (int) round((float) $neededByPid->get($pid, 0)) : 0;
             $parentPicked = (int) round((float) $pickedByPid->get($pid, 0));
-            $parentDaily  = (float) (optional($base->get($pid))->avg_seven_days_count ?? 0);
+            $parentDaily = (float) (optional($base->get($pid))->avg_seven_days_count ?? 0);
+            $parentYesterday = (float) $yesterdayByPid->get($pid, 0);
 
             $allocInput = $kids->map(fn ($k) => [
                 'key' => (int) $k->child_product_id,
@@ -108,7 +113,11 @@ class BlindPlanningService
                 $bonusNeeded[$cid] = ($bonusNeeded[$cid] ?? 0) + ($neededAlloc[$cid] ?? 0);
                 $bonusPicked[$cid] = ($bonusPicked[$cid] ?? 0) + ($pickedAlloc[$cid] ?? 0);
                 if ($eligibleWeight > 0 && (optional($base->get($cid))->is_available ?? true)) {
-                    $bonusDaily[$cid] = ($bonusDaily[$cid] ?? 0) + $parentDaily * ((int) $k->weight_pct / $eligibleWeight);
+                    $share = (int) $k->weight_pct / $eligibleWeight;
+                    $bonusDaily[$cid] = ($bonusDaily[$cid] ?? 0) + $parentDaily * $share;
+                    // Yesterday's sold splits the same way as Daily Sold — same
+                    // measure, one day instead of a seven-day mean.
+                    $bonusYesterday[$cid] = ($bonusYesterday[$cid] ?? 0) + $parentYesterday * $share;
                 }
             }
         }
@@ -124,6 +133,9 @@ class BlindPlanningService
             }
             if (isset($bonusDaily[$cid])) {
                 $p->avg_seven_days_count = (float) ($p->avg_seven_days_count ?? 0) + $bonusDaily[$cid];
+            }
+            if (isset($bonusYesterday[$cid])) {
+                $p->yesterday_sold_count = (int) round((float) ($p->yesterday_sold_count ?? 0) + $bonusYesterday[$cid]);
             }
         }
     }

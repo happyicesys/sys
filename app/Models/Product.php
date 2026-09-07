@@ -406,15 +406,17 @@ class Product extends Model
     }
 
     /**
-     * Latest self-system stock-in per product row, as `last_incoming_qty` and
-     * `last_incoming_at` (the movement's user-keyed created_at). Incoming type
-     * only — adjustments are corrections, not deliveries. Both Warehouse Qty
-     * tabs show it under the warehouse figure; cms-source rows on the API tab
-     * get overwritten with CMS's own last Stock In batch.
+     * The last TWO self-system stock-ins per product row, as `last_incoming_qty`
+     * / `last_incoming_at` and `prev_incoming_qty` / `prev_incoming_at` (the
+     * movement's user-keyed created_at). Incoming type only — adjustments are
+     * corrections, not deliveries. Both Warehouse Qty tabs show them under the
+     * warehouse figure; cms-source rows on the API tab get overwritten with
+     * CMS's own last two Stock In batches.
      */
     public function scopeWithLastLedgerIncoming($query)
     {
-        $latest = fn (string $column) => function ($sub) use ($column) {
+        // $offset 0 = the latest incoming, 1 = the one before it.
+        $nth = fn (string $column, int $offset) => function ($sub) use ($column, $offset) {
             $sub->from('product_movements')
                 ->select($column)
                 ->whereColumn('product_movements.product_id', 'products.id')
@@ -422,18 +424,43 @@ class Product extends Model
                 ->where('qty', '>', 0)
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
+                ->offset($offset)
                 ->limit(1);
         };
 
         return $query
-            ->selectSub($latest('qty'), 'last_incoming_qty')
-            ->selectSub($latest('created_at'), 'last_incoming_at');
+            ->selectSub($nth('qty', 0), 'last_incoming_qty')
+            ->selectSub($nth('created_at', 0), 'last_incoming_at')
+            ->selectSub($nth('qty', 1), 'prev_incoming_qty')
+            ->selectSub($nth('created_at', 1), 'prev_incoming_at');
     }
 
     /** CityBox SKUs linked to this product (many-to-one: their catalog has duplicate names). */
     public function cityboxProducts()
     {
         return $this->hasMany(CityboxProduct::class);
+    }
+
+    /**
+     * A product the CityBox catalog sync created and owns: its code IS their
+     * product id. Their portal is master for these — name, thumbnail, price and
+     * the active flag all follow it — so mark1-side SELLING prices carry no
+     * meaning (chiller channel amounts come from their API via ChillerPlanogram
+     * / ChannelFrameAdapter, never from selling_prices). Unit cost is unaffected:
+     * that is ours, and it still drives COGS/GP.
+     *
+     * Same ownership test CatalogSyncService::applyStatusToProducts() uses before
+     * flipping is_active, so a product a human mapped BY HAND to a CityBox SKU
+     * (different code — it may also sell in vending machines) is not caught.
+     *
+     * Reads the loaded relation; eager-load `cityboxProducts` before calling it
+     * over a collection.
+     */
+    public function isCityboxOwned(): bool
+    {
+        return $this->cityboxProducts->contains(
+            fn (CityboxProduct $row) => (string) $row->citybox_product_id === (string) $this->code
+        );
     }
 
     /**
