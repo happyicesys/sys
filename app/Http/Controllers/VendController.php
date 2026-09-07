@@ -741,14 +741,11 @@ class VendController extends Controller
                     'nextOpsJobItem.vend.productMapping:id,upcoming_product_mapping_id,name',
                     'nextOpsJobItem.vend.upcomingProductMapping:id,name',
                     'nextOpsJobItem.vend.productMapping.upcomingProductMapping:id,name',
-                    'vend.modemUnit',
-                    // Modem type — needed for the rich "Modem" block in the
-                    // Machine Status column (type name + Reset button gate).
-                    'vend.modemUnit.modemType:id,name,is_resetable',
-                    // Directly-bound modem type ("Modem Model" field). Drives
-                    // the "Modem" alias badge in the Payment Device column on
-                    // Vend/CustomerIndex.
-                    'vend.modemType:id,name,alias',
+                    // Modem data (type alias + unit online/last-seen) is NOT
+                    // eager-loaded here: it comes from the modem_type_alias /
+                    // modem_unit_* correlated subqueries on the SELECT below,
+                    // so unbound machines (no customer to hang Customer::vend()
+                    // on) get a real badge instead of a false "N/A".
                     'vend.productMapping:id,upcoming_product_mapping_id,name',
                     // Upcoming new mapping for the machine — drives the "New"
                     // badge next to the product mapping name in the machine
@@ -1090,6 +1087,10 @@ class VendController extends Controller
                 'vends.t1_lowest_48h',
                 'vends.amount_average_day',
                 'vends.code',
+                // Machine's own free-text name (vends.name) — rendered as a
+                // badge above the Site id on the Operation Dashboard. Column,
+                // not a join: customerIndexBaseQuery() is join-sensitive.
+                'vends.name AS vend_name',
                 'vends.acb_vmc_pa_json',
                 'vends.apk_ver_json',
                 'vends.balance_percent',
@@ -1242,6 +1243,27 @@ class VendController extends Controller
                 DB::raw('(SELECT t.name FROM simcards s
                     JOIN telcos t ON t.id = s.telco_id
                     WHERE s.id = vends.simcard_id) AS telco_name'),
+                // Remote modem — drives the "Remote Modem" badge (Machine
+                // Status) and the "Modem" badge (Payment Device).
+                //
+                // Read straight off vends.modem_type_id / vends.modem_unit_id
+                // instead of the `vend.modemType` / `vend.modemUnit` eager
+                // loads these badges used to read. Those hang off
+                // Customer::vend(), so an UNBOUND machine (customers.id NULL on
+                // the RIGHT JOIN row — "Include unbound?") has no customer to
+                // carry the relation and both badges rendered a false "N/A"
+                // even though the machine has a modem and is online. The flat
+                // columns are per-vend, so bound and unbound rows read the same
+                // source — which is also what Vend/Index has always shown.
+                //
+                // Correlated subqueries, not joins: same reasoning as
+                // telco_name above (see also the twelve-table SELECT note).
+                DB::raw('(SELECT mt.alias FROM modem_types mt
+                    WHERE mt.id = vends.modem_type_id) AS modem_type_alias'),
+                DB::raw('(SELECT mu.is_online FROM modem_units mu
+                    WHERE mu.id = vends.modem_unit_id) AS modem_unit_is_online'),
+                DB::raw('(SELECT mu.last_updated_at FROM modem_units mu
+                    WHERE mu.id = vends.modem_unit_id) AS modem_unit_last_updated_at'),
             ];
 
             if ($needsVc) {

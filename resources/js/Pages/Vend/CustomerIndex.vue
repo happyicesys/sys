@@ -1452,6 +1452,16 @@
 								</span>
 
 							</span>
+							<!-- Machine name (vends.name) — free text, usually blank.
+							     Sits above the Site id so a named machine is
+							     identifiable even before the site line. -->
+							<div
+								v-if="vend.vend_name"
+								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-cyan-100 text-cyan-800 border-cyan-300"
+								v-tooltip="'Machine name'"
+							>
+								{{ vend.vend_name }}
+							</div>
 							<!-- Unbound machine (Include unbound? on): no site row at all, so
 							     no site link, no CMS badge and no site-keyed editors. -->
 							<span v-if="!vend.customer_id"
@@ -2798,35 +2808,36 @@
 								the badge falls back to a gray N/A — same pattern the
 								Payment Device column uses for missing parameters.
 
-								Coloring logic when a modemUnit IS present mirrors
+								Coloring logic when a modem unit IS present mirrors
 								HTTP / MQTT badges:
 								  - green when modem reports online
 								  - red when modem reports offline (last_updated_at present)
 								  - gray when N/A (no last_updated_at) or vend inactive
+
+								Source is the flat modem_unit_* columns (see
+								VendController::indexCustomer) rather than the old
+								`vend.vend.modemUnit` relation, which was always null
+								for an unbound machine. modem_unit_last_updated_at
+								arrives pre-formatted ("7s ago") from VendResource.
 							-->
 							<div
 								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 								:class="[
-									vend.vend && vend.vend.modemUnit
-										? ((vend.is_active || vend.is_testing)
-											? (vend.vend.modemUnit.last_updated_at
-												? (vend.vend.modemUnit.is_online ? 'bg-green-200' : 'bg-red-200')
-												: 'bg-gray-200')
-											: 'bg-gray-200 text-gray-400')
-										: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400')
+									(vend.is_active || vend.is_testing)
+										? (vend.modem_unit_last_updated_at
+											? (vend.modem_unit_is_online ? 'bg-green-200' : 'bg-red-200')
+											: 'bg-gray-200')
+										: 'bg-gray-200 text-gray-400'
 								]"
 							>
 								<div class="flex flex-col">
 									<span class="font-bold">Remote Modem</span>
-									<template v-if="vend.vend && vend.vend.modemUnit">
-										<span class="font-bold" v-if="vend.vend.modemUnit.last_updated_at">
-											{{ vend.vend.modemUnit.is_online ? 'Online' : 'Offline' }}
+									<template v-if="vend.modem_unit_last_updated_at">
+										<span class="font-bold">
+											{{ vend.modem_unit_is_online ? 'Online' : 'Offline' }}
 										</span>
-										<span v-else>
-											N/A
-										</span>
-										<span v-if="vend.vend.modemUnit.last_updated_at">
-											{{ shortTimeAgo(vend.vend.modemUnit.last_updated_at) }}
+										<span>
+											{{ vend.modem_unit_last_updated_at }}
 										</span>
 									</template>
 									<span v-else>
@@ -2898,16 +2909,24 @@
 								Modem — short alias of the directly-bound modem
 								type ("Modem Model" field), sourced from
 								modem_types.alias (exposed through VendResource as
-								modemType.alias). Always rendered so the Payment
-								Device column lines up across rows. Green when an
-								alias is present; gray "N/A" when none is found.
+								modem_type_alias), plus the bound modem unit's
+								online state and last-seen — the same pair
+								Vend/Index shows next to the IMEI.
+
+								Always rendered so the Payment Device column lines
+								up across rows. Colour follows the modem unit, not
+								the alias: green when online, red when offline,
+								gray when there is no modem unit reporting (or the
+								vend is inactive).
 							-->
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[
-										(vend.vend && vend.vend.modemType && vend.vend.modemType.alias)
-											? ((vend.is_active || vend.is_testing) ? 'bg-green-200' : 'bg-gray-200 text-gray-400')
-											: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400')
+										(vend.is_active || vend.is_testing)
+											? (vend.modem_unit_last_updated_at
+												? (vend.modem_unit_is_online ? 'bg-green-200' : 'bg-red-200')
+												: 'bg-gray-200')
+											: 'bg-gray-200 text-gray-400'
 									]"
 							>
 									<div class="flex flex-col">
@@ -2915,8 +2934,16 @@
 											Modem
 										</span>
 										<span>
-											{{ vend.vend && vend.vend.modemType && vend.vend.modemType.alias ? vend.vend.modemType.alias : 'N/A' }}
+											{{ vend.modem_type_alias ? vend.modem_type_alias : 'N/A' }}
 										</span>
+										<template v-if="vend.modem_unit_last_updated_at">
+											<span class="font-bold">
+												{{ vend.modem_unit_is_online ? 'Online' : 'Offline' }}
+											</span>
+											<span>
+												{{ vend.modem_unit_last_updated_at }}
+											</span>
+										</template>
 									</div>
 							</div>
 							<!--

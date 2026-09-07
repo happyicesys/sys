@@ -66,6 +66,10 @@ class VendResource extends JsonResource
             'claw_machine_board_id' => isset($this->claw_machine_board_id) ? $this->claw_machine_board_id : null,
             'claw_machine_body_id' => isset($this->claw_machine_body_id) ? $this->claw_machine_body_id : null,
             'code' => $this->code,
+            // vends.name — the machine's own free-text name, aliased as
+            // vend_name by the Operation Dashboard select (it collides with
+            // customers.name otherwise).
+            'vend_name' => isset($this->vend_name) ? $this->vend_name : null,
             'deliveryAddress' => AddressResource::make($this->whenLoaded('deliveryAddress')),
             'delivery_platform_slug' => isset($this->delivery_platform_slug) ? $this->delivery_platform_slug : null,
             'acbVmcPaJson' => isset($this->acb_vmc_pa_json) ? $this->acb_vmc_pa_json : null,
@@ -112,6 +116,10 @@ class VendResource extends JsonResource
             'modemType' => ModemTypeResource::make($this->whenLoaded('modemType')),
             'modem_type_id' => isset($this->modem_type_id) ? $this->modem_type_id : null,
             'modem_type_name' => isset($this->modem_type_name) ? $this->modem_type_name : null,
+            // Short label for the modem model (modem_types.alias), selected as
+            // a flat column by VendController::indexCustomer so the badge works
+            // for unbound machines too.
+            'modem_type_alias' => isset($this->modem_type_alias) ? $this->modem_type_alias : null,
             'modem_type_is_resettable' => isset($this->modem_type_is_resettable) ? $this->modem_type_is_resettable : null,
             'modemUnit' => ModemUnitResource::make($this->whenLoaded('modemUnit')),
             'modem_unit_id' => isset($this->modem_unit_id) ? $this->modem_unit_id : null,

@@ -185,6 +185,50 @@ class OpsDashboardUnboundVendsTest extends TestCase
     }
 
     /**
+     * The Remote Modem / Modem badges used to read `vend.modemType` and
+     * `vend.modemUnit`, both eager-loaded through Customer::vend() — so an
+     * unbound machine (no customer row to hang the relation on) rendered a
+     * false "N/A" while Vend/Index showed the same modem as Online. They now
+     * read flat per-vend columns; this pins that.
+     */
+    public function test_unbound_row_carries_the_modem_badge_fields(): void
+    {
+        $modemTypeId = DB::table('modem_types')->insertGetId([
+            'name' => 'Air724UGB4: 4G',
+            'alias' => 'Square Module',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $modemUnitId = DB::table('modem_units')->insertGetId([
+            'imei' => '869701076005621',
+            'modem_type_id' => $modemTypeId,
+            'is_online' => 1,
+            'last_updated_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $vendId = $this->makeUnboundVend($this->hipl, 1002);
+        DB::table('vends')->where('id', $vendId)->update([
+            'modem_type_id' => $modemTypeId,
+            'modem_unit_id' => $modemUnitId,
+        ]);
+
+        $user = $this->userFor($this->hipl);
+
+        $this->actingAs($user)
+            ->get('/vends/customers?'.http_build_query(['autoload' => 1, 'include_unbound_vends' => 1]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('vends.data.0.code', 1002)
+                ->where('vends.data.0.customer_id', null)
+                ->where('vends.data.0.modem_type_alias', 'Square Module')
+                ->where('vends.data.0.modem_unit_is_online', 1)
+                // Formatted by VendResource ("7s ago"), so only presence matters.
+                ->whereNot('vends.data.0.modem_unit_last_updated_at', null)
+            );
+    }
+
+    /**
      * The global scope on Customer is lifted for this mode (it would drop
      * every NULL-customer row), so the ceiling has to be re-applied by hand.
      */
