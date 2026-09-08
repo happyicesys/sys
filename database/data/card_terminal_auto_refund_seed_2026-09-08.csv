@@ -1,0 +1,326 @@
+terminal_id,batch,is_will_auto_refund,flag_basis,auto_refund_events,unrefunded_events,batch_rate,window_from,window_to,sheet_status_v3
+23005588,Nets #1 (25x),0,batch_pooled,3,0,0.16,2026-08-15,2026-09-06,Supports auto-refund
+23005589,Nets #1 (25x),0,batch_pooled,2,0,0.16,2026-08-15,2026-09-06,Supports auto-refund
+23005590,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23005591,Nets #1 (25x),0,own_events,0,7,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23005592,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23005593,Nets #1 (25x),0,batch_pooled,0,4,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23005594,Nets #1 (25x),0,batch_pooled,0,3,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23005595,Nets #1 (25x),0,batch_pooled,0,1,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23005596,Nets #1 (25x),0,own_events,2,5,0.16,2026-08-15,2026-09-06,Supports auto-refund
+23005597,Nets #1 (25x),0,batch_pooled,1,0,0.16,2026-08-15,2026-09-06,Supports auto-refund
+23012473,Nets #1 (25x),0,batch_pooled,0,3,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23012474,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23012475,Nets #1 (25x),0,batch_pooled,0,1,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23012476,Nets #1 (25x),0,own_events,1,5,0.16,2026-08-15,2026-09-06,Supports auto-refund
+23012477,Nets #1 (25x),0,own_events,0,7,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23012478,Nets #1 (25x),0,own_events,0,8,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23012479,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23012480,Auresys #1,,auresys_coverage_gap,2,0,,2026-08-15,2026-09-06,Supports auto-refund
+23012481,Auresys #1,,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23012482,Auresys #1,,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23077326,Auresys #1,,auresys_coverage_gap,8,14,,2026-08-15,2026-09-06,Supports auto-refund
+23077327,Auresys #1,,auresys_coverage_gap,3,6,,2026-08-15,2026-09-06,Supports auto-refund
+23077328,Auresys #1,,auresys_coverage_gap,0,3,,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23077329,Auresys #1,,auresys_coverage_gap,5,3,,2026-08-15,2026-09-06,Supports auto-refund
+23077330,Auresys #1,,auresys_coverage_gap,6,0,,2026-08-15,2026-09-06,Supports auto-refund
+23082801,Nets #2 (30x),0,batch_pooled,0,2,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082802,Nets #2 (30x),0,batch_pooled,0,3,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082803,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082804,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082805,Nets #2 (30x),0,batch_pooled,0,3,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082806,Nets #1 (25x),0,batch_pooled,0,1,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082807,Nets #2 (30x),0,batch_pooled,0,1,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082808,Nets #2 (30x),0,batch_pooled,1,0,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23082809,Nets #2 (30x),0,batch_pooled,0,3,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082810,Nets #2 (30x),0,batch_pooled,0,1,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082811,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082812,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23082813,Nets #2 (30x),0,own_events,1,6,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23082814,Nets #2 (30x),0,batch_pooled,0,3,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082815,Nets #2 (30x),0,batch_pooled,1,3,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23082816,Nets #2 (30x),0,batch_pooled,0,2,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082817,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082818,Nets #2 (30x),0,own_events,0,5,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082819,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082820,Nets #2 (30x),0,batch_pooled,0,2,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082821,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082822,Nets #2 (30x),0,own_events,1,13,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23082823,Nets #2 (30x),0,batch_pooled,1,0,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23082824,Nets #2 (30x),0,batch_pooled,0,0,0.13,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23082825,Nets #2 (30x),0,batch_pooled,0,3,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082826,Nets #2 (30x),0,batch_pooled,0,1,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082827,Nets #2 (30x),0,batch_pooled,0,4,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082828,Nets #2 (30x),0,batch_pooled,0,3,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082829,Nets #2 (30x),0,own_events,0,5,0.13,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23082830,Nets #2 (30x),0,own_events,2,11,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23100684,Nets #2 (30x),0,batch_pooled,4,0,0.13,2026-08-15,2026-09-06,Supports auto-refund
+23100685,Nets #3 (50x),1,batch_pooled,0,1,0.90,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23100686,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100687,Nets #3 (50x),1,own_events,5,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100688,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100689,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100690,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100691,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100692,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100693,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100694,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100695,Nets #3 (50x),1,batch_pooled,3,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100696,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100697,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100698,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100699,Nets #3 (50x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100700,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100701,Nets #3 (50x),1,own_events,7,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100702,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100703,Nets #3 (50x),1,own_events,4,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100704,Nets #3 (50x),1,batch_pooled,4,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100705,Nets #3 (50x),1,own_events,4,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100706,Nets #3 (50x),1,own_events,15,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100707,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100708,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100709,Nets #3 (50x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100710,Nets #3 (50x),1,batch_pooled,1,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100711,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100712,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100713,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100714,Nets #3 (50x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100715,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100716,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100717,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100718,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100719,Nets #3 (50x),1,own_events,26,7,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100720,Nets #3 (50x),1,own_events,5,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100721,Nets #3 (50x),1,own_events,16,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100722,Nets #3 (50x),1,own_events,7,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100723,Nets #3 (50x),1,own_events,6,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100724,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100725,Nets #3 (50x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100726,Nets #3 (50x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100727,Nets #3 (50x),1,own_events,6,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100728,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100729,Nets #3 (50x),1,batch_pooled,4,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100730,Nets #3 (50x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23100731,Nets #3 (50x),1,own_events,4,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100732,Nets #3 (50x),1,own_events,6,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23100733,Nets #3 (50x),1,batch_pooled,1,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23102904,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102905,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102906,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102907,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102908,Nets #4 (55x),1,batch_pooled,3,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102909,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102910,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102911,Nets #4 (55x),1,batch_pooled,3,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102912,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102913,Nets #4 (55x),1,batch_pooled,1,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102914,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102915,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102916,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102917,Nets #3 (50x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23102918,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102919,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102920,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102921,Nets #4 (55x),1,own_events,8,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102922,Nets #4 (55x),1,batch_pooled,1,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102923,Nets #4 (55x),1,batch_pooled,2,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102924,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102925,Nets #4 (55x),1,batch_pooled,2,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102926,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102927,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102928,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102929,Nets #4 (55x),1,own_events,7,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102930,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102931,Nets #4 (55x),1,own_events,7,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102932,Nets #4 (55x),1,batch_pooled,4,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102933,Nets #4 (55x),1,own_events,10,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102934,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102935,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102936,Nets #4 (55x),1,batch_pooled,4,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102937,Nets #4 (55x),1,batch_pooled,4,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102938,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102939,Nets #4 (55x),1,batch_pooled,4,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102940,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102941,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102942,Nets #4 (55x),1,batch_pooled,1,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102943,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102944,Nets #4 (55x),1,batch_pooled,1,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102945,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102946,Nets #4 (55x),1,batch_pooled,1,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102947,Nets #4 (55x),1,own_events,5,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102948,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102949,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102950,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102951,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102952,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102953,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102954,Nets #4 (55x),1,own_events,12,1,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102955,Nets #4 (55x),1,batch_pooled,1,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102956,Nets #4 (55x),1,batch_pooled,0,0,0.92,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23102957,Nets #4 (55x),1,own_events,6,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23102958,Nets #4 (55x),1,batch_pooled,2,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23104043,Nets #5 (80x),1,own_events,11,2,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104044,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104045,Nets #5 (80x),1,batch_pooled,3,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104046,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104047,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104048,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104049,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104050,Nets #5 (80x),1,batch_pooled,5,3,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104051,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104052,Nets #5 (80x),1,own_events,4,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104053,Nets #5 (80x),1,batch_pooled,2,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104054,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104055,Nets #5 (80x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104056,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104057,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104058,Nets #5 (80x),1,batch_pooled,5,3,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104059,Nets #5 (80x),1,own_events,7,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104060,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104061,Nets #5 (80x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104062,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104063,Nets #5 (80x),1,own_events,9,3,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104064,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104065,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104066,Nets #5 (80x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104067,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104068,Nets #5 (80x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104069,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104070,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104071,Nets #5 (80x),1,own_events,6,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104072,Nets #5 (80x),1,batch_pooled,2,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104073,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104074,Nets #5 (80x),1,own_events,5,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104075,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23104076,Nets #5 (80x),1,own_events,9,2,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104077,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104078,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104079,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104080,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104081,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104082,Nets #4 (55x),1,own_events,17,0,0.92,2026-08-15,2026-09-06,Supports auto-refund
+23104083,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104084,Nets #5 (80x),1,batch_pooled,3,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104085,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104086,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104087,Nets #5 (80x),1,own_events,5,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104088,Nets #5 (80x),1,own_events,19,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104089,Nets #5 (80x),1,own_events,7,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104090,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104091,Nets #5 (80x),1,own_events,12,2,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104092,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104093,Nets #5 (80x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104094,Nets #5 (80x),1,batch_pooled,2,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104095,Nets #5 (80x),1,own_events,7,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104096,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104097,Nets #5 (80x),1,own_events,10,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104098,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104099,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104100,Nets #5 (80x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104101,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104102,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104103,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104104,Nets #5 (80x),1,own_events,6,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104105,Nets #5 (80x),1,own_events,9,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104106,Nets #5 (80x),1,batch_pooled,0,1,0.88,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23104107,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104108,Nets #5 (80x),1,own_events,9,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104109,Nets #5 (80x),1,batch_pooled,0,1,0.88,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23104110,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104111,Nets #5 (80x),1,batch_pooled,2,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104112,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104113,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104114,Nets #5 (80x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104115,Nets #5 (80x),1,batch_pooled,3,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104116,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104117,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104118,Nets #5 (80x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23104119,Nets #5 (80x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104120,Nets #5 (80x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104121,Nets #5 (80x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23104122,Nets #5 (80x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107340,Nets #6 (30x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107341,Nets #6 (30x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107342,Nets #6 (30x),1,own_events,6,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107343,Nets #6 (30x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107344,Nets #6 (30x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107345,Nets #6 (30x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23107346,Nets #6 (30x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23107347,Nets #6 (30x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107348,Nets #6 (30x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107349,Nets #6 (30x),1,own_events,5,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107350,Nets #6 (30x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23107351,Nets #6 (30x),1,batch_pooled,3,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107352,Nets #6 (30x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107353,Nets #6 (30x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107354,Nets #6 (30x),1,batch_pooled,0,1,0.88,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23107355,Nets #6 (30x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107356,Nets #6 (30x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107357,Nets #6 (30x),1,own_events,7,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107358,Nets #6 (30x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23107359,Nets #6 (30x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107360,Nets #6 (30x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23107361,Nets #6 (30x),1,batch_pooled,0,0,0.88,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23107362,Nets #6 (30x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107363,Nets #6 (30x),1,own_events,8,2,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107364,Nets #6 (30x),1,batch_pooled,2,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107365,Nets #6 (30x),1,batch_pooled,1,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107366,Nets #6 (30x),1,batch_pooled,1,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107367,Nets #6 (30x),1,own_events,12,3,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107368,Nets #6 (30x),1,batch_pooled,4,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23107369,Nets #6 (30x),1,own_events,10,1,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23108450,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108451,Nets #7 (28x),1,batch_pooled,0,1,0.90,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23108452,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108453,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108454,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108455,Nets #7 (28x),1,own_events,9,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108456,Nets #5 (80x),1,own_events,5,0,0.88,2026-08-15,2026-09-06,Supports auto-refund
+23108457,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108458,Nets #7 (28x),1,own_events,6,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108459,Nets #7 (28x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108460,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108461,Nets #7 (28x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108462,Nets #7 (28x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108463,Nets #7 (28x),1,own_events,5,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108464,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23108465,Nets #7 (28x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108466,Nets #7 (28x),1,batch_pooled,4,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108467,Nets #7 (28x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108468,Nets #7 (28x),1,batch_pooled,4,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108469,Nets #7 (28x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108470,Nets #7 (28x),1,batch_pooled,2,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108471,Nets #7 (28x),1,batch_pooled,0,1,0.90,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23108472,Nets #7 (28x),1,batch_pooled,3,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108473,Nets #7 (28x),1,batch_pooled,2,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108474,Nets #7 (28x),1,own_events,10,2,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108475,Nets #7 (28x),1,batch_pooled,1,0,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108476,Nets #7 (28x),1,own_events,6,1,0.90,2026-08-15,2026-09-06,Supports auto-refund
+23108477,Nets #7 (28x),1,batch_pooled,0,0,0.90,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113254,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113255,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113256,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113257,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113258,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113259,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113260,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113261,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113262,Auresys #2 (15x),,auresys_coverage_gap,0,1,,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23113263,Auresys #2 (15x),,auresys_coverage_gap,0,1,,2026-08-15,2026-09-06,Likely does NOT support auto-r
+23113264,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113265,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113266,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113267,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+23113268,Auresys #2 (15x),,auresys_coverage_gap,0,0,,2026-08-15,2026-09-06,Unknown / no qualifying error 
+90602201,Nets #1 (25x),0,batch_pooled,0,2,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+90602202,Nets #1 (25x),0,batch_pooled,0,1,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+90602203,Nets #1 (25x),0,batch_pooled,1,0,0.16,2026-08-15,2026-09-06,Supports auto-refund
+90602204,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+90602205,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+90602206,Nets #1 (25x),0,batch_pooled,0,0,0.16,2026-08-15,2026-09-06,Unknown / no qualifying error 
+90602207,Nets #1 (25x),0,batch_pooled,0,1,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+90602208,Nets #1 (25x),0,batch_pooled,0,1,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+90602209,Nets #1 (25x),0,batch_pooled,0,3,0.16,2026-08-15,2026-09-06,Likely does NOT support auto-r
+90602210,Nets #7 (28x),1,batch_pooled,0,1,0.90,2026-08-15,2026-09-06,Likely does NOT support auto-r
+92023001,Auresys #1,,auresys_coverage_gap,4,1,,2026-08-15,2026-09-06,Supports auto-refund
+92023002,Auresys #1,,auresys_coverage_gap,1,0,,2026-08-15,2026-09-06,Supports auto-refund
