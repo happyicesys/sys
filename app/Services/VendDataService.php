@@ -213,6 +213,35 @@ class VendDataService
         return $data;
     }
 
+    /**
+     * Whether this machine's APK expects the "1" ack frame back over MQTT.
+     *
+     * The ack is withheld from the legacy OEM builds (deviceType "ANDROID",
+     * apkver 103-126, all retired) which never handled it. Every Happyice build
+     * does, and the APK's offline-reboot guard DEPENDS on it: the only thing that
+     * resets its "MQTT offline" timer is this ack, so a connected machine that
+     * never receives one reboots itself every 10 minutes.
+     *
+     * "apkver >= 129" alone is not that test any more. On 2026-09-05 the
+     * small-board (ZC-83A) series restarted at versionCode 11, so its builds
+     * report 11, 12, ... and were silently denied the ack — vend 2638 rebooted
+     * every 11 minutes from the moment it took v12 (2026-09-06 23:15) until this
+     * change. A ZC-83A board has never run an OEM build, so the device type is
+     * the reliable marker for that series; the numeric floor still covers the
+     * touchscreen 13x/30x streams and INPAD.
+     */
+    private function apkUnderstandsMqttAck(?array $apkVerJson): bool
+    {
+        if (! $apkVerJson || ! isset($apkVerJson['apkver'])) {
+            return false;
+        }
+        if ((int) $apkVerJson['apkver'] >= 129) {
+            return true;
+        }
+
+        return ($apkVerJson['deviceType'] ?? null) === 'ZC-83A';
+    }
+
     public function processVendData($originalInput, $processedInput, $ipAddress, $connectionType)
     {
         $response = isset($originalInput['f']) ? $originalInput['f'].',4,MQ==' : true;
@@ -466,7 +495,7 @@ class VendDataService
                 $freshApkVer = (array) Vend::withoutGlobalScope(OperatorVendFilterScope::class)
                     ->where('id', $vend->id)
                     ->value('apk_ver_json');
-                if ($freshApkVer && isset($freshApkVer['apkver']) && $freshApkVer['apkver'] >= 129) {
+                if ($this->apkUnderstandsMqttAck($freshApkVer)) {
                     PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
                 }
             }
