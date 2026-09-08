@@ -94,6 +94,7 @@ class CardSettlementSyncTest extends TestCase
         $report = CardSettlementReport::create([
             'provider' => 'nets',
             'original_filename' => 'test.csv',
+            'cutover_date' => '2026-08-29',
             'status' => CardSettlementReport::STATUS_REVIEW,
         ]);
 
@@ -130,7 +131,8 @@ class CardSettlementSyncTest extends TestCase
         ]);
         $purchase->update(['reversed_by_row_id' => $reversal->id]);
 
-        // Heuristic-refunded sale that the report ALSO reversed: left as-is.
+        // Inference-refunded sale that the report ALSO reversed: the tick stays,
+        // relabelled to the report as its source (the report is the truth).
         $p2 = CardSettlementRow::create([
             'card_settlement_report_id' => $report->id,
             'row_no' => 3,
@@ -162,7 +164,8 @@ class CardSettlementSyncTest extends TestCase
         $this->assertSame(\App\Support\AutoRefundSource::SETTLEMENT_REPORT_REVERSAL, $reversed->auto_refund_source);
         $this->assertNotNull($reversed->card_settlement_synced_at);
 
-        $this->assertSame(\App\Support\AutoRefundSource::CARD_TERMINAL_REVERSAL, $alreadyRefunded->fresh()->auto_refund_source);
+        $this->assertTrue((bool) $alreadyRefunded->fresh()->is_refunded);
+        $this->assertSame(\App\Support\AutoRefundSource::SETTLEMENT_REPORT_REVERSAL, $alreadyRefunded->fresh()->auto_refund_source);
         $this->assertFalse((bool) $untouched->fresh()->is_refunded);
         $this->assertSame(2, $report->fresh()->refunded_count);
     }

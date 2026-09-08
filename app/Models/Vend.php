@@ -625,10 +625,9 @@ class Vend extends Model
     }
 
     /**
-     * The same heuristic on a bare version number, for the static predicates
-     * that are handed a reported version rather than a model
-     * (VendTransactionService::isCardTerminalReversal). Keeping the ceiling in
-     * one place is the point — two copies of "< 140" would drift.
+     * The same heuristic on a bare version number, for callers handed a
+     * reported version rather than a model. Keeping the ceiling in one place
+     * is the point — two copies of "< 140" would drift.
      */
     public static function versionMaybeSmallBoardStream(?int $reportedApkVersion): bool
     {

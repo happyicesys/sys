@@ -787,7 +787,21 @@ class CardSettlementController extends Controller
 
         $count = $syncService->sync($report, auth()->id());
 
-        return back()->with('message', "Synced {$count} matched transaction(s).");
+        // The report is the source of truth for the auto-refund tick: say what
+        // it changed beyond the stamp, so a cleared tick never goes unnoticed.
+        $rec = collect($syncService->lastReconcile());
+        $set = $rec->sum('confirmed') + $rec->sum('relabelled');
+        $cleared = $rec->sum('cleared_captured') + $rec->sum('cleared_not_captured');
+        $deferred = $rec->sum('skipped_not_final');
+        $msg = "Synced {$count} matched transaction(s); {$report->refunded_count} reversal(s).";
+        if ($set || $cleared) {
+            $msg .= " Auto-refund ticks: {$set} set, {$cleared} cleared by the report.";
+        }
+        if ($deferred) {
+            $msg .= " {$deferred} tick(s) wait for the next day's file.";
+        }
+
+        return back()->with('message', $msg);
     }
 
     public function destroy($id)

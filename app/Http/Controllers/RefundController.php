@@ -1661,6 +1661,14 @@ class RefundController extends Controller
         return array_merge($this->toRow($t, $txn, $log, $batch, $siteName, false, $selfRow), [
             'site_name' => $siteName,
             'live_txn_refunded' => $liveTxnRefunded,
+            // What the NETS settlement report says about the matched card sale
+            // (reversed / captured / not captured / no report yet / unbound).
+            // The report is the ONLY source of the auto-refund tick on card
+            // sales (2026-09-08), so ops see the evidence, not just the tick.
+            // Card-terminal sales only; gateway (QR) sales have their own rail.
+            'nets_report' => ($txn && $txn->cashless_mfg)
+                ? app(\App\Services\CardSettlement\CardSettlementRefundReconciler::class)->verdictFor($txn)
+                : null,
             'reason_text' => $t->reason_text,
             'manual_items_summary' => $t->manual_items_summary,
             'manual_pay_method' => $t->manual_pay_method,

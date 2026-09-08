@@ -22,14 +22,32 @@ use Throwable;
  *     never pay the customer a second time — the same write path the
  *     TRADE-time inference used).
  *
- * Idempotent: an earlier stamp survives a re-sync, and a sale already
- * is_refunded (by any source) is left as it is.
+ *  3. hands the report's two calendar days (cutover day and the day before)
+ *     to CardSettlementRefundReconciler, which makes the report the ONLY
+ *     source of truth for the auto-refund tick on those days: a tick an
+ *     earlier writer left on a sale the report shows captured-and-not-
+ *     reversed, or never captured, is cleared and its refund ticket released.
+ *
+ * Idempotent: an earlier stamp survives a re-sync, and re-syncing changes
+ * nothing the report does not say.
  */
 class CardSettlementSyncService
 {
     const CHUNK = 500;
 
-    public function __construct(protected RefundTicketService $tickets) {}
+    /** @var array<int,array> per-day reconcile stats from the last sync() */
+    protected array $lastReconcile = [];
+
+    public function __construct(
+        protected RefundTicketService $tickets,
+        protected CardSettlementRefundReconciler $reconciler,
+    ) {}
+
+    /** Per-day reconcile stats from the last sync() call. */
+    public function lastReconcile(): array
+    {
+        return $this->lastReconcile;
+    }
 
     /** @return int number of matched rows covered by the sync */
     public function sync(CardSettlementReport $report, ?int $userId): int
@@ -56,6 +74,13 @@ class CardSettlementSyncService
             'synced_at' => now(),
             'synced_by' => $userId,
         ])->save();
+
+        // After the status flip: the reconciler decides "is this day final"
+        // from report statuses, and this report is part of that answer.
+        $this->lastReconcile = [];
+        foreach (CardSettlementRefundReconciler::daysCoveredBy($report) as $day) {
+            $this->lastReconcile[] = $this->reconciler->reconcileDay($day, true);
+        }
 
         return $txnIds->count();
     }

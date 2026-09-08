@@ -17,7 +17,8 @@ use Tests\TestCase;
  * was presented, so it is settlement of that earlier sale, not fresh card
  * revenue. These tests pin the recorder: marking, source linking (most
  * recent prior failed paid trade, same machine, 7-day lookback, NOT slot or
- * amount bound), and the falsified-reversal correction.
+ * amount bound). The recorder writes nothing on the source sale's auto-refund
+ * tick — the NETS settlement report owns that (2026-09-08).
  */
 class RetainedCreditSettlementRecorderTest extends TestCase
 {
@@ -132,32 +133,6 @@ class RetainedCreditSettlementRecorderTest extends TestCase
         $this->record($settlement);
 
         $this->assertNull($settlement->refresh()->retained_credit_settles_txn_id);
-    }
-
-    /**
-     * The settlement proves the reader never reversed the source sale: a
-     * TRADE-time card_terminal_reversal verdict is rewritten to
-     * retained_credit_revend. is_refunded stays true — the customer was made
-     * whole by goods, and no surface may pay them a second time on top.
-     */
-    public function test_falsified_reversal_is_rewritten_and_is_refunded_kept()
-    {
-        $failedSale = $this->makeTransaction([
-            'transaction_datetime' => Carbon::parse('2026-08-29 16:41:29'),
-            'is_refunded' => true,
-        ]);
-        $failedSale->forceFill(['auto_refund_source' => AutoRefundSource::CARD_TERMINAL_REVERSAL])->save();
-
-        $settlement = $this->makeTransaction([
-            'transaction_datetime' => Carbon::parse('2026-08-29 16:42:03'),
-            'vend_transaction_json' => ['CSHL_ARMED_MS' => 3326],
-        ]);
-
-        $this->record($settlement);
-
-        $failedSale->refresh();
-        $this->assertSame(AutoRefundSource::RETAINED_CREDIT_REVEND, $failedSale->auto_refund_source);
-        $this->assertTrue((bool) $failedSale->is_refunded, 'The do-not-pay-again guard must survive the rewrite.');
     }
 
     /** An Omise-refunded source (e.g. QR fail already refunded) is linked but its record is untouched. */

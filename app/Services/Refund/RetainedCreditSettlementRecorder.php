@@ -3,7 +3,6 @@
 namespace App\Services\Refund;
 
 use App\Models\VendTransaction;
-use App\Support\AutoRefundSource;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -26,12 +25,10 @@ use Illuminate\Support\Facades\Log;
  *     same machine with an undispensed line — the credit is NOT slot- or
  *     amount-bound, $2.40 was served against a $0.20 failure on the bench)
  *
- * And on the settled sale, one correction: if TRADE-time inference had marked
- * it card_terminal_reversal ("the reader returned the money"), this
- * settlement PROVES no reversal happened — the reader kept the credit and
- * vended against it. The source is rewritten to retained_credit_revend;
- * is_refunded stays true because its operational meaning ("do not compensate
- * again") still holds — the customer's payment bought the re-vend.
+ * Nothing is written on the settled (source) sale: its auto-refund tick is
+ * owned by the NETS settlement report alone (CardSettlementRefundReconciler,
+ * 2026-09-08) — a retained credit shows there as a capture with no reversal,
+ * which the reconciler reads as "charged, not refunded".
  *
  * Deliberately NOT done here: touching revenue/gp columns or gp_metrics —
  * the flag is the hook for reporting to exclude these; changing money
@@ -71,10 +68,6 @@ class RetainedCreditSettlementRecorder
             'settles_txn_id' => $source?->id,
             'armed_ms' => $settlement->vend_transaction_json['CSHL_ARMED_MS'] ?? null,
         ]);
-
-        if ($source) {
-            $this->correctFalsifiedReversal($source, $settlement);
-        }
     }
 
     /**
@@ -96,30 +89,5 @@ class RetainedCreditSettlementRecorder
             ->orderByDesc('transaction_datetime')
             ->orderByDesc('id')
             ->first();
-    }
-
-    /**
-     * The settlement is proof the reader never reversed the source sale's
-     * charge — the credit it would have reversed just bought this vend. A
-     * TRADE-time card_terminal_reversal verdict on the source is therefore
-     * falsified: rewrite its source label, keep is_refunded (the customer was
-     * made whole by goods; no surface may pay them again on top).
-     */
-    private function correctFalsifiedReversal(VendTransaction $source, VendTransaction $settlement): void
-    {
-        if ($source->auto_refund_source !== AutoRefundSource::CARD_TERMINAL_REVERSAL) {
-            return;
-        }
-
-        $source->forceFill([
-            'auto_refund_source' => AutoRefundSource::RETAINED_CREDIT_REVEND,
-        ])->save();
-
-        Log::warning('Card-terminal reversal falsified by retained-credit settlement', [
-            'source_vend_transaction_id' => $source->id,
-            'source_order_id' => $source->order_id,
-            'settlement_vend_transaction_id' => $settlement->id,
-            'settlement_order_id' => $settlement->order_id,
-        ]);
     }
 }

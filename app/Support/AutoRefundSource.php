@@ -40,19 +40,21 @@ final class AutoRefundSource
     public const MIDTRANS_EXTERNAL = 'midtrans_external';
 
     /**
-     * Card terminal (NETS family) reversed the charge at the machine after a
-     * single-item dispense failure — recorded from the TRADE footprint
-     * (PAY_TYPE=1, single, err ∉ {0,6}, ISOK=0), not from a processor callback.
+     * LEGACY (2026-08-23 → 2026-09-02, writer removed 2026-09-08): a TRADE-time
+     * inference that the NETS reader had reversed a failed single-item vend
+     * (PAY_TYPE=1, single, err ∉ {0,6}, ISOK=0). Against the settlement
+     * report it was right 46 times in 322. Nothing writes it any more; the
+     * reconciler relabels a confirmed one to SETTLEMENT_REPORT_REVERSAL and
+     * clears the rest. Kept only so historical rows still label.
      */
     public const CARD_TERMINAL_REVERSAL = 'card_terminal_reversal';
 
     /**
      * The acquirer's settlement report carried a reversal line for this sale
      * (NETS "Reversal Code = Y", negative amount) — the terminal DID return
-     * the money. Written by CardSettlementSyncService when the user syncs a
-     * matched report. Since 2026-09-02 this replaces the TRADE-time
-     * card_terminal_reversal inference for NETS (config
-     * refund.card_reversal_terminals is empty).
+     * the money. Written by CardSettlementRefundReconciler when a report is
+     * synced. Since 2026-09-08 this is the ONLY writer of is_refunded on a
+     * card-terminal sale: no TRADE footprint or machine signal sets it.
      */
     public const SETTLEMENT_REPORT_REVERSAL = 'settlement_report_reversal';
 
@@ -76,7 +78,7 @@ final class AutoRefundSource
         self::OMISE_MANUAL => 'Omise — manual refund (artisan)',
         self::OMISE_EXTERNAL => 'Omise — refunded outside ConnectVend (dashboard / dispute / chargeback)',
         self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
-        self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal (NETS)',
+        self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal — inferred at TRADE time (legacy, unconfirmed)',
         self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',
         self::RETAINED_CREDIT_REVEND => 'Settled by re-vend from retained credit (no reversal)',
     ];

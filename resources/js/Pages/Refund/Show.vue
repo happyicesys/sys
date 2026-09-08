@@ -434,6 +434,26 @@ function actionBadge(l) {
                             <span v-else class="text-gray-300">—</span>
                         </dd>
                     </div>
+                    <!-- NETS settlement report verdict on the matched card sale. The report is the
+                         only source of the auto-refund tick on card sales: Reversed = money went
+                         back, Captured = customer still charged (claim is real), Not captured = no
+                         money was taken on this sale (nothing to refund). -->
+                    <div v-if="t.nets_report">
+                        <dt class="text-[10px] uppercase tracking-wide text-gray-500">NETS report</dt>
+                        <dd class="mt-1">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full cursor-help"
+                                :class="{
+                                    'bg-green-100 text-green-700': t.nets_report.state === 'reversed',
+                                    'bg-red-100 text-red-700': t.nets_report.state === 'captured',
+                                    'bg-amber-100 text-amber-700': t.nets_report.state === 'not_captured',
+                                    'bg-gray-100 text-gray-600': !['reversed', 'captured', 'not_captured'].includes(t.nets_report.state),
+                                }"
+                                :title="t.nets_report.detail">{{ t.nets_report.label }}</span>
+                            <a v-if="t.nets_report.report_id" :href="'/card-settlements/' + t.nets_report.report_id" target="_blank"
+                                class="block text-[10px] font-semibold text-indigo-500 mt-0.5 hover:underline"
+                                title="Open the settlement report that carries this sale's line">↗ report #{{ t.nets_report.report_id }}</a>
+                        </dd>
+                    </div>
                 </dl>
             </div>
         </div>

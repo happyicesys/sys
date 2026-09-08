@@ -93,16 +93,49 @@ unresolved rows — the flow for "add missing binding, then Rematch".
   (purchase → reversal). A reversal with no prior purchase is an UNMATCHED query.
 - **Sync** then marks the purchase's sale refunded: `is_refunded = 1`,
   `auto_refund_source = settlement_report_reversal`, plus
-  `RefundTicketService::markAutoRefundedByCharge` — the exact write path the inference used. A sale
-  already `is_refunded` (any source) is left as it is. `refunded_count` on the report.
-- **`config('refund.card_reversal_terminals')` is now `[]`** — the TRADE-footprint inference
-  (`card_terminal_reversal`) no longer fires for NETS. Consequence to remember: a NETS reversal is
-  known only after that day's report is uploaded and synced, not at TRADE time, so a refund ticket
-  raised in between is only auto-crossed on Sync. The Show page flags the opposite case too —
-  a sale the old inference marked refunded but the report has no reversal for ("⚠ refunded by
-  inference, no reversal in report") — for the historical August uploads; it does not un-refund.
+  `RefundTicketService::markAutoRefundedByCharge`. `refunded_count` on the report. Since
+  2026-09-08 Sync goes further — see "The report is the source of truth" below: a tick the
+  report contradicts is cleared, not left as it is.
+- The TRADE-footprint inference (`card_terminal_reversal`) was switched off 2026-09-02 and
+  **removed 2026-09-08** (predicate, backfill command, config key). Consequence to remember: a NETS
+  reversal is known only after that day's report is uploaded and synced, not at TRADE time, so a
+  refund ticket raised in between is only auto-crossed on Sync.
 - `matched_count` / "Sync N matched" counts purchase lines only; paired reversal lines are MATCHED
   but claim no sale (the UNIQUE `matched_vend_transaction_id` stays with the purchase line).
+
+## The report is the source of truth for the auto-refund tick (2026-09-08, Brian)
+
+Measured on the 7 reports synced on 2026-09-07 (Aug 31 – Sep 6): every Reversal-Code-Y line had a
+tick on its sale, but 23 matched sales carried a tick with NO reversal and 44 more carried a tick
+with no NETS line at all — every one of them written by the TRADE-time inference before 2 Sep. From
+3 Sep the tick tallied 100%. So the rule became: **nothing mark1 deduces from a TRADE or a machine
+signal may set `is_refunded` on a card sale; the report alone does, and it overrides what an
+earlier writer left.** `CardSettlementRefundReconciler` applies it per calendar day D:
+
+| Report says about the sale | Tick | Source | When |
+|---|---|---|---|
+| purchase line paired with a reversal line (synced report) | ON | `settlement_report_reversal` (an inference tick is relabelled) | as soon as that report is synced |
+| purchase line, no reversal | OFF | cleared | day final |
+| no line, terminal bound on D | OFF | cleared | day final |
+| no line, terminal NOT bound on D | untouched | — | never (report can't say) |
+
+"Day final" = the reports cut on D **and D+1** are both synced — a sale on D can be captured late
+into the D+1 file, and its reversal can sit there while the purchase sits in D. Clearing waits for
+that; setting does not. Only ticks the report owns are cleared (`card_terminal_reversal`,
+`settlement_report_reversal`); `retained_credit_revend` and every gateway source are left alone.
+Every clear releases the ticket the tick had crossed (`clearAutoRefundByCharge`: verdict un-frozen,
+recommendation Reject → Review, status untouched, log line "auto_refund_cleared"); every set crosses
+it (`markAutoRefundedByCharge`), as before.
+
+Runs: `CardSettlementSyncService::sync` reconciles the report's cutover day and the day before,
+after the status flip (the flip is part of "is the day final"); the flash message reports ticks
+set / cleared / deferred. `php artisan card-settlement:reconcile-refunds [--from --to] [--apply]`
+re-applies it over already-synced days (dry-run default) — needed once for the reports synced
+before this rule existed, and again whenever the August reports are synced.
+
+The refund ticket page shows the same verdict under System self-checking → **NETS report**
+(Reversed / Captured, not reversed / Not captured / In review / No report yet / Terminal not bound,
+with a link to the report), so an ops decision on a card claim is made on the report, not the tick.
 
 ## Payment Status, Auto-refunded, Refund Request badge — one source per rail (2026-09-02)
 
@@ -110,7 +143,7 @@ unresolved rows — the flow for "add missing binding, then Rematch".
 |---|---|---|
 | Omise | API job / `refund.create` webhook / `refund:sync-omise` → `OmiseRefundRecorder` | Paid → Refunded |
 | Midtrans | `refund` / `partial_refund` webhook → same recorder, source `midtrans_external` (**new** — before this the webhook only flipped the gateway log) | Paid → Refunded |
-| NETS card | settlement-report reversal line → `CardSettlementSyncService` (`settlement_report_reversal`) | Paid → **Settled** (stamp) → Refunded (reversal) |
+| NETS card | settlement-report reversal line → `CardSettlementRefundReconciler` on Sync (`settlement_report_reversal`); the report also CLEARS a tick it contradicts | Paid → **Settled** (stamp) → Refunded (reversal) |
 | Cash | — | Paid |
 
 Both columns are filterable on Sales Transactions: **Payment Status** (request key `payment_status`:

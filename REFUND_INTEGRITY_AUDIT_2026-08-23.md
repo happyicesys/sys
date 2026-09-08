@@ -1,3 +1,9 @@
+> **Superseded in part (2026-09-08).** The card-terminal section below describes the TRADE-time
+> reversal inference (`card_terminal_reversal`). It was switched off 2026-09-02 and removed
+> 2026-09-08: the NETS settlement report is now the only writer of `is_refunded` on card sales
+> (`CardSettlementRefundReconciler`, see `CARD_SETTLEMENT_2026-09-01.md`). The Omise sections
+> still stand.
+
 # Auto-refund integrity audit — 2026-08-23
 
 **Objective (Brian):** never refund the same purchase twice. Every surface that

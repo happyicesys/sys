@@ -275,10 +275,9 @@ class VendTransactionService
         // ✅ Use $vendTransaction safely outside the transaction
         if (! $processedInput['isSuccessful']) {
             HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
-
-            // Card terminal reversal: the reader already returned the money at
-            // the machine — record it so no surface lets ops pay a second time.
-            $this->markCardTerminalReversal($vendTransaction, $processedInput, $vend);
+            // No auto-refund is inferred here any more. A failed card vend is
+            // marked refunded ONLY when the acquirer's settlement report carries
+            // a reversal line for it (CardSettlementRefundReconciler, 2026-09-08).
         }
 
         // Retained-credit settlement (2026-08-29): a card approval served in
@@ -562,93 +561,6 @@ class VendTransactionService
     }
 
     /**
-     * Card-terminal reversal footprint. On a SINGLE-item card vend that fails,
-     * the VMC ends the MDB session with VEND FAILURE and the reader reverses the
-     * charge at the machine (NETS shows "REVERSAL — Reversing The Previous
-     * Transaction"; verified 2026-08-23 on the soft-keyboard flow). mark1 never
-     * gets a processor callback — the only evidence is the machine's TRADE:
-     *   PAY_TYPE = card, is_multiple = false, success_qty = 0,
-     *   error code ∉ {0,6}, terminal ∈ config refund.card_reversal_terminals.
-     *
-     * The TRADE arrives in TWO shapes and ISOK only means something in one:
-     *   - VMC-keypad flow (TXN_SRC = 0): flat VMC frame, header SErr, and
-     *     ISOK = 0 on every failure (1:1 in prod) → require ISOK = 0 as a veto.
-     *   - Soft-keyboard flow (TXN_SRC ≥ 1): the APK builds the TRADE itself and
-     *     HARD-CODES ISOK = 1 (StaticFunction.mUploadTradeRet), error in
-     *     transf_info[0].SErr — e.g. order 2026082415513017924 (Nets, SErr 4,
-     *     ISOK 1). ISOK carries no signal there, so it is not consulted;
-     *     err 7 instead needs per-trade proof of the fixed build (see
-     *     isFixedBuildProof) or a machine reporting APK v303+ (v301
-     *     retained-credit ambiguity — see below).
-     * Cutting across BOTH shapes: v303+ frames carry CSHL_ARMED_MS
-     * (arm→approval ms), and anything under CARD_APPROVAL_SUSPECT_MS vetoes
-     * the claim outright — that approval was served from retained credit, so
-     * there was no fresh auth and nothing for the reader to reverse.
-     * Multi-item purchases are never reversed by the terminal (the session
-     * covers several vends) — those stay a manual refund-ticket matter.
-     *
-     * @param  array  $input  processed TRADE (processMapping output)
-     * @param  string|null  $cashlessMfg  vend_transactions.cashless_mfg snapshot
-     */
-    public static function isCardTerminalReversal(array $input, ?string $cashlessMfg, ?int $reportedApkVersion = null): bool
-    {
-        if (($input['paymentClassification'] ?? null) !== 'card') {
-            return false;
-        }
-        if (! self::isSingleItemDispenseFailure($input)) {
-            return false;
-        }
-        // Retained-credit veto, applied BEFORE the frame-shape split: v303+
-        // big-board APKs stamp CSHL_ARMED_MS on the card TRADE (ms between
-        // arming the cashless request and the VMC's approval). A genuine tap
-        // needs a human plus reader auth (26–31s measured); an approval inside
-        // 5s means the VMC satisfied the request from credit RETAINED by an
-        // earlier failed vend (SUSPECT_RETAINED_CREDIT,
-        // CARD_RETAINED_CREDIT_2026-08-22.md) — no fresh card auth happened,
-        // so a failed dispense here has nothing for the reader to reverse.
-        // That is a fact about the PAYMENT, not about which shape of frame
-        // carried it, so it is not nested inside either branch: whatever
-        // future path ever carries the key, the veto applies.
-        $armedMs = self::cardApprovalArmedMs($input);
-        if ($armedMs !== null && $armedMs < self::CARD_APPROVAL_SUSPECT_MS) {
-            return false;
-        }
-
-        // VMC-originated frame → ISOK is the VMC's own trade-ok flag; a failure
-        // TRADE always carries 0, so anything else vetoes the reversal claim.
-        // Android-built TRADEs (interfaceType/TXN_SRC ≥ 1) hard-code ISOK = 1.
-        if (empty($input['interfaceType'])) {
-            $isok = $input['originalJson']['ISOK'] ?? null;
-            if (! is_numeric($isok) || (int) $isok !== 0) {
-                return false;
-            }
-        } elseif ((int) ($input['errorCode'] ?? 0) === 7
-            && ! self::isFixedBuildProof($armedMs, $reportedApkVersion)
-            && (int) $reportedApkVersion < 303) {
-            // Soft-keyboard err 7 on APK ≤ v301 can be NETS *retaining* the
-            // credit for a free re-vend (0x21 tradeId ownership bug, fixed in
-            // big-board v303), not a reversal. Marking it refunded would claim
-            // money moved that the customer may instead consume as a free
-            // re-vend, and would auto-block a genuine refund claim
-            // (RefundTicket::isAlreadyRefunded). So err 7 qualifies only with
-            // per-trade proof of the fixed build (a well-formed CSHL_ARMED_MS
-            // from a machine NOT on the small-board stream — see
-            // isFixedBuildProof) or once the machine reports v303+
-            // (Vend::reportedApkVersion); the version gate stays as the
-            // fallback for v303 frames without the key and widens machine-by-
-            // machine as the OTA lands. Small boards (13x stream) never reach
-            // 303 and stay excluded until their own retained-credit fix is
-            // field-verified. Other codes (e.g. SErr 4, order
-            // 2026082415513017924) are field-verified reversals and pass
-            // regardless of version.
-            return false;
-        }
-        $terminals = (array) config('refund.card_reversal_terminals', []);
-
-        return $cashlessMfg !== null && in_array($cashlessMfg, $terminals, true);
-    }
-
-    /**
      * The TRADE's CSHL_ARMED_MS (ms between the APK arming the cashless request
      * and the VMC's approval, stamped by big-board v303+ on Android-built card
      * frames), or null when absent or malformed — absence means a pre-v303
@@ -663,59 +575,8 @@ class VendTransactionService
     }
 
     /**
-     * Does this TRADE prove, on its own, that it came from a build carrying the
-     * 0x21 retained-credit fix?
-     *
-     * A well-formed CSHL_ARMED_MS is that proof TODAY because the key ships in
-     * big-board v303, the same build as the fix. It stops being proof the
-     * moment this plumbing is ported to mark1-apk-small, which shares the
-     * codebase and the applicationId but is on the 13x versionCode stream and
-     * has NOT had its own retained-credit fix field-verified — the key would
-     * then appear on small-board frames and silently open the err-7 auto-refund
-     * for them. So the proof is refused for any machine whose reported version
-     * looks like the small-board stream; those stay on the v303+ version gate,
-     * which they never satisfy, exactly as before.
-     */
-    private static function isFixedBuildProof(?int $armedMs, ?int $reportedApkVersion): bool
-    {
-        return $armedMs !== null && ! Vend::versionMaybeSmallBoardStream($reportedApkVersion);
-    }
-
-    /**
-     * Record a card-terminal reversal on a freshly created card row:
-     * is_refunded = true + auto_refund_source = card_terminal_reversal, then
-     * cross any open refund ticket on it (markAutoRefundedByCharge pulls
-     * approved/scheduled tickets out of payout — the same double-refund
-     * guard the Omise job uses). Best-effort: a ticket-side failure must never
-     * break TRADE ingestion.
-     */
-    private function markCardTerminalReversal(VendTransaction $vendTransaction, array $input, ?Vend $vend = null): void
-    {
-        if (! self::isCardTerminalReversal($input, $vendTransaction->cashless_mfg, $vend?->reportedApkVersion())) {
-            return;
-        }
-
-        $vendTransaction->forceFill([
-            'is_refunded' => true,
-            'auto_refund_source' => \App\Support\AutoRefundSource::CARD_TERMINAL_REVERSAL,
-        ])->save();
-
-        try {
-            app(\App\Services\Refund\RefundTicketService::class)
-                ->markAutoRefundedByCharge($vendTransaction->order_id, null, $vendTransaction->id);
-        } catch (\Throwable $e) {
-            \Log::error('Refund ticket auto-resolve after card terminal reversal failed', [
-                'vend_transaction_id' => $vendTransaction->id,
-                'order_id' => $vendTransaction->order_id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
      * Hand a suspect card trade to the settlement recorder. Best-effort and
-     * isolated like markCardTerminalReversal: recording must never break
-     * TRADE ingestion.
+     * isolated: recording must never break TRADE ingestion.
      */
     private function recordRetainedCreditSettlement(VendTransaction $vendTransaction, array $input): void
     {

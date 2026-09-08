@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 class RefundTicketService
 {
     protected RefundMatchingService $matching;
+
     protected RefundValidationService $validation;
 
     public function __construct(RefundMatchingService $matching, RefundValidationService $validation)
@@ -36,7 +37,7 @@ class RefundTicketService
         $cashlessMfg = null;
         $txnRefunded = false;
 
-        if (!$isManual && !empty($input['vend_transaction_id'])) {
+        if (! $isManual && ! empty($input['vend_transaction_id'])) {
             $txn = VendTransaction::withoutGlobalScopes()
                 ->with([
                     'vendTransactionItems.product',
@@ -49,7 +50,7 @@ class RefundTicketService
                 ->find($input['vend_transaction_id']);
         }
 
-        if (!$isManual && !$txn && !empty($input['payment_gateway_log_id'])) {
+        if (! $isManual && ! $txn && ! empty($input['payment_gateway_log_id'])) {
             $log = PaymentGatewayLog::find($input['payment_gateway_log_id']);
         }
 
@@ -61,7 +62,7 @@ class RefundTicketService
         // source back to the scanned machine, exactly as the matching service
         // does (txn by vend_id, gateway log by vend_code). A non-manual ticket
         // that names a source must resolve to a known machine first.
-        if (!$isManual && ($txn || $log) && !$vend) {
+        if (! $isManual && ($txn || $log) && ! $vend) {
             abort(422, 'This machine could not be recognised.');
         }
         if ($txn && $vend && (int) $txn->vend_id !== (int) $vend->id) {
@@ -72,10 +73,10 @@ class RefundTicketService
         }
         // A source ID was supplied but didn't resolve to a real row — reject
         // rather than silently dropping to a zero/empty ticket.
-        if (!$isManual && !empty($input['vend_transaction_id']) && !$txn) {
+        if (! $isManual && ! empty($input['vend_transaction_id']) && ! $txn) {
             abort(422, 'The selected transaction could not be found.');
         }
-        if (!$isManual && empty($input['vend_transaction_id']) && !empty($input['payment_gateway_log_id']) && !$log) {
+        if (! $isManual && empty($input['vend_transaction_id']) && ! empty($input['payment_gateway_log_id']) && ! $log) {
             abort(422, 'The selected charge could not be found.');
         }
 
@@ -92,9 +93,9 @@ class RefundTicketService
         $submitLock = null;
         $isRepeat = false;
         $replicatedFromReference = null;
-        if (!$isManual && ($txn || $log)) {
-            $sourceKey = $txn ? ('vt-' . $txn->id) : ('pgl-' . $log->id);
-            $submitLock = Cache::lock('refund:submit:' . $sourceKey, 15);
+        if (! $isManual && ($txn || $log)) {
+            $sourceKey = $txn ? ('vt-'.$txn->id) : ('pgl-'.$log->id);
+            $submitLock = Cache::lock('refund:submit:'.$sourceKey, 15);
             // Wait up to 5s for a concurrent submit of the SAME source to finish
             // so its ticket is visible here and this one is correctly tagged as a
             // repeat. If the wait times out, proceed anyway — we never want to
@@ -174,89 +175,89 @@ class RefundTicketService
         }
 
         try {
-        return DB::transaction(function () use ($input, $vend, $txn, $log, $isManual, $channel, $isAutoChannel, $validation, $claimedCents, $status, $method, $autoDetected, $isRepeat, $replicatedFromReference) {
-            $ticket = RefundTicket::create([
-                'reference' => 'PENDING',
-                'vend_code' => $input['machineID'],
-                'vend_id' => $vend?->id,
-                'operator_id' => $vend?->operator_id,
-                'vend_transaction_id' => $txn?->id,
-                'payment_gateway_log_id' => $txn?->payment_gateway_log_id ?? $log?->id,
-                'order_id' => $txn?->order_id ?? $log?->order_id,
-                'reason_code' => $input['reason_code'] ?? null,
-                'reason_text' => $input['reason_text'] ?? null,
-                'manual_items_summary' => $input['manual_items_summary'] ?? null,
-                'manual_pay_method' => $input['manual_pay_method'] ?? null,
-                'refund_method' => $method,
-                'payout_destination' => $isAutoChannel ? null : ($input['payout_destination'] ?? null),
-                'contact_name' => $input['contact_name'] ?? null,
-                'contact_email' => $input['contact_email'] ?? null,
-                'contact_phone' => $input['contact_phone'] ?? null,
-                'claimed_amount_cents' => $claimedCents,
-                'is_manual' => $isManual,
-                'entered_day' => $input['entered_day'] ?? null,
-                'entered_amount_cents' => $input['entered_amount_cents'] ?? null,
-                'approx_time' => $input['approx_time'] ?? null,
-                'payment_channel' => $channel,
-                'is_auto_refund_channel' => $isAutoChannel,
-                'system_recommendation' => $validation['recommendation'],
-                'system_validation_json' => $validation['evidence'],
-                'auto_refund_detected' => $autoDetected,
-                'status' => $status,
-                'submit_ip' => $input['submit_ip'] ?? null,
-                'is_repeat' => $isRepeat,
-                'replicated_from_reference' => $replicatedFromReference,
-            ]);
-
-            // Reference = PREFIX-yymmdd + a per-day running number, e.g. RF-260703001.
-            // The daily number is the HIGHEST suffix already issued for today plus
-            // one, read across withTrashed() so soft-deleted / rejected tickets still
-            // reserve their number. This must mirror what the `reference` unique
-            // index sees: a live COUNT() excludes soft-deleted rows, so deleting any
-            // earlier ticket that day made the counter re-issue a used number and hit
-            // the unique index (the RF-260706009 duplicate). lockForUpdate on the
-            // day's range serialises concurrent submissions so the number can't be
-            // handed out twice.
-            $createdAt = $ticket->created_at ?? now();
-            $prefix = config('refund.reference_prefix', 'RF');
-            $datePart = $createdAt->format('ymd');
-            // Suffix begins right after "PREFIX-YYMMDD" (prefix + '-' + 6 date digits).
-            $suffixStart = strlen($prefix) + 1 + 6 + 1;
-            $lastSeq = (int) RefundTicket::withTrashed()
-                ->where('reference', 'like', $prefix . '-' . $datePart . '%')
-                ->where('reference', '!=', 'PENDING')
-                ->lockForUpdate()
-                ->selectRaw('COALESCE(MAX(CAST(SUBSTRING(reference, ?) AS UNSIGNED)), 0) AS seq', [$suffixStart])
-                ->value('seq');
-            $ticket->reference = $prefix . '-' . $datePart . str_pad((string) ($lastSeq + 1), 3, '0', STR_PAD_LEFT);
-            $ticket->save();
-
-            foreach ($validation['items'] as $i) {
-                RefundTicketItem::create([
-                    'refund_ticket_id' => $ticket->id,
-                    'vend_transaction_item_id' => $i['vend_transaction_item_id'] ?? null,
-                    'product_id' => $i['product_id'] ?? null,
-                    'product_name' => $i['product_name'] ?? null,
-                    'product_sku' => $i['product_sku'] ?? null,
-                    'vend_channel_code' => $i['vend_channel_code'] ?? null,
-                    'unit_price_cents' => (int) ($i['unit_price_cents'] ?? 0),
-                    'had_channel_error' => (bool) ($i['had_channel_error'] ?? false),
-                    'vend_channel_error_code' => $i['vend_channel_error_code'] ?? null,
-                    'channel_error_desc' => $i['channel_error_desc'] ?? null,
-                    'channel_error_weightage' => $i['channel_error_weightage'] ?? null,
-                    'item_recommendation' => $i['item_recommendation'] ?? null,
-                    'approved' => null,
+            return DB::transaction(function () use ($input, $vend, $txn, $log, $isManual, $channel, $isAutoChannel, $validation, $claimedCents, $status, $method, $autoDetected, $isRepeat, $replicatedFromReference) {
+                $ticket = RefundTicket::create([
+                    'reference' => 'PENDING',
+                    'vend_code' => $input['machineID'],
+                    'vend_id' => $vend?->id,
+                    'operator_id' => $vend?->operator_id,
+                    'vend_transaction_id' => $txn?->id,
+                    'payment_gateway_log_id' => $txn?->payment_gateway_log_id ?? $log?->id,
+                    'order_id' => $txn?->order_id ?? $log?->order_id,
+                    'reason_code' => $input['reason_code'] ?? null,
+                    'reason_text' => $input['reason_text'] ?? null,
+                    'manual_items_summary' => $input['manual_items_summary'] ?? null,
+                    'manual_pay_method' => $input['manual_pay_method'] ?? null,
+                    'refund_method' => $method,
+                    'payout_destination' => $isAutoChannel ? null : ($input['payout_destination'] ?? null),
+                    'contact_name' => $input['contact_name'] ?? null,
+                    'contact_email' => $input['contact_email'] ?? null,
+                    'contact_phone' => $input['contact_phone'] ?? null,
+                    'claimed_amount_cents' => $claimedCents,
+                    'is_manual' => $isManual,
+                    'entered_day' => $input['entered_day'] ?? null,
+                    'entered_amount_cents' => $input['entered_amount_cents'] ?? null,
+                    'approx_time' => $input['approx_time'] ?? null,
+                    'payment_channel' => $channel,
+                    'is_auto_refund_channel' => $isAutoChannel,
+                    'system_recommendation' => $validation['recommendation'],
+                    'system_validation_json' => $validation['evidence'],
+                    'auto_refund_detected' => $autoDetected,
+                    'status' => $status,
+                    'submit_ip' => $input['submit_ip'] ?? null,
+                    'is_repeat' => $isRepeat,
+                    'replicated_from_reference' => $replicatedFromReference,
                 ]);
-            }
 
-            $this->log($ticket, 'submitted', null, $ticket->status, 'Customer submitted refund ticket', 'Customer');
-            $this->log($ticket, 'validated', null, null, 'System recommendation: ' . $validation['recommendation'], 'System');
-            if ($isRepeat) {
-                $this->log($ticket, 'repeat_submission', null, null, 'Repeat request for a transaction already claimed under ' . $replicatedFromReference . '. Please re-validate before payout to avoid a double refund.', 'System');
-            }
+                // Reference = PREFIX-yymmdd + a per-day running number, e.g. RF-260703001.
+                // The daily number is the HIGHEST suffix already issued for today plus
+                // one, read across withTrashed() so soft-deleted / rejected tickets still
+                // reserve their number. This must mirror what the `reference` unique
+                // index sees: a live COUNT() excludes soft-deleted rows, so deleting any
+                // earlier ticket that day made the counter re-issue a used number and hit
+                // the unique index (the RF-260706009 duplicate). lockForUpdate on the
+                // day's range serialises concurrent submissions so the number can't be
+                // handed out twice.
+                $createdAt = $ticket->created_at ?? now();
+                $prefix = config('refund.reference_prefix', 'RF');
+                $datePart = $createdAt->format('ymd');
+                // Suffix begins right after "PREFIX-YYMMDD" (prefix + '-' + 6 date digits).
+                $suffixStart = strlen($prefix) + 1 + 6 + 1;
+                $lastSeq = (int) RefundTicket::withTrashed()
+                    ->where('reference', 'like', $prefix.'-'.$datePart.'%')
+                    ->where('reference', '!=', 'PENDING')
+                    ->lockForUpdate()
+                    ->selectRaw('COALESCE(MAX(CAST(SUBSTRING(reference, ?) AS UNSIGNED)), 0) AS seq', [$suffixStart])
+                    ->value('seq');
+                $ticket->reference = $prefix.'-'.$datePart.str_pad((string) ($lastSeq + 1), 3, '0', STR_PAD_LEFT);
+                $ticket->save();
 
-            return $ticket->fresh(['items']);
-        });
+                foreach ($validation['items'] as $i) {
+                    RefundTicketItem::create([
+                        'refund_ticket_id' => $ticket->id,
+                        'vend_transaction_item_id' => $i['vend_transaction_item_id'] ?? null,
+                        'product_id' => $i['product_id'] ?? null,
+                        'product_name' => $i['product_name'] ?? null,
+                        'product_sku' => $i['product_sku'] ?? null,
+                        'vend_channel_code' => $i['vend_channel_code'] ?? null,
+                        'unit_price_cents' => (int) ($i['unit_price_cents'] ?? 0),
+                        'had_channel_error' => (bool) ($i['had_channel_error'] ?? false),
+                        'vend_channel_error_code' => $i['vend_channel_error_code'] ?? null,
+                        'channel_error_desc' => $i['channel_error_desc'] ?? null,
+                        'channel_error_weightage' => $i['channel_error_weightage'] ?? null,
+                        'item_recommendation' => $i['item_recommendation'] ?? null,
+                        'approved' => null,
+                    ]);
+                }
+
+                $this->log($ticket, 'submitted', null, $ticket->status, 'Customer submitted refund ticket', 'Customer');
+                $this->log($ticket, 'validated', null, null, 'System recommendation: '.$validation['recommendation'], 'System');
+                if ($isRepeat) {
+                    $this->log($ticket, 'repeat_submission', null, null, 'Repeat request for a transaction already claimed under '.$replicatedFromReference.'. Please re-validate before payout to avoid a double refund.', 'System');
+                }
+
+                return $ticket->fresh(['items']);
+            });
         } finally {
             optional($submitLock)->release();
         }
@@ -285,7 +286,7 @@ class RefundTicketService
             RefundTicket::STATUS_COMPLETED,
             RefundTicket::STATUS_AUTO_RESOLVED,
         ], true)) {
-            throw new \RuntimeException('Cannot match a ticket that is already ' . $ticket->status . '.');
+            throw new \RuntimeException('Cannot match a ticket that is already '.$ticket->status.'.');
         }
 
         // Freeze while in a Refund Settlement: re-matching re-derives the amount and
@@ -310,9 +311,9 @@ class RefundTicketService
         // withoutGlobalScopes(): that path is public and unauthenticated, where
         // every one of these scopes is inert anyway.
         $txn = VendTransaction::withoutGlobalScopes([
-                \App\Models\Scopes\OperatorTransactionFilterScope::class,
-                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
-            ])
+            \App\Models\Scopes\OperatorTransactionFilterScope::class,
+            \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+        ])
             ->with([
                 'vendTransactionItems.product',
                 'vendTransactionItems.vendChannel.product',
@@ -326,13 +327,13 @@ class RefundTicketService
             ->first();
 
         $log = null;
-        if (!$txn) {
+        if (! $txn) {
             $log = PaymentGatewayLog::query()
                 ->where('order_id', $orderId)
                 ->when($ticket->vend_code, fn ($q) => $q->where('vend_code', $ticket->vend_code))
                 ->first();
         }
-        if (!$txn && !$log) {
+        if (! $txn && ! $log) {
             // Most obvious admin error: the Order ID DOES exist, just on a
             // different machine. Stop right here with an explicit message rather
             // than a vague "not found", so a wrong Order ID is caught immediately.
@@ -391,7 +392,7 @@ class RefundTicketService
             // Backfill machine/operator if the vend was unrecognised at submission.
             $vendId = $ticket->vend_id ?? $txn?->vend_id ?? $log?->vend_id;
             $operatorId = $ticket->operator_id;
-            if (!$operatorId && $vendId) {
+            if (! $operatorId && $vendId) {
                 $operatorId = optional(\App\Models\Vend::withoutGlobalScopes()->find($vendId))->operator_id;
             }
 
@@ -453,7 +454,7 @@ class RefundTicketService
             }
 
             $this->log($ticket, 'matched', $from, $ticket->status, "Ops matched Order ID {$orderId}", $actorLabel ?? 'Ops', $userId);
-            $this->log($ticket, 'validated', null, null, 'System recommendation: ' . $validation['recommendation'], 'System');
+            $this->log($ticket, 'validated', null, null, 'System recommendation: '.$validation['recommendation'], 'System');
 
             return $ticket->fresh(['items']);
         });
@@ -479,7 +480,7 @@ class RefundTicketService
             RefundTicket::STATUS_COMPLETED,
             RefundTicket::STATUS_AUTO_RESOLVED,
         ], true)) {
-            throw new \RuntimeException('Cannot clear the match on a ticket that is already ' . $ticket->status . '.');
+            throw new \RuntimeException('Cannot clear the match on a ticket that is already '.$ticket->status.'.');
         }
 
         // Frozen while in a Refund Settlement (see matchOrder()).
@@ -529,10 +530,11 @@ class RefundTicketService
             $product = $txn->product ?? $txn->vendChannel?->product;
             $headerHasError = (bool) $txn->vend_channel_error_id && $this->matching->isRealChannelError($txn->vendChannelError?->code);
             $fallback = $headerHasError ? null : $this->matching->fallbackChannelError($txn, $txn->vend_channel_code);
+
             return [[
                 'vend_transaction_item_id' => null,
                 'product_id' => $txn->product_id,
-                'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel ' . $txn->vend_channel_code : 'Purchase'),
+                'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel '.$txn->vend_channel_code : 'Purchase'),
                 'product_sku' => $product?->code ?? $txn->vendChannel?->sku_code ?? $txn->vend_channel_code,
                 'vend_channel_code' => $txn->vend_channel_code,
                 'unit_price_cents' => (int) $txn->amount,
@@ -548,7 +550,7 @@ class RefundTicketService
 
         // Single-item purchase, or nothing selected -> take all items.
         $selected = $rows;
-        if ($rows->count() > 1 && !empty($selectedIds)) {
+        if ($rows->count() > 1 && ! empty($selectedIds)) {
             $selected = $rows->whereIn('id', $selectedIds);
             if ($selected->isEmpty()) {
                 $selected = $rows; // defensive: never end up with zero items
@@ -562,10 +564,11 @@ class RefundTicketService
             // Fall back to items_json / header when the pre-created item row never
             // got its channel error backfilled (see fallbackChannelError()).
             $fallback = $itemHasError ? null : $this->matching->fallbackChannelError($txn, $item->vend_channel_code);
+
             return [
                 'vend_transaction_item_id' => $item->id,
                 'product_id' => $item->product_id,
-                'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel ' . $item->vend_channel_code : 'Item')),
+                'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel '.$item->vend_channel_code : 'Item')),
                 'product_sku' => $product?->code ?? $item->vendChannel?->sku_code ?? $item->vend_channel_code,
                 'vend_channel_code' => $item->vend_channel_code,
                 'unit_price_cents' => (int) ($item->unit_price_amount ?: ($item->vendChannel?->amount ?? 0)),
@@ -598,7 +601,7 @@ class RefundTicketService
      */
     public function markAutoRefundedByCharge(?string $orderId, ?int $paymentGatewayLogId = null, ?int $vendTransactionId = null): int
     {
-        if (!$orderId && !$paymentGatewayLogId && !$vendTransactionId) {
+        if (! $orderId && ! $paymentGatewayLogId && ! $vendTransactionId) {
             return 0;
         }
 
@@ -672,6 +675,73 @@ class RefundTicketService
     }
 
     /**
+     * The mirror of markAutoRefundedByCharge: the auto-refund the ticket was
+     * crossed for turned out not to exist (the NETS settlement report shows
+     * the charge captured and never reversed, or never captured at all —
+     * CardSettlementRefundReconciler). Lift the "already refunded" verdict so
+     * the claim can be validated and approved on its merits again.
+     *
+     * Status is NOT changed: a ticket the auto-refund pulled back to Rejected
+     * stays Rejected and reads "reopen me" in its log — flipping it live again
+     * behind ops' back would put money back into a payout queue nobody looked
+     * at. Completed tickets are left alone entirely (money already paid).
+     *
+     * @return int number of tickets released
+     */
+    public function clearAutoRefundByCharge(?string $orderId, ?int $paymentGatewayLogId, ?int $vendTransactionId, string $reason): int
+    {
+        if (! $orderId && ! $paymentGatewayLogId && ! $vendTransactionId) {
+            return 0;
+        }
+
+        $tickets = RefundTicket::query()
+            ->where('status', '!=', RefundTicket::STATUS_COMPLETED)
+            ->where('auto_refund_detected', true)
+            ->where(function ($q) use ($orderId, $paymentGatewayLogId, $vendTransactionId) {
+                if ($orderId) {
+                    $q->orWhere('order_id', $orderId);
+                }
+                if ($paymentGatewayLogId) {
+                    $q->orWhere('payment_gateway_log_id', $paymentGatewayLogId);
+                }
+                if ($vendTransactionId) {
+                    $q->orWhere('vend_transaction_id', $vendTransactionId);
+                }
+            })
+            ->get();
+
+        $released = 0;
+        foreach ($tickets as $ticket) {
+            $sv = $ticket->system_validation_json ?? [];
+            $sv['txn_already_refunded'] = false;
+            // The frozen verdict folds in the auto-refund channel (Nayax) and
+            // per-item flags; only the charge-level claim is being withdrawn.
+            $sv['already_refunded'] = (bool) ($sv['is_auto_refund_channel'] ?? false);
+
+            $update = ['auto_refund_detected' => false, 'system_validation_json' => $sv];
+            // The submission-time recommendation was Reject BECAUSE of the tick;
+            // send it back to a human rather than leave a stale verdict.
+            if ($ticket->system_recommendation === RefundTicket::REC_REJECT) {
+                $update['system_recommendation'] = RefundTicket::REC_REVIEW;
+            }
+            $ticket->update($update);
+
+            $this->log(
+                $ticket,
+                'auto_refund_cleared',
+                $ticket->status,
+                $ticket->status,
+                "Auto-refund withdrawn — {$reason}. The claim can be validated again"
+                    .($ticket->status === RefundTicket::STATUS_REJECTED ? '; reopen it if it was rejected for the auto-refund.' : '.'),
+                'System'
+            );
+            $released++;
+        }
+
+        return $released;
+    }
+
+    /**
      * Block edits that would desync a ticket already pooled into a Refund
      * Settlement (freeze-on-export). Legacy non-settlement batches are exempt.
      *
@@ -679,7 +749,7 @@ class RefundTicketService
      */
     protected function assertNotInSettlement(RefundTicket $ticket, string $verb): void
     {
-        if (!$ticket->payout_batch_id) {
+        if (! $ticket->payout_batch_id) {
             return;
         }
         $batch = \App\Models\RefundPayoutBatch::find($ticket->payout_batch_id);

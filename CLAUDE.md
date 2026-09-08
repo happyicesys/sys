@@ -152,37 +152,33 @@ been returned, and always together with `auto_refund_source`
   and must never out-rank the TRADE (`VendTransactionService::resolvePreCreatedSettlement`).
   A single-item TRADE with `success_qty = 0` and error ∉ {0,6} is refunded;
   multi-item purchases are never auto-refunded.
-- **Card terminals** — the MDB reader reverses a failed SINGLE-item vend at the
-  machine; mark1 gets no callback, only the TRADE footprint (`PAY_TYPE=1`,
-  single, error ∉ {0,6}), which arrives in TWO frame shapes: VMC-keypad frames
-  (TXN_SRC 0) additionally require `ISOK=0` as a veto, while Android-built
-  soft-keyboard frames (TXN_SRC ≥ 1) hard-code `ISOK=1` (error in
-  `transf_info[0].SErr`). Cutting across both shapes: v303+ frames carry
-  `CSHL_ARMED_MS` (arm→approval ms) and < 5000 (`CARD_APPROVAL_SUSPECT_MS`)
-  vetoes outright — approval served from retained credit, no fresh auth to
-  reverse. A well-formed value is also per-trade proof of the fixed build for
-  the err-7 gate, but ONLY off the small-board versionCode stream
-  (`Vend::versionMaybeSmallBoardStream`): `mark1-apk-small` shares the codebase
-  and applicationId, so if that plumbing is ever ported there the key must not
-  silently unlock err 7 for boards whose own retained-credit fix is unverified.
-  Frames without the key keep the machine-level APK v303+ requirement
-  (`Vend::reportedApkVersion()`; below that, v301 can retain the
-  credit for a free re-vend instead of reversing, so the gate widens
-  machine-by-machine as the OTA lands; the backfill excludes err 7 outright
-  since trade-time versions are unknowable). `VendTransactionService::isCardTerminalReversal` marks it
-  `card_terminal_reversal` for terminals in
-  `config('refund.card_reversal_terminals')` — **which is EMPTY since
-  2026-09-02**: for NETS the reversal now comes from the acquirer's settlement
-  report, not TRADE-time inference. The NETS MerchantConnect daily CSV carries
-  an explicit reversal line per reversal ("Reversal Code = Y", negative
-  amount, same terminal — the "Void Txn Indicator" column is never set);
+- **Card terminals (NETS) — the settlement report is the ONLY source of
+  truth for `is_refunded` (Brian, 2026-09-08).** mark1 gets no processor
+  callback from a NETS reader; the TRADE frame carries no acquirer reference.
+  The NETS MerchantConnect daily CSV carries an explicit reversal line per
+  reversal ("Reversal Code = Y", negative amount, same terminal, same
+  timestamp as the purchase — the "Void Txn Indicator" column is never set);
   `CardSettlementMatcher` pairs it with the purchase line it undoes and
-  `CardSettlementSyncService` writes `is_refunded` +
-  `auto_refund_source = settlement_report_reversal` on Sync (Transactions ›
-  Card Settlement; see `CARD_SETTLEMENT_2026-09-01.md`). Consequence: a NETS
-  reversal is only known to mark1 once that day's report is uploaded and
-  synced, not at TRADE time. The inference code path stays for any terminal
-  type without a report to reconcile against.
+  `CardSettlementRefundReconciler` (run by `CardSettlementSyncService` on
+  Sync, or by `card-settlement:reconcile-refunds` over already-synced days)
+  applies the report to every card sale of the day: reversal line → tick on,
+  source `settlement_report_reversal`; captured-not-reversed → tick OFF
+  (customer still charged); no line on a bound terminal → tick OFF (no money
+  taken); unbound machine → untouched. A tick is only CLEARED once the day is
+  final (files D and D+1 both synced — a late capture or reversal can sit in
+  the next day's file); a reversal sets it as soon as its report is synced.
+  Every clear also releases the ticket the tick had crossed
+  (`RefundTicketService::clearAutoRefundByCharge`). **No TRADE footprint or
+  machine signal may set `is_refunded` any more** — the 2026-08-23 inference
+  (`card_terminal_reversal`, right 46 times in 322 against the report) was
+  removed 2026-09-08 along with `config('refund.card_reversal_terminals')`
+  and `refund:backfill-card-reversals`; the source value survives only to
+  label legacy rows until the reconciler relabels or clears them. Consequence:
+  a NETS reversal is known to mark1 only once that day's report is uploaded
+  and synced, never at TRADE time, and the refund ticket page shows the
+  report's verdict ("NETS report": Reversed / Captured, not reversed / Not
+  captured / No report yet / Terminal not bound) so ops decide on evidence.
+  See `CARD_SETTLEMENT_2026-09-01.md`.
 - Every write of `is_refunded` must also call
   `RefundTicketService::markAutoRefundedByCharge` so an open ticket's frozen
   verdict crosses and approved/scheduled ones are pulled out of payout.
@@ -193,10 +189,12 @@ been returned, and always together with `auto_refund_source`
   from `VendTransactionService::create`) marks the row
   (`is_retained_credit_settlement`), links the failed sale it consumed
   (`retained_credit_settles_txn_id`, most recent prior failed paid trade on
-  the machine, 7-day lookback — the credit is NOT slot- or amount-bound), and
-  rewrites a falsified TRADE-time `card_terminal_reversal` on that source to
-  `retained_credit_revend` — the ONE `auto_refund_source` where is_refunded
-  means "made whole by goods", not money returned. Revenue/gp aggregates do
+  the machine, 7-day lookback — the credit is NOT slot- or amount-bound). It
+  writes nothing on the source sale's tick (the NETS report owns it; a
+  retained credit shows there as a capture with no reversal). The
+  `retained_credit_revend` source — is_refunded meaning "made whole by
+  goods" — has no writer since 2026-09-08 and the reconciler leaves any such
+  row alone. Revenue/gp aggregates do
   NOT yet exclude these rows — the flag is the hook for that follow-up. The
   fault itself is VMC firmware (survives error-clear, VMC restart, re-power;
   only a dispense consumes the credit): see
@@ -206,7 +204,8 @@ been returned, and always together with `auto_refund_source`
 Manual PayNow/PayPal payouts never set `is_refunded` — they live on
 `refund_tickets`. History + reasoning: `REFUND_INTEGRITY_AUDIT_2026-08-23.md`.
 Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,
-`tests/Unit/CardTerminalReversalPredicateTest.php`.
+`tests/Feature/CardSettlementRefundReconcilerTest.php`,
+`tests/Feature/CardSettlementSyncTest.php`.
 
 ## Payment vs dispense: `is_payment_received` is not a payment flag
 
