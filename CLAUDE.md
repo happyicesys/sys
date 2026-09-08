@@ -240,7 +240,7 @@ new `code = 0 OR …` / `IN (0, 6)` / `[0, 6]` outside that class.
 The machine's TRADE carries only the dispense verdict (`SErr` per channel;
 `ISOK` is hard-coded 1 on APK-built frames). There is no "payment collected"
 field, and `vend_transactions.is_payment_received` is derived from the error
-code in `VendTransactionService::processMapping` (0/6 → true, forced true for
+code in `VendTransactionService::processMapping` (dispensed codes → true, forced true for
 QR gateways) — on cash and card sales it is the dispense result under a
 payment name. Never read it as "was the money taken".
 
@@ -258,10 +258,11 @@ Both labels are deduced in one place, `App\Support\SaleStatus`, from
   credit, `is_retained_credit_settlement`) and "Re-vended" (the failed sale it
   made whole, `auto_refund_source = retained_credit_revend`) — goods, not
   money; see the card-terminal bullet above.
-- **Dispense** — the machine's verdict: 0/6 or no code = Dispensed, else
+- **Dispense** — the machine's verdict: a `DispenseVerdict` dispensed code or no code = Dispensed, else
   Failed. A single sale carries it on its row; a **multiple purchase carries
-  it on each item row and the parent row is blank**. Gateway rows with no
-  TRADE are Pending / No report, never Dispensed.
+  it on each item row and the parent row is blank**. A row with no matched
+  TRADE — waiting, never reported, or marked code 99 — is **blank**, never
+  Dispensed and never Failed; the Error Code column ("NA") says why.
 
 The Sales Transactions grid, both CSV export jobs (+ the appended unreported
 gateway rows) and the refund screen's related transactions all call it — add

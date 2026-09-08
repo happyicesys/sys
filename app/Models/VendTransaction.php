@@ -761,7 +761,7 @@ class VendTransaction extends Model
 
                 // Rows with no verdict yet — a gateway row still SETTLEMENT_PENDING, or
                 // settled but never confirmed by a TRADE (is_found_in_transaction = 0) —
-                // are "Pending" / "No report" in the column (SaleStatus::dispense) and
+                // are blank in the column (SaleStatus::dispense, no TRADE) and
                 // must sit on NEITHER side of this filter; their NULL codes would
                 // otherwise read as "no fault" and list them under Dispensed.
                 $query->where('vend_transactions.is_found_in_transaction', true)

@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Support\DispenseVerdict;
 use App\Support\SaleStatus;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -24,7 +25,7 @@ class DispenseVerdictTest extends TestCase
         $this->assertSame(DispenseVerdict::DISPENSED_CODES, SaleStatus::DISPENSED_CODES);
     }
 
-    /** @dataProvider codes */
+    #[DataProvider('codes')]
     public function test_php_predicates(int|string|null $code, bool $sale, bool $dispensed, bool $fault): void
     {
         $this->assertSame($sale, DispenseVerdict::isSaleCode($code), "isSaleCode({$this->label($code)})");

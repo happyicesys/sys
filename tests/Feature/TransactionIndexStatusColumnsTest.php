@@ -190,7 +190,7 @@ class TransactionIndexStatusColumnsTest extends TestCase
         $this->assertNotNull($rows['CARD-RETAINED']['payment_note']);
 
         $this->assertSame(SaleStatus::PAID, $rows['QR-SILENT']['payment_status']);
-        $this->assertSame(SaleStatus::NO_REPORT, $rows['QR-SILENT']['dispense_status']);
+        $this->assertSame(SaleStatus::NO_TRADE, $rows['QR-SILENT']['dispense_status']);
 
         // Multiple: payment on the parent, dispense on each item row, parent dispense blank.
         $multi = $rows['MULTI-PARTIAL'];

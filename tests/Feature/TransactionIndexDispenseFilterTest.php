@@ -100,7 +100,7 @@ class TransactionIndexDispenseFilterTest extends TestCase
         $this->item($allOk, 6);
         $this->item($allOk, null);
 
-        // No verdict yet: the column says "No report" / "Pending" (SaleStatus::dispense),
+        // No verdict yet: the column is blank (SaleStatus::dispense, no TRADE),
         // so neither side of the filter may list them — their NULL codes must not
         // read as "no fault". (Prod Aug 2026: ~4.8k settled-unreported rows.)
         $noReport = $this->txn(['vend_channel_error_id' => null, 'is_found_in_transaction' => false, 'is_payment_received' => true]);
@@ -109,7 +109,7 @@ class TransactionIndexDispenseFilterTest extends TestCase
         foreach ([$noReport, $noReportMulti, $pending] as $t) {
             $this->assertContains(
                 SaleStatus::dispense(SaleFacts::fromRow($t->fresh())),
-                [SaleStatus::NO_REPORT, SaleStatus::PENDING]
+                [SaleStatus::NO_TRADE]
             );
         }
 

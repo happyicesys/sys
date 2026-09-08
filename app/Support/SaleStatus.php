@@ -33,9 +33,11 @@ use App\Models\VendTransaction;
  *   Dispense — the machine's verdict: SErr ∈ {0,6} is a clean drop, anything
  *              else a failed motor/sensor. A single sale carries it on its own
  *              row; a multiple purchase carries it on EACH ITEM row and the
- *              parent row stays blank. A gateway row still waiting for its
- *              TRADE is Pending; a settled one the machine never reported is
- *              No report.
+ *              parent row stays blank. A row with NO matched TRADE — a gateway
+ *              row still waiting, one the machine never reported, or one the
+ *              marker stamped code 99 — is BLANK (Brian, 2026-09-08: dispense
+ *              truth is the machine alone, nothing else may fill the column).
+ *              The Error Code column ("NA") is what says why it is blank.
  *
  * One rule for the grid, the CSV exports and the refund screen — feed every
  * consumer through SaleFacts::fromRow() so the three never disagree again.
@@ -65,11 +67,8 @@ final class SaleStatus
 
     public const FAILED = 'Failed';
 
-    /** Gateway row paid, dispense outcome not decided yet (SETTLEMENT_PENDING). */
-    public const PENDING = 'Pending';
-
-    /** Gateway row paid and settled, but the machine never sent its TRADE. */
-    public const NO_REPORT = 'No report';
+    /** No TRADE matched this row (waiting, never reported, or code 99) — rendered blank, never guessed. */
+    public const NO_TRADE = '';
 
     /** Multiple purchase: the verdict lives on the item rows, the parent row is blank. */
     public const ON_ITEMS = '';
@@ -123,16 +122,13 @@ final class SaleStatus
     /**
      * Header-row dispense verdict. Single sale: the machine's verdict for its
      * channel. Multiple purchase: blank — each item row carries its own
-     * (itemDispense). Gateway rows without a TRADE: Pending / No report.
+     * (itemDispense). No matched TRADE (pending, never reported, code 99):
+     * blank.
      */
     public static function dispense(SaleFacts $sale): string
     {
-        if ($sale->settlementStatus === VendTransaction::SETTLEMENT_PENDING) {
-            return self::PENDING;
-        }
-
-        if (! $sale->isFoundInTransaction) {
-            return self::NO_REPORT;
+        if ($sale->settlementStatus === VendTransaction::SETTLEMENT_PENDING || ! $sale->isFoundInTransaction) {
+            return self::NO_TRADE;
         }
 
         if ($sale->isMultiple) {
@@ -151,9 +147,13 @@ final class SaleStatus
         return DispenseVerdict::isDispensed($errorCode);
     }
 
-    /** One item row's verdict (a multiple's line, or a single sale's channel). */
+    /** One item row's verdict (a multiple's line, or a single sale's channel). Code 99 = no TRADE = blank. */
     public static function itemDispense(int|string|null $errorCode): string
     {
+        if (DispenseVerdict::code($errorCode) === DispenseVerdict::NOT_FOUND_CODE) {
+            return self::NO_TRADE;
+        }
+
         return self::itemDispensed($errorCode) ? self::DISPENSED : self::FAILED;
     }
 }

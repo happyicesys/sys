@@ -434,7 +434,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             ),
                             $txn->payment_method_name,
                             $txn->cashless_mfg ?? '',
-                            $txn->vend_channel_error_code,
+                            \App\Support\DispenseVerdict::displayCode($txn->vend_channel_error_code), // 99 prints NA
                             $txn->location_type_name,
                             $txn->operator_code,
                             // Paid/Refunded and Dispensed/Failed are separate facts —
@@ -489,7 +489,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $itemAllowed ? ($item->unitCost ? $item->unitCost->cost : '') : '',
                                 '',
                                 '', // Cashless Mfg empty for item rows
-                                $item->vendChannelError->code ?? '',
+                                \App\Support\DispenseVerdict::displayCode($item->vend_channel_error_code ?? ($item->vendChannelError->code ?? null)),
                                 $txn->location_type_name,
                                 $txn->operator_code,
                                 '', // Payment Status lives on the parent row

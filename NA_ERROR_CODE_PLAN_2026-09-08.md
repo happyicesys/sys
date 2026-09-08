@@ -1,8 +1,10 @@
 # "NA" channel error (code 99) for gateway sales with no TRADE — plan (2026-09-08)
 
-Status: **PLAN AGREED 2026-09-08, nothing implemented.** Rev 3: no grace
-period, nightly once-a-day processing, month-late TRADEs (30-day window),
-Dispense blank without a TRADE, product/qty data kept.
+Status: **Phase 1 (predicate refactor + review fixes) DEPLOYED 2026-09-09;
+Phase 2 (99 row, ingest guard, blank Dispense, NA display, watermark column)
+BUILT 2026-09-09 — see "Build log" at the end.** Rev 3: no grace period,
+nightly once-a-day processing, month-late TRADEs (30-day window), Dispense
+blank without a TRADE, product/qty data kept.
 
 ## Rules (Brian, 2026-09-08)
 
@@ -924,3 +926,17 @@ hard-codes `!= 0 && != 6` in `Transaction.vue` and
 `DeliveryPlatformOrder/Index.vue` (Phase 2 surfaces); `scopeCountsAsSale`
 (settlement gate) vs `DispenseVerdict::isSaleCode` naming — rename the scope
 to `settled()` when next touched.
+
+
+## Build log
+
+| date | phase | commits | what landed |
+|---|---|---|---|
+| 2026-09-08 | 1 | 91f9bfb1bc, 2095ad9629 | `App\Support\DispenseVerdict`; 105 inline predicates rewritten; guard test; CLAUDE.md section |
+| 2026-09-09 | 1 review | 739e9b2664 (pushed) | 10 review findings closed: code-resolved scopes, one `success_qty` writer set, `DROPPED_CODES`, ingest guard `VendChannelError::forFrameCode()`, hoisted locals, wider guard, refund-rule + guard tests |
+| 2026-09-09 | 2 | (this commit) | migration seeds code 99 + `settings.missing_trade_marked_until`; `SaleStatus` Dispense blank for any row without a TRADE (`NO_TRADE`, replaces Pending / No report labels); `itemDispense(99)` blank; `DispenseVerdict::displayCode()` → "NA" in both CSV exports (header + item rows) and `VendTransactionResource.vend_channel_error_code_display`; tests `NotFoundChannelErrorTest`, `FrameCodeGuardTest`, `SaleStatusTest` 99 cases |
+
+Phase 3 next: `MissingTradeMarker` + `sales:mark-missing-trade` (nightly 00:01,
+`store:previous-day-vend-records` → 00:06), `TradeTimestampResolver` (30-day
+window), Redis dirty-day set + `reconcile:sales-rollups --dirty`, seed from
+2026-08-01. Then Part 2 (NETS orphans) and Part 3 (per-TID flag).

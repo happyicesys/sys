@@ -99,6 +99,7 @@ class VendTransactionResource extends JsonResource
             'vend_channel_amount' => isset($this->vend_channel_amount) ? $this->vend_channel_amount / 100 : null,
             'vend_channel_amount2' => isset($this->vend_channel_amount2) ? $this->vend_channel_amount2 / 100 : null,
             'vend_channel_error_code' => isset($this->vend_channel_error_code) ? $this->vend_channel_error_code : null,
+            'vend_channel_error_code_display' => \App\Support\DispenseVerdict::displayCode($this->vend_channel_error_code ?? null), // 99 → NA
             'vend_channel_error_desc' => isset($this->vend_channel_error_desc) ? $this->vend_channel_error_desc : null,
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
             'vend_name' => isset($this->vend_name) ? $this->vend_name : null,

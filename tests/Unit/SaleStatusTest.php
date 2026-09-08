@@ -113,12 +113,16 @@ class SaleStatusTest extends TestCase
     public function test_gateway_rows_without_a_machine_verdict_are_not_called_dispensed(): void
     {
         // Paid, dispense outcome still open.
-        $this->assertSame(SaleStatus::PENDING, SaleStatus::dispense($this->facts(['settlementStatus' => VendTransaction::SETTLEMENT_PENDING, 'paidThroughGateway' => true])));
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($this->facts(['settlementStatus' => VendTransaction::SETTLEMENT_PENDING, 'paidThroughGateway' => true])));
 
         // Paid and settled, but the machine never sent a TRADE — a null error code here
         // means "no report", not "no fault" (the trap the refund screen fixed). Multiples too.
-        $this->assertSame(SaleStatus::NO_REPORT, SaleStatus::dispense($this->facts(['isFoundInTransaction' => false, 'paidThroughGateway' => true])));
-        $this->assertSame(SaleStatus::NO_REPORT, SaleStatus::dispense($this->facts(['isMultiple' => true, 'isFoundInTransaction' => false, 'paidThroughGateway' => true])));
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($this->facts(['isFoundInTransaction' => false, 'paidThroughGateway' => true])));
+        // Marked 99 by the nightly job: still no TRADE, still blank — the Error Code column says NA.
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($this->facts(['isFoundInTransaction' => false, 'headerErrorCode' => 99, 'paidThroughGateway' => true])));
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::itemDispense(99));
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::itemDispense('99'));
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($this->facts(['isMultiple' => true, 'isFoundInTransaction' => false, 'paidThroughGateway' => true])));
     }
 
     public function test_facts_are_read_from_a_row_with_the_grid_and_export_aliases(): void

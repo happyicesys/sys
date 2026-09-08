@@ -37,9 +37,9 @@ class Setting extends Model
         'actual_stock_in_value' => [
             'red' => [
                 'operator' => '<',
-                'value' => 150
-            ]
-        ]
+                'value' => 150,
+            ],
+        ],
     ];
 
     protected $fillable = [
@@ -47,12 +47,14 @@ class Setting extends Model
         'allow_overwrite_logo_operator_ids_array',
         'customer_index_json',
         'payment_gateway_log_refund_scanned_at',
+        'missing_trade_marked_until',
     ];
 
     protected $casts = [
         'access_all_operator_ids_array' => 'array',
         'allow_overwrite_logo_operator_ids_array' => 'array',
         'customer_index_json' => 'json',
-        'payment_gateway_log_refund_scanned_at' => 'datetime'
+        'payment_gateway_log_refund_scanned_at' => 'datetime',
+        'missing_trade_marked_until' => 'datetime',
     ];
 }

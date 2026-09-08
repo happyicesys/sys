@@ -23,7 +23,7 @@ class FrameCodeGuardTest extends TestCase
     private function seedCodes(): void
     {
         foreach ([[0, 'No Malfunction (0)'], [6, 'Microswitch pressed over time (6)'], [7, 'Sensor error (7)'], [DispenseVerdict::NOT_FOUND_CODE, 'Machine transaction not found (NA)']] as [$code, $desc]) {
-            VendChannelError::create(['code' => $code, 'desc' => $desc]);
+            VendChannelError::firstOrCreate(['code' => $code], ['desc' => $desc]); // 99 already comes from the migration
         }
     }
 

@@ -128,6 +128,25 @@ final class DispenseVerdict
         return is_numeric($code) ? (int) $code : null;
     }
 
+    /**
+     * What the Error Code column prints. 99 reads "NA" everywhere a human sees
+     * it (grid, CSV, ticket page); nothing stored → ''; any other code → the
+     * normalised number.
+     */
+    public static function displayCode(int|string|null $code): string
+    {
+        if (self::isAbsent($code)) {
+            return '';
+        }
+
+        $c = self::code($code);
+        if ($c === null) {
+            return (string) $code;
+        }
+
+        return $c === self::NOT_FOUND_CODE ? 'NA' : (string) $c;
+    }
+
     // ── SQL fragments ───────────────────────────────────────────────────────
 
     /** "0, 6, 99" — for an IN (...) list. */

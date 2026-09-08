@@ -104,7 +104,7 @@ trait AppendsUnreportedGatewayCsvRows
                         // facts the split Payment/Dispense columns carry (App\Support\SaleStatus).
                         // Product Name above stays the row's "Unreported Gateway Revenue" marker.
                         \App\Support\SaleStatus::PAID,                                   // Payment Status
-                        \App\Support\SaleStatus::NO_REPORT,                              // Dispense Status
+                        \App\Support\SaleStatus::NO_TRADE,                               // Dispense Status (no TRADE → blank)
                         '',                                                              // Is Refunded
                         'No',                                                            // Is Multiple
                         1,                                                               // Multiple Qty

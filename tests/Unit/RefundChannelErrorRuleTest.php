@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\RefundTicket;
 use App\Services\Refund\RefundMatchingService;
 use App\Services\Refund\RefundValidationService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -16,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  */
 class RefundChannelErrorRuleTest extends TestCase
 {
-    /** @dataProvider codes */
+    #[DataProvider('codes')]
     public function test_is_real_channel_error_follows_dispense_verdict(?string $code, bool $expected): void
     {
         $this->assertSame($expected, (new RefundMatchingService)->isRealChannelError($code), var_export($code, true));
