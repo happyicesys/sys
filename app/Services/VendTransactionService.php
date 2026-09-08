@@ -19,7 +19,9 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\Sales\LateTradeTracker;
 use App\Support\DispenseVerdict;
+use App\Support\TradeTimestampResolver;
 use Carbon\Carbon;
 use DB;
 
@@ -47,6 +49,13 @@ class VendTransactionService
     public function __construct()
     {
         $this->voucherService = new VoucherService;
+    }
+
+    private ?LateTradeTracker $lateTradeTracker = null;
+
+    private function lateTradeTracker(): LateTradeTracker
+    {
+        return $this->lateTradeTracker ??= app(LateTradeTracker::class);
     }
 
     public function create(Vend $vend, $input, $isCurrentTime = true)
@@ -104,7 +113,10 @@ class VendTransactionService
                 if ($existingVendTransaction
                     && ! $existingVendTransaction->is_found_in_transaction
                     && $existingVendTransaction->payment_gateway_log_id) {
+                    $previousErrorId = $existingVendTransaction->vend_channel_error_id !== null ? (int) $existingVendTransaction->vend_channel_error_id : null;
                     $this->applyTradeToPreCreatedRow($existingVendTransaction, $vend, $processedInput);
+                    // Late TRADE on a past day → dirty day; if it cleared a 99 mark, stamp it.
+                    $this->lateTradeTracker()->noteLanded($existingVendTransaction, $previousErrorId);
 
                     if ($existingVendTransaction->amount > 0) {
                         $this->updateVendPaymentTimestamps(
@@ -147,6 +159,11 @@ class VendTransactionService
                 // ✅ Create and return vend transaction
 
                 $transaction = $this->createVendTransaction($vend, $processedInput, $isCurrentTime);
+
+                if ($transaction) {
+                    // A sale booked on a past day dirties that day's rollups.
+                    $this->lateTradeTracker()->noteLanded($transaction, null);
+                }
 
                 if ($transaction && $transaction->amount > 0) {
                     $this->updateVendPaymentTimestamps(
@@ -354,8 +371,17 @@ class VendTransactionService
             $cashlessMfg = $rawMfg !== '' ? $rawMfg : null;
         }
 
+        // Live frames: trust the frame's own TIME inside the 30-day window
+        // (a replayed sale keeps its true day), otherwise book at arrival and
+        // stamp the rejection. Backdated syncs pass their own explicit time.
+        $resolved = $isCurrentTime ? TradeTimestampResolver::fromFrame($input['time'] ?? null) : null;
+        $meta = [];
+        if ($resolved && ! $resolved->trusted && $resolved->raw !== null && $resolved->reason !== TradeTimestampResolver::REASON_MISSING) {
+            $meta['frame_time'] = $resolved->metaStamp();
+        }
+
         $vendTransaction = VendTransaction::create([
-            'transaction_datetime' => $isCurrentTime ? Carbon::now() : Carbon::parse($input['time']),
+            'transaction_datetime' => $resolved ? $resolved->at : Carbon::parse($input['time']),
             'amount' => $input['amount'],
             'cashless_mfg' => $cashlessMfg,
             'is_zero_amount' => $input['amount'] == 0,
@@ -395,7 +421,8 @@ class VendTransactionService
             'gross_profit' => $grossProfit = $revenue - $unitCostValue,
             'gross_profit_margin' => $revenue ? (($grossProfit * 100) / $revenue) : 0,
             'label_json' => isset($input['label']) ? $input['label'] : null,
-            'meta_json' => [
+            // $meta carries frame_time.rejected when the frame's TIME was not believed.
+            'meta_json' => array_merge($meta, [
                 'apk_ver' => isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
                 'firmware_ver' => isset($vend->firmware_ver) ? dechex($vend->firmware_ver) : null,
                 'vend_code' => $vend->code,
@@ -405,7 +432,7 @@ class VendTransactionService
                 'vend_prefix_name' => $vendPrefix?->name ?? null,
                 'vouchers' => $input['vouchers'],
                 'hid_card_id' => $input['hid_card_id'] ?? null,
-            ],
+            ]),
         ]);
 
         return $vendTransaction;

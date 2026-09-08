@@ -235,6 +235,31 @@ the FK-vs-code shape the call site already had), query builders take
 `tests/Unit/NoInlineDispensePredicateTest.php` greps `app/` and fails on any
 new `code = 0 OR …` / `IN (0, 6)` / `[0, 6]` outside that class.
 
+## Missing TRADEs: mark nightly, trust frame time for 30 days, rebuild dirty days
+
+Three rules from `NA_ERROR_CODE_PLAN_2026-09-08.md` Part 1, all live:
+
+- **`sales:mark-missing-trade --apply` runs at 00:01** and stamps code 99 on
+  every gateway row whose day is over and whose TRADE never came — header and
+  item rows, `meta_json.missing_trade.marked_at`, nothing else. Watermark:
+  `settings.missing_trade_marked_until`. No grace period: the day boundary is
+  the rule. It moves no figure (99 is a sale code), so it queues no rebuild;
+  `store:previous-day-vend-records` runs after it (00:06) on purpose.
+- **A live TRADE keeps its frame `TIME` when that is within 30 days back / 5
+  min ahead** (`App\Support\TradeTimestampResolver`, `config('sales')`);
+  otherwise it books at arrival with `meta_json.frame_time.rejected`. The
+  APK replays a month of queued frames unchanged after a reconnect, but ~3.7%
+  of frames carry a clock that is years off — never trust TIME blindly.
+- **A TRADE (or orphan row) landing on a past day records that date** in the
+  Redis set `sales:rollups:dirty-days` (`App\Services\Sales\DirtyDayRegistry`,
+  O(1), never throws) and `reconcile:sales-rollups --dirty` rebuilds exactly
+  those days at 02:00, unconditionally, then clears them. Locked Site Summary
+  months are rebuilt in vend_records / gp_metrics but their summary rows stay
+  frozen — the command lists them for finance. The amount-drift passes at
+  02:15 / weekly / monthly remain the safety net. A late TRADE that clears a
+  99 mark stamps `meta_json.missing_trade.cleared_at`
+  (`App\Services\Sales\LateTradeTracker`).
+
 ## Payment vs dispense: `is_payment_received` is not a payment flag
 
 The machine's TRADE carries only the dispense verdict (`SErr` per channel;

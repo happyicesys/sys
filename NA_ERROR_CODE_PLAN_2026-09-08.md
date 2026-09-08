@@ -1,8 +1,7 @@
 # "NA" channel error (code 99) for gateway sales with no TRADE — plan (2026-09-08)
 
-Status: **Phase 1 (predicate refactor + review fixes) DEPLOYED 2026-09-09;
-Phase 2 (99 row, ingest guard, blank Dispense, NA display, watermark column)
-BUILT 2026-09-09 — see "Build log" at the end.** Rev 3: no grace period,
+Status: **Phases 1–2 DEPLOYED 2026-09-09; Phase 3 (nightly marker, frame-time
+resolver, dirty-day resync) BUILT 2026-09-09 — see "Build log" at the end.** Rev 3: no grace period,
 nightly once-a-day processing, month-late TRADEs (30-day window), Dispense
 blank without a TRADE, product/qty data kept.
 
@@ -936,7 +935,10 @@ to `settled()` when next touched.
 | 2026-09-09 | 1 review | 739e9b2664 (pushed) | 10 review findings closed: code-resolved scopes, one `success_qty` writer set, `DROPPED_CODES`, ingest guard `VendChannelError::forFrameCode()`, hoisted locals, wider guard, refund-rule + guard tests |
 | 2026-09-09 | 2 | (this commit) | migration seeds code 99 + `settings.missing_trade_marked_until`; `SaleStatus` Dispense blank for any row without a TRADE (`NO_TRADE`, replaces Pending / No report labels); `itemDispense(99)` blank; `DispenseVerdict::displayCode()` → "NA" in both CSV exports (header + item rows) and `VendTransactionResource.vend_channel_error_code_display`; tests `NotFoundChannelErrorTest`, `FrameCodeGuardTest`, `SaleStatusTest` 99 cases |
 
-Phase 3 next: `MissingTradeMarker` + `sales:mark-missing-trade` (nightly 00:01,
-`store:previous-day-vend-records` → 00:06), `TradeTimestampResolver` (30-day
-window), Redis dirty-day set + `reconcile:sales-rollups --dirty`, seed from
-2026-08-01. Then Part 2 (NETS orphans) and Part 3 (per-TID flag).
+| 2026-09-09 | 3 | (this commit) | `config/sales.php`; `App\Services\Sales\MissingTradeMarker` + `MissingTradeMarkResult` + `sales:mark-missing-trade {--from} {--to} {--apply}` (dailyAt 00:01, `store:previous-day-vend-records` moved to 00:06); `App\Support\TradeTimestampResolver` / `ResolvedTradeTime` wired into `createVendTransaction` (30 d back / 5 min ahead, `meta_json.frame_time.rejected`); `App\Services\Sales\DirtyDayRegistry` (Redis set, array store in tests) + `LateTradeTracker` (dirty day + `meta_json.missing_trade.cleared_at`) called after a fresh TRADE row and after a pre-created row is filled; `reconcile:sales-rollups --dirty` (dailyAt 02:00, lists locked months); tests `TradeTimestampResolverTest`, `MissingTradeMarkerTest`, `DirtyDaysReconcileTest`; CLAUDE.md section |
+
+Seed: on prod after deploy, `sales:mark-missing-trade --from=2026-08-01`
+(report) then `--apply` — identical to what the first 00:01 run would do
+with a NULL watermark. No rollup rebuild follows (99 moves no figure).
+
+Next: Part 2 (NETS orphans) and Part 3 (per-TID will-auto-refund flag).

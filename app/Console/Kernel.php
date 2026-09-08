@@ -49,7 +49,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('blind:recompute-costs')->dailyAt('00:20'); // after unit-cost timing settles
         $schedule->command('sync:product-vend-channels')->dailyAt('00:08');
         $schedule->command('export:vends-status')->monthly();
-        $schedule->command('store:previous-day-vend-records')->daily();
+        // 00:01 — mark yesterday's gateway sales that never got a TRADE as code 99
+        // (NA), BEFORE the builders below read yesterday. Moves no figure.
+        $schedule->command('sales:mark-missing-trade --apply')->dailyAt('00:01')->withoutOverlapping();
+        $schedule->command('store:previous-day-vend-records')->dailyAt('00:06'); // was daily() = 00:00; must follow the marker
         $schedule->command('grab:sync-all-menu')->daily();
         $schedule->command('sync:all-cms-vend-code-vend-prefix')->dailyAt('02:00');
         $schedule->command('copy:product-limit-from-yesterday')->at('23:57');
@@ -111,6 +114,9 @@ class Kernel extends ConsoleKernel
         // anything a missed nightly run skipped. Both run after the nightly rollups
         // settle; heals dispatch to the low queue so they don't compete with
         // realtime work.
+        // Days a late TRADE / orphan row landed on (DirtyDayRegistry) are rebuilt
+        // unconditionally first; the amount-drift passes below stay the safety net.
+        $schedule->command('reconcile:sales-rollups --dirty')->dailyAt('02:00')->withoutOverlapping();
         $schedule->command('reconcile:sales-rollups --days=14')->dailyAt('02:15')->withoutOverlapping();
         $schedule->command('reconcile:sales-rollups --days=45')->weeklyOn(0, '02:45')->withoutOverlapping();
         // Monthly deep backstop — a long window catches transactions that

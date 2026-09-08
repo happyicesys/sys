@@ -6,9 +6,11 @@ use App\Jobs\ProcessGpMetricsDay;
 use App\Jobs\StoreVendProductRecords;
 use App\Jobs\StoreVendsRecord;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
+use App\Models\CustomerPeriodSummary;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\GpMetricsAggregator;
+use App\Services\Sales\DirtyDayRegistry;
 use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -57,12 +59,17 @@ class ReconcileSalesRollups extends Command
         {--dry-run : Report drifted days only; do not dispatch any rebuilds}
         {--skip-cascade : Heal only the base rollups; skip the totals-JSON + Site Summary refresh}
         {--chunk=1000 : Chunk size passed to the gp_metrics rebuild}
-        {--queue=low : Queue used for dispatched rebuild jobs}';
+        {--queue=low : Queue used for dispatched rebuild jobs}
+        {--dirty : Heal the days recorded by DirtyDayRegistry (late TRADEs, orphan rows) unconditionally, then clear them}';
 
     protected $description = 'Verify vend_records and gp_metrics tally to vend_transactions per day, and auto-heal drifted days.';
 
     public function handle(): int
     {
+        if ($this->option('dirty')) {
+            return $this->healDirtyDays();
+        }
+
         [$start, $end] = $this->resolveRange();
         $tolerance = max(0, (int) $this->option('tolerance'));
         // The cheap pre-check may legitimately differ from the stored gp total by a
@@ -150,6 +157,68 @@ class ReconcileSalesRollups extends Command
 
         if (! $this->option('skip-cascade')) {
             $this->cascadeDownstream($healDays, $queue);
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * `--dirty`: rebuild every day the ingest path flagged (a TRADE or orphan
+     * row landing on a day before today), without the amount-drift pre-check
+     * — a late TRADE that only changes counts (a 99 mark cleared, a multiple's
+     * items rebuilt) never trips that check. Each day is cleared from the set
+     * only after its rebuilds are dispatched; a day inside a locked Site
+     * Summary month is rebuilt in vend_records / gp_metrics but its summary
+     * row stays frozen, so those days are listed for finance.
+     */
+    private function healDirtyDays(): int
+    {
+        $registry = app(DirtyDayRegistry::class);
+        $days = $registry->days();
+        $queue = (string) $this->option('queue') ?: 'low';
+        $chunk = max(1, (int) $this->option('chunk'));
+        $dryRun = (bool) $this->option('dry-run');
+
+        if (empty($days)) {
+            $this->info('No dirty days recorded.');
+
+            return self::SUCCESS;
+        }
+
+        // Never rebuild today — it is still in flight and the nightly builders own it.
+        $today = Carbon::today()->toDateString();
+        $days = array_values(array_filter($days, fn ($d) => $d < $today));
+
+        $this->info(sprintf('Dirty days (%d): %s', count($days), implode(', ', $days)));
+
+        $lockedMonths = CustomerPeriodSummary::query()
+            ->where('is_locked', true)
+            ->whereIn(DB::raw("DATE_FORMAT(period_start, '%Y-%m')"), collect($days)->map(fn ($d) => substr($d, 0, 7))->unique()->values()->all())
+            ->distinct()
+            ->pluck(DB::raw("DATE_FORMAT(period_start, '%Y-%m') as ym"))
+            ->all();
+        $inLocked = array_values(array_filter($days, fn ($d) => in_array(substr($d, 0, 7), $lockedMonths, true)));
+        if ($inLocked) {
+            $this->warn('Days in LOCKED Site Summary months (rollups rebuilt, summaries left frozen — tell finance): '.implode(', ', $inLocked));
+        }
+
+        if ($dryRun) {
+            $this->line('Dry-run: nothing dispatched, nothing cleared.');
+
+            return self::SUCCESS;
+        }
+
+        foreach ($days as $d) {
+            StoreVendsRecord::dispatch($d, $d, true)->onQueue($queue);
+            ProcessGpMetricsDay::dispatch($d, $chunk)->onQueue($queue);
+            StoreVendProductRecords::dispatch($d, $d)->onQueue($queue);
+            $registry->clear($d);
+        }
+
+        $this->info(sprintf('Dispatched base-rollup rebuilds for %d dirty day(s) on queue:%s and cleared them.', count($days), $queue));
+
+        if (! $this->option('skip-cascade')) {
+            $this->cascadeDownstream($days, $queue);
         }
 
         return self::SUCCESS;
