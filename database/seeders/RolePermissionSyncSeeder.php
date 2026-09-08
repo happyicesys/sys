@@ -307,22 +307,26 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'operations',
-                ['read'],
+                ['read', 'export', 'create', 'update', 'delete'],
                 // 2026-08-13 sheet: + sup_driver (new "Sup Driver" column) — it
                 // mirrors driver everywhere and adds the Ops Dashboard on top.
-                // 2026-09-08 (Brian): + picker. `read operations` is what renders
-                // the "Daily Jobs" SECTION in Authenticated.vue, so the role
-                // needs it to see the sidebar at all. Split off the write /
-                // admin-access actions below so picker does NOT pick up
-                // `admin-access operations` (Renumber on OpsJob > Edit) along
-                // with the section gate.
+                // 2026-09-08 (Brian): + picker. `read operations` renders the
+                // "Daily Jobs" SECTION in Authenticated.vue; `update operations`
+                // renders the item ref-ID button on OpsJob > Edit / Route (the
+                // only way into /ops-jobs/items/{id}/edit, i.e. the picking
+                // page) and is what CityboxOpsJobItemController accepts from a
+                // non-assigned user; `delete operations` is the Cancel button on
+                // the item page. First cut gave picker `read` only and the
+                // picker (tai) could not open a single item. Driver parity is
+                // the intent — ONLY `admin-access` (Renumber, Undo, Verify) is
+                // split off below so picker does not get it.
                 ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'picker'],
             ],
 
             [
                 'operations',
-                ['export', 'create', 'update', 'delete', 'admin-access'],
-                // Same roles as the read tuple above MINUS picker — see there.
+                ['admin-access'],
+                // Same roles as the tuple above MINUS picker — see there.
                 ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl'],
             ],
 

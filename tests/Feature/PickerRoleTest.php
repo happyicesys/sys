@@ -11,7 +11,9 @@ use Tests\TestCase;
 
 /**
  * picker (added 2026-09-08, Brian): a role whose whole job is Daily Jobs > Jobs.
- * It holds the section gate (`read operations`) plus every operation-jobs
+ * It holds every operations action EXCEPT admin-access (driver parity — the
+ * item ref-ID button on OpsJob > Edit needs `update operations`, so `read`
+ * alone left the picker unable to open any item) plus every operation-jobs
  * action, and NOTHING else — asserted as set equality so any later widening
  * has to be deliberate. It lands on /ops-jobs after login and is not swept
  * into the driver-only behaviour (own-jobs filter, self-only assignee).
@@ -23,11 +25,15 @@ class PickerRoleTest extends TestCase
     private const EXPECTED = [
         'admin-access operation-jobs',
         'create operation-jobs',
+        'create operations',
         'delete operation-jobs',
+        'delete operations',
         'export operation-jobs',
+        'export operations',
         'read operation-jobs',
         'read operations',
         'update operation-jobs',
+        'update operations',
     ];
 
     private function permissionNames(string $roleName): array

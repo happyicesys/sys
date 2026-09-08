@@ -126,7 +126,7 @@ class User extends Authenticatable
         // Match on name, not id: ids differ between local, staging and live.
         $routeByRoleName = [
             'prod_owner' => '/vends/customers-lite',
-            // 2026-09-08: picker only holds `read operations` + operation-jobs
+            // 2026-09-08: picker only holds `operations` + operation-jobs
             // (RolePermissionSyncSeeder), so the /vends/customers default would
             // be a bare 403 straight after login. Not a driver role, so the
             // substring match below does not catch it.
