@@ -7,10 +7,9 @@ use App\Traits\HasFilter;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
-
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
@@ -83,15 +82,15 @@ class User extends Authenticatable
     protected function password(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $value,
-            set: fn($value) => bcrypt($value),
+            get: fn ($value) => $value,
+            set: fn ($value) => bcrypt($value),
         );
     }
 
     protected function profileId(): Attribute
     {
         return Attribute::make(
-            set: fn($value) => $value ? $value : 1,
+            set: fn ($value) => $value ? $value : 1,
             // set: fn ($value) => $value ? $value : 1,
         );
     }
@@ -127,6 +126,11 @@ class User extends Authenticatable
         // Match on name, not id: ids differ between local, staging and live.
         $routeByRoleName = [
             'prod_owner' => '/vends/customers-lite',
+            // 2026-09-08: picker only holds `read operations` + operation-jobs
+            // (RolePermissionSyncSeeder), so the /vends/customers default would
+            // be a bare 403 straight after login. Not a driver role, so the
+            // substring match below does not catch it.
+            'picker' => '/ops-jobs',
         ];
 
         if (isset($routeByRoleName[$role->name])) {
@@ -218,5 +222,4 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Product::class)->orderBy('code');
     }
-
 }

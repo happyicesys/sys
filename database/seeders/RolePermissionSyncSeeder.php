@@ -307,9 +307,22 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'operations',
-                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['read'],
                 // 2026-08-13 sheet: + sup_driver (new "Sup Driver" column) — it
                 // mirrors driver everywhere and adds the Ops Dashboard on top.
+                // 2026-09-08 (Brian): + picker. `read operations` is what renders
+                // the "Daily Jobs" SECTION in Authenticated.vue, so the role
+                // needs it to see the sidebar at all. Split off the write /
+                // admin-access actions below so picker does NOT pick up
+                // `admin-access operations` (Renumber on OpsJob > Edit) along
+                // with the section gate.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'picker'],
+            ],
+
+            [
+                'operations',
+                ['export', 'create', 'update', 'delete', 'admin-access'],
+                // Same roles as the read tuple above MINUS picker — see there.
                 ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl'],
             ],
 
@@ -317,7 +330,19 @@ class RolePermissionSyncSeeder extends Seeder
                 'operation-jobs',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
                 // 2026-08-13 sheet: + sup_driver (Daily Jobs > Jobs, row 17).
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl'],
+                // 2026-09-08 (Brian): + picker — a NEW role whose whole job is
+                // Daily Jobs > Jobs: it works the same OpsJob page as driver
+                // (pick items, stock actions), so it holds the same
+                // operation-jobs grants. Everything else stays off it:
+                // no Summary (operation-job-summaries), no dashboard, no
+                // resource centers. It is NOT a driver role (User::DRIVER_ROLES)
+                // — a picker must see EVERY job, not only its own assigned ones,
+                // and the driver-only default filters / self-only assignee
+                // dropdown would get in the way. Landing page after login is
+                // /ops-jobs via User::getRedirectRoute(). Regression coverage:
+                // tests/Feature/PickerRoleTest.php. Add a "Picker" column to the
+                // Google Sheet so the next sheet sync does not drop it.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'picker'],
             ],
 
             [
