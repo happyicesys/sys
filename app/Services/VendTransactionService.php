@@ -495,7 +495,7 @@ class VendTransactionService
      *   - already REFUNDED → stays REFUNDED (a late TRADE never revives a
      *     refunded row, e.g. after the 10-min no-dispense auto-refund).
      *   - single-item TRADE reporting a REAL dispense failure (no successful
-     *     drop, error code not 0/6) → PENDING, **even if** the dispense ACK
+     *     drop, a DispenseVerdict machine fault) → PENDING, **even if** the dispense ACK
      *     (GetPurchaseConfirm / payment_gateway_logs.is_dispensed) already
      *     settled the row. The ACK is sent by the APK when it RECEIVES the paid
      *     order — before the motor runs — so it is not proof of a drop and must
@@ -538,8 +538,8 @@ class VendTransactionService
 
     /**
      * A single-item TRADE whose machine verdict is "nothing successfully
-     * dispensed": success_qty = 0 and a numeric error code outside the success
-     * set {0, 6}. Codes 7/9 (sensor error) land here even though the motor ran
+     * dispensed": success_qty = 0 and a machine fault per DispenseVerdict
+     * (a numeric code outside {0, 6, 99}). Codes 7/9 (sensor error) land here even though the motor ran
      * (dispensed_qty = 1) — ops treat them as a failed vend, the card terminals
      * reverse on them, and Omise used to auto-refund them. A non-numeric or
      * missing code is NOT a failure (never refund on a guess). Multi-item
@@ -553,14 +553,10 @@ class VendTransactionService
         if ((int) ($input['success_qty'] ?? 0) > 0) {
             return false;
         }
-        $code = $input['errorCode'] ?? null;
-        if (! is_numeric($code)) {
-            return false;
-        }
 
-        // Fault = present code outside {0, 6, 99}. 99 is server-only and can never
-        // arrive on a frame, but the rule lives in one place (DispenseVerdict).
-        return DispenseVerdict::isMachineFault((int) $code);
+        // Fault = present code outside {0, 6, 99} (DispenseVerdict). 99 is
+        // server-only and VendChannelError::forFrameCode() refuses it at ingest.
+        return DispenseVerdict::isMachineFault($input['errorCode'] ?? null);
     }
 
     /**
@@ -805,7 +801,10 @@ class VendTransactionService
         $vendChannelCode = $input['vendChannelCode'] ?? 0;
 
         $vendChannel = (isset($input['vendChannelCode']) && $this->vendChannels) ? $this->vendChannels->get($vendChannelCode) : null;
-        $vendChannelError = (isset($input['errorCode']) && $this->vendChannelErrors) ? $this->vendChannelErrors->get($errorCode) : null;
+        // Frame code → error row. Server-reserved codes (99) are refused here.
+        $vendChannelError = isset($input['errorCode'])
+            ? VendChannelError::forFrameCode($errorCode, $this->vendChannelErrors ?: null, $vend->code ?? null)
+            : null;
 
         // hardcode when 0 and 6 error code means successful dispense
         if ($errorCode == '0' or $errorCode == '6') {
@@ -962,9 +961,10 @@ class VendTransactionService
         $data['vouchers'] = isset($input['vouchers']) ? $input['vouchers'] : null;
         $data['hid_card_id'] = isset($input['hid_card_id']) ? $input['hid_card_id'] : null;
 
-        $successErrorCodes = DispenseVerdict::DISPENSED_CODES; // TRADE-level: the machine's own verdict
-        $dispensedErrorCodes = [0, 6, 7, 9];
-        $normalizedErrorCode = is_numeric($data['errorCode']) ? (int) $data['errorCode'] : null;
+        // TRADE-level sets: the machine's own verdict (success_qty) and "motor ran" (dispensed_qty).
+        $successErrorCodes = DispenseVerdict::DISPENSED_CODES;
+        $dispensedErrorCodes = DispenseVerdict::DROPPED_CODES;
+        $normalizedErrorCode = DispenseVerdict::code($data['errorCode']);
 
         $data['success_qty'] = in_array($normalizedErrorCode, $successErrorCodes, true) ? 1 : 0;
         $data['dispensed_qty'] = in_array($normalizedErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
@@ -975,7 +975,7 @@ class VendTransactionService
             $data['errorCode'] = $input['transf_info'][0]['SErr'];
             $data['vendChannelCode'] = $input['transf_info'][0]['SId'];
 
-            $singleErrorCode = is_numeric($input['transf_info'][0]['SErr']) ? (int) $input['transf_info'][0]['SErr'] : null;
+            $singleErrorCode = DispenseVerdict::code($input['transf_info'][0]['SErr']);
             $data['success_qty'] = in_array($singleErrorCode, $successErrorCodes, true) ? 1 : 0;
             $data['dispensed_qty'] = in_array($singleErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
         }
@@ -987,7 +987,7 @@ class VendTransactionService
             $data['dispensed_qty'] = 0;
             foreach ($input['transf_info'] as $trans) {
                 $childAmount = $this->extractChildAmountCents($trans);
-                $transErrorCode = is_numeric($trans['SErr']) ? (int) $trans['SErr'] : null;
+                $transErrorCode = DispenseVerdict::code($trans['SErr']);
                 $childSuccessQty = in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0;
                 $childDispensedQty = in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
                 $data['children'][] = $this->processMapping($vend, [
@@ -1073,7 +1073,7 @@ class VendTransactionService
 
                 $product = Product::find($transfInfo['goods_id']);
                 $vendChannel = VendChannel::where('code', $transfInfo['SId'])->where('vend_id', $vendTransaction->vend_id)->first();
-                $vendChannelError = VendChannelError::where('code', $transfInfo['SErr'])->first();
+                $vendChannelError = VendChannelError::forFrameCode($transfInfo['SErr'] ?? null, null, $vendTransaction->vend?->code);
                 $data['items'][] = [
                     'product_id' => $transfInfo['goods_id'],
                     'product_name' => $transfInfo['goods_name'],

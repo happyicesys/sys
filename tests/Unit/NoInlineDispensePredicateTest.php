@@ -5,24 +5,38 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Guard: the 0/6 success and fault predicates live in App\Support\DispenseVerdict
- * and nowhere else. Before 2026-09-08 they were spelled out inline 105 times in
- * 20 files, which is why adding code 99 was a fleet-wide risk. Any new inline
- * copy fails this test; use DispenseVerdict::sqlSale() and friends instead.
+ * Guard: the channel-error success / fault predicates live in
+ * App\Support\DispenseVerdict and nowhere else. Before 2026-09-08 they were
+ * spelled out inline 105 times in 20 files, which is why adding code 99 was a
+ * fleet-wide risk. Any new inline copy fails this test; use
+ * DispenseVerdict::sqlSale() and friends, SALE_CODES, or the PHP predicates.
+ *
+ * What it catches: the literal code lists (0/6, with or without 4/5 or 99) in
+ * SQL or PHP, `code = 0 OR` / `code != 0` on an error-code column, and
+ * vend_channel_error_id compared against a hard-coded FK id list (the
+ * pre-2026-09-09 scopes did that with [1, 5]).
  */
 class NoInlineDispensePredicateTest extends TestCase
 {
     private const PATTERNS = [
-        '/code = 0 OR/',
-        '/(?<![,0-9])IN \(0, ?6\)/',
-        '/IN \(0, 4, 5, 6\)/',
-        '/\[0, ?6\]/',
+        // IN (0, 6) / IN (0,6) / IN (0, 4, 5, 6) / IN (0, 6, 99) in SQL
+        '/(?<![,0-9])IN \(0, ?(?:4, ?5, ?)?6(?:, ?99)?\)/i',
+        // [0, 6] / [0, 6, 99] / [0, 6, 7, 9] PHP arrays
+        '/\[0, ?6(?:, ?(?:99|7, ?9))?\]/',
+        // code = 0 OR … / code != 0 on an error-code column (payment_methods.code is fine)
+        '/(?:vend_channel_errors?|vce(?:_\w+)?|e)\.code\s*(?:=|!=|<>)\s*0\b/',
+        '/vend_channel_error_code\s*(?:=|!=|<>)\s*0\b/',
+        // FK id lists on vend_channel_error_id
+        '/vend_channel_error_id\', \[\d/',
     ];
 
     public function test_no_inline_dispense_predicate_outside_dispense_verdict(): void
     {
+        $root = dirname(__DIR__, 2);
         $offenders = [];
-        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(dirname(__DIR__, 2).'/app'));
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root.'/app', \FilesystemIterator::SKIP_DOTS)
+        );
 
         foreach ($files as $file) {
             if ($file->getExtension() !== 'php' || str_ends_with($file->getPathname(), 'DispenseVerdict.php')) {
@@ -36,13 +50,13 @@ class NoInlineDispensePredicateTest extends TestCase
                 $code = preg_replace('~//.*$~', '', $line); // trailing comments are prose too
                 foreach (self::PATTERNS as $pattern) {
                     if (preg_match($pattern, $code)) {
-                        $offenders[] = str_replace(dirname(__DIR__, 2).'/', '', $file->getPathname()).':'.($no + 1).'  '.trim($line);
+                        $offenders[] = str_replace($root.'/', '', $file->getPathname()).':'.($no + 1).'  '.trim($line);
                         break;
                     }
                 }
             }
         }
 
-        $this->assertSame([], $offenders, "Inline 0/6 predicate found — use App\\Support\\DispenseVerdict:\n".implode("\n", $offenders));
+        $this->assertSame([], $offenders, "Inline channel-error predicate found — use App\\Support\\DispenseVerdict:\n".implode("\n", $offenders));
     }
 }

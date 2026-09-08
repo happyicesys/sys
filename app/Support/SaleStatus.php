@@ -148,11 +148,7 @@ final class SaleStatus
      */
     public static function itemDispensed(int|string|null $errorCode): bool
     {
-        if ($errorCode === null || $errorCode === '') {
-            return true;
-        }
-
-        return is_numeric($errorCode) && in_array((int) $errorCode, self::DISPENSED_CODES, true);
+        return DispenseVerdict::isDispensed($errorCode);
     }
 
     /** One item row's verdict (a multiple's line, or a single sale's channel). */

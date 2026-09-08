@@ -17,6 +17,8 @@ class GpMetricsAggregator
      */
     public static function buildRawQuery(Carbon $start, Carbon $end): Builder
     {
+        $saleById = DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code');
+
         $start = $start->copy()->startOfDay();
         $end = $end->copy()->endOfDay();
 
@@ -83,14 +85,14 @@ class GpMetricsAggregator
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
             ->selectRaw('SUM('.$singleCountExpression.') as sale_count')
             ->selectRaw('COUNT(*) as transaction_count')
-            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN {$singleCountExpression} ELSE 0 END) as success_count")
+            ->selectRaw('SUM(CASE WHEN '.$saleById." THEN {$singleCountExpression} ELSE 0 END) as success_count")
             ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN {$singleCountExpression} ELSE 0 END) as error_count")
             ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code', [4, 5])." THEN {$singleCountExpression} ELSE 0 END) as error_count_no_4_5")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND vend_channel_errors.code IN (4, 5) THEN {$singleCountExpression} ELSE 0 END) as error_count_4_5")
-            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN $singleAmountExpression ELSE 0 END) as amount_cents")
-            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN $singleAmountExpression ELSE 0 END) as txn_amount_cents")
-            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
-            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
+            ->selectRaw('SUM(CASE WHEN '.$saleById." THEN $singleAmountExpression ELSE 0 END) as amount_cents")
+            ->selectRaw('SUM(CASE WHEN '.$saleById." THEN $singleAmountExpression ELSE 0 END) as txn_amount_cents")
+            ->selectRaw('SUM(CASE WHEN '.$saleById." THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
+            ->selectRaw('SUM(CASE WHEN '.$saleById." THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
             ->selectRaw('SUM('.$singleUnitCostExpression.') as unit_cost_cents')
             ->groupBy([
                 DB::raw($transactionDateExpression),

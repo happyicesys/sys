@@ -4,9 +4,9 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorVendRecordScope;
 use App\Models\Scopes\TransactionAccessScope;
+use App\Support\SiteSearch;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Support\SiteSearch;
 
 class VendRecord extends Model
 {
@@ -29,9 +29,9 @@ class VendRecord extends Model
         'date',
         'day',
         'error_count',
-        'failure_amount', //this failure amount is for failure transaction, other than [0, 6]
-        'failure_count', //this failure count is for failure transaction, other than [0, 6]
-        'gross_profit', //this gp is for success transaction
+        'failure_amount', // machine-fault transactions (DispenseVerdict::isMachineFault)
+        'failure_count', // machine-fault transactions (DispenseVerdict::isMachineFault)
+        'gross_profit', // this gp is for success transaction
         'location_type_id',
         'month',
         'monthname',
@@ -40,9 +40,9 @@ class VendRecord extends Model
         'online_success_amount',
         'online_success_count',
         'operator_id',
-        'revenue', //this revenue is for success transaction
-        'total_amount', //this total amount is for success transaction
-        'total_count', //this total count is for success transaction
+        'revenue', // this revenue is for success transaction
+        'total_amount', // this total amount is for success transaction
+        'total_count', // this total count is for success transaction
         'vend_code',
         'vend_id',
         'vend_model_id',
@@ -160,7 +160,7 @@ class VendRecord extends Model
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_records.operator_id', $search);
                 }
             })

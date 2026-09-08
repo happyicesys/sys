@@ -107,7 +107,7 @@ class ValidateFVMBackDate extends Command
                 // Read the actual stored total straight from the table, bypassing
                 // the model's operator/auth global scopes (no auth user in console).
                 // Mirrors StoreVendsRecord's "Total Sales" rule: amount > 0, settled,
-                // and non-error (error code null or in 0/6).
+                // and non-error (DispenseVerdict sale codes or null).
                 $actualCents = (int) DB::table('vend_transactions as vt')
                     ->leftJoin('vend_channel_errors as vce', 'vt.vend_channel_error_id', '=', 'vce.id')
                     ->where('vt.vend_id', $vend->id)

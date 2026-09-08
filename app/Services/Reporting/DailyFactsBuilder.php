@@ -25,7 +25,7 @@ class DailyFactsBuilder
 {
     /**
      * fact_sales_hourly for one day: settled sales bucketed by hour × site.
-     * Success predicate matches the platform headline (error code IN (0,6) /
+     * Success predicate matches the platform headline (DispenseVerdict sale codes /
      * NULL / is_multiple), so SUM over hours ties to gp_metrics amount.
      */
     public function buildSalesHourly(Carbon $day): void

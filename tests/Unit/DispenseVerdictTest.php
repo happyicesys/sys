@@ -27,7 +27,7 @@ class DispenseVerdictTest extends TestCase
     /** @dataProvider codes */
     public function test_php_predicates(int|string|null $code, bool $sale, bool $dispensed, bool $fault): void
     {
-        $this->assertSame($sale, DispenseVerdict::countsAsSale($code), "countsAsSale({$this->label($code)})");
+        $this->assertSame($sale, DispenseVerdict::isSaleCode($code), "isSaleCode({$this->label($code)})");
         $this->assertSame($dispensed, DispenseVerdict::isDispensed($code), "isDispensed({$this->label($code)})");
         $this->assertSame($fault, DispenseVerdict::isMachineFault($code), "isMachineFault({$this->label($code)})");
     }
@@ -47,7 +47,8 @@ class DispenseVerdictTest extends TestCase
             '7' => [7, false, false, true],
             '4' => [4, false, false, true],
             '9 str' => ['9', false, false, true],
-            'junk' => ['abc', true, true, false], // non-numeric = no verdict, never a fault
+            'junk' => ['abc', false, false, false], // unreadable: not a sale, not dispensed, not a fault
+            'padded' => [' 7 ', false, false, true],
         ];
     }
 

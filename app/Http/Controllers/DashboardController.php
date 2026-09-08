@@ -366,7 +366,7 @@ class DashboardController extends Controller
      * Only the HIPL operator group (HIPL + HIMD + LEA + HIESG + UL-ST) is eligible.
      * The figure mirrors the dashboard's sales total exactly: SUM(total_amount)
      * from vend_records for every day from the 1st up to *yesterday*, plus today's
-     * live vend_transactions (success error codes 0/6/NULL, amount > 0). vend_records
+     * live vend_transactions (DispenseVerdict sale codes/NULL, amount > 0). vend_records
      * are T-1 daily aggregates, so combining "records up to yesterday" + "today's
      * transactions" avoids any double count and stays fast (no full-month scan of
      * vend_transactions). Amounts are stored in cents, so the total is divided by 100.
@@ -708,7 +708,7 @@ class DashboardController extends Controller
             $todayTransactions = VendTransaction::query()
                 ->filterTransactionIndex($request)
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-                // Same success test the daily rollup uses (code IN (0,6) / NULL /
+                // Same success test the daily rollup uses (DispenseVerdict sale codes / NULL /
                 // is_multiple) — without the is_multiple leg today's bar undercounts
                 // multi-vend transactions that carry a non-success error code.
                 ->where(function ($query) {

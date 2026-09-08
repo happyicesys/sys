@@ -33,6 +33,8 @@ class DebugTransactionIndexPerformance extends Command
 
     public function handle(): void
     {
+        $saleCode = DispenseVerdict::sqlSale('vend_channel_errors.code');
+
         $operatorId = $this->option('operator');
         $noCache = $this->option('no-cache');
         $perPage = (int) $this->option('per-page') ?: 50;
@@ -152,7 +154,7 @@ class DebugTransactionIndexPerformance extends Command
         // Eliminates INNER JOIN vends (was forcing scan of all matching rows × vends table).
         // Instead: pre-fetch testing vend IDs once, push as IN list → index probe per ID.
         $testingVendIds = DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all();
-        $this->bench('Totals aggregation (whereNotIn testing vends, no vends JOIN)', function () use ($operatorIds, $dateFrom, $dateTo, $testingVendIds) {
+        $this->bench('Totals aggregation (whereNotIn testing vends, no vends JOIN)', function () use ($saleCode, $operatorIds, $dateFrom, $dateTo, $testingVendIds) {
             $q = VendTransaction::query()
                 ->whereIn('vend_transactions.operator_id', $operatorIds)
                 ->where('vend_transactions.transaction_datetime', '>=', $dateFrom)
@@ -165,12 +167,12 @@ class DebugTransactionIndexPerformance extends Command
             }
 
             return $q->select([
-                DB::raw('CAST(COUNT(CASE WHEN '.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+                DB::raw('CAST(COUNT(CASE WHEN '.$saleCode.' OR is_multiple = true THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
                 DB::raw('COUNT(*) AS total_count'),
-                DB::raw('ROUND(COALESCE(SUM(CASE WHEN '.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
-                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.code = 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cash_amount'),
-                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NULL AND payment_methods.code > 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cashless_terminal_amount'),
-                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NOT NULL THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN '.$saleCode.' OR is_multiple = true THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.$saleCode.' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.code = 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cash_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.$saleCode.' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NULL AND payment_methods.code > 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cashless_terminal_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.$saleCode.' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NOT NULL THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
                 DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
             ])
                 ->first();
@@ -191,7 +193,7 @@ class DebugTransactionIndexPerformance extends Command
             return $q->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
                 ->select([
                     DB::raw('COUNT(*) as total_items'),
-                    DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN ('.DispenseVerdict::saleList().') OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items'),
+                    DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND '.DispenseVerdict::sqlSale('vend_transaction_items.vend_channel_error_code').' THEN 1 END) as success_items'),
                 ])
                 ->first();
         });

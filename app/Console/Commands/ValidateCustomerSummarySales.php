@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  * Use this command after any backfill or aggregator change to catch drift.
  *
  * Filter parity with /vends/transactions:
- *   - vend_channel_errors.code IN (0, 6) OR code IS NULL OR is_multiple = true
+ *   - DispenseVerdict sale codes OR code IS NULL OR is_multiple = true
  *   - testing vends excluded
  *   - vend_transactions.amount is the source of truth (incl-GST)
  *
@@ -216,7 +216,7 @@ class ValidateCustomerSummarySales extends Command
     /**
      * Sum vend_transactions.amount for a customer over the window using
      * the SAME filter the Transactions page applies:
-     *   - successful txns (error_code IN (0, 6) OR NULL) OR is_multiple = true
+     *   - successful txns (DispenseVerdict sale codes OR NULL) OR is_multiple = true
      *   - testing vends excluded
      *   - transaction_datetime (fallback to created_at) in [start, end]
      */

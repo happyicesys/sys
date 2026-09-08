@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Support\DispenseVerdict;
 use Carbon\Carbon;
@@ -43,7 +44,7 @@ class VendTransactionSalesAggregator
         if (! $includeAll) {
             $singleQuery->where(function (EloquentBuilder $query) {
                 $query->whereNull('vend_transactions.vend_channel_error_id')
-                    ->orWhereIn('vend_transactions.vend_channel_error_id', [1, 5]);
+                    ->orWhereIn('vend_transactions.vend_channel_error_id', VendChannelError::idsForCodes(DispenseVerdict::SALE_CODES));
             });
         }
 

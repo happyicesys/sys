@@ -575,7 +575,7 @@ class CustomerSummaryAggregator
         // off-by-cents drift users were reporting (e.g. 514.59 vs 514.60).
         //
         // Filter parity with /vends/transactions success_amount:
-        //   - vend_channel_errors.code IN (0, 6) OR code IS NULL OR is_multiple = true
+        //   - DispenseVerdict sale codes OR code IS NULL OR is_multiple = true
         //   - testing vends excluded
         //   - transaction_datetime (fallback to created_at) inside [monthStart, periodEnd]
         //

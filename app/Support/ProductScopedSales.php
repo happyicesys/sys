@@ -302,7 +302,7 @@ class ProductScopedSales
             ->where('vt.is_multiple', true)
             ->where('vt.transaction_datetime', '>=', $todayStart)
             ->where('vt.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
-            // Success = code 0/6 or NULL, matching StoreVendProductRecords'
+            // Success = DispenseVerdict sale codes or NULL, matching StoreVendProductRecords'
             // item-level CASE exactly - `= 0` alone silently dropped code-6 and
             // NULL items that the completed-day rollup counts as sold.
             ->where(function ($q) {
@@ -322,7 +322,7 @@ class ProductScopedSales
      * sales - must come from vend_transactions itself, exactly as
      * StoreVendProductRecords' single leg does: same product resolution
      * (COALESCE(vt.product_id, vc.product_id)), same amount > 0 gate, same
-     * success rule (no error, or vend_channel_errors.code 0/6).
+     * success rule (no error, or a DispenseVerdict sale code).
      */
     private static function todaySingles(array $vendIds, array $products, string $todayStart)
     {

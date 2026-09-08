@@ -313,8 +313,7 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
                     CASE
                         WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0
                             THEN vend_transactions.success_qty
-                        WHEN vend_transactions.vend_channel_error_id IS NULL
-                            OR vend_channel_errors.code IN ('.DispenseVerdict::saleList().')
+                        WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code').'
                             OR vend_transactions.is_multiple = 1
                             THEN COALESCE(vend_transactions.qty, 0)
                         ELSE 0
@@ -338,11 +337,11 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
                             (SELECT COUNT(*) FROM vend_transaction_items
                              LEFT JOIN vend_channel_errors AS vce ON vend_transaction_items.vend_channel_error_id = vce.id
                              WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id
-                               AND vce.code != 0
+                               AND '.DispenseVerdict::sqlFault('vce.code').'
                             )
                         ELSE
                             CASE
-                                WHEN vend_channel_errors.code != 0 OR JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.GET_TYPE')) != '1' THEN 1
+                                WHEN '.DispenseVerdict::sqlFault('vend_channel_errors.code').' OR JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.GET_TYPE')) != '1' THEN 1
                                 ELSE 0
                             END
                     END

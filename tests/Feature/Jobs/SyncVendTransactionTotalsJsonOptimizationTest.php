@@ -2,13 +2,9 @@
 
 namespace Tests\Feature\Jobs;
 
-use App\Jobs\Vend\SyncVendTransactionTotalsJson;
-use App\Models\Customer;
 use App\Models\Vend;
-use App\Models\VendChannelError;
 use App\Models\VendTransaction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
+use App\Support\DispenseVerdict;
 use Tests\TestCase;
 
 class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
@@ -22,7 +18,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
         // Get a real vend with transactions
         $vend = Vend::whereHas('vendTransactions')->first();
 
-        if (!$vend) {
+        if (! $vend) {
             $this->markTestSkipped('No vend with transactions found');
         }
 
@@ -59,7 +55,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
                         WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0
                             THEN vend_transactions.success_qty
                         WHEN vend_transactions.vend_channel_error_id IS NULL
-                            OR vend_channel_errors.code IN (0, 6)
+                            OR vend_channel_errors.code IN ('.DispenseVerdict::saleList().')
                             OR vend_transactions.is_multiple = 1
                             THEN COALESCE(vend_transactions.qty, 0)
                         ELSE 0
@@ -95,7 +91,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
 
                 if (
                     is_null($transaction->vend_channel_error_id) ||
-                    in_array((int) $errorCode, [0, 6], true) ||
+                    in_array((int) $errorCode, DispenseVerdict::SALE_CODES, true) ||
                     (bool) $transaction->is_multiple
                 ) {
                     return (int) ($transaction->qty ?? 0);
@@ -177,7 +173,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
             $newResult = $this->calculateSuccessfulItemCountNew($todayTxns);
             $oldResult = $this->calculateSuccessfulItemCountOld($todayTxns);
 
-            echo "No transactions: New={$newResult}, Old={$oldResult}, Match=" . ($newResult === $oldResult ? '✅' : '❌') . "\n";
+            echo "No transactions: New={$newResult}, Old={$oldResult}, Match=".($newResult === $oldResult ? '✅' : '❌')."\n";
             $this->assertEquals($oldResult, $newResult, 'No transactions case failed');
         }
 
@@ -192,7 +188,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
             $newResult = $this->calculateSuccessfulItemCountNew($todayTxns);
             $oldResult = $this->calculateSuccessfulItemCountOld($todayTxns);
 
-            echo "With success_qty: New={$newResult}, Old={$oldResult}, Match=" . ($newResult === $oldResult ? '✅' : '❌') . "\n";
+            echo "With success_qty: New={$newResult}, Old={$oldResult}, Match=".($newResult === $oldResult ? '✅' : '❌')."\n";
             $this->assertEquals($oldResult, $newResult, 'success_qty case failed');
         }
 
@@ -205,7 +201,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
             $newResult = $this->calculateSuccessfulItemCountNew($todayTxns);
             $oldResult = $this->calculateSuccessfulItemCountOld($todayTxns);
 
-            echo "With errors: New={$newResult}, Old={$oldResult}, Match=" . ($newResult === $oldResult ? '✅' : '❌') . "\n";
+            echo "With errors: New={$newResult}, Old={$oldResult}, Match=".($newResult === $oldResult ? '✅' : '❌')."\n";
             $this->assertEquals($oldResult, $newResult, 'Error case failed');
         }
 
@@ -218,7 +214,7 @@ class SyncVendTransactionTotalsJsonOptimizationTest extends TestCase
             $newResult = $this->calculateSuccessfulItemCountNew($todayTxns);
             $oldResult = $this->calculateSuccessfulItemCountOld($todayTxns);
 
-            echo "is_multiple: New={$newResult}, Old={$oldResult}, Match=" . ($newResult === $oldResult ? '✅' : '❌') . "\n";
+            echo "is_multiple: New={$newResult}, Old={$oldResult}, Match=".($newResult === $oldResult ? '✅' : '❌')."\n";
             $this->assertEquals($oldResult, $newResult, 'is_multiple case failed');
         }
 

@@ -150,7 +150,8 @@ been returned, and always together with `auto_refund_source`
   (`payment_gateway_logs.is_dispensed`, set on the APK's `CONFIRM`) is sent
   **before the motor runs** — it is "order received", not "product dropped",
   and must never out-rank the TRADE (`VendTransactionService::resolvePreCreatedSettlement`).
-  A single-item TRADE with `success_qty = 0` and error ∉ {0,6} is refunded;
+  A single-item TRADE with `success_qty = 0` and a machine fault per
+  `DispenseVerdict` (code ∉ {0, 6, 99}) is refunded;
   multi-item purchases are never auto-refunded.
 - **Card terminals (NETS) — the settlement report is the ONLY source of
   truth for `is_refunded` (Brian, 2026-09-08).** mark1 gets no processor
@@ -224,7 +225,8 @@ today, the NETS report later) received the money and the TRADE never came.
 Payment truth is the rail, dispense truth is the TRADE — so 99 stays in sales
 and product data, shows a blank Dispense column, and is never a fault. It is
 **server-reserved**: only the marking jobs write it and the TRADE ingest
-refuses it from a frame. Plan and evidence: `NA_ERROR_CODE_PLAN_2026-09-08.md`.
+refuses it from a frame (`VendChannelError::forFrameCode()`, which every
+frame-code lookup goes through). Plan and evidence: `NA_ERROR_CODE_PLAN_2026-09-08.md`.
 
 Never spell the predicate inline again. Raw SQL takes the fragment builders
 (`sqlSale`, `sqlSaleById`, `sqlFault`, `sqlFaultById`, `sqlFaultStrict` — keep

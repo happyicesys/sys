@@ -32,14 +32,18 @@ class StoreVendsRecord implements ShouldQueue
 
     public function handle(): void
     {
+        $itemSale = DispenseVerdict::sqlSale('vti.vend_channel_error_code');
+        $saleById = DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code');
+        $faultStrict = DispenseVerdict::sqlFaultStrict('vt.vend_channel_error_id', 'vce.code');
+
         $timezone = config('app.timezone');
 
         $itemsSub = DB::table('vend_transaction_items as vti')
             ->select(
                 'vend_transaction_id',
                 DB::raw('SUM(COALESCE(vti.unit_cost, 0)) as total_cost'),
-                DB::raw('COUNT(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').') THEN 1 ELSE NULL END) as item_error_count'),
-                DB::raw('COUNT(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').' THEN 1 ELSE NULL END) as success_item_count'),
+                DB::raw('COUNT(CASE WHEN NOT ('.$itemSale.') THEN 1 ELSE NULL END) as item_error_count'),
+                DB::raw('COUNT(CASE WHEN '.$itemSale.' THEN 1 ELSE NULL END) as success_item_count'),
                 DB::raw('COUNT(*) as total_item_count')
             )
             ->groupBy('vend_transaction_id');
@@ -76,7 +80,7 @@ class StoreVendsRecord implements ShouldQueue
                 // Maps exactly to "Total Sales" on Transactions page (incl-GST)
                 DB::raw('SUM(CASE
                     WHEN vt.is_multiple = true THEN vt.amount
-                    WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').' THEN vt.amount
+                    WHEN '.$saleById.' THEN vt.amount
                     ELSE 0 END) as total_amount'),
 
                 // Maps to "Total Qty Purchased"
@@ -85,13 +89,13 @@ class StoreVendsRecord implements ShouldQueue
                 // Maps to "Total Qty Dispensed"
                 DB::raw('SUM(CASE
                     WHEN vt.is_multiple = true THEN COALESCE(vti.success_item_count, 0)
-                    WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').' THEN COALESCE(vt.qty, 1)
+                    WHEN '.$saleById.' THEN COALESCE(vt.qty, 1)
                     ELSE 0 END) as total_count'),
 
                 // Proper error count mapping
                 DB::raw('SUM(CASE
                     WHEN vt.is_multiple = true THEN COALESCE(vti.item_error_count, 0)
-                    WHEN '.DispenseVerdict::sqlFaultStrict('vt.vend_channel_error_id', 'vce.code').' THEN COALESCE(vt.qty, 1)
+                    WHEN '.$faultStrict.' THEN COALESCE(vt.qty, 1)
                     ELSE 0 END) as error_count'),
 
                 // COALESCE: vt.revenue is nullable, so a group whose only matched
@@ -99,36 +103,36 @@ class StoreVendsRecord implements ShouldQueue
                 // NOT NULL vend_records.revenue column fails. NULL means "no revenue".
                 DB::raw('COALESCE(SUM(CASE
                     WHEN vt.is_multiple = true THEN vt.revenue
-                    WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').' THEN vt.revenue
+                    WHEN '.$saleById.' THEN vt.revenue
                     ELSE 0 END), 0) as revenue'),
 
                 DB::raw('COALESCE(SUM(CASE
                     WHEN vt.is_multiple = true THEN vt.revenue - COALESCE(vti.total_cost, 0)
-                    WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').' THEN vt.gross_profit
+                    WHEN '.$saleById.' THEN vt.gross_profit
                     ELSE 0 END), 0) as gross_profit'),
 
                 DB::raw('SUM(CASE
-                    WHEN vt.is_multiple = false AND '.DispenseVerdict::sqlFaultStrict('vt.vend_channel_error_id', 'vce.code').' THEN vt.amount
+                    WHEN vt.is_multiple = false AND '.$faultStrict.' THEN vt.amount
                     ELSE 0 END) as failure_amount'),
 
                 DB::raw('SUM(CASE
-                    WHEN vt.is_multiple = false AND '.DispenseVerdict::sqlFaultStrict('vt.vend_channel_error_id', 'vce.code').' THEN COALESCE(vt.qty, 1)
+                    WHEN vt.is_multiple = false AND '.$faultStrict.' THEN COALESCE(vt.qty, 1)
                     ELSE 0 END) as failure_count'),
 
                 DB::raw('SUM(CASE
-                    WHEN dpo.id IS NOT NULL AND (vt.is_multiple = true OR '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').') THEN vt.amount
+                    WHEN dpo.id IS NOT NULL AND (vt.is_multiple = true OR '.$saleById.') THEN vt.amount
                     ELSE 0 END) as online_success_amount'),
 
                 DB::raw('SUM(CASE
-                    WHEN dpo.id IS NOT NULL AND (vt.is_multiple = true OR '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').') THEN COALESCE(vt.qty, 1)
+                    WHEN dpo.id IS NOT NULL AND (vt.is_multiple = true OR '.$saleById.') THEN COALESCE(vt.qty, 1)
                     ELSE 0 END) as online_success_count'),
 
                 DB::raw('SUM(CASE
-                    WHEN dpo.id IS NOT NULL AND vt.is_multiple = false AND '.DispenseVerdict::sqlFaultStrict('vt.vend_channel_error_id', 'vce.code').' THEN vt.amount
+                    WHEN dpo.id IS NOT NULL AND vt.is_multiple = false AND '.$faultStrict.' THEN vt.amount
                     ELSE 0 END) as online_failure_amount'),
 
                 DB::raw('SUM(CASE
-                    WHEN dpo.id IS NOT NULL AND vt.is_multiple = false AND '.DispenseVerdict::sqlFaultStrict('vt.vend_channel_error_id', 'vce.code').' THEN COALESCE(vt.qty, 1)
+                    WHEN dpo.id IS NOT NULL AND vt.is_multiple = false AND '.$faultStrict.' THEN COALESCE(vt.qty, 1)
                     ELSE 0 END) as online_failure_count')
             )
             ->groupBy('date', 'v.id', 'c.id');

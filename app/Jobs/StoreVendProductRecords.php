@@ -72,6 +72,10 @@ class StoreVendProductRecords implements ShouldQueue
 
     public function handle(): void
     {
+        $itemSale = DispenseVerdict::sqlSale('vti.vend_channel_error_code');
+        $saleById = DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code');
+        $faultById = DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code');
+
         $timezone = config('app.timezone');
         $dateFrom = Carbon::parse($this->from)->setTimezone($timezone)->startOfDay();
         $dateTo = Carbon::parse($this->to)->setTimezone($timezone)->endOfDay();
@@ -105,44 +109,44 @@ class StoreVendProductRecords implements ShouldQueue
                 DB::raw('MONTHNAME(vt.transaction_datetime) as monthname'),
                 DB::raw('YEAR(vt.transaction_datetime) as year'),
 
-                // Success: error is null OR code is 0/6
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
+                // Success: counts as a sale (DispenseVerdict::SALE_CODES, or no verdict)
+                DB::raw('SUM(CASE WHEN '.$saleById.'
                               THEN vt.amount ELSE 0 END) as total_amount'),
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
+                DB::raw('SUM(CASE WHEN '.$saleById.'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as total_count'),
                 DB::raw('SUM(COALESCE(vt.qty,1)) as all_total_count'),
 
-                // Failure: error is set AND code is NOT 0/6
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
+                // Failure: a machine fault (DispenseVerdict::isMachineFault)
+                DB::raw('SUM(CASE WHEN '.$faultById.'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as error_count'),
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
+                DB::raw('SUM(CASE WHEN '.$faultById.'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as failure_count'),
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
+                DB::raw('SUM(CASE WHEN '.$faultById.'
                               THEN vt.amount ELSE 0 END) as failure_amount'),
 
                 // Revenue / GP (success only)
                 // COALESCE: vt.revenue / vt.gross_profit are nullable, so a group
                 // whose only success rows have NULL here makes SUM() return NULL ->
                 // insert into the NOT NULL revenue/gross_profit columns fails.
-                DB::raw('COALESCE(SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
+                DB::raw('COALESCE(SUM(CASE WHEN '.$saleById.'
                               THEN vt.revenue ELSE 0 END), 0) as revenue'),
-                DB::raw('COALESCE(SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
+                DB::raw('COALESCE(SUM(CASE WHEN '.$saleById.'
                               THEN vt.gross_profit ELSE 0 END), 0) as gross_profit'),
 
                 // Online channel (success)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND ('.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').')
+                                   AND ('.$saleById.')
                               THEN vt.amount ELSE 0 END) as online_success_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND ('.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').')
+                                   AND ('.$saleById.')
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as online_success_count'),
 
                 // Online channel (failure)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
+                                   AND '.$faultById.'
                               THEN vt.amount ELSE 0 END) as online_failure_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
+                                   AND '.$faultById.'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as online_failure_count'),
             )
             ->groupBy('date', 'v.id', 'vt.customer_id', DB::raw('COALESCE(vt.product_id, vc.product_id)'))
@@ -175,41 +179,41 @@ class StoreVendProductRecords implements ShouldQueue
                 DB::raw('MONTHNAME(vt.transaction_datetime) as monthname'),
                 DB::raw('YEAR(vt.transaction_datetime) as year'),
 
-                // Item-level success: vti error code is 0/6 or null
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
+                // Item-level success: vti error code is a DispenseVerdict sale code or null
+                DB::raw('SUM(CASE WHEN '.$itemSale.'
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as total_amount'),
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
+                DB::raw('SUM(CASE WHEN '.$itemSale.'
                               THEN 1 ELSE 0 END) as total_count'),
                 DB::raw('COUNT(vti.id) as all_total_count'),
 
                 // Item-level failure
-                DB::raw('SUM(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                DB::raw('SUM(CASE WHEN NOT ('.$itemSale.')
                               THEN 1 ELSE 0 END) as error_count'),
-                DB::raw('SUM(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                DB::raw('SUM(CASE WHEN NOT ('.$itemSale.')
                               THEN 1 ELSE 0 END) as failure_count'),
-                DB::raw('SUM(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                DB::raw('SUM(CASE WHEN NOT ('.$itemSale.')
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as failure_amount'),
 
                 // Revenue uses unit_price_amount; GP = price − cost (unit_cost stored in cents, same unit as unit_price_amount)
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
+                DB::raw('SUM(CASE WHEN '.$itemSale.'
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as revenue'),
-                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
+                DB::raw('SUM(CASE WHEN '.$itemSale.'
                               THEN COALESCE(vti.unit_price_amount,0) - COALESCE(vti.unit_cost,0) ELSE 0 END) as gross_profit'),
 
                 // Online channel (success)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                                   AND ('.$itemSale.')
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as online_success_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                                   AND ('.$itemSale.')
                               THEN 1 ELSE 0 END) as online_success_count'),
 
                 // Online channel (failure)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                                   AND NOT ('.$itemSale.')
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as online_failure_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
+                                   AND NOT ('.$itemSale.')
                               THEN 1 ELSE 0 END) as online_failure_count'),
             )
             ->groupBy('date', 'v.id', 'vt.customer_id', DB::raw('COALESCE(vti.product_id, vc.product_id)'))

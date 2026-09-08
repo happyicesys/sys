@@ -719,8 +719,10 @@ Items marked **FIX** amend the design above and take precedence over it.
 - Nightly work is bounded: marker = one day window on an existing index;
   `--dirty` = at most the distinct days touched; classification weekly and
   GROUP BY on a persisted state.
-- The predicate helper returns byte-identical SQL to today's literals, so
-  query plans do not change; the drift proof is exact, not approximate.
+- The predicate helper emits `(col IS NULL OR col IN (0, 6, 99))` where the
+  literals said `col = 0 OR col = 6 OR col IS NULL` — semantically identical
+  while no row carries 99, and neither column is indexed, so no plan changes.
+  The proof is the full suite plus the rollup verify harness, not a byte diff.
 - Schema: three nullable INSTANT columns, zero new indexes, one reference row.
 - Idempotency by construction: watermark (marker), UNIQUE claim (orphans),
   `SREM`-after-heal (dirty days), delete-then-rebuild (gp), explicit zero
@@ -898,3 +900,27 @@ batch), 25 unknown (Auresys). 29 TIDs differ from the sheet: 7 Auresys
 not" (a single charged event) → yes by batch. The seeder imports `batch`
 and this flag with `flag_basis`; the weekly classifier recomputes from
 `card_settlement_state` thereafter and never overwrites a `manual` row.
+
+
+## Phase 1 review outcome (2026-09-09)
+
+Eight-angle review of commits 91f9bfb1bc + 2095ad9629 found 10 items, all
+fixed in the follow-up commit: Eloquent success/error scopes resolved ids
+from codes instead of FK ids [1, 5]; `success_qty` backfill and ingest now
+share `DISPENSED_CODES`, `dispensed_qty` shares the new `DROPPED_CODES`
+(0, 6, 7, 9); totals-JSON error count uses `sqlFault`; the ingest guard now
+EXISTS (`VendChannelError::forFrameCode()` refuses 99 with a warning — both
+frame-code lookups go through it); `SaleStatus::itemDispensed` delegates;
+repeated fragments hoisted to one local per method; the three hand-rolled
+`IN (saleList()) OR IS NULL` sites use `sqlSale`; guard test also catches FK
+id lists, `!= 0`, literal `IN (0, 6, 99)` and `[0, 6, 7, 9]`; tests pin the
+refund rule (0/6/99 not a fault) and the guard. Prod fact used: 0 dangling
+`vend_channel_error_id` in 5.06M rows and `code` is NOT NULL, so the five
+SQL shapes are equivalent today (collapse = follow-up).
+
+Follow-ups noted, not done: Machine Health has no bucket for TRADE loss once
+99 exists (add a `not_found_count` column in the marker commit); Vue still
+hard-codes `!= 0 && != 6` in `Transaction.vue` and
+`DeliveryPlatformOrder/Index.vue` (Phase 2 surfaces); `scopeCountsAsSale`
+(settlement gate) vs `DispenseVerdict::isSaleCode` naming — rename the scope
+to `settled()` when next touched.
