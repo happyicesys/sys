@@ -19,6 +19,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use DB;
 
@@ -557,7 +558,9 @@ class VendTransactionService
             return false;
         }
 
-        return ! in_array((int) $code, [0, 6], true);
+        // Fault = present code outside {0, 6, 99}. 99 is server-only and can never
+        // arrive on a frame, but the rule lives in one place (DispenseVerdict).
+        return DispenseVerdict::isMachineFault((int) $code);
     }
 
     /**
@@ -959,7 +962,7 @@ class VendTransactionService
         $data['vouchers'] = isset($input['vouchers']) ? $input['vouchers'] : null;
         $data['hid_card_id'] = isset($input['hid_card_id']) ? $input['hid_card_id'] : null;
 
-        $successErrorCodes = [0, 6];
+        $successErrorCodes = DispenseVerdict::DISPENSED_CODES; // TRADE-level: the machine's own verdict
         $dispensedErrorCodes = [0, 6, 7, 9];
         $normalizedErrorCode = is_numeric($data['errorCode']) ? (int) $data['errorCode'] : null;
 

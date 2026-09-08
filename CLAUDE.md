@@ -207,6 +207,32 @@ Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,
 `tests/Feature/CardSettlementRefundReconcilerTest.php`,
 `tests/Feature/CardSettlementSyncTest.php`.
 
+## Channel error codes: one rule, `App\Support\DispenseVerdict`
+
+What a `vend_channel_errors.code` means for money, for the dispense verdict
+and for machine health is defined ONCE, in `App\Support\DispenseVerdict`
+(2026-09-08, Brian). Three questions, three answers:
+
+| question | yes for | used by |
+|---|---|---|
+| `countsAsSale` | NULL, 0, 6, **99** | every `$`/revenue/GP/sold-qty aggregate, rollup, export and dashboard filter |
+| `isDispensed` | NULL, 0, 6 | display only (`SaleStatus`) — 99 is "not found", never "dispensed" |
+| `isMachineFault` | present code ∉ {0, 6, 99} | error counts, error rates, Machine Health, refund "genuine non-dispense" |
+
+Code **99 = "Machine transaction not found (NA)"**: a payment rail (Omise
+today, the NETS report later) received the money and the TRADE never came.
+Payment truth is the rail, dispense truth is the TRADE — so 99 stays in sales
+and product data, shows a blank Dispense column, and is never a fault. It is
+**server-reserved**: only the marking jobs write it and the TRADE ingest
+refuses it from a frame. Plan and evidence: `NA_ERROR_CODE_PLAN_2026-09-08.md`.
+
+Never spell the predicate inline again. Raw SQL takes the fragment builders
+(`sqlSale`, `sqlSaleById`, `sqlFault`, `sqlFaultById`, `sqlFaultStrict` — keep
+the FK-vs-code shape the call site already had), query builders take
+`DispenseVerdict::SALE_CODES`, PHP takes the three predicates.
+`tests/Unit/NoInlineDispensePredicateTest.php` greps `app/` and fails on any
+new `code = 0 OR …` / `IN (0, 6)` / `[0, 6]` outside that class.
+
 ## Payment vs dispense: `is_payment_received` is not a payment flag
 
 The machine's TRADE carries only the dispense verdict (`SErr` per channel;

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Customer;
 use App\Models\CustomerPeriodSummary;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -78,7 +79,7 @@ class ValidateCustomerSummarySales extends Command
 
         if ($this->option('vend-code')) {
             $vendCustomerIds = DB::table('vends')
-                ->where('code', 'LIKE', $this->option('vend-code') . '%')
+                ->where('code', 'LIKE', $this->option('vend-code').'%')
                 ->whereNotNull('customer_id')
                 ->pluck('customer_id');
             $summariesQuery->whereIn('customer_id', $vendCustomerIds);
@@ -91,7 +92,7 @@ class ValidateCustomerSummarySales extends Command
             $summariesQuery->whereNotNull('locked_at');
         }
 
-        if (!$this->option('all')) {
+        if (! $this->option('all')) {
             $summariesQuery->limit((int) $this->option('limit'));
         }
 
@@ -102,7 +103,8 @@ class ValidateCustomerSummarySales extends Command
 
         if ($summaries->isEmpty()) {
             $this->warn('No customer_period_summaries rows match the filter — nothing to validate.');
-            $this->line('Try a different --month, or run `customer-summary:compute --month=' . $monthStart->format('Y-m') . '` first.');
+            $this->line('Try a different --month, or run `customer-summary:compute --month='.$monthStart->format('Y-m').'` first.');
+
             return self::SUCCESS;
         }
 
@@ -118,8 +120,7 @@ class ValidateCustomerSummarySales extends Command
         // ── Pre-fetch testing vend ids (same gating the Transactions
         //    page uses — Cache::remember keeps us cheap when the page
         //    has just been visited).
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         // ── Per-customer comparison ──────────────────────────────────────
@@ -130,7 +131,7 @@ class ValidateCustomerSummarySales extends Command
 
         foreach ($summaries as $customerId => $summary) {
             $customer = Customer::withoutGlobalScopes()->find($customerId);
-            $customerName = $customer ? $customer->name : '#' . $customerId;
+            $customerName = $customer ? $customer->name : '#'.$customerId;
 
             // Per-row date window — for current-month rows, cap at the
             // summary's as_of_date so live and stored cover the same days.
@@ -160,7 +161,7 @@ class ValidateCustomerSummarySales extends Command
                 $mismatchCount++;
             }
 
-            if (!$isMatch || $this->option('show-matches')) {
+            if (! $isMatch || $this->option('show-matches')) {
                 $rows[] = [
                     'id' => $customerId,
                     'name' => mb_strimwidth((string) $customerName, 0, 30, '…'),
@@ -174,7 +175,7 @@ class ValidateCustomerSummarySales extends Command
         }
 
         // ── Output ───────────────────────────────────────────────────────
-        if (!empty($rows)) {
+        if (! empty($rows)) {
             $this->table(
                 ['Customer ID', 'Name', 'Summary $', 'Live $', 'Diff (S - L) $', 'Locked', 'Status'],
                 $rows
@@ -196,15 +197,16 @@ class ValidateCustomerSummarySales extends Command
             $this->warn('Mismatch hint: positive diff = summary higher than live; negative = lower.');
             $this->line('Common causes after the cent-exact rewire (sales_cents now from vend_transactions):');
             $this->line('  - Aggregator hasn\'t been re-run since the change. Re-aggregate the affected months:');
-            $this->line('    php artisan customer-summary:compute --month=' . $monthStart->format('Y-m'));
+            $this->line('    php artisan customer-summary:compute --month='.$monthStart->format('Y-m'));
             $this->line('  - Live transactions cover a different date range (check period_end / as_of_date).');
             $this->line('  - New vend_transactions rows arrived AFTER the nightly aggregator ran — wait for the next');
             $this->line('    nightly recompute or re-run the command above for the affected month.');
             if (collect($rows)->contains(fn ($r) => ($r['locked'] ?? '-') === 'LOCKED' && $r['status'] === 'MISMATCH')) {
                 $this->newLine();
                 $this->warn('LOCKED rows drifted: reconcile:sales-rollups will NOT touch these. To fix, unlock the');
-                $this->line('  month, re-run customer-summary:compute --month=' . $monthStart->format('Y-m') . ', then re-lock.');
+                $this->line('  month, re-run customer-summary:compute --month='.$monthStart->format('Y-m').', then re-lock.');
             }
+
             return self::FAILURE;
         }
 
@@ -232,12 +234,12 @@ class ValidateCustomerSummarySales extends Command
             ->where('vend_transactions.customer_id', $customerId)
             ->where(function ($q) use ($startStr, $endStr) {
                 $q->whereBetween('vend_transactions.transaction_datetime', [$startStr, $endStr])
-                  ->orWhere(function ($or) use ($startStr, $endStr) {
-                      $or->whereNull('vend_transactions.transaction_datetime')
-                         ->whereBetween('vend_transactions.created_at', [$startStr, $endStr]);
-                  });
+                    ->orWhere(function ($or) use ($startStr, $endStr) {
+                        $or->whereNull('vend_transactions.transaction_datetime')
+                            ->whereBetween('vend_transactions.created_at', [$startStr, $endStr]);
+                    });
             })
-            ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             // Unified transactions: mirror CustomerSummaryAggregator — only SETTLED
             // rows count (no-op for legacy/non-gateway rows).
             ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
@@ -246,9 +248,9 @@ class ValidateCustomerSummarySales extends Command
                 // - error code 0 / 6 / NULL OR
                 // - is_multiple = true (treats all multi-purchase as success
                 //   at the txn level; per-item filtering happens elsewhere).
-                $q->whereIn('vend_channel_errors.code', [0, 6])
-                  ->orWhereNull('vend_channel_errors.code')
-                  ->orWhere('vend_transactions.is_multiple', true);
+                $q->whereIn('vend_channel_errors.code', DispenseVerdict::SALE_CODES)
+                    ->orWhereNull('vend_channel_errors.code')
+                    ->orWhere('vend_transactions.is_multiple', true);
             })
             ->sum('vend_transactions.amount');
 

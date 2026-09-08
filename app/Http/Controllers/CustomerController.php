@@ -26,6 +26,7 @@ use App\Services\MapService;
 use App\Services\PerformanceReportContentService;
 use App\Services\TagBindingService;
 use App\Services\VendPricingSourceService;
+use App\Support\DispenseVerdict;
 use App\Support\SiteSearch;
 use App\Traits\ExportOptimizationTrait;
 use App\Traits\HasFilter;
@@ -1527,7 +1528,7 @@ class CustomerController extends Controller
                     });
             })
             ->where(function ($q) {
-                $q->whereIn('vend_channel_errors.code', [0, 6])
+                $q->whereIn('vend_channel_errors.code', DispenseVerdict::SALE_CODES)
                     ->orWhereNull('vend_channel_errors.code')
                     ->orWhere('vend_transactions.is_multiple', true);
             })

@@ -2,11 +2,12 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Vend;
-use App\Models\VendTransaction;
 use App\Jobs\StoreVendsRecord;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
+use App\Models\Vend;
+use App\Models\VendTransaction;
 use App\Services\RunningNumberService;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Console\Command;
@@ -66,20 +67,20 @@ class ValidateFVMBackDate extends Command
     public function __construct()
     {
         parent::__construct();
-        $this->runningNumberService = new RunningNumberService();
+        $this->runningNumberService = new RunningNumberService;
     }
 
     public function handle(): int
     {
-        $apply          = (bool) $this->option('apply');
-        $vendFilter     = $this->option('vend') !== null ? (int) $this->option('vend') : null;
-        $periodFilter   = $this->option('period') !== null ? (int) $this->option('period') : null;
+        $apply = (bool) $this->option('apply');
+        $vendFilter = $this->option('vend') !== null ? (int) $this->option('vend') : null;
+        $periodFilter = $this->option('period') !== null ? (int) $this->option('period') : null;
         $includeCurrent = (bool) $this->option('include-current');
-        $tolerance      = (int) $this->option('tolerance'); // cents
+        $tolerance = (int) $this->option('tolerance'); // cents
 
         $currentPeriod = (int) Carbon::now()->format('ym'); // e.g. 2605
 
-        $rows          = [];
+        $rows = [];
         $monthsToApply = [];   // [vendCode => [period => expectedCents]]
         $affectedVends = [];   // vendCode => true
 
@@ -89,8 +90,9 @@ class ValidateFVMBackDate extends Command
             }
 
             $vend = Vend::where('code', $vendCode)->first();
-            if (!$vend) {
+            if (! $vend) {
                 $this->error("Vend code {$vendCode} not found — skipping.");
+
                 continue;
             }
 
@@ -114,20 +116,20 @@ class ValidateFVMBackDate extends Command
                     ->where('vt.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
                     ->where(function ($q) {
                         $q->whereNull('vt.vend_channel_error_id')
-                          ->orWhereIn('vce.code', [0, 6]);
+                            ->orWhereIn('vce.code', DispenseVerdict::SALE_CODES);
                     })
                     ->sum('vt.amount');
 
-                $diffCents  = $expectedCents - $actualCents;
-                $isCurrent  = (int) $period === $currentPeriod;
-                $isFuture   = (int) $period > $currentPeriod;
-                $inSync     = abs($diffCents) <= $tolerance;
+                $diffCents = $expectedCents - $actualCents;
+                $isCurrent = (int) $period === $currentPeriod;
+                $isFuture = (int) $period > $currentPeriod;
+                $inSync = abs($diffCents) <= $tolerance;
 
                 if ($inSync) {
                     $status = 'OK';
                 } elseif ($isFuture) {
                     $status = 'FUTURE (skip)';
-                } elseif ($isCurrent && !$includeCurrent) {
+                } elseif ($isCurrent && ! $includeCurrent) {
                     $status = 'CURRENT (skip)';
                 } else {
                     $status = 'MISMATCH';
@@ -140,7 +142,7 @@ class ValidateFVMBackDate extends Command
                     $period,
                     number_format($actualCents / 100, 2),
                     number_format($expectedCents / 100, 2),
-                    ($diffCents >= 0 ? '+' : '') . number_format($diffCents / 100, 2),
+                    ($diffCents >= 0 ? '+' : '').number_format($diffCents / 100, 2),
                     $status,
                 ];
             }
@@ -155,11 +157,13 @@ class ValidateFVMBackDate extends Command
 
         if ($mismatchCount === 0) {
             $this->info('All in-scope months are in sync. Nothing to do.');
+
             return self::SUCCESS;
         }
 
-        if (!$apply) {
+        if (! $apply) {
             $this->warn("{$mismatchCount} month(s) out of sync. Re-run with --apply to delete & recreate those months.");
+
             return self::SUCCESS;
         }
 
@@ -239,7 +243,7 @@ class ValidateFVMBackDate extends Command
             $cap = 1;
         }
 
-        $daily     = intdiv($totalCents, $cap);
+        $daily = intdiv($totalCents, $cap);
         $remainder = $totalCents % $cap;
 
         $created = 0;
@@ -249,39 +253,39 @@ class ValidateFVMBackDate extends Command
                 continue;
             }
 
-            $date = $monthStart->copy()->addDays($i)->format('Y-m-d') . ' 00:00:00';
+            $date = $monthStart->copy()->addDays($i)->format('Y-m-d').' 00:00:00';
 
             VendTransaction::create([
                 'transaction_datetime' => $date,
-                'amount'               => $amount,            // cents, cash only
-                'cashless_mfg'         => null,
-                'order_id'             => $this->runningNumberService->getVendOrderIDBasedOnDate($vend, $date),
-                'interface_type'       => null,
-                'is_multiple'          => 0,
-                'is_payment_received'  => 1,
-                'items_json'           => [],
-                'payment_method_id'    => 1,                  // 1 = cash
-                'vend_id'              => $vend->id,
-                'vend_channel_code'    => 0,
-                'vend_channel_id'      => 0,
+                'amount' => $amount,            // cents, cash only
+                'cashless_mfg' => null,
+                'order_id' => $this->runningNumberService->getVendOrderIDBasedOnDate($vend, $date),
+                'interface_type' => null,
+                'is_multiple' => 0,
+                'is_payment_received' => 1,
+                'items_json' => [],
+                'payment_method_id' => 1,                  // 1 = cash
+                'vend_id' => $vend->id,
+                'vend_channel_code' => 0,
+                'vend_channel_id' => 0,
                 'vend_channel_error_id' => null,
                 'vend_transaction_json' => null,
                 'payment_gateway_log_id' => null,
-                'product_id'           => null,
-                'customer_id'          => $vend->customer()->exists() ? $vend->customer->id : null,
-                'location_type_id'     => $vend->customer()->exists() && $vend->customer->locationType()->exists() ? $vend->customer->locationType->id : null,
-                'operator_id'          => $vend->customer()->exists() && $vend->customer->operator()->exists() ? $vend->customer->operator->id : 1,
-                'unit_cost_id'         => null,
-                'gst_vat_rate'         => $vend->customer()->exists() && $vend->customer->operator()->exists() ? $vend->customer->operator->gst_vat_rate : 0,
-                'meta_json'            => [
-                    'vend_code'       => $vend->code,
-                    'customer_code'   => $vend->customer()->exists() ? $vend->customer->id + 20000 : null,
-                    'customer_name'   => $vend->customer()->exists() ? $vend->customer->name : null,
-                    'vend_prefix_id'  => $vend->vendPrefix()->exists() ? $vend->vendPrefix->id : null,
+                'product_id' => null,
+                'customer_id' => $vend->customer()->exists() ? $vend->customer->id : null,
+                'location_type_id' => $vend->customer()->exists() && $vend->customer->locationType()->exists() ? $vend->customer->locationType->id : null,
+                'operator_id' => $vend->customer()->exists() && $vend->customer->operator()->exists() ? $vend->customer->operator->id : 1,
+                'unit_cost_id' => null,
+                'gst_vat_rate' => $vend->customer()->exists() && $vend->customer->operator()->exists() ? $vend->customer->operator->gst_vat_rate : 0,
+                'meta_json' => [
+                    'vend_code' => $vend->code,
+                    'customer_code' => $vend->customer()->exists() ? $vend->customer->id + 20000 : null,
+                    'customer_name' => $vend->customer()->exists() ? $vend->customer->name : null,
+                    'vend_prefix_id' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->id : null,
                     'vend_prefix_name' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->name : null,
-                    'backfill'        => 'validate:fvm-back-date',
+                    'backfill' => 'validate:fvm-back-date',
                 ],
-                'is_zero_amount'       => false,
+                'is_zero_amount' => false,
             ]);
 
             $created++;
@@ -293,8 +297,9 @@ class ValidateFVMBackDate extends Command
     /** First moment of a YYMM period in the app timezone. */
     protected function periodStart(int $period): Carbon
     {
-        $year  = 2000 + intdiv($period, 100);
+        $year = 2000 + intdiv($period, 100);
         $month = $period % 100;
+
         return Carbon::create($year, $month, 1, 0, 0, 0, config('app.timezone'));
     }
 
@@ -302,6 +307,7 @@ class ValidateFVMBackDate extends Command
     protected function periodRange(int $period): array
     {
         $start = $this->periodStart($period);
+
         return [$start->copy()->startOfMonth(), $start->copy()->endOfMonth()];
     }
 }

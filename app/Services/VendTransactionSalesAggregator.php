@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\VendTransaction;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -86,8 +87,8 @@ class VendTransactionSalesAggregator
                 ->selectRaw('SUM(COALESCE(vti.unit_price_amount, 0)) as total_amount');
         } else {
             $multiQuery
-                ->selectRaw('SUM(CASE WHEN vti.vend_channel_error_code IN (0, 6) OR vti.vend_channel_error_code IS NULL THEN 1 ELSE 0 END) as total_count')
-                ->selectRaw('SUM(CASE WHEN vti.vend_channel_error_code IN (0, 6) OR vti.vend_channel_error_code IS NULL THEN COALESCE(vti.unit_price_amount, 0) ELSE 0 END) as total_amount');
+                ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').' THEN 1 ELSE 0 END) as total_count')
+                ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').' THEN COALESCE(vti.unit_price_amount, 0) ELSE 0 END) as total_amount');
         }
 
         $multiQuery->groupBy('product_id');

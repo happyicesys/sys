@@ -306,7 +306,7 @@ class ProductScopedSales
             // item-level CASE exactly - `= 0` alone silently dropped code-6 and
             // NULL items that the completed-day rollup counts as sold.
             ->where(function ($q) {
-                $q->whereIn('vti.vend_channel_error_code', [0, 6])
+                $q->whereIn('vti.vend_channel_error_code', DispenseVerdict::SALE_CODES)
                     ->orWhereNull('vti.vend_channel_error_code');
             })
             ->where('vti.is_refunded', 0)
@@ -341,7 +341,7 @@ class ProductScopedSales
             ->where('vt.transaction_datetime', '>=', $todayStart)
             ->where('vt.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             ->where(function ($q) {
-                $q->whereNull('vt.vend_channel_error_id')->orWhereIn('vce.code', [0, 6]);
+                $q->whereNull('vt.vend_channel_error_id')->orWhereIn('vce.code', DispenseVerdict::SALE_CODES);
             })
             ->where('vt.is_refunded', 0)
             ->groupBy('vt.vend_id')

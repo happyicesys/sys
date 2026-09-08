@@ -3,6 +3,7 @@
 namespace App\Services\Reporting;
 
 use App\Models\VendTransaction;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -34,7 +35,7 @@ class DailyFactsBuilder
         $next = $day->copy()->addDay()->startOfDay()->toDateTimeString();
 
         $settled = VendTransaction::settledSql('vt');           // "vt.settlement_status = 2"
-        $success = '(e.code IN (0, 6) OR e.code IS NULL OR vt.is_multiple = 1)';
+        $success = '('.DispenseVerdict::sqlSale('e.code').' OR vt.is_multiple = 1)';
 
         DB::table('fact_sales_hourly')->where('date', $date)->delete();
 
@@ -79,7 +80,7 @@ class DailyFactsBuilder
 
         DB::table('fact_site_daily')->where('date', $date)->delete();
 
-        $sql = <<<SQL
+        $sql = <<<'SQL'
             INSERT INTO fact_site_daily
                 (date, customer_id, location_type_id, cohort, day_type_bucket,
                  sales_cents, gp_cents, txns, success_qty,
@@ -138,7 +139,7 @@ class DailyFactsBuilder
 
         DB::table('fact_rainfall_hourly')->where('date', $date)->delete();
 
-        $sql = <<<SQL
+        $sql = <<<'SQL'
             INSERT INTO fact_rainfall_hourly
                 (date, hour, weather_station_id, rainfall_mm, reading_count, computed_at)
             SELECT
@@ -195,7 +196,7 @@ class DailyFactsBuilder
             if (! isset($best[$bucket]) || $sales > $best[$bucket]['record_sales_cents']) {
                 $best[$bucket] = [
                     'record_sales_cents' => $sales,
-                    'record_date'        => Carbon::parse($r->d)->toDateString(),
+                    'record_date' => Carbon::parse($r->d)->toDateString(),
                 ];
             }
         }
@@ -214,11 +215,11 @@ class DailyFactsBuilder
         $payload = [];
         foreach ($best as $bucket => $b) {
             $payload[] = [
-                'day_type_bucket'    => $bucket,
+                'day_type_bucket' => $bucket,
                 'record_sales_cents' => $b['record_sales_cents'],
-                'record_date'        => $b['record_date'],
-                'driver_note'        => $holidayNames[$b['record_date']] ?? null,
-                'computed_at'        => $now,
+                'record_date' => $b['record_date'],
+                'driver_note' => $holidayNames[$b['record_date']] ?? null,
+                'computed_at' => $now,
             ];
         }
 

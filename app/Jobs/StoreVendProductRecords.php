@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\VendProductRecord;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -44,6 +45,7 @@ class StoreVendProductRecords implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $from;
+
     protected string $to;
 
     // Metric columns that should be summed when merging single + multi rows
@@ -65,14 +67,14 @@ class StoreVendProductRecords implements ShouldQueue
     public function __construct(string $from, string $to)
     {
         $this->from = $from;
-        $this->to   = $to;
+        $this->to = $to;
     }
 
     public function handle(): void
     {
         $timezone = config('app.timezone');
         $dateFrom = Carbon::parse($this->from)->setTimezone($timezone)->startOfDay();
-        $dateTo   = Carbon::parse($this->to)->setTimezone($timezone)->endOfDay();
+        $dateTo = Carbon::parse($this->to)->setTimezone($timezone)->endOfDay();
 
         // ── 1. Aggregate single transactions ──────────────────────────────────
         $singleRows = DB::table('vend_transactions as vt')
@@ -104,48 +106,43 @@ class StoreVendProductRecords implements ShouldQueue
                 DB::raw('YEAR(vt.transaction_datetime) as year'),
 
                 // Success: error is null OR code is 0/6
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
                               THEN vt.amount ELSE 0 END) as total_amount'),
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as total_count'),
                 DB::raw('SUM(COALESCE(vt.qty,1)) as all_total_count'),
 
                 // Failure: error is set AND code is NOT 0/6
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NOT NULL
-                                   AND (vce.code IS NULL OR vce.code NOT IN (0,6))
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as error_count'),
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NOT NULL
-                                   AND (vce.code IS NULL OR vce.code NOT IN (0,6))
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as failure_count'),
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NOT NULL
-                                   AND (vce.code IS NULL OR vce.code NOT IN (0,6))
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
                               THEN vt.amount ELSE 0 END) as failure_amount'),
 
                 // Revenue / GP (success only)
                 // COALESCE: vt.revenue / vt.gross_profit are nullable, so a group
                 // whose only success rows have NULL here makes SUM() return NULL ->
                 // insert into the NOT NULL revenue/gross_profit columns fails.
-                DB::raw('COALESCE(SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
+                DB::raw('COALESCE(SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
                               THEN vt.revenue ELSE 0 END), 0) as revenue'),
-                DB::raw('COALESCE(SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
+                DB::raw('COALESCE(SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').'
                               THEN vt.gross_profit ELSE 0 END), 0) as gross_profit'),
 
                 // Online channel (success)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND (vt.vend_channel_error_id IS NULL OR vce.code IN (0,6))
+                                   AND ('.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').')
                               THEN vt.amount ELSE 0 END) as online_success_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND (vt.vend_channel_error_id IS NULL OR vce.code IN (0,6))
+                                   AND ('.DispenseVerdict::sqlSaleById('vt.vend_channel_error_id', 'vce.code').')
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as online_success_count'),
 
                 // Online channel (failure)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND vt.vend_channel_error_id IS NOT NULL
-                                   AND (vce.code IS NULL OR vce.code NOT IN (0,6))
+                                   AND '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
                               THEN vt.amount ELSE 0 END) as online_failure_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND vt.vend_channel_error_id IS NOT NULL
-                                   AND (vce.code IS NULL OR vce.code NOT IN (0,6))
+                                   AND '.DispenseVerdict::sqlFaultById('vt.vend_channel_error_id', 'vce.code').'
                               THEN COALESCE(vt.qty,1) ELSE 0 END) as online_failure_count'),
             )
             ->groupBy('date', 'v.id', 'vt.customer_id', DB::raw('COALESCE(vt.product_id, vc.product_id)'))
@@ -179,40 +176,40 @@ class StoreVendProductRecords implements ShouldQueue
                 DB::raw('YEAR(vt.transaction_datetime) as year'),
 
                 // Item-level success: vti error code is 0/6 or null
-                DB::raw('SUM(CASE WHEN vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as total_amount'),
-                DB::raw('SUM(CASE WHEN vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
                               THEN 1 ELSE 0 END) as total_count'),
                 DB::raw('COUNT(vti.id) as all_total_count'),
 
                 // Item-level failure
-                DB::raw('SUM(CASE WHEN NOT (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                DB::raw('SUM(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN 1 ELSE 0 END) as error_count'),
-                DB::raw('SUM(CASE WHEN NOT (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                DB::raw('SUM(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN 1 ELSE 0 END) as failure_count'),
-                DB::raw('SUM(CASE WHEN NOT (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                DB::raw('SUM(CASE WHEN NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as failure_amount'),
 
                 // Revenue uses unit_price_amount; GP = price − cost (unit_cost stored in cents, same unit as unit_price_amount)
-                DB::raw('SUM(CASE WHEN vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as revenue'),
-                DB::raw('SUM(CASE WHEN vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL
+                DB::raw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').'
                               THEN COALESCE(vti.unit_price_amount,0) - COALESCE(vti.unit_cost,0) ELSE 0 END) as gross_profit'),
 
                 // Online channel (success)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                                   AND ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as online_success_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                                   AND ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN 1 ELSE 0 END) as online_success_count'),
 
                 // Online channel (failure)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND NOT (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                                   AND NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN COALESCE(vti.unit_price_amount,0) ELSE 0 END) as online_failure_amount'),
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL
-                                   AND NOT (vti.vend_channel_error_code IN (0,6) OR vti.vend_channel_error_code IS NULL)
+                                   AND NOT ('.DispenseVerdict::sqlSale('vti.vend_channel_error_code').')
                               THEN 1 ELSE 0 END) as online_failure_count'),
             )
             ->groupBy('date', 'v.id', 'vt.customer_id', DB::raw('COALESCE(vti.product_id, vc.product_id)'))
@@ -230,7 +227,7 @@ class StoreVendProductRecords implements ShouldQueue
 
             $key = "{$row->product_id}_{$row->vend_id}_{$row->customer_id}_{$row->date}";
 
-            if (!isset($merged[$key])) {
+            if (! isset($merged[$key])) {
                 $merged[$key] = (array) $row;
             } else {
                 foreach (self::METRIC_COLS as $col) {
@@ -281,7 +278,7 @@ class StoreVendProductRecords implements ShouldQueue
 
             foreach ($withSubCat as $pid => $row) {
                 if (isset($products[$pid])) {
-                    $products[$pid]->product_sub_category_id   = $row->product_sub_category_id;
+                    $products[$pid]->product_sub_category_id = $row->product_sub_category_id;
                     $products[$pid]->product_sub_category_name = $row->product_sub_category_name;
                 }
             }
@@ -290,24 +287,24 @@ class StoreVendProductRecords implements ShouldQueue
         // ── 5. Upsert into vend_product_records ───────────────────────────────
         foreach ($merged as $row) {
             $productId = $row['product_id'];
-            $product   = $products->get($productId);
+            $product = $products->get($productId);
 
             VendProductRecord::updateOrCreate(
                 [
-                    'vend_id'     => $row['vend_id'],
+                    'vend_id' => $row['vend_id'],
                     'customer_id' => $row['customer_id'],
-                    'product_id'  => $productId,
-                    'date'        => $row['date'],
+                    'product_id' => $productId,
+                    'date' => $row['date'],
                 ],
                 array_merge($row, [
                     // Denormalised product fields
-                    'product_code'              => $product?->product_code,
-                    'product_name'              => $product?->product_name,
-                    'category_id'               => $product?->category_id,
-                    'category_name'             => $product?->category_name,
-                    'category_group_id'         => $product?->category_group_id,
-                    'category_group_name'       => $product?->category_group_name,
-                    'product_sub_category_id'   => $product?->product_sub_category_id,
+                    'product_code' => $product?->product_code,
+                    'product_name' => $product?->product_name,
+                    'category_id' => $product?->category_id,
+                    'category_name' => $product?->category_name,
+                    'category_group_id' => $product?->category_group_id,
+                    'category_group_name' => $product?->category_group_name,
+                    'product_sub_category_id' => $product?->product_sub_category_id,
                     'product_sub_category_name' => $product?->product_sub_category_name,
                 ])
             );

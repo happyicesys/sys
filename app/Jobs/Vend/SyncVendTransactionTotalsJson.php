@@ -4,7 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Models\Customer;
 use App\Models\Vend;
-use App\Models\VendChannelErrorLog;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -14,11 +14,12 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 
-class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
+class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $timeout = 90;
 
     // Prevent duplicate jobs for same model for 3 minutes
@@ -27,14 +28,16 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
     public function uniqueId()
     {
         if ($this->model instanceof Vend) {
-            return 'vend_' . $this->model->id;
+            return 'vend_'.$this->model->id;
         } elseif ($this->model instanceof Customer) {
-            return 'customer_' . $this->model->id;
+            return 'customer_'.$this->model->id;
         }
+
         return 'unknown';
     }
 
     protected $model;
+
     /**
      * Create a new job instance.
      *
@@ -66,12 +69,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $todayTxns = $vend->daysVendTransactions(0, 0);
             $todayAmount = (int) $todayTxns->clone()->isSuccessful()->sum('amount');
             $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
-            $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw("
+            $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw('
                 CASE
                     WHEN vend_transactions.is_multiple = 1 THEN COALESCE(vend_transactions.qty, 0)
                     ELSE COALESCE(NULLIF(vend_transactions.qty, 0), 1)
                 END
-            "));
+            '));
             $todayErrorCount = $this->calculateErrorItemCount($todayTxns);
             $todayRevenue = (int) $todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int) $todayTxns->clone()->isSuccessful()->sum('gross_profit');
@@ -174,7 +177,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     'last_2_mth_amount' => $last2MthAmount,
                     'last_3_mth_amount' => $last3MthAmount,
                     'last_4_mth_amount' => $last4MthAmount,
-                ]
+                ],
             ]);
         }
 
@@ -182,12 +185,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $todayTxns = $customer->daysVendTransactions(0, 0);
             $todayAmount = (int) $todayTxns->clone()->isSuccessful()->sum('amount');
             $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
-            $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw("
+            $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw('
                 CASE
                     WHEN vend_transactions.is_multiple = 1 THEN COALESCE(vend_transactions.qty, 0)
                     ELSE COALESCE(NULLIF(vend_transactions.qty, 0), 1)
                 END
-            "));
+            '));
             $todayErrorCount = $this->calculateErrorItemCount($todayTxns);
             $todayRevenue = (int) $todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int) $todayTxns->clone()->isSuccessful()->sum('gross_profit');
@@ -288,7 +291,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     'last_2_mth_amount' => $last2MthAmount,
                     'last_3_mth_amount' => $last3MthAmount,
                     'last_4_mth_amount' => $last4MthAmount,
-                ]
+                ],
             ]);
         }
     }
@@ -311,7 +314,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                         WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0
                             THEN vend_transactions.success_qty
                         WHEN vend_transactions.vend_channel_error_id IS NULL
-                            OR vend_channel_errors.code IN (0, 6)
+                            OR vend_channel_errors.code IN ('.DispenseVerdict::saleList().')
                             OR vend_transactions.is_multiple = 1
                             THEN COALESCE(vend_transactions.qty, 0)
                         ELSE 0

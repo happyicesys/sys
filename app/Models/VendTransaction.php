@@ -6,6 +6,7 @@ use App\Models\Scopes\OperatorTransactionFilterScope;
 use App\Models\Scopes\OperatorUserTransactionFilterScope;
 use App\Models\Scopes\ProductAccessTransactionScope;
 use App\Models\Scopes\TransactionAccessScope;
+use App\Support\DispenseVerdict;
 use App\Support\SaleStatus;
 use App\Support\SiteSearch;
 use App\Traits\GetUserTimezone;
@@ -288,49 +289,49 @@ class VendTransaction extends Model
     {
         return [
             DB::raw('CAST(COUNT(CASE
-                WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                WHEN '.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true
                 THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
 
             DB::raw('COUNT(*) AS total_count'),
 
             DB::raw('ROUND(COALESCE(SUM(CASE
-                WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                WHEN '.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true
                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
 
             DB::raw('ROUND(COALESCE(SUM(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NULL
                     AND payment_methods.code = 0
                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cash_amount'),
 
             DB::raw('ROUND(COALESCE(SUM(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NULL
                     AND payment_methods.payment_gateway_id IS NULL
                     AND payment_methods.code > 0
                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cashless_terminal_amount'),
 
             DB::raw('ROUND(COALESCE(SUM(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NULL
                     AND payment_methods.payment_gateway_id IS NOT NULL
                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
 
             DB::raw('CAST(COUNT(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NULL
                     AND payment_methods.code = 0
                 THEN 1 ELSE NULL END) AS SIGNED) AS cash_count'),
 
             DB::raw('CAST(COUNT(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NULL
                     AND payment_methods.payment_gateway_id IS NULL
                     AND payment_methods.code > 0
                 THEN 1 ELSE NULL END) AS SIGNED) AS cashless_terminal_count'),
 
             DB::raw('CAST(COUNT(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NULL
                     AND payment_methods.payment_gateway_id IS NOT NULL
                 THEN 1 ELSE NULL END) AS SIGNED) AS qr_payment_count'),
@@ -338,16 +339,16 @@ class VendTransaction extends Model
             DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (4, 5)) THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
 
             DB::raw('CAST(SUM(CASE
-                WHEN is_multiple = 0 AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                WHEN is_multiple = 0 AND ('.DispenseVerdict::sqlSale('vend_channel_errors.code').')
                 THEN 1 ELSE 0 END) AS SIGNED) as success_single_qty'),
 
             DB::raw('CAST(COUNT(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NOT NULL
                 THEN 1 ELSE NULL END) AS SIGNED) AS delivery_platform_success_count'),
 
             DB::raw('ROUND(COALESCE(SUM(CASE
-                WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true)
                     AND delivery_platform_orders.id IS NOT NULL
                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS delivery_platform_success_amount'),
 
@@ -370,7 +371,7 @@ class VendTransaction extends Model
     {
         return [
             DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IS NULL OR vend_transaction_items.vend_channel_error_code NOT IN (4, 5)) THEN 1 END) as total_items'),
-            DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items'),
+            DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN ('.DispenseVerdict::saleList().') OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items'),
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\RefundTicket;
 use App\Models\RefundTicketItem;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 
 /**
@@ -386,9 +387,10 @@ class RefundMatchingService
      */
     public function isRealChannelError(?string $code): bool
     {
-        $c = trim((string) $code);
-
-        return $c !== '' && ltrim($c, '0') !== '';
+        // One rule with the aggregates: 0 and 6 are dispensed, 99 ("not found")
+        // is unknown — none of them is a genuine non-dispense a ticket can
+        // rely on. Brian, 2026-09-08.
+        return DispenseVerdict::isMachineFault(trim((string) $code));
     }
 
     /** @var array<int, \App\Models\VendChannelError|null> */

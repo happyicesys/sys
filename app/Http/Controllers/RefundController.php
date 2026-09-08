@@ -9,6 +9,7 @@ use App\Models\RefundTicketItem;
 use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
+use App\Support\DispenseVerdict;
 use App\Support\SiteSearch;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -1849,7 +1850,7 @@ class RefundController extends Controller
                 'payment_method' => $t->paymentMethod?->name,
                 'payment_status' => $paymentStatus,
                 'dispense_status' => $dispenseStatus,
-                'channel_error' => ($t->vendChannelError && $errCode !== null && ! in_array($errCode, [0, 6], true)) ? $t->vendChannelError->desc : null,
+                'channel_error' => ($t->vendChannelError && DispenseVerdict::isMachineFault($errCode)) ? $t->vendChannelError->desc : null,
                 'price_type' => ($t->vendChannel && (int) $t->amount === (int) $t->vendChannel->amount)
                     ? 'P1'
                     : (($t->vendChannel && (int) $t->amount === (int) $t->vendChannel->amount2) ? 'P2' : null),

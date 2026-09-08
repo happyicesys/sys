@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Operator;
 use App\Models\VendTransaction;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -33,9 +34,9 @@ class DebugTransactionIndexPerformance extends Command
     public function handle(): void
     {
         $operatorId = $this->option('operator');
-        $noCache    = $this->option('no-cache');
-        $perPage    = (int) $this->option('per-page') ?: 50;
-        $dateStr    = $this->option('date') ?: Carbon::today()->toDateString();
+        $noCache = $this->option('no-cache');
+        $perPage = (int) $this->option('per-page') ?: 50;
+        $dateStr = $this->option('date') ?: Carbon::today()->toDateString();
 
         // Resolve operator
         $operator = $operatorId
@@ -44,23 +45,24 @@ class DebugTransactionIndexPerformance extends Command
 
         if (! $operator) {
             $this->error('No operator found. Pass --operator=<id>');
+
             return;
         }
 
         // HIPL multi-operator expansion (mirrors transactionIndex logic)
         if ($operator->code === 'HIPL') {
             $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
-            $operatorIds  = Operator::whereIn('code', $relatedCodes)->pluck('id')->filter()->values()->toArray();
+            $operatorIds = Operator::whereIn('code', $relatedCodes)->pluck('id')->filter()->values()->toArray();
         } else {
             $operatorIds = [$operator->id];
         }
 
         $dateFrom = Carbon::parse($dateStr)->startOfDay();
-        $dateTo   = Carbon::parse($dateStr)->endOfDay();
+        $dateTo = Carbon::parse($dateStr)->endOfDay();
 
-        $this->info("Operator : {$operator->name} (#{$operator->id})" . ($operator->code === 'HIPL' ? ' [HIPL group: ' . implode(', ', $operatorIds) . ']' : ''));
+        $this->info("Operator : {$operator->name} (#{$operator->id})".($operator->code === 'HIPL' ? ' [HIPL group: '.implode(', ', $operatorIds).']' : ''));
         $this->info("Date     : {$dateFrom->toDateString()} (start of day → end of day)");
-        $this->info("Cache    : " . ($noCache ? 'BYPASSED' : 'enabled'));
+        $this->info('Cache    : '.($noCache ? 'BYPASSED' : 'enabled'));
         $this->info("PerPage  : {$perPage}");
         $this->newLine();
 
@@ -88,12 +90,14 @@ class DebugTransactionIndexPerformance extends Command
                 ->limit($perPage)
                 ->pluck('id')
                 ->all();
+
             return collect($pageIdsForBench);
         });
 
         $this->bench("Deferred join — step B: fetch {$perPage} rows with all joins (whereIn IDs)", function () use ($pageIdsForBench, &$rowCount) {
             if (empty($pageIdsForBench)) {
                 $rowCount = 0;
+
                 return collect();
             }
             $idList = implode(',', array_map('intval', $pageIdsForBench));
@@ -138,6 +142,7 @@ class DebugTransactionIndexPerformance extends Command
                 ->orderByRaw("FIELD(vend_transactions.id, {$idList})")
                 ->get();
             $rowCount = $rows->count();
+
             return $rows;
         });
         $this->line("  → {$rowCount} rows returned");
@@ -146,7 +151,7 @@ class DebugTransactionIndexPerformance extends Command
         // ── 3. Totals aggregation — whereNotIn testing vends (production pattern) ──
         // Eliminates INNER JOIN vends (was forcing scan of all matching rows × vends table).
         // Instead: pre-fetch testing vend IDs once, push as IN list → index probe per ID.
-        $testingVendIds = DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all();
+        $testingVendIds = DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all();
         $this->bench('Totals aggregation (whereNotIn testing vends, no vends JOIN)', function () use ($operatorIds, $dateFrom, $dateTo, $testingVendIds) {
             $q = VendTransaction::query()
                 ->whereIn('vend_transactions.operator_id', $operatorIds)
@@ -155,18 +160,19 @@ class DebugTransactionIndexPerformance extends Command
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id');
-            if (!empty($testingVendIds)) {
+            if (! empty($testingVendIds)) {
                 $q->whereNotIn('vend_transactions.vend_id', $testingVendIds);
             }
+
             return $q->select([
-                    DB::raw('CAST(COUNT(CASE WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
-                    DB::raw('COUNT(*) AS total_count'),
-                    DB::raw('ROUND(COALESCE(SUM(CASE WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
-                    DB::raw('ROUND(COALESCE(SUM(CASE WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.code = 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cash_amount'),
-                    DB::raw('ROUND(COALESCE(SUM(CASE WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NULL AND payment_methods.code > 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cashless_terminal_amount'),
-                    DB::raw('ROUND(COALESCE(SUM(CASE WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NOT NULL THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
-                    DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
-                ])
+                DB::raw('CAST(COUNT(CASE WHEN '.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+                DB::raw('COUNT(*) AS total_count'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN '.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.code = 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cash_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NULL AND payment_methods.code > 0 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cashless_terminal_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE WHEN ('.DispenseVerdict::sqlSale('vend_channel_errors.code').' OR is_multiple = true) AND delivery_platform_orders.id IS NULL AND payment_methods.payment_gateway_id IS NOT NULL THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
+            ])
                 ->first();
         });
 
@@ -178,13 +184,14 @@ class DebugTransactionIndexPerformance extends Command
                 ->where('vend_transactions.transaction_datetime', '>=', $dateFrom)
                 ->where('vend_transactions.transaction_datetime', '<=', $dateTo)
                 ->where('is_multiple', true);
-            if (!empty($testingVendIds)) {
+            if (! empty($testingVendIds)) {
                 $q->whereNotIn('vend_transactions.vend_id', $testingVendIds);
             }
+
             return $q->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
                 ->select([
                     DB::raw('COUNT(*) as total_items'),
-                    DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items')
+                    DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN ('.DispenseVerdict::saleList().') OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items'),
                 ])
                 ->first();
         });
@@ -234,7 +241,10 @@ class DebugTransactionIndexPerformance extends Command
             ->toArray();
 
         $this->bench("Eager-load vendTransactionItems for {$perPage} transactions", function () use ($txIds) {
-            if (empty($txIds)) return collect();
+            if (empty($txIds)) {
+                return collect();
+            }
+
             return DB::table('vend_transaction_items')
                 ->whereIn('vend_transaction_id', $txIds)
                 ->get();
@@ -243,7 +253,7 @@ class DebugTransactionIndexPerformance extends Command
         // ── 9. Metadata / dropdown caches ────────────────────────────────────
         $this->bench('Metadata dropdowns (categories, operators, payment_methods, etc.) — cached 24h', function () use ($noCache) {
             $keys = [
-                'categories_' . get_class(new \App\Models\Customer()),
+                'categories_'.get_class(new \App\Models\Customer),
                 'operator_options',
                 'payment_methods',
                 'vend_channel_errors',
@@ -254,9 +264,12 @@ class DebugTransactionIndexPerformance extends Command
                 'location_type_options',
             ];
             if ($noCache) {
-                foreach ($keys as $k) Cache::forget($k);
+                foreach ($keys as $k) {
+                    Cache::forget($k);
+                }
             }
-            return collect($keys)->map(fn($k) => Cache::get($k))->filter()->count();
+
+            return collect($keys)->map(fn ($k) => Cache::get($k))->filter()->count();
         });
     }
 
@@ -264,21 +277,21 @@ class DebugTransactionIndexPerformance extends Command
 
     private function bench(string $label, callable $fn): void
     {
-        $start  = microtime(true);
+        $start = microtime(true);
         $result = $fn();
-        $ms     = round((microtime(true) - $start) * 1000);
+        $ms = round((microtime(true) - $start) * 1000);
 
         $rows = match (true) {
             $result instanceof \Illuminate\Support\Collection => $result->count(),
-            is_array($result)                                 => count($result),
-            is_int($result)                                   => $result,
-            default                                           => '?',
+            is_array($result) => count($result),
+            is_int($result) => $result,
+            default => '?',
         };
 
         $icon = match (true) {
-            $ms < 1000  => '🟢',
-            $ms < 5000  => '🟡',
-            default     => '🔴',
+            $ms < 1000 => '🟢',
+            $ms < 5000 => '🟡',
+            default => '🔴',
         };
 
         $this->line("  {$label} ... {$icon} {$ms}ms ({$rows} rows)");

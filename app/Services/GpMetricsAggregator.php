@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\GpMetric;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
@@ -13,10 +14,6 @@ class GpMetricsAggregator
 {
     /**
      * Build a query that aggregates vend transaction data into the gp_metrics shape.
-     *
-     * @param  Carbon  $start
-     * @param  Carbon  $end
-     * @return Builder
      */
     public static function buildRawQuery(Carbon $start, Carbon $end): Builder
     {
@@ -40,7 +37,7 @@ class GpMetricsAggregator
         $singleAmountExpression = 'COALESCE(vend_transactions.amount, 0)';
         $singleRevenueExpression = 'COALESCE(vend_transactions.revenue, vend_transactions.amount, 0)';
         $singleUnitCostExpression = 'COALESCE(vend_transactions.unit_cost, 0)';
-        $singleGrossProfitExpression = '(' . $singleRevenueExpression . ' - ' . $singleUnitCostExpression . ')';
+        $singleGrossProfitExpression = '('.$singleRevenueExpression.' - '.$singleUnitCostExpression.')';
         $singleCountExpression = 'COALESCE(vend_transactions.qty, 1)';
 
         $single = DB::table('vend_transactions')
@@ -84,17 +81,17 @@ class GpMetricsAggregator
             ->selectRaw('COALESCE(vend_transactions.product_id, vend_channels.product_id) as product_id')
             ->selectRaw('0 as is_multiple')
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
-            ->selectRaw('SUM(' . $singleCountExpression . ') as sale_count')
+            ->selectRaw('SUM('.$singleCountExpression.') as sale_count')
             ->selectRaw('COUNT(*) as transaction_count')
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN {$singleCountExpression} ELSE 0 END) as success_count")
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (0, 6)) THEN {$singleCountExpression} ELSE 0 END) as error_count")
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (0, 4, 5, 6)) THEN {$singleCountExpression} ELSE 0 END) as error_count_no_4_5")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN {$singleCountExpression} ELSE 0 END) as success_count")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN {$singleCountExpression} ELSE 0 END) as error_count")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlFaultById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code', [4, 5])." THEN {$singleCountExpression} ELSE 0 END) as error_count_no_4_5")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND vend_channel_errors.code IN (4, 5) THEN {$singleCountExpression} ELSE 0 END) as error_count_4_5")
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN $singleAmountExpression ELSE 0 END) as amount_cents")
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN $singleAmountExpression ELSE 0 END) as txn_amount_cents")
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
-            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
-            ->selectRaw('SUM(' . $singleUnitCostExpression . ') as unit_cost_cents')
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN $singleAmountExpression ELSE 0 END) as amount_cents")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN $singleAmountExpression ELSE 0 END) as txn_amount_cents")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSaleById('vend_transactions.vend_channel_error_id', 'vend_channel_errors.code')." THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
+            ->selectRaw('SUM('.$singleUnitCostExpression.') as unit_cost_cents')
             ->groupBy([
                 DB::raw($transactionDateExpression),
                 'vend_transactions.operator_id',
@@ -134,12 +131,12 @@ class GpMetricsAggregator
             )
             ->groupBy('vti.vend_transaction_id');
 
-        $adjustedAmountExpr = "vend_transaction_items.unit_price_amount + (CASE
+        $adjustedAmountExpr = 'vend_transaction_items.unit_price_amount + (CASE
             WHEN vti_sum.zero_count > 0 AND vend_transaction_items.unit_price_amount = 0 THEN (vend_transactions.amount - vti_sum.item_sum) / vti_sum.zero_count
             WHEN vti_sum.zero_count = 0 THEN (vend_transactions.amount - vti_sum.item_sum) / vti_sum.total_count
-            ELSE 0 END)";
+            ELSE 0 END)';
 
-        $adjustedRevenueExpr = "COALESCE(vend_transactions.revenue, vend_transactions.amount, 0) / NULLIF(vti_sum.total_count, 0)";
+        $adjustedRevenueExpr = 'COALESCE(vend_transactions.revenue, vend_transactions.amount, 0) / NULLIF(vti_sum.total_count, 0)';
 
         // Per-(transaction, product) item count — used to attribute the full transaction amount
         // exactly once per transaction per product, regardless of how many items of that product
@@ -164,7 +161,7 @@ class GpMetricsAggregator
             ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
             ->leftJoinSub($productCountSub, 'pcs_count', function ($join) {
                 $join->on('pcs_count.vend_transaction_id', '=', 'vend_transactions.id')
-                     ->on('pcs_count.product_id', '=', DB::raw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id)'));
+                    ->on('pcs_count.product_id', '=', DB::raw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id)'));
             })
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
@@ -203,10 +200,10 @@ class GpMetricsAggregator
             // time) rather than joining vend_channel_errors via the FK, because some items have
             // the error code set without a resolved FK row — joining would silently treat those
             // failures as success. This matches StoreVendProductRecords' aggregation logic.
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IS NULL OR vend_transaction_items.vend_channel_error_code IN (0, 6) THEN 1 ELSE 0 END) as success_count")
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code NOT IN (0, 6) THEN 1 ELSE 0 END) as error_count")
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code NOT IN (0, 4, 5, 6) THEN 1 ELSE 0 END) as error_count_no_4_5")
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IN (4, 5) THEN 1 ELSE 0 END) as error_count_4_5")
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vend_transaction_items.vend_channel_error_code').' THEN 1 ELSE 0 END) as success_count')
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlFault('vend_transaction_items.vend_channel_error_code').' THEN 1 ELSE 0 END) as error_count')
+            ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlFault('vend_transaction_items.vend_channel_error_code', [4, 5]).' THEN 1 ELSE 0 END) as error_count_no_4_5')
+            ->selectRaw('SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IN (4, 5) THEN 1 ELSE 0 END) as error_count_4_5')
             ->selectRaw("SUM($adjustedAmountExpr) as amount_cents")
             // txn_amount_cents: full transaction amount counted exactly once per transaction per product.
             // Dividing vend_transactions.amount by the number of same-product items in each transaction,
@@ -278,10 +275,6 @@ class GpMetricsAggregator
      *
      * Returns the same column shape as buildRawQuery() so it can be used as a drop-in
      * replacement in baseVendTransactionMetricsQuery() for all-historical date ranges.
-     *
-     * @param  Carbon  $start
-     * @param  Carbon  $end
-     * @return Builder
      */
     public static function buildHistoricalQuery(Carbon $start, Carbon $end): Builder
     {
@@ -318,10 +311,6 @@ class GpMetricsAggregator
 
     /**
      * Persist metrics for a specific day into the gp_metrics table.
-     *
-     * @param  Carbon  $day
-     * @param  int     $chunkSize
-     * @return void
      */
     public static function persistDay(Carbon $day, int $chunkSize = 1000): void
     {
@@ -343,10 +332,11 @@ class GpMetricsAggregator
                     unset($data['txn_amount_cents']);
                     $data['created_at'] = $now;
                     $data['updated_at'] = $now;
+
                     return $data;
                 })->all();
 
-                if (!empty($payload)) {
+                if (! empty($payload)) {
                     self::insertWithRetry($payload, $dayStart->toDateString());
                 }
             });
@@ -363,9 +353,10 @@ class GpMetricsAggregator
         while (true) {
             try {
                 GpMetric::query()->insert($payload);
+
                 return;
             } catch (QueryException $exception) {
-                if (!self::isDeadlock($exception) || $attempt >= $maxAttempts) {
+                if (! self::isDeadlock($exception) || $attempt >= $maxAttempts) {
                     throw $exception;
                 }
 

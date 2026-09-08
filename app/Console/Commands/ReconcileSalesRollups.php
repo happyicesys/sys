@@ -9,6 +9,7 @@ use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\GpMetricsAggregator;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -118,6 +119,7 @@ class ReconcileSalesRollups extends Command
 
         if (empty($rows)) {
             $this->info('All days tally to vend_transactions. Nothing to heal.');
+
             return self::SUCCESS;
         }
 
@@ -126,6 +128,7 @@ class ReconcileSalesRollups extends Command
 
         if ($dryRun) {
             $this->line('Dry-run: no rebuilds dispatched. Re-run without --dry-run to heal.');
+
             return self::SUCCESS;
         }
 
@@ -197,8 +200,8 @@ class ReconcileSalesRollups extends Command
      */
     private function vendIdsTouchedOn(array $days)
     {
-        $min = min($days) . ' 00:00:00';
-        $max = max($days) . ' 23:59:59';
+        $min = min($days).' 00:00:00';
+        $max = max($days).' 23:59:59';
 
         return DB::table('vend_transactions')
             ->whereBetween('transaction_datetime', [$min, $max])
@@ -253,7 +256,7 @@ class ReconcileSalesRollups extends Command
             ->where(function ($q) {
                 $q->where('vt.is_multiple', true)
                     ->orWhereNull('vt.vend_channel_error_id')
-                    ->orWhereIn('vce.code', [0, 6]);
+                    ->orWhereIn('vce.code', DispenseVerdict::SALE_CODES);
             })
             ->groupBy(DB::raw('DATE(vt.transaction_datetime)'))
             ->selectRaw('DATE(vt.transaction_datetime) as d, SUM(vt.amount) as c')
@@ -296,7 +299,7 @@ class ReconcileSalesRollups extends Command
             ->where(function ($q) {
                 $q->where('vt.is_multiple', true)
                     ->orWhereNull('vt.vend_channel_error_id')
-                    ->orWhereIn('vce.code', [0, 6]);
+                    ->orWhereIn('vce.code', DispenseVerdict::SALE_CODES);
             })
             ->where(function ($q) use ($s, $e) {
                 $q->whereBetween('vt.transaction_datetime', [$s, $e])
@@ -345,6 +348,6 @@ class ReconcileSalesRollups extends Command
 
     private function signed(int $cents): string
     {
-        return ($cents >= 0 ? '+' : '') . number_format($cents / 100, 2);
+        return ($cents >= 0 ? '+' : '').number_format($cents / 100, 2);
     }
 }

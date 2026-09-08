@@ -23,6 +23,7 @@ use App\Models\VendProductRecord;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
 use App\Services\VendTransactionSalesAggregator;
+use App\Support\DispenseVerdict;
 use App\Support\IndexHint;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
@@ -462,7 +463,7 @@ class DashboardController extends Controller
             ->whereBetween('vend_transactions.transaction_datetime', [$todayStart, $todayEnd])
             ->where('vend_transactions.amount', '>', 0)
             ->where(function ($query) {
-                $query->whereIn('vend_channel_errors.code', [0, 6])
+                $query->whereIn('vend_channel_errors.code', DispenseVerdict::SALE_CODES)
                     ->orWhereNull('vend_channel_errors.code');
             })
             ->when($testingVendIds, fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))

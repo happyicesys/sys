@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerPeriodSummary;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
@@ -61,12 +62,19 @@ use Illuminate\Support\Facades\Log;
 class CustomerSummaryAggregator
 {
     public const CONTRACT_TYPE_FREE = 'F';
+
     public const CONTRACT_TYPE_SUBSIDIZED = 'S';
+
     public const CONTRACT_TYPE_RENTAL = 'R';
+
     public const CONTRACT_TYPE_UTILITY = 'U';
+
     public const CONTRACT_TYPE_RENTAL_UTILITY = 'R+U';
+
     public const CONTRACT_TYPE_PS = 'PS';
+
     public const CONTRACT_TYPE_PS_U = 'PS+U';
+
     public const CONTRACT_TYPE_PS_OR_U = 'PSORU';
 
     /**
@@ -261,12 +269,12 @@ class CustomerSummaryAggregator
     ): float {
         if ($isMachineSplit && $periodStart) {
             $segStart = Carbon::parse($periodStart)->startOfDay();
-            if (!$activeDate || Carbon::parse($activeDate)->startOfDay()->lt($segStart)) {
+            if (! $activeDate || Carbon::parse($activeDate)->startOfDay()->lt($segStart)) {
                 $activeDate = $segStart;
             }
-            if (!$isCurrentMonth && $periodEnd) {
+            if (! $isCurrentMonth && $periodEnd) {
                 $segRemovedExcl = Carbon::parse($periodEnd)->startOfDay()->addDay();
-                if (!$removedDate || Carbon::parse($removedDate)->startOfDay()->gt($segRemovedExcl)) {
+                if (! $removedDate || Carbon::parse($removedDate)->startOfDay()->gt($segRemovedExcl)) {
                     $removedDate = $segRemovedExcl;
                 }
             }
@@ -312,11 +320,12 @@ class CustomerSummaryAggregator
             if ($a['date']->eq($b['date'])) {
                 return ($a['open'] ? 0 : 1) <=> ($b['open'] ? 0 : 1);
             }
+
             return $a['date']->lt($b['date']) ? -1 : 1;
         });
         // Anchor a leading Active at begin_date so a leading Removed has an
         // interval to close.
-        if (empty($norm) || !$norm[0]['open']) {
+        if (empty($norm) || ! $norm[0]['open']) {
             $anchor = $beginDate ? Carbon::parse($beginDate)->startOfDay() : $mStart->copy();
             array_unshift($norm, ['date' => $anchor, 'open' => true]);
         }
@@ -348,6 +357,7 @@ class CustomerSummaryAggregator
                 $total += $effStart->diffInDays($effEnd) + 1;
             }
         }
+
         return $total;
     }
 
@@ -453,6 +463,7 @@ class CustomerSummaryAggregator
                 $segs[] = ['start' => $s, 'end' => $e, 'vend_id' => $points[$i]['vend']];
             }
         }
+
         return $segs;
     }
 
@@ -487,6 +498,7 @@ class CustomerSummaryAggregator
 
         // sales(excl-gst) * ps_term% * commission%
         $amount = $exclGstSalesCents * ($psTerm / 100.0) * ($commissionPercent / 100.0);
+
         return (int) round($amount);
     }
 
@@ -572,8 +584,7 @@ class CustomerSummaryAggregator
         // × commission%). Re-run the aggregator after deploy:
         //   php artisan customer-summary:compute --since-begin-date
         // so historical rows pick up the corrected (cent-exact) values.
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         $windowStart = $monthStart->copy()->startOfDay();
@@ -589,10 +600,10 @@ class CustomerSummaryAggregator
             ->whereNotNull('vend_transactions.customer_id')
             ->where(function ($q) use ($windowStart, $windowEnd) {
                 $q->whereBetween('vend_transactions.transaction_datetime', [$windowStart, $windowEnd])
-                  ->orWhere(function ($or) use ($windowStart, $windowEnd) {
-                      $or->whereNull('vend_transactions.transaction_datetime')
-                         ->whereBetween('vend_transactions.created_at', [$windowStart, $windowEnd]);
-                  });
+                    ->orWhere(function ($or) use ($windowStart, $windowEnd) {
+                        $or->whereNull('vend_transactions.transaction_datetime')
+                            ->whereBetween('vend_transactions.created_at', [$windowStart, $windowEnd]);
+                    });
             })
             ->where(function ($q) {
                 // Mirror the Transactions page success_amount filter exactly:
@@ -600,11 +611,11 @@ class CustomerSummaryAggregator
                 // - is_multiple = true (treats every multi-purchase txn as
                 //   success at the basket level; per-item filtering is a
                 //   separate concern).
-                $q->whereIn('vend_channel_errors.code', [0, 6])
-                  ->orWhereNull('vend_channel_errors.code')
-                  ->orWhere('vend_transactions.is_multiple', true);
+                $q->whereIn('vend_channel_errors.code', DispenseVerdict::SALE_CODES)
+                    ->orWhereNull('vend_channel_errors.code')
+                    ->orWhere('vend_transactions.is_multiple', true);
             })
-            ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             // Unified transactions: exclude in-flight (PENDING) and voided
             // (REFUNDED) gateway rows from billed sales. Legacy + non-gateway rows
             // are SETTLED (column default) → no change to existing invoices.
@@ -657,7 +668,7 @@ class CustomerSummaryAggregator
         $reactivatedIdSet = [];      // customer_id => true (ever re-activated)
         $reactivatedActiveSet = [];  // customer_id => true (>0 active days this month)
         $reIds = self::reactivatedCustomerIds();
-        if (!empty($reIds)) {
+        if (! empty($reIds)) {
             $reactivatedIdSet = array_flip($reIds);
             $begins = DB::table('customers')->whereIn('id', $reIds)->pluck('begin_date', 'id')->all();
             $logsByCustomer = [];
@@ -693,12 +704,12 @@ class CustomerSummaryAggregator
                         // null/<= period_end) so legacy un-seeded rows still appear.
                         $q->where(function ($q2) use ($endOfPeriod) {
                             $q2->whereNotNull('active_date')
-                               ->where('active_date', '<=', $endOfPeriod);
+                                ->where('active_date', '<=', $endOfPeriod);
                         })->orWhere(function ($q2) use ($endOfPeriod) {
                             $q2->whereNull('active_date')
-                               ->where(function ($q3) use ($endOfPeriod) {
-                                   $q3->whereNull('begin_date')->orWhere('begin_date', '<=', $endOfPeriod);
-                               });
+                                ->where(function ($q3) use ($endOfPeriod) {
+                                    $q3->whereNull('begin_date')->orWhere('begin_date', '<=', $endOfPeriod);
+                                });
                         });
                     })->where(function ($q) use ($monthStart) {
                         $q->whereNull('removed_date')->orWhere('removed_date', '>=', $monthStart);
@@ -706,7 +717,7 @@ class CustomerSummaryAggregator
                 });
                 // (b) … OR a re-activated site that was active this month per its
                 // status log (the pair may wrongly exclude it for prior months).
-                if (!empty($reactivatedActiveIds)) {
+                if (! empty($reactivatedActiveIds)) {
                     $outer->orWhereIn('customers.id', $reactivatedActiveIds);
                 }
             });
@@ -722,7 +733,7 @@ class CustomerSummaryAggregator
         // $forceSingleRow short-circuits this: a one-off backfill that wants
         // today's setup applied to every row treats no row as locked and
         // overwrites them all.
-        if ($forceSingleRow && !$respectLocked) {
+        if ($forceSingleRow && ! $respectLocked) {
             $lockedCustomerIds = [];
             $lockedCustomerIdSet = [];
         } else {
@@ -797,7 +808,7 @@ class CustomerSummaryAggregator
             $segmentCandidateSet = [];
             foreach ($inMonthChangeCustomerIds as $cid) {
                 // Locked rows are frozen; overridden months stay merged.
-                if (!isset($lockedCustomerIdSet[$cid]) && !isset($overriddenSet[$cid])) {
+                if (! isset($lockedCustomerIdSet[$cid]) && ! isset($overriddenSet[$cid])) {
                     $segmentCandidateSet[$cid] = true;
                 }
             }
@@ -805,7 +816,7 @@ class CustomerSummaryAggregator
             // Contract versions overlapping this month for the candidates only —
             // one batched query. Drives per-segment bounds + contract resolution.
             $candidateVersions = [];
-            if (!empty($segmentCandidateSet)) {
+            if (! empty($segmentCandidateSet)) {
                 $versionRows = DB::table('customer_contract_logs')
                     ->whereIn('customer_id', array_keys($segmentCandidateSet))
                     ->where('effective_from', '<=', $windowEndForChanges)
@@ -835,7 +846,7 @@ class CustomerSummaryAggregator
                 ->pluck('customer_id')
                 ->map(fn ($v) => (int) $v)
                 ->all();
-            if (!empty($machineBindCustomerIds)) {
+            if (! empty($machineBindCustomerIds)) {
                 $bindsByCustomer = [];
                 DB::table('customer_vend_bindings')
                     ->whereIn('customer_id', $machineBindCustomerIds)
@@ -922,7 +933,7 @@ class CustomerSummaryAggregator
                 if (isset($reactivatedIdSet[$customer->id])) {
                     // Defensive: a re-activated site with zero active days this
                     // month isn't billable here — skip (it shouldn't be in the set).
-                    if (!isset($reactivatedActiveSet[$customer->id])) {
+                    if (! isset($reactivatedActiveSet[$customer->id])) {
                         continue;
                     }
                     $monthDaysForRatio = (int) $monthStart->daysInMonth;
@@ -998,7 +1009,7 @@ class CustomerSummaryAggregator
                         \App\Models\Customer::STATUS_ACTIVE,
                         \App\Models\Customer::STATUS_REMOVED,
                     ], true);
-                if ($isEmptyRow && !$keepInWindowCurrentMonth) {
+                if ($isEmptyRow && ! $keepInWindowCurrentMonth) {
                     continue;
                 }
 
@@ -1020,7 +1031,7 @@ class CustomerSummaryAggregator
                     // ($respectLocked) must NOT lock the month down — a later
                     // "Set Upcoming Term" applied mid-month still needs to split
                     // it — so it leaves overridden as the existing value.
-                    'segmentation_overridden' => ($forceSingleRow && !$respectLocked)
+                    'segmentation_overridden' => ($forceSingleRow && ! $respectLocked)
                         ? true
                         : isset($overriddenSet[$customer->id]),
                     'as_of_date' => ($isCurrentMonth ? $asOf : $monthEndCalendar)->toDateString(),
@@ -1054,8 +1065,8 @@ class CustomerSummaryAggregator
         // single whole-month row. Keyed → flat list for the insert below.
         $finalPayloads = [];
         foreach ($payloads as $cid => $payload) {
-            $hasContract = isset($segmentCandidateSet[$cid]) && !empty($candidateVersions[$cid]);
-            $hasMachine = !empty($machineSegmentsByCustomer[$cid]);
+            $hasContract = isset($segmentCandidateSet[$cid]) && ! empty($candidateVersions[$cid]);
+            $hasMachine = ! empty($machineSegmentsByCustomer[$cid]);
             if ($hasContract || $hasMachine) {
                 $segments = self::buildMonthSegments(
                     $candidateVersions[$cid] ?? [],
@@ -1069,6 +1080,7 @@ class CustomerSummaryAggregator
                     ) as $segPayload) {
                         $finalPayloads[] = $segPayload;
                     }
+
                     continue;
                 }
             }
@@ -1081,8 +1093,9 @@ class CustomerSummaryAggregator
             // but leave locked rows intact.
             CustomerPeriodSummary::query()
                 ->where('year_month', $monthStart->toDateString())
-                ->when(!empty($lockedCustomerIds), fn ($q) => $q->whereNotIn('customer_id', $lockedCustomerIds))
+                ->when(! empty($lockedCustomerIds), fn ($q) => $q->whereNotIn('customer_id', $lockedCustomerIds))
                 ->delete();
+
             return 0;
         }
 
@@ -1091,7 +1104,7 @@ class CustomerSummaryAggregator
         DB::transaction(function () use ($payloads, $monthStart, $lockedCustomerIds) {
             CustomerPeriodSummary::query()
                 ->where('year_month', $monthStart->toDateString())
-                ->when(!empty($lockedCustomerIds), fn ($q) => $q->whereNotIn('customer_id', $lockedCustomerIds))
+                ->when(! empty($lockedCustomerIds), fn ($q) => $q->whereNotIn('customer_id', $lockedCustomerIds))
                 ->delete();
 
             foreach (array_chunk($payloads, 500) as $chunk) {
@@ -1164,6 +1177,7 @@ class CustomerSummaryAggregator
                     return $ms['vend_id'];
                 }
             }
+
             return null;
         };
 
@@ -1218,12 +1232,13 @@ class CustomerSummaryAggregator
         // collapses to one segment the caller keeps the single whole-month row.
         $merged = [];
         foreach ($segments as $seg) {
-            if (!empty($merged)) {
+            if (! empty($merged)) {
                 $lastIdx = count($merged) - 1;
                 if (self::contractVersionsEquivalent($merged[$lastIdx]['version'], $seg['version'])
                     && ($merged[$lastIdx]['vend_id'] === $seg['vend_id'])) {
                     // Extend the previous segment over this one (same deal + machine).
                     $merged[$lastIdx]['end'] = $seg['end'];
+
                     continue;
                 }
             }
@@ -1293,6 +1308,7 @@ class CustomerSummaryAggregator
                 $found = $v;
             }
         }
+
         return $found;
     }
 
@@ -1358,17 +1374,17 @@ class CustomerSummaryAggregator
                 ->where('vend_transactions.customer_id', $customerId)
                 ->where(function ($q) use ($wStart, $wEnd) {
                     $q->whereBetween('vend_transactions.transaction_datetime', [$wStart, $wEnd])
-                      ->orWhere(function ($or) use ($wStart, $wEnd) {
-                          $or->whereNull('vend_transactions.transaction_datetime')
-                             ->whereBetween('vend_transactions.created_at', [$wStart, $wEnd]);
-                      });
+                        ->orWhere(function ($or) use ($wStart, $wEnd) {
+                            $or->whereNull('vend_transactions.transaction_datetime')
+                                ->whereBetween('vend_transactions.created_at', [$wStart, $wEnd]);
+                        });
                 })
                 ->where(function ($q) {
-                    $q->whereIn('vend_channel_errors.code', [0, 6])
-                      ->orWhereNull('vend_channel_errors.code')
-                      ->orWhere('vend_transactions.is_multiple', true);
+                    $q->whereIn('vend_channel_errors.code', DispenseVerdict::SALE_CODES)
+                        ->orWhereNull('vend_channel_errors.code')
+                        ->orWhere('vend_transactions.is_multiple', true);
                 })
-                ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
                 ->sum('vend_transactions.amount'));
 
@@ -1487,6 +1503,7 @@ class CustomerSummaryAggregator
             $count = self::persistMonth($month, $yesterday);
             $persisted[$month->format('Y-m')] = $count;
         }
+
         return $persisted;
     }
 }

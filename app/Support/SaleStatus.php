@@ -78,7 +78,7 @@ final class SaleStatus
      * Channel error codes the machine reports for a clean drop. Same set the
      * sales aggregates use (VendTransaction::salesItemTotalsSelect and friends).
      */
-    public const DISPENSED_CODES = [0, 6];
+    public const DISPENSED_CODES = DispenseVerdict::DISPENSED_CODES;
 
     /** Money verdict — see the class docblock for which rail confirms what. */
     public static function payment(SaleFacts $sale): string
