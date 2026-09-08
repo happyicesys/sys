@@ -110,6 +110,35 @@ class SimcardUsageSyncTest extends TestCase
         $this->assertSame('Activated', Simcard::where('code', '1111')->first()->usage_status);
     }
 
+    public function test_package_endpoint_override_is_queried_per_telco(): void
+    {
+        $starhub = $this->voicePingTelco();
+        $singtel = Telco::create([
+            'name' => 'VP-Singtel 800MB',
+            'usage_provider' => 'voiceping',
+            'usage_endpoint' => 'https://usage.voiceping.com/api/singtel-sim-info',
+        ]);
+        Simcard::create(['code' => '1111', 'telco_id' => $starhub->id]);
+        Simcard::create(['code' => '2222', 'telco_id' => $singtel->id]);
+
+        Http::fake([
+            'usage.voiceping.com/api/singtel-sim-info*' => Http::response([
+                $this->entry('2222', [['status' => 'Activated', 'activeTime' => '20260901000000', 'expireTime' => '20261001000000', 'usedTotalData' => 2.00]]),
+            ]),
+            'usage.voiceping.com/api/sim-info*' => Http::response([
+                $this->entry('1111', [['status' => 'Activated', 'activeTime' => '20260901000000', 'expireTime' => '20261001000000', 'usedTotalData' => 1.00]]),
+            ]),
+        ]);
+
+        $this->artisan('simcards:sync-usage')->assertExitCode(0);
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/api/sim-info?') && $this->requestedSimNos($request) === ['1111']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/api/singtel-sim-info?') && $this->requestedSimNos($request) === ['2222']);
+        $this->assertSame(1.0, Simcard::where('code', '1111')->first()->usage_used_mb);
+        $this->assertSame(2.0, Simcard::where('code', '2222')->first()->usage_used_mb);
+    }
+
     public function test_rate_limit_logs_warning_and_leaves_snapshot_untouched(): void
     {
         $telco = $this->voicePingTelco();

@@ -19,6 +19,8 @@ class TelcoResource extends JsonResource
             'name' => $this->name,
             'desc' => $this->desc,
             'remarks' => $this->remarks,
+            'usage_provider' => $this->usage_provider,
+            'usage_endpoint' => $this->usage_endpoint,
         ];
     }
 }

@@ -84,6 +84,9 @@
                       Desc
                     </TableHead>
                     <TableHead>
+                      Usage API
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -97,6 +100,13 @@
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-left">
                         <span class="whitespace-pre-line">{{ telco.desc }}</span>
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-left">
+                        <template v-if="telco.usage_provider">
+                          <div>{{ usageProviderName(telco.usage_provider) }}</div>
+                          <div class="text-xs text-gray-500 break-all" v-if="telco.usage_endpoint">{{ telco.usage_endpoint }}</div>
+                        </template>
+                        <span class="text-gray-400" v-else>-</span>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -138,6 +148,7 @@
       :telco="telco"
       :type="type"
       :showModal="showModal"
+      :usageProviderOptions="usageProviderOptions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -161,6 +172,10 @@ import { useToast } from "vue-toastification";
 
 const props = defineProps({
   telcos: Object,
+  usageProviderOptions: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const filters = ref({
@@ -234,5 +249,10 @@ function sortTable(sortKey) {
 
 function onModalClose() {
   showModal.value = false
+}
+
+function usageProviderName(key) {
+  const option = props.usageProviderOptions.find(o => o.id === key)
+  return option ? option.name : key
 }
 </script>

@@ -8,9 +8,13 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Pulls live usage from every telco API (telcos.usage_provider → provider key)
- * and snapshots it onto simcards.usage_*. Shared across providers: adding a
- * telco API touches config + one provider class, never this layer.
+ * Pulls live usage from every telco API (telcos.usage_provider → provider key,
+ * telcos.usage_endpoint → optional per-package query link) and snapshots it
+ * onto simcards.usage_*. Shared across providers: adding a telco API touches
+ * config + one provider class, never this layer.
+ *
+ * Polling is per SimCard Package (telco), not per provider key, because two
+ * packages on the same provider class can sit behind different endpoints.
  *
  * Writes bypass Eloquent timestamps on purpose — the Index's "Updated By"
  * column reads simcards.updated_at as "when a human last edited this row", and
@@ -30,17 +34,18 @@ class SimcardUsageSyncService
     {
         $stats = ['providers' => 0, 'synced' => 0, 'missing' => 0, 'rate_limited' => 0, 'failed_chunks' => 0];
 
-        $keys = Telco::whereNotNull('usage_provider')
+        $telcos = Telco::whereNotNull('usage_provider')
             ->when($onlyProvider, fn ($query) => $query->where('usage_provider', $onlyProvider))
-            ->distinct()
-            ->pluck('usage_provider');
+            ->orderBy('id')
+            ->get();
 
-        foreach ($keys as $key) {
+        foreach ($telcos as $telco) {
             $stats['providers']++;
-            $provider = $this->factory->make($key);
+            $provider = $this->factory->makeForTelco($telco);
+            $key = $telco->usage_provider;
 
             $simcards = Simcard::where('is_active', 1)
-                ->whereHas('telco', fn ($query) => $query->where('usage_provider', $key))
+                ->where('telco_id', $telco->id)
                 ->get(['id', 'code', 'usage_status', 'usage_active_at', 'usage_expire_at', 'usage_used_mb', 'usage_synced_at'])
                 ->keyBy('code');
 
@@ -52,6 +57,7 @@ class SimcardUsageSyncService
                     // remaining chunks; the untouched rows keep their last snapshot.
                     Log::warning('simcards:sync-usage rate limited', [
                         'provider' => $key,
+                        'telco' => $telco->name,
                         'sims_total' => $simcards->count(),
                         'error' => $e->getMessage(),
                     ]);
@@ -61,6 +67,7 @@ class SimcardUsageSyncService
                 } catch (Throwable $e) {
                     Log::error('simcards:sync-usage chunk failed', [
                         'provider' => $key,
+                        'telco' => $telco->name,
                         'sims' => $chunk->count(),
                         'error' => $e->getMessage(),
                     ]);

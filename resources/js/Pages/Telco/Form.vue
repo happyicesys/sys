@@ -27,6 +27,39 @@
                 Desc
               </FormTextarea>
             </div>
+            <!-- Usage API: which provider simcards:sync-usage polls for this
+                 package's Status column. Blank = no live status. -->
+            <div class="sm:col-span-6">
+              <label class="block text-sm font-medium text-gray-700">
+                Usage API
+              </label>
+              <MultiSelect
+                v-model="form.usage_provider"
+                :options="usageProviderOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="None (no live status)"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.usage_provider">
+                {{ form.errors.usage_provider }}
+              </div>
+            </div>
+            <div class="sm:col-span-6" v-if="form.usage_provider">
+              <FormInput
+                v-model="form.usage_endpoint"
+                :error="form.errors.usage_endpoint"
+                :placeholderStr="selectedProviderEndpoint"
+              >
+                API query link
+              </FormInput>
+              <p class="mt-1 text-xs text-gray-500">
+                Leave blank to use the provider default ({{ selectedProviderEndpoint }}).
+              </p>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -59,15 +92,20 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
   telco: Object,
   type: String,
   showModal: Boolean,
+  usageProviderOptions: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['modalClose'])
@@ -77,14 +115,21 @@ const form = ref(
 )
 const toast = useToast()
 
+const selectedProviderEndpoint = computed(() => {
+  const option = props.usageProviderOptions.find(o => o.id === form.value.usage_provider)
+  return option ? option.endpoint : ''
+})
+
 onMounted(() => {
-  form.value = props.telco ? useForm(props.telco) : useForm(getDefaultForm())
+  form.value = props.telco ? useForm({ ...getDefaultForm(), ...props.telco }) : useForm(getDefaultForm())
 })
 
 function getDefaultForm() {
   return {
     name: '',
     desc: '',
+    usage_provider: null,
+    usage_endpoint: '',
   }
 }
 
