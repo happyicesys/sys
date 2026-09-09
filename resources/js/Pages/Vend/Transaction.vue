@@ -939,12 +939,13 @@
                                         + (vendTransaction.auto_refund_source_label ? ' — ' + vendTransaction.auto_refund_source_label : '')
                                         + (vendTransaction.refund_reference ? ' — ' + vendTransaction.refund_reference : '')"
                                 />
-                                <!-- "NA in NETS": failed card sale with no line in the NETS report on a
-                                     terminal that voids by itself — made good without a reversal line. -->
-                                <span v-if="vendTransaction.auto_refund_source === 'settlement_report_not_captured'"
-                                    class="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                                <!-- Why the money came back, for the sources where the tick alone
+                                     does not say it (autoRefundBadges). Full wording in the tooltip. -->
+                                <span v-if="autoRefundBadges[vendTransaction.auto_refund_source]"
+                                    class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="autoRefundBadges[vendTransaction.auto_refund_source].class"
                                     :title="vendTransaction.auto_refund_source_label">
-                                    NA in NETS
+                                    {{ autoRefundBadges[vendTransaction.auto_refund_source].text }}
                                 </span>
                             </div>
                         </TableData>
@@ -1163,6 +1164,16 @@ const refundStatusLabels = {
     completed: 'Completed',
 }
 const refundStatusLabel = (s) => refundStatusLabels[s] || s
+
+// Badge under the Auto-refunded tick, keyed on vend_transactions.auto_refund_source
+// (App\Support\AutoRefundSource). Only the settlement-report sources carry one: on a
+// card sale the tick alone does not say whether NETS returned the money (a reversal
+// line) or never took it (the terminal voided before batch). Gateway refunds keep
+// just the tick and its tooltip — the rail is already obvious from Payment Status.
+const autoRefundBadges = {
+    settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
+    settlement_report_not_captured: { text: 'NA in NETS', class: 'bg-amber-100 text-amber-800' },
+}
 // Payment Status / Dispense Status cell colour. Labels come from
 // App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed
 // red, Re-vended amber (blank = unconfirmed payment, or no TRADE for dispense).
