@@ -382,10 +382,16 @@ function actionBadge(l) {
                         : 'Automatically linked to the exact sales transaction behind this claim — the transaction details and validation were filled in by the system, so it is more trustworthy.'">
                     {{ isManualClaim ? '✍ Manual claim' : '🔗 Auto-matched' }}
                 </span>
+                <!-- The hover names WHICH refund was recorded (a NETS reversal, a sale
+                     NETS never captured, an Omise refund…), because "already refunded"
+                     alone does not tell the reviewer what evidence sits behind it. The
+                     badge itself stays the frozen validation verdict. -->
                 <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="alreadyRefunded ? badgeBad : badgeGood"
-                    :title="alreadyRefunded
+                    :title="(alreadyRefunded
                         ? 'A refund has already been recorded against this transaction. Check carefully before paying again — proceeding may create a DOUBLE refund.'
-                        : 'No prior refund was found for this transaction, so there is no double-refund risk. Safe to proceed on this check.'">
+                        : 'No prior refund was found for this transaction, so there is no double-refund risk. Safe to proceed on this check.')
+                        + (t.auto_refund_source_label ? ' Recorded as: ' + t.auto_refund_source_label + '.' : '')
+                        + (t.na_in_nets && !t.auto_refund_source_label ? ' The NETS report has no line for this failed vend, but its terminal is not one that voids by itself — nothing is claimed about the money.' : '')">
                     {{ alreadyRefunded ? '↩ Already refunded' : '✓ Not yet refunded' }}
                 </span>
                 <span v-if="t.is_auto_refund_channel" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="badgeGood"
@@ -472,16 +478,19 @@ function actionBadge(l) {
                             <!-- The bound terminal's "Will auto refund?" flag (Data Management → Card
                                  Terminal): Yes = wait for day-final, refund only if Captured; No = the
                                  customer stays charged, refund now. -->
-                            <div v-if="t.nets_report.terminal" class="text-[10px] text-gray-500 mt-0.5"
+                            <div v-if="t.nets_report.terminal" class="mt-1 text-[10px] text-gray-500"
                                 :title="'Terminal ' + t.nets_report.terminal.terminal_id + (t.nets_report.terminal.batch ? ' · ' + t.nets_report.terminal.batch : '')">
-                                Terminal auto-refunds:
-                                <span :class="{
-                                    'text-green-700 font-semibold': t.nets_report.terminal.will_auto_refund === true,
-                                    'text-red-700 font-semibold': t.nets_report.terminal.will_auto_refund === false,
-                                }">{{ t.nets_report.terminal.will_auto_refund === true ? 'Yes' : (t.nets_report.terminal.will_auto_refund === false ? 'No' : 'Unknown') }}</span>
-                                <span v-if="t.nets_report.terminal.batch"> ({{ t.nets_report.terminal.batch }})</span>
-                                <span v-if="t.nets_report.terminal.will_auto_refund === false"> — refund now, do not wait for the report</span>
-                                <span v-else-if="t.nets_report.terminal.will_auto_refund === true"> — wait for day-final; refund only if Captured</span>
+                                <span class="font-mono">{{ t.nets_report.terminal.terminal_id }}</span>
+                                <span v-if="t.nets_report.terminal.batch"> · {{ t.nets_report.terminal.batch }}</span>
+                                <!-- Same badge as Sales Transactions and the machine list: this
+                                     terminal voids a failed single vend by itself. -->
+                                <span v-if="t.nets_report.terminal.will_auto_refund === true"
+                                    class="ml-1 inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
+                                    title="This terminal voids a failed single-item sale before batch upload — wait for the day to go final and refund only if the report says Captured.">Will refund</span>
+                                <span v-else-if="t.nets_report.terminal.will_auto_refund === false" class="ml-1 text-red-700 font-semibold">
+                                    No auto refund — refund now, do not wait for the report
+                                </span>
+                                <span v-else class="ml-1">Auto-refund flag unknown for this terminal</span>
                             </div>
                         </dd>
                     </div>
