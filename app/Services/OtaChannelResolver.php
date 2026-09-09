@@ -189,10 +189,10 @@ class OtaChannelResolver
      * TOUCHSCREEN build. Same applicationId and same signer means every on-device
      * gate passes and it installs in place.
      *
-     * Live as of 2026-08-06: 222 active ZC-83A boards, `vending` publishes v308 at
-     * rollout 1000, `vending_small` has no release yet. None of those 222 has ever
-     * checked in, so this is latent rather than live — it arms the day the first
-     * small build carrying an OTA client is installed.
+     * Was latent when written (2026-08-06: 222 active ZC-83A boards, no
+     * `vending_small` release, none of them ever checked in). It is LIVE now —
+     * as of 2026-09-09 `vending` publishes 303 and `vending_small` publishes 13,
+     * both at rollout 1000, with 4 ZC-83A boards on v13 and 1 on v12.
      *
      * Deliberately narrow, and it can only ever WITHHOLD a build, never offer a new
      * one: it applies solely when the device's own reported board family is claimed

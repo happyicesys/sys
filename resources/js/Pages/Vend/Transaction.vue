@@ -853,7 +853,15 @@
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.payment_method_name }}<span v-if="vendTransaction.cashless_mfg"> ({{ vendTransaction.cashless_mfg }})</span>
+                            <!-- The bracket names the terminal's SUPPLIER when we know it
+                                 (card_terminal_units → Card Terminal Company), not the board's
+                                 own cashless_mfg, which reads "Nets" for every NETS-family
+                                 reader — Auresys included, and Auresys is the one the NETS
+                                 report only partly covers. -->
+                            {{ vendTransaction.payment_method_name }}<span v-if="vendTransaction.card_terminal_company || vendTransaction.cashless_mfg"
+                                :title="vendTransaction.card_terminal_company && vendTransaction.cashless_mfg && vendTransaction.card_terminal_company !== vendTransaction.cashless_mfg
+                                    ? 'Card terminal supplier: ' + vendTransaction.card_terminal_company + '. The machine reports only \'' + vendTransaction.cashless_mfg + '\' for the whole NETS family.'
+                                    : null"> ({{ vendTransaction.card_terminal_company || vendTransaction.cashless_mfg }})</span>
                             <!-- The terminal that took this money voids a failed single-item sale
                                  by itself (Data Management → Card Terminal). Shown ONLY for a Yes
                                  terminal: a No or unknown one is the ordinary case and the badge

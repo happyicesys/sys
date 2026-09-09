@@ -256,9 +256,13 @@ class TransactionIndexStatusColumnsTest extends TestCase
         $card = PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
         $cash = PaymentMethod::create(['code' => 0, 'name' => 'Cash', 'is_active' => true]);
         $nets = DB::table('card_terminals')->insertGetId(['name' => 'Nets', 'created_at' => now(), 'updated_at' => now()]);
-        foreach ([['TID-YES', 1], ['TID-NO', 0]] as [$tid, $flag]) {
+        // TID-NO is an AURESYS unit. Every NETS-family reader reports cashless_mfg
+        // "Nets", so the supplier has to travel on the row or the cell mislabels
+        // the terminal whose sales the report only partly carries.
+        $auresys = DB::table('card_terminals')->insertGetId(['name' => 'Nets-Auresys', 'created_at' => now(), 'updated_at' => now()]);
+        foreach ([['TID-YES', 1, $nets], ['TID-NO', 0, $auresys]] as [$tid, $flag, $companyId]) {
             DB::table('card_terminal_units')->insert([
-                'terminal_id' => $tid, 'card_terminal_id' => $nets, 'batch' => 'Nets #3 (50x)',
+                'terminal_id' => $tid, 'card_terminal_id' => $companyId, 'batch' => 'Nets #3 (50x)',
                 'is_will_auto_refund' => $flag, 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -284,13 +288,16 @@ class TransactionIndexStatusColumnsTest extends TestCase
         $this->assertTrue($rows['CARD-TODAY']['card_terminal_will_auto_refund']);
         $this->assertSame('TID-YES', $rows['CARD-TODAY']['card_terminal_unit_id']);
         $this->assertSame('Nets #3 (50x)', $rows['CARD-TODAY']['card_terminal_batch']);
+        $this->assertSame('Nets', $rows['CARD-TODAY']['card_terminal_company']);
 
         $this->assertFalse($rows['CARD-YESTERDAY']['card_terminal_will_auto_refund'], 'the terminal fitted that day, not today\'s');
         $this->assertSame('TID-NO', $rows['CARD-YESTERDAY']['card_terminal_unit_id']);
+        $this->assertSame('Nets-Auresys', $rows['CARD-YESTERDAY']['card_terminal_company'], 'the supplier, which cashless_mfg cannot tell you');
 
         // Not a card sale: no terminal, no badge.
         $this->assertNull($rows['CASH-TODAY']['card_terminal_will_auto_refund']);
         $this->assertNull($rows['CASH-TODAY']['card_terminal_unit_id']);
+        $this->assertNull($rows['CASH-TODAY']['card_terminal_company']);
     }
 
     /**

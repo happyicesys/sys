@@ -155,9 +155,13 @@ class RefundShowNetsReportVerdictTest extends TestCase
     public function test_the_list_row_carries_the_terminal_flag_effective_on_the_sale_date()
     {
         $nets = \App\Models\CardTerminal::create(['name' => 'Nets']);
-        foreach ([['TID-YES', 1], ['TID-NO', 0]] as [$tid, $flag]) {
+        // The older terminal is an AURESYS unit. The sale's own cashless_mfg says
+        // "Nets" either way (the board cannot tell them apart), so the row has to
+        // carry the supplier separately or the screen mislabels it.
+        $auresys = \App\Models\CardTerminal::create(['name' => 'Nets-Auresys']);
+        foreach ([['TID-YES', 1, $nets->id], ['TID-NO', 0, $auresys->id]] as [$tid, $flag, $companyId]) {
             \App\Models\CardTerminalUnit::create([
-                'terminal_id' => $tid, 'card_terminal_id' => $nets->id, 'batch' => 'Nets #3 (50x)', 'is_will_auto_refund' => $flag,
+                'terminal_id' => $tid, 'card_terminal_id' => $companyId, 'batch' => 'Nets #3 (50x)', 'is_will_auto_refund' => $flag,
             ]);
         }
         CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => 'TID-NO', 'vend_id' => self::VEND_ID,
@@ -176,8 +180,10 @@ class RefundShowNetsReportVerdictTest extends TestCase
         $this->assertTrue($rows[$onYes->id]['card_terminal_will_auto_refund']);
         $this->assertSame('TID-YES', $rows[$onYes->id]['card_terminal_unit_id']);
         $this->assertSame('Nets #3 (50x)', $rows[$onYes->id]['card_terminal_batch']);
+        $this->assertSame('Nets', $rows[$onYes->id]['card_terminal_company']);
         $this->assertFalse($rows[$onNo->id]['card_terminal_will_auto_refund'], 'the terminal fitted that day');
         $this->assertSame('TID-NO', $rows[$onNo->id]['card_terminal_unit_id']);
+        $this->assertSame('Nets-Auresys', $rows[$onNo->id]['card_terminal_company'], 'the supplier, not the board\'s "Nets"');
     }
 
     public function test_card_sale_with_a_reversal_line_reads_reversed_with_a_report_link()

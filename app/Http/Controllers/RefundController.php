@@ -1434,6 +1434,7 @@ class RefundController extends Controller
             'card_terminal_unit_id' => $txn->card_terminal_unit_id ?? null,
             'card_terminal_batch' => $txn->card_terminal_batch ?? null,
             'card_terminal_will_auto_refund' => $txn->card_terminal_will_auto_refund ?? null,
+            'card_terminal_company' => $txn->card_terminal_company ?? null,
             // 'server' | 'admin' | 'customer' | null — see AutoRefundSource::trigger().
             'auto_refund_trigger' => \App\Support\AutoRefundSource::trigger($txn->auto_refund_source ?? null),
             // "NA in NETS": both files that could carry this failed single vend are
@@ -1667,8 +1668,9 @@ class RefundController extends Controller
             ->get(['vend_id', 'terminal_id', 'bound_from', 'bound_until'])
             ->groupBy('vend_id');
         $units = \App\Models\CardTerminalUnit::query()
+            ->with('company:id,name')
             ->whereIn('terminal_id', $bindings->flatten()->pluck('terminal_id')->unique())
-            ->get(['terminal_id', 'batch', 'is_will_auto_refund'])
+            ->get(['terminal_id', 'card_terminal_id', 'batch', 'is_will_auto_refund'])
             ->keyBy('terminal_id');
 
         foreach ($cardSales as $txn) {
@@ -1681,6 +1683,13 @@ class RefundController extends Controller
             $txn->card_terminal_unit_id = $unit?->terminal_id;
             $txn->card_terminal_batch = $unit?->batch;
             $txn->card_terminal_will_auto_refund = $unit?->willAutoRefund();
+            // The SUPPLIER of that terminal (card_terminals.name): Nets,
+            // Nets-Auresys, Nayax… The machine's board reports only "Nets" in
+            // cashless_mfg for every NETS-family reader, so an Auresys terminal
+            // read as plain "Nets" on screen while the reconciler treated it as
+            // partially covered — the two disagreed with no way to see it
+            // (Brian, 2026-09-09).
+            $txn->card_terminal_company = $unit?->company?->name;
         }
     }
 

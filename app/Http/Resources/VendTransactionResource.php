@@ -80,6 +80,9 @@ class VendTransactionResource extends JsonResource
             'card_terminal_unit_id' => $this->card_terminal_unit_id ?? null,
             'card_terminal_batch' => $this->card_terminal_batch ?? null,
             'card_terminal_will_auto_refund' => $this->card_terminal_will_auto_refund ?? null,
+            // Supplier of that terminal (Nets / Nets-Auresys / Nayax…). The
+            // machine's own cashless_mfg says only "Nets" for the whole family.
+            'card_terminal_company' => $this->card_terminal_company ?? null,
             // The settlement report's own verdict on this sale, persisted once
             // the day is final (reversed / captured / not_captured / uncovered /
             // unbound; null until then).

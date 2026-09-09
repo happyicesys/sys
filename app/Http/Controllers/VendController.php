@@ -3901,8 +3901,9 @@ class VendController extends Controller
                 ->orderBy('id')
                 ->get(['vend_id', 'terminal_id', 'bound_from', 'bound_until']);
             $units = CardTerminalUnit::query()
+                ->with('company:id,name')
                 ->whereIn('terminal_id', $bindings->pluck('terminal_id')->unique())
-                ->get(['terminal_id', 'batch', 'is_will_auto_refund'])
+                ->get(['terminal_id', 'card_terminal_id', 'batch', 'is_will_auto_refund'])
                 ->keyBy('terminal_id');
             $bindingsByVend = $bindings->groupBy('vend_id');
 
@@ -3916,6 +3917,11 @@ class VendController extends Controller
                 $record->card_terminal_unit_id = $unit?->terminal_id;
                 $record->card_terminal_batch = $unit?->batch;
                 $record->card_terminal_will_auto_refund = $unit?->willAutoRefund();
+                // The terminal's SUPPLIER, which cashless_mfg cannot tell you: the
+                // board reports "Nets" for every NETS-family reader, Auresys
+                // included, and Auresys is the one the settlement report only
+                // partly covers.
+                $record->card_terminal_company = $unit?->company?->name;
             }
         }
 

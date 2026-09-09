@@ -494,6 +494,7 @@ function actionBadge(l) {
                             <div v-if="t.nets_report.terminal" class="mt-1 text-[10px] text-gray-500"
                                 :title="'Terminal ' + t.nets_report.terminal.terminal_id + (t.nets_report.terminal.batch ? ' · ' + t.nets_report.terminal.batch : '')">
                                 <span class="font-mono">{{ t.nets_report.terminal.terminal_id }}</span>
+                                <span v-if="t.card_terminal_company"> · {{ t.card_terminal_company }}</span>
                                 <span v-if="t.nets_report.terminal.batch"> · {{ t.nets_report.terminal.batch }}</span>
                                 <!-- Same badge as Sales Transactions and the machine list: the
                                      supplier's workbook says this terminal model voids a failed

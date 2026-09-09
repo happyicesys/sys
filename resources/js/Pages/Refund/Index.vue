@@ -752,7 +752,14 @@ const sortedRows = computed(() => {
                                     <span v-for="(part, i) in manualPayMethodLines(t.manual_pay_method)" :key="i" class="block">{{ part }}{{ i < manualPayMethodLines(t.manual_pay_method).length - 1 ? ' /' : '' }}</span>
                                 </span>
                                 <template v-else>—</template>
-                                <span v-if="t.matched && t.pay_provider" class="block text-gray-500">({{ t.pay_provider }})</span>
+                                <!-- The terminal's SUPPLIER when a binding gives us one, because the
+                                     machine's own cashless_mfg reads "Nets" for every NETS-family
+                                     reader, Auresys included — and Auresys is exactly the one whose
+                                     sales are only partly in the report. -->
+                                <span v-if="t.matched && (t.card_terminal_company || t.pay_provider)" class="block text-gray-500"
+                                    v-tooltip="t.card_terminal_company && t.pay_provider && t.card_terminal_company !== t.pay_provider
+                                        ? 'Card terminal supplier: ' + t.card_terminal_company + '. The machine reports only \'' + t.pay_provider + '\' for the whole NETS family.'
+                                        : ''">({{ t.card_terminal_company || t.pay_provider }})</span>
                                 <!-- Own line, under the provider: the terminal that took this money
                                      voids a failed single vend by itself, so the report may already
                                      have made the customer whole. Flagged terminals only. -->

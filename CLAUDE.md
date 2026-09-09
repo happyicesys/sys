@@ -424,6 +424,17 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   **effective on that line's transaction date** — rewriting the row would
   re-point last month's report at this month's machine. One open-ended binding
   per terminal, always; two make matching pick a machine arbitrarily.
+- **`cashless_mfg` is NOT the supplier.** The board reports `"Nets"` for every
+  NETS-family reader, Auresys included, so a Nets-Auresys terminal (28 units,
+  21 machines) read as plain "Nets" on Sales Transactions and Refund Request
+  while the reconciler treated it as partially covered — the label and the
+  verdict disagreed with nothing on screen to explain it (Brian, 2026-09-09).
+  Both grids now put the bound unit's COMPANY in that bracket
+  (`card_terminal_company`, from `attachTerminalFlags()` in `RefundController`
+  and `VendController::transactionIndex`), falling back to `cashless_mfg` when
+  no binding covers the sale's date; the hover names both when they differ.
+  The Pay Method **filter** still travels on `cashless_mfg` (request id
+  `cc:<terminal>`) — that is a request contract, do not repoint it.
 - **`provider` is derived from the company**, via
   `config('card_settlement.company_provider')` (`CardTerminalUnit::settlementProvider()`).
   Nets **and** Nets-Auresys both resolve to `'nets'` — Auresys terminals appear
