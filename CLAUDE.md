@@ -174,7 +174,14 @@ been returned, and always together with `auto_refund_source`
   (`config('card_settlement.report_coverage_gap_companies')`) → `uncovered`,
   never ticked from a missing line; unbound machine → untouched. The verdict
   is persisted in `vend_transactions.card_settlement_state` (reversed at
-  once; the rest once the day is final). A tick is only CLEARED once the day
+  once; the rest once the day is final). **The "NA in NETS" badge on Sales
+  Transactions states the REPORT FACT, not the refund**: it shows for any
+  failed single vend whose state is `not_captured`, flagged terminal or not
+  (`VendTransactionResource.na_in_nets`, from
+  `CardSettlementRefundReconciler::isVoidableShape()`), while the auto-refund
+  tick beside it is claimed only on a Yes terminal — a missing line is
+  evidence, never a deduction that the money came back (Brian, 2026-09-09).
+  A tick is only CLEARED once the day
   is final (files D and D+1 both synced — a late capture or reversal can sit
   in the next day's file); a reversal sets it as soon as its report is synced.
   Every clear also releases the ticket the tick had crossed
