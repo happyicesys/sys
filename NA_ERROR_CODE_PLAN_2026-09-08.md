@@ -1032,3 +1032,15 @@ Not built (deferred, documented): liabilities tab / Transactions-grid filter on
 `card_settlement_state`; Machine Setting/Edit read-only flag line; weekly
 `classify-auto-refund` statistics refresh (the seed is authoritative, so the
 tooltip shows the workbook's numbers for now).
+
+## Incident found during the Part 2 deploy (2026-09-09)
+
+`SyncVendTransactionTotalsJson::calculateErrorItemCount` had failed on every run
+since 2026-09-09 00:20 (322 failed jobs): the Phase 1 rewrite put
+`'.DispenseVerdict::sqlFault(…).'` inside a DOUBLE-quoted SQL string, so the PHP
+call was never concatenated and MySQL saw the literal text. Neither the full
+suite (the job's test is skipped in CI) nor the regex guard could see it. Fixed
+in 2e5eced0e1 ({$var} interpolation) with a token-level guard test
+(`test_no_dispense_verdict_call_left_literal_inside_a_double_quoted_string`)
+that scans every double-quoted / heredoc segment in app/. Failed jobs retried
+after deploy so every machine's totals JSON is current again.
