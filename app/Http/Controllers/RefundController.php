@@ -1910,7 +1910,14 @@ class RefundController extends Controller
             return [];
         }
 
-        return $q->orderByDesc('transaction_datetime')->get()->map(function ($t) use ($ticket) {
+        $related = $q->orderByDesc('transaction_datetime')->get();
+        // Same terminal facts as the list row and the Sales Transactions grid:
+        // which TID took this money, its supplier, and whether that model voids a
+        // failed single vend by itself. Effective-dated, so a swapped terminal
+        // never relabels an old sale.
+        $this->attachTerminalFlags($related);
+
+        return $related->map(function ($t) use ($ticket) {
             $date = $t->transaction_datetime;
             // Link to Sales Transactions filtered by THIS machine on the same day
             // as the transaction (codes = vend_code + that day's window), so the
@@ -1941,6 +1948,13 @@ class RefundController extends Controller
                 'site' => $site !== '' ? $site : null,
                 'operator_code' => $t->operator?->code,
                 'payment_method' => $t->paymentMethod?->name,
+                // The terminal's SUPPLIER, not the board's cashless_mfg (which
+                // reads "Nets" for the whole NETS family), plus its "Will refund"
+                // flag on its own line under the method.
+                'card_terminal_unit_id' => $t->card_terminal_unit_id ?? null,
+                'card_terminal_batch' => $t->card_terminal_batch ?? null,
+                'card_terminal_company' => $t->card_terminal_company ?? null,
+                'card_terminal_will_auto_refund' => $t->card_terminal_will_auto_refund ?? null,
                 'payment_status' => $paymentStatus,
                 'dispense_status' => $dispenseStatus,
                 'channel_error' => ($t->vendChannelError && DispenseVerdict::isMachineFault($errCode)) ? $t->vendChannelError->desc : null,

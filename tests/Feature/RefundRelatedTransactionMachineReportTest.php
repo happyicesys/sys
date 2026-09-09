@@ -200,4 +200,44 @@ class RefundRelatedTransactionMachineReportTest extends TestCase
         $this->assertNull($rows[0]['gateway_dispense_ack'], 'Non-gateway rows have no dispense ack to show.');
         $this->assertSame(5, $rows[0]['dispensed_qty']);
     }
+
+    /**
+     * The panel names the terminal that took the money the same way the list and
+     * the grid do: its SUPPLIER (the board's cashless_mfg says "Nets" for every
+     * NETS-family reader) and its "Will refund" flag, both effective-dated
+     * (Brian, 2026-09-09).
+     */
+    public function test_the_panel_carries_the_bound_terminals_supplier_and_flag()
+    {
+        $card = \App\Models\PaymentMethod::firstOrCreate(['code' => 1], ['name' => 'Card Terminal', 'is_active' => true]);
+        $auresys = \App\Models\CardTerminal::create(['name' => 'Nets-Auresys']);
+        \App\Models\CardTerminalUnit::create([
+            'terminal_id' => 'TID-AUR', 'card_terminal_id' => $auresys->id,
+            'batch' => 'Nets #2 (30x)', 'is_will_auto_refund' => 1,
+        ]);
+        \App\Models\CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'TID-AUR', 'vend_id' => self::VEND_ID, 'bound_from' => '2026-08-01',
+        ]);
+
+        VendTransaction::create([
+            'order_id' => 'ORD-TERMINAL-PANEL',
+            'vend_id' => self::VEND_ID,
+            'transaction_datetime' => Carbon::parse('2026-09-02 13:54:19'),
+            'amount' => 170,
+            'qty' => 1,
+            'success_qty' => 0,
+            'dispensed_qty' => 1,
+            'vend_channel_id' => 0,
+            'gst_vat_rate' => 0,
+            'payment_method_id' => $card->id,
+            'cashless_mfg' => 'Nets',
+        ]);
+
+        $row = $this->relatedFor('ORD-TERMINAL-PANEL')[0];
+
+        $this->assertSame('TID-AUR', $row['card_terminal_unit_id']);
+        $this->assertSame('Nets-Auresys', $row['card_terminal_company'], 'the supplier, not the board\'s "Nets"');
+        $this->assertSame('Nets #2 (30x)', $row['card_terminal_batch']);
+        $this->assertTrue($row['card_terminal_will_auto_refund']);
+    }
 }

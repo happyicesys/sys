@@ -409,12 +409,14 @@ function actionBadge(l) {
                 </span>
                 <span v-if="t.is_auto_refund_channel" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="badgeGood"
                     title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
-                <!-- WHY the money is recorded as already returned, and separately what the
-                     NETS report itself shows: no line in either file that could carry this
-                     failed vend, so the charge was voided before batch upload. -->
+                <!-- WHY the money is recorded as already returned, and separately what
+                     the NETS report itself shows. On an "NA in NETS" refund the two are
+                     the SAME sentence — the source IS the report finding — so the report
+                     badge stands down rather than printing it twice (Brian, 2026-09-09). -->
                 <span v-if="t.auto_refund_source_label" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-gray-100 text-gray-700"
                     :title="t.auto_refund_source_label">{{ autoRefundSourceShort }}</span>
-                <span v-if="netsReportBadge(t)" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help"
+                <span v-if="netsReportBadge(t) && netsReportBadge(t).text !== autoRefundSourceShort"
+                    class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help"
                     :class="netsReportBadge(t).class"
                     :title="netsReportBadge(t).tip">{{ netsReportBadge(t).text }}</span>
             </div>
@@ -671,7 +673,17 @@ function actionBadge(l) {
                 <div class="flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b border-gray-200 px-4 py-2.5">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-lg font-bold text-gray-900 tracking-tight">${{ r.amount }}</span>
-                        <span class="text-xs text-gray-500">{{ r.payment_method || '—' }}</span>
+                        <!-- Method, then the terminal's supplier in brackets, then the
+                             "Will refund" flag on its OWN line under it (Brian,
+                             2026-09-09) — same three facts as the Refund Request list. -->
+                        <div class="flex flex-col">
+                            <span class="text-xs text-gray-500">{{ r.payment_method || '—' }}<span v-if="r.card_terminal_company"> ({{ r.card_terminal_company }})</span></span>
+                            <span v-if="r.card_terminal_will_auto_refund === true"
+                                class="mt-0.5 self-start inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800 cursor-help"
+                                :title="'The supplier\'s list says terminal ' + r.card_terminal_unit_id
+                                    + (r.card_terminal_batch ? ' · ' + r.card_terminal_batch : '')
+                                    + ' voids a failed single-item sale before batch upload. Either way, the NETS report decides.'">Will refund</span>
+                        </div>
                         <!-- Payment and dispense are separate facts (App\Support\SaleStatus):
                              Paid / Refunded is about the money, Dispensed / Failed is the
                              machine's verdict. -->
