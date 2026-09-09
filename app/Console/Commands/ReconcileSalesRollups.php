@@ -203,15 +203,9 @@ class ReconcileSalesRollups extends Command
             return self::SUCCESS;
         }
 
-        // The tail closure captures only the date: the registry is resolved in the
-        // worker, so the job payload stays a few bytes and a failed rebuild keeps
-        // its day for the next night.
-        app(RollupRebuilder::class)->dispatchDays(
-            $days,
-            $queue,
-            $chunk,
-            fn (string $d) => fn () => app(DirtyDayRegistry::class)->clear($d),
-        );
+        // ClearDirtyDay is the chain's tail, so a day leaves the set only once its
+        // rebuilds succeeded and a failed heal keeps its date for the next night.
+        app(RollupRebuilder::class)->dispatchDays($days, $queue, $chunk, clearDirtyDay: true);
 
         $this->info(sprintf('Dispatched chained rebuilds for %d dirty day(s) on queue:%s; each day is cleared when its chain completes.', count($days), $queue));
 

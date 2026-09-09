@@ -3,6 +3,7 @@
 namespace App\Services\Sales;
 
 use App\Jobs\ProcessGpMetricsDay;
+use App\Jobs\Sales\ClearDirtyDay;
 use App\Jobs\StoreVendProductRecords;
 use App\Jobs\StoreVendsRecord;
 use Illuminate\Support\Facades\Bus;
@@ -17,8 +18,9 @@ use Illuminate\Support\Facades\Bus;
  *
  * Chained, not fanned out: the three write different tables but all read the
  * same day, `vend_records` has no unique key of its own, and a chain also lets
- * the caller hang a tail on completion (the dirty-day clear) that only runs if
- * the rebuild actually succeeded.
+ * the caller hang a tail on completion (ClearDirtyDay) that only runs if the
+ * rebuild actually succeeded. That tail is a JOB, never a queued closure — see
+ * the note on ClearDirtyDay for what closures did here in production.
  */
 class RollupRebuilder
 {
@@ -28,18 +30,18 @@ class RollupRebuilder
 
     /**
      * @param  string[]  $days  Y-m-d
-     * @param  ?callable  $afterEach  tail appended to each day's chain; must be serialisable
-     *                                (capture the date string, never a service instance)
+     * @param  bool  $clearDirtyDay  append ClearDirtyDay, so a day leaves the dirty
+     *                               set only once its rebuilds actually succeeded
      * @return int days dispatched
      */
-    public function dispatchDays(array $days, string $queue = self::DEFAULT_QUEUE, int $chunk = self::DEFAULT_CHUNK, ?callable $afterEach = null): int
+    public function dispatchDays(array $days, string $queue = self::DEFAULT_QUEUE, int $chunk = self::DEFAULT_CHUNK, bool $clearDirtyDay = false): int
     {
         $days = array_values(array_unique(array_filter($days)));
 
         foreach ($days as $day) {
             $chain = $this->jobsFor($day, $chunk);
-            if ($afterEach) {
-                $chain[] = $afterEach($day);
+            if ($clearDirtyDay) {
+                $chain[] = new ClearDirtyDay($day);
             }
             Bus::chain($chain)->onQueue($queue)->dispatch();
         }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProcessGpMetricsDay;
+use App\Jobs\Sales\ClearDirtyDay;
 use App\Jobs\StoreVendProductRecords;
 use App\Jobs\StoreVendsRecord;
 use App\Models\Operator;
@@ -12,7 +13,6 @@ use App\Services\Sales\DirtyDayRegistry;
 use App\Services\Sales\LateTradeTracker;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Queue\CallQueuedClosure;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
@@ -112,7 +112,7 @@ class DirtyDaysReconcileTest extends TestCase
             ->expectsOutputToContain('Dirty days (2): 2026-08-20, 2026-09-01')
             ->assertSuccessful();
 
-        Bus::assertChained([StoreVendsRecord::class, ProcessGpMetricsDay::class, StoreVendProductRecords::class, CallQueuedClosure::class]);
+        Bus::assertChained([StoreVendsRecord::class, ProcessGpMetricsDay::class, StoreVendProductRecords::class, ClearDirtyDay::class]);
         Bus::assertDispatchedTimes(StoreVendsRecord::class, 2);
         // The command itself clears nothing: the chain's tail does, once the rebuild succeeded.
         $this->assertSame(['2026-08-20', '2026-09-01'], $r->days());
@@ -123,10 +123,22 @@ class DirtyDaysReconcileTest extends TestCase
         $r = $this->registry();
         $r->mark('2026-08-20');
 
-        // Run the tail exactly as the chain would, via the queued-closure job.
-        CallQueuedClosure::create(fn () => app(DirtyDayRegistry::class)->clear('2026-08-20'))->handle(app());
+        // Run the tail exactly as the worker would. It is a JOB, not a queued
+        // closure: the closure form was `fn ($d) => fn () => …clear($d)`, two
+        // arrow functions on one line, and laravel/serializable-closure rebuilt
+        // the OUTER one, so every tail died in the worker with "Unable to resolve
+        // dependency [Parameter #0 [ <required> string $d ]]" while the rebuilds
+        // themselves succeeded — the dirty set never drained (prod, 2026-09-09).
+        (new ClearDirtyDay('2026-08-20'))->handle($r);
 
         $this->assertSame([], $r->days());
+    }
+
+    public function test_the_tail_job_carries_only_the_date_so_it_always_unserialises(): void
+    {
+        $job = unserialize(serialize(new ClearDirtyDay('2026-08-20')));
+
+        $this->assertSame('2026-08-20', $job->day);
     }
 
     public function test_dry_run_dispatches_nothing_and_keeps_the_days(): void
