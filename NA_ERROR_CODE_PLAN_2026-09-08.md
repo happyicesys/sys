@@ -990,22 +990,30 @@ Both directions are handled together in Part 2:
    `card_settlement_state` (moved forward from Part 3) records `not_captured`
    once the day is final. **A failed single-item card sale with no line is
    ticked auto-refunded ("NA in NETS", source `settlement_report_not_captured`)
-   ONLY when the bound terminal's `is_will_auto_refund = 1`** — seeded from the
-   partner's v3 workbook (`database/data/card_terminal_auto_refund_seed_2026-09-08.csv`:
-   243 yes / 57 no / 25 unknown; batches Nets #3–#7 yes, #1–#2 no, Auresys
-   unknown). Reason: a Visa/MasterCard failure never leaves a reversal line in
-   any NETS file — the terminal voiding before capture is the only way that
-   customer is made whole, so "no line" on a voiding terminal IS the refund
-   signal. "No" terminals → the sale goes to a verify list, never a tick;
-   Auresys → state `uncovered`. The Excel flag is authoritative (`seed` /
-   `manual`); the weekly classify command only refreshes stats and reports
-   contradictions. Dispensed sales with no line keep their revenue and are
-   listed (decision 1, default kept).
+   on any bound, fully covered terminal.** Reason: a Visa/MasterCard failure
+   never leaves a reversal line in any NETS file — the terminal voiding before
+   capture is the only way that customer is made whole, so "no line in either
+   file that could carry the sale" IS the refund signal.
+
+   **Revised 2026-09-09 (same day, Brian): the terminal's
+   `is_will_auto_refund` no longer gates the tick.** It did for the first
+   build — seeded from the partner's v3 workbook
+   (`database/data/card_terminal_auto_refund_seed_2026-09-08.csv`: 243 yes /
+   57 no / 25 unknown; batches Nets #3–#7 yes, #1–#2 no, Auresys unknown) —
+   but the flag describes the terminal MODEL while a missing line is direct
+   evidence about THIS sale, so a No / Unknown terminal is ticked too. The flag
+   stays authoritative for itself (`seed` / `manual`, the weekly classify
+   command only refreshes stats) and is shown as the "Will refund" badge on
+   Sales Transactions, the Operation Dashboard and both Refund Request
+   screens. Auresys → state `uncovered`, still never ticked: there the report
+   carries only part of the terminal's sales, so a missing line proves nothing.
+   Dispensed sales with no line keep their revenue and are listed (decision 1,
+   default kept).
 
 Order: migration (`card_settlement_row_id`, `card_settlement_state`, terminal
 flag columns) → seed import → matcher hygiene + second wider pass → orphan
-creation/adoption → state writer with the gated tick → Card Terminal Index
-column + liabilities tab.
+creation/adoption → state writer with the shape-gated tick → Card Terminal
+Index column + liabilities tab.
 
 ## Build log — Part 2 (2026-09-09)
 
@@ -1016,10 +1024,10 @@ column + liabilities tab.
 | Shared rail factory | `App\Services\Sales\PreCreatedSaleFactory` (`vendAttributes`, `meta`, `money`, `operatorGstRate`, `fromSettlementLine`); `GatewayVendTransactionService` now builds through it — behaviour preserved except an unmapped basket takes the operator's GST rate (Part 4 item 9) |
 | Direction 1: line, no TRADE | `CardSettlementOrphanSales::createForReport()` at Sync (before the stamp), `release()` on Assign / Ignore; `card-settlement:create-orphan-sales` seed; `card-settlement:orphans-audit` weekly Monday 03:30 → `logs/card-settlement-orphans.log` |
 | Adoption | `VendTransactionService::findSettlementOrphan()` (same vend, same cents, −300/+60 s around the resolved frame time, row-locked), synthetic order id overwritten |
-| Direction 2: TRADE, no line | `CardSettlementRefundReconciler` classifies EVERY card sale of the day, persists `card_settlement_state` (reversed at once, rest when final), new state `uncovered`; **"NA in NETS" tick** (`AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED`) only for a failed single-item sale on a terminal with `is_will_auto_refund = 1`; a reversed orphan is set REFUNDED (Part 4 item 2 for rail rows); `card-settlement:reconcile-refunds` table widened |
+| Direction 2: TRADE, no line | `CardSettlementRefundReconciler` classifies EVERY card sale of the day, persists `card_settlement_state` (reversed at once, rest when final), new state `uncovered`; **"NA in NETS" tick** (`AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED`) for a failed single-item sale on any bound, fully covered terminal (the `is_will_auto_refund` gate was dropped the same day — see above); a reversed orphan is set REFUNDED (Part 4 item 2 for rail rows); `card-settlement:reconcile-refunds` table widened |
 | Terminal flag | `card-settlement:import-terminal-flags <csv> --apply [--create-missing]` (seed authoritative, manual kept); Card Terminal Index: Batch + Will auto refund? columns (tick / cross / ?), filter, sort, export columns; Edit form: Auto / Yes / No |
 | Matcher hygiene | candidates = Card Terminal method only; second pass `match_wide_window_seconds` (1800) unique both ways, note "Matched in wide window" |
-| Surfaces | Sales Transactions: "NA in NETS" badge next to the auto-refund tick; refund ticket page: "Terminal auto-refunds: Yes/No/Unknown (batch)" with the wait/refund-now hint; Sync flash counts created orphans and NA ticks |
+| Surfaces | Sales Transactions: "NA in NETS" badge next to the auto-refund tick (and on both Refund Request screens); refund ticket page: the report verdict plus "Terminal auto-refunds: Yes/No/Unknown (batch)", informational; Sync flash counts created orphans and NA ticks |
 | Tests | `CardSettlementOrphanSalesTest`, `CardSettlementStateAndVoidTickTest`, `CardSettlementWideMatchTest`, `CardTerminalAutoRefundFlagTest` (+ reconciler / unit tests adjusted) |
 
 Prod steps after deploy: `card-settlement:import-terminal-flags database/data/card_terminal_auto_refund_seed_2026-09-08.csv --apply --create-missing`,

@@ -1437,8 +1437,8 @@ class RefundController extends Controller
             // 'server' | 'admin' | 'customer' | null — see AutoRefundSource::trigger().
             'auto_refund_trigger' => \App\Support\AutoRefundSource::trigger($txn->auto_refund_source ?? null),
             // "NA in NETS": both files that could carry this failed single vend are
-            // synced and neither has a line for it. A fact about the REPORT, shown
-            // whether or not a refund was claimed from it — same rule as the Sales
+            // synced and neither has a line for it, so no money was taken and the
+            // reconciler counts it as already refunded — same rule as the Sales
             // Transactions badge (CardSettlementRefundReconciler::isVoidableShape).
             'na_in_nets' => isset($txn)
                 && $txn->card_settlement_state === CardSettlementRefundReconciler::STATE_NOT_CAPTURED

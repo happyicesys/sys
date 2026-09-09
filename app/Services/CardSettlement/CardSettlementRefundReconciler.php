@@ -39,13 +39,15 @@ use Throwable;
  *   3. no line at all, terminal bound on D and fully covered by the report,
  *      day final
  *        → "not captured": no money was taken on this sale.
- *          3a. FAILED single-item sale on a terminal flagged
- *              `is_will_auto_refund` → the terminal voided the approval
- *              before batch upload (the only way a Visa/MasterCard failure is
- *              ever made good): is_refunded = 1, source
- *              settlement_report_not_captured — "NA in NETS" (Brian,
- *              2026-09-09). Never for a dispensed sale, a multiple, or a
- *              terminal flagged No / Unknown (those go to the verify list).
+ *          3a. FAILED single-item sale → the approval was voided before batch
+ *              upload (the only way a Visa/MasterCard failure is ever made
+ *              good): is_refunded = 1, source settlement_report_not_captured
+ *              — "NA in NETS" (Brian, 2026-09-09). The terminal's
+ *              `is_will_auto_refund` flag does NOT gate this any more (Brian,
+ *              2026-09-09, second call): a covered terminal with no line in
+ *              either file never took the money, whatever the workbook says
+ *              about the model. Still never for a dispensed sale, a multiple,
+ *              or a sale with no TRADE verdict.
  *          3b. otherwise an owned tick is cleared;
  *   4. no line, terminal bound but its company's sales are only PARTLY in
  *      the file (Nets-Auresys, config card_settlement.report_coverage_gap_companies)
@@ -209,7 +211,7 @@ class CardSettlementRefundReconciler
                     break;
 
                 case self::STATE_NOT_CAPTURED:
-                    $this->applyNotCaptured($sale, $unit, $codes, $apply, $stats);
+                    $this->applyNotCaptured($sale, $codes, $apply, $stats);
                     break;
 
                 case self::STATE_UNCOVERED:
@@ -281,10 +283,19 @@ class CardSettlementRefundReconciler
         }
     }
 
-    /** Rule 3: the day is final, the terminal is bound and covered, and no line carries this sale. */
-    protected function applyNotCaptured(VendTransaction $sale, CardTerminalUnit $unit, Collection $codes, bool $apply, array &$stats): void
+    /**
+     * Rule 3: the day is final, the terminal is bound and covered, and no line
+     * carries this sale.
+     *
+     * The bound terminal's `is_will_auto_refund` flag is NOT consulted: it
+     * describes the terminal model, while "no line in either file that could
+     * carry this sale" is direct evidence that no money was ever taken. The
+     * flag stays on the row for ops (the "Will refund" badge) and on the
+     * refund screen's verdict.
+     */
+    protected function applyNotCaptured(VendTransaction $sale, Collection $codes, bool $apply, array &$stats): void
     {
-        if ($this->isVoidableFailure($sale, $codes) && $unit->willAutoRefund() === true) {
+        if ($this->isVoidableFailure($sale, $codes)) {
             if ($sale->is_refunded && $sale->auto_refund_source === AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED) {
                 return; // already ticked by this rule
             }
@@ -356,7 +367,7 @@ class CardSettlementRefundReconciler
         $labels = [
             self::STATE_REVERSED => ['Reversed', 'The NETS report carries a Reversal Code = Y line for this sale: the terminal returned the money.'],
             self::STATE_CAPTURED => ['Captured, not reversed', 'The NETS report captured this charge and carries no reversal for it: the customer was charged and has not been refunded.'],
-            self::STATE_NOT_CAPTURED => ['Not captured', 'Both NETS files that could carry this sale are synced and neither has a line for it: no money was taken on this sale.'],
+            self::STATE_NOT_CAPTURED => ['Not captured', 'Both NETS files that could carry this sale are synced and neither has a line for it: no money was taken on this sale. A failed single vend in this state is counted as already refunded ("NA in NETS").'],
             self::STATE_UNCOVERED => ['Not in report (partial coverage)', 'This terminal\'s company settles only part of its sales through the NETS file, so a missing line proves nothing.'],
             self::STATE_PENDING_REVIEW => ['In review', 'The NETS report has a line for this sale but that report has not been synced yet.'],
             self::STATE_NO_REPORT => ['No report yet', 'The NETS files for this day and the next are not both synced yet, so the report cannot rule on this sale.'],

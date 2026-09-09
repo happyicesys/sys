@@ -85,10 +85,11 @@ class VendTransactionResource extends JsonResource
             // unbound; null until then).
             'card_settlement_state' => $this->card_settlement_state ?? null,
             // "NA in NETS": both NETS files that could carry this failed single
-            // vend are synced and neither has a line for it. A FACT about the
-            // report — deliberately independent of the auto-refund tick, which
-            // is only claimed on a terminal flagged "Will refund". Deduced here,
-            // once, from the rule the reconciler itself uses.
+            // vend are synced and neither has a line for it — no money was taken,
+            // so the reconciler also ticks it as auto-refunded (source
+            // settlement_report_not_captured). Deduced here, once, from the rule
+            // the reconciler itself uses; the badge states the report fact and
+            // the tick states the consequence.
             'na_in_nets' => ($this->card_settlement_state ?? null) === CardSettlementRefundReconciler::STATE_NOT_CAPTURED
                 && CardSettlementRefundReconciler::isVoidableShape(
                     (bool) ($this->is_multiple ?? false),

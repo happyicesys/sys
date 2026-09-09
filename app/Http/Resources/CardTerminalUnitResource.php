@@ -29,8 +29,8 @@ class CardTerminalUnitResource extends JsonResource
             'terminal_id' => $this->terminal_id,
             'remarks' => $this->remarks,
             // Hardware batch + "Will auto refund?" (Brian's flag, seeded from the
-            // partner workbook; null = unknown). The reconciler ticks "NA in
-            // NETS" only on a terminal flagged true.
+            // partner workbook; null = unknown). Informational since 2026-09-09:
+            // the reconciler's "NA in NETS" tick follows the report, not this.
             'batch' => $this->batch,
             'is_will_auto_refund' => $this->willAutoRefund(),
             'auto_refund_flag_source' => $this->auto_refund_flag_source,

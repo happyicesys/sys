@@ -300,20 +300,22 @@ class TransactionIndexStatusColumnsTest extends TestCase
      * stay off, because a missing line is not proof the customer was made whole
      * (Brian, 2026-09-09).
      */
-    public function test_na_in_nets_is_reported_without_a_refund_tick_on_an_unflagged_terminal(): void
+    public function test_na_in_nets_states_the_report_fact_on_its_own_row_shape(): void
     {
         $card = PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
         $notCaptured = CardSettlementRefundReconciler::STATE_NOT_CAPTURED;
 
-        // Flagged terminal: the reconciler ticked it, so tick AND badge.
-        $this->txn('FLAGGED-VOID', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
+        // Reconciled: the failed single vend has no line in either file, so the
+        // reconciler ticked it — tick AND badge, whatever the terminal's flag.
+        $this->txn('RECONCILED-VOID', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
             ->forceFill([
                 'card_settlement_state' => $notCaptured, 'is_found_in_transaction' => true,
                 'is_refunded' => true, 'auto_refund_source' => AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED,
             ])->save();
 
-        // Same report fact, terminal not flagged: badge only, never a tick.
-        $this->txn('UNFLAGGED-NO-LINE', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
+        // Same report fact, the reconciler has not run over it yet: the badge is
+        // computed from the row alone (state + shape), so it stands without a tick.
+        $this->txn('NOT-YET-RECONCILED', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
             ->forceFill(['card_settlement_state' => $notCaptured, 'is_found_in_transaction' => true])->save();
 
         // A dispensed sale with no line is a different problem (money we may never
@@ -328,17 +330,17 @@ class TransactionIndexStatusColumnsTest extends TestCase
 
         $rows = $this->gridRows();
 
-        $this->assertTrue($rows['FLAGGED-VOID']['na_in_nets']);
-        $this->assertTrue($rows['FLAGGED-VOID']['is_refunded']);
+        $this->assertTrue($rows['RECONCILED-VOID']['na_in_nets']);
+        $this->assertTrue($rows['RECONCILED-VOID']['is_refunded']);
 
-        $this->assertTrue($rows['UNFLAGGED-NO-LINE']['na_in_nets'], 'the report fact is stated');
-        $this->assertFalse($rows['UNFLAGGED-NO-LINE']['is_refunded'], 'but no refund is deduced');
-        $this->assertNull($rows['UNFLAGGED-NO-LINE']['auto_refund_source']);
+        $this->assertTrue($rows['NOT-YET-RECONCILED']['na_in_nets'], 'the badge is the row\'s own report fact');
+        $this->assertFalse($rows['NOT-YET-RECONCILED']['is_refunded'], 'the tick is the reconciler\'s to write');
+        $this->assertNull($rows['NOT-YET-RECONCILED']['auto_refund_source']);
 
         $this->assertFalse($rows['DISPENSED-NO-LINE']['na_in_nets']);
         $this->assertFalse($rows['MULTI-NO-LINE']['na_in_nets']);
         $this->assertFalse($rows['CAPTURED']['na_in_nets']);
-        $this->assertSame($notCaptured, $rows['UNFLAGGED-NO-LINE']['card_settlement_state']);
+        $this->assertSame($notCaptured, $rows['NOT-YET-RECONCILED']['card_settlement_state']);
     }
 
     private function gatewayLog(string $orderId, int $status): int

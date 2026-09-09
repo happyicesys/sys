@@ -136,29 +136,35 @@ class CardSettlementStateAndVoidTickTest extends TestCase
         $this->assertSame(0, $again['states_written']);
     }
 
-    public function test_the_tick_is_gated_on_the_terminal_flag_and_the_sale_shape(): void
+    /**
+     * The tick follows the SALE's shape, not the terminal's workbook flag
+     * (Brian, 2026-09-09): a failed single vend with no line in either file
+     * was never charged, whichever terminal took it. Only the shape gates.
+     */
+    public function test_the_tick_is_gated_on_the_sale_shape_not_the_terminal_flag(): void
     {
-        $this->unit(false); // batch #1/#2: charges the customer
+        $this->unit(false); // batch #1/#2: the workbook says it does not auto-refund
         $this->finalDay();
         $unflagged = $this->sale();
 
         $stats = $this->reconcile();
-        $this->assertFalse((bool) $unflagged->fresh()->is_refunded, 'a "No" terminal never ticks from a missing line');
-        $this->assertSame(CardSettlementRefundReconciler::STATE_NOT_CAPTURED, $unflagged->fresh()->card_settlement_state, 'but the state is recorded for the verify list');
-        $this->assertSame(0, $stats['ticked_not_captured']);
+        $this->assertTrue((bool) $unflagged->fresh()->is_refunded, 'a "No" terminal still ticks: the report has no line, so no money was taken');
+        $this->assertSame(AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED, $unflagged->fresh()->auto_refund_source);
+        $this->assertSame(CardSettlementRefundReconciler::STATE_NOT_CAPTURED, $unflagged->fresh()->card_settlement_state);
+        $this->assertSame(1, $stats['ticked_not_captured']);
 
         CardTerminalUnit::query()->update(['is_will_auto_refund' => null, 'auto_refund_flag_source' => null]);
-        $this->reconcile();
-        $this->assertFalse((bool) $unflagged->fresh()->is_refunded, 'unknown is not yes');
+        $unknownFlag = $this->sale();
+        $stats = $this->reconcile();
+        $this->assertTrue((bool) $unknownFlag->fresh()->is_refunded, 'an unknown flag ticks too');
+        $this->assertSame(1, $stats['ticked_not_captured'], 'and the already-ticked one is not counted again');
 
-        CardTerminalUnit::query()->update(['is_will_auto_refund' => 1]);
         $dispensed = $this->sale(['vend_channel_error_id' => $this->ok->id, 'success_qty' => 1, 'dispensed_qty' => 1]);
         $multiple = $this->sale(['is_multiple' => true, 'qty' => 2]);
         $noTrade = $this->sale(['is_found_in_transaction' => false, 'vend_channel_error_id' => null]);
 
         $stats = $this->reconcile();
-        $this->assertSame(1, $stats['ticked_not_captured'], 'only the failed single sale');
-        $this->assertTrue((bool) $unflagged->fresh()->is_refunded);
+        $this->assertSame(0, $stats['ticked_not_captured'], 'none of the three shapes qualifies');
         $this->assertFalse((bool) $dispensed->fresh()->is_refunded, 'goods went out: a loss to list, not a refund');
         $this->assertFalse((bool) $multiple->fresh()->is_refunded, 'terminals never void a multiple');
         $this->assertFalse((bool) $noTrade->fresh()->is_refunded, 'no verdict, no void');

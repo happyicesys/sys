@@ -59,13 +59,15 @@ final class AutoRefundSource
     public const SETTLEMENT_REPORT_REVERSAL = 'settlement_report_reversal';
 
     /**
-     * "NA in NETS" (Brian, 2026-09-09): a FAILED single-item card sale on a
-     * terminal flagged `is_will_auto_refund` has NO line in either NETS file
-     * that could carry it, once the day is final. The terminal voided the
-     * approval before batch upload — the only way a Visa/MasterCard failure is
-     * ever made good (scheme cards never get a reversal line). Written by
-     * CardSettlementRefundReconciler; never for a dispensed sale, a multiple,
-     * an unflagged terminal, or a terminal the report does not fully cover.
+     * "NA in NETS" (Brian, 2026-09-09): a FAILED single-item card sale has NO
+     * line in either NETS file that could carry it, once the day is final.
+     * The terminal voided the approval before batch upload — the only way a
+     * Visa/MasterCard failure is ever made good (scheme cards never get a
+     * reversal line). Written by CardSettlementRefundReconciler on any bound,
+     * fully covered terminal, whatever its `is_will_auto_refund` flag says
+     * (that gate was dropped the same day: no line = no money taken); never
+     * for a dispensed sale, a multiple, a sale with no TRADE, or a terminal
+     * the report does not fully cover.
      */
     public const SETTLEMENT_REPORT_NOT_CAPTURED = 'settlement_report_not_captured';
 

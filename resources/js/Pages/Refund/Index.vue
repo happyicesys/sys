@@ -757,7 +757,7 @@ const sortedRows = computed(() => {
                                      have made the customer whole. Flagged terminals only. -->
                                 <div v-if="t.matched && t.card_terminal_will_auto_refund === true" class="mt-1">
                                     <span class="inline-block whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                        v-tooltip="'Terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload — check the NETS report before paying.'">Will refund</span>
+                                        v-tooltip="'The supplier\'s list says terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload. Either way, the NETS report decides — check it before paying.'">Will refund</span>
                                 </div>
                             </div>
                         </td>
@@ -829,8 +829,8 @@ const sortedRows = computed(() => {
                         </td>
                         <!-- Auto Refunded? — same rule, and the same two badges, as the
                              Sales Transactions page: the tick is the claim that money came
-                             back, "NA in NETS" is the report's own evidence and can stand
-                             on its own when the terminal is not one that voids by itself. -->
+                             back, "NA in NETS" is the report's own evidence for it (no line
+                             in either file = the charge was never taken). -->
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <div class="flex flex-col items-center space-y-1">
                                 <span v-if="t.auto_refunded === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
@@ -847,9 +847,7 @@ const sortedRows = computed(() => {
                                     :class="t.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : (t.auto_refund_trigger === 'customer' ? 'bg-rose-100 text-rose-800' : 'bg-violet-100 text-violet-800')"
                                     v-tooltip="t.auto_refund_source_label">{{ autoRefundTriggerLabel(t.auto_refund_trigger) }}</span>
                                 <span v-if="t.na_in_nets" class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-                                    v-tooltip="t.auto_refunded === true
-                                        ? 'No line in the NETS report for this failed vend, and its terminal voids before batch — already counted as refunded.'
-                                        : 'No line in the NETS report for this failed vend. Its terminal is not flagged as auto-refunding, so nothing is claimed about the money — verify before paying.'">NA in NETS</span>
+                                    v-tooltip="'Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.'">NA in NETS</span>
                             </div>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">

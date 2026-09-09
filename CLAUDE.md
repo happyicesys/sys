@@ -166,21 +166,24 @@ been returned, and always together with `auto_refund_source`
   source `settlement_report_reversal`; captured-not-reversed → tick OFF
   (customer still charged); no line on a bound, fully covered terminal →
   **"NA in NETS"** (source `settlement_report_not_captured`, Brian
-  2026-09-09) when the sale is a FAILED single item AND the terminal's
-  `card_terminal_units.is_will_auto_refund` is Yes — the terminal voided the
-  approval before batch upload, the only way a Visa/MasterCard failure is ever
-  made good — otherwise tick OFF (dispensed / multiple / terminal No or
-  Unknown; those sit on the verify list); Nets-Auresys terminals
+  2026-09-09) when the sale is a FAILED single item — the approval was voided
+  before batch upload, the only way a Visa/MasterCard failure is ever made
+  good — otherwise tick OFF (dispensed / multiple / no TRADE; those sit on the
+  verify list). **The terminal's `card_terminal_units.is_will_auto_refund` does
+  NOT gate this** (Brian, 2026-09-09, revising the same day's first rule): the
+  flag describes the terminal model, while "no line in either file that could
+  carry this sale" is direct evidence no money was taken, so a No / Unknown
+  terminal ticks too and the flag stays informational (the "Will refund"
+  badge). Nets-Auresys terminals
   (`config('card_settlement.report_coverage_gap_companies')`) → `uncovered`,
   never ticked from a missing line; unbound machine → untouched. The verdict
   is persisted in `vend_transactions.card_settlement_state` (reversed at
-  once; the rest once the day is final). **The "NA in NETS" badge on Sales
-  Transactions states the REPORT FACT, not the refund**: it shows for any
-  failed single vend whose state is `not_captured`, flagged terminal or not
-  (`VendTransactionResource.na_in_nets`, from
-  `CardSettlementRefundReconciler::isVoidableShape()`), while the auto-refund
-  tick beside it is claimed only on a Yes terminal — a missing line is
-  evidence, never a deduction that the money came back (Brian, 2026-09-09).
+  once; the rest once the day is final). The "NA in NETS" badge on Sales
+  Transactions and both Refund Request screens states the REPORT FACT behind
+  the tick: it shows for any failed single vend whose state is `not_captured`
+  (`VendTransactionResource.na_in_nets` and `RefundController`, both from
+  `CardSettlementRefundReconciler::isVoidableShape()`), and the auto-refund
+  tick beside it always follows it (Brian, 2026-09-09).
   A tick is only CLEARED once the day
   is final (files D and D+1 both synced — a late capture or reversal can sit
   in the next day's file); a reversal sets it as soon as its report is synced.
@@ -417,7 +420,10 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   Setting/Edit picker and could never be moved.
 - **`card_terminal_units.batch` + `is_will_auto_refund`** (Yes / No / Unknown,
   Card Terminal Index column and filter) is the per-terminal capability the
-  reconciler's "NA in NETS" tick is gated on. Seeded from the partner's
+  partner documented. It gated the reconciler's "NA in NETS" tick for one day
+  and no longer does (Brian, 2026-09-09) — it is now informational only: the
+  "Will refund" badge on Sales Transactions, the Operation Dashboard and both
+  Refund Request screens. Seeded from the partner's
   workbook (`card-settlement:import-terminal-flags database/data/card_terminal_auto_refund_seed_2026-09-08.csv --apply`,
   source `seed`, batches Nets #3–#7 Yes, #1–#2 No, Auresys Unknown); a Yes/No
   set on the Card Terminal edit form is source `manual` and survives

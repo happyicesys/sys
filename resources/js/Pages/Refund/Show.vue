@@ -403,20 +403,18 @@ function actionBadge(l) {
                         ? 'A refund has already been recorded against this transaction. Check carefully before paying again — proceeding may create a DOUBLE refund.'
                         : 'No prior refund was found for this transaction, so there is no double-refund risk. Safe to proceed on this check.')
                         + (t.auto_refund_source_label ? ' Recorded as: ' + t.auto_refund_source_label + '.' : '')
-                        + (t.na_in_nets && !t.auto_refund_source_label ? ' The NETS report has no line for this failed vend, but its terminal is not one that voids by itself — nothing is claimed about the money.' : '')">
+                        + (t.na_in_nets && !t.auto_refund_source_label ? ' The NETS report has no line for this failed vend (NA in NETS): no money was taken, so there is nothing to pay back.' : '')">
                     {{ alreadyRefunded ? '↩ Already refunded' : '✓ Not yet refunded' }}
                 </span>
                 <span v-if="t.is_auto_refund_channel" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="badgeGood"
                     title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
                 <!-- WHY the money is recorded as already returned, and separately what the
-                     NETS report itself shows. The second can stand without the first: a
-                     missing line is evidence, not proof the customer was made whole. -->
+                     NETS report itself shows: no line in either file that could carry this
+                     failed vend, so the charge was voided before batch upload. -->
                 <span v-if="t.auto_refund_source_label" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-gray-100 text-gray-700"
                     :title="t.auto_refund_source_label">{{ autoRefundSourceShort }}</span>
                 <span v-if="t.na_in_nets" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-amber-100 text-amber-800"
-                    :title="t.auto_refunded === true
-                        ? 'No line in the NETS report for this failed vend, and its terminal voids before batch — already counted as refunded.'
-                        : 'No line in the NETS report for this failed vend. Its terminal is not flagged as auto-refunding, so nothing is claimed about the money — verify before paying.'">NA in NETS</span>
+                    title="Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.">NA in NETS</span>
             </div>
 
             <!-- System self-checking — mirrors the index list's self-check columns
@@ -488,21 +486,19 @@ function actionBadge(l) {
                                 class="block text-[10px] font-semibold text-indigo-500 mt-0.5 hover:underline"
                                 title="Open the settlement report that carries this sale's line">↗ report #{{ t.nets_report.report_id }}</a>
                             <!-- The bound terminal's "Will auto refund?" flag (Data Management → Card
-                                 Terminal): Yes = wait for day-final, refund only if Captured; No = the
-                                 customer stays charged, refund now. -->
+                                 Terminal). Informational only since 2026-09-09: the report's own
+                                 verdict above decides, and a failed vend with no line is counted as
+                                 refunded on any terminal the report fully covers. -->
                             <div v-if="t.nets_report.terminal" class="mt-1 text-[10px] text-gray-500"
                                 :title="'Terminal ' + t.nets_report.terminal.terminal_id + (t.nets_report.terminal.batch ? ' · ' + t.nets_report.terminal.batch : '')">
                                 <span class="font-mono">{{ t.nets_report.terminal.terminal_id }}</span>
                                 <span v-if="t.nets_report.terminal.batch"> · {{ t.nets_report.terminal.batch }}</span>
-                                <!-- Same badge as Sales Transactions and the machine list: this
-                                     terminal voids a failed single vend by itself. -->
+                                <!-- Same badge as Sales Transactions and the machine list: the
+                                     supplier's workbook says this terminal model voids a failed
+                                     single vend by itself. -->
                                 <span v-if="t.nets_report.terminal.will_auto_refund === true"
                                     class="ml-1 inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                    title="This terminal voids a failed single-item sale before batch upload — wait for the day to go final and refund only if the report says Captured.">Will refund</span>
-                                <span v-else-if="t.nets_report.terminal.will_auto_refund === false" class="ml-1 text-red-700 font-semibold">
-                                    No auto refund — refund now, do not wait for the report
-                                </span>
-                                <span v-else class="ml-1">Auto-refund flag unknown for this terminal</span>
+                                    title="The supplier's list says this terminal voids a failed single-item sale before batch upload. Either way, the NETS report verdict above decides.">Will refund</span>
                             </div>
                         </dd>
                     </div>
