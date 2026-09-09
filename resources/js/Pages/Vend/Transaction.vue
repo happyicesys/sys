@@ -854,18 +854,16 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.payment_method_name }}<span v-if="vendTransaction.cashless_mfg"> ({{ vendTransaction.cashless_mfg }})</span>
-                            <!-- Does the terminal that took this money make a failed vend good by
-                                 itself? Data Management → Card Terminal owns the flag; unknown
-                                 terminals show nothing rather than a guess. -->
-                            <div v-if="vendTransaction.card_terminal_will_auto_refund !== null && vendTransaction.card_terminal_will_auto_refund !== undefined" class="mt-1">
-                                <span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                    :class="vendTransaction.card_terminal_will_auto_refund ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                            <!-- The terminal that took this money voids a failed single-item sale
+                                 by itself (Data Management → Card Terminal). Shown ONLY for a Yes
+                                 terminal: a No or unknown one is the ordinary case and the badge
+                                 would be on nearly every row. -->
+                            <div v-if="vendTransaction.card_terminal_will_auto_refund === true" class="mt-1">
+                                <span class="inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
                                     :title="'Terminal ' + vendTransaction.card_terminal_unit_id
                                         + (vendTransaction.card_terminal_batch ? ' · ' + vendTransaction.card_terminal_batch : '')
-                                        + (vendTransaction.card_terminal_will_auto_refund
-                                            ? ' — voids a failed single-item sale by itself; wait for the report before refunding'
-                                            : ' — leaves the customer charged on a failed sale; refund without waiting')">
-                                    {{ vendTransaction.card_terminal_will_auto_refund ? 'Will refund' : 'No auto refund' }}
+                                        + ' — voids a failed single-item sale by itself; wait for the report before refunding'">
+                                    Will refund
                                 </span>
                             </div>
                         </TableData>
