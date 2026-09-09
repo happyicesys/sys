@@ -745,12 +745,6 @@ const sortedRows = computed(() => {
                                 <template v-if="t.matched">
                                     {{ payMethodParts(t.pay_method || t.payment_channel || '—').main }}
                                     <span v-if="payMethodParts(t.pay_method || t.payment_channel || '—').paren" class="block text-gray-500">{{ payMethodParts(t.pay_method || t.payment_channel || '—').paren }}</span>
-                                    <!-- The terminal that took this money voids a failed single vend
-                                         by itself, so the report may already have made the customer
-                                         whole. Shown only for a flagged terminal, as on the other pages. -->
-                                    <span v-if="t.card_terminal_will_auto_refund === true"
-                                        class="mt-0.5 inline-block whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                        v-tooltip="'Terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload — check the NETS report before paying.'">Will refund</span>
                                 </template>
                                 <span v-else-if="t.manual_pay_method" class="italic text-amber-700"
                                     v-tooltip="'Payment method keyed in by the customer on the manual form'">
@@ -758,6 +752,13 @@ const sortedRows = computed(() => {
                                 </span>
                                 <template v-else>—</template>
                                 <span v-if="t.matched && t.pay_provider" class="block text-gray-500">({{ t.pay_provider }})</span>
+                                <!-- Own line, under the provider: the terminal that took this money
+                                     voids a failed single vend by itself, so the report may already
+                                     have made the customer whole. Flagged terminals only. -->
+                                <div v-if="t.matched && t.card_terminal_will_auto_refund === true" class="mt-1">
+                                    <span class="inline-block whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
+                                        v-tooltip="'Terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload — check the NETS report before paying.'">Will refund</span>
+                                </div>
                             </div>
                         </td>
                         <!-- Refund Amt = effective final payout. When the admin overrode
