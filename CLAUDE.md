@@ -287,7 +287,11 @@ Three rules from `NA_ERROR_CODE_PLAN_2026-09-08.md` Part 1, all live:
   container singleton, O(1), after the ingest commit, never throws) and
   `reconcile:sales-rollups --dirty` rebuilds exactly those days at 02:00,
   unconditionally, as one job chain per day whose tail clears the day — a
-  failed rebuild keeps its date for the next night. Locked Site Summary
+  failed rebuild keeps its date for the next night. Syncing a NETS settlement
+  report rebuilds ITS OWN days at once (`CardSettlementSyncService` →
+  `App\Services\Sales\RollupRebuilder`, the one recipe both reconcile modes
+  use), so a report that creates orphan sales does not leave the dashboards
+  a day behind; the dirty entry stays for the nightly cascade. Locked Site Summary
   months are rebuilt in vend_records / gp_metrics but their summary rows stay
   frozen — the command lists them for finance. The amount-drift passes at
   02:15 / weekly / monthly remain the safety net. A late TRADE that clears a

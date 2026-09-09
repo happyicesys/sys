@@ -38,6 +38,33 @@ class CardSettlementSyncTest extends TestCase
         ]);
     }
 
+    /**
+     * A sync changes the days the report covers — orphan sales created, ticks
+     * and settlement states written — so their rollups are rebuilt straight
+     * away instead of waiting for the 02:00 dirty pass (Brian, 2026-09-09).
+     */
+    public function test_sync_rebuilds_the_rollups_for_the_days_the_report_covers()
+    {
+        \Illuminate\Support\Facades\Bus::fake();
+
+        $report = CardSettlementReport::create([
+            'provider' => 'nets',
+            'original_filename' => 'MCONNECT_20260907.csv',
+            'cutover_date' => '2026-09-07',
+            'status' => CardSettlementReport::STATUS_REVIEW,
+        ]);
+
+        app(CardSettlementSyncService::class)->sync($report, null);
+
+        // The report's own cutover day and the day before, whose late captures it carries.
+        \Illuminate\Support\Facades\Bus::assertChained([
+            \App\Jobs\StoreVendsRecord::class,
+            \App\Jobs\ProcessGpMetricsDay::class,
+            \App\Jobs\StoreVendProductRecords::class,
+        ]);
+        \Illuminate\Support\Facades\Bus::assertDispatchedTimes(\App\Jobs\StoreVendsRecord::class, 2);
+    }
+
     public function test_sync_stamps_matched_sales_and_closes_the_report()
     {
         $report = CardSettlementReport::create([

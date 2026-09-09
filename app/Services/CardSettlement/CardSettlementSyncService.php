@@ -6,6 +6,7 @@ use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\VendTransaction;
 use App\Services\Refund\RefundTicketService;
+use App\Services\Sales\RollupRebuilder;
 use App\Support\AutoRefundSource;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -45,6 +46,7 @@ class CardSettlementSyncService
         protected RefundTicketService $tickets,
         protected CardSettlementRefundReconciler $reconciler,
         protected CardSettlementOrphanSales $orphans,
+        protected RollupRebuilder $rollups,
     ) {}
 
     public function lastOrphansCreated(): int
@@ -92,9 +94,19 @@ class CardSettlementSyncService
         // After the status flip: the reconciler decides "is this day final"
         // from report statuses, and this report is part of that answer.
         $this->lastReconcile = [];
+        $days = [];
         foreach (CardSettlementRefundReconciler::daysCoveredBy($report) as $day) {
             $this->lastReconcile[] = $this->reconciler->reconcileDay($day, true);
+            $days[] = $day->toDateString();
         }
+
+        // This sync just changed those days' sales — orphan rows created, ticks
+        // and settlement states written — so rebuild their rollups now instead
+        // of leaving every dashboard stale until the 02:00 dirty pass (Brian,
+        // 2026-09-09). Queued on `low`, and the days stay in the dirty set on
+        // purpose: tonight's run still does the downstream cascade (totals JSON
+        // and Site Summary), and a rebuild is idempotent.
+        $this->rollups->dispatchDays($days);
 
         return $txnIds->count();
     }

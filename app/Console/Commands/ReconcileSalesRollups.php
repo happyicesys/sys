@@ -2,8 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\ProcessGpMetricsDay;
-use App\Jobs\StoreVendProductRecords;
 use App\Jobs\StoreVendsRecord;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\CustomerPeriodSummary;
@@ -11,11 +9,11 @@ use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\GpMetricsAggregator;
 use App\Services\Sales\DirtyDayRegistry;
+use App\Services\Sales\RollupRebuilder;
 use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -145,11 +143,7 @@ class ReconcileSalesRollups extends Command
         // every report that reads them (Dashboard, Sales Report, Ops Performance,
         // product report) stays consistent. All idempotent; all on the low queue.
         $healDays = array_values(array_unique(array_merge($vrHealDays, $gpHealDays)));
-        foreach ($healDays as $d) {
-            foreach ($this->rebuildJobs($d, $chunk) as $job) {
-                dispatch($job)->onQueue($queue);
-            }
-        }
+        app(RollupRebuilder::class)->dispatchDays($healDays, $queue, $chunk);
 
         $this->info(sprintf(
             'Dispatched base-rollup rebuilds for %d day(s) on queue:%s.',
@@ -209,14 +203,15 @@ class ReconcileSalesRollups extends Command
             return self::SUCCESS;
         }
 
-        foreach ($days as $d) {
-            // The closure captures only the date: the registry is resolved in
-            // the worker so the job payload stays a few bytes.
-            Bus::chain([
-                ...$this->rebuildJobs($d, $chunk),
-                fn () => app(DirtyDayRegistry::class)->clear($d),
-            ])->onQueue($queue)->dispatch();
-        }
+        // The tail closure captures only the date: the registry is resolved in the
+        // worker, so the job payload stays a few bytes and a failed rebuild keeps
+        // its day for the next night.
+        app(RollupRebuilder::class)->dispatchDays(
+            $days,
+            $queue,
+            $chunk,
+            fn (string $d) => fn () => app(DirtyDayRegistry::class)->clear($d),
+        );
 
         $this->info(sprintf('Dispatched chained rebuilds for %d dirty day(s) on queue:%s; each day is cleared when its chain completes.', count($days), $queue));
 
@@ -225,21 +220,6 @@ class ReconcileSalesRollups extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * The three day-level rollup rebuilds, in the order the chain runs them.
-     * ONE recipe for the drift pass and the dirty pass.
-     *
-     * @return array<int, object>
-     */
-    private function rebuildJobs(string $day, int $chunk): array
-    {
-        return [
-            new StoreVendsRecord($day, $day, true),
-            new ProcessGpMetricsDay($day, $chunk),
-            new StoreVendProductRecords($day, $day),
-        ];
     }
 
     private static function monthOf(string $day): string
