@@ -116,7 +116,9 @@ class Kernel extends ConsoleKernel
         // realtime work.
         // Days a late TRADE / orphan row landed on (DirtyDayRegistry) are rebuilt
         // unconditionally first; the amount-drift passes below stay the safety net.
-        $schedule->command('reconcile:sales-rollups --dirty')->dailyAt('02:00')->withoutOverlapping();
+        $schedule->command('reconcile:sales-rollups --dirty')->dailyAt('02:00')->withoutOverlapping()
+            // Locked-month days it lists go where finance already reads them.
+            ->appendOutputTo(storage_path('logs/locked-summary-audit.log'));
         $schedule->command('reconcile:sales-rollups --days=14')->dailyAt('02:15')->withoutOverlapping();
         $schedule->command('reconcile:sales-rollups --days=45')->weeklyOn(0, '02:45')->withoutOverlapping();
         // Monthly deep backstop — a long window catches transactions that

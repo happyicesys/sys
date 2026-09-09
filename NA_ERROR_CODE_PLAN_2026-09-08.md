@@ -1,7 +1,7 @@
 # "NA" channel error (code 99) for gateway sales with no TRADE — plan (2026-09-08)
 
-Status: **Phases 1–2 DEPLOYED 2026-09-09; Phase 3 (nightly marker, frame-time
-resolver, dirty-day resync) BUILT 2026-09-09 — see "Build log" at the end.** Rev 3: no grace period,
+Status: **Phases 1–3 DEPLOYED 2026-09-09 (c41d700220) and SEEDED from
+2026-08-01 — see "Build log" at the end.** Rev 3: no grace period,
 nightly once-a-day processing, month-late TRADEs (30-day window), Dispense
 blank without a TRADE, product/qty data kept.
 
@@ -937,8 +937,72 @@ to `settled()` when next touched.
 
 | 2026-09-09 | 3 | (this commit) | `config/sales.php`; `App\Services\Sales\MissingTradeMarker` + `MissingTradeMarkResult` + `sales:mark-missing-trade {--from} {--to} {--apply}` (dailyAt 00:01, `store:previous-day-vend-records` moved to 00:06); `App\Support\TradeTimestampResolver` / `ResolvedTradeTime` wired into `createVendTransaction` (30 d back / 5 min ahead, `meta_json.frame_time.rejected`); `App\Services\Sales\DirtyDayRegistry` (Redis set, array store in tests) + `LateTradeTracker` (dirty day + `meta_json.missing_trade.cleared_at`) called after a fresh TRADE row and after a pre-created row is filled; `reconcile:sales-rollups --dirty` (dailyAt 02:00, lists locked months); tests `TradeTimestampResolverTest`, `MissingTradeMarkerTest`, `DirtyDaysReconcileTest`; CLAUDE.md section |
 
-Seed: on prod after deploy, `sales:mark-missing-trade --from=2026-08-01`
-(report) then `--apply` — identical to what the first 00:01 run would do
-with a NULL watermark. No rollup rebuild follows (99 moves no figure).
+Seed RUN on prod 2026-09-09 ~01:05 SGT: `sales:mark-missing-trade
+--from=2026-08-01 --apply` → 4,885 header rows + 2,359 item rows across 39
+days (10–16 Aug gap: 131 / 805 / 886 / 810 / 780 / 684 / 566), watermark
+2026-09-09 00:00. Proof that no figure moved: `reconcile:sales-rollups
+--from=2026-08-11 --to=2026-08-13 --dry-run` → "All days tally"; dirty set
+empty; zero reserved-code warnings in the log.
 
 Next: Part 2 (NETS orphans) and Part 3 (per-TID will-auto-refund flag).
+
+## Phase 3 review outcome (2026-09-09)
+
+Eight-angle review of 57ede1c1ac..c41d700220, 5 grouped verification passes,
+10 findings reported; all closed in the follow-up commit:
+
+| # | finding | fix |
+|---|---|---|
+| 1 | **Live on prod:** `SyncVendChannels`, `vend:sync-channel-error-rates` and `VendController::getChannelsErrorRate` counted code 99 as a channel fault (`vend_channel_error_id NOT IN (1)`, item `code != "0"`) — 29 headers / 18 items in the 7-day window, one channel at 100 % | `DispenseVerdict::sqlFaultId()` (FK-only sub-select) + `sqlFault()`; guard test now catches SQL `IN (1…)`, quoted `!= "0"` and `$errorCode == '0' or == '6'` (one more inline copy found in `processMapping`) |
+| 2 | Marker UPDATE did not re-check `is_found_in_transaction = 0`; a TRADE landing between chunk scan and write could be stamped 99 with no clear | re-read the chunk `FOR UPDATE` inside the write transaction, mark only rows still awaiting; items only for multiples |
+| 3 | Watermark jumped to `--to` regardless of `--from` (a later slice skipped the days below it for good) | advance only when `from <= watermark`; command prints "Watermark left at …" otherwise |
+| 4 | `--dirty` SREM'd the day at dispatch; a failed `low` job (tries=1) lost the day forever | one `Bus::chain` per day, tail closure clears the day; shared `rebuildJobs()` recipe with the drift pass |
+| 5 | TXN_SRC-50 order-id prefix from `now()` misses the pre-created row across Sep→Oct / Dec→Jan → duplicate sale (pre-existing; first boundary 2026-10-01) | `VendTransaction::orderIdCandidates()` tries raw, this month's and last month's prefix; used by the service and `CreateVendTransaction::alreadyRecorded` |
+| 6 | `--to` not clamped to today | clamped in command and marker |
+| 7 | Redis SADD under the ingest row lock, once per frame | `DB::afterCommit`, registry is a container singleton with a 600 s per-process dedupe |
+| 8 | `$previousErrorId` contract + static 99-id cache + second UPDATE for `cleared_at` | `LateTradeTracker::withClearStamp()` (pure, from `meta_json.missing_trade.marked_at`) folded into `applyTradeToPreCreatedRow`'s own write |
+| 9 | Locked-month warning had no sink | `Log::warning` + schedule `appendOutputTo(logs/locked-summary-audit.log)` |
+| 10 | No test through `VendTransactionService::create` | `tests/Feature/TradeIngestFrameTimeTest` (replayed day, future clock, 99 clear, month boundary); `SET TRANSACTION` now only at transaction level 0 |
+
+Also: frame TIME is parsed in the operator's timezone (board clock) and booked
+in the app zone (no live exposure today — 100 % SGT traffic — but Bangkok / KL
+operators exist); `DispenseVerdict::hasVerdict()` replaces the literal-99 test
+in `SaleStatus`; `SaleStatus::dispenseReason()` tells the two blank cells apart
+so the multiple-without-TRADE tests are no longer vacuous; marker walks the
+window day by day (index-safe for a wide seed window); dead
+`vend_channel_error_code_display` resource field removed; Dispense filter
+labels updated; CLAUDE.md corrected (`isSaleCode`, grid vs CSV "NA").
+
+Deferred (documented, not changed): a multiple pre-created row whose late TRADE
+arrives as a single keeps its 99 item rows (readers gate on `is_multiple`, so
+no money moves); a frame-sent 99 (never observed, warned) would still store
+`vend_transaction_items.vend_channel_error_code = '99'`; the 02:15 drift pass
+may re-dispatch a day the 02:00 chain has not finished (idempotent, wasted work
+only); Vue still hard-codes `!= 0 && != 6` in the grid cells.
+
+## Part 2 decision (Brian, 2026-09-09)
+
+Both directions are handled together in Part 2:
+
+1. **NETS line, no TRADE** → orphan `vend_transactions` row (code 99, Dispense
+   blank, no product) created at Sync; adopted by a late TRADE (as planned).
+2. **TRADE, no NETS line** → the sale keeps its machine code; the persisted
+   `card_settlement_state` (moved forward from Part 3) records `not_captured`
+   once the day is final. **A failed single-item card sale with no line is
+   ticked auto-refunded ("NA in NETS", source `settlement_report_not_captured`)
+   ONLY when the bound terminal's `is_will_auto_refund = 1`** — seeded from the
+   partner's v3 workbook (`database/data/card_terminal_auto_refund_seed_2026-09-08.csv`:
+   243 yes / 57 no / 25 unknown; batches Nets #3–#7 yes, #1–#2 no, Auresys
+   unknown). Reason: a Visa/MasterCard failure never leaves a reversal line in
+   any NETS file — the terminal voiding before capture is the only way that
+   customer is made whole, so "no line" on a voiding terminal IS the refund
+   signal. "No" terminals → the sale goes to a verify list, never a tick;
+   Auresys → state `uncovered`. The Excel flag is authoritative (`seed` /
+   `manual`); the weekly classify command only refreshes stats and reports
+   contradictions. Dispensed sales with no line keep their revenue and are
+   listed (decision 1, default kept).
+
+Order: migration (`card_settlement_row_id`, `card_settlement_state`, terminal
+flag columns) → seed import → matcher hygiene + second wider pass → orphan
+creation/adoption → state writer with the gated tick → Card Terminal Index
+column + liabilities tab.

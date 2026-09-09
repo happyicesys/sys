@@ -127,15 +127,30 @@ final class SaleStatus
      */
     public static function dispense(SaleFacts $sale): string
     {
+        return match (self::dispenseReason($sale)) {
+            self::REASON_NO_TRADE => self::NO_TRADE,
+            self::REASON_ON_ITEMS => self::ON_ITEMS,
+            default => self::itemDispense($sale->headerErrorCode),
+        };
+    }
+
+    /** Why a header row's Dispense cell is blank. */
+    public const REASON_NO_TRADE = 'no_trade';
+
+    public const REASON_ON_ITEMS = 'on_items';
+
+    /**
+     * NO_TRADE and ON_ITEMS both render as '' — this is the distinguishable
+     * answer (tests, and any consumer that needs to know WHY the cell is blank).
+     * Null = the header carries its own verdict.
+     */
+    public static function dispenseReason(SaleFacts $sale): ?string
+    {
         if ($sale->settlementStatus === VendTransaction::SETTLEMENT_PENDING || ! $sale->isFoundInTransaction) {
-            return self::NO_TRADE;
+            return self::REASON_NO_TRADE;
         }
 
-        if ($sale->isMultiple) {
-            return self::ON_ITEMS;
-        }
-
-        return self::itemDispense($sale->headerErrorCode);
+        return $sale->isMultiple ? self::REASON_ON_ITEMS : null;
     }
 
     /**
@@ -147,10 +162,10 @@ final class SaleStatus
         return DispenseVerdict::isDispensed($errorCode);
     }
 
-    /** One item row's verdict (a multiple's line, or a single sale's channel). Code 99 = no TRADE = blank. */
+    /** One item row's verdict (a multiple's line, or a single sale's channel). A server-reserved code (99) = no TRADE = blank. */
     public static function itemDispense(int|string|null $errorCode): string
     {
-        if (DispenseVerdict::code($errorCode) === DispenseVerdict::NOT_FOUND_CODE) {
+        if (! DispenseVerdict::hasVerdict($errorCode)) {
             return self::NO_TRADE;
         }
 

@@ -2858,18 +2858,10 @@ class VendController extends Controller
                             DB::raw(
                                 'COUNT(id) as seven_days_total_count'
                             ),
-                            DB::raw(
-                                'COUNT(
-                                    CASE
-                                        WHEN vend_channel_error_id IS NULL THEN NULL
-                                        WHEN vend_channel_error_id IN (1, 5) THEN NULL
-                                        ELSE 1
-                                    END
-                                ) as seven_days_error_count'
-                            )
+                            DB::raw('COUNT(CASE WHEN '.DispenseVerdict::sqlFaultId('vend_channel_error_id').' THEN 1 END) as seven_days_error_count')
                         )
                         ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as two_days_total_count', [Carbon::today()->subDays(1)])
-                        ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1, 5) THEN 1 END) as two_days_error_count', [Carbon::today()->subDays(1)]);
+                        ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? AND '.DispenseVerdict::sqlFaultId('vend_channel_error_id').' THEN 1 END) as two_days_error_count', [Carbon::today()->subDays(1)]);
                 },
             ])
             ->where('vend_id', $id)

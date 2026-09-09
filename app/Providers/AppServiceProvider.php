@@ -26,7 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        // One registry per process: the dirty-day set's per-process dedupe and
+        // the in-memory store used by tests both live on the instance.
+        $this->app->singleton(\App\Services\Sales\DirtyDayRegistry::class);
     }
 
     /**

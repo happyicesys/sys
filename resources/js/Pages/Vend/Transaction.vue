@@ -857,9 +857,10 @@
                         </TableData>
                         <!-- Payment Status: did we keep the money (Paid / Refunded).
                              Dispense Status: the machine's verdict (Dispensed / Partial /
-                             Failed, or Pending / No report for a gateway sale with no
-                             TRADE yet). Both deduced server-side by App\Support\SaleStatus;
-                             the old column mixed the two. -->
+                             Failed); blank for a gateway sale with no TRADE — the Error
+                             Code column ("Machine transaction not found (NA)") says why.
+                             Both deduced server-side by App\Support\SaleStatus; the old
+                             column mixed the two. -->
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <!-- Blank = no rail has confirmed the money (cash; card before its report is synced).
                                  Retained-credit rows get a badge with the why (payment_note). -->
@@ -1155,9 +1156,9 @@ const refundStatusLabels = {
 const refundStatusLabel = (s) => refundStatusLabels[s] || s
 // Payment Status / Dispense Status cell colour. Labels come from
 // App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed
-// red, Re-vended amber, Pending / No report grey (blank = unconfirmed).
+// red, Re-vended amber (blank = unconfirmed payment, or no TRADE for dispense).
 // Tick / cross rendering for the clear-cut verdicts; anything else (Re-vended,
-// Retained credit, Pending, No report) stays as text, and blank stays blank.
+// Retained credit) stays as text, and blank stays blank.
 const saleStatusIcon = (s) => ({
     'Paid': 'check',
     'Settled': 'check',
@@ -1259,8 +1260,9 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Dispensed'},
         {id: 'false', value: 'Failed'},
-        {id: 'pending', value: 'Pending'},
-        {id: 'no_report', value: 'No report'},
+        // Both render a blank Dispense cell; the ids are the request contract (bookmarked URLs).
+        {id: 'pending', value: 'No TRADE yet (payment pending)'},
+        {id: 'no_report', value: 'No TRADE (Error Code NA)'},
     ]
     // Mirrors App\Support\SaleStatus payment labels (VendTransaction scope `payment_status`).
     paymentStatusOptions.value = [

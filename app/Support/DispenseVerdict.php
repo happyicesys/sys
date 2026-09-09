@@ -129,9 +129,20 @@ final class DispenseVerdict
     }
 
     /**
-     * What the Error Code column prints. 99 reads "NA" everywhere a human sees
-     * it (grid, CSV, ticket page); nothing stored → ''; any other code → the
-     * normalised number.
+     * Does this code carry a machine verdict at all? False only for a
+     * server-reserved code (99): the TRADE never came, so there is nothing to
+     * call Dispensed or Failed. Absent (NULL) is a legacy "no fault" and has a
+     * verdict. SaleStatus renders a no-verdict item blank.
+     */
+    public static function hasVerdict(int|string|null $code): bool
+    {
+        return ! self::isServerReserved($code);
+    }
+
+    /**
+     * What the Error Code column prints in the CSV exports: 99 → "NA" (the
+     * grid shows the row's description text instead), nothing stored → '',
+     * any other code → the normalised number.
      */
     public static function displayCode(int|string|null $code): string
     {
@@ -202,5 +213,15 @@ final class DispenseVerdict
     public static function sqlFaultStrict(string $idCol, string $codeCol): string
     {
         return "({$idCol} IS NOT NULL AND {$codeCol} NOT IN (".self::faultList().'))';
+    }
+
+    /**
+     * Fault test on the FK alone, for a query that has no join to
+     * vend_channel_errors (the channel error-rate counters). The uncorrelated
+     * sub-select is materialised once per statement.
+     */
+    public static function sqlFaultId(string $idCol): string
+    {
+        return "({$idCol} IS NOT NULL AND {$idCol} NOT IN (SELECT id FROM vend_channel_errors WHERE code IN (".self::faultList().')))';
     }
 }

@@ -107,10 +107,9 @@ class TransactionIndexDispenseFilterTest extends TestCase
         $noReportMulti = $this->txn(['is_multiple' => true, 'qty' => 2, 'is_found_in_transaction' => false, 'is_payment_received' => true]);
         $pending = $this->txn(['vend_channel_error_id' => null, 'settlement_status' => VendTransaction::SETTLEMENT_PENDING, 'is_found_in_transaction' => false]);
         foreach ([$noReport, $noReportMulti, $pending] as $t) {
-            $this->assertContains(
-                SaleStatus::dispense(SaleFacts::fromRow($t->fresh())),
-                [SaleStatus::NO_TRADE]
-            );
+            $facts = SaleFacts::fromRow($t->fresh());
+            $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($facts));
+            $this->assertSame(SaleStatus::REASON_NO_TRADE, SaleStatus::dispenseReason($facts), $t->order_id);
         }
 
         $this->assertSame(

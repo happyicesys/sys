@@ -74,10 +74,10 @@ class CreateVendTransaction implements ShouldQueue
     }
 
     /**
-     * Best-effort: matches the raw device order id AND the TXN_SRC-50 prefixed form the service
-     * stores (`Carbon 'y' + first char of 'm'` + ORDRID — see VendTransactionService::create()).
-     * The prefix is computed with the CURRENT date, so a re-delivery that crosses a month/year
-     * boundary can miss here — the QueryException backstop above still catches that case.
+     * Best-effort: matches the raw device order id AND the TXN_SRC-50 prefixed forms the service
+     * stores (`Carbon 'y' + first char of 'm'` + ORDRID for this month and last —
+     * VendTransaction::orderIdCandidates()). The QueryException backstop above still catches
+     * anything that slips past.
      */
     private function alreadyRecorded(): bool
     {
@@ -87,11 +87,9 @@ class CreateVendTransaction implements ShouldQueue
             return false;
         }
 
-        $prefixed = Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$orderId;
-
         $existing = VendTransaction::withoutGlobalScopes()
             ->where('vend_id', $this->vend->id)
-            ->whereIn('order_id', [$orderId, $prefixed])
+            ->whereIn('order_id', VendTransaction::orderIdCandidates($orderId, Carbon::now()))
             ->first(['id', 'is_found_in_transaction', 'payment_gateway_log_id']);
 
         return self::isAlreadyApplied($existing);

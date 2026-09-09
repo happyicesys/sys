@@ -25,9 +25,12 @@ class NoInlineDispensePredicateTest extends TestCase
         '/\[0, ?6(?:, ?(?:99|7, ?9))?\]/',
         // code = 0 OR … / code != 0 on an error-code column (payment_methods.code is fine)
         '/(?:vend_channel_errors?|vce(?:_\w+)?|e)\.code\s*(?:=|!=|<>)\s*0\b/',
-        '/vend_channel_error_code\s*(?:=|!=|<>)\s*0\b/',
-        // FK id lists on vend_channel_error_id
+        '/vend_channel_error_code\s*(?:=|!=|<>)\s*["\']?0["\']?\b/',
+        // FK id lists on vend_channel_error_id: Eloquent arrays and SQL IN (1) / NOT IN (1, 5)
         '/vend_channel_error_id\', \[\d/',
+        '/vend_channel_error_id\s+(?:NOT\s+)?IN\s*\(\s*\d/i',
+        // $errorCode == '0' or $errorCode == '6' (PHP, quoted or bare)
+        '/\$\w*[eE]rr\w*\s*==\s*["\']?[06]["\']?\s+(?:or|\|\|)\s+\$\w*[eE]rr\w*\s*==\s*["\']?[06]["\']?/',
     ];
 
     public function test_no_inline_dispense_predicate_outside_dispense_verdict(): void

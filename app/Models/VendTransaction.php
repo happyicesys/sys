@@ -10,6 +10,7 @@ use App\Support\DispenseVerdict;
 use App\Support\SaleStatus;
 use App\Support\SiteSearch;
 use App\Traits\GetUserTimezone;
+use Carbon\CarbonInterface;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -271,6 +272,26 @@ class VendTransaction extends Model
     public static function settledSql(string $alias = 'vend_transactions'): string
     {
         return $alias.'.settlement_status = '.self::SETTLEMENT_SETTLED;
+    }
+
+    /**
+     * TXN_SRC-50 frames are stored under `'y' + 'm'[0] + ORDRID`, prefixed at
+     * insert time (VendTransactionService::create, GatewayVendTransactionService).
+     * A TRADE that arrives after a month-digit boundary (Sep→Oct, Dec→Jan) would
+     * otherwise miss the row its gateway pre-created — so every lookup tries the
+     * raw id, this month's prefix and last month's.
+     *
+     * @return string[]
+     */
+    public static function orderIdCandidates(string $rawOrderId, CarbonInterface $now): array
+    {
+        $prefix = fn (CarbonInterface $at) => $at->format('y').($at->format('m'))[0];
+
+        return array_values(array_unique([
+            $rawOrderId,
+            $prefix($now).$rawOrderId,
+            $prefix($now->copy()->subMonth()).$rawOrderId,
+        ]));
     }
 
     /**

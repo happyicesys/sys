@@ -30,7 +30,11 @@ final class TradeTimestampResolver
 
     public const REASON_FUTURE = 'future';
 
-    public static function resolve(?string $frameTime, CarbonInterface $now, int $maxDaysBack, int $maxSecondsAhead = 300): ResolvedTradeTime
+    /**
+     * @param  string|null  $frameTz  zone the board's clock runs in (the operator's timezone);
+     *                                the frame is read there and booked in the app zone
+     */
+    public static function resolve(?string $frameTime, CarbonInterface $now, int $maxDaysBack, int $maxSecondsAhead = 300, ?string $frameTz = null): ResolvedTradeTime
     {
         $raw = $frameTime === null ? null : trim($frameTime);
         if ($raw === null || $raw === '') {
@@ -38,7 +42,7 @@ final class TradeTimestampResolver
         }
 
         try {
-            $at = Carbon::parse($raw, $now->getTimezone());
+            $at = Carbon::parse($raw, $frameTz ?: $now->getTimezone())->setTimezone($now->getTimezone());
         } catch (Throwable) {
             return ResolvedTradeTime::rejected($now, $raw, self::REASON_UNPARSEABLE);
         }
@@ -54,13 +58,14 @@ final class TradeTimestampResolver
     }
 
     /** Convenience for the ingest path: window from config, clock = now. */
-    public static function fromFrame(?string $frameTime): ResolvedTradeTime
+    public static function fromFrame(?string $frameTime, ?string $frameTz = null): ResolvedTradeTime
     {
         return self::resolve(
             $frameTime,
             Carbon::now(),
-            (int) config('sales.trade_max_days_back', 30),
-            (int) config('sales.trade_max_seconds_ahead', 300),
+            (int) config('sales.trade_max_days_back'),
+            (int) config('sales.trade_max_seconds_ahead'),
+            $frameTz,
         );
     }
 }

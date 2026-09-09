@@ -16,7 +16,10 @@ use Illuminate\Console\Command;
  *   php artisan sales:mark-missing-trade --from=2026-08-01 --to=2026-09-08          # seed report
  *   php artisan sales:mark-missing-trade --from=2026-08-01 --to=2026-09-08 --apply  # seed
  *
- * --to is exclusive at 00:00 of that day (a day is only marked once it is over).
+ * --to is exclusive at 00:00 of that day and is clamped to today (a day is
+ * only marked once it is over). The watermark advances only when the applied
+ * window starts at or before it — a --from after the watermark marks that
+ * slice but leaves the watermark, so the nightly still covers the gap.
  * Marking moves no revenue, GP or qty figure (99 is a sale code), so no rollup
  * rebuild is queued.
  */
@@ -24,7 +27,7 @@ class MarkMissingTrade extends Command
 {
     protected $signature = 'sales:mark-missing-trade
         {--from= : Window start (Y-m-d). Default: settings.missing_trade_marked_until, else config sales.missing_trade_floor}
-        {--to= : Window end, exclusive, at 00:00 (Y-m-d). Default: today}
+        {--to= : Window end, exclusive, at 00:00 (Y-m-d), clamped to today. Default: today}
         {--apply : Write the marks. Without it the command only reports}
         {--chunk= : Header rows per chunk (default config sales.missing_trade_chunk)}';
 
@@ -37,7 +40,7 @@ class MarkMissingTrade extends Command
             $from = Carbon::parse($this->option('from'))->startOfDay();
         }
         if ($this->option('to')) {
-            $until = Carbon::parse($this->option('to'))->startOfDay();
+            $until = min(Carbon::parse($this->option('to'))->startOfDay(), Carbon::now()->startOfDay());
         }
         $apply = (bool) $this->option('apply');
         $chunk = $this->option('chunk') ? max(1, (int) $this->option('chunk')) : null;
@@ -52,7 +55,7 @@ class MarkMissingTrade extends Command
 
         $result = $marker->mark($from, $until, $apply, $chunk);
 
-        if ($result->headers === 0) {
+        if ($result->headers() === 0) {
             $this->info('No gateway sale without a TRADE in this window.');
         } else {
             $this->table(
@@ -62,14 +65,16 @@ class MarkMissingTrade extends Command
             $this->info(sprintf(
                 '%s %d header row(s) and %d item row(s) across %d day(s).',
                 $apply ? 'Marked' : 'Would mark',
-                $result->headers,
+                $result->headers(),
                 $result->items,
                 count($result->perDay)
             ));
         }
 
         if ($apply) {
-            $this->line('Watermark advanced to '.$until->toDateTimeString().'.');
+            $this->line($result->watermarkAdvanced
+                ? 'Watermark advanced to '.$until->toDateTimeString().'.'
+                : 'Watermark left at '.$marker->watermark()->toDateTimeString().' (window not contiguous with it).');
         }
 
         return self::SUCCESS;

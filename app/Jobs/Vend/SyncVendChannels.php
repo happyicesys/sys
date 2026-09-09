@@ -8,6 +8,7 @@ use App\Models\VendChannelRecord;
 use App\Models\VendChannelStockEvent;
 use App\Services\DeliveryProductMappingService;
 use App\Services\ProductMappingService;
+use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -319,6 +320,10 @@ class SyncVendChannels implements ShouldQueue
         $oneDayAgo = Carbon::today()->subDays(1)->startOfDay()->toDateTimeString();
         $todayStart = Carbon::today()->startOfDay()->toDateTimeString();
 
+        // One fault rule (DispenseVerdict): 0/6 are clean drops, 99 is "no TRADE", never a fault.
+        $fault = DispenseVerdict::sqlFaultId('vend_channel_error_id');
+        $itemFault = DispenseVerdict::sqlFault('vend_transaction_items.vend_channel_error_code');
+
         $singleData = \App\Models\VendTransaction::query()
             ->where('vend_id', $vendId)
             ->whereNotNull('vend_channel_id')
@@ -327,11 +332,11 @@ class SyncVendChannels implements ShouldQueue
             ->selectRaw('
                 vend_channel_id,
                 COUNT(id) as seven_days_total_count,
-                COUNT(CASE WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as seven_days_error_count,
+                COUNT(CASE WHEN '.$fault.' THEN 1 END) as seven_days_error_count,
                 COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as two_days_total_count,
-                COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as two_days_error_count,
+                COUNT(CASE WHEN transaction_datetime >= ? AND '.$fault.' THEN 1 END) as two_days_error_count,
                 COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as one_day_total_count,
-                COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as one_day_error_count
+                COUNT(CASE WHEN transaction_datetime >= ? AND '.$fault.' THEN 1 END) as one_day_error_count
             ', [$oneDayAgo, $oneDayAgo, $todayStart, $todayStart])
             ->groupBy('vend_channel_id')
             ->get()
@@ -346,11 +351,11 @@ class SyncVendChannels implements ShouldQueue
             ->selectRaw('
                 vend_transaction_items.vend_channel_id,
                 COUNT(vend_transaction_items.id) as seven_days_total_count,
-                COUNT(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as seven_days_error_count,
+                COUNT(CASE WHEN '.$itemFault.' THEN 1 END) as seven_days_error_count,
                 COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as two_days_total_count,
-                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as two_days_error_count,
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND '.$itemFault.' THEN 1 END) as two_days_error_count,
                 COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as one_day_total_count,
-                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as one_day_error_count
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND '.$itemFault.' THEN 1 END) as one_day_error_count
             ', [$oneDayAgo, $oneDayAgo, $todayStart, $todayStart])
             ->groupBy('vend_transaction_items.vend_channel_id')
             ->get()

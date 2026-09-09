@@ -61,6 +61,7 @@ class VendTransactionService
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
         $vend->loadMissing([
+            'operator', // frame TIME is read in the operator's timezone (TradeTimestampResolver)
             'customer.locationType',
             'customer.operator',
             'vendContract',
@@ -78,8 +79,13 @@ class VendTransactionService
 
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
 
-        DB::statement('SET innodb_lock_wait_timeout = 5'); // Prevent long waits
-        DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        // Session tuning for the ingest transaction below. Only at level 0: inside
+        // an outer transaction (the test suite's RefreshDatabase wrapper) MySQL
+        // refuses SET TRANSACTION, and the lock timeout is the outer owner's call.
+        if (DB::transactionLevel() === 0) {
+            DB::statement('SET innodb_lock_wait_timeout = 5'); // Prevent long waits
+            DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        }
 
         // Set true when this TRADE updates a gateway row that was pre-created at
         // paid-time (unified transactions), as opposed to a fresh insert. Drives
@@ -89,19 +95,24 @@ class VendTransactionService
         try {
             // 🔥 Store the result of the transaction
             $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $isCurrentTime, &$wasPreCreatedUpdate) {
+                $rawOrderId = (string) $processedInput['orderID'];
                 if ($processedInput['interfaceType'] == '50') {
-                    $processedInput['orderID'] = Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$processedInput['orderID'];
+                    $processedInput['orderID'] = Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$rawOrderId;
                 }
 
-                // Look up an existing row for this order id (raw + TXN_SRC-50
-                // prefixed form) with a row lock. Done for ALL vends so a
-                // gateway pre-created row is always found (the 2007 dedup bypass
-                // below only governs the genuine-duplicate short-circuit).
+                // Look up an existing row for this order id with a row lock: the
+                // raw id, this month's and last month's TXN_SRC-50 prefix (a TRADE
+                // replayed across a month-digit boundary must still find the row
+                // its gateway pre-created), plus the legacy double-prefixed form.
+                // Done for ALL vends so a gateway pre-created row is always found
+                // (the 2007 dedup bypass below only governs the genuine-duplicate
+                // short-circuit).
+                $orderIdCandidates = array_values(array_unique(array_merge(
+                    VendTransaction::orderIdCandidates($rawOrderId, Carbon::now()),
+                    VendTransaction::orderIdCandidates($processedInput['orderID'], Carbon::now()),
+                )));
                 $existingVendTransaction = VendTransaction::query()
-                    ->where(function ($query) use ($processedInput) {
-                        $query->where('order_id', $processedInput['orderID'])
-                            ->orWhere('order_id', Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$processedInput['orderID']);
-                    })
+                    ->whereIn('order_id', $orderIdCandidates)
                     ->where('vend_id', $vend->id)
                     ->lockForUpdate()
                     ->first();
@@ -113,10 +124,9 @@ class VendTransactionService
                 if ($existingVendTransaction
                     && ! $existingVendTransaction->is_found_in_transaction
                     && $existingVendTransaction->payment_gateway_log_id) {
-                    $previousErrorId = $existingVendTransaction->vend_channel_error_id !== null ? (int) $existingVendTransaction->vend_channel_error_id : null;
                     $this->applyTradeToPreCreatedRow($existingVendTransaction, $vend, $processedInput);
-                    // Late TRADE on a past day → dirty day; if it cleared a 99 mark, stamp it.
-                    $this->lateTradeTracker()->noteLanded($existingVendTransaction, $previousErrorId);
+                    // A TRADE landing on a past day → that day's rollups are rebuilt tonight.
+                    $this->lateTradeTracker()->noteLanded($existingVendTransaction);
 
                     if ($existingVendTransaction->amount > 0) {
                         $this->updateVendPaymentTimestamps(
@@ -162,7 +172,7 @@ class VendTransactionService
 
                 if ($transaction) {
                     // A sale booked on a past day dirties that day's rollups.
-                    $this->lateTradeTracker()->noteLanded($transaction, null);
+                    $this->lateTradeTracker()->noteLanded($transaction);
                 }
 
                 if ($transaction && $transaction->amount > 0) {
@@ -374,10 +384,13 @@ class VendTransactionService
         // Live frames: trust the frame's own TIME inside the 30-day window
         // (a replayed sale keeps its true day), otherwise book at arrival and
         // stamp the rejection. Backdated syncs pass their own explicit time.
-        $resolved = $isCurrentTime ? TradeTimestampResolver::fromFrame($input['time'] ?? null) : null;
+        // The board stamps TIME from its own clock in the operator's local zone.
+        $resolved = $isCurrentTime
+            ? TradeTimestampResolver::fromFrame($input['time'] ?? null, $vend->operator?->timezone ?? $customer?->operator?->timezone)
+            : null;
         $meta = [];
-        if ($resolved && ! $resolved->trusted && $resolved->raw !== null && $resolved->reason !== TradeTimestampResolver::REASON_MISSING) {
-            $meta['frame_time'] = $resolved->metaStamp();
+        if ($stamp = $resolved?->metaStamp()) {
+            $meta['frame_time'] = $stamp;
         }
 
         $vendTransaction = VendTransaction::create([
@@ -499,6 +512,9 @@ class VendTransactionService
             'gross_profit' => $grossProfit,
             'gross_profit_margin' => $revenue ? (($grossProfit * 100) / $revenue) : 0,
             'label_json' => $input['label'] ?? $transaction->label_json,
+            // A row the nightly marker stamped 99 keeps its marked_at and gains
+            // cleared_at, in this same write (no second UPDATE).
+            'meta_json' => LateTradeTracker::withClearStamp($transaction->meta_json, Carbon::now()),
             'is_found_in_transaction' => true,
             // Resolved above — never demotes a confirmed dispense or resurrects a
             // refunded row.
@@ -833,12 +849,12 @@ class VendTransactionService
             ? VendChannelError::forFrameCode($errorCode, $this->vendChannelErrors ?: null, $vend->code ?? null)
             : null;
 
-        // hardcode when 0 and 6 error code means successful dispense
-        if ($errorCode == '0' or $errorCode == '6') {
+        // A clean drop (DispenseVerdict dispensed codes 0/6) reads as paid + successful.
+        // NULL cannot reach here ($errorCode defaults to 0); a non-numeric code is a fault.
+        if (DispenseVerdict::isDispensed($errorCode)) {
             $isPaymentReceived = true;
             $isSuccessful = true;
         }
-        // 0, 7, 6, 9
 
         // handle those QR payment and grab mart, treat as payment received by default
         if ($paymentMethod) {

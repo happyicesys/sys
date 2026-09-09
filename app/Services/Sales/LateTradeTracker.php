@@ -3,58 +3,55 @@
 namespace App\Services\Sales;
 
 use App\Models\VendTransaction;
-use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Called by VendTransactionService once a TRADE has been written — a fresh
  * row, or a gateway row it just filled. Two duties:
  *
- *  1. If the row's day is already over, register it as dirty so tonight's
- *     `reconcile:sales-rollups --dirty` rebuilds that day (DirtyDayRegistry).
- *  2. If the row had been marked 99 by the nightly marker and the TRADE has
- *     now replaced that code, stamp meta_json.missing_trade.cleared_at so the
- *     mark → clear history stays auditable. The code itself was overwritten by
- *     applyTradeToPreCreatedRow(); nothing else moves.
+ *  1. noteLanded(): if the row's day is already over, register it as dirty so
+ *     tonight's `reconcile:sales-rollups --dirty` rebuilds that day
+ *     (DirtyDayRegistry). Deferred to after the ingest transaction commits:
+ *     the Redis round trip never runs under the row lock, and a rolled-back
+ *     ingest dirties nothing.
+ *  2. withClearStamp(): if the row had been marked 99 by the nightly marker
+ *     (meta_json.missing_trade.marked_at, written in the same UPDATE as the
+ *     code) and a TRADE is now replacing that code, add cleared_at so the
+ *     mark → clear history stays auditable. Pure — applyTradeToPreCreatedRow
+ *     folds the result into its own write, so there is no second UPDATE.
  */
 class LateTradeTracker
 {
     public function __construct(private readonly DirtyDayRegistry $dirtyDays) {}
 
-    public function noteLanded(VendTransaction $row, ?int $previousErrorId, ?CarbonInterface $now = null): void
+    public function noteLanded(VendTransaction $row): void
     {
-        $now ??= Carbon::now();
-
         $at = $row->transaction_datetime instanceof CarbonInterface
-            ? $row->transaction_datetime
+            ? $row->transaction_datetime->copy()
             : Carbon::parse($row->transaction_datetime);
 
-        if ($at->toDateString() < $now->toDateString()) {
-            $this->dirtyDays->mark($at, $now);
+        if ($at->toDateString() >= Carbon::now()->toDateString()) {
+            return; // today is still in flight; the nightly builders own it
         }
 
-        if ($previousErrorId !== null && $previousErrorId === self::notFoundId()) {
-            $meta = (array) ($row->meta_json ?? []);
-            $meta['missing_trade'] = array_merge((array) ($meta['missing_trade'] ?? []), [
-                'cleared_at' => $now->toDateTimeString(),
-            ]);
-            $row->forceFill(['meta_json' => $meta])->saveQuietly();
+        DB::afterCommit(fn () => $this->dirtyDays->mark($at));
+    }
+
+    /**
+     * meta_json for a pre-created row that a TRADE is now filling: unchanged
+     * unless the row carries an open 99 mark, in which case cleared_at is added.
+     */
+    public static function withClearStamp(?array $meta, CarbonInterface $now): ?array
+    {
+        $mark = $meta['missing_trade'] ?? null;
+        if (! is_array($mark) || ! isset($mark['marked_at']) || isset($mark['cleared_at'])) {
+            return $meta;
         }
-    }
 
-    private static ?int $notFoundId = null;
+        $meta['missing_trade'] = $mark + ['cleared_at' => $now->toDateTimeString()];
 
-    public static function notFoundId(): ?int
-    {
-        return self::$notFoundId ??= \App\Models\VendChannelError::query()
-            ->where('code', DispenseVerdict::NOT_FOUND_CODE)
-            ->value('id');
-    }
-
-    /** Tests only — the id differs per fresh database. */
-    public static function forgetNotFoundId(): void
-    {
-        self::$notFoundId = null;
+        return $meta;
     }
 }

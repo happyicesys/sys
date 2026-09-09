@@ -9,25 +9,34 @@ final class ResolvedTradeTime
 {
     private function __construct(
         public readonly CarbonInterface $at,
-        public readonly bool $trusted,
         public readonly ?string $raw,
         public readonly ?string $reason,
     ) {}
 
     public static function trusted(CarbonInterface $at, ?string $raw): self
     {
-        return new self($at->copy(), true, $raw, null);
+        return new self($at->copy(), $raw, null);
     }
 
     public static function rejected(CarbonInterface $now, ?string $raw, string $reason): self
     {
-        return new self($now->copy(), false, $raw, $reason);
+        return new self($now->copy(), $raw, $reason);
     }
 
-    /** The audit stamp for meta_json.frame_time when the frame time was NOT used. */
+    /** The frame's TIME was used as the transaction moment. */
+    public function isTrusted(): bool
+    {
+        return $this->reason === null;
+    }
+
+    /**
+     * The audit stamp for meta_json.frame_time — only when a frame time WAS
+     * given and was NOT used. A trusted frame and a frame with no TIME at all
+     * both leave no stamp (nothing was rejected).
+     */
     public function metaStamp(): ?array
     {
-        if ($this->trusted) {
+        if ($this->isTrusted() || $this->reason === TradeTimestampResolver::REASON_MISSING) {
             return null;
         }
 

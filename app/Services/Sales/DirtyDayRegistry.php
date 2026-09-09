@@ -22,32 +22,47 @@ use Throwable;
  *
  * Redis, not Cache: the cache driver is file in prod and only the queue is
  * Redis. Every write is wrapped — a Redis blip may never fail a TRADE ingest;
- * the nightly amount-drift passes remain the safety net. Days are cleared one
- * by one AFTER their heal is dispatched (SREM, never SPOP), so a failed heal
- * keeps its date.
+ * the nightly amount-drift passes remain the safety net. A day is removed by
+ * the LAST job of its rebuild chain (SREM, never SPOP), so a failed heal keeps
+ * its date and is retried the next night.
+ *
+ * Container singleton (AppServiceProvider): a Horizon worker replaying a
+ * thousand frames for the same few days sends each date once per
+ * DEDUPE_SECONDS instead of once per frame. In tests (`SALES_DIRTY_DAYS_STORE=
+ * array`) the singleton's own array is the set; a fresh app per test resets it.
  */
 class DirtyDayRegistry
 {
-    /** @var array<string, true> in-process store for tests */
-    private static array $memory = [];
+    /** A date already sent from this process is not re-sent for this long. */
+    public const DEDUPE_SECONDS = 600;
+
+    /** @var array<string, true> the set itself, in array mode (tests) */
+    private array $memory = [];
+
+    /** @var array<string, int> date → unix time of the last SADD from this process */
+    private array $recentlySent = [];
 
     /** Record $day if it is before today. Never throws. */
-    public function mark(CarbonInterface|string $day, ?CarbonInterface $now = null): void
+    public function mark(CarbonInterface|string $day): void
     {
-        $now ??= Carbon::now();
         $date = $day instanceof CarbonInterface ? $day->toDateString() : Carbon::parse($day)->toDateString();
 
-        if ($date >= $now->toDateString()) {
+        if ($date >= Carbon::now()->toDateString()) {
             return; // today is still in flight; the nightly builders take it
+        }
+
+        $t = time();
+        if (($this->recentlySent[$date] ?? 0) > $t - self::DEDUPE_SECONDS) {
+            return;
         }
 
         try {
             if ($this->usesMemory()) {
-                self::$memory[$date] = true;
-
-                return;
+                $this->memory[$date] = true;
+            } else {
+                Redis::connection($this->connection())->sadd($this->key(), $date);
             }
-            Redis::connection($this->connection())->sadd($this->key(), $date);
+            $this->recentlySent[$date] = $t;
         } catch (Throwable $e) {
             Log::warning('DirtyDayRegistry: could not record day; nightly drift reconcile will catch it.', [
                 'day' => $date, 'error' => $e->getMessage(),
@@ -60,7 +75,7 @@ class DirtyDayRegistry
     {
         try {
             $days = $this->usesMemory()
-                ? array_keys(self::$memory)
+                ? array_keys($this->memory)
                 : (array) Redis::connection($this->connection())->smembers($this->key());
         } catch (Throwable $e) {
             Log::warning('DirtyDayRegistry: could not read days.', ['error' => $e->getMessage()]);
@@ -75,22 +90,17 @@ class DirtyDayRegistry
 
     public function clear(string $day): void
     {
+        unset($this->recentlySent[$day]);
+
         try {
             if ($this->usesMemory()) {
-                unset(self::$memory[$day]);
-
-                return;
+                unset($this->memory[$day]);
+            } else {
+                Redis::connection($this->connection())->srem($this->key(), $day);
             }
-            Redis::connection($this->connection())->srem($this->key(), $day);
         } catch (Throwable $e) {
             Log::warning('DirtyDayRegistry: could not clear day.', ['day' => $day, 'error' => $e->getMessage()]);
         }
-    }
-
-    /** Tests only. */
-    public static function flushMemory(): void
-    {
-        self::$memory = [];
     }
 
     private function usesMemory(): bool
@@ -100,11 +110,11 @@ class DirtyDayRegistry
 
     private function connection(): string
     {
-        return (string) config('sales.dirty_days_connection', 'default');
+        return (string) config('sales.dirty_days_connection');
     }
 
     private function key(): string
     {
-        return (string) config('sales.dirty_days_key', 'sales:rollups:dirty-days');
+        return (string) config('sales.dirty_days_key');
     }
 }

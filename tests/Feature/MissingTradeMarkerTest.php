@@ -79,7 +79,7 @@ class MissingTradeMarkerTest extends TestCase
 
         // Report mode: counts, writes nothing.
         $report = $marker->mark($from, $until, false);
-        $this->assertSame(3, $report->headers);
+        $this->assertSame(3, $report->headers());
         $this->assertSame(2, $report->items);
         $this->assertSame(['2026-09-08' => 3], $report->perDay);
         $this->assertNull($single->fresh()->vend_channel_error_id);
@@ -87,7 +87,7 @@ class MissingTradeMarkerTest extends TestCase
 
         // Apply.
         $result = $marker->mark($from, $until, true);
-        $this->assertSame(3, $result->headers);
+        $this->assertSame(3, $result->headers());
 
         foreach ([$single, $multi, $refunded] as $row) {
             $row->refresh();
@@ -110,7 +110,7 @@ class MissingTradeMarkerTest extends TestCase
         // Idempotent: the next night starts at the watermark and finds nothing.
         [$from2, $until2] = (new MissingTradeMarker(Setting::first()))->nightlyWindow();
         $this->assertSame('2026-09-09 00:00:00', $from2->toDateTimeString());
-        $this->assertSame(0, (new MissingTradeMarker(Setting::first()))->mark($from, $until, true)->headers);
+        $this->assertSame(0, (new MissingTradeMarker(Setting::first()))->mark($from, $until, true)->headers());
     }
 
     public function test_command_reports_and_applies(): void
@@ -123,9 +123,39 @@ class MissingTradeMarkerTest extends TestCase
             ->assertSuccessful();
         $this->assertNull(VendTransaction::first()->vend_channel_error_id);
 
+        // A slice that starts AFTER the watermark (floor 2026-08-01) marks its rows
+        // but must not move the watermark past the August days it skipped.
         $this->artisan('sales:mark-missing-trade --from=2026-09-01 --to=2026-09-09 --apply')
             ->expectsOutputToContain('Marked 1 header row(s)')
+            ->expectsOutputToContain('Watermark left at 2026-08-01 00:00:00')
             ->assertSuccessful();
         $this->assertSame(99, VendTransaction::first()->vendChannelError->code);
+        $this->assertNull(Setting::first()->missing_trade_marked_until);
+
+        // The contiguous nightly window advances it — and --to is clamped to today.
+        $this->artisan('sales:mark-missing-trade --to=2026-09-20 --apply')
+            ->expectsOutputToContain('Window 2026-08-01 00:00:00 → 2026-09-09 00:00:00')
+            ->expectsOutputToContain('Watermark advanced to 2026-09-09 00:00:00')
+            ->assertSuccessful();
+        $this->assertSame('2026-09-09 00:00:00', Setting::first()->missing_trade_marked_until->toDateTimeString());
+    }
+
+    public function test_a_row_whose_trade_lands_between_scan_and_write_is_left_alone(): void
+    {
+        $row = $this->txn();
+        Setting::create([]);
+        $naId = VendChannelError::where('code', DispenseVerdict::NOT_FOUND_CODE)->value('id');
+
+        // Simulate the TRADE winning the race: found, but the frame carried no usable code.
+        VendTransaction::withoutGlobalScopes()->whereKey($row->id)->update(['is_found_in_transaction' => true]);
+
+        $marker = new MissingTradeMarker(Setting::first());
+        [$from, $until] = $marker->nightlyWindow();
+        // Report mode saw it as a candidate before the TRADE; apply re-checks under lock.
+        $result = $marker->mark($from, $until, true);
+
+        $this->assertSame(0, $result->headers());
+        $this->assertNull($row->fresh()->vend_channel_error_id);
+        $this->assertNotSame($naId, $row->fresh()->vend_channel_error_id);
     }
 }

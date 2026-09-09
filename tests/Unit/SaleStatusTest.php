@@ -122,7 +122,13 @@ class SaleStatusTest extends TestCase
         $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($this->facts(['isFoundInTransaction' => false, 'headerErrorCode' => 99, 'paidThroughGateway' => true])));
         $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::itemDispense(99));
         $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::itemDispense('99'));
-        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($this->facts(['isMultiple' => true, 'isFoundInTransaction' => false, 'paidThroughGateway' => true])));
+        // A multiple without a TRADE is blank for the no-TRADE reason, not the on-items one
+        // (both render ''; the reason is what tells them apart).
+        $multiNoTrade = $this->facts(['isMultiple' => true, 'isFoundInTransaction' => false, 'paidThroughGateway' => true]);
+        $this->assertSame(SaleStatus::NO_TRADE, SaleStatus::dispense($multiNoTrade));
+        $this->assertSame(SaleStatus::REASON_NO_TRADE, SaleStatus::dispenseReason($multiNoTrade));
+        $this->assertSame(SaleStatus::REASON_ON_ITEMS, SaleStatus::dispenseReason($this->facts(['isMultiple' => true, 'paidThroughGateway' => true])));
+        $this->assertNull(SaleStatus::dispenseReason($this->facts(['headerErrorCode' => 0])));
     }
 
     public function test_facts_are_read_from_a_row_with_the_grid_and_export_aliases(): void

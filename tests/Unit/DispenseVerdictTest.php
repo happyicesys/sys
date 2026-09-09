@@ -59,6 +59,19 @@ class DispenseVerdictTest extends TestCase
         $this->assertTrue(DispenseVerdict::isServerReserved('99'));
         $this->assertFalse(DispenseVerdict::isServerReserved(0));
         $this->assertFalse(DispenseVerdict::isServerReserved(null));
+
+        // A reserved code carries no machine verdict; everything else (even NULL) does.
+        $this->assertFalse(DispenseVerdict::hasVerdict(99));
+        $this->assertFalse(DispenseVerdict::hasVerdict('99'));
+        $this->assertTrue(DispenseVerdict::hasVerdict(0));
+        $this->assertTrue(DispenseVerdict::hasVerdict(4));
+        $this->assertTrue(DispenseVerdict::hasVerdict(null));
+
+        // FK-only fault test resolves the codes through the reference table.
+        $this->assertSame(
+            '(vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (SELECT id FROM vend_channel_errors WHERE code IN (0, 6, 99)))',
+            DispenseVerdict::sqlFaultId('vend_channel_error_id')
+        );
     }
 
     public function test_sql_fragments_mirror_the_php_predicates(): void

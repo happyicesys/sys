@@ -2,11 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Vend;
 use App\Models\VendChannel;
-use App\Models\VendTransaction;
-use App\Models\VendTransactionItem;
+use App\Support\DispenseVerdict;
+use Illuminate\Console\Command;
 
 class SyncChannelErrorRates extends Command
 {
@@ -42,7 +41,7 @@ class SyncChannelErrorRates extends Command
         }
 
         $vends = $query->get();
-        $this->info("Found " . count($vends) . " active vends to process...");
+        $this->info('Found '.count($vends).' active vends to process...');
 
         $bar = $this->output->createProgressBar(count($vends));
 
@@ -54,10 +53,14 @@ class SyncChannelErrorRates extends Command
             $channels = VendChannel::where('vend_id', $vend->id)->get();
 
             foreach ($channels as $channel) {
-                if (!$channel->is_active)
+                if (! $channel->is_active) {
                     continue;
+                }
 
                 $vendChannelID = $channel->id;
+
+                $fault = DispenseVerdict::sqlFaultId('vend_channel_error_id');
+                $itemFault = DispenseVerdict::sqlFault('vend_transaction_items.vend_channel_error_code');
 
                 $singleData = \App\Models\VendTransaction::query()
                     ->where('vend_channel_id', $vendChannelID)
@@ -65,11 +68,11 @@ class SyncChannelErrorRates extends Command
                     ->where('transaction_datetime', '>=', $sixDaysAgo)
                     ->selectRaw('
                         COUNT(id) as seven_days_total_count,
-                        COUNT(CASE WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as seven_days_error_count,
+                        COUNT(CASE WHEN '.$fault.' THEN 1 END) as seven_days_error_count,
                         COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as two_days_total_count,
-                        COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as two_days_error_count,
+                        COUNT(CASE WHEN transaction_datetime >= ? AND '.$fault.' THEN 1 END) as two_days_error_count,
                         COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as one_day_total_count,
-                        COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as one_day_error_count
+                        COUNT(CASE WHEN transaction_datetime >= ? AND '.$fault.' THEN 1 END) as one_day_error_count
                     ', [$oneDayAgo, $oneDayAgo, $todayStart, $todayStart])
                     ->first();
 
@@ -80,11 +83,11 @@ class SyncChannelErrorRates extends Command
                     ->where('vend_transactions.transaction_datetime', '>=', $sixDaysAgo)
                     ->selectRaw('
                         COUNT(vend_transaction_items.id) as seven_days_total_count,
-                        COUNT(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as seven_days_error_count,
+                        COUNT(CASE WHEN '.$itemFault.' THEN 1 END) as seven_days_error_count,
                         COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as two_days_total_count,
-                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as two_days_error_count,
+                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND '.$itemFault.' THEN 1 END) as two_days_error_count,
                         COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as one_day_total_count,
-                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as one_day_error_count
+                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND '.$itemFault.' THEN 1 END) as one_day_error_count
                     ', [$oneDayAgo, $oneDayAgo, $todayStart, $todayStart])
                     ->first();
 
@@ -116,7 +119,8 @@ class SyncChannelErrorRates extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("Channel Error Rates Synced Successfully!");
+        $this->info('Channel Error Rates Synced Successfully!');
+
         return Command::SUCCESS;
     }
 }

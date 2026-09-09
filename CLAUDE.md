@@ -216,9 +216,10 @@ and for machine health is defined ONCE, in `App\Support\DispenseVerdict`
 
 | question | yes for | used by |
 |---|---|---|
-| `countsAsSale` | NULL, 0, 6, **99** | every `$`/revenue/GP/sold-qty aggregate, rollup, export and dashboard filter |
+| `isSaleCode` (the query scope `VendTransaction::countsAsSale()` is the settlement gate, not this) | NULL, 0, 6, **99** | every `$`/revenue/GP/sold-qty aggregate, rollup, export and dashboard filter |
 | `isDispensed` | NULL, 0, 6 | display only (`SaleStatus`) — 99 is "not found", never "dispensed" |
-| `isMachineFault` | present code ∉ {0, 6, 99} | error counts, error rates, Machine Health, refund "genuine non-dispense" |
+| `isMachineFault` | present code ∉ {0, 6, 99} | error counts, error rates (`SyncVendChannels` via `sqlFaultId`), Machine Health, refund "genuine non-dispense" |
+| `hasVerdict` | anything but a server-reserved code | `SaleStatus::itemDispense` — a 99 item is blank, not Failed |
 
 Code **99 = "Machine transaction not found (NA)"**: a payment rail (Omise
 today, the NETS report later) received the money and the TRADE never came.
@@ -242,18 +243,25 @@ Three rules from `NA_ERROR_CODE_PLAN_2026-09-08.md` Part 1, all live:
 - **`sales:mark-missing-trade --apply` runs at 00:01** and stamps code 99 on
   every gateway row whose day is over and whose TRADE never came — header and
   item rows, `meta_json.missing_trade.marked_at`, nothing else. Watermark:
-  `settings.missing_trade_marked_until`. No grace period: the day boundary is
-  the rule. It moves no figure (99 is a sale code), so it queues no rebuild;
+  `settings.missing_trade_marked_until`; it advances only when the applied
+  window starts at or before it, and `--to` is clamped to today. No grace
+  period: the day boundary is the rule. Each chunk re-reads its rows FOR
+  UPDATE and re-checks `is_found_in_transaction = 0`, so a TRADE landing
+  mid-run is never stamped. It moves no figure (99 is a sale code), so it queues no rebuild;
   `store:previous-day-vend-records` runs after it (00:06) on purpose.
 - **A live TRADE keeps its frame `TIME` when that is within 30 days back / 5
   min ahead** (`App\Support\TradeTimestampResolver`, `config('sales')`);
   otherwise it books at arrival with `meta_json.frame_time.rejected`. The
+  frame is read in the operator's timezone (the board's clock) and booked in
+  the app zone. The
   APK replays a month of queued frames unchanged after a reconnect, but ~3.7%
   of frames carry a clock that is years off — never trust TIME blindly.
 - **A TRADE (or orphan row) landing on a past day records that date** in the
   Redis set `sales:rollups:dirty-days` (`App\Services\Sales\DirtyDayRegistry`,
-  O(1), never throws) and `reconcile:sales-rollups --dirty` rebuilds exactly
-  those days at 02:00, unconditionally, then clears them. Locked Site Summary
+  container singleton, O(1), after the ingest commit, never throws) and
+  `reconcile:sales-rollups --dirty` rebuilds exactly those days at 02:00,
+  unconditionally, as one job chain per day whose tail clears the day — a
+  failed rebuild keeps its date for the next night. Locked Site Summary
   months are rebuilt in vend_records / gp_metrics but their summary rows stay
   frozen — the command lists them for finance. The amount-drift passes at
   02:15 / weekly / monthly remain the safety net. A late TRADE that clears a
@@ -287,7 +295,10 @@ Both labels are deduced in one place, `App\Support\SaleStatus`, from
   Failed. A single sale carries it on its row; a **multiple purchase carries
   it on each item row and the parent row is blank**. A row with no matched
   TRADE — waiting, never reported, or marked code 99 — is **blank**, never
-  Dispensed and never Failed; the Error Code column ("NA") says why.
+  Dispensed and never Failed; the Error Code column says why (the grid shows
+  the row's description "Machine transaction not found (NA)", the CSV exports
+  print "NA" via `DispenseVerdict::displayCode`). `SaleStatus::dispenseReason()`
+  tells the two blanks (no TRADE vs. verdict on the items) apart.
 
 The Sales Transactions grid, both CSV export jobs (+ the appended unreported
 gateway rows) and the refund screen's related transactions all call it — add
@@ -295,7 +306,8 @@ a new consumer there, do not re-derive; a consumer's query must select the
 `payment_methods.payment_gateway_id AS payment_method_gateway_id` alias (or
 load `paymentMethod`) or every row reads as unconfirmed. The grid's "Dispense
 Status" filter still travels as request key `is_payment_received` (bookmarked
-URLs) and lists neither Pending nor No-report rows on either side.
+URLs) and lists no blank-Dispense (no-TRADE) row on either side; its
+"pending" / "no_report" option ids are that request contract.
 Regression coverage: `tests/Unit/SaleStatusTest.php`,
 `tests/Feature/TransactionIndexDispenseFilterTest.php`,
 `tests/Feature/TransactionIndexStatusColumnsTest.php`.

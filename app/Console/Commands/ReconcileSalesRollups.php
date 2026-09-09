@@ -15,7 +15,9 @@ use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Reconcile the two sales rollups against their single source of truth.
@@ -144,9 +146,9 @@ class ReconcileSalesRollups extends Command
         // product report) stays consistent. All idempotent; all on the low queue.
         $healDays = array_values(array_unique(array_merge($vrHealDays, $gpHealDays)));
         foreach ($healDays as $d) {
-            StoreVendsRecord::dispatch($d, $d, true)->onQueue($queue);
-            ProcessGpMetricsDay::dispatch($d, $chunk)->onQueue($queue);
-            StoreVendProductRecords::dispatch($d, $d)->onQueue($queue);
+            foreach ($this->rebuildJobs($d, $chunk) as $job) {
+                dispatch($job)->onQueue($queue);
+            }
         }
 
         $this->info(sprintf(
@@ -166,15 +168,16 @@ class ReconcileSalesRollups extends Command
      * `--dirty`: rebuild every day the ingest path flagged (a TRADE or orphan
      * row landing on a day before today), without the amount-drift pre-check
      * — a late TRADE that only changes counts (a 99 mark cleared, a multiple's
-     * items rebuilt) never trips that check. Each day is cleared from the set
-     * only after its rebuilds are dispatched; a day inside a locked Site
+     * items rebuilt) never trips that check. Each day's three rebuilds run as
+     * one chain whose last link removes the day from the set, so a failed
+     * rebuild keeps its date for the next night. A day inside a locked Site
      * Summary month is rebuilt in vend_records / gp_metrics but its summary
-     * row stays frozen, so those days are listed for finance.
+     * row stays frozen, so those days are listed for finance (console + log;
+     * the schedule appends the output to logs/locked-summary-audit.log).
      */
     private function healDirtyDays(): int
     {
-        $registry = app(DirtyDayRegistry::class);
-        $days = $registry->days();
+        $days = app(DirtyDayRegistry::class)->days();
         $queue = (string) $this->option('queue') ?: 'low';
         $chunk = max(1, (int) $this->option('chunk'));
         $dryRun = (bool) $this->option('dry-run');
@@ -185,21 +188,19 @@ class ReconcileSalesRollups extends Command
             return self::SUCCESS;
         }
 
-        // Never rebuild today — it is still in flight and the nightly builders own it.
-        $today = Carbon::today()->toDateString();
-        $days = array_values(array_filter($days, fn ($d) => $d < $today));
-
         $this->info(sprintf('Dirty days (%d): %s', count($days), implode(', ', $days)));
 
+        $months = collect($days)->map(fn ($d) => self::monthOf($d))->unique()->values()->all();
         $lockedMonths = CustomerPeriodSummary::query()
             ->where('is_locked', true)
-            ->whereIn(DB::raw("DATE_FORMAT(period_start, '%Y-%m')"), collect($days)->map(fn ($d) => substr($d, 0, 7))->unique()->values()->all())
+            ->whereIn(DB::raw("DATE_FORMAT(period_start, '%Y-%m')"), $months)
             ->distinct()
             ->pluck(DB::raw("DATE_FORMAT(period_start, '%Y-%m') as ym"))
             ->all();
-        $inLocked = array_values(array_filter($days, fn ($d) => in_array(substr($d, 0, 7), $lockedMonths, true)));
+        $inLocked = array_values(array_filter($days, fn ($d) => in_array(self::monthOf($d), $lockedMonths, true)));
         if ($inLocked) {
             $this->warn('Days in LOCKED Site Summary months (rollups rebuilt, summaries left frozen — tell finance): '.implode(', ', $inLocked));
+            Log::warning('reconcile:sales-rollups --dirty rebuilt days inside LOCKED Site Summary months; summaries left frozen.', ['days' => $inLocked]);
         }
 
         if ($dryRun) {
@@ -209,19 +210,41 @@ class ReconcileSalesRollups extends Command
         }
 
         foreach ($days as $d) {
-            StoreVendsRecord::dispatch($d, $d, true)->onQueue($queue);
-            ProcessGpMetricsDay::dispatch($d, $chunk)->onQueue($queue);
-            StoreVendProductRecords::dispatch($d, $d)->onQueue($queue);
-            $registry->clear($d);
+            // The closure captures only the date: the registry is resolved in
+            // the worker so the job payload stays a few bytes.
+            Bus::chain([
+                ...$this->rebuildJobs($d, $chunk),
+                fn () => app(DirtyDayRegistry::class)->clear($d),
+            ])->onQueue($queue)->dispatch();
         }
 
-        $this->info(sprintf('Dispatched base-rollup rebuilds for %d dirty day(s) on queue:%s and cleared them.', count($days), $queue));
+        $this->info(sprintf('Dispatched chained rebuilds for %d dirty day(s) on queue:%s; each day is cleared when its chain completes.', count($days), $queue));
 
         if (! $this->option('skip-cascade')) {
             $this->cascadeDownstream($days, $queue);
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The three day-level rollup rebuilds, in the order the chain runs them.
+     * ONE recipe for the drift pass and the dirty pass.
+     *
+     * @return array<int, object>
+     */
+    private function rebuildJobs(string $day, int $chunk): array
+    {
+        return [
+            new StoreVendsRecord($day, $day, true),
+            new ProcessGpMetricsDay($day, $chunk),
+            new StoreVendProductRecords($day, $day),
+        ];
+    }
+
+    private static function monthOf(string $day): string
+    {
+        return substr($day, 0, 7);
     }
 
     /**
@@ -248,7 +271,7 @@ class ReconcileSalesRollups extends Command
 
         // 2) Recompute unlocked Site (customer) summaries for each affected month.
         //    Locked rows stay frozen (the command skips them by default).
-        $months = collect($healDays)->map(fn ($d) => substr($d, 0, 7))->unique()->values();
+        $months = collect($healDays)->map(fn ($d) => self::monthOf($d))->unique()->values();
         foreach ($months as $month) {
             Artisan::call('customer-summary:compute', [
                 '--month' => $month,
