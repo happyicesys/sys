@@ -6,6 +6,7 @@ use App\Models\RefundPayoutBatch;
 use App\Models\RefundTicket;
 use App\Models\RefundTicketAttachment;
 use App\Models\RefundTicketItem;
+use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
@@ -317,7 +318,7 @@ class RefundController extends Controller
             // reads every party's basket through the refund screens.
             \App\Models\Scopes\OperatorTransactionFilterScope::class,
             \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
-        ])->with(['paymentMethod', 'vendPrefix'])
+        ])->with(['paymentMethod', 'vendPrefix', 'vendChannelError'])
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
@@ -1416,6 +1417,22 @@ class RefundController extends Controller
             'auto_refunded' => ($t->status === RefundTicket::STATUS_AUTO_RESOLVED || $t->refund_method === RefundTicket::METHOD_NAYAX_AUTO)
                 ? true
                 : (isset($txn) ? (bool) $txn->is_refunded : null),
+            // WHY it was auto-refunded (App\Support\AutoRefundSource) — a NETS
+            // reversal and a never-captured sale are different evidence and lead
+            // to different decisions, so the reviewer sees which one it was.
+            'auto_refund_source' => $txn->auto_refund_source ?? null,
+            'auto_refund_source_label' => \App\Support\AutoRefundSource::label($txn->auto_refund_source ?? null),
+            // "NA in NETS": both files that could carry this failed single vend are
+            // synced and neither has a line for it. A fact about the REPORT, shown
+            // whether or not a refund was claimed from it — same rule as the Sales
+            // Transactions badge (CardSettlementRefundReconciler::isVoidableShape).
+            'na_in_nets' => isset($txn)
+                && $txn->card_settlement_state === CardSettlementRefundReconciler::STATE_NOT_CAPTURED
+                && CardSettlementRefundReconciler::isVoidableShape(
+                    (bool) $txn->is_multiple,
+                    (bool) $txn->is_found_in_transaction,
+                    $txn->vendChannelError?->code
+                ),
             // Prod Exit Sensor = the machine's Product Drop Sensor state FROZEN on
             // the matched transaction at the moment it occurred (true = Enabled,
             // false = Disabled, null = unknown / not captured). A later machine
@@ -1611,7 +1628,7 @@ class RefundController extends Controller
                 \App\Models\Scopes\OperatorTransactionFilterScope::class,
                 \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
             ])
-                ->with(['paymentMethod', 'vend', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel'])
+                ->with(['paymentMethod', 'vend', 'vendChannelError', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel'])
                 ->find($t->vend_transaction_id)
             : null;
         // Resolve the gateway log from the ticket, else from its matched txn — same

@@ -128,6 +128,14 @@ const recClass = (r) => ({ proceed: 'text-green-700 bg-green-50 border-green-200
 // System-validation badges are a green (good/safe) vs red (danger/check) binary,
 // plus amber for "we hold no evidence either way" — which must never be rendered
 // as the red "the machine says nothing was wrong" verdict.
+// Short label for the auto-refund source badge; the full sentence is the tooltip.
+const autoRefundSourceShort = computed(() => ({
+    settlement_report_reversal: 'NETS reversal',
+    settlement_report_not_captured: 'NA in NETS',
+    retained_credit_revend: 'Re-vended',
+    card_terminal_reversal: 'Legacy (unconfirmed)',
+}[props.ticket?.auto_refund_source] ?? 'Auto refund'));
+
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';
 const badgeUnknown = 'bg-amber-50 border-amber-200 text-amber-700';
@@ -382,6 +390,15 @@ function actionBadge(l) {
                 </span>
                 <span v-if="t.is_auto_refund_channel" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="badgeGood"
                     title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
+                <!-- WHY the money is recorded as already returned, and separately what the
+                     NETS report itself shows. The second can stand without the first: a
+                     missing line is evidence, not proof the customer was made whole. -->
+                <span v-if="t.auto_refund_source_label" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-gray-100 text-gray-700"
+                    :title="t.auto_refund_source_label">{{ autoRefundSourceShort }}</span>
+                <span v-if="t.na_in_nets" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-amber-100 text-amber-800"
+                    :title="t.auto_refunded === true
+                        ? 'No line in the NETS report for this failed vend, and its terminal voids before batch — already counted as refunded.'
+                        : 'No line in the NETS report for this failed vend. Its terminal is not flagged as auto-refunding, so nothing is claimed about the money — verify before paying.'">NA in NETS</span>
             </div>
 
             <!-- System self-checking — mirrors the index list's self-check columns

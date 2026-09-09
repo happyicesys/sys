@@ -44,6 +44,13 @@ const selected = ref([]);
 //  • a PayPal ticket parked as Insufficient Info, so once its payout details are
 //    corrected it can be re-selected here and marked done. PayNow insufficient-info
 //    stays out (it is resolved from the Refund Settlement page).
+// Same badge map as the Sales Transactions grid: only the settlement-report
+// sources get one, because on a card sale the "Yes" alone does not say whether
+// NETS returned the money or never took it.
+const autoRefundBadges = {
+    settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
+}
+
 const eligible = (t) => toNum(t.final_refund_amount) > 0
     && (t.status === 'approved'
         || (t.refund_method === 'paypal' && t.status === 'insufficient_info'));
@@ -805,13 +812,26 @@ const sortedRows = computed(() => {
                                 v-tooltip="'Single purchase: one item was bought in this transaction.'">Single</span>
                             <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so multiple/single is unknown.'">—</span>
                         </td>
-                        <!-- Auto Refunded? — same rule as the Sales Transactions page. -->
+                        <!-- Auto Refunded? — same rule, and the same two badges, as the
+                             Sales Transactions page: the tick is the claim that money came
+                             back, "NA in NETS" is the report's own evidence and can stand
+                             on its own when the terminal is not one that voids by itself. -->
                         <td class="px-4 py-3 text-center whitespace-nowrap">
-                            <span v-if="t.auto_refunded === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
-                                v-tooltip="'Auto refunded: the machine/gateway already refunded this transaction (or this is an auto-resolved / Nayax-auto ticket). Do NOT pay again.'">Yes</span>
-                            <span v-else-if="t.auto_refunded === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
-                                v-tooltip="'Not auto refunded — no automatic refund recorded on the matched transaction.'">No</span>
-                            <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so an auto refund cannot be checked.'">—</span>
+                            <div class="flex flex-col items-center space-y-1">
+                                <span v-if="t.auto_refunded === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
+                                    v-tooltip="(t.auto_refund_source_label || 'The machine/gateway already refunded this transaction, or this is an auto-resolved / Nayax-auto ticket.') + ' Do NOT pay again.'">Yes</span>
+                                <span v-else-if="t.auto_refunded === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
+                                    v-tooltip="'Not auto refunded — no automatic refund recorded on the matched transaction.'">No</span>
+                                <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so an auto refund cannot be checked.'">—</span>
+                                <span v-if="autoRefundBadges[t.auto_refund_source]"
+                                    class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="autoRefundBadges[t.auto_refund_source].class"
+                                    v-tooltip="t.auto_refund_source_label">{{ autoRefundBadges[t.auto_refund_source].text }}</span>
+                                <span v-if="t.na_in_nets" class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                                    v-tooltip="t.auto_refunded === true
+                                        ? 'No line in the NETS report for this failed vend, and its terminal voids before batch — already counted as refunded.'
+                                        : 'No line in the NETS report for this failed vend. Its terminal is not flagged as auto-refunding, so nothing is claimed about the money — verify before paying.'">NA in NETS</span>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"

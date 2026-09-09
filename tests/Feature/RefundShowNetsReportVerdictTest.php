@@ -64,6 +64,47 @@ class RefundShowNetsReportVerdictTest extends TestCase
         ]);
     }
 
+    /**
+     * Both refund surfaces read the same two signals as Sales Transactions: WHY
+     * a refund is recorded (auto_refund_source) and what the report itself shows
+     * (na_in_nets). The second stands alone on a terminal that is not flagged
+     * "Will refund" — a missing line is evidence, not proof (Brian, 2026-09-09).
+     */
+    public function test_the_refund_pages_carry_the_refund_source_and_the_report_fact()
+    {
+        $fault = \App\Models\VendChannelError::firstOrCreate(['code' => 7], ['desc' => 'Sensor error (7)']);
+        $notCaptured = \App\Services\CardSettlement\CardSettlementRefundReconciler::STATE_NOT_CAPTURED;
+
+        // Ticked by the report: no line, terminal voids by itself.
+        $voided = $this->sale(['vend_channel_error_id' => $fault->id]);
+        $voided->forceFill([
+            'is_found_in_transaction' => true, 'card_settlement_state' => $notCaptured,
+            'is_refunded' => true, 'auto_refund_source' => \App\Support\AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED,
+        ])->save();
+
+        // Same report fact, terminal NOT flagged: the badge shows, the tick does not.
+        $unflagged = $this->sale(['vend_channel_error_id' => $fault->id]);
+        $unflagged->forceFill(['is_found_in_transaction' => true, 'card_settlement_state' => $notCaptured])->save();
+
+        // The report captured this one: neither signal.
+        $captured = $this->sale(['vend_channel_error_id' => $fault->id]);
+        $captured->forceFill(['is_found_in_transaction' => true, 'card_settlement_state' => 'captured'])->save();
+
+        $voidedDetail = $this->detailFor($this->ticket($voided));
+        $this->assertTrue($voidedDetail['na_in_nets']);
+        $this->assertTrue($voidedDetail['auto_refunded']);
+        $this->assertSame(\App\Support\AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED, $voidedDetail['auto_refund_source']);
+        $this->assertNotNull($voidedDetail['auto_refund_source_label']);
+
+        $unflaggedDetail = $this->detailFor($this->ticket($unflagged));
+        $this->assertTrue($unflaggedDetail['na_in_nets'], 'the report fact is stated');
+        $this->assertFalse($unflaggedDetail['auto_refunded'], 'no refund is deduced from a missing line');
+        $this->assertNull($unflaggedDetail['auto_refund_source']);
+
+        $capturedDetail = $this->detailFor($this->ticket($captured));
+        $this->assertFalse($capturedDetail['na_in_nets']);
+    }
+
     public function test_card_sale_with_a_reversal_line_reads_reversed_with_a_report_link()
     {
         CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23082824', 'vend_id' => self::VEND_ID, 'bound_from' => '2026-08-01']);
