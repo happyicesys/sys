@@ -60,6 +60,18 @@ class VendTransactionResource extends JsonResource
             'refund_request_on_items' => (bool) ($this->refund_request_on_items ?? false),
             'is_found_in_transaction' => (bool) ($this->is_found_in_transaction ?? true),
             'settlement_status' => $this->settlement_status ?? null,
+            // "Settle Sync" column: the rail's own confirmation of the money —
+            // the acquirer report for a card terminal, the gateway's approve
+            // callback for QR. The cell compares these with ===, so the ints are
+            // cast here (a driver-supplied "2" would read as "not approved"), and
+            // a consumer that does not select the aliases gets nulls, which
+            // renders the cell blank instead of guessing a rail. Selected by
+            // VendController::transactionIndex.
+            'card_settlement_synced_at' => $this->formatUserDateTime($this->card_settlement_synced_at ?? null),
+            'payment_method_gateway_id' => isset($this->payment_method_gateway_id) ? (int) $this->payment_method_gateway_id : null,
+            'payment_method_code' => isset($this->payment_method_code) ? (int) $this->payment_method_code : null,
+            'payment_gateway_log_status' => isset($this->payment_gateway_log_status) ? (int) $this->payment_gateway_log_status : null,
+            'payment_gateway_approved_at' => $this->formatUserDateTime($this->payment_gateway_approved_at ?? null),
             'itemsJson' => $this->items_json,
             'labelJson' => (function () {
                 $computed = is_string($this->label_json) ? json_decode($this->label_json, true) : ($this->label_json ?? []);
@@ -109,5 +121,11 @@ class VendTransactionResource extends JsonResource
             'virtual_customer_prefix' => isset($this->virtual_customer_prefix) ? $this->virtual_customer_prefix : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,
         ];
+    }
+
+    /** A stored timestamp in the viewer's timezone, or null. Same shape as transaction_datetime. */
+    private function formatUserDateTime($value): ?string
+    {
+        return $value ? Carbon::parse($value)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null;
     }
 }

@@ -201,4 +201,56 @@ class TransactionIndexStatusColumnsTest extends TestCase
         $this->assertSame(SaleStatus::DISPENSED, $items[11]['dispense_status']);
         $this->assertSame(SaleStatus::FAILED, $items[12]['dispense_status']);
     }
+
+    /**
+     * "Settle Sync" is decided in the Vue from five fields, and between
+     * 2026-09-01 and 2026-09-09 the resource emitted none of them: every row
+     * fell through `payment_method_gateway_id !== null` (undefined) into the
+     * gateway branch and drew a grey cross, whatever the rail or the report
+     * said. The ints are compared with === in the cell, so their TYPE is part
+     * of the contract, not just their presence.
+     */
+    public function test_the_settle_sync_column_is_given_the_fields_it_renders_from(): void
+    {
+        $card = PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
+        $cash = PaymentMethod::create(['code' => 0, 'name' => 'Cash', 'is_active' => true]);
+        $omise = PaymentMethod::create(['code' => 201, 'name' => 'Omise (Paynow)', 'is_active' => true, 'payment_gateway_id' => 2]);
+
+        $this->txn('CARD-SYNCED', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->okErrorId])
+            ->forceFill(['card_settlement_synced_at' => now()])->save();
+        $this->txn('CARD-WAITING', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->okErrorId]);
+        $this->txn('CASH-OK', ['payment_method_id' => $cash->id, 'vend_channel_error_id' => $this->okErrorId]);
+        $this->txn('QR-APPROVED', ['payment_method_id' => $omise->id, 'payment_gateway_log_id' => $this->gatewayLog('QR-APPROVED', 2)]);
+        $this->txn('QR-DECLINED', ['payment_method_id' => $omise->id, 'payment_gateway_log_id' => $this->gatewayLog('QR-DECLINED', 99)]);
+
+        $rows = $this->gridRows();
+
+        // Card terminal: gateway id null + a non-zero method code selects the card branch.
+        $synced = $rows['CARD-SYNCED'];
+        $this->assertNull($synced['payment_method_gateway_id']);
+        $this->assertSame(1, $synced['payment_method_code']);
+        $this->assertNotNull($synced['card_settlement_synced_at'], 'a synced card sale must show the tick');
+
+        $this->assertNull($rows['CARD-WAITING']['card_settlement_synced_at'], 'no report line yet: cross');
+        $this->assertNull($rows['CARD-WAITING']['payment_method_gateway_id']);
+
+        // Cash takes neither branch — the cell stays blank.
+        $this->assertNull($rows['CASH-OK']['payment_method_gateway_id']);
+        $this->assertSame(0, $rows['CASH-OK']['payment_method_code']);
+
+        // Gateway: the approve callback is the confirmation, compared with === 2 / 98 / 99.
+        $this->assertSame(2, $rows['QR-APPROVED']['payment_method_gateway_id']);
+        $this->assertSame(2, $rows['QR-APPROVED']['payment_gateway_log_status']);
+        $this->assertNotNull($rows['QR-APPROVED']['payment_gateway_approved_at']);
+        $this->assertSame(99, $rows['QR-DECLINED']['payment_gateway_log_status']);
+    }
+
+    private function gatewayLog(string $orderId, int $status): int
+    {
+        return DB::table('payment_gateway_logs')->insertGetId([
+            'vend_code' => 2003, 'vend_id' => $this->vendId, 'order_id' => $orderId,
+            'operator_payment_gateway_id' => 1, 'amount' => 0.2, 'status' => $status,
+            'approved_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
 }
