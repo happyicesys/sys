@@ -327,6 +327,12 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
 
     private function calculateErrorItemCount($transactionQuery): int
     {
+        // Double-quoted SQL: the fault predicates are interpolated as {$vars},
+        // never concatenated with '.…' (that left the PHP call literal in the
+        // SQL and failed every run of this job, 2026-09-09).
+        $itemFault = DispenseVerdict::sqlFault('vce.code');
+        $headerFault = DispenseVerdict::sqlFault('vend_channel_errors.code');
+
         $result = $transactionQuery
             ->clone()
             ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
@@ -337,11 +343,11 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
                             (SELECT COUNT(*) FROM vend_transaction_items
                              LEFT JOIN vend_channel_errors AS vce ON vend_transaction_items.vend_channel_error_id = vce.id
                              WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id
-                               AND '.DispenseVerdict::sqlFault('vce.code').'
+                               AND {$itemFault}
                             )
                         ELSE
                             CASE
-                                WHEN '.DispenseVerdict::sqlFault('vend_channel_errors.code').' OR JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.GET_TYPE')) != '1' THEN 1
+                                WHEN {$headerFault} OR JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.GET_TYPE')) != '1' THEN 1
                                 ELSE 0
                             END
                     END

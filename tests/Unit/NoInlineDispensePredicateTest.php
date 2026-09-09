@@ -62,4 +62,37 @@ class NoInlineDispensePredicateTest extends TestCase
 
         $this->assertSame([], $offenders, "Inline channel-error predicate found — use App\\Support\\DispenseVerdict:\n".implode("\n", $offenders));
     }
+
+    /**
+     * A DispenseVerdict call written as `'.DispenseVerdict::…('…').'` INSIDE a
+     * double-quoted or heredoc SQL string is not concatenated — the PHP text
+     * lands in the SQL and the query fails (SyncVendTransactionTotalsJson,
+     * 2026-09-09: every run failed for a day). Token-level, so no regex guess.
+     */
+    public function test_no_dispense_verdict_call_left_literal_inside_a_double_quoted_string(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $offenders = [];
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root.'/app', \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+            foreach (token_get_all(file_get_contents($file->getPathname())) as $token) {
+                if (! is_array($token)) {
+                    continue;
+                }
+                [$id, $text, $line] = $token;
+                $literalDoubleQuoted = $id === T_CONSTANT_ENCAPSED_STRING && $text[0] === '"';
+                if (($id === T_ENCAPSED_AND_WHITESPACE || $literalDoubleQuoted) && str_contains($text, 'DispenseVerdict::')) {
+                    $offenders[] = str_replace($root.'/', '', $file->getPathname()).':'.$line;
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, "DispenseVerdict call left literal inside a double-quoted string — interpolate a {\$variable} instead:\n".implode("\n", $offenders));
+    }
 }
