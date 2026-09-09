@@ -433,7 +433,7 @@ function actionBadge(l) {
                                 :title="t.machine_rf_24h + ' refund request(s) on this machine in the 24h up to this submission.'">
                                 {{ t.machine_rf_24h }}
                             </span>
-                            <span v-else class="text-gray-300">—</span>
+                            <span v-else class="text-xs text-gray-400">No data</span>
                         </dd>
                     </div>
                     <div>
@@ -458,7 +458,7 @@ function actionBadge(l) {
                                 title="Product Drop Sensor was Enabled on the machine at the time of the transaction.">Enabled</span>
                             <span v-else-if="t.product_drop_sensor === false" class="text-xs font-semibold text-gray-500"
                                 title="Product Drop Sensor was Disabled on the machine at the time of the transaction.">Disabled</span>
-                            <span v-else class="text-gray-300" title="No Product Drop Sensor reading recorded for this transaction.">—</span>
+                            <span v-else class="text-xs text-gray-400" title="No Product Drop Sensor reading recorded for this transaction.">Not recorded</span>
                         </dd>
                     </div>
                     <div>
@@ -466,7 +466,7 @@ function actionBadge(l) {
                         <dd class="mt-1">
                             <span v-if="t.error_code" class="text-xs font-semibold text-amber-700 cursor-help"
                                 :title="t.error_desc || ('Error code ' + t.error_code)">{{ t.error_code }}</span>
-                            <span v-else class="text-gray-300">—</span>
+                            <span v-else class="text-xs text-gray-400">None reported</span>
                         </dd>
                     </div>
                     <!-- NETS settlement report verdict on the matched card sale. The report is the
@@ -687,13 +687,16 @@ function actionBadge(l) {
                             :title="r.payment_status
                                 ? 'Payment status: ' + r.payment_status
                                 : 'No payment rail has confirmed this sale yet. For a card sale that means its NETS report has not been synced; cash is never confirmed. It does NOT mean the payment failed.'">
-                            {{ r.payment_status === 'Refunded' ? '↩ Refunded' : (r.payment_status || 'Not confirmed') }}
+                            Payment: {{ r.payment_status === 'Refunded' ? '↩ Refunded' : (r.payment_status || 'not confirmed yet') }}
                         </span>
-                        <span v-if="r.dispense_status" class="text-[11px] font-semibold px-2 py-0.5 rounded-full border" title="Dispense"
+                        <span v-if="r.machine_reported === false" class="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-gray-50 text-gray-500 border-gray-200">
+                            Dispense: machine never reported
+                        </span>
+                        <span v-else-if="r.dispense_status" class="text-[11px] font-semibold px-2 py-0.5 rounded-full border" title="Dispense"
                             :class="r.dispense_status.startsWith('Dispensed') ? 'bg-green-50 text-green-700 border-green-200'
                                 : (r.dispense_status.startsWith('Failed') ? 'bg-red-50 text-red-700 border-red-200'
                                 : (r.dispense_status.startsWith('Partial') ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-600 border-gray-200'))">
-                            {{ r.dispense_status }}
+                            Dispense: {{ r.dispense_status }}
                         </span>
                     </div>
                     <a :href="r.link" target="_blank" class="shrink-0 text-teal-600 text-xs font-semibold hover:underline"
@@ -730,14 +733,19 @@ function actionBadge(l) {
                             <dd class="text-sm text-gray-800 font-medium">{{ r.operator_code || '—' }}</dd>
                         </div>
                         <div class="min-w-0">
-                            <dt class="text-[10px] uppercase tracking-wide text-gray-500">Dispensed</dt>
+                            <dt class="text-[10px] uppercase tracking-wide text-gray-500">Dispensed (confirmed)</dt>
                             <!-- No TRADE = the count was never filled in. Showing the
                                  0 placeholder here reads as "customer got nothing" and
                                  has been driving wrong refund decisions. -->
                             <dd v-if="r.machine_reported === false" class="text-sm font-medium text-gray-400 cursor-help" :title="dispensedTitle(r)">
                                 — <span class="text-[11px]">no machine report</span>
                             </dd>
-                            <dd v-else class="text-sm font-medium cursor-help" :class="(r.success_qty < r.qty) ? 'text-amber-700' : 'text-gray-800'" :title="dispensedTitle(r)">{{ r.success_qty }}/{{ r.qty }}</dd>
+                            <dd v-else class="text-sm font-medium cursor-help" :class="(r.success_qty < r.qty) ? 'text-amber-700' : 'text-gray-800'" :title="dispensedTitle(r)">
+                                {{ r.success_qty }}/{{ r.qty }}
+                                <span v-if="(r.dispensed_qty ?? 0) > (r.success_qty ?? 0)" class="block text-[10px] font-normal text-gray-500">
+                                    motor ran, machine reported a fault
+                                </span>
+                            </dd>
                         </div>
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">TXN SRC</dt>

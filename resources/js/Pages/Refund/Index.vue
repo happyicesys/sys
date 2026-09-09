@@ -837,7 +837,7 @@ const sortedRows = computed(() => {
                                     v-tooltip="(t.auto_refund_source_label || 'The machine/gateway already refunded this transaction, or this is an auto-resolved / Nayax-auto ticket.') + ' Do NOT pay again.'">Yes</span>
                                 <span v-else-if="t.auto_refunded === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
                                     v-tooltip="'Not auto refunded — no automatic refund recorded on the matched transaction.'">No</span>
-                                <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so an auto refund cannot be checked.'">—</span>
+                                <span v-else class="text-[11px] text-gray-400" v-tooltip="'No matched transaction, so an auto refund cannot be checked.'">No txn</span>
                                 <span v-if="autoRefundBadges[t.auto_refund_source]"
                                     class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                     :class="autoRefundBadges[t.auto_refund_source].class"
