@@ -1261,6 +1261,12 @@ class VendController extends Controller
                 DB::raw('(SELECT t.name FROM simcards s
                     JOIN telcos t ON t.id = s.telco_id
                     WHERE s.id = vends.simcard_id) AS telco_name'),
+                // telcos.color — the badge tint (Brian, 2026-09-09), so a
+                // package is recognisable without reading the name. Same PK
+                // lookup shape as telco_name above, deliberately not a join.
+                DB::raw('(SELECT t.color FROM simcards s
+                    JOIN telcos t ON t.id = s.telco_id
+                    WHERE s.id = vends.simcard_id) AS telco_color'),
                 // Remote modem — drives the "Remote Modem" badge (Machine
                 // Status) and the "Modem" badge (Payment Device).
                 //

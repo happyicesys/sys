@@ -2784,10 +2784,20 @@
 								status, so it carries no online/offline colouring —
 								only the usual dimming when the machine is inactive.
 								Hidden entirely when no SIM card is bound.
+
+								The tint is the package's own colour (telcos.color,
+								set on Data Management > SimCard Package), applied as
+								an inline style because Tailwind purges class names it
+								cannot see — see constants/telcoColors.js. A package
+								with no colour keeps the blue this badge always had,
+								and green / grey / red are not offered as package
+								colours precisely because they mean online / N-A /
+								offline in this column.
 							-->
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_active || vend.is_testing ? 'bg-blue-100' : 'bg-gray-200 text-gray-400']"
+									:class="[vend.is_active || vend.is_testing ? '' : 'bg-gray-200 text-gray-400']"
+									:style="vend.is_active || vend.is_testing ? telcoBadgeStyle(vend.telco_color) : null"
 									v-if="vend.telco_name"
 							>
 									<div class="flex flex-col">
@@ -3391,6 +3401,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import axios from 'axios';
 	import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 	import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
+	import { telcoBadgeStyle } from '@/constants/telcoColors';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));

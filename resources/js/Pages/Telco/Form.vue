@@ -27,6 +27,40 @@
                 Desc
               </FormTextarea>
             </div>
+            <!-- Colour: tints this package's badge on the Operation
+                 Dashboard so ops can tell packages apart at a glance. Five
+                 tints only - green / grey / red are reserved for machine
+                 status on that page. See constants/telcoColors.js. -->
+            <div class="sm:col-span-6">
+              <label class="block text-sm font-medium text-gray-700">
+                Color (Operation Dashboard badge)
+              </label>
+              <div class="mt-1 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  class="inline-flex items-center space-x-2 rounded-md px-3 py-2 text-xs"
+                  :class="form.color === null ? 'ring-2 ring-offset-1 ring-indigo-500' : ''"
+                  :style="telcoBadgeStyle(null)"
+                  @click="form.color = null"
+                >
+                  <span>Default</span>
+                </button>
+                <button
+                  v-for="option in colorChoices"
+                  :key="option.id"
+                  type="button"
+                  class="inline-flex items-center space-x-2 rounded-md px-3 py-2 text-xs"
+                  :class="form.color === option.id ? 'ring-2 ring-offset-1 ring-indigo-500' : ''"
+                  :style="telcoBadgeStyle(option.id)"
+                  @click="form.color = option.id"
+                >
+                  <span>{{ option.name }}</span>
+                </button>
+              </div>
+              <div class="text-sm text-red-600" v-if="form.errors.color">
+                {{ form.errors.color }}
+              </div>
+            </div>
             <!-- Usage API: which provider simcards:sync-usage polls for this
                  package's Status column. Blank = no live status. -->
             <div class="sm:col-span-6">
@@ -94,6 +128,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { TELCO_COLORS, telcoBadgeStyle } from '@/constants/telcoColors';
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
@@ -106,6 +141,13 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Telco::COLORS - the keys the backend will accept. The swatches come from
+  // constants/telcoColors.js; anything the backend no longer offers is
+  // dropped here so the form can never post a rejected value.
+  colorOptions: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['modalClose'])
@@ -114,6 +156,11 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const toast = useToast()
+
+const colorChoices = computed(() => props.colorOptions.length
+  ? TELCO_COLORS.filter(option => props.colorOptions.includes(option.id))
+  : TELCO_COLORS
+)
 
 const selectedProviderEndpoint = computed(() => {
   const option = props.usageProviderOptions.find(o => o.id === form.value.usage_provider)
@@ -128,6 +175,7 @@ function getDefaultForm() {
   return {
     name: '',
     desc: '',
+    color: null,
     usage_provider: null,
     usage_endpoint: '',
   }

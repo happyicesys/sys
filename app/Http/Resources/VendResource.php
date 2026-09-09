@@ -313,6 +313,9 @@ class VendResource extends JsonResource
             // VendController::indexCustomer; null on pages that don't join them.
             'telco_id' => isset($this->telco_id) ? $this->telco_id : null,
             'telco_name' => isset($this->telco_name) ? $this->telco_name : null,
+            // Badge tint for that name — one of Telco::COLORS or null for the
+            // default blue (resources/js/constants/telcoColors.js).
+            'telco_color' => isset($this->telco_color) ? $this->telco_color : null,
             'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
             'settings_parameter_json' => isset($this->settings_parameter_json) ? $this->settings_parameter_json : null,
             'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,

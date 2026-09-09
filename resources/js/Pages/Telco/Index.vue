@@ -26,6 +26,24 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <MultiSelect
+              v-model="filters.status"
+              :options="statusOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              :canClear="false"
+              @selected="onSearchFilterUpdated()"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -86,6 +104,18 @@
                     <TableHead>
                       Usage API
                     </TableHead>
+                    <!-- SIM cards on this package that a machine is bound to,
+                         over the package's total. The left number is what
+                         blocks Deactivate. -->
+                    <TableHead>
+                      Active / Total
+                    </TableHead>
+                    <TableHead>
+                      Color
+                    </TableHead>
+                    <TableHead>
+                      Status
+                    </TableHead>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -109,6 +139,26 @@
                         <span class="text-gray-400" v-else>-</span>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
+                        <span :class="telco.simcards_on_machine_count ? 'font-medium text-gray-900' : 'text-gray-400'">
+                          {{ telco.simcards_on_machine_count ?? 0 }}
+                        </span>
+                        <span class="text-gray-400"> / {{ telco.simcards_count ?? 0 }}</span>
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                          <span class="inline-block h-4 w-4 rounded" :style="telcoSwatchStyle(telco.color)"></span>
+                          <span :class="telco.color ? '' : 'text-gray-400'">{{ telcoColorName(telco.color) }}</span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
+                        <span
+                          class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                          :class="telco.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                        >
+                          {{ telco.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -117,6 +167,23 @@
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
                                 Edit
+                            </span>
+                          </Button>
+                          <!-- Retire instead of delete. Blocked while a SIM on
+                               this package still sits in a machine — the guard
+                               is enforced server-side too. -->
+                          <Button
+                            type="button" class="px-3 py-2 text-xs flex space-x-1"
+                            :class="toggleBlocked(telco)
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : (telco.is_active ? 'bg-red-300 hover:bg-red-400 text-red-800' : 'bg-green-300 hover:bg-green-400 text-green-800')"
+                            :title="toggleBlocked(telco) ? blockedReason(telco) : ''"
+                            @click="onToggleActiveClicked(telco)"
+                          >
+                            <FolderMinusIcon v-if="telco.is_active" class="w-4 h-4"></FolderMinusIcon>
+                            <FolderPlusIcon v-else class="w-4 h-4"></FolderPlusIcon>
+                            <span>
+                                {{ telco.is_active ? 'Deactivate' : 'Activate' }}
                             </span>
                           </Button>
                           <Button
@@ -149,6 +216,7 @@
       :type="type"
       :showModal="showModal"
       :usageProviderOptions="usageProviderOptions"
+      :colorOptions="colorOptions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -162,7 +230,8 @@ import Form from '@/Pages/Telco/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, FolderMinusIcon, FolderPlusIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { telcoColorName, telcoSwatchStyle } from '@/constants/telcoColors';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -172,17 +241,29 @@ import { useToast } from "vue-toastification";
 
 const props = defineProps({
   telcos: Object,
+  status: String,
   usageProviderOptions: {
     type: Array,
     default: () => [],
   },
+  colorOptions: {
+    type: Array,
+    default: () => [],
+  },
 })
+
+const statusOptions = ref([
+  { id: 'active', value: 'Active' },
+  { id: 'inactive', value: 'Inactive' },
+  { id: 'all', value: 'All' },
+])
 
 const filters = ref({
   name: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
+  status: { id: 'active', value: 'Active' },
 })
 const showModal = ref(false)
 const telco = ref()
@@ -198,6 +279,10 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+
+  // Reflect the status the backend actually applied (default 'active').
+  const activeStatus = props.status || 'active'
+  filters.value.status = statusOptions.value.find(o => o.id === activeStatus) || statusOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -221,6 +306,42 @@ function onDeleteClicked(telco) {
   })
 }
 
+// A package with SIM cards still in machines cannot be retired: those
+// machines' "SimCard Package" badge reads off this row.
+function toggleBlocked(telco) {
+  return telco.is_active && (telco.simcards_on_machine_count ?? 0) > 0
+}
+
+function blockedReason(telco) {
+  return 'Cannot deactivate ' + telco.name + ': ' + telco.simcards_on_machine_count
+    + ' SIM card(s) on this package are still bound to a machine.'
+}
+
+// SimCard Packages are never deleted from ops - only deactivated, so simcards
+// and every report reached through telco_id keep their label.
+function onToggleActiveClicked(telco) {
+  if (toggleBlocked(telco)) {
+    toast.error(blockedReason(telco), { timeout: 5000 })
+    return
+  }
+
+  const action = telco.is_active ? 'deactivate' : 'activate'
+  const approval = confirm('Are you sure to ' + action + ' ' + telco.name + '?');
+  if (!approval) {
+      return;
+  }
+  router.post('/telcos/' + telco.id + '/toggle-activate-deactivate', {}, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success('SimCard Package ' + action + 'd successfully', { timeout: 3000 })
+    },
+    onError: (errors) => {
+      toast.error(errors.is_active || ('Failed to ' + action + ' SimCard Package'), { timeout: 5000 })
+    }
+  })
+}
+
 function onEditClicked(telcoValue) {
   type.value = 'update'
   telco.value = telcoValue
@@ -231,6 +352,7 @@ function onSearchFilterUpdated() {
   router.get('/telcos', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
+      status: filters.value.status?.id ?? filters.value.status,
   }, {
       preserveState: true,
       replace: true,

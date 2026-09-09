@@ -867,6 +867,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [TelcoController::class, 'index'])->name('telcos');
         Route::post('/create', [TelcoController::class, 'create']);
         Route::post('/{id}/update', [TelcoController::class, 'update']);
+        // Retire a package instead of deleting it — simcards.telco_id and every
+        // report reached through it keep their label. Refused while a SIM on
+        // the package is still bound to a machine.
+        Route::post('/{id}/toggle-activate-deactivate', [TelcoController::class, 'toggleActivateDeactivate']);
         Route::delete('/{id}', [TelcoController::class, 'delete']);
     });
 

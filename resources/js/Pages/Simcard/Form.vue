@@ -127,7 +127,12 @@ const vendOptions = ref([])
 const toast = useToast()
 
 onMounted(() => {
-  telcoOptions.value = props.telcos.data.map((data) => {return {id: data.id, name: data.name}})
+  // Retired packages (Data Management > SimCard Package > Deactivate) are not
+  // offered for a new assignment. The one this SIM is already on stays listed,
+  // whatever its status, so editing an old SIM never silently re-points it.
+  telcoOptions.value = props.telcos.data
+    .filter((data) => data.is_active !== false || (props.simcard && data.id == props.simcard.telco_id))
+    .map((data) => {return {id: data.id, name: data.name}})
   vendOptions.value = props.vends
     .filter(v => typeof v.simcard_id === 'undefined' || v.simcard_id == null || (props.simcard && v.simcard_id == props.simcard.id))
     .map(v => {
