@@ -454,58 +454,73 @@ class VendTransaction extends Model
             RefundTicket::STATUS_COMPLETED,
         ];
 
-        // EXISTS subquery: a refund ticket for this transaction in the given
-        // statuses. $manualOnly excludes auto-refund-channel tickets so a
-        // Nayax-auto ticket never counts as a "manual" refund.
-        $ticketExists = function ($sub, array $statuses, bool $manualOnly = false) {
+        // A ticket links to its sale by EITHER key, and each key gets its OWN
+        // EXISTS. Both keys inside one subquery (`vend_transaction_id = … OR
+        // order_id = …`) is a correlated OR across two columns, which MySQL
+        // cannot serve from an index: it re-scanned all ~1,700 refund_tickets
+        // for every candidate sale, so "Refunded (any)" over five days of card
+        // sales (11k rows) never came back at all (prod, 2026-09-09).
+        // EXISTS(A OR B) ≡ EXISTS(A) OR EXISTS(B), and each half then uses its
+        // own index (refund_tickets_vend_transaction_id_index / _order_id_index).
+        $linkKeys = [
+            'refund_tickets.vend_transaction_id' => 'vend_transactions.id',
+            'refund_tickets.order_id' => 'vend_transactions.order_id',
+        ];
+
+        // One EXISTS, correlated on ONE key. $manualOnly excludes
+        // auto-refund-channel tickets so a Nayax-auto ticket never counts as a
+        // "manual" refund; $autoOnly keeps only those same auto ones.
+        $ticketExists = function ($sub, array $statuses, string $ticketKey, string $saleKey, bool $manualOnly = false, bool $autoOnly = false) {
             $sub->select(DB::raw(1))
                 ->from('refund_tickets')
                 ->whereNull('refund_tickets.deleted_at')
                 ->whereIn('refund_tickets.status', $statuses)
-                ->where(function ($m) {
-                    $m->whereColumn('refund_tickets.vend_transaction_id', 'vend_transactions.id')
-                        ->orWhereColumn('refund_tickets.order_id', 'vend_transactions.order_id');
-                });
+                ->whereColumn($ticketKey, $saleKey);
+
             if ($manualOnly) {
                 $sub->where('refund_tickets.refund_method', '!=', RefundTicket::METHOD_NAYAX_AUTO);
+            }
+            if ($autoOnly) {
+                $sub->where(function ($a) {
+                    $a->where('refund_tickets.status', RefundTicket::STATUS_AUTO_RESOLVED)
+                        ->orWhere('refund_tickets.refund_method', RefundTicket::METHOD_NAYAX_AUTO);
+                });
             }
         };
 
         switch ($search) {
             case 'true':
-                $query->where(function ($q) use ($ticketExists) {
-                    $q->where('vend_transactions.is_refunded', true)
-                        ->orWhereExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES));
+                $query->where(function ($q) use ($ticketExists, $linkKeys) {
+                    $q->where('vend_transactions.is_refunded', true);
+                    foreach ($linkKeys as $ticketKey => $saleKey) {
+                        $q->orWhereExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES, $ticketKey, $saleKey));
+                    }
                 });
                 break;
             case 'false':
-                $query->where('vend_transactions.is_refunded', false)
-                    ->whereNotExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES));
+                // De Morgan: NOT EXISTS(A OR B) is NOT EXISTS(A) AND NOT EXISTS(B).
+                $query->where('vend_transactions.is_refunded', false);
+                foreach ($linkKeys as $ticketKey => $saleKey) {
+                    $query->whereNotExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES, $ticketKey, $saleKey));
+                }
                 break;
             case 'auto':
                 // Auto = gateway auto-refund flag, or an active ticket that is
                 // auto-resolved / on the auto-refund (Nayax) channel — mirrors the
                 // badge logic so filter and column agree.
-                $query->where(function ($q) {
-                    $q->where('vend_transactions.is_refunded', true)
-                        ->orWhereExists(function ($sub) {
-                            $sub->select(DB::raw(1))
-                                ->from('refund_tickets')
-                                ->whereNull('refund_tickets.deleted_at')
-                                ->whereIn('refund_tickets.status', RefundTicket::ACTIVE_REFUND_STATUSES)
-                                ->where(function ($a) {
-                                    $a->where('refund_tickets.status', RefundTicket::STATUS_AUTO_RESOLVED)
-                                        ->orWhere('refund_tickets.refund_method', RefundTicket::METHOD_NAYAX_AUTO);
-                                })
-                                ->where(function ($m) {
-                                    $m->whereColumn('refund_tickets.vend_transaction_id', 'vend_transactions.id')
-                                        ->orWhereColumn('refund_tickets.order_id', 'vend_transactions.order_id');
-                                });
-                        });
+                $query->where(function ($q) use ($ticketExists, $linkKeys) {
+                    $q->where('vend_transactions.is_refunded', true);
+                    foreach ($linkKeys as $ticketKey => $saleKey) {
+                        $q->orWhereExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES, $ticketKey, $saleKey, autoOnly: true));
+                    }
                 });
                 break;
             case 'manual':
-                $query->whereExists(fn ($sub) => $ticketExists($sub, $manualStatuses, true));
+                $query->where(function ($q) use ($ticketExists, $linkKeys, $manualStatuses) {
+                    foreach ($linkKeys as $ticketKey => $saleKey) {
+                        $q->orWhereExists(fn ($sub) => $ticketExists($sub, $manualStatuses, $ticketKey, $saleKey, manualOnly: true));
+                    }
+                });
                 break;
         }
 
