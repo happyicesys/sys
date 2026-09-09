@@ -1079,7 +1079,11 @@ class Vend extends Model
                 // (previously read live from acb_vmc_pa_json->CSHL_MFG, which
                 // was unreliable). See VendController::indexCustomer for the
                 // matching join on card_terminals.
-                if ($search != 'all') {
+                if ($search === 'undefined') {
+                    // "N/A" — no card terminal bound. Mirrors the same branch
+                    // in HasFilter::filterVendsDB.
+                    $query->whereNull('vends.card_terminal_id');
+                } elseif ($search != 'all') {
                     $query->whereHas('cardTerminal', function ($q) use ($search) {
                         $q->where('name', $search);
                     });

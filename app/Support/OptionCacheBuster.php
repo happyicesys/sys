@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\DeliveryPlatform;
 use App\Models\LocationType;
+use App\Models\ModemType;
 use App\Models\Operator;
 use App\Models\PaymentGateway;
 use App\Models\PaymentMerchant;
@@ -67,6 +68,7 @@ class OptionCacheBuster
         ProductMapping::class   => ['product_mapping_options'],
         CardTerminal::class     => ['card_terminal_options'],
         Telco::class            => ['telco_options'], // "SimCard Package" dropdown
+        ModemType::class        => ['modem_type_options'], // "Modem" dropdown
         Tag::class              => ['tag_options_product'],
         PaymentMethod::class    => ['payment_methods', 'payment_method_id_credit_card'],
     ];

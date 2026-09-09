@@ -437,7 +437,11 @@ trait HasFilter
             // base model is in use. The vends table is always joined at
             // every call site.
             ->when($request->cashless_mfg, function ($query, $search) {
-                if ($search != 'all') {
+                if ($search === 'undefined') {
+                    // "N/A" — the machine has no card terminal bound, which is
+                    // exactly what the Card Terminal badge renders as N/A.
+                    $query->whereNull('vends.card_terminal_id');
+                } elseif ($search != 'all') {
                     $query->whereIn('vends.card_terminal_id', function ($sub) use ($search) {
                         $sub->select('id')
                             ->from('card_terminals')
@@ -516,6 +520,17 @@ trait HasFilter
                 if ($search != 'all') {
                     if ($search == 'undefined') {
                         $query->whereNull('vends.lcd_monitor_id');
+                    } elseif ($search == 'na') {
+                        // The Operation Dashboard's "N/A" option. Its LCD Monitor
+                        // badge shows N/A for BOTH an unset lcd_monitor_id and
+                        // mapping 99 (which is itself labelled 'N/A'), so the
+                        // filter has to cover both or it would not return the
+                        // rows the badge is pointing at. 'undefined' above keeps
+                        // its null-only meaning for Vend/Index.
+                        $query->where(function ($q) {
+                            $q->whereNull('vends.lcd_monitor_id')
+                                ->orWhere('vends.lcd_monitor_id', 99);
+                        });
                     } else {
                         $query->where('vends.lcd_monitor_id', $search);
                     }

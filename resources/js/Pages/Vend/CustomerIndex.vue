@@ -252,6 +252,43 @@
 					>
 					</MultiSelect>
 				</div>
+				<!-- Modem / LCD Monitor — the other two Payment Device badges
+				     that had no filter. Both read a column on `vends`
+				     (modem_type_id / lcd_monitor_id), so neither adds a join to
+				     the Operation Dashboard query. "N/A" is the badge's own
+				     wording for nothing bound. -->
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					<label for="text" class="block text-sm font-medium text-gray-700">
+						Modem
+					</label>
+					<MultiSelect
+						v-model="filters.modem_type_id"
+						:options="modemTypeOptions"
+						trackBy="id"
+						valueProp="id"
+						label="value"
+						placeholder="Select"
+						open-direction="bottom"
+						class="mt-1"
+					>
+					</MultiSelect>
+				</div>
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					<label for="text" class="block text-sm font-medium text-gray-700">
+						LCD Monitor
+					</label>
+					<MultiSelect
+						v-model="filters.lcd_monitor_id"
+						:options="lcdMonitorOptions"
+						trackBy="id"
+						valueProp="id"
+						label="value"
+						placeholder="Select"
+						open-direction="bottom"
+						class="mt-1"
+					>
+					</MultiSelect>
+				</div>
 				<!-- SimCard Package — the SIM card's data plan (telcos), matched
 				     through vends.simcard_id. Multi-select; the "All" chip is the
 				     default and means "don't filter". -->
@@ -3427,6 +3464,12 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			driverOptions: Object,
 			frequencyPerWeekOptions: [Array, Object],
 			indexType: String,
+			// "LCD Monitor" filter options — Vend::LCD_MONITOR_SHORT_MAPPINGS
+			// ({id: shortLabel}), the same strings the LCD Monitor badge shows.
+			lcdMonitorOptions: [Array, Object],
+			// "Modem" filter options — modem_types, labelled by alias to match
+			// the Modem badge.
+			modemTypeOptions: Object,
 			// Pre-Search aggregate cards — backend-computed over ALL rows
 			// matching the filters (not capped by itemPerPage). Only set on
 			// the initial non-autoload load; null after a Search, at which
@@ -3688,6 +3731,11 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			firmware_ver: '',
 			frequency_per_week_status: [],
 			locationType: '',
+			// Hidden filters mirroring the Payment Device column's badges:
+			// Modem (vends.modem_type_id) and LCD Monitor (vends.lcd_monitor_id).
+			// Both carry an 'undefined' option = the badge's "N/A" (nothing bound).
+			modem_type_id: '',
+			lcd_monitor_id: '',
 			is_active: true,
 			// Site Status (5-value) — only used on the customers view.
 			// Multi-select: stores an array of {id, value}; ids are forwarded as
@@ -3759,7 +3807,9 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const isShowOperationDiv = ref(false)
 	const isSelectedAll = ref(false)
 	const loading = ref(false)
+	const lcdMonitorOptions = ref([])
 	const locationTypeOptions = ref([])
+	const modemTypeOptions = ref([])
 	const nextDeliveryDriverOptions = ref([])
 	const numberPerPageOptions = ref([])
 	const operatorOptions = ref([])
@@ -3843,7 +3893,31 @@ deviceTypeOptions.value =
 // card_terminals.name via the subquery in HasFilter::filterVendsDB.
 cardTerminalOptions.value = [
 		{id: 'all', value: 'All'},
+		// "N/A" = vends.card_terminal_id IS NULL, the value the Card Terminal
+		// badge shows when nothing is bound. Sent as cashless_mfg=undefined.
+		{id: 'undefined', value: 'N/A'},
 		...(props.cardTerminalOptions ?? []).map((name) => ({id: name, value: name}))
+]
+// Modem — labelled by modem_types.alias (the badge's value); posts back the
+// modem_type_id. 'undefined' = no modem type bound = the badge's "N/A".
+modemTypeOptions.value = [
+		{id: 'all', value: 'All'},
+		{id: 'undefined', value: 'N/A'},
+		...(props.modemTypeOptions?.data ?? []).map((modemType) => ({
+			id: modemType.id,
+			value: modemType.alias ? modemType.alias : modemType.name,
+		}))
+]
+// LCD Monitor — short labels (7", 10.1" …), matching the badge. The badge reads
+// N/A for BOTH an unset lcd_monitor_id and mapping 99 (labelled 'N/A' itself),
+// so one 'na' option covers both and 99 is dropped from the list rather than
+// offered as a second, narrower "N/A".
+lcdMonitorOptions.value = [
+		{id: 'all', value: 'All'},
+		{id: 'na', value: 'N/A'},
+		...Object.entries(props.lcdMonitorOptions ?? {})
+			.filter(([id]) => String(id) !== '99')
+			.map(([id, name]) => ({id: id, value: name}))
 ]
 booleanOptions.value = [
 		{id: 'all', value: 'All'},
@@ -3957,6 +4031,8 @@ upcomingProductMappingOptions.value = [
 ]
 
 filters.value.cashless_mfg = cardTerminalOptions.value[0]
+filters.value.modem_type_id = modemTypeOptions.value[0]
+filters.value.lcd_monitor_id = lcdMonitorOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
 // Site Status — multi-select default = Active (id=2) + Removed (id=3), matching
@@ -4027,6 +4103,8 @@ if(urlParams.has('channel_codes')) {
 		if(cleanKey === 'include_unbound_vends') filters.value.include_unbound_vends = (value === 'true' || value === '1');
 
 		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
+		if(cleanKey === 'modem_type_id') filters.value.modem_type_id = modemTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.modem_type_id;
+		if(cleanKey === 'lcd_monitor_id') filters.value.lcd_monitor_id = lcdMonitorOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.lcd_monitor_id;
 		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;
 		if(cleanKey === 'deviceType') filters.value.deviceType = deviceTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.deviceType;
 		if(cleanKey === 'location_type_id') filters.value.locationType = locationTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.locationType;
@@ -4885,6 +4963,8 @@ function onSearchFilterUpdated() {
 			defer_aggregates: (ENABLE_DEFERRED_AGGREGATES && DEFER_PAGE_SIZES.includes(filters.value.numberPerPage?.id)) ? 1 : 0,
 			...filters.value,
 			cashless_mfg: filters.value.cashless_mfg?.id ?? '',
+			modem_type_id: filters.value.modem_type_id?.id ?? '',
+			lcd_monitor_id: filters.value.lcd_monitor_id?.id ?? '',
 			delivery_platform_id: filters.value.delivery_platform_id.id,
 			deviceType: filters.value.deviceType.id,
 			errors: filters.value.errors.map((error) => { return error.id }),
@@ -5105,6 +5185,8 @@ axios({
 		params: {
 				...filters.value,
 				cashless_mfg: filters.value.cashless_mfg?.id ?? '',
+				modem_type_id: filters.value.modem_type_id?.id ?? '',
+				lcd_monitor_id: filters.value.lcd_monitor_id?.id ?? '',
 				delivery_platform_id: filters.value.delivery_platform_id.id,
 				deviceType: filters.value.deviceType.id,
 				errors: filters.value.errors.map((error) => { return error.id }),

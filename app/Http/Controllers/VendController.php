@@ -1973,6 +1973,13 @@ class VendController extends Controller
         $telcoOptions = Cache::remember('telco_options', $ttl, fn () => TelcoResource::collection(Telco::orderBy('name')->get())->resolve()
         );
 
+        // "Modem" filter list — the same modem_types.alias the Payment Device
+        // column's Modem badge renders (VendResource::modem_type_alias), so a
+        // gap spotted on one badge can be listed fleet-wide. Aliases, not
+        // names: the names are the supplier's Chinese part descriptions.
+        $modemTypeOptions = Cache::remember('modem_type_options', $ttl, fn () => ModemTypeResource::collection(ModemType::orderBy('id')->get())->resolve()
+        );
+
         // Customer View filter: only list prefixes that still have at least
         // one Active machine — prefixes whose machines are all
         // inactive/testing should not clutter the dropdown.
@@ -2132,6 +2139,12 @@ class VendController extends Controller
             // Search/autoload has populated the table).
             'initialStats' => $initialStats,
             'locationTypeOptions' => ['data' => $locationTypeOptions],
+            // "LCD Monitor" filter list — SHORT labels (7", 10.1" …), the same
+            // strings the LCD Monitor badge shows, so the dropdown reads like
+            // the column. The "N/A" option the frontend prepends means "no
+            // lcd_monitor_id"; mapping 99 is a separate, explicitly-bound N/A.
+            'lcdMonitorOptions' => Vend::LCD_MONITOR_SHORT_MAPPINGS,
+            'modemTypeOptions' => ['data' => $modemTypeOptions],
             // Same-operator users for the @-mention dropdown in the Site Note
             // cell. Mirrors CustomerController::summary so the Customer Index
             // Site Note gets the identical @-autocomplete as Site Summary.
