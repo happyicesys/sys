@@ -44,6 +44,7 @@ use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Campaign;
 use App\Models\CampaignItem;
 use App\Models\CardTerminal;
+use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -1229,6 +1230,22 @@ class VendController extends Controller
                 // badge on the customer index page.
                 'vends.card_terminal_id',
                 'card_terminals.name AS card_terminal_name',
+                // The acquirer TID fitted TODAY and whether it makes a failed
+                // vend good by itself (card_terminal_units.is_will_auto_refund).
+                // Correlated subqueries, NOT joins: this SELECT already spans a
+                // dozen tables and the page is join-sensitive (see the SimCard
+                // note below and CLAUDE.md). Two PK-ish lookups per RETURNED row.
+                DB::raw('(SELECT b.terminal_id FROM card_terminal_bindings b
+                    WHERE b.vend_id = vends.id
+                      AND (b.bound_from IS NULL OR b.bound_from <= CURDATE())
+                      AND (b.bound_until IS NULL OR b.bound_until >= CURDATE())
+                    ORDER BY b.id LIMIT 1) AS card_terminal_unit_id'),
+                DB::raw('(SELECT u.is_will_auto_refund FROM card_terminal_bindings b
+                    JOIN card_terminal_units u ON u.terminal_id = b.terminal_id
+                    WHERE b.vend_id = vends.id
+                      AND (b.bound_from IS NULL OR b.bound_from <= CURDATE())
+                      AND (b.bound_until IS NULL OR b.bound_until >= CURDATE())
+                    ORDER BY b.id LIMIT 1) AS card_terminal_will_auto_refund'),
                 // SimCard package — drives the "SimCard Package" badge in the
                 // Machine Status column.
                 //
@@ -3747,6 +3764,9 @@ class VendController extends Controller
                     'vend_transactions.id',
                     'vend_transactions.order_id',
                     'vend_transactions.transaction_datetime',
+                    // Needed by the per-page card-terminal lookup below (which
+                    // binding was on this machine on the day of the sale).
+                    'vend_transactions.vend_id',
                     'vends.code AS vend_code',
                     'vend_prefixes.name AS vend_prefix_name',
                     'customers.code AS customer_code',
@@ -3844,6 +3864,38 @@ class VendController extends Controller
             $ticket = $ticketByTxn->get($record->id)
                 ?? (filled($record->order_id) ? $ticketByOrder->get($record->order_id) : null);
             [$record->refund_type, $record->refund_reference] = $this->resolveRefundBadge($record, $ticket);
+        }
+
+        // "Will refund?" badge on the Payment Method cell: the flag of the card
+        // terminal that was on this machine ON THE DAY OF THE SALE, so a
+        // historical row shows the terminal that actually took the money
+        // (bindings are effective-dated, terminals get swapped).
+        // Per-page and bounded — two small queries for the page's machines, the
+        // same shape as the refund badge above; the transactions query itself is
+        // big enough without another correlated lookup.
+        $cardRecords = $records->filter(fn ($r) => (int) ($r->payment_method_code ?? -1) === PaymentMethod::CODE_CARD_TERMINAL);
+        if ($cardRecords->isNotEmpty()) {
+            $bindings = CardTerminalBinding::query()
+                ->whereIn('vend_id', $cardRecords->pluck('vend_id')->filter()->unique())
+                ->orderBy('id')
+                ->get(['vend_id', 'terminal_id', 'bound_from', 'bound_until']);
+            $units = CardTerminalUnit::query()
+                ->whereIn('terminal_id', $bindings->pluck('terminal_id')->unique())
+                ->get(['terminal_id', 'batch', 'is_will_auto_refund'])
+                ->keyBy('terminal_id');
+            $bindingsByVend = $bindings->groupBy('vend_id');
+
+            foreach ($cardRecords as $record) {
+                $day = $record->transaction_datetime ? Carbon::parse($record->transaction_datetime)->toDateString() : null;
+                $binding = $day === null ? null : ($bindingsByVend->get($record->vend_id) ?? collect())
+                    ->first(fn ($b) => ($b->bound_from === null || $b->bound_from->toDateString() <= $day)
+                        && ($b->bound_until === null || $b->bound_until->toDateString() >= $day));
+                $unit = $binding ? $units->get($binding->terminal_id) : null;
+
+                $record->card_terminal_unit_id = $unit?->terminal_id;
+                $record->card_terminal_batch = $unit?->batch;
+                $record->card_terminal_will_auto_refund = $unit?->willAutoRefund();
+            }
         }
 
         // Per-item "Refund Request" badge placement for MULTIPLE-purchase

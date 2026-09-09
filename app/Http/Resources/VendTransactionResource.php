@@ -68,6 +68,13 @@ class VendTransactionResource extends JsonResource
             // renders the cell blank instead of guessing a rail. Selected by
             // VendController::transactionIndex.
             'card_settlement_synced_at' => $this->formatUserDateTime($this->card_settlement_synced_at ?? null),
+            // The card terminal that was on this machine on the day of the sale,
+            // and whether it makes a failed vend good by itself
+            // (card_terminal_units.is_will_auto_refund; null = unknown).
+            // Populated per-page in VendController::transactionIndex.
+            'card_terminal_unit_id' => $this->card_terminal_unit_id ?? null,
+            'card_terminal_batch' => $this->card_terminal_batch ?? null,
+            'card_terminal_will_auto_refund' => $this->card_terminal_will_auto_refund ?? null,
             'payment_method_gateway_id' => isset($this->payment_method_gateway_id) ? (int) $this->payment_method_gateway_id : null,
             'payment_method_code' => isset($this->payment_method_code) ? (int) $this->payment_method_code : null,
             'payment_gateway_log_status' => isset($this->payment_gateway_log_status) ? (int) $this->payment_gateway_log_status : null,

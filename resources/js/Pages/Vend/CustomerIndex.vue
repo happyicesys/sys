@@ -3076,6 +3076,18 @@
 											<span>
 													{{ vend.card_terminal_name ? vend.card_terminal_name : 'N/A' }}
 											</span>
+											<!-- Does the TID fitted today make a failed vend good by itself?
+													 card_terminal_units.is_will_auto_refund, seeded from the partner
+													 workbook. Nothing is shown when no terminal is bound or the flag
+													 is unknown. -->
+											<span v-if="vend.card_terminal_will_auto_refund !== null && vend.card_terminal_will_auto_refund !== undefined"
+													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full px-1.5 text-[10px] font-semibold"
+													:class="vend.card_terminal_will_auto_refund ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+													:title="'Terminal ' + vend.card_terminal_unit_id + (vend.card_terminal_will_auto_refund
+															? ' — voids a failed single-item sale by itself'
+															: ' — leaves the customer charged on a failed sale')">
+													{{ vend.card_terminal_will_auto_refund ? 'Will refund' : 'No auto refund' }}
+											</span>
 									</div>
 							</div>
 						</div>

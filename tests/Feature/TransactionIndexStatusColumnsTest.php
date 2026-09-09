@@ -245,6 +245,53 @@ class TransactionIndexStatusColumnsTest extends TestCase
         $this->assertSame(99, $rows['QR-DECLINED']['payment_gateway_log_status']);
     }
 
+    /**
+     * "Will refund?" under the Payment Method cell: the flag of the terminal
+     * that was on the machine ON THE DAY OF THE SALE, so a historical row shows
+     * the terminal that actually took the money rather than today's.
+     */
+    public function test_the_payment_method_cell_gets_the_terminal_flag_effective_on_the_sale_date(): void
+    {
+        $card = PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
+        $cash = PaymentMethod::create(['code' => 0, 'name' => 'Cash', 'is_active' => true]);
+        $nets = DB::table('card_terminals')->insertGetId(['name' => 'Nets', 'created_at' => now(), 'updated_at' => now()]);
+        foreach ([['TID-YES', 1], ['TID-NO', 0]] as [$tid, $flag]) {
+            DB::table('card_terminal_units')->insert([
+                'terminal_id' => $tid, 'card_terminal_id' => $nets, 'batch' => 'Nets #3 (50x)',
+                'is_will_auto_refund' => $flag, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        // The machine ran TID-NO until yesterday and carries TID-YES from today.
+        DB::table('card_terminal_bindings')->insert([
+            ['provider' => 'nets', 'terminal_id' => 'TID-NO', 'vend_id' => $this->vendId,
+                'bound_from' => now()->subMonth()->toDateString(), 'bound_until' => now()->subDay()->toDateString(),
+                'created_at' => now(), 'updated_at' => now()],
+            ['provider' => 'nets', 'terminal_id' => 'TID-YES', 'vend_id' => $this->vendId,
+                'bound_from' => now()->toDateString(), 'bound_until' => null,
+                'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->txn('CARD-TODAY', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->okErrorId]);
+        $this->txn('CARD-YESTERDAY', [
+            'payment_method_id' => $card->id, 'vend_channel_error_id' => $this->okErrorId,
+            'transaction_datetime' => now()->subDay(),
+        ]);
+        $this->txn('CASH-TODAY', ['payment_method_id' => $cash->id, 'vend_channel_error_id' => $this->okErrorId]);
+
+        $rows = $this->gridRows();
+
+        $this->assertTrue($rows['CARD-TODAY']['card_terminal_will_auto_refund']);
+        $this->assertSame('TID-YES', $rows['CARD-TODAY']['card_terminal_unit_id']);
+        $this->assertSame('Nets #3 (50x)', $rows['CARD-TODAY']['card_terminal_batch']);
+
+        $this->assertFalse($rows['CARD-YESTERDAY']['card_terminal_will_auto_refund'], 'the terminal fitted that day, not today\'s');
+        $this->assertSame('TID-NO', $rows['CARD-YESTERDAY']['card_terminal_unit_id']);
+
+        // Not a card sale: no terminal, no badge.
+        $this->assertNull($rows['CASH-TODAY']['card_terminal_will_auto_refund']);
+        $this->assertNull($rows['CASH-TODAY']['card_terminal_unit_id']);
+    }
+
     private function gatewayLog(string $orderId, int $status): int
     {
         return DB::table('payment_gateway_logs')->insertGetId([

@@ -55,6 +55,13 @@ class VendResource extends JsonResource
             'citybox_synced_at' => isset($this->citybox_synced_at) ? Carbon::parse($this->citybox_synced_at)->toIso8601String() : null,
             'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
             'card_terminal_id' => isset($this->card_terminal_id) ? $this->card_terminal_id : null,
+            // The acquirer TID fitted today + its "Will auto refund?" flag
+            // (Data Management → Card Terminal). null = no terminal bound, or
+            // the flag is unknown; the badge shows nothing rather than a guess.
+            'card_terminal_unit_id' => $this->card_terminal_unit_id ?? null,
+            'card_terminal_will_auto_refund' => isset($this->card_terminal_will_auto_refund)
+                ? (bool) $this->card_terminal_will_auto_refund
+                : null,
             // Card terminal name (Nayax / Nets / Nets-Auresys / PAX / MLS).
             // Comes from the user-defined card_terminals table — replaces the
             // unreliable acb_vmc_pa_json->CSHL_MFG read.

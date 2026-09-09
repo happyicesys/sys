@@ -229,6 +229,63 @@ class OpsDashboardUnboundVendsTest extends TestCase
     }
 
     /**
+     * "Will refund?" next to the Card Terminal badge: the flag of the acquirer
+     * TID fitted TODAY (card_terminal_units.is_will_auto_refund, seeded from
+     * the partner workbook). Resolved by correlated subqueries, never a join —
+     * this page's plan is join-sensitive.
+     */
+    public function test_card_terminal_badge_carries_the_will_auto_refund_flag_of_the_terminal_fitted_today(): void
+    {
+        $nets = DB::table('card_terminals')->insertGetId(['name' => 'Nets', 'created_at' => now(), 'updated_at' => now()]);
+        foreach ([['23100701', 1], ['23005589', 0], ['23077326', null]] as [$tid, $flag]) {
+            DB::table('card_terminal_units')->insert([
+                'terminal_id' => $tid, 'card_terminal_id' => $nets, 'is_will_auto_refund' => $flag,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $yes = $this->makeBoundVend($this->hipl, 3001);
+        $no = $this->makeBoundVend($this->hipl, 3002);
+        $unknownFlag = $this->makeBoundVend($this->hipl, 3003);
+        $noTerminal = $this->makeBoundVend($this->hipl, 3004);
+        $expired = $this->makeBoundVend($this->hipl, 3005);
+        DB::table('vends')->whereIn('id', [$yes, $no, $unknownFlag, $noTerminal, $expired])->update(['card_terminal_id' => $nets]);
+
+        $bind = fn (int $vendId, string $tid, ?string $until = null) => DB::table('card_terminal_bindings')->insert([
+            'provider' => 'nets', 'terminal_id' => $tid, 'vend_id' => $vendId,
+            'bound_from' => now()->subMonth()->toDateString(), 'bound_until' => $until,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $bind($yes, '23100701');
+        $bind($no, '23005589');
+        $bind($unknownFlag, '23077326');
+        // Terminal taken off the machine yesterday: today's row shows no flag.
+        $bind($expired, '23100701', now()->subDay()->toDateString());
+
+        $rows = [];
+        $this->actingAs($this->userFor($this->hipl))
+            ->get('/vends/customers?'.http_build_query(['autoload' => 1]))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use (&$rows) {
+                foreach ($page->toArray()['props']['vends']['data'] as $row) {
+                    $rows[(int) $row['code']] = $row;
+                }
+            });
+
+        $this->assertSame('23100701', $rows[3001]['card_terminal_unit_id']);
+        $this->assertTrue($rows[3001]['card_terminal_will_auto_refund']);
+        $this->assertFalse($rows[3002]['card_terminal_will_auto_refund']);
+        // Bound, but the workbook says nothing about that terminal.
+        $this->assertSame('23077326', $rows[3003]['card_terminal_unit_id']);
+        $this->assertNull($rows[3003]['card_terminal_will_auto_refund']);
+        // No terminal at all, and a binding that ended: no badge either way.
+        $this->assertNull($rows[3004]['card_terminal_unit_id']);
+        $this->assertNull($rows[3004]['card_terminal_will_auto_refund']);
+        $this->assertNull($rows[3005]['card_terminal_unit_id']);
+        $this->assertNull($rows[3005]['card_terminal_will_auto_refund']);
+    }
+
+    /**
      * The global scope on Customer is lifted for this mode (it would drop
      * every NULL-customer row), so the ceiling has to be re-applied by hand.
      */
