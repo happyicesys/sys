@@ -959,6 +959,19 @@
                                     :title="vendTransaction.auto_refund_source_label">
                                     {{ autoRefundBadges[vendTransaction.auto_refund_source].text }}
                                 </span>
+                                <!-- "NA in NETS" states a FACT about the report — this failed vend has
+                                     no line in either file that could carry it — and is shown whether or
+                                     not we ticked a refund. The tick above is only claimed when the
+                                     terminal is flagged "Will refund"; on any other terminal the badge
+                                     stands alone, because a missing line is not proof the money came
+                                     back and we will not deduce one. -->
+                                <span v-if="vendTransaction.na_in_nets"
+                                    class="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                                    :title="vendTransaction.card_terminal_will_auto_refund === true
+                                        ? 'No line in the NETS report for this failed vend, and this terminal voids before batch — counted as auto-refunded.'
+                                        : 'No line in the NETS report for this failed vend. This terminal is not flagged as auto-refunding, so nothing is claimed about the money — check before refunding.'">
+                                    NA in NETS
+                                </span>
                             </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
@@ -1184,7 +1197,6 @@ const refundStatusLabel = (s) => refundStatusLabels[s] || s
 // just the tick and its tooltip — the rail is already obvious from Payment Status.
 const autoRefundBadges = {
     settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
-    settlement_report_not_captured: { text: 'NA in NETS', class: 'bg-amber-100 text-amber-800' },
 }
 // Payment Status / Dispense Status cell colour. Labels come from
 // App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed

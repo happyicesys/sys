@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use App\Support\AutoRefundSource;
 use App\Support\OperatorScope;
 use App\Support\SaleStatus;
@@ -290,6 +291,54 @@ class TransactionIndexStatusColumnsTest extends TestCase
         // Not a card sale: no terminal, no badge.
         $this->assertNull($rows['CASH-TODAY']['card_terminal_will_auto_refund']);
         $this->assertNull($rows['CASH-TODAY']['card_terminal_unit_id']);
+    }
+
+    /**
+     * "NA in NETS" is a statement about the REPORT (this failed vend has no line
+     * in either file that could carry it), not about the money. It shows on a
+     * terminal that is not flagged "Will refund" too — but there the tick must
+     * stay off, because a missing line is not proof the customer was made whole
+     * (Brian, 2026-09-09).
+     */
+    public function test_na_in_nets_is_reported_without_a_refund_tick_on_an_unflagged_terminal(): void
+    {
+        $card = PaymentMethod::create(['code' => 1, 'name' => 'Card Terminal', 'is_active' => true]);
+        $notCaptured = CardSettlementRefundReconciler::STATE_NOT_CAPTURED;
+
+        // Flagged terminal: the reconciler ticked it, so tick AND badge.
+        $this->txn('FLAGGED-VOID', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
+            ->forceFill([
+                'card_settlement_state' => $notCaptured, 'is_found_in_transaction' => true,
+                'is_refunded' => true, 'auto_refund_source' => AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED,
+            ])->save();
+
+        // Same report fact, terminal not flagged: badge only, never a tick.
+        $this->txn('UNFLAGGED-NO-LINE', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
+            ->forceFill(['card_settlement_state' => $notCaptured, 'is_found_in_transaction' => true])->save();
+
+        // A dispensed sale with no line is a different problem (money we may never
+        // have received), and a multiple is never voided by a terminal.
+        $this->txn('DISPENSED-NO-LINE', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->okErrorId])
+            ->forceFill(['card_settlement_state' => $notCaptured, 'is_found_in_transaction' => true])->save();
+        $this->txn('MULTI-NO-LINE', ['payment_method_id' => $card->id, 'is_multiple' => true, 'qty' => 2, 'vend_channel_error_id' => $this->faultErrorId])
+            ->forceFill(['card_settlement_state' => $notCaptured, 'is_found_in_transaction' => true])->save();
+        // Captured: the report HAS a line, so nothing to say.
+        $this->txn('CAPTURED', ['payment_method_id' => $card->id, 'vend_channel_error_id' => $this->faultErrorId])
+            ->forceFill(['card_settlement_state' => CardSettlementRefundReconciler::STATE_CAPTURED, 'is_found_in_transaction' => true])->save();
+
+        $rows = $this->gridRows();
+
+        $this->assertTrue($rows['FLAGGED-VOID']['na_in_nets']);
+        $this->assertTrue($rows['FLAGGED-VOID']['is_refunded']);
+
+        $this->assertTrue($rows['UNFLAGGED-NO-LINE']['na_in_nets'], 'the report fact is stated');
+        $this->assertFalse($rows['UNFLAGGED-NO-LINE']['is_refunded'], 'but no refund is deduced');
+        $this->assertNull($rows['UNFLAGGED-NO-LINE']['auto_refund_source']);
+
+        $this->assertFalse($rows['DISPENSED-NO-LINE']['na_in_nets']);
+        $this->assertFalse($rows['MULTI-NO-LINE']['na_in_nets']);
+        $this->assertFalse($rows['CAPTURED']['na_in_nets']);
+        $this->assertSame($notCaptured, $rows['UNFLAGGED-NO-LINE']['card_settlement_state']);
     }
 
     private function gatewayLog(string $orderId, int $status): int

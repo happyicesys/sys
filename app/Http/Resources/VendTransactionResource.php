@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -75,6 +76,21 @@ class VendTransactionResource extends JsonResource
             'card_terminal_unit_id' => $this->card_terminal_unit_id ?? null,
             'card_terminal_batch' => $this->card_terminal_batch ?? null,
             'card_terminal_will_auto_refund' => $this->card_terminal_will_auto_refund ?? null,
+            // The settlement report's own verdict on this sale, persisted once
+            // the day is final (reversed / captured / not_captured / uncovered /
+            // unbound; null until then).
+            'card_settlement_state' => $this->card_settlement_state ?? null,
+            // "NA in NETS": both NETS files that could carry this failed single
+            // vend are synced and neither has a line for it. A FACT about the
+            // report — deliberately independent of the auto-refund tick, which
+            // is only claimed on a terminal flagged "Will refund". Deduced here,
+            // once, from the rule the reconciler itself uses.
+            'na_in_nets' => ($this->card_settlement_state ?? null) === CardSettlementRefundReconciler::STATE_NOT_CAPTURED
+                && CardSettlementRefundReconciler::isVoidableShape(
+                    (bool) ($this->is_multiple ?? false),
+                    (bool) ($this->is_found_in_transaction ?? false),
+                    $this->vend_channel_error_code ?? null
+                ),
             'payment_method_gateway_id' => isset($this->payment_method_gateway_id) ? (int) $this->payment_method_gateway_id : null,
             'payment_method_code' => isset($this->payment_method_code) ? (int) $this->payment_method_code : null,
             'payment_gateway_log_status' => isset($this->payment_gateway_log_status) ? (int) $this->payment_gateway_log_status : null,

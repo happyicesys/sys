@@ -3803,6 +3803,8 @@ class VendController extends Controller
                     'vend_transactions.qty',
                     'vend_transactions.success_qty',
                     'vend_transactions.card_settlement_synced_at',
+                    // The reconciler's persisted verdict — drives the "NA in NETS" badge.
+                    'vend_transactions.card_settlement_state',
                     'payment_methods.payment_gateway_id AS payment_method_gateway_id',
                     'payment_methods.code AS payment_method_code',
                     'payment_gateway_logs.status AS payment_gateway_log_status',

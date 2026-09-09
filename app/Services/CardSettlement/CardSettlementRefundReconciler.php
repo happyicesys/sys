@@ -316,11 +316,26 @@ class CardSettlementRefundReconciler
      */
     protected function isVoidableFailure(VendTransaction $sale, Collection $codes): bool
     {
-        if ($sale->is_multiple || ! $sale->is_found_in_transaction || $sale->vend_channel_error_id === null) {
+        if ($sale->vend_channel_error_id === null) {
             return false;
         }
 
-        return DispenseVerdict::isMachineFault($codes->get((int) $sale->vend_channel_error_id));
+        return self::isVoidableShape(
+            (bool) $sale->is_multiple,
+            (bool) $sale->is_found_in_transaction,
+            $codes->get((int) $sale->vend_channel_error_id)
+        );
+    }
+
+    /**
+     * The shape of a sale a terminal can void by itself, without needing the
+     * row: a single item the machine reported as a FAULT. Pure, so the Sales
+     * Transactions grid can ask the same question of a row it has already
+     * selected ("NA in NETS" badge) instead of spelling the rule again.
+     */
+    public static function isVoidableShape(bool $isMultiple, bool $isFoundInTransaction, int|string|null $errorCode): bool
+    {
+        return ! $isMultiple && $isFoundInTransaction && DispenseVerdict::isMachineFault($errorCode);
     }
 
     /**
