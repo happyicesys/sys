@@ -75,6 +75,110 @@ class CityboxWebhookTest extends TestCase
         ];
     }
 
+    // ── single URL: /api/citybox/push ──────────────────────────────────────
+
+    public function test_one_url_stores_an_order_push_and_matches_the_vend(): void
+    {
+        $vend = $this->makeChiller('aaa');
+
+        $this->post('/api/citybox/push', $this->signedPush($this->orderPushData()))
+            ->assertJson(['success' => true]);
+
+        $event = CityboxWebhookEvent::sole();
+        $this->assertSame(CityboxWebhookEvent::TYPE_ORDER, $event->type);
+        $this->assertSame('75664466', $event->event_key);
+        $this->assertSame($vend->id, $event->vend_id);
+    }
+
+    public function test_one_url_recognises_a_refund_push_by_its_own_fields(): void
+    {
+        $data = ['refund_money' => '9.70', 'refund_status' => '3', 'create_time' => '2023-11-28 15:17:32'];
+
+        $this->post('/api/citybox/push', $this->signedPush($data, ['order_name' => 'WV0140421415']))
+            ->assertJson(['success' => true]);
+
+        $event = CityboxWebhookEvent::sole();
+        $this->assertSame(CityboxWebhookEvent::TYPE_REFUND, $event->type);
+        $this->assertSame('WV0140421415:3', $event->event_key); // same key as the per-type route
+    }
+
+    public function test_one_url_recognises_a_close_push_by_close_time(): void
+    {
+        $vend = $this->makeChiller('IC3EFK87GSB');
+        $data = ['close_time' => '2024-07-01 15:34:22', 'box_no' => 'IC3EFK87GSB', 'open_log_id' => '837sjci', 'open_id' => '948821'];
+
+        $this->post('/api/citybox/push', $this->signedPush($data))
+            ->assertJson(['success' => true]);
+
+        $event = CityboxWebhookEvent::sole();
+        $this->assertSame(CityboxWebhookEvent::TYPE_CLOSE, $event->type);
+        $this->assertSame($vend->id, $event->vend_id);
+    }
+
+    public function test_one_url_empty_order_push_is_an_order_not_a_close(): void
+    {
+        $data = ['open_id' => '01f834035', 'open_log_id' => '7563', 'open_time' => '2024-04-26 12:08:00', 'order' => [], 'order_goods' => []];
+
+        $this->post('/api/citybox/push', $this->signedPush($data))->assertJson(['success' => true]);
+
+        $this->assertSame(CityboxWebhookEvent::TYPE_ORDER, CityboxWebhookEvent::sole()->type);
+    }
+
+    /**
+     * PLACEHOLDER contract (pending Citybox's answer on which parameter marks
+     * the push type): an explicit hint wins over shape inference. The payload
+     * here has NO refund/close markers, so only the hint can produce 'refund'.
+     */
+    public function test_one_url_explicit_type_hint_overrides_inference(): void
+    {
+        foreach ([['type' => 'refund'], ['push_type' => 'refund_push'], ['msg_type' => 'REFUND']] as $i => $hint) {
+            CityboxWebhookEvent::query()->delete();
+            $data = ['some_field' => 'x'.$i, 'create_time' => '2023-11-28 15:17:32'];
+
+            $this->post('/api/citybox/push', $this->signedPush($data, $hint))->assertJson(['success' => true]);
+
+            $this->assertSame(CityboxWebhookEvent::TYPE_REFUND, CityboxWebhookEvent::sole()->type, json_encode($hint));
+        }
+    }
+
+    public function test_one_url_hint_may_also_ride_inside_data(): void
+    {
+        $data = ['type' => 'close_door', 'box_no' => 'aaa', 'open_log_id' => '99'];
+        $this->makeChiller('aaa');
+
+        $this->post('/api/citybox/push', $this->signedPush($data))->assertJson(['success' => true]);
+
+        $this->assertSame(CityboxWebhookEvent::TYPE_CLOSE, CityboxWebhookEvent::sole()->type);
+    }
+
+    public function test_one_url_unrecognised_hint_falls_back_to_inference(): void
+    {
+        $data = ['close_time' => '2024-07-01 15:34:22', 'open_log_id' => '5'];
+
+        $this->post('/api/citybox/push', $this->signedPush($data, ['type' => 'something_else']))
+            ->assertJson(['success' => true]);
+
+        $this->assertSame(CityboxWebhookEvent::TYPE_CLOSE, CityboxWebhookEvent::sole()->type);
+    }
+
+    public function test_one_url_rejects_a_bad_signature_exactly_like_the_per_type_routes(): void
+    {
+        $params = $this->signedPush($this->orderPushData());
+        $params['sign'] = 'deadbeef';
+
+        $this->post('/api/citybox/push', $params)->assertJson(['success' => false]);
+
+        $this->assertStringContainsString(':invalid:', CityboxWebhookEvent::sole()->event_key);
+    }
+
+    public function test_one_url_survives_malformed_data(): void
+    {
+        foreach (['{"broken":', 'null', '123', '"abc"', ''] as $broken) {
+            $this->post('/api/citybox/push', ['app_id' => '20221009', 'data' => $broken])
+                ->assertStatus(200); // never a 500 — worst case an unsigned, stored-for-forensics row
+        }
+    }
+
     // ── order push ─────────────────────────────────────────────────────────
 
     public function test_order_push_is_stored_and_matched_to_the_chiller_vend(): void
