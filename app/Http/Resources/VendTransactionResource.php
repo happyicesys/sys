@@ -45,6 +45,10 @@ class VendTransactionResource extends JsonResource
             // "Auto-refunded?" badge tooltip. null when not auto-refunded / unknown.
             'auto_refund_source' => $this->auto_refund_source ?? null,
             'auto_refund_source_label' => \App\Support\AutoRefundSource::label($this->auto_refund_source ?? null),
+            // Gateway refunds only: 'server' (mark1 decided and called it) or
+            // 'user' (a person did it, here or at the gateway). Null on the
+            // card-terminal sources, which badge the report's evidence instead.
+            'auto_refund_trigger' => \App\Support\AutoRefundSource::trigger($this->auto_refund_source ?? null),
             // Refund badge: 'auto' | 'manual' | null, plus the ticket reference
             // (RF-xxxxxx) when there is one. Populated per-page in transactionIndex.
             'refund_type' => $this->refund_type ?? null,

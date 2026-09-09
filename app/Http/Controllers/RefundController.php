@@ -1422,6 +1422,8 @@ class RefundController extends Controller
             // to different decisions, so the reviewer sees which one it was.
             'auto_refund_source' => $txn->auto_refund_source ?? null,
             'auto_refund_source_label' => \App\Support\AutoRefundSource::label($txn->auto_refund_source ?? null),
+            // 'server' | 'user' | null — see AutoRefundSource::trigger().
+            'auto_refund_trigger' => \App\Support\AutoRefundSource::trigger($txn->auto_refund_source ?? null),
             // "NA in NETS": both files that could carry this failed single vend are
             // synced and neither has a line for it. A fact about the REPORT, shown
             // whether or not a refund was claimed from it — same rule as the Sales

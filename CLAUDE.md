@@ -218,6 +218,16 @@ been returned, and always together with `auto_refund_source`
   `apk/mark1-apk/VMC_VENDOR_TICKET_2026-08-29.md` and
   `CARD_RETAINED_CREDIT_2026-08-22.md` before "fixing" any of this.
 
+Every refund surface also shows WHY, from one map: the card-terminal sources
+badge what the settlement report showed ("NETS reversal", "NA in NETS"), while
+the gateway sources badge WHO fired it — `AutoRefundSource::trigger()` returns
+`server` (mark1 decided and called Omise: trade fail, no dispense ACK, stale
+approve) or `user` (a person: `refund:omise` by hand, or a refund made at the
+gateway / a dispute). It returns null for the card sources on purpose: calling
+a terminal's own reversal "server" would credit us with money we did not
+return. Adding a gateway source without a trigger fails
+`tests/Unit/AutoRefundTriggerTest.php`.
+
 Manual PayNow/PayPal payouts never set `is_refunded` — they live on
 `refund_tickets`. History + reasoning: `REFUND_INTEGRITY_AUDIT_2026-08-23.md`.
 Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,

@@ -134,7 +134,10 @@ const autoRefundSourceShort = computed(() => ({
     settlement_report_not_captured: 'NA in NETS',
     retained_credit_revend: 'Re-vended',
     card_terminal_reversal: 'Legacy (unconfirmed)',
-}[props.ticket?.auto_refund_source] ?? 'Auto refund'));
+}[props.ticket?.auto_refund_source]
+    // Gateway refunds are told apart by WHO fired them, not by report evidence.
+    ?? (props.ticket?.auto_refund_trigger === 'server' ? 'Server refund'
+        : (props.ticket?.auto_refund_trigger === 'user' ? 'User refund' : 'Auto refund'))));
 
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';

@@ -827,6 +827,10 @@ const sortedRows = computed(() => {
                                     class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                     :class="autoRefundBadges[t.auto_refund_source].class"
                                     v-tooltip="t.auto_refund_source_label">{{ autoRefundBadges[t.auto_refund_source].text }}</span>
+                                <span v-if="t.auto_refund_trigger"
+                                    class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="t.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : 'bg-violet-100 text-violet-800'"
+                                    v-tooltip="t.auto_refund_source_label">{{ t.auto_refund_trigger === 'server' ? 'Server' : 'User' }}</span>
                                 <span v-if="t.na_in_nets" class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                                     v-tooltip="t.auto_refunded === true
                                         ? 'No line in the NETS report for this failed vend, and its terminal voids before batch — already counted as refunded.'

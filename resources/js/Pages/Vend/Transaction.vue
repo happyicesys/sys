@@ -959,6 +959,14 @@
                                     :title="vendTransaction.auto_refund_source_label">
                                     {{ autoRefundBadges[vendTransaction.auto_refund_source].text }}
                                 </span>
+                                <!-- Gateway (QR) refunds: WHO fired it. The card-terminal sources
+                                     badge the report's evidence above instead. -->
+                                <span v-if="vendTransaction.auto_refund_trigger"
+                                    class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="vendTransaction.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : 'bg-violet-100 text-violet-800'"
+                                    :title="vendTransaction.auto_refund_source_label">
+                                    {{ vendTransaction.auto_refund_trigger === 'server' ? 'Server' : 'User' }}
+                                </span>
                                 <!-- "NA in NETS" states a FACT about the report — this failed vend has
                                      no line in either file that could carry it — and is shown whether or
                                      not we ticked a refund. The tick above is only claimed when the

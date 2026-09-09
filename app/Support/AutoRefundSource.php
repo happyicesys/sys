@@ -81,6 +81,29 @@ final class AutoRefundSource
      */
     public const RETAINED_CREDIT_REVEND = 'retained_credit_revend';
 
+    /** Our own server decided and called the refund, with no human involved. */
+    public const TRIGGER_SERVER = 'server';
+
+    /** A person did it: staff by hand, or outside ConnectVend entirely (gateway dashboard / dispute). */
+    public const TRIGGER_USER = 'user';
+
+    /**
+     * WHO fired a gateway refund — the question that separates the Omise
+     * sources from each other (Brian, 2026-09-09). Null for the card-terminal
+     * sources: there the useful distinction is what the settlement report
+     * SHOWED (a reversal, or a sale it never captured), which those surfaces
+     * badge separately, and "server" would credit us with money the terminal
+     * returned by itself.
+     */
+    public static function trigger(?string $source): ?string
+    {
+        return match ($source) {
+            self::OMISE_NO_DISPENSE, self::OMISE_STALE_APPROVE, self::OMISE_TRADE_FAIL => self::TRIGGER_SERVER,
+            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL => self::TRIGGER_USER,
+            default => null,
+        };
+    }
+
     /** Human-readable labels for badges / tooltips / exports. */
     public const LABELS = [
         self::OMISE_NO_DISPENSE => 'Omise — no dispense ACK within 10 min',
