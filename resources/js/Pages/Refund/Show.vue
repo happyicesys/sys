@@ -489,7 +489,7 @@ function actionBadge(l) {
                             <a v-if="t.nets_report.report_id" :href="'/card-settlements/' + t.nets_report.report_id" target="_blank"
                                 class="block text-[10px] font-semibold text-indigo-500 mt-0.5 hover:underline"
                                 title="Open the settlement report that carries this sale's line">↗ report #{{ t.nets_report.report_id }}</a>
-                            <!-- The bound terminal's "Will auto refund?" flag (Data Management → Card
+                            <!-- The bound terminal's "Auto refund?" flag (Data Management → Card
                                  Terminal). Informational only since 2026-09-09: the report's own
                                  verdict above decides, and a failed vend with no line is counted as
                                  refunded on any terminal the report fully covers. -->
@@ -503,7 +503,7 @@ function actionBadge(l) {
                                      single vend by itself. -->
                                 <span v-if="t.nets_report.terminal.will_auto_refund === true"
                                     class="ml-1 inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                    title="The supplier's list says this terminal voids a failed single-item sale before batch upload. Either way, the NETS report verdict above decides.">Will refund</span>
+                                    title="The supplier's list says this terminal voids a failed single-item sale before batch upload. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the NETS report verdict above.">Auto refund</span>
                             </div>
                         </dd>
                     </div>
@@ -674,7 +674,7 @@ function actionBadge(l) {
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-lg font-bold text-gray-900 tracking-tight">${{ r.amount }}</span>
                         <!-- Method, then the terminal's supplier in brackets, then the
-                             "Will refund" flag on its OWN line under it (Brian,
+                             "Auto refund" flag on its OWN line under it (Brian,
                              2026-09-09) — same three facts as the Refund Request list. -->
                         <div class="flex flex-col">
                             <span class="text-xs text-gray-500">{{ r.payment_method || '—' }}<span v-if="r.card_terminal_company"> ({{ r.card_terminal_company }})</span></span>
@@ -682,7 +682,7 @@ function actionBadge(l) {
                                 class="mt-0.5 self-start inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800 cursor-help"
                                 :title="'The supplier\'s list says terminal ' + r.card_terminal_unit_id
                                     + (r.card_terminal_batch ? ' · ' + r.card_terminal_batch : '')
-                                    + ' voids a failed single-item sale before batch upload. Either way, the NETS report decides.'">Will refund</span>
+                                    + ' voids a failed single-item sale before batch upload. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column.'">Auto refund</span>
                         </div>
                         <!-- Payment and dispense are separate facts (App\Support\SaleStatus):
                              Paid / Refunded is about the money, Dispensed / Failed is the

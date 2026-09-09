@@ -173,7 +173,7 @@ been returned, and always together with `auto_refund_source`
   NOT gate this** (Brian, 2026-09-09, revising the same day's first rule): the
   flag describes the terminal model, while "no line in either file that could
   carry this sale" is direct evidence no money was taken, so a No / Unknown
-  terminal ticks too and the flag stays informational (the "Will refund"
+  terminal ticks too and the flag stays informational (the "Auto refund"
   badge). Nets-Auresys terminals
   (`config('card_settlement.report_coverage_gap_companies')`) → `uncovered`,
   never ticked from a missing line; unbound machine → untouched. The verdict
@@ -448,8 +448,10 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   Card Terminal Index column and filter) is the per-terminal capability the
   partner documented. It gated the reconciler's "NA in NETS" tick for one day
   and no longer does (Brian, 2026-09-09) — it is now informational only: the
-  "Will refund" badge on Sales Transactions, the Operation Dashboard and both
-  Refund Request screens. Seeded from the partner's
+  "Auto refund" badge on Sales Transactions, the Operation Dashboard and both
+  Refund Request screens (it says what the TERMINAL does, never that this sale
+  will be refunded — renamed from "Will refund" 2026-09-09 because a page of
+  ordinary card sales read as a page of pending refunds). Seeded from the partner's
   workbook (`card-settlement:import-terminal-flags database/data/card_terminal_auto_refund_seed_2026-09-08.csv --apply`,
   source `seed`, batches Nets #3–#7 Yes, #1–#2 No, Auresys Unknown); a Yes/No
   set on the Card Terminal edit form is source `manual` and survives

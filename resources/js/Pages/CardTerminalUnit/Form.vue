@@ -48,7 +48,7 @@
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                Will auto refund?
+                Auto refund?
               </label>
               <MultiSelect
                 v-model="form.will_auto_refund"

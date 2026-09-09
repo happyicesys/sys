@@ -28,7 +28,7 @@ class CardTerminalUnitResource extends JsonResource
             'card_terminal_name' => $this->company?->name,
             'terminal_id' => $this->terminal_id,
             'remarks' => $this->remarks,
-            // Hardware batch + "Will auto refund?" (Brian's flag, seeded from the
+            // Hardware batch + "Auto refund?" (Brian's flag, seeded from the
             // partner workbook; null = unknown). Informational since 2026-09-09:
             // the reconciler's "NA in NETS" tick follows the report, not this.
             'batch' => $this->batch,

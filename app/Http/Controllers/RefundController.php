@@ -322,7 +322,7 @@ class RefundController extends Controller
         ])->with(['paymentMethod', 'vendPrefix', 'vendChannelError'])
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
-        // "Will refund?" for the Pay Method cell: the card terminal that was on the
+        // "Auto refund" for the Pay Method cell: the card terminal that was on the
         // machine ON THE DAY OF THE SALE (bindings are effective-dated), and whether
         // it voids a failed vend by itself. Two bounded queries for the page, the
         // same shape the Sales Transactions grid uses.
@@ -1949,7 +1949,7 @@ class RefundController extends Controller
                 'operator_code' => $t->operator?->code,
                 'payment_method' => $t->paymentMethod?->name,
                 // The terminal's SUPPLIER, not the board's cashless_mfg (which
-                // reads "Nets" for the whole NETS family), plus its "Will refund"
+                // reads "Nets" for the whole NETS family), plus its "Auto refund"
                 // flag on its own line under the method.
                 'card_terminal_unit_id' => $t->card_terminal_unit_id ?? null,
                 'card_terminal_batch' => $t->card_terminal_batch ?? null,

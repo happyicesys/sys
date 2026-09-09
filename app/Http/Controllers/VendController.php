@@ -3887,7 +3887,7 @@ class VendController extends Controller
             [$record->refund_type, $record->refund_reference] = $this->resolveRefundBadge($record, $ticket);
         }
 
-        // "Will refund?" badge on the Payment Method cell: the flag of the card
+        // "Auto refund" badge on the Payment Method cell: the flag of the card
         // terminal that was on this machine ON THE DAY OF THE SALE, so a
         // historical row shows the terminal that actually took the money
         // (bindings are effective-dated, terminals get swapped).

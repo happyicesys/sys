@@ -3129,8 +3129,8 @@
 													 ordinary case and carry no badge. -->
 											<span v-if="vend.card_terminal_will_auto_refund === true"
 													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-green-100 px-1.5 text-[10px] font-semibold text-green-800"
-													:title="'Terminal ' + vend.card_terminal_unit_id + ' — voids a failed single-item sale by itself'">
-													Will refund
+													:title="'Terminal ' + vend.card_terminal_unit_id + ' — voids a failed single-item sale by itself. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is on Sales Transactions.'">
+													Auto refund
 											</span>
 									</div>
 							</div>

@@ -62,7 +62,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Will auto refund?
+              Auto refund?
             </label>
             <MultiSelect
               v-model="filters.will_auto_refund"
@@ -166,7 +166,7 @@
                       Batch
                     </TableHeadSort>
                     <TableHeadSort modelName="is_will_auto_refund" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_will_auto_refund')">
-                      Will auto refund?
+                      Auto refund?
                     </TableHeadSort>
                     <TableHead>
                       Remarks
@@ -328,7 +328,7 @@ function autoRefundTitle(unit) {
   const seed = unit.auto_refund_stats?.seed
   const src = unit.auto_refund_flag_source === 'manual' ? 'set manually' : (unit.auto_refund_flag_source === 'seed' ? 'from partner workbook' : 'unknown — not in the workbook')
   const seen = seed ? ` · ${seed.auto_refund_events} made good / ${seed.unrefunded_events} charged (${seed.window_from} – ${seed.window_to})` : ''
-  return `Will auto refund: ${unit.is_will_auto_refund === true ? 'Yes' : (unit.is_will_auto_refund === false ? 'No' : 'Unknown')} (${src})${seen}`
+  return `Auto refund: ${unit.is_will_auto_refund === true ? 'Yes' : (unit.is_will_auto_refund === false ? 'No' : 'Unknown')} (${src})${seen}`
 }
 
 // 'none' is a real filter, not a placeholder: 5 backfilled terminals came off

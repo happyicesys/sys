@@ -862,16 +862,18 @@
                                 :title="vendTransaction.card_terminal_company && vendTransaction.cashless_mfg && vendTransaction.card_terminal_company !== vendTransaction.cashless_mfg
                                     ? 'Card terminal supplier: ' + vendTransaction.card_terminal_company + '. The machine reports only \'' + vendTransaction.cashless_mfg + '\' for the whole NETS family.'
                                     : null"> ({{ vendTransaction.card_terminal_company || vendTransaction.cashless_mfg }})</span>
-                            <!-- The terminal that took this money voids a failed single-item sale
-                                 by itself (Data Management → Card Terminal). Shown ONLY for a Yes
-                                 terminal: a No or unknown one is the ordinary case and the badge
-                                 would be on nearly every row. -->
+                            <!-- A CAPABILITY of the terminal that took this money: it voids a
+                                 failed single-item sale by itself (Data Management → Card
+                                 Terminal). Reads "Auto refund", never "Will refund" — the old
+                                 wording made a whole page of ordinary sales look like pending
+                                 refunds to anyone glancing at it (Brian, 2026-09-09). Shown only
+                                 for a Yes terminal; No/unknown is the ordinary case. -->
                             <div v-if="vendTransaction.card_terminal_will_auto_refund === true" class="mt-1">
                                 <span class="inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
                                     :title="'Terminal ' + vendTransaction.card_terminal_unit_id
                                         + (vendTransaction.card_terminal_batch ? ' · ' + vendTransaction.card_terminal_batch : '')
-                                        + ' — the supplier\'s list says this terminal voids a failed single-item sale by itself; the NETS report decides either way'">
-                                    Will refund
+                                        + ' — the supplier\'s list says this terminal voids a failed single-item sale by itself. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column.'">
+                                    Auto refund
                                 </span>
                             </div>
                         </TableData>

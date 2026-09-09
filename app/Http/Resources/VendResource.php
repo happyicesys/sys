@@ -55,7 +55,7 @@ class VendResource extends JsonResource
             'citybox_synced_at' => isset($this->citybox_synced_at) ? Carbon::parse($this->citybox_synced_at)->toIso8601String() : null,
             'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
             'card_terminal_id' => isset($this->card_terminal_id) ? $this->card_terminal_id : null,
-            // The acquirer TID fitted today + its "Will auto refund?" flag
+            // The acquirer TID fitted today + its "Auto refund?" flag
             // (Data Management → Card Terminal). null = no terminal bound, or
             // the flag is unknown; the badge shows nothing rather than a guess.
             'card_terminal_unit_id' => $this->card_terminal_unit_id ?? null,

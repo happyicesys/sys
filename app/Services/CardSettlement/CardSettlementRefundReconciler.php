@@ -290,7 +290,7 @@ class CardSettlementRefundReconciler
      * The bound terminal's `is_will_auto_refund` flag is NOT consulted: it
      * describes the terminal model, while "no line in either file that could
      * carry this sale" is direct evidence that no money was ever taken. The
-     * flag stays on the row for ops (the "Will refund" badge) and on the
+     * flag stays on the row for ops (the "Auto refund" badge) and on the
      * refund screen's verdict.
      */
     protected function applyNotCaptured(VendTransaction $sale, Collection $codes, bool $apply, array &$stats): void

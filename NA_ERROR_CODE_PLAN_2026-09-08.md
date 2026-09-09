@@ -1003,7 +1003,7 @@ Both directions are handled together in Part 2:
    but the flag describes the terminal MODEL while a missing line is direct
    evidence about THIS sale, so a No / Unknown terminal is ticked too. The flag
    stays authoritative for itself (`seed` / `manual`, the weekly classify
-   command only refreshes stats) and is shown as the "Will refund" badge on
+   command only refreshes stats) and is shown as the "Auto refund" badge on
    Sales Transactions, the Operation Dashboard and both Refund Request
    screens. Auresys → state `uncovered`, still never ticked: there the report
    carries only part of the terminal's sales, so a missing line proves nothing.

@@ -105,7 +105,7 @@ class CardTerminalUnitController extends Controller
                     'Site' => $machine?->customer_name,
                     'Bound From' => $machine?->bound_from?->format('Y-m-d'),
                     'Batch' => $unit->batch,
-                    'Will Auto Refund?' => match ($unit->willAutoRefund()) {
+                    'Auto Refund?' => match ($unit->willAutoRefund()) {
                         true => 'Yes',
                         false => 'No',
                         default => 'Unknown',

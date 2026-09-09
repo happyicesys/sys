@@ -765,7 +765,7 @@ const sortedRows = computed(() => {
                                      have made the customer whole. Flagged terminals only. -->
                                 <div v-if="t.matched && t.card_terminal_will_auto_refund === true" class="mt-1">
                                     <span class="inline-block whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                        v-tooltip="'The supplier\'s list says terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload. Either way, the NETS report decides — check it before paying.'">Will refund</span>
+                                        v-tooltip="'The supplier\'s list says terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column. Check the NETS report before paying.'">Auto refund</span>
                                 </div>
                             </div>
                         </td>
