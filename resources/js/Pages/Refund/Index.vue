@@ -848,6 +848,10 @@ const sortedRows = computed(() => {
                                     v-tooltip="t.auto_refund_source_label">{{ autoRefundTriggerLabel(t.auto_refund_trigger) }}</span>
                                 <span v-if="t.na_in_nets" class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                                     v-tooltip="'Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.'">NA in NETS</span>
+                                <!-- The opposite finding, and the one that says PAY: the report
+                                     carries this sale and no reversal, so the customer was charged. -->
+                                <span v-else-if="t.matched_in_nets" class="whitespace-nowrap rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-800"
+                                    v-tooltip="'The synced NETS report has a line for this sale and no reversal — the customer WAS charged and has not been refunded, so a valid claim still needs paying.'">Matched in NETS</span>
                             </div>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">

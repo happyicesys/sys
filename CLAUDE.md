@@ -183,7 +183,14 @@ been returned, and always together with `auto_refund_source`
   the tick: it shows for any failed single vend whose state is `not_captured`
   (`VendTransactionResource.na_in_nets` and `RefundController`, both from
   `CardSettlementRefundReconciler::isVoidableShape()`), and the auto-refund
-  tick beside it always follows it (Brian, 2026-09-09).
+  tick beside it always follows it (Brian, 2026-09-09). Both Refund Request
+  screens also carry its opposite, **"Matched in NETS"**
+  (`RefundController.matched_in_nets`, state `captured`): the report HAS a line
+  and no reversal, so the customer was charged and a valid claim still has to
+  be paid — without it "Auto refunded? No" looked identical on a captured sale
+  and on one nothing had ruled on yet. Not shown on Sales Transactions, where
+  the Settle Sync column already says it and nearly every card row would carry
+  the badge.
   A tick is only CLEARED once the day
   is final (files D and D+1 both synced — a late capture or reversal can sit
   in the next day's file); a reversal sets it as soon as its report is synced.

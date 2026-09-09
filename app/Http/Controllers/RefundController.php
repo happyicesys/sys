@@ -1447,6 +1447,13 @@ class RefundController extends Controller
                     (bool) $txn->is_found_in_transaction,
                     $txn->vendChannelError?->code
                 ),
+            // The other half of the same fact, and the one a reviewer acts on:
+            // the synced report HAS a line for this sale and no reversal, so the
+            // customer really was charged and this claim has to be paid. Without
+            // it "Auto refunded? No" reads the same on a sale the report captured
+            // and on one nothing has ruled on yet (Brian, 2026-09-09).
+            'matched_in_nets' => isset($txn)
+                && $txn->card_settlement_state === CardSettlementRefundReconciler::STATE_CAPTURED,
             // Prod Exit Sensor = the machine's Product Drop Sensor state FROZEN on
             // the matched transaction at the moment it occurred (true = Enabled,
             // false = Disabled, null = unknown / not captured). A later machine

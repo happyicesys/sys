@@ -65,10 +65,11 @@ class RefundShowNetsReportVerdictTest extends TestCase
     }
 
     /**
-     * Both refund surfaces read the same two signals as Sales Transactions: WHY
-     * a refund is recorded (auto_refund_source) and what the report itself shows
-     * (na_in_nets). The second stands alone on a terminal that is not flagged
-     * "Will refund" — a missing line is evidence, not proof (Brian, 2026-09-09).
+     * Both refund surfaces read the same signals as Sales Transactions: WHY a
+     * refund is recorded (auto_refund_source) and what the report itself shows
+     * — na_in_nets (no line: nothing was charged, already refunded) and
+     * matched_in_nets (a line and no reversal: the customer WAS charged, so a
+     * valid claim still has to be paid). Brian, 2026-09-09.
      */
     public function test_the_refund_pages_carry_the_refund_source_and_the_report_fact()
     {
@@ -82,27 +83,30 @@ class RefundShowNetsReportVerdictTest extends TestCase
             'is_refunded' => true, 'auto_refund_source' => \App\Support\AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED,
         ])->save();
 
-        // Same report fact, terminal NOT flagged: the badge shows, the tick does not.
+        // Same report fact, not reconciled yet: the badge is derived from the row.
         $unflagged = $this->sale(['vend_channel_error_id' => $fault->id]);
         $unflagged->forceFill(['is_found_in_transaction' => true, 'card_settlement_state' => $notCaptured])->save();
 
-        // The report captured this one: neither signal.
+        // The report captured this one: "Matched in NETS", never "NA in NETS".
         $captured = $this->sale(['vend_channel_error_id' => $fault->id]);
         $captured->forceFill(['is_found_in_transaction' => true, 'card_settlement_state' => 'captured'])->save();
 
         $voidedDetail = $this->detailFor($this->ticket($voided));
         $this->assertTrue($voidedDetail['na_in_nets']);
+        $this->assertFalse($voidedDetail['matched_in_nets']);
         $this->assertTrue($voidedDetail['auto_refunded']);
         $this->assertSame(\App\Support\AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED, $voidedDetail['auto_refund_source']);
         $this->assertNotNull($voidedDetail['auto_refund_source_label']);
 
         $unflaggedDetail = $this->detailFor($this->ticket($unflagged));
         $this->assertTrue($unflaggedDetail['na_in_nets'], 'the report fact is stated');
-        $this->assertFalse($unflaggedDetail['auto_refunded'], 'no refund is deduced from a missing line');
+        $this->assertFalse($unflaggedDetail['auto_refunded'], 'the tick is the reconciler\'s to write');
         $this->assertNull($unflaggedDetail['auto_refund_source']);
 
         $capturedDetail = $this->detailFor($this->ticket($captured));
         $this->assertFalse($capturedDetail['na_in_nets']);
+        $this->assertTrue($capturedDetail['matched_in_nets'], 'the report carries this sale: the customer was charged');
+        $this->assertFalse($capturedDetail['auto_refunded']);
     }
 
     /**

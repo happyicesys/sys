@@ -415,6 +415,8 @@ function actionBadge(l) {
                     :title="t.auto_refund_source_label">{{ autoRefundSourceShort }}</span>
                 <span v-if="t.na_in_nets" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-amber-100 text-amber-800"
                     title="Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.">NA in NETS</span>
+                <span v-else-if="t.matched_in_nets" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-teal-100 text-teal-800"
+                    title="The synced NETS report has a line for this sale and no reversal — the customer WAS charged and has not been refunded, so a valid claim still needs paying.">Matched in NETS</span>
             </div>
 
             <!-- System self-checking — mirrors the index list's self-check columns
