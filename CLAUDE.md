@@ -313,7 +313,15 @@ The Sales Transactions grid, both CSV export jobs (+ the appended unreported
 gateway rows) and the refund screen's related transactions all call it — add
 a new consumer there, do not re-derive; a consumer's query must select the
 `payment_methods.payment_gateway_id AS payment_method_gateway_id` alias (or
-load `paymentMethod`) or every row reads as unconfirmed. The grid's "Dispense
+load `paymentMethod`) or every row reads as unconfirmed. **Selecting the column
+is only half the contract when the CELL decides in Vue**: `VendTransactionResource`
+must emit it too. "Settle Sync" was decided client-side from five fields the
+resource never listed, so from 2026-09-01 to 2026-09-09 it drew a grey cross on
+every row — `undefined === null` is false, so even a card sale whose report was
+synced took the gateway branch. Decide in `SaleStatus` server-side where you
+can; when a cell must decide in Vue, pin the payload (types included, the cell
+compares with `===`) in `tests/Feature/TransactionIndexStatusColumnsTest.php`.
+The grid's "Dispense
 Status" filter still travels as request key `is_payment_received` (bookmarked
 URLs) and lists no blank-Dispense (no-TRADE) row on either side; its
 "pending" / "no_report" option ids are that request contract.
