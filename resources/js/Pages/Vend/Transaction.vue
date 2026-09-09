@@ -710,7 +710,7 @@
 
        <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+          <div class="cv-scroll overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
               <table class="table-auto min-w-full border-separate" style="border-spacing: 0">
                   <thead class="">
                       <tr class="divide-x bg-gray-400">
@@ -1143,6 +1143,25 @@
   </div>
   </BreezeAuthenticatedLayout>
 </template>
+
+<style>
+/* PERF (scroll): same treatment as the Operation Dashboard grid. The shared
+   TableHead applies `backdrop-blur-3xl` + a translucent bg to the sticky
+   header. A backdrop-filter re-samples and re-blurs everything behind it on
+   EVERY scroll frame as rows pass under the header — across a header this
+   wide that is the dominant scroll cost. Scoped to this page's table only
+   (via .cv-scroll), so the shared component and every other table that uses
+   it are untouched. We drop the blur and make the header opaque (visually
+   near-identical, just not see-through). */
+.cv-scroll thead th {
+	-webkit-backdrop-filter: none !important;
+	backdrop-filter: none !important;
+}
+.cv-scroll thead th.bg-opacity-75 {
+	--tw-bg-opacity: 1 !important;
+	background-color: rgb(249 250 251) !important; /* solid gray-50 */
+}
+</style>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
