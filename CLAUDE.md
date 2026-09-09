@@ -585,6 +585,13 @@ The DB is large: `vend_transactions` ~4.8M rows, `gp_metrics` ~2.4M,
 - Avoid `vend_records` for financial accuracy — legacy, drifts, never
   reconciled.
 - Chunk or queue heavy work (Horizon is installed); do not block a request.
+- **Never correlate an EXISTS on two columns with an OR.** MySQL cannot use an
+  index for `WHERE a = outer.x OR b = outer.y` inside a correlated subquery — it
+  re-scans the whole inner table per outer row. Write one EXISTS per key and OR
+  them (`EXISTS(A OR B)` ≡ `EXISTS(A) OR EXISTS(B)`, and `NOT EXISTS(A OR B)` ≡
+  `NOT EXISTS(A) AND NOT EXISTS(B)`). The Auto-Refunded filter did this over
+  refund_tickets' two link keys and simply never returned on a five-day card
+  filter (`VendTransaction::scopeApplyRefundedFilter`, fixed 2026-09-09).
 
 # Production database
 
