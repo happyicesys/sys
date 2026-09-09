@@ -117,13 +117,25 @@ class VendTransactionService
                     ->lockForUpdate()
                     ->first();
 
-                // Unified transactions: this row was pre-created at gateway
-                // paid-time (is_found_in_transaction = false, linked to a PG log).
-                // The machine's TRADE now fills it with ground truth instead of
-                // creating a second row. Non-gateway flows never hit this branch.
-                if ($existingVendTransaction
-                    && ! $existingVendTransaction->is_found_in_transaction
-                    && $existingVendTransaction->payment_gateway_log_id) {
+                // A card TRADE carries no acquirer reference, so a sale the NETS
+                // report created before the machine reported (Part 2 orphan) is
+                // found by the matcher's own rule in reverse: same machine, same
+                // cents, inside the window. Adopting it overwrites the synthetic
+                // order id with the machine's.
+                if (! $existingVendTransaction
+                    && ($processedInput['paymentClassification'] ?? null) === 'card'
+                    && (int) $processedInput['amount'] > 0) {
+                    $existingVendTransaction = $this->findSettlementOrphan($vend, $processedInput, $isCurrentTime);
+                    if ($existingVendTransaction) {
+                        $existingVendTransaction->order_id = $processedInput['orderID'];
+                    }
+                }
+
+                // Unified transactions: this row was pre-created by a payment rail
+                // (gateway paid-time row, or a NETS-report orphan) and is still
+                // waiting for its TRADE. The machine's TRADE now fills it with
+                // ground truth instead of creating a second row.
+                if ($existingVendTransaction && $existingVendTransaction->isAwaitingTrade()) {
                     $this->applyTradeToPreCreatedRow($existingVendTransaction, $vend, $processedInput);
                     // A TRADE landing on a past day → that day's rollups are rebuilt tonight.
                     $this->lateTradeTracker()->noteLanded($existingVendTransaction);
@@ -529,6 +541,35 @@ class VendTransactionService
                 $this->createVendTransactionItem($transaction, $child);
             }
         }
+    }
+
+    /**
+     * The NETS-report orphan this card TRADE belongs to, if any: same machine,
+     * same cents, still awaiting a TRADE, dated inside the matcher's window
+     * around the frame's own time (the report stamps approval time, the TRADE
+     * lands 10–25 s later). Row-locked — the APK replays its file line by
+     * line, so two frames for one sale can arrive seconds apart; the second
+     * then finds the row already carrying its ORDRID and short-circuits as a
+     * duplicate. One indexed point query (vend_id, transaction_datetime).
+     */
+    private function findSettlementOrphan(Vend $vend, array $input, bool $isCurrentTime): ?VendTransaction
+    {
+        $tradeAt = $isCurrentTime
+            ? TradeTimestampResolver::fromFrame($input['time'] ?? null, $vend->operator?->timezone)->at
+            : Carbon::parse($input['time']);
+        $early = (int) config('card_settlement.match_early_slack_seconds');
+        $late = (int) config('card_settlement.match_late_slack_seconds');
+
+        return VendTransaction::query()
+            ->withoutGlobalScopes()
+            ->where('vend_id', $vend->id)
+            ->whereBetween('transaction_datetime', [$tradeAt->copy()->subSeconds($late), $tradeAt->copy()->addSeconds($early)])
+            ->whereNotNull('card_settlement_row_id')
+            ->where('is_found_in_transaction', false)
+            ->where('amount', (int) $input['amount'])
+            ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, transaction_datetime, ?))', [$tradeAt->toDateTimeString()])
+            ->lockForUpdate()
+            ->first();
     }
 
     /**

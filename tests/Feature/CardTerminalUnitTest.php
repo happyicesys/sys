@@ -354,7 +354,7 @@ class CardTerminalUnitTest extends TestCase
         $rows = $this->exportSheet();
 
         $this->assertSame(
-            ['Terminal ID', 'Card Terminal Company', 'Machine ID', 'Site', 'Bound From', 'Remarks'],
+            ['Terminal ID', 'Card Terminal Company', 'Machine ID', 'Site', 'Bound From', 'Batch', 'Will Auto Refund?', 'Remarks'],
             array_keys($rows[0])
         );
 
@@ -364,6 +364,7 @@ class CardTerminalUnitTest extends TestCase
         $this->assertSame('Site 7022', $bound['Site']);
         $this->assertSame('2026-03-04', $bound['Bound From']);
         $this->assertSame('spare', $bound['Remarks']);
+        $this->assertSame('Unknown', $bound['Will Auto Refund?']);
 
         // A terminal on no machine still exports, with the machine cells empty.
         $free = collect($rows)->firstWhere('Terminal ID', $unbound->terminal_id);

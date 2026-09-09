@@ -164,10 +164,19 @@ been returned, and always together with `auto_refund_source`
   Sync, or by `card-settlement:reconcile-refunds` over already-synced days)
   applies the report to every card sale of the day: reversal line → tick on,
   source `settlement_report_reversal`; captured-not-reversed → tick OFF
-  (customer still charged); no line on a bound terminal → tick OFF (no money
-  taken); unbound machine → untouched. A tick is only CLEARED once the day is
-  final (files D and D+1 both synced — a late capture or reversal can sit in
-  the next day's file); a reversal sets it as soon as its report is synced.
+  (customer still charged); no line on a bound, fully covered terminal →
+  **"NA in NETS"** (source `settlement_report_not_captured`, Brian
+  2026-09-09) when the sale is a FAILED single item AND the terminal's
+  `card_terminal_units.is_will_auto_refund` is Yes — the terminal voided the
+  approval before batch upload, the only way a Visa/MasterCard failure is ever
+  made good — otherwise tick OFF (dispensed / multiple / terminal No or
+  Unknown; those sit on the verify list); Nets-Auresys terminals
+  (`config('card_settlement.report_coverage_gap_companies')`) → `uncovered`,
+  never ticked from a missing line; unbound machine → untouched. The verdict
+  is persisted in `vend_transactions.card_settlement_state` (reversed at
+  once; the rest once the day is final). A tick is only CLEARED once the day
+  is final (files D and D+1 both synced — a late capture or reversal can sit
+  in the next day's file); a reversal sets it as soon as its report is synced.
   Every clear also releases the ticket the tick had crossed
   (`RefundTicketService::clearAutoRefundByCharge`). **No TRADE footprint or
   machine signal may set `is_refunded` any more** — the 2026-08-23 inference
@@ -377,6 +386,52 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
 - `card-settlement:import-bindings` creates the `card_terminal_units` row
   alongside the binding, or the imported terminal would be invisible in the
   Setting/Edit picker and could never be moved.
+- **`card_terminal_units.batch` + `is_will_auto_refund`** (Yes / No / Unknown,
+  Card Terminal Index column and filter) is the per-terminal capability the
+  reconciler's "NA in NETS" tick is gated on. Seeded from the partner's
+  workbook (`card-settlement:import-terminal-flags database/data/card_terminal_auto_refund_seed_2026-09-08.csv --apply`,
+  source `seed`, batches Nets #3–#7 Yes, #1–#2 No, Auresys Unknown); a Yes/No
+  set on the Card Terminal edit form is source `manual` and survives
+  re-imports ("Auto" lifts it). The workbook is authoritative — nothing
+  derives or flips the flag from observed statistics.
+
+## NETS ↔ TRADE gap: orphan sales and adoption
+
+Both directions of "the report and the machine disagree" are handled at Sync
+(`NA_ERROR_CODE_PLAN_2026-09-08.md` Part 2):
+
+- **Line, no TRADE** → `CardSettlementOrphanSales::createForReport()` turns each
+  `UNMATCHED / "No matching sale in window"` purchase line on a bound terminal
+  (full time only) into a real `vend_transactions` row via
+  `App\Services\Sales\PreCreatedSaleFactory::fromSettlementLine()`: code 99,
+  Dispense blank, no product, `order_id CS-<row>`, `card_settlement_row_id`
+  set, SETTLED (REFUNDED when the line is reversed), operator GST rate; the
+  line flips to MATCHED and claims it. Double taps, wrong-machine lines,
+  unbound TIDs and hour-less lines are never turned into sales.
+  `card-settlement:create-orphan-sales --apply` seeds reports synced before
+  this existed. Assign / Ignore on such a line deletes an orphan still awaiting
+  its TRADE (`release()`); an adopted one is a real sale and stays.
+- **A late card TRADE adopts the orphan** (`VendTransactionService::findSettlementOrphan`:
+  same machine, same cents, report time within −300/+60 s of the frame time,
+  row-locked) and overwrites the synthetic order id; `applyTradeToPreCreatedRow`
+  fills the rest exactly as for a gateway row. "Pre-created by a rail" is ONE
+  rule, `VendTransaction::scopeAwaitingTrade()` / `isAwaitingTrade()`
+  (gateway log OR settlement row, no TRADE yet) — the ingest, the nightly 99
+  marker and `CreateVendTransaction::isAlreadyApplied` all read it.
+- `card-settlement:orphans-audit` (weekly, report only) lists orphans that
+  have an unclaimed same-amount card TRADE nearby — the double count a TRADE
+  more than 30 days late or with a broken clock leaves; a human Assigns the
+  line to the real sale, which deletes the orphan.
+- Matcher hygiene that came with it: candidates are Card Terminal sales only
+  (`PaymentMethod::CODE_CARD_TERMINAL`), and a line nothing fits inside the
+  60/300 s window is paired by a second pass within
+  `config('card_settlement.match_wide_window_seconds')` ONLY when the pairing
+  is unique both ways (note "Matched in wide window").
+
+Regression coverage: `tests/Feature/CardSettlementOrphanSalesTest.php`,
+`tests/Feature/CardSettlementStateAndVoidTickTest.php`,
+`tests/Feature/CardSettlementWideMatchTest.php`,
+`tests/Feature/CardTerminalAutoRefundFlagTest.php`.
 
 Regression coverage: `tests/Feature/CardTerminalUnitTest.php` (including an
 end-to-end proof that a terminal bound from Setting/Edit still matches a

@@ -937,6 +937,13 @@
                                         + (vendTransaction.auto_refund_source_label ? ' — ' + vendTransaction.auto_refund_source_label : '')
                                         + (vendTransaction.refund_reference ? ' — ' + vendTransaction.refund_reference : '')"
                                 />
+                                <!-- "NA in NETS": failed card sale with no line in the NETS report on a
+                                     terminal that voids by itself — made good without a reversal line. -->
+                                <span v-if="vendTransaction.auto_refund_source === 'settlement_report_not_captured'"
+                                    class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                                    :title="vendTransaction.auto_refund_source_label">
+                                    NA in NETS
+                                </span>
                             </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">

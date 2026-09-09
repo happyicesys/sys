@@ -18,6 +18,15 @@ class CardSettlementRow extends Model
 
     const STATUS_DUPLICATE = 5;   // same fingerprint already ingested by another report
 
+    /** resolution_note the matcher leaves on a bound line no sale fits — the Part 2 orphan population. */
+    const NOTE_NO_SALE_IN_WINDOW = 'No matching sale in window';
+
+    /** resolution_note on a line whose sale was CREATED from it (orphan). */
+    const NOTE_CREATED_FROM_REPORT = 'Created from report (no TRADE)';
+
+    /** resolution_note on a line matched by the second, wider pass. */
+    const NOTE_MATCHED_WIDE = 'Matched in wide window';
+
     const STATUS_LABELS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_MATCHED => 'Matched',
@@ -95,6 +104,12 @@ class CardSettlementRow extends Model
     public function reversedPurchase()
     {
         return $this->belongsTo(self::class, 'reverses_row_id');
+    }
+
+    /** The sale created FROM this line (Part 2 orphan); null unless the line spawned one. */
+    public function orphanSale()
+    {
+        return $this->hasOne(VendTransaction::class, 'card_settlement_row_id')->withoutGlobalScopes();
     }
 
     /** On a purchase line: the reversal line that undid it. */

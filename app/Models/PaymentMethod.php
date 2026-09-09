@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaymentMethod extends Model
 {
+    /** `code` of the Card Terminal method (NETS reader). The ONLY method the NETS settlement report can carry. */
+    public const CODE_CARD_TERMINAL = 1;
+
     use HasFactory;
 
     protected $fillable = [

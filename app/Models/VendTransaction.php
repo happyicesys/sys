@@ -126,6 +126,8 @@ class VendTransaction extends Model
         'unit_cost_id',
         'is_found_in_transaction',
         'settlement_status',
+        'card_settlement_row_id',
+        'card_settlement_state',
     ];
 
     protected $with = [
@@ -272,6 +274,32 @@ class VendTransaction extends Model
     public static function settledSql(string $alias = 'vend_transactions'): string
     {
         return $alias.'.settlement_status = '.self::SETTLEMENT_SETTLED;
+    }
+
+    /**
+     * Rows a payment rail pre-created before the machine reported: a gateway
+     * paid-time row (payment_gateway_log_id) or a NETS-report orphan
+     * (card_settlement_row_id), both still waiting for their TRADE. ONE
+     * definition — the TRADE ingest, the nightly 99 marker and the duplicate
+     * guard all ask this question (NA_ERROR_CODE_PLAN_2026-09-08.md Part 2).
+     */
+    public function scopeAwaitingTrade($query)
+    {
+        return $query
+            ->where('is_found_in_transaction', false)
+            ->where(fn ($q) => $q->whereNotNull('payment_gateway_log_id')->orWhereNotNull('card_settlement_row_id'));
+    }
+
+    public function isAwaitingTrade(): bool
+    {
+        return ! $this->is_found_in_transaction
+            && ($this->payment_gateway_log_id || $this->card_settlement_row_id);
+    }
+
+    /** Created from a NETS report line with no TRADE (Part 2 orphan), TRADE still missing. */
+    public function isSettlementOrphan(): bool
+    {
+        return $this->card_settlement_row_id && ! $this->is_found_in_transaction;
     }
 
     /**

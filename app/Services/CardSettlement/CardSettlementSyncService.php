@@ -38,10 +38,19 @@ class CardSettlementSyncService
     /** @var array<int,array> per-day reconcile stats from the last sync() */
     protected array $lastReconcile = [];
 
+    /** Sales created from unmatched lines by the last sync() */
+    protected int $lastOrphansCreated = 0;
+
     public function __construct(
         protected RefundTicketService $tickets,
         protected CardSettlementRefundReconciler $reconciler,
+        protected CardSettlementOrphanSales $orphans,
     ) {}
+
+    public function lastOrphansCreated(): int
+    {
+        return $this->lastOrphansCreated;
+    }
 
     /** Per-day reconcile stats from the last sync() call. */
     public function lastReconcile(): array
@@ -52,6 +61,11 @@ class CardSettlementSyncService
     /** @return int number of matched rows covered by the sync */
     public function sync(CardSettlementReport $report, ?int $userId): int
     {
+        // Direction 1 of the NETS ↔ TRADE gap: money in the report, no sale.
+        // Created BEFORE the stamp so the new rows are synced and reconciled
+        // like any other matched line.
+        $this->lastOrphansCreated = $this->orphans->createForReport($report);
+
         $txnIds = $report->rows()
             ->where('status', CardSettlementRow::STATUS_MATCHED)
             ->whereNotNull('matched_vend_transaction_id')

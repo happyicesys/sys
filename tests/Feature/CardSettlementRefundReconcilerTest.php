@@ -279,7 +279,10 @@ class CardSettlementRefundReconcilerTest extends TestCase
         $this->assertTrue((bool) $revend->fresh()->is_refunded);
         $this->assertSame(AutoRefundSource::RETAINED_CREDIT_REVEND, $revend->fresh()->auto_refund_source);
         $this->assertTrue((bool) $omise->fresh()->is_refunded);
-        $this->assertSame(0, $stats['candidates']);
+        // Every card sale of the day is classified now (state persisted), but nothing owned was touched.
+        $this->assertSame(2, $stats['candidates']);
+        $this->assertSame(0, $stats['cleared_captured'] + $stats['cleared_not_captured'] + $stats['confirmed'] + $stats['relabelled']);
+        $this->assertSame(AutoRefundSource::OMISE_TRADE_FAIL, $omise->fresh()->auto_refund_source);
     }
 
     public function test_dry_run_counts_but_writes_nothing()

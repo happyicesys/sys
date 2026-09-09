@@ -69,6 +69,7 @@ class CardTerminalUnitController extends Controller
                 'card_terminal_id' => $request->input('card_terminal_id', 'all'),
                 'vend_code' => $request->input('vend_code', ''),
                 'is_bound' => $request->input('is_bound', 'all'),
+                'will_auto_refund' => $request->input('will_auto_refund', 'all'),
                 'remarks' => $request->input('remarks', ''),
                 'sortKey' => $this->sortKey($request),
                 'sortBy' => $request->sortBy ?? true,
@@ -103,6 +104,12 @@ class CardTerminalUnitController extends Controller
                     'Machine ID' => $machine?->vend_code,
                     'Site' => $machine?->customer_name,
                     'Bound From' => $machine?->bound_from?->format('Y-m-d'),
+                    'Batch' => $unit->batch,
+                    'Will Auto Refund?' => match ($unit->willAutoRefund()) {
+                        true => 'Yes',
+                        false => 'No',
+                        default => 'Unknown',
+                    },
                     'Remarks' => $unit->remarks,
                 ];
             }
@@ -112,7 +119,7 @@ class CardTerminalUnitController extends Controller
     /** Whitelisted sort column. `vend_code` sorts through the binding. */
     private function sortKey(Request $request): string
     {
-        return in_array($request->sortKey, ['terminal_id', 'card_terminal_id', 'vend_code'])
+        return in_array($request->sortKey, ['terminal_id', 'card_terminal_id', 'vend_code', 'batch', 'is_will_auto_refund'])
             ? $request->sortKey
             : 'terminal_id';
     }
@@ -219,6 +226,15 @@ class CardTerminalUnitController extends Controller
                     ? $q->whereExists($this->boundToMachine($today))
                     : $q->whereNotExists($this->boundToMachine($today));
             })
+            // Yes / No / Unknown — the tri-state the reconciler reads.
+            ->when($request->input('will_auto_refund'), function ($q, $value) {
+                return match ($value) {
+                    'yes' => $q->where('is_will_auto_refund', 1),
+                    'no' => $q->where('is_will_auto_refund', 0),
+                    'unknown' => $q->whereNull('is_will_auto_refund'),
+                    default => $q,
+                };
+            })
             ->when($request->input('remarks'), fn ($q, $s) => $q->where('remarks', 'like', "%{$s}%"));
     }
 
@@ -281,12 +297,33 @@ class CardTerminalUnitController extends Controller
             ],
             'card_terminal_id' => ['nullable', 'integer', Rule::exists('card_terminals', 'id')],
             'remarks' => ['nullable', 'string', 'max:255'],
+            'batch' => ['nullable', 'string', 'max:32'],
+            // 'auto' = no override (seed / unknown), 'yes' / 'no' = a manual flag
+            // that the seed import will not overwrite.
+            'will_auto_refund' => ['nullable', Rule::in(['auto', 'yes', 'no'])],
         ]);
 
-        return [
+        $attrs = [
             'terminal_id' => trim($validated['terminal_id']),
             'card_terminal_id' => $validated['card_terminal_id'] ?? null,
             'remarks' => $validated['remarks'] ?? null,
         ];
+        if (array_key_exists('batch', $validated)) {
+            $attrs['batch'] = $validated['batch'] !== null && $validated['batch'] !== '' ? trim($validated['batch']) : null;
+        }
+        if (! empty($validated['will_auto_refund'])) {
+            $unit = $ignoreId ? CardTerminalUnit::find($ignoreId) : null;
+            if ($validated['will_auto_refund'] !== 'auto') {
+                $attrs['is_will_auto_refund'] = $validated['will_auto_refund'] === 'yes' ? 1 : 0;
+                $attrs['auto_refund_flag_source'] = CardTerminalUnit::FLAG_SOURCE_MANUAL;
+            } elseif ($unit && $unit->auto_refund_flag_source === CardTerminalUnit::FLAG_SOURCE_MANUAL) {
+                // Override lifted: back to the workbook's answer if it had one, else unknown.
+                $seedFlag = $unit->auto_refund_stats_json['seed_flag'] ?? null;
+                $attrs['is_will_auto_refund'] = $seedFlag;
+                $attrs['auto_refund_flag_source'] = $seedFlag === null ? null : CardTerminalUnit::FLAG_SOURCE_SEED;
+            }
+        }
+
+        return $attrs;
     }
 }

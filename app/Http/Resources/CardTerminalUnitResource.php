@@ -28,6 +28,13 @@ class CardTerminalUnitResource extends JsonResource
             'card_terminal_name' => $this->company?->name,
             'terminal_id' => $this->terminal_id,
             'remarks' => $this->remarks,
+            // Hardware batch + "Will auto refund?" (Brian's flag, seeded from the
+            // partner workbook; null = unknown). The reconciler ticks "NA in
+            // NETS" only on a terminal flagged true.
+            'batch' => $this->batch,
+            'is_will_auto_refund' => $this->willAutoRefund(),
+            'auto_refund_flag_source' => $this->auto_refund_flag_source,
+            'auto_refund_stats' => $this->auto_refund_stats_json,
             // vend id as well as code: the Machine ID cell links straight to
             // that machine's Setting/Edit page (/settings/vend/{id}/update),
             // which is where its terminal binding is actually changed.

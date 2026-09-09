@@ -35,6 +35,21 @@ class VendChannelError extends Model
      * vend_transactions that filter by FK rather than by joined code. The table
      * holds a dozen rows, so the semi-join is free.
      */
+    /**
+     * The id of the server-reserved "Machine transaction not found (NA)" row.
+     * Seeded by the 2026_09_09 migration; its absence is a deployment fault,
+     * not a runtime state, so this throws rather than returning null.
+     */
+    public static function notFoundId(): int
+    {
+        $id = static::query()->where('code', DispenseVerdict::NOT_FOUND_CODE)->value('id');
+        if ($id === null) {
+            throw new \RuntimeException('vend_channel_errors has no code-99 row; run the 2026_09_09 migration first.');
+        }
+
+        return (int) $id;
+    }
+
     public static function idsForCodes(array $codes): Builder
     {
         return static::query()->select('id')->whereIn('code', $codes);

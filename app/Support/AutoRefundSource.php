@@ -59,6 +59,17 @@ final class AutoRefundSource
     public const SETTLEMENT_REPORT_REVERSAL = 'settlement_report_reversal';
 
     /**
+     * "NA in NETS" (Brian, 2026-09-09): a FAILED single-item card sale on a
+     * terminal flagged `is_will_auto_refund` has NO line in either NETS file
+     * that could carry it, once the day is final. The terminal voided the
+     * approval before batch upload — the only way a Visa/MasterCard failure is
+     * ever made good (scheme cards never get a reversal line). Written by
+     * CardSettlementRefundReconciler; never for a dispensed sale, a multiple,
+     * an unflagged terminal, or a terminal the report does not fully cover.
+     */
+    public const SETTLEMENT_REPORT_NOT_CAPTURED = 'settlement_report_not_captured';
+
+    /**
      * The ONE deliberate exception to "money has been returned": the customer
      * was made whole by GOODS, not money. A later card trade with
      * CSHL_ARMED_MS < 5000 proved the reader did NOT reverse this sale's
@@ -80,6 +91,7 @@ final class AutoRefundSource
         self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal — inferred at TRADE time (legacy, unconfirmed)',
         self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',
+        self::SETTLEMENT_REPORT_NOT_CAPTURED => 'NA in NETS — failed card sale never captured (terminal voided before batch)',
         self::RETAINED_CREDIT_REVEND => 'Settled by re-vend from retained credit (no reversal)',
     ];
 

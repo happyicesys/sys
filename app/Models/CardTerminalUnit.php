@@ -21,10 +21,23 @@ class CardTerminalUnit extends Model
 
     protected $table = 'card_terminal_units';
 
+    /** Where is_will_auto_refund came from. The seed (partner workbook) and a manual edit are both authoritative; stats never flip the flag. */
+    public const FLAG_SOURCE_SEED = 'seed';
+
+    public const FLAG_SOURCE_MANUAL = 'manual';
+
     protected $fillable = [
         'card_terminal_id',
         'terminal_id',
         'remarks',
+        'batch',
+        'is_will_auto_refund',
+        'auto_refund_flag_source',
+        'auto_refund_stats_json',
+    ];
+
+    protected $casts = [
+        'auto_refund_stats_json' => 'json',
     ];
 
     /** The supplying company — a row in `card_terminals`. */
@@ -42,6 +55,27 @@ class CardTerminalUnit extends Model
     public function bindings()
     {
         return $this->hasMany(CardTerminalBinding::class, 'terminal_id', 'terminal_id');
+    }
+
+    /**
+     * Does the NETS MerchantConnect file carry ALL of this terminal's sales?
+     * Nets-Auresys terminals settle partly elsewhere (40–60 % coverage measured
+     * 2026-09-08), so for them "no line" proves nothing — the reconciler
+     * records `uncovered` instead of `not_captured` and never ticks a refund.
+     * Keyed on the company name, never on the TID prefix (23077328 is a plain
+     * Nets terminal with full coverage).
+     */
+    public function hasReportCoverageGap(): bool
+    {
+        $company = strtolower((string) $this->company?->name);
+
+        return $company !== '' && in_array($company, (array) config('card_settlement.report_coverage_gap_companies', []), true);
+    }
+
+    /** true / false / null (unknown) — the tri-state the UI and the reconciler read. */
+    public function willAutoRefund(): ?bool
+    {
+        return $this->is_will_auto_refund === null ? null : (bool) $this->is_will_auto_refund;
     }
 
     /**

@@ -23,6 +23,25 @@ return [
     'match_late_slack_seconds' => 300,
 
     /*
+     * Second, wider pass (Part 2): a line still unmatched after the window
+     * above is paired with an unclaimed card sale on the same machine, same
+     * cents, within this many seconds either way — but ONLY when the pairing
+     * is unique both ways. Measured 2026-09-08: 16 % of "dispensed, no line"
+     * card sales had their line sitting just outside the 60/300 s window
+     * (machine clock drift). Wide + unique never steals a neighbour's line.
+     */
+    'match_wide_window_seconds' => 1800,
+
+    /*
+     * Card Terminal Companies (lower-cased `card_terminals.name`) whose sales
+     * the NETS MerchantConnect file only PARTLY carries (Nets-Auresys: 40–60 %
+     * coverage, 2026-09-08). For their terminals "no line" proves nothing: the
+     * reconciler records `uncovered`, never `not_captured`, and never ticks a
+     * refund from the absence of a line.
+     */
+    'report_coverage_gap_companies' => ['nets-auresys'],
+
+    /*
      * Rows from Excel-damaged files keep only mm:ss (hour lost). They match
      * circularly within the hour using the same slacks; a second candidate in
      * a different hour makes the row AMBIGUOUS instead of guessing.

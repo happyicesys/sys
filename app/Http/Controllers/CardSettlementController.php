@@ -9,6 +9,7 @@ use App\Models\CardSettlementRow;
 use App\Models\CardTerminalUnit;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Services\CardSettlement\CardSettlementOrphanSales;
 use App\Services\CardSettlement\CardSettlementSyncService;
 use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\ParserRegistry;
@@ -673,6 +674,10 @@ class CardSettlementController extends Controller
             return back()->withErrors(['vend_transaction_id' => 'That sale is already claimed by another report row.']);
         }
 
+        // A line being moved off the sale that was CREATED from it (Part 2
+        // orphan, still no TRADE) takes that sale with it — never two rows.
+        app(CardSettlementOrphanSales::class)->release($row);
+
         $row->update([
             'status' => CardSettlementRow::STATUS_MATCHED,
             'matched_vend_transaction_id' => $txn->id,
@@ -702,6 +707,9 @@ class CardSettlementController extends Controller
                 ->where('reversed_by_row_id', $row->id)
                 ->update(['reversed_by_row_id' => null]);
         }
+
+        // Ignoring a line whose sale was created from it removes that orphan sale.
+        app(CardSettlementOrphanSales::class)->release($row);
 
         $row->update([
             'status' => CardSettlementRow::STATUS_IGNORED,
@@ -790,10 +798,13 @@ class CardSettlementController extends Controller
         // The report is the source of truth for the auto-refund tick: say what
         // it changed beyond the stamp, so a cleared tick never goes unnoticed.
         $rec = collect($syncService->lastReconcile());
-        $set = $rec->sum('confirmed') + $rec->sum('relabelled');
+        $set = $rec->sum('confirmed') + $rec->sum('relabelled') + $rec->sum('ticked_not_captured');
         $cleared = $rec->sum('cleared_captured') + $rec->sum('cleared_not_captured');
         $deferred = $rec->sum('skipped_not_final');
         $msg = "Synced {$count} matched transaction(s); {$report->refunded_count} reversal(s).";
+        if ($orphans = $syncService->lastOrphansCreated()) {
+            $msg .= " {$orphans} sale(s) created from lines with no TRADE (Error Code NA).";
+        }
         if ($set || $cleared) {
             $msg .= " Auto-refund ticks: {$set} set, {$cleared} cleared by the report.";
         }

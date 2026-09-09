@@ -452,6 +452,20 @@ function actionBadge(l) {
                             <a v-if="t.nets_report.report_id" :href="'/card-settlements/' + t.nets_report.report_id" target="_blank"
                                 class="block text-[10px] font-semibold text-indigo-500 mt-0.5 hover:underline"
                                 title="Open the settlement report that carries this sale's line">↗ report #{{ t.nets_report.report_id }}</a>
+                            <!-- The bound terminal's "Will auto refund?" flag (Data Management → Card
+                                 Terminal): Yes = wait for day-final, refund only if Captured; No = the
+                                 customer stays charged, refund now. -->
+                            <div v-if="t.nets_report.terminal" class="text-[10px] text-gray-500 mt-0.5"
+                                :title="'Terminal ' + t.nets_report.terminal.terminal_id + (t.nets_report.terminal.batch ? ' · ' + t.nets_report.terminal.batch : '')">
+                                Terminal auto-refunds:
+                                <span :class="{
+                                    'text-green-700 font-semibold': t.nets_report.terminal.will_auto_refund === true,
+                                    'text-red-700 font-semibold': t.nets_report.terminal.will_auto_refund === false,
+                                }">{{ t.nets_report.terminal.will_auto_refund === true ? 'Yes' : (t.nets_report.terminal.will_auto_refund === false ? 'No' : 'Unknown') }}</span>
+                                <span v-if="t.nets_report.terminal.batch"> ({{ t.nets_report.terminal.batch }})</span>
+                                <span v-if="t.nets_report.terminal.will_auto_refund === false"> — refund now, do not wait for the report</span>
+                                <span v-else-if="t.nets_report.terminal.will_auto_refund === true"> — wait for day-final; refund only if Captured</span>
+                            </div>
                         </dd>
                     </div>
                 </dl>

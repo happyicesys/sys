@@ -21,7 +21,7 @@
             </span>
           </Button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
           <SearchInput placeholderStr="Terminal ID" v-model="filters.terminal_id">
             Terminal ID
           </SearchInput>
@@ -51,6 +51,22 @@
             <MultiSelect
               v-model="filters.is_bound"
               :options="boundFilterOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Will auto refund?
+            </label>
+            <MultiSelect
+              v-model="filters.will_auto_refund"
+              :options="autoRefundFilterOptions"
               trackBy="id"
               valueProp="id"
               label="name"
@@ -146,6 +162,12 @@
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Machine ID
                     </TableHeadSort>
+                    <TableHeadSort modelName="batch" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('batch')">
+                      Batch
+                    </TableHeadSort>
+                    <TableHeadSort modelName="is_will_auto_refund" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_will_auto_refund')">
+                      Will auto refund?
+                    </TableHeadSort>
                     <TableHead>
                       Remarks
                     </TableHead>
@@ -179,6 +201,21 @@
                           <span class="text-xs text-gray-500">{{ unit.current_vend_name }}</span>
                         </span>
                         <span v-else class="text-gray-400">Not on a machine</span>
+                      </TableData>
+                      <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left">
+                        {{ unit.batch ?? '-' }}
+                      </TableData>
+                      <!--
+                        Does this terminal make a failed single-item sale good by itself
+                        (void before capture / reversal)? Seeded from the partner's workbook;
+                        the reconciler ticks "NA in NETS" only on a green terminal.
+                      -->
+                      <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-center">
+                        <div class="flex justify-center" :title="autoRefundTitle(unit)">
+                          <CheckCircleIcon v-if="unit.is_will_auto_refund === true" class="h-5 w-5 text-green-500" aria-hidden="true"/>
+                          <XCircleIcon v-else-if="unit.is_will_auto_refund === false" class="h-5 w-5 text-red-500" aria-hidden="true"/>
+                          <QuestionMarkCircleIcon v-else class="h-5 w-5 text-gray-400" aria-hidden="true"/>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left">
                         {{ unit.remarks }}
@@ -237,7 +274,7 @@ import Form from '@/Pages/CardTerminalUnit/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, QuestionMarkCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -258,6 +295,7 @@ const filters = ref({
   card_terminal_id: null,
   vend_code: props.filters?.vend_code ?? '',
   is_bound: null,
+  will_auto_refund: null,
   remarks: props.filters?.remarks ?? '',
   sortKey: props.filters?.sortKey ?? 'terminal_id',
   sortBy: props.filters?.sortBy ?? true,
@@ -278,6 +316,21 @@ const boundFilterOptions = [
   { id: 'no', name: 'No' },
 ]
 
+const autoRefundFilterOptions = [
+  { id: 'all', name: 'All' },
+  { id: 'yes', name: 'Yes' },
+  { id: 'no', name: 'No' },
+  { id: 'unknown', name: 'Unknown' },
+]
+
+// Tooltip on the tick / cross: where the flag came from and what the sheet saw.
+function autoRefundTitle(unit) {
+  const seed = unit.auto_refund_stats?.seed
+  const src = unit.auto_refund_flag_source === 'manual' ? 'set manually' : (unit.auto_refund_flag_source === 'seed' ? 'from partner workbook' : 'unknown — not in the workbook')
+  const seen = seed ? ` · ${seed.auto_refund_events} made good / ${seed.unrefunded_events} charged (${seed.window_from} – ${seed.window_to})` : ''
+  return `Will auto refund: ${unit.is_will_auto_refund === true ? 'Yes' : (unit.is_will_auto_refund === false ? 'No' : 'Unknown')} (${src})${seen}`
+}
+
 // 'none' is a real filter, not a placeholder: 5 backfilled terminals came off
 // machines that carry no company, and they need to be findable to be fixed.
 const companyFilterOptions = computed(() => [
@@ -296,6 +349,8 @@ onMounted(() => {
     .find(o => String(o.id) === String(props.filters?.card_terminal_id ?? 'all')) ?? companyFilterOptions.value[0]
   filters.value.is_bound = boundFilterOptions
     .find(o => o.id === (props.filters?.is_bound ?? 'all')) ?? boundFilterOptions[0]
+  filters.value.will_auto_refund = autoRefundFilterOptions
+    .find(o => o.id === (props.filters?.will_auto_refund ?? 'all')) ?? autoRefundFilterOptions[0]
 
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
@@ -341,6 +396,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       card_terminal_id: filters.value.card_terminal_id?.id ?? 'all',
       is_bound: filters.value.is_bound?.id ?? 'all',
+      will_auto_refund: filters.value.will_auto_refund?.id ?? 'all',
       numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,
   }, {
       preserveState: true,
@@ -358,6 +414,7 @@ function resetFilters() {
   filters.value.remarks = ''
   filters.value.card_terminal_id = companyFilterOptions.value[0]
   filters.value.is_bound = boundFilterOptions[0]
+  filters.value.will_auto_refund = autoRefundFilterOptions[0]
   filters.value.sortKey = 'terminal_id'
   filters.value.sortBy = true
   router.get('/card-terminal-units')
@@ -375,6 +432,7 @@ function onExportExcelClicked() {
       ...filters.value,
       card_terminal_id: filters.value.card_terminal_id?.id ?? 'all',
       is_bound: filters.value.is_bound?.id ?? 'all',
+      will_auto_refund: filters.value.will_auto_refund?.id ?? 'all',
       numberPerPage: undefined,
     },
     responseType: 'blob',

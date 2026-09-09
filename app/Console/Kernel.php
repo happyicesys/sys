@@ -121,6 +121,10 @@ class Kernel extends ConsoleKernel
             ->appendOutputTo(storage_path('logs/locked-summary-audit.log'));
         $schedule->command('reconcile:sales-rollups --days=14')->dailyAt('02:15')->withoutOverlapping();
         $schedule->command('reconcile:sales-rollups --days=45')->weeklyOn(0, '02:45')->withoutOverlapping();
+        // NETS-orphan sales that may double-count a late TRADE (report only; a
+        // human merges them on the report page).
+        $schedule->command('card-settlement:orphans-audit')->weeklyOn(1, '03:30')->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/card-settlement-orphans.log'));
         // Monthly deep backstop — a long window catches transactions that
         // settle / refund / get reassigned MORE than 45 days after their sale
         // date, which the nightly (14d) and weekly (45d) sweeps never revisit.

@@ -9,9 +9,9 @@ use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
-use App\Models\VendChannel;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\Sales\PreCreatedSaleFactory;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,8 +41,8 @@ use Illuminate\Support\Facades\Log;
 class GatewayVendTransactionService
 {
     /**
-     * @return VendTransaction|null  The pre-created (or already-existing) row, or
-     *                               null if it couldn't/shouldn't be created.
+     * @return VendTransaction|null The pre-created (or already-existing) row, or
+     *                              null if it couldn't/shouldn't be created.
      */
     public function createFromPaymentGatewayLog(PaymentGatewayLog $log): ?VendTransaction
     {
@@ -83,6 +83,7 @@ class GatewayVendTransactionService
             if (! $existing->payment_gateway_log_id) {
                 $existing->forceFill(['payment_gateway_log_id' => $log->id])->save();
             }
+
             return $existing;
         }
 
@@ -92,8 +93,6 @@ class GatewayVendTransactionService
         $paymentMethod = $this->resolvePaymentMethod($log);
         $approvedAt = $log->approved_at ? Carbon::parse($log->approved_at) : Carbon::now();
 
-        $customer = $vend->customer;
-        $vendPrefix = $vend->vendPrefix;
         $productMappingItems = $vend->productMapping
             ? $vend->productMapping->productMappingItems->keyBy('channel_code')
             : collect();
@@ -104,14 +103,11 @@ class GatewayVendTransactionService
             ? $this->mapChannel($vend, $channels[0], $productMappingItems)
             : ['product' => null, 'mappingItem' => null, 'vendChannel' => null, 'unitCostId' => null, 'unitCostValue' => 0, 'gstVatRate' => 0];
 
-        // Planogram in force at paid-time. Taken from the vend (not the resolved
-        // item) so it is captured even for a multi-channel or unmapped purchase.
-        $productMappingId = $vend->product_mapping_id ?: null;
-
-        $gstVatRate = $parentMap['gstVatRate'];
-        $revenue = $amountCents / (1.00 + ($gstVatRate / 100));
+        // Mapped product → its operator's rate; unmapped basket → the machine
+        // operator's rate (a rate of 0 would book the GST as revenue, Part 4 item 9).
+        $gstVatRate = $parentMap['product'] ? $parentMap['gstVatRate'] : PreCreatedSaleFactory::operatorGstRate($vend);
         $unitCostValue = $parentMap['unitCostValue'];
-        $grossProfit = $revenue - $unitCostValue;
+        $money = PreCreatedSaleFactory::money($amountCents, (float) $gstVatRate, (float) $unitCostValue);
 
         $vendChannelCode = ! $isMultiple && isset($channels[0]['code']) ? (int) $channels[0]['code'] : 0;
         $vendChannelId = $parentMap['vendChannel']?->id ?? 0; // column is NOT NULL → 0 placeholder for multi/unmapped
@@ -119,61 +115,42 @@ class GatewayVendTransactionService
         try {
             return DB::transaction(function () use (
                 $vend, $orderId, $approvedAt, $amountCents, $isMultiple, $paymentMethod,
-                $channels, $parentMap, $gstVatRate, $revenue, $unitCostValue, $grossProfit,
-                $vendChannelCode, $vendChannelId, $customer, $vendPrefix, $log, $productMappingItems,
-                $productMappingId
+                $channels, $parentMap, $money,
+                $vendChannelCode, $vendChannelId, $log, $productMappingItems
             ) {
-                $transaction = VendTransaction::create([
-                    'transaction_datetime' => $approvedAt,
-                    'amount' => $amountCents,
-                    'is_zero_amount' => $amountCents == 0,
-                    'order_id' => $orderId,
-                    'interface_type' => is_numeric($log->txn_src) ? (int) $log->txn_src : null,
-                    'is_multiple' => $isMultiple,
-                    'is_payment_received' => true,
-                    'items_json' => $channels,
-                    'payment_method_id' => $paymentMethod?->id,
-                    'qty' => max(count($channels), 1),
-                    'success_qty' => 0,   // unknown until dispense/TRADE
-                    'dispensed_qty' => 0, // unknown until dispense/TRADE
-                    // Freeze the Product Drop Sensor state at paid-time so a
-                    // no-dispense row (which never receives a TRADE) still carries
-                    // it. A later TRADE refreshes it to the TRADE-moment value.
-                    'product_drop_sensor' => $vend->productDropSensorEnabled(),
-                    'vend_id' => $vend->id,
-                    'vend_channel_code' => $vendChannelCode,
-                    'vend_channel_id' => $vendChannelId,
-                    'vend_channel_error_id' => null, // pending — settlement_status keeps it out of sales
-                    'vend_contract_id' => $vend->vendContract?->id,
-                    'vend_model_id' => $vend->vendModel?->id,
-                    'vend_prefix_id' => $vendPrefix?->id,
-                    'vend_transaction_json' => null, // filled by TRADE
-                    'product_id' => $parentMap['product']?->id,
-                    'product_mapping_id' => $productMappingId,
-                    'product_mapping_item_id' => $parentMap['mappingItem']?->id,
-                    'customer_id' => $customer?->id,
-                    'location_type_id' => $customer?->locationType?->id,
-                    'operator_id' => $customer?->operator?->id ?? $vend->operator_id ?? 1,
-                    'unit_cost_id' => $parentMap['unitCostId'],
-                    'unit_cost' => $unitCostValue,
-                    'gst_vat_rate' => $gstVatRate,
-                    'revenue' => $revenue,
-                    'gross_profit' => $grossProfit,
-                    'gross_profit_margin' => $revenue ? (($grossProfit * 100) / $revenue) : 0,
-                    'label_json' => null, // campaign labels arrive with TRADE
-                    'meta_json' => [
-                        'apk_ver' => $vend->apk_ver_json['apkver'] ?? null,
-                        'firmware_ver' => isset($vend->firmware_ver) ? dechex($vend->firmware_ver) : null,
-                        'vend_code' => $vend->code,
-                        'customer_code' => $customer ? ($customer->id + 20000) : null,
-                        'customer_name' => $customer?->name,
-                        'vend_prefix_name' => $vendPrefix?->name,
-                        'source' => 'gateway_precreate',
-                    ],
-                    'payment_gateway_log_id' => $log->id,
-                    'is_found_in_transaction' => false,
-                    'settlement_status' => VendTransaction::SETTLEMENT_PENDING,
-                ]);
+                // Machine-derived columns + meta come from the shared rail factory
+                // (one definition with the NETS-orphan rail); the basket mapping is
+                // this rail's own.
+                $transaction = VendTransaction::create(array_merge(
+                    PreCreatedSaleFactory::vendAttributes($vend),
+                    $money,
+                    [
+                        'transaction_datetime' => $approvedAt,
+                        'amount' => $amountCents,
+                        'is_zero_amount' => $amountCents == 0,
+                        'order_id' => $orderId,
+                        'interface_type' => is_numeric($log->txn_src) ? (int) $log->txn_src : null,
+                        'is_multiple' => $isMultiple,
+                        'is_payment_received' => true,
+                        'items_json' => $channels,
+                        'payment_method_id' => $paymentMethod?->id,
+                        'qty' => max(count($channels), 1),
+                        'success_qty' => 0,   // unknown until dispense/TRADE
+                        'dispensed_qty' => 0, // unknown until dispense/TRADE
+                        'vend_channel_code' => $vendChannelCode,
+                        'vend_channel_id' => $vendChannelId,
+                        'vend_channel_error_id' => null, // pending — settlement_status keeps it out of sales
+                        'vend_transaction_json' => null, // filled by TRADE
+                        'product_id' => $parentMap['product']?->id,
+                        'product_mapping_item_id' => $parentMap['mappingItem']?->id,
+                        'unit_cost_id' => $parentMap['unitCostId'],
+                        'label_json' => null, // campaign labels arrive with TRADE
+                        'meta_json' => PreCreatedSaleFactory::meta($vend, ['source' => 'gateway_precreate']),
+                        'payment_gateway_log_id' => $log->id,
+                        'is_found_in_transaction' => false,
+                        'settlement_status' => VendTransaction::SETTLEMENT_PENDING,
+                    ]
+                ));
 
                 if ($isMultiple) {
                     foreach ($channels as $channel) {
@@ -213,6 +190,7 @@ class GatewayVendTransactionService
                 'order_id' => $orderId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -228,7 +206,7 @@ class GatewayVendTransactionService
 
         if ((string) $log->txn_src === '50') {
             $now = Carbon::now();
-            $orderId = $now->format('y') . ($now->format('m'))[0] . $orderId;
+            $orderId = $now->format('y').($now->format('m'))[0].$orderId;
         }
 
         return $orderId;
@@ -325,6 +303,7 @@ class GatewayVendTransactionService
     private function toMinorUnits(float $major, ?Operator $operator): int
     {
         $exponent = $operator?->country?->currency_exponent ?? 2;
+
         return (int) round($major * pow(10, $exponent));
     }
 }

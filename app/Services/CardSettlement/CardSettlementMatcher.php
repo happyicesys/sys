@@ -5,6 +5,7 @@ namespace App\Services\CardSettlement;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\CardTerminalBinding;
+use App\Models\PaymentMethod;
 use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -368,9 +369,71 @@ class CardSettlementMatcher
             ]);
         }
 
+        // Second pass, wider window, unique both ways (Part 2): a line whose sale
+        // sits just outside the window (machine clock drift) is still paired,
+        // but never when two lines or two sales could fit — those stay queries.
+        $noSaleOnBoundVend = $this->assignWide($noSaleOnBoundVend, $candidatesByVend, $claimedTxns);
+
         if (! empty($noSaleOnBoundVend)) {
             $this->flagSalesOnOtherMachines(collect($noSaleOnBoundVend), $earlySlack, $lateSlack);
         }
+    }
+
+    /**
+     * @param  CardSettlementRow[]  $rows  full-time rows nothing fit inside the normal window
+     * @param  array<int, true>  $claimedTxns  sales claimed in this run (updated in place)
+     * @return CardSettlementRow[] rows still unmatched
+     */
+    protected function assignWide(array $rows, Collection $candidatesByVend, array &$claimedTxns): array
+    {
+        $wide = (int) config('card_settlement.match_wide_window_seconds', 0);
+        if ($wide <= 0 || empty($rows)) {
+            return $rows;
+        }
+
+        $byRow = [];
+        $rowsByTxn = [];
+        foreach ($rows as $row) {
+            if ($row->time_is_partial || $row->transaction_time === null) {
+                continue;
+            }
+            foreach ($candidatesByVend->get($row->vend_id) ?? [] as $candidate) {
+                if ($candidate->amount !== $row->amount_cents || isset($claimedTxns[$candidate->id])) {
+                    continue;
+                }
+                $delta = $this->timeDelta($row, $candidate, $wide, $wide);
+                if ($delta === null) {
+                    continue;
+                }
+                $byRow[$row->id][] = ['candidate' => $candidate, 'delta' => $delta];
+                $rowsByTxn[$candidate->id][$row->id] = true;
+            }
+        }
+
+        $remaining = [];
+        foreach ($rows as $row) {
+            $fits = $byRow[$row->id] ?? [];
+            if (count($fits) !== 1 || count($rowsByTxn[$fits[0]['candidate']->id]) !== 1) {
+                $remaining[] = $row;
+
+                continue;
+            }
+            $txnId = $fits[0]['candidate']->id;
+            try {
+                $row->update([
+                    'status' => CardSettlementRow::STATUS_MATCHED,
+                    'matched_vend_transaction_id' => $txnId,
+                    'match_time_delta' => $fits[0]['delta'],
+                    'candidates_json' => null,
+                    'resolution_note' => CardSettlementRow::NOTE_MATCHED_WIDE,
+                ]);
+                $claimedTxns[$txnId] = true;
+            } catch (QueryException) {
+                $remaining[] = $row; // claimed by another report meanwhile
+            }
+        }
+
+        return $remaining;
     }
 
     /**
@@ -411,7 +474,7 @@ class CardSettlementMatcher
             ->whereBetween('vend_transactions.transaction_datetime', [$from, $until])
             ->whereIn('vend_transactions.amount', $rows->pluck('amount_cents')->unique())
             ->whereNull('payment_methods.payment_gateway_id')
-            ->where('payment_methods.code', '>', 0)
+            ->where('payment_methods.code', PaymentMethod::CODE_CARD_TERMINAL)
             ->where('vend_transactions.is_retained_credit_settlement', false)
             ->whereNotExists(function ($q) {
                 $q->selectRaw('1')
@@ -510,7 +573,7 @@ class CardSettlementMatcher
             ->whereIn('vend_transactions.amount', $rows->pluck('amount_cents')->unique())
             ->whereNotIn('vend_transactions.vend_id', $rows->pluck('vend_id')->unique())
             ->whereNull('payment_methods.payment_gateway_id')
-            ->where('payment_methods.code', '>', 0)
+            ->where('payment_methods.code', PaymentMethod::CODE_CARD_TERMINAL)
             ->where('vend_transactions.is_retained_credit_settlement', false)
             ->whereNotExists(function ($q) {
                 $q->selectRaw('1')
@@ -562,7 +625,7 @@ class CardSettlementMatcher
                 'matched_vend_transaction_id' => null,
                 'match_time_delta' => null,
                 'candidates_json' => null,
-                'resolution_note' => 'No matching sale in window',
+                'resolution_note' => CardSettlementRow::NOTE_NO_SALE_IN_WINDOW,
             ]);
         }
     }
@@ -706,10 +769,11 @@ class CardSettlementMatcher
             ->join('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->whereIn('vend_transactions.vend_id', $vendIds)
             ->whereBetween('vend_transactions.transaction_datetime', [$from, $until])
-            // Cashless-terminal rule used across the app: a terminal payment
-            // method has no gateway and a non-zero code (cash is code 0).
+            // Only the Card Terminal method can appear in the NETS report.
+            // Grab Mart / Free Vend / Passcode / HID rows (also gateway-less,
+            // non-zero codes) used to slip in here and steal same-amount lines.
             ->whereNull('payment_methods.payment_gateway_id')
-            ->where('payment_methods.code', '>', 0)
+            ->where('payment_methods.code', PaymentMethod::CODE_CARD_TERMINAL)
             // Approved from VMC-retained credit — no card presented, no
             // terminal settlement will ever exist for it.
             ->where('vend_transactions.is_retained_credit_settlement', false)

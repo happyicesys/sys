@@ -9,7 +9,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Re-apply the NETS settlement report as the source of truth for the
- * auto-refund tick over days whose reports are ALREADY synced — Sync only
+ * auto-refund tick (and the persisted card_settlement_state) over days whose
+ * reports are ALREADY synced — Sync only
  * reconciles at the moment it runs, so reports synced before 2026-09-08
  * (when the reconciler was introduced) still carry the TRADE-time inference
  * ticks the report contradicts. Same rules as Sync
@@ -66,10 +67,13 @@ class ReconcileCardSettlementRefunds extends Command
                 $s['candidates'],
                 $s['confirmed'],
                 $s['relabelled'],
+                $s['orphans_refunded'],
                 $s['cleared_captured'],
+                $s['ticked_not_captured'],
                 $s['cleared_not_captured'],
-                $s['skipped_unbound'],
+                $s['skipped_uncovered'] + $s['skipped_unbound'],
                 $s['skipped_not_final'],
+                $s['states_written'],
                 $s['tickets_crossed'],
                 $s['tickets_released'],
             ];
@@ -81,20 +85,24 @@ class ReconcileCardSettlementRefunds extends Command
         }
 
         $this->table(
-            ['Day', 'Final?', 'Candidates', 'Set (reversal)', 'Relabelled', 'Cleared: captured', 'Cleared: not captured', 'Skipped: unbound', 'Skipped: not final', 'Tickets crossed', 'Tickets released'],
+            ['Day', 'Final?', 'Card sales', 'Set (reversal)', 'Relabelled', 'Orphans refunded', 'Cleared: captured', 'Set (NA in NETS)', 'Cleared: not captured', 'Skipped: uncovered/unbound', 'Skipped: not final', 'States written', 'Tickets crossed', 'Tickets released'],
             $rows
         );
 
         $this->line(sprintf(
-            'Totals — set %d, relabelled %d, cleared %d (captured %d, not captured %d), skipped %d (unbound %d, not final %d), tickets crossed %d, released %d.',
+            'Totals — set %d (reversal) + %d (NA in NETS), relabelled %d, orphans refunded %d, cleared %d (captured %d, not captured %d), skipped %d (uncovered %d, unbound %d, not final %d), states written %d, tickets crossed %d, released %d.',
             $totals['confirmed'] ?? 0,
+            $totals['ticked_not_captured'] ?? 0,
             $totals['relabelled'] ?? 0,
+            $totals['orphans_refunded'] ?? 0,
             ($totals['cleared_captured'] ?? 0) + ($totals['cleared_not_captured'] ?? 0),
             $totals['cleared_captured'] ?? 0,
             $totals['cleared_not_captured'] ?? 0,
-            ($totals['skipped_unbound'] ?? 0) + ($totals['skipped_not_final'] ?? 0),
+            ($totals['skipped_uncovered'] ?? 0) + ($totals['skipped_unbound'] ?? 0) + ($totals['skipped_not_final'] ?? 0),
+            $totals['skipped_uncovered'] ?? 0,
             $totals['skipped_unbound'] ?? 0,
             $totals['skipped_not_final'] ?? 0,
+            $totals['states_written'] ?? 0,
             $totals['tickets_crossed'] ?? 0,
             $totals['tickets_released'] ?? 0,
         ));

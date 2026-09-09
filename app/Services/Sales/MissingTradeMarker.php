@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\DB;
  * Nightly: stamp channel error 99 ("Machine transaction not found (NA)") on
  * every gateway sale whose day is over and whose TRADE never arrived.
  *
- * Scope (ONE place — the NETS-report-created rows of Part 2 plug in here):
- *   payment_gateway_log_id IS NOT NULL   — pre-created by a payment rail
- *   is_found_in_transaction = 0          — no TRADE applied
+ * Scope (VendTransaction::scopeAwaitingTrade — the one definition):
+ *   pre-created by a payment rail (payment_gateway_log_id or
+ *   card_settlement_row_id NOT NULL) and is_found_in_transaction = 0
  *   vend_channel_error_id IS NULL        — not marked yet (idempotent)
  *   transaction_datetime in [from, until) — the day is over
  *
@@ -83,10 +83,7 @@ class MissingTradeMarker
             return $result;
         }
 
-        $naId = VendChannelError::query()->where('code', DispenseVerdict::NOT_FOUND_CODE)->value('id');
-        if ($naId === null) {
-            throw new \RuntimeException('vend_channel_errors has no code-99 row; run the 2026_09_09 migration first.');
-        }
+        $naId = VendChannelError::notFoundId();
 
         $stamp = Carbon::now()->toDateTimeString();
 
@@ -113,8 +110,7 @@ class MissingTradeMarker
             ->where('transaction_datetime', '>=', $from)
             ->where('transaction_datetime', '<', $until)
             ->whereNull('vend_channel_error_id')
-            ->whereNotNull('payment_gateway_log_id')
-            ->where('is_found_in_transaction', false);
+            ->awaitingTrade();
     }
 
     private function markChunk($rows, bool $apply, int $naId, string $stamp, MissingTradeMarkResult $result): void

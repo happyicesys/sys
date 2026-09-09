@@ -42,6 +42,37 @@
               </div>
             </div>
             <div class="sm:col-span-6">
+              <FormInput v-model="form.batch" :error="form.errors.batch">
+                Batch (hardware batch, e.g. "Nets #3 (50x)")
+              </FormInput>
+            </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                Will auto refund?
+              </label>
+              <MultiSelect
+                v-model="form.will_auto_refund"
+                :options="autoRefundOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                :allowEmpty="false"
+                :searchable="false"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-xs text-gray-500 mt-1">
+                Does this terminal void a failed single-item card sale by itself? "Auto" keeps the
+                partner workbook's answer (or Unknown). Yes / No override it and survive re-imports.
+                The reconciler ticks "NA in NETS" only on a Yes terminal.
+              </div>
+              <div class="text-sm text-red-600" v-if="form.errors.will_auto_refund">
+                {{ form.errors.will_auto_refund }}
+              </div>
+            </div>
+            <div class="sm:col-span-6">
               <FormInput v-model="form.remarks" :error="form.errors.remarks">
                 Remarks
               </FormInput>
@@ -106,6 +137,12 @@ const form = ref(
 )
 const toast = useToast()
 
+const autoRefundOptions = [
+  { id: 'auto', name: 'Auto (workbook / unknown)' },
+  { id: 'yes', name: 'Yes — terminal voids failed sales' },
+  { id: 'no', name: 'No — customer stays charged' },
+]
+
 const companyOptions = computed(() => ((props.cardTerminalOptions?.data) ?? []).map(company => ({
   id: company.id,
   name: company.name,
@@ -123,6 +160,12 @@ onMounted(() => {
       ? companyOptions.value.find(c => c.id === unit.card_terminal_id) ?? null
       : null,
     remarks: unit?.remarks ?? '',
+    batch: unit?.batch ?? '',
+    will_auto_refund: autoRefundOptions.find(o => o.id === (
+      unit?.auto_refund_flag_source === 'manual'
+        ? (unit.is_will_auto_refund ? 'yes' : 'no')
+        : 'auto'
+    )) ?? autoRefundOptions[0],
   })
 })
 
@@ -132,6 +175,8 @@ function getDefaultForm() {
     terminal_id: '',
     card_terminal_id: null,
     remarks: '',
+    batch: '',
+    will_auto_refund: autoRefundOptions[0],
   }
 }
 
@@ -141,6 +186,7 @@ function submit() {
   const payload = form.value.transform((data) => ({
     ...data,
     card_terminal_id: data.card_terminal_id ? data.card_terminal_id.id : null,
+    will_auto_refund: data.will_auto_refund?.id ?? 'auto',
   }))
 
   if(props.type === 'create') {

@@ -1006,3 +1006,29 @@ Order: migration (`card_settlement_row_id`, `card_settlement_state`, terminal
 flag columns) → seed import → matcher hygiene + second wider pass → orphan
 creation/adoption → state writer with the gated tick → Card Terminal Index
 column + liabilities tab.
+
+## Build log — Part 2 (2026-09-09)
+
+| what | where |
+|---|---|
+| Schema | `2026_09_10_100000_…`: `vend_transactions.card_settlement_row_id`, `card_settlement_state` (nullable, INSTANT, no index); `card_terminal_units.batch`, `is_will_auto_refund`, `auto_refund_flag_source`, `auto_refund_stats_json` |
+| One rule "pre-created by a rail" | `VendTransaction::scopeAwaitingTrade()` / `isAwaitingTrade()` / `isSettlementOrphan()`; used by the ingest branch, `CreateVendTransaction::isAlreadyApplied`, `MissingTradeMarker::candidates` |
+| Shared rail factory | `App\Services\Sales\PreCreatedSaleFactory` (`vendAttributes`, `meta`, `money`, `operatorGstRate`, `fromSettlementLine`); `GatewayVendTransactionService` now builds through it — behaviour preserved except an unmapped basket takes the operator's GST rate (Part 4 item 9) |
+| Direction 1: line, no TRADE | `CardSettlementOrphanSales::createForReport()` at Sync (before the stamp), `release()` on Assign / Ignore; `card-settlement:create-orphan-sales` seed; `card-settlement:orphans-audit` weekly Monday 03:30 → `logs/card-settlement-orphans.log` |
+| Adoption | `VendTransactionService::findSettlementOrphan()` (same vend, same cents, −300/+60 s around the resolved frame time, row-locked), synthetic order id overwritten |
+| Direction 2: TRADE, no line | `CardSettlementRefundReconciler` classifies EVERY card sale of the day, persists `card_settlement_state` (reversed at once, rest when final), new state `uncovered`; **"NA in NETS" tick** (`AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED`) only for a failed single-item sale on a terminal with `is_will_auto_refund = 1`; a reversed orphan is set REFUNDED (Part 4 item 2 for rail rows); `card-settlement:reconcile-refunds` table widened |
+| Terminal flag | `card-settlement:import-terminal-flags <csv> --apply [--create-missing]` (seed authoritative, manual kept); Card Terminal Index: Batch + Will auto refund? columns (tick / cross / ?), filter, sort, export columns; Edit form: Auto / Yes / No |
+| Matcher hygiene | candidates = Card Terminal method only; second pass `match_wide_window_seconds` (1800) unique both ways, note "Matched in wide window" |
+| Surfaces | Sales Transactions: "NA in NETS" badge next to the auto-refund tick; refund ticket page: "Terminal auto-refunds: Yes/No/Unknown (batch)" with the wait/refund-now hint; Sync flash counts created orphans and NA ticks |
+| Tests | `CardSettlementOrphanSalesTest`, `CardSettlementStateAndVoidTickTest`, `CardSettlementWideMatchTest`, `CardTerminalAutoRefundFlagTest` (+ reconciler / unit tests adjusted) |
+
+Prod steps after deploy: `card-settlement:import-terminal-flags database/data/card_terminal_auto_refund_seed_2026-09-08.csv --apply --create-missing`,
+`card-settlement:create-orphan-sales --apply` (only the 227 lines on already-synced
+reports; the 499 on August reports still in review are created when Brian syncs
+them), `card-settlement:reconcile-refunds --from=2026-08-01 --apply` (persists
+states, applies the gated tick over the synced window).
+
+Not built (deferred, documented): liabilities tab / Transactions-grid filter on
+`card_settlement_state`; Machine Setting/Edit read-only flag line; weekly
+`classify-auto-refund` statistics refresh (the seed is authoritative, so the
+tooltip shows the workbook's numbers for now).

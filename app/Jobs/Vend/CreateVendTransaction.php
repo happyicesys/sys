@@ -90,7 +90,7 @@ class CreateVendTransaction implements ShouldQueue
         $existing = VendTransaction::withoutGlobalScopes()
             ->where('vend_id', $this->vend->id)
             ->whereIn('order_id', VendTransaction::orderIdCandidates($orderId, Carbon::now()))
-            ->first(['id', 'is_found_in_transaction', 'payment_gateway_log_id']);
+            ->first(['id', 'is_found_in_transaction', 'payment_gateway_log_id', 'card_settlement_row_id']);
 
         return self::isAlreadyApplied($existing);
     }
@@ -117,9 +117,8 @@ class CreateVendTransaction implements ShouldQueue
             return false;
         }
 
-        $awaitingTrade = ! $existing->is_found_in_transaction && $existing->payment_gateway_log_id;
-
-        return ! $awaitingTrade;
+        // Gateway paid-time row OR NETS-report orphan (Part 2) — one rule.
+        return ! $existing->isAwaitingTrade();
     }
 
     /**
