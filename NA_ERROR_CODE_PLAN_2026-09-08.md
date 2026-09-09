@@ -1044,3 +1044,17 @@ in 2e5eced0e1 ({$var} interpolation) with a token-level guard test
 (`test_no_dispense_verdict_call_left_literal_inside_a_double_quoted_string`)
 that scans every double-quoted / heredoc segment in app/. Failed jobs retried
 after deploy so every machine's totals JSON is current again.
+
+## Second incident, found from the orphan rows (2026-09-09)
+
+The orphan rows made a pre-existing display bug visible: they showed Payment
+Status "Settled" and Settle Sync "×" at once. `VendTransactionResource` never
+emitted the five fields the Settle Sync cell reads
+(`payment_method_gateway_id`, `payment_method_code`, `card_settlement_synced_at`,
+`payment_gateway_log_status`, `payment_gateway_approved_at`), all of which
+`transactionIndex` does select. In the browser `payment_method_gateway_id` was
+`undefined`, `undefined === null` is false, so the card-terminal branch never
+ran and every row — every rail, every day, since the column shipped 2026-09-01 —
+fell into the gateway branch and drew the grey cross. Fixed in e5056e1108 with
+the ints cast (the cell compares with `===`) and the payload pinned by
+`TransactionIndexStatusColumnsTest`.
