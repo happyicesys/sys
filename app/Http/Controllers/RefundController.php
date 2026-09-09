@@ -1924,6 +1924,13 @@ class RefundController extends Controller
                     : (($t->vendChannel && (int) $t->amount === (int) $t->vendChannel->amount2) ? 'P2' : null),
                 'txn_src' => $t->interface_type,
                 'qty' => $t->qty,
+                // Two different machine facts, and the refund decision needs the
+                // FIRST one: success_qty is what actually dropped (DispenseVerdict
+                // dispensed codes 0/6), dispensed_qty only means the motor ran and
+                // includes the sensor faults 7/9. A sensor-error sale is
+                // success 0 / dispensed 1, and showing the second as "Dispensed"
+                // read as "the customer got it" next to a Failed badge.
+                'success_qty' => $t->success_qty,
                 'dispensed_qty' => $t->dispensed_qty,
                 // Gateway (QR / PayNow) rows are PRE-CREATED at paid-time with
                 // dispensed_qty = 0 and no channel error, and only filled with the

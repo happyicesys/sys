@@ -273,9 +273,15 @@ function dispenseAckNote(r) {
     return '';
 }
 function dispensedTitle(r) {
-    return r.machine_reported === false
-        ? 'Unknown, not zero. The machine never reported this sale back (no TRADE), so the dispensed count was never filled in.' + dispenseAckNote(r)
-        : 'Units the machine reported as dispensed, out of the units paid for.';
+    if (r.machine_reported === false) {
+        return 'Unknown, not zero. The machine never reported this sale back (no TRADE), so the dispensed count was never filled in.' + dispenseAckNote(r);
+    }
+    // The motor can run and the product still not drop: a sensor fault (7 / 9) is
+    // counted as "motor ran" but never as a successful drop, and the refund
+    // decision rests on the second number.
+    const motorRan = (r.dispensed_qty ?? 0) > (r.success_qty ?? 0);
+    return 'Units the machine confirmed it dropped, out of the units paid for.'
+        + (motorRan ? ' The motor did run on ' + r.dispensed_qty + ' of them, but the machine reported a fault instead of a clean drop, so they do not count as dispensed.' : '');
 }
 function channelErrorTitle(r) {
     if (r.channel_error) return 'The machine reported this hardware / channel error against the sale.';
@@ -670,9 +676,18 @@ function actionBadge(l) {
                         <!-- Payment and dispense are separate facts (App\Support\SaleStatus):
                              Paid / Refunded is about the money, Dispensed / Failed is the
                              machine's verdict. -->
-                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border" title="Payment"
-                            :class="['Paid', 'Settled'].includes(r.payment_status) ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
-                            {{ r.payment_status === 'Refunded' ? '↩ Refunded' : (r.payment_status || '—') }}
+                        <!-- Blank is a real state, not a failure: no payment rail has
+                             confirmed this sale yet (a card sale before its NETS report is
+                             synced, or cash, which nothing ever confirms). Painting it red
+                             made an unconfirmed payment look like a problem. -->
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-help"
+                            :class="['Paid', 'Settled'].includes(r.payment_status) ? 'bg-green-50 text-green-700 border-green-200'
+                                : (r.payment_status === 'Refunded' ? 'bg-red-50 text-red-700 border-red-200'
+                                : (r.payment_status ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200'))"
+                            :title="r.payment_status
+                                ? 'Payment status: ' + r.payment_status
+                                : 'No payment rail has confirmed this sale yet. For a card sale that means its NETS report has not been synced; cash is never confirmed. It does NOT mean the payment failed.'">
+                            {{ r.payment_status === 'Refunded' ? '↩ Refunded' : (r.payment_status || 'Not confirmed') }}
                         </span>
                         <span v-if="r.dispense_status" class="text-[11px] font-semibold px-2 py-0.5 rounded-full border" title="Dispense"
                             :class="r.dispense_status.startsWith('Dispensed') ? 'bg-green-50 text-green-700 border-green-200'
@@ -722,7 +737,7 @@ function actionBadge(l) {
                             <dd v-if="r.machine_reported === false" class="text-sm font-medium text-gray-400 cursor-help" :title="dispensedTitle(r)">
                                 — <span class="text-[11px]">no machine report</span>
                             </dd>
-                            <dd v-else class="text-sm font-medium cursor-help" :class="(r.dispensed_qty < r.qty) ? 'text-amber-700' : 'text-gray-800'" :title="dispensedTitle(r)">{{ r.dispensed_qty }}/{{ r.qty }}</dd>
+                            <dd v-else class="text-sm font-medium cursor-help" :class="(r.success_qty < r.qty) ? 'text-amber-700' : 'text-gray-800'" :title="dispensedTitle(r)">{{ r.success_qty }}/{{ r.qty }}</dd>
                         </div>
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">TXN SRC</dt>

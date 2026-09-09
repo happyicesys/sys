@@ -50,6 +50,47 @@ class RefundRelatedTransactionMachineReportTest extends TestCase
         return $method->invoke($controller, $ticket);
     }
 
+    /**
+     * A sensor fault runs the motor but drops nothing: dispensed_qty counts the
+     * motor, success_qty counts the product. The panel shows the SECOND, because
+     * "Dispensed 1/1" beside a Failed badge read as "the customer got it" and is
+     * the number a reviewer decides a refund on (Brian, 2026-09-09).
+     */
+    public function test_a_sensor_fault_reports_the_motor_and_the_drop_separately()
+    {
+        $card = \App\Models\PaymentMethod::firstOrCreate(['code' => 1], ['name' => 'Card Terminal', 'is_active' => true]);
+        $fault = \App\Models\VendChannelError::firstOrCreate(['code' => 7], ['desc' => 'Sensor error (7)']);
+
+        VendTransaction::create([
+            'order_id' => '2026090900145426266',
+            'vend_id' => self::VEND_ID,
+            'transaction_datetime' => Carbon::parse('2026-09-09 00:15:00'),
+            'amount' => 250,
+            'qty' => 1,
+            'success_qty' => 0,   // nothing dropped
+            'dispensed_qty' => 1, // the motor did run
+            'vend_channel_id' => 0,
+            'gst_vat_rate' => 0,
+            'payment_method_id' => $card->id,
+            'cashless_mfg' => 'Nets',
+            'vend_channel_error_id' => $fault->id,
+            'is_found_in_transaction' => true,
+        ]);
+
+        $rows = $this->relatedFor('2026090900145426266');
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(0, $rows[0]['success_qty'], 'what the panel shows: nothing dropped');
+        $this->assertSame(1, $rows[0]['dispensed_qty'], 'the motor-ran fact stays available for the tooltip');
+        $this->assertSame(1, $rows[0]['qty']);
+        $this->assertTrue($rows[0]['machine_reported']);
+        $this->assertSame('Failed', $rows[0]['dispense_status']);
+        // A card sale whose NETS report is not synced yet has no confirmed payment.
+        // Blank is a real state and the badge must not paint it as a failure.
+        $this->assertSame('', $rows[0]['payment_status']);
+        $this->assertSame('Sensor error (7)', $rows[0]['channel_error']);
+    }
+
     /** A QR sale the machine never reported back: dispense count is UNKNOWN, not 0. */
     public function test_gateway_row_without_a_trade_is_flagged_as_not_machine_reported()
     {
