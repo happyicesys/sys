@@ -12,6 +12,7 @@ use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
 use App\Support\DispenseVerdict;
 use App\Support\SiteSearch;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -321,6 +322,12 @@ class RefundController extends Controller
         ])->with(['paymentMethod', 'vendPrefix', 'vendChannelError'])
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
+        // "Will refund?" for the Pay Method cell: the card terminal that was on the
+        // machine ON THE DAY OF THE SALE (bindings are effective-dated), and whether
+        // it voids a failed vend by itself. Two bounded queries for the page, the
+        // same shape the Sales Transactions grid uses.
+        $this->attachTerminalFlags($txns);
+
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
             ->merge($txns->pluck('payment_gateway_log_id')->filter())
             ->unique();
@@ -1422,7 +1429,12 @@ class RefundController extends Controller
             // to different decisions, so the reviewer sees which one it was.
             'auto_refund_source' => $txn->auto_refund_source ?? null,
             'auto_refund_source_label' => \App\Support\AutoRefundSource::label($txn->auto_refund_source ?? null),
-            // 'server' | 'user' | null — see AutoRefundSource::trigger().
+            // The card terminal that took this money and whether it voids a failed
+            // vend by itself (null = not a card sale / no binding / unknown flag).
+            'card_terminal_unit_id' => $txn->card_terminal_unit_id ?? null,
+            'card_terminal_batch' => $txn->card_terminal_batch ?? null,
+            'card_terminal_will_auto_refund' => $txn->card_terminal_will_auto_refund ?? null,
+            // 'server' | 'admin' | 'customer' | null — see AutoRefundSource::trigger().
             'auto_refund_trigger' => \App\Support\AutoRefundSource::trigger($txn->auto_refund_source ?? null),
             // "NA in NETS": both files that could carry this failed single vend are
             // synced and neither has a line for it. A fact about the REPORT, shown
@@ -1617,6 +1629,43 @@ class RefundController extends Controller
         }
 
         return $checks;
+    }
+
+    /**
+     * Stamp each matched sale with the terminal fitted on its own transaction
+     * date and that terminal's auto-refund flag, for the list's Pay Method cell.
+     * Card-terminal sales only — a QR sale has no acquirer terminal.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\VendTransaction>  $txns
+     */
+    protected function attachTerminalFlags(\Illuminate\Support\Collection $txns): void
+    {
+        $cardSales = $txns->filter(fn ($t) => (int) ($t->paymentMethod->code ?? -1) === \App\Models\PaymentMethod::CODE_CARD_TERMINAL);
+        if ($cardSales->isEmpty()) {
+            return;
+        }
+
+        $bindings = \App\Models\CardTerminalBinding::query()
+            ->whereIn('vend_id', $cardSales->pluck('vend_id')->filter()->unique())
+            ->orderBy('id')
+            ->get(['vend_id', 'terminal_id', 'bound_from', 'bound_until'])
+            ->groupBy('vend_id');
+        $units = \App\Models\CardTerminalUnit::query()
+            ->whereIn('terminal_id', $bindings->flatten()->pluck('terminal_id')->unique())
+            ->get(['terminal_id', 'batch', 'is_will_auto_refund'])
+            ->keyBy('terminal_id');
+
+        foreach ($cardSales as $txn) {
+            $day = $txn->transaction_datetime ? Carbon::parse($txn->transaction_datetime)->toDateString() : null;
+            $binding = $day === null ? null : ($bindings->get($txn->vend_id) ?? collect())
+                ->first(fn ($b) => ($b->bound_from === null || $b->bound_from->toDateString() <= $day)
+                    && ($b->bound_until === null || $b->bound_until->toDateString() >= $day));
+            $unit = $binding ? $units->get($binding->terminal_id) : null;
+
+            $txn->card_terminal_unit_id = $unit?->terminal_id;
+            $txn->card_terminal_batch = $unit?->batch;
+            $txn->card_terminal_will_auto_refund = $unit?->willAutoRefund();
+        }
     }
 
     protected function toDetail(RefundTicket $t): array

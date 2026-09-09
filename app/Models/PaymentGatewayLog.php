@@ -28,6 +28,7 @@ class PaymentGatewayLog extends Model
     use HasFactory;
 
     protected $fillable = [
+        'disputed_at',
         'amount',
         'approved_at',
         'is_dispensed',
@@ -49,6 +50,9 @@ class PaymentGatewayLog extends Model
     ];
 
     protected $casts = [
+        // Omise told us the customer raised a chargeback on this charge; a refund
+        // that follows is attributed to them, not to an admin (AutoRefundSource).
+        'disputed_at' => 'datetime',
         'approved_at' => 'datetime',
         'is_dispensed' => 'boolean',
         'response' => 'json',

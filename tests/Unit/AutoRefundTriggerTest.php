@@ -8,8 +8,9 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Who fired a refund, for the badge under the auto-refund tick: 'server' when
- * mark1 decided and called the gateway on its own, 'user' when a person did it
- * (by hand here, or at the gateway / by dispute).
+ * mark1 decided and called the gateway on its own, 'admin' when a person on our
+ * side did it (by hand here, or on the gateway's dashboard), 'customer' when the
+ * cardholder forced it with a dispute.
  *
  * Null for the card-terminal sources on purpose — there the useful distinction
  * is what the settlement report SHOWED, which those surfaces badge separately,
@@ -24,9 +25,10 @@ class AutoRefundTriggerTest extends TestCase
             'machine reported a dispense failure' => [AutoRefundSource::OMISE_TRADE_FAIL, AutoRefundSource::TRIGGER_SERVER],
             'no dispense ack within 10 min' => [AutoRefundSource::OMISE_NO_DISPENSE, AutoRefundSource::TRIGGER_SERVER],
             'paid after the QR expired' => [AutoRefundSource::OMISE_STALE_APPROVE, AutoRefundSource::TRIGGER_SERVER],
-            'staff ran the refund command' => [AutoRefundSource::OMISE_MANUAL, AutoRefundSource::TRIGGER_USER],
-            'refunded on the Omise dashboard / dispute' => [AutoRefundSource::OMISE_EXTERNAL, AutoRefundSource::TRIGGER_USER],
-            'refunded at Midtrans' => [AutoRefundSource::MIDTRANS_EXTERNAL, AutoRefundSource::TRIGGER_USER],
+            'staff ran the refund command' => [AutoRefundSource::OMISE_MANUAL, AutoRefundSource::TRIGGER_ADMIN],
+            'refunded on the Omise dashboard / dispute' => [AutoRefundSource::OMISE_EXTERNAL, AutoRefundSource::TRIGGER_ADMIN],
+            'refunded at Midtrans' => [AutoRefundSource::MIDTRANS_EXTERNAL, AutoRefundSource::TRIGGER_ADMIN],
+            'customer raised a chargeback' => [AutoRefundSource::OMISE_DISPUTE, AutoRefundSource::TRIGGER_CUSTOMER],
             'NETS reversal line' => [AutoRefundSource::SETTLEMENT_REPORT_REVERSAL, null],
             'NETS never captured it' => [AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED, null],
             'legacy TRADE-time inference' => [AutoRefundSource::CARD_TERMINAL_REVERSAL, null],

@@ -51,6 +51,14 @@ const autoRefundBadges = {
     settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
 }
 
+// Same three words as Sales Transactions: our rules, a person here, or the
+// customer forcing it through a chargeback.
+const autoRefundTriggerLabel = (trigger) => ({
+    server: 'Server',
+    admin: 'By admin',
+    customer: 'By user',
+}[trigger] ?? '')
+
 const eligible = (t) => toNum(t.final_refund_amount) > 0
     && (t.status === 'approved'
         || (t.refund_method === 'paypal' && t.status === 'insufficient_info'));
@@ -737,6 +745,12 @@ const sortedRows = computed(() => {
                                 <template v-if="t.matched">
                                     {{ payMethodParts(t.pay_method || t.payment_channel || '—').main }}
                                     <span v-if="payMethodParts(t.pay_method || t.payment_channel || '—').paren" class="block text-gray-500">{{ payMethodParts(t.pay_method || t.payment_channel || '—').paren }}</span>
+                                    <!-- The terminal that took this money voids a failed single vend
+                                         by itself, so the report may already have made the customer
+                                         whole. Shown only for a flagged terminal, as on the other pages. -->
+                                    <span v-if="t.card_terminal_will_auto_refund === true"
+                                        class="mt-0.5 inline-block whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
+                                        v-tooltip="'Terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload — check the NETS report before paying.'">Will refund</span>
                                 </template>
                                 <span v-else-if="t.manual_pay_method" class="italic text-amber-700"
                                     v-tooltip="'Payment method keyed in by the customer on the manual form'">
@@ -829,8 +843,8 @@ const sortedRows = computed(() => {
                                     v-tooltip="t.auto_refund_source_label">{{ autoRefundBadges[t.auto_refund_source].text }}</span>
                                 <span v-if="t.auto_refund_trigger"
                                     class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                    :class="t.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : 'bg-violet-100 text-violet-800'"
-                                    v-tooltip="t.auto_refund_source_label">{{ t.auto_refund_trigger === 'server' ? 'Server' : 'User' }}</span>
+                                    :class="t.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : (t.auto_refund_trigger === 'customer' ? 'bg-rose-100 text-rose-800' : 'bg-violet-100 text-violet-800')"
+                                    v-tooltip="t.auto_refund_source_label">{{ autoRefundTriggerLabel(t.auto_refund_trigger) }}</span>
                                 <span v-if="t.na_in_nets" class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                                     v-tooltip="t.auto_refunded === true
                                         ? 'No line in the NETS report for this failed vend, and its terminal voids before batch — already counted as refunded.'

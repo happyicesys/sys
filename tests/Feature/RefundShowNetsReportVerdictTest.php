@@ -105,6 +105,39 @@ class RefundShowNetsReportVerdictTest extends TestCase
         $this->assertFalse($capturedDetail['na_in_nets']);
     }
 
+    /**
+     * The Pay Method cell on the Refund Request list carries the flag of the
+     * terminal fitted ON THE SALE'S OWN DATE, so a swapped terminal never
+     * relabels an old claim.
+     */
+    public function test_the_list_row_carries_the_terminal_flag_effective_on_the_sale_date()
+    {
+        $nets = \App\Models\CardTerminal::create(['name' => 'Nets']);
+        foreach ([['TID-YES', 1], ['TID-NO', 0]] as [$tid, $flag]) {
+            \App\Models\CardTerminalUnit::create([
+                'terminal_id' => $tid, 'card_terminal_id' => $nets->id, 'batch' => 'Nets #3 (50x)', 'is_will_auto_refund' => $flag,
+            ]);
+        }
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => 'TID-NO', 'vend_id' => self::VEND_ID,
+            'bound_from' => '2026-08-01', 'bound_until' => '2026-08-28']);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => 'TID-YES', 'vend_id' => self::VEND_ID,
+            'bound_from' => '2026-08-29']);
+
+        $onYes = $this->ticket($this->sale(['transaction_datetime' => '2026-08-29 14:31:07']));
+        $onNo = $this->ticket($this->sale(['transaction_datetime' => '2026-08-20 09:00:00']));
+
+        $controller = app(RefundController::class);
+        $method = (new \ReflectionClass($controller))->getMethod('buildRows');
+        $method->setAccessible(true);
+        $rows = $method->invoke($controller, RefundTicket::whereIn('id', [$onYes->id, $onNo->id])->get());
+
+        $this->assertTrue($rows[$onYes->id]['card_terminal_will_auto_refund']);
+        $this->assertSame('TID-YES', $rows[$onYes->id]['card_terminal_unit_id']);
+        $this->assertSame('Nets #3 (50x)', $rows[$onYes->id]['card_terminal_batch']);
+        $this->assertFalse($rows[$onNo->id]['card_terminal_will_auto_refund'], 'the terminal fitted that day');
+        $this->assertSame('TID-NO', $rows[$onNo->id]['card_terminal_unit_id']);
+    }
+
     public function test_card_sale_with_a_reversal_line_reads_reversed_with_a_report_link()
     {
         CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23082824', 'vend_id' => self::VEND_ID, 'bound_from' => '2026-08-01']);

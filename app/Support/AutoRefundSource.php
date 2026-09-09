@@ -70,6 +70,16 @@ final class AutoRefundSource
     public const SETTLEMENT_REPORT_NOT_CAPTURED = 'settlement_report_not_captured';
 
     /**
+     * The customer raised a dispute / chargeback with their own provider and the
+     * money went back because of it — not because we or an admin decided to
+     * refund. Recorded when the refund lands on a charge Omise had already told
+     * us was disputed (payment_gateway_logs.disputed_at, stamped by the
+     * dispute.* webhook). Before 2026-09-09 these were indistinguishable from a
+     * dashboard refund and both read as OMISE_EXTERNAL.
+     */
+    public const OMISE_DISPUTE = 'omise_dispute';
+
+    /**
      * The ONE deliberate exception to "money has been returned": the customer
      * was made whole by GOODS, not money. A later card trade with
      * CSHL_ARMED_MS < 5000 proved the reader did NOT reverse this sale's
@@ -84,8 +94,11 @@ final class AutoRefundSource
     /** Our own server decided and called the refund, with no human involved. */
     public const TRIGGER_SERVER = 'server';
 
-    /** A person did it: staff by hand, or outside ConnectVend entirely (gateway dashboard / dispute). */
-    public const TRIGGER_USER = 'user';
+    /** A person on OUR side: the refund command in mark1, or a refund made at the gateway's own dashboard. */
+    public const TRIGGER_ADMIN = 'admin';
+
+    /** The paying CUSTOMER forced it: a dispute / chargeback raised with their own provider. */
+    public const TRIGGER_CUSTOMER = 'customer';
 
     /**
      * WHO fired a gateway refund — the question that separates the Omise
@@ -99,18 +112,20 @@ final class AutoRefundSource
     {
         return match ($source) {
             self::OMISE_NO_DISPENSE, self::OMISE_STALE_APPROVE, self::OMISE_TRADE_FAIL => self::TRIGGER_SERVER,
-            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL => self::TRIGGER_USER,
+            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL => self::TRIGGER_ADMIN,
+            self::OMISE_DISPUTE => self::TRIGGER_CUSTOMER,
             default => null,
         };
     }
 
     /** Human-readable labels for badges / tooltips / exports. */
     public const LABELS = [
-        self::OMISE_NO_DISPENSE => 'Omise — no dispense ACK within 10 min',
-        self::OMISE_STALE_APPROVE => 'Omise — paid after the QR expired',
-        self::OMISE_TRADE_FAIL => 'Omise — machine reported a dispense failure',
-        self::OMISE_MANUAL => 'Omise — manual refund (artisan)',
-        self::OMISE_EXTERNAL => 'Omise — refunded outside ConnectVend (dashboard / dispute / chargeback)',
+        self::OMISE_NO_DISPENSE => 'Omise: the machine never confirmed a dispense within 10 minutes',
+        self::OMISE_STALE_APPROVE => 'Omise: the customer paid after the QR code had expired',
+        self::OMISE_TRADE_FAIL => 'Omise: the machine reported a dispense failure on a single purchase',
+        self::OMISE_MANUAL => 'Omise: refunded by staff from mark1',
+        self::OMISE_EXTERNAL => 'Omise: refunded at the gateway by an admin (dashboard), not from mark1',
+        self::OMISE_DISPUTE => 'Omise: refunded after a dispute or chargeback the customer raised',
         self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal — inferred at TRADE time (legacy, unconfirmed)',
         self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',

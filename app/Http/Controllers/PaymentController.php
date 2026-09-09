@@ -117,6 +117,12 @@ class PaymentController extends Controller
                         // refund.create, which is handled above. Acknowledge (200) instead
                         // of throwing: a 500 makes Omise retry for days and hides the real
                         // refund event behind the noise.
+                        //
+                        // The charge IS stamped, though: without it the refund that follows
+                        // is indistinguishable from an admin refunding on the Omise
+                        // dashboard, and the customer's own chargeback would read as our
+                        // decision (2026-09-09).
+                        $this->stampDisputedCharge($input);
                         Log::info('Omise dispute event acknowledged', ['key' => $input['key'] ?? null, 'charge' => $input['data']['charge'] ?? null]);
 
                         return;
@@ -253,7 +259,11 @@ class PaymentController extends Controller
         // refund-ticket guard — so "Auto-refunded?" and Payment Status follow the
         // gateway's own record for every QR rail, not just Omise.
         $externalRefundSource = match ($company) {
-            'omise' => \App\Support\AutoRefundSource::OMISE_EXTERNAL,
+            // A charge Omise already told us was disputed: the CUSTOMER forced the
+            // money back, which is a different fact from an admin dashboard refund.
+            'omise' => $updatedPaymentGatewayLog->disputed_at
+                ? \App\Support\AutoRefundSource::OMISE_DISPUTE
+                : \App\Support\AutoRefundSource::OMISE_EXTERNAL,
             'midtrans' => \App\Support\AutoRefundSource::MIDTRANS_EXTERNAL,
             default => null,
         };
@@ -350,6 +360,39 @@ class PaymentController extends Controller
      * Master kill switch + optional comma-separated pilot allowlist of vend codes
      * (empty allowlist = all machines once the master switch is on).
      */
+    /**
+     * Record that Omise raised a dispute (chargeback) against a charge, so the
+     * refund that may follow can be attributed to the CUSTOMER rather than to an
+     * admin refunding on the dashboard. The event carries the charge id in
+     * `data.charge` (dispute.create) or, on some events, as the disputed charge
+     * on the object itself; both resolve to payment_gateway_logs.ref_id.
+     *
+     * First stamp wins — dispute.create / .accept / .close all arrive for one
+     * dispute and the earliest is when the customer raised it. Never throws: an
+     * unmatched charge (another instance, sandbox, pre-mark1) must still be
+     * acknowledged with a 200 or Omise retries the event for days.
+     */
+    private function stampDisputedCharge(array $input): void
+    {
+        try {
+            $chargeId = $input['data']['charge'] ?? ($input['data']['id'] ?? null);
+            if (! $chargeId) {
+                return;
+            }
+
+            PaymentGatewayLog::where('ref_id', $chargeId)
+                ->whereNull('disputed_at')
+                ->orderByDesc('id')
+                ->limit(1)
+                ->update(['disputed_at' => now()]);
+        } catch (\Throwable $e) {
+            Log::warning('Omise dispute stamp failed; the event is still acknowledged.', [
+                'charge' => $input['data']['charge'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function shouldUnifyTransaction(?string $vendCode): bool
     {
         return \App\Support\GatewayUnifiedTransaction::appliesToVend($vendCode);

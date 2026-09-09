@@ -963,9 +963,9 @@
                                      badge the report's evidence above instead. -->
                                 <span v-if="vendTransaction.auto_refund_trigger"
                                     class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                    :class="vendTransaction.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : 'bg-violet-100 text-violet-800'"
+                                    :class="vendTransaction.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : (vendTransaction.auto_refund_trigger === 'customer' ? 'bg-rose-100 text-rose-800' : 'bg-violet-100 text-violet-800')"
                                     :title="vendTransaction.auto_refund_source_label">
-                                    {{ vendTransaction.auto_refund_trigger === 'server' ? 'Server' : 'User' }}
+                                    {{ autoRefundTriggerLabel(vendTransaction.auto_refund_trigger) }}
                                 </span>
                                 <!-- "NA in NETS" states a FACT about the report — this failed vend has
                                      no line in either file that could carry it — and is shown whether or
@@ -1206,6 +1206,14 @@ const refundStatusLabel = (s) => refundStatusLabels[s] || s
 const autoRefundBadges = {
     settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
 }
+
+// WHO fired a gateway refund (App\Support\AutoRefundSource::trigger): our own
+// rules, a person on our side, or the customer forcing it through a chargeback.
+const autoRefundTriggerLabel = (trigger) => ({
+    server: 'Server',
+    admin: 'By admin',
+    customer: 'By user',
+}[trigger] ?? '')
 // Payment Status / Dispense Status cell colour. Labels come from
 // App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed
 // red, Re-vended amber (blank = unconfirmed payment, or no TRADE for dispense).

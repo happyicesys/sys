@@ -136,8 +136,11 @@ const autoRefundSourceShort = computed(() => ({
     card_terminal_reversal: 'Legacy (unconfirmed)',
 }[props.ticket?.auto_refund_source]
     // Gateway refunds are told apart by WHO fired them, not by report evidence.
-    ?? (props.ticket?.auto_refund_trigger === 'server' ? 'Server refund'
-        : (props.ticket?.auto_refund_trigger === 'user' ? 'User refund' : 'Auto refund'))));
+    ?? ({
+        server: 'Server refund',
+        admin: 'Refunded by admin',
+        customer: 'Refunded after customer dispute',
+    }[props.ticket?.auto_refund_trigger] ?? 'Auto refund')));
 
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';

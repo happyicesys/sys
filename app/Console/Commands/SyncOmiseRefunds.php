@@ -89,13 +89,14 @@ class SyncOmiseRefunds extends Command
             $this->warn("Partial refund ({$refunded}/{$amount} cents) — recorded as refunded; review the amount by hand.");
         }
         if (! $apply) {
-            $this->line('DRY-RUN: would record as refunded (omise_external). Re-run with --apply.');
+            $this->line('DRY-RUN: would record as refunded ('.($log->disputed_at ? 'omise_dispute' : 'omise_external').'). Re-run with --apply.');
 
             return self::SUCCESS;
         }
 
-        $recorder->record($log, $charge, AutoRefundSource::OMISE_EXTERNAL);
-        $this->info("Recorded: log {$log->id} → REFUND, vend_transaction + tickets synced (omise_external).");
+        $source = $log->disputed_at ? AutoRefundSource::OMISE_DISPUTE : AutoRefundSource::OMISE_EXTERNAL;
+        $recorder->record($log, $charge, $source);
+        $this->info("Recorded: log {$log->id} → REFUND, vend_transaction + tickets synced ({$source}).");
 
         return self::SUCCESS;
     }
@@ -144,7 +145,8 @@ class SyncOmiseRefunds extends Command
                     }
                     $rows[] = [$log->id, $log->order_id, $chargeId, $refund['amount'] ?? '?', $refund['created_at'] ?? '?', ! empty($refund['metadata']['order_id']) ? 'mark1' : 'external'];
                     if ($apply) {
-                        $recorder->record($log, $refund, AutoRefundSource::OMISE_EXTERNAL);
+                        // A charge Omise flagged as disputed: the customer forced it.
+                        $recorder->record($log, $refund, $log->disputed_at ? AutoRefundSource::OMISE_DISPUTE : AutoRefundSource::OMISE_EXTERNAL);
                     }
                 }
                 $offset += 100;
