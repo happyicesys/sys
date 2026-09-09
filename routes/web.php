@@ -810,6 +810,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
     Route::prefix('apk-releases')->group(function () {
         Route::get('/', [ApkReleaseController::class, 'index'])->name('apk-releases')
             ->middleware('can:read apk-releases');
+        // Drill-down behind a "Fleet version spread" bar: which machines are on
+        // this versionCode. Read-only, same scope as the count it explains.
+        Route::get('/fleet-machines', [ApkReleaseController::class, 'fleetMachines'])
+            ->name('apk-releases.fleet-machines')
+            ->middleware('can:read apk-releases');
         Route::post('/releases', [ApkReleaseController::class, 'storeRelease'])
             ->middleware('can:create apk-releases');
         Route::post('/releases/{id}/publish', [ApkReleaseController::class, 'publish'])

@@ -30,6 +30,9 @@ use ZipArchive;
  */
 class ApkReleaseController extends Controller
 {
+    /** Max machines returned by one fleet-spread drill-down. */
+    private const FLEET_DRILLDOWN_LIMIT = 1000;
+
     public function __construct(private OtaChannelResolver $channels)
     {
         $this->middleware('auth');
@@ -77,7 +80,7 @@ class ApkReleaseController extends Controller
 
         $validated = $request->validate([
             'channel' => ['required', Rule::in($this->channels->keys())],
-            'apk' => ['required', 'file', 'max:' . (int) config('ota.max_upload_kb', 262144)],
+            'apk' => ['required', 'file', 'max:'.(int) config('ota.max_upload_kb', 262144)],
             // versionCode only has to be unique WITHIN its channel.
             'version_code' => [
                 'required', 'integer', 'min:1',
@@ -201,7 +204,7 @@ class ApkReleaseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "v{$release->version_name} mandatory flag " . ($release->mandatory ? 'ON' : 'OFF') . '.'
+            "v{$release->version_name} mandatory flag ".($release->mandatory ? 'ON' : 'OFF').'.'
         );
     }
 
@@ -245,7 +248,7 @@ class ApkReleaseController extends Controller
                         continue;
                     }
 
-                    PublishMqtt::dispatch('CM' . $vend->code, $this->otaCheckFrame($vend))->onQueue('high');
+                    PublishMqtt::dispatch('CM'.$vend->code, $this->otaCheckFrame($vend))->onQueue('high');
                     $count++;
                 }
             });
@@ -254,6 +257,67 @@ class ApkReleaseController extends Controller
             'success',
             "OTA check pushed to {$count} machine(s) on {$this->channels->label($channel)}."
         );
+    }
+
+    /**
+     * The machines behind one bar of the "Fleet version spread" panel.
+     *
+     * Drives the drill-down popup: click "code 305 (48)" and get those 48
+     * machines by vend code with their site, each row a link to that machine's
+     * Setting/Edit page.
+     *
+     * Scoped exactly like the panel it explains — same `fleetQuery()`, so the
+     * list can never disagree with the count above it, and the Vend global
+     * operator scope applies to both. `customer` is eager-loaded rather than
+     * joined, deliberately: a raw join to `customers` would reach site data
+     * with no operator boundary of its own (see CLAUDE.md, "Operator isolation").
+     *
+     * `version_code` is the bucket to open. Omit it (or send "unknown") for the
+     * "never checked in" bucket, which is `apk_version_code IS NULL`.
+     */
+    public function fleetMachines(Request $request)
+    {
+        $channel = $this->channels->normalise($request->query('channel'));
+
+        $raw = $request->query('version_code');
+        $wantsUnknown = ($raw === null || $raw === '' || $raw === 'unknown');
+
+        if (! $wantsUnknown && ! ctype_digit((string) $raw)) {
+            abort(422, 'version_code must be an integer or "unknown".');
+        }
+
+        $query = $this->fleetQuery($channel)
+            ->select(['id', 'code', 'customer_id', 'apk_version_code', 'apk_checked_in_at', 'is_active', 'is_disposed'])
+            ->with('customer:id,code,name');
+
+        $wantsUnknown
+            ? $query->whereNull('apk_version_code')
+            : $query->where('apk_version_code', (int) $raw);
+
+        $total = (clone $query)->count();
+
+        // The "never checked in" bucket is over a thousand machines on the vending
+        // channel (mostly inactive), so cap the payload and tell the UI it is capped
+        // rather than shipping the whole fleet into a popup.
+        $machines = $query->orderBy('code')->limit(self::FLEET_DRILLDOWN_LIMIT)->get()
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'code' => $v->code,
+                'site_ref' => $v->customer?->code,
+                'site_name' => $v->customer?->name,
+                'apk_checked_in_at' => optional($v->apk_checked_in_at)->toDateTimeString(),
+                'is_active' => (bool) $v->is_active,
+                'is_disposed' => (bool) $v->is_disposed,
+            ])
+            ->values();
+
+        return response()->json([
+            'channel' => $channel,
+            'version_code' => $wantsUnknown ? null : (int) $raw,
+            'total' => $total,
+            'truncated' => $total > self::FLEET_DRILLDOWN_LIMIT,
+            'machines' => $machines,
+        ]);
     }
 
     /* ---------------------------------------------------------------- helpers */
@@ -291,7 +355,7 @@ class ApkReleaseController extends Controller
             return true; // ext-zip absent: fall back to the on-device checks
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($file->getRealPath()) !== true) {
             return false;
@@ -307,9 +371,9 @@ class ApkReleaseController extends Controller
     private function fileName(string $channel, array $validated): string
     {
         $package = $this->channels->packageName($channel) ?: $channel;
-        $slug = preg_replace('/[^A-Za-z0-9._-]/', '-', $package . '_' . $validated['version_code'] . '_' . $validated['version_name']);
+        $slug = preg_replace('/[^A-Za-z0-9._-]/', '-', $package.'_'.$validated['version_code'].'_'.$validated['version_name']);
 
-        return trim($slug, '-') . '.apk';
+        return trim($slug, '-').'.apk';
     }
 
     /** Signed CSV MQTT envelope carrying the OTA_CHECK command. */
@@ -324,8 +388,8 @@ class ApkReleaseController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend->private_key ?: config('vend.private_key', '123456789110138A');
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        return $fid . ',' . $contentLength . ',' . $content . ',' . $md5;
+        return $fid.','.$contentLength.','.$content.','.$md5;
     }
 }

@@ -52,16 +52,92 @@
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
           <span v-if="!fleetVersions.length" class="text-xs text-gray-400">No machines on this channel yet.</span>
-          <span
+          <button
             v-for="row in fleetVersions"
             :key="row.version_code ?? 'unknown'"
-            class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
+            type="button"
+            class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            :title="`Show the ${row.total} machine(s) on this version`"
+            @click="openFleetBucket(row)"
           >
             {{ row.version_code ? ('code ' + row.version_code) : 'never checked in' }}
             <span class="ml-1 rounded-full bg-gray-700 px-1.5 text-white">{{ row.total }}</span>
-          </span>
+          </button>
         </div>
       </div>
+
+      <!-- Fleet version spread: machines behind one bar -->
+      <Modal :open="fleetModal.open" @modalClose="closeFleetBucket">
+        <template #header>
+          <span>
+            {{ fleetModal.versionCode ? ('APK code ' + fleetModal.versionCode) : 'Never checked in' }}
+            <span class="text-base font-normal text-gray-500">— {{ activeChannel.label }}</span>
+          </span>
+        </template>
+
+        <div class="text-sm">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <p class="text-xs text-gray-500">
+              <span v-if="fleetModal.loading">Loading…</span>
+              <span v-else>
+                {{ fleetModal.total }} machine(s).
+                <span v-if="fleetModal.truncated" class="text-amber-600">
+                  Showing the first {{ fleetModal.machines.length }} by machine ID.
+                </span>
+                <span v-if="canOpenSettings"> Click a row to open its Setting/Edit.</span>
+              </span>
+            </p>
+            <input
+              v-model="fleetModal.filter"
+              type="text"
+              placeholder="Filter machine ID or site…"
+              class="w-56 rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          <p v-if="fleetModal.error" class="text-xs text-red-600">{{ fleetModal.error }}</p>
+
+          <div v-else class="max-h-96 overflow-y-auto rounded-md border">
+            <table class="min-w-full divide-y divide-gray-200 text-left">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr class="text-xs font-semibold text-gray-600">
+                  <th class="px-3 py-2">Machine ID</th>
+                  <th class="px-3 py-2">Site</th>
+                  <th class="px-3 py-2">Status</th>
+                  <th class="px-3 py-2">Last OTA check-in</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 bg-white text-xs">
+                <tr v-if="!fleetModal.loading && !filteredFleetMachines.length">
+                  <td colspan="4" class="px-3 py-4 text-center text-gray-400">No machines match.</td>
+                </tr>
+                <tr
+                  v-for="m in filteredFleetMachines"
+                  :key="m.id"
+                  :class="canOpenSettings ? 'cursor-pointer hover:bg-indigo-50' : ''"
+                  @click="openMachineSettings(m)"
+                >
+                  <td class="px-3 py-2 font-mono font-medium text-gray-900">{{ m.code }}</td>
+                  <td class="px-3 py-2 text-gray-700">
+                    <span v-if="m.site_ref || m.site_name">
+                      <span v-if="m.site_ref" class="font-mono text-gray-500">{{ m.site_ref }}</span>
+                      <span v-if="m.site_ref && m.site_name"> — </span>
+                      <span>{{ m.site_name }}</span>
+                    </span>
+                    <span v-else class="text-gray-400">No site</span>
+                  </td>
+                  <td class="px-3 py-2">
+                    <span v-if="m.is_disposed" class="rounded-full bg-red-100 px-2 py-0.5 text-red-700">Disposed</span>
+                    <span v-else-if="m.is_active" class="rounded-full bg-green-100 px-2 py-0.5 text-green-700">Active</span>
+                    <span v-else class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">Inactive</span>
+                  </td>
+                  <td class="px-3 py-2 text-gray-500">{{ m.apk_checked_in_at ?? '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
 
       <!-- Upload a new APK build -->
       <div v-if="canCreate" class="bg-white rounded-md border px-4 py-3">
@@ -210,6 +286,8 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import Modal from '@/Components/Modal.vue';
+import axios from 'axios';
 import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import { ArrowPathIcon } from '@heroicons/vue/20/solid';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
@@ -229,11 +307,76 @@ const permissions = page.props.auth?.permissions ?? [];
 const canCreate = permissions.includes('create apk-releases');
 const canUpdate = permissions.includes('update apk-releases');
 const canDelete = permissions.includes('delete apk-releases');
+// The Setting/Edit route is gated on machine-settings, not on apk-releases, so a
+// user can legitimately read this page and still have nowhere to click through to.
+const canOpenSettings = permissions.includes('update machine-settings')
+  || permissions.includes('read machine-settings');
 
 const activeChannel = computed(
   () => props.channels.find(c => c.key === props.channel) ?? { key: props.channel, label: props.channel, package_name: '' }
 );
 const liveRelease = computed(() => props.releases.find(r => r.is_live) ?? null);
+
+/* --- Fleet version spread drill-down ------------------------------------- */
+
+const fleetModal = reactive({
+  open: false,
+  loading: false,
+  versionCode: null,
+  total: 0,
+  truncated: false,
+  machines: [],
+  filter: '',
+  error: '',
+});
+
+const filteredFleetMachines = computed(() => {
+  const q = fleetModal.filter.trim().toLowerCase();
+  if (!q) return fleetModal.machines;
+  return fleetModal.machines.filter(m =>
+    String(m.code ?? '').toLowerCase().includes(q)
+    || String(m.site_ref ?? '').toLowerCase().includes(q)
+    || String(m.site_name ?? '').toLowerCase().includes(q)
+  );
+});
+
+function openFleetBucket(row) {
+  fleetModal.open = true;
+  fleetModal.loading = true;
+  fleetModal.versionCode = row.version_code ?? null;
+  fleetModal.machines = [];
+  fleetModal.total = row.total ?? 0;
+  fleetModal.truncated = false;
+  fleetModal.filter = '';
+  fleetModal.error = '';
+
+  axios.get('/apk-releases/fleet-machines', {
+    params: {
+      channel: props.channel,
+      // Omitting version_code would read as "unknown", so send it explicitly.
+      version_code: row.version_code ?? 'unknown',
+    },
+  }).then(({ data }) => {
+    fleetModal.machines = data.machines ?? [];
+    fleetModal.total = data.total ?? 0;
+    fleetModal.truncated = !!data.truncated;
+  }).catch((e) => {
+    fleetModal.error = e?.response?.status === 403
+      ? 'You do not have permission to list these machines.'
+      : 'Could not load the machine list. Please try again.';
+  }).finally(() => {
+    fleetModal.loading = false;
+  });
+}
+
+function closeFleetBucket() {
+  fleetModal.open = false;
+}
+
+function openMachineSettings(m) {
+  if (!canOpenSettings) return;
+  router.visit(`/settings/vend/${m.id}/update`);
+}
 
 const uploadForm = useForm({
   channel: props.channel,
