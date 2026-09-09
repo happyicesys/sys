@@ -928,7 +928,9 @@
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <div class="flex justify-center">
+                            <!-- Tick on its own line, badge underneath: side by side the badge
+                                 pushed the column wide and wrapped its own text on a phone. -->
+                            <div class="flex flex-col items-center space-y-1">
                                 <CheckCircleIcon
                                     v-if="vendTransaction.refund_type === 'auto' || vendTransaction.is_refunded"
                                     class="h-4 w-4 text-green-500"
@@ -940,7 +942,7 @@
                                 <!-- "NA in NETS": failed card sale with no line in the NETS report on a
                                      terminal that voids by itself — made good without a reversal line. -->
                                 <span v-if="vendTransaction.auto_refund_source === 'settlement_report_not_captured'"
-                                    class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                                    class="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
                                     :title="vendTransaction.auto_refund_source_label">
                                     NA in NETS
                                 </span>
