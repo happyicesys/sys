@@ -91,11 +91,6 @@ Route::prefix('vends')->group(function () {
 // signature over the raw form params, verified inside the ingest service.
 // Throttled well above their retry cadence but low enough to blunt abuse.
 Route::prefix('citybox')->middleware('throttle:120,1')->group(function () {
-    // ONE url for all three push types (Brian, 2026-09-09) — the type is taken
-    // from an explicit hint or inferred from the payload. This is the URL to
-    // hand Citybox; the per-type routes below stay for a supplier that prefers
-    // to register three.
-    Route::post('/push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'push']);
     Route::post('/order-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'orderPush']);
     Route::post('/refund-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'refundPush']);
     Route::post('/close-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'closePush']);
