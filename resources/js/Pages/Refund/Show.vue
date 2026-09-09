@@ -2,6 +2,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { netsReportBadge } from '@/constants/netsReportBadge';
 
 const props = defineProps({
     ticket: { type: Object, required: true },
@@ -413,10 +414,9 @@ function actionBadge(l) {
                      failed vend, so the charge was voided before batch upload. -->
                 <span v-if="t.auto_refund_source_label" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-gray-100 text-gray-700"
                     :title="t.auto_refund_source_label">{{ autoRefundSourceShort }}</span>
-                <span v-if="t.na_in_nets" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-amber-100 text-amber-800"
-                    title="Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.">NA in NETS</span>
-                <span v-else-if="t.matched_in_nets" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help bg-teal-100 text-teal-800"
-                    title="The synced NETS report has a line for this sale and no reversal — the customer WAS charged and has not been refunded, so a valid claim still needs paying.">Matched in NETS</span>
+                <span v-if="netsReportBadge(t)" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help"
+                    :class="netsReportBadge(t).class"
+                    :title="netsReportBadge(t).tip">{{ netsReportBadge(t).text }}</span>
             </div>
 
             <!-- System self-checking — mirrors the index list's self-check columns

@@ -5,6 +5,7 @@ import Button from '@/Components/Button.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
+import { netsReportBadge } from '@/constants/netsReportBadge';
 
 const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
@@ -846,12 +847,14 @@ const sortedRows = computed(() => {
                                     class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                     :class="t.auto_refund_trigger === 'server' ? 'bg-sky-100 text-sky-800' : (t.auto_refund_trigger === 'customer' ? 'bg-rose-100 text-rose-800' : 'bg-violet-100 text-violet-800')"
                                     v-tooltip="t.auto_refund_source_label">{{ autoRefundTriggerLabel(t.auto_refund_trigger) }}</span>
-                                <span v-if="t.na_in_nets" class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-                                    v-tooltip="'Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.'">NA in NETS</span>
-                                <!-- The opposite finding, and the one that says PAY: the report
-                                     carries this sale and no reversal, so the customer was charged. -->
-                                <span v-else-if="t.matched_in_nets" class="whitespace-nowrap rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-800"
-                                    v-tooltip="'The synced NETS report has a line for this sale and no reversal — the customer WAS charged and has not been refunded, so a valid claim still needs paying.'">Matched in NETS</span>
+                                <!-- What the NETS report says about this card sale: matched
+                                     (the customer WAS charged — pay a valid claim), NA (no line,
+                                     already refunded), or one of the "cannot say" verdicts. Every
+                                     state carries a badge; see constants/netsReportBadge.js. -->
+                                <span v-if="netsReportBadge(t)"
+                                    class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="netsReportBadge(t).class"
+                                    v-tooltip="netsReportBadge(t).tip">{{ netsReportBadge(t).text }}</span>
                             </div>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">

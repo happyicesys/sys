@@ -190,7 +190,15 @@ been returned, and always together with `auto_refund_source`
   be paid — without it "Auto refunded? No" looked identical on a captured sale
   and on one nothing had ruled on yet. Not shown on Sales Transactions, where
   the Settle Sync column already says it and nearly every card row would carry
-  the badge.
+  the badge. **Every other state is badged too**, from one shared map
+  (`resources/js/constants/netsReportBadge.js`, fed by
+  `RefundController.nets_report_state`): `uncovered` → "NETS covers this
+  terminal partly", `unbound` → "No NETS terminal", a card sale whose day is
+  not final → "NETS report pending", `not_captured` on a shape that cannot be
+  voided (dispensed / multiple) → "No line in NETS". `reversed` returns none —
+  the source badge beside it already reads "NETS reversal". A silent row was
+  the actual complaint (Brian, 2026-09-09, on an Auresys claim: "single
+  purchase, error 7, and no badge?").
   A tick is only CLEARED once the day
   is final (files D and D+1 both synced — a late capture or reversal can sit
   in the next day's file); a reversal sets it as soon as its report is synced.

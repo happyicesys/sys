@@ -1454,6 +1454,15 @@ class RefundController extends Controller
             // and on one nothing has ruled on yet (Brian, 2026-09-09).
             'matched_in_nets' => isset($txn)
                 && $txn->card_settlement_state === CardSettlementRefundReconciler::STATE_CAPTURED,
+            // Every OTHER verdict the report can reach, so no card claim is silent
+            // about it (Brian, 2026-09-09: "single purchase, error 7, and no
+            // badge?" — that one was `uncovered`, a Nets-Auresys terminal whose
+            // sales are only partly in the file). Card-terminal sales only: a
+            // gateway sale has no NETS opinion at all. 'pending' = a card sale
+            // whose day is not final yet, which is not the same as "nothing found".
+            'nets_report_state' => (isset($txn) && (int) ($txn->paymentMethod->code ?? -1) === \App\Models\PaymentMethod::CODE_CARD_TERMINAL)
+                ? ($txn->card_settlement_state ?: 'pending')
+                : null,
             // Prod Exit Sensor = the machine's Product Drop Sensor state FROZEN on
             // the matched transaction at the moment it occurred (true = Enabled,
             // false = Disabled, null = unknown / not captured). A later machine

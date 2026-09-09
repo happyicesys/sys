@@ -110,6 +110,44 @@ class RefundShowNetsReportVerdictTest extends TestCase
     }
 
     /**
+     * Every verdict the report can reach reaches the screen. A claim it CANNOT
+     * rule on used to look exactly like one nobody had checked — Brian, on an
+     * `uncovered` row (Nets-Auresys, only part of its sales in the file):
+     * "single purchase, error 7, and no badge?".
+     */
+    public function test_every_report_state_reaches_the_row_and_a_gateway_sale_carries_none()
+    {
+        $fault = \App\Models\VendChannelError::firstOrCreate(['code' => 7], ['desc' => 'Sensor error (7)']);
+        $states = [
+            \App\Services\CardSettlement\CardSettlementRefundReconciler::STATE_UNCOVERED,
+            \App\Services\CardSettlement\CardSettlementRefundReconciler::STATE_UNBOUND,
+            \App\Services\CardSettlement\CardSettlementRefundReconciler::STATE_CAPTURED,
+            \App\Services\CardSettlement\CardSettlementRefundReconciler::STATE_REVERSED,
+        ];
+
+        foreach ($states as $state) {
+            $sale = $this->sale(['vend_channel_error_id' => $fault->id]);
+            $sale->forceFill(['is_found_in_transaction' => true, 'card_settlement_state' => $state])->save();
+            $row = $this->detailFor($this->ticket($sale));
+            $this->assertSame($state, $row['nets_report_state'], "card sale in state {$state}");
+        }
+
+        // A card sale whose day is not final yet: 'pending', never a bare null —
+        // "the report has not ruled" is a different message from "no verdict".
+        $noReport = $this->sale(['vend_channel_error_id' => $fault->id]);
+        $noReport->forceFill(['is_found_in_transaction' => true, 'card_settlement_state' => null])->save();
+        $this->assertSame('pending', $this->detailFor($this->ticket($noReport))['nets_report_state']);
+
+        // A gateway (QR) sale has no NETS opinion at all, so it carries no badge.
+        $gatewayMethod = \App\Models\PaymentMethod::create([
+            'code' => 99, 'name' => 'Omise QR', 'is_active' => true, 'payment_gateway_id' => 1,
+        ]);
+        $qr = $this->sale(['vend_channel_error_id' => $fault->id, 'payment_method_id' => $gatewayMethod->id]);
+        $qr->forceFill(['is_found_in_transaction' => true])->save();
+        $this->assertNull($this->detailFor($this->ticket($qr))['nets_report_state']);
+    }
+
+    /**
      * The Pay Method cell on the Refund Request list carries the flag of the
      * terminal fitted ON THE SALE'S OWN DATE, so a swapped terminal never
      * relabels an old claim.
