@@ -464,14 +464,12 @@
     </div>
 
     <!-- Flavour thumbnail enlarge popup -->
-    <Modal :open="imagePreview.open" @modal-close="imagePreview.open = false">
-      <template #header>
-        <span class="text-base">{{ imagePreview.title }}</span>
-      </template>
-      <div class="flex justify-center">
-        <img :src="imagePreview.url" class="max-h-[70vh] w-auto rounded-lg object-contain" alt="" />
-      </div>
-    </Modal>
+    <ImagePreviewModal
+      :open="imagePreview.open"
+      :url="imagePreview.url"
+      :title="imagePreview.title"
+      @close="imagePreview.open = false"
+    />
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -484,7 +482,7 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import Modal from '@/Components/Modal.vue';
+import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
 import SmartFreezerLayout from '@/Pages/ProductMapping/SmartFreezerLayout.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';

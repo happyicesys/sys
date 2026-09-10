@@ -23,19 +23,17 @@
       </span>
     </div>
 
-    <Modal :open="preview.open" @modal-close="preview.open = false">
-      <template #header>
-        <span class="text-base">{{ preview.title }}</span>
-      </template>
-      <div class="flex justify-center">
-        <img :src="preview.url" class="max-h-[70vh] w-auto rounded-lg object-contain" alt="" />
-      </div>
-    </Modal>
+    <ImagePreviewModal
+      :open="preview.open"
+      :url="preview.url"
+      :title="preview.title"
+      @close="preview.open = false"
+    />
   </div>
 </template>
 
 <script setup>
-import Modal from '@/Components/Modal.vue';
+import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
 import { ref, computed } from 'vue';
 
 const props = defineProps({

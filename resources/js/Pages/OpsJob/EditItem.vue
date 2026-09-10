@@ -555,7 +555,7 @@
                               <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">To Be</span>
                             </div>
                             <div class="flex items-center justify-center" >
-                              <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                              <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition" :src="channel.product.thumbnail.full_url" alt="" title="Click to enlarge" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']" @click="openImagePreview(channel.product.thumbnail.full_url, productLabel(channel.product))"/>
                             </div>
                             <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
                                 <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
@@ -707,9 +707,11 @@
                             <img
                               v-if="child.thumbnail_url"
                               :src="child.thumbnail_url"
-                              class="h-10 w-10 rounded-lg object-contain bg-white p-0.5"
+                              class="h-10 w-10 rounded-lg object-contain bg-white p-0.5 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                               :class="[child.is_available ? '' : 'opacity-40']"
                               alt=""
+                              title="Click to enlarge"
+                              @click="openImagePreview(child.thumbnail_url, productLabel(child))"
                             />
                             <div class="flex-1 text-left" :class="[child.is_available ? 'text-gray-700' : 'text-gray-400']">
                               <span class="text-xs font-semibold">{{ child.code }}</span>
@@ -813,8 +815,10 @@
                                 <img
                                   v-if="selectedNewChannel.product.thumbnail"
                                   :src="selectedNewChannel.product.thumbnail.full_url"
-                                  class="h-10 w-10 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200"
+                                  class="h-10 w-10 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                                   alt=""
+                                  title="Click to enlarge"
+                                  @click="openImagePreview(selectedNewChannel.product.thumbnail.full_url, productLabel(selectedNewChannel.product))"
                                 />
                                 <span class="text-xs font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
                               </div>
@@ -994,7 +998,7 @@
                         </td>
                         <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
                           <div class="flex justify-center items-center" >
-                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition" :src="channel.product.thumbnail.full_url" alt="" title="Click to enlarge" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']" @click="openImagePreview(channel.product.thumbnail.full_url, productLabel(channel.product))"/>
                           </div>
                         </td>
                         <td class="py-4 text-sm font-semibold text-center" :class="[(channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']">
@@ -1148,9 +1152,11 @@
                             <img
                               v-if="child.thumbnail_url"
                               :src="child.thumbnail_url"
-                              class="h-11 w-11 rounded-xl object-contain bg-white p-0.5 ring-1 ring-indigo-200 shadow-sm"
+                              class="h-11 w-11 rounded-xl object-contain bg-white p-0.5 ring-1 ring-indigo-200 shadow-sm cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                               :class="[child.is_available ? '' : 'opacity-40 grayscale']"
                               alt=""
+                              title="Click to enlarge"
+                              @click="openImagePreview(child.thumbnail_url, productLabel(child))"
                             />
                             <div class="text-left leading-tight" :class="[child.is_available ? 'text-gray-700' : 'text-gray-400']">
                               <div class="flex items-center gap-2">
@@ -1270,8 +1276,10 @@
                                 <img
                                   v-if="selectedNewChannel.product.thumbnail"
                                   :src="selectedNewChannel.product.thumbnail.full_url"
-                                  class="h-12 w-12 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200"
+                                  class="h-12 w-12 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                                   alt=""
+                                  title="Click to enlarge"
+                                  @click="openImagePreview(selectedNewChannel.product.thumbnail.full_url, productLabel(selectedNewChannel.product))"
                                 />
                                 <span class="text-sm font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
                               </div>
@@ -1701,6 +1709,13 @@
     </div>
   </div>
 
+    <ImagePreviewModal
+      :open="imagePreview.open"
+      :url="imagePreview.url"
+      :title="imagePreview.title"
+      @close="imagePreview.open = false"
+    />
+
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -1714,6 +1729,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
+import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
 import axios from 'axios';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, PlusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
@@ -1730,6 +1746,19 @@ const props = defineProps({
   referencePrices: { type: Object, default: () => ({}) },
 })
 const channels = ref([])
+
+// Thumbnails on this page are small and object-contain, and a driver picking
+// stock often has to tell two near-identical packs apart — click one to see it
+// full size. Shared popup: Components/ImagePreviewModal.vue.
+const imagePreview = ref({ open: false, url: '', title: '' })
+function productLabel(product) {
+  if (!product) return ''
+  return [product.code, product.name].filter(Boolean).join(' - ')
+}
+function openImagePreview(url, title) {
+  if (!url) return
+  imagePreview.value = { open: true, url, title: title || '' }
+}
 // Stock actions that need no warehouse picking (auto-Picked, undoable in that
 // state). Keep in sync with OpsJobItem::AUTO_PICK_STOCK_ACTIONS — one
 // definition per layer; add the next such action there and here only.
