@@ -72,7 +72,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                         <div class="flex justify-center items-center" >
-                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.delivery_product_mapping_item.product.thumbnail.full_url" alt="" v-if="channel.delivery_product_mapping_item && channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.thumbnail.full_url"/>
+                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.delivery_product_mapping_item.product.thumbnail.full_url" alt="" v-if="channel.delivery_product_mapping_item && channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.thumbnail.full_url"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-gray-900 text-center">

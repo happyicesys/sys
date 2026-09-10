@@ -86,7 +86,7 @@
           </thead>
           <tbody>
             <tr v-for="r in rows" :key="r.id" class="border-t align-top">
-              <td class="px-3 py-2"><img v-if="r.img_url" :src="r.img_url" class="w-12 h-12 object-contain rounded bg-gray-50" /></td>
+              <td class="px-3 py-2"><img v-if="r.img_url" :src="r.img_url" class="w-12 h-12 object-contain rounded-lg bg-white border border-gray-200 p-0.5" /></td>
               <td class="px-3 py-2">
                 <div class="font-medium text-gray-900">{{ r.name }}</div>
                 <div class="text-xs text-gray-500">id {{ r.citybox_product_id }} · first seen {{ r.first_seen_at || '—' }} · last seen {{ r.last_seen_at || '—' }}</div>

@@ -227,7 +227,7 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <div class="flex justify-center">
-                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryProductMappingItem.product && deliveryProductMappingItem.product.thumbnail"/>
+                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryProductMappingItem.product && deliveryProductMappingItem.product.thumbnail"/>
                             </div>
                           </td>
                           <td class="whitespace-normal py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left flex flex-col">
@@ -362,7 +362,7 @@
                       <span class="text-sm pt-3">
                         {{ bundleSalesItemIndex + 1 }}
                       </span>
-                      <img class="h-12 w-12 flex-none rounded-full bg-gray-50" :src="bundleSalesItem.delivery_product_mapping_item_id.img_url" alt="">
+                      <img class="h-12 w-12 flex-none rounded-lg object-contain bg-white border border-gray-200 p-0.5" :src="bundleSalesItem.delivery_product_mapping_item_id.img_url" alt="">
                       <div class="min-w-0 flex-auto pt-3">
                         <p class="text-sm font-semibold leading-6 text-gray-900">
                           <span class="absolute inset-x-0 -top-px bottom-0" />
@@ -440,7 +440,7 @@
                                       </span>
                                       <div class="flex self-center">
                                         <a :href="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail">
-                                          <img class="object-scale-down h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
+                                          <img class="h-24 w-24 md:h-16 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
                                         </a>
                                       </div>
                                       <span class="mt-3">

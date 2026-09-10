@@ -203,7 +203,7 @@
                             #{{ channel.code }}
                           </div>
                           <div class="flex items-center justify-center" >
-                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
                           </div>
                           <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
                               <p class="break-words text-xs" v-if="channel.product && channel.product.name">
@@ -457,7 +457,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
                         <div class="flex justify-center items-center" >
-                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-center" :class="[(channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']">

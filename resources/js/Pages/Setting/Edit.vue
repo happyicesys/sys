@@ -983,7 +983,7 @@
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center"> {{ channel.code }} </td>
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'">
                               <div class="flex justify-center">
-                                <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                                <img class="h-24 w-24 md:h-20 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                               </div>
                             </td>
                             <td class="py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'">

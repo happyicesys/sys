@@ -313,7 +313,7 @@
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 <div class="flex justify-center">
-                                  <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="productMappingItem.product.thumbnail.full_url" alt="" v-if="productMappingItem.product && productMappingItem.product.thumbnail"/>
+                                  <img class="h-24 w-24 md:h-20 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="productMappingItem.product.thumbnail.full_url" alt="" v-if="productMappingItem.product && productMappingItem.product.thumbnail"/>
                                 </div>
                               </td>
                               <td class="py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
@@ -372,12 +372,12 @@
                                       <img
                                         v-if="child.child_product && child.child_product.thumbnail_url"
                                         :src="child.child_product.thumbnail_url"
-                                        class="h-8 w-8 rounded-full object-cover ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
+                                        class="h-8 w-8 rounded-md object-contain bg-white p-0.5 ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                                         alt=""
                                         title="Click to enlarge"
                                         @click="openImagePreview(child)"
                                       />
-                                      <span v-else class="h-8 w-8 rounded-full bg-indigo-100"></span>
+                                      <span v-else class="h-8 w-8 rounded-md bg-indigo-100"></span>
                                       {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : 'Flavour' }}
                                       <span class="text-indigo-500">{{ child.weight_pct }}%</span>
                                     </span>

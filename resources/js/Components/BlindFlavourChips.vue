@@ -12,12 +12,12 @@
         <img
           v-if="child.child_product && child.child_product.thumbnail_url"
           :src="child.child_product.thumbnail_url"
-          class="h-7 w-7 rounded-full object-cover ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
+          class="h-7 w-7 rounded-md object-contain bg-white p-0.5 ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
           alt=""
           title="Click to enlarge"
           @click="openPreview(child)"
         />
-        <span v-else class="h-7 w-7 rounded-full bg-indigo-100"></span>
+        <span v-else class="h-7 w-7 rounded-md bg-indigo-100"></span>
         {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : 'Flavour' }}
         <span class="text-indigo-500">{{ child.weight_pct }}%</span>
       </span>

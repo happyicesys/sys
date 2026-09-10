@@ -144,7 +144,7 @@
                           <img
                             v-if="cell.item.thumbnail"
                             :src="cell.item.thumbnail"
-                            class="h-12 w-12 rounded-md object-cover ring-1 ring-gray-200 flex-none"
+                            class="h-12 w-12 rounded-md object-contain bg-white p-0.5 ring-1 ring-gray-200 flex-none"
                             loading="lazy"
                             alt=""
                           />

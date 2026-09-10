@@ -153,7 +153,7 @@
               <img
                 v-if="cell.item.product && cell.item.product.thumbnail"
                 :src="cell.item.product.thumbnail.full_url"
-                class="h-14 w-14 rounded-md object-cover ring-1 ring-gray-200 flex-none pointer-events-none"
+                class="h-14 w-14 rounded-md object-contain bg-white p-0.5 ring-1 ring-gray-200 flex-none pointer-events-none"
                 draggable="false"
                 alt=""
               />
@@ -204,7 +204,7 @@
                 <img
                   v-if="selectedProduct(cell.code).thumbnail && selectedProduct(cell.code).thumbnail.full_url"
                   :src="selectedProduct(cell.code).thumbnail.full_url"
-                  class="h-12 w-12 rounded-md object-cover ring-1 ring-gray-200 flex-none"
+                  class="h-12 w-12 rounded-md object-contain bg-white p-0.5 ring-1 ring-gray-200 flex-none"
                   alt=""
                 />
                 <div

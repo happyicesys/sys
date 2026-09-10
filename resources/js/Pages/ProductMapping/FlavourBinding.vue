@@ -6,7 +6,7 @@
         <img
           v-if="item.product.thumbnail && item.product.thumbnail.full_url"
           :src="item.product.thumbnail.full_url"
-          class="h-6 w-6 rounded-full object-cover border border-indigo-200"
+          class="h-6 w-6 rounded-md object-contain bg-white p-0.5 border border-indigo-200"
           alt=""
         />
         <span>Blind flavours — {{ item.product.code }} {{ item.product.name }}</span>
@@ -40,12 +40,12 @@
               <img
                 v-if="thumbFor(row)"
                 :src="thumbFor(row)"
-                class="h-9 w-9 rounded-full object-cover border border-gray-200 shrink-0"
+                class="h-9 w-9 rounded-md object-contain bg-white p-0.5 border border-gray-200 shrink-0"
                 alt=""
               />
               <span
                 v-else
-                class="h-9 w-9 rounded-full bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center text-gray-300 text-xs"
+                class="h-9 w-9 rounded-md bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center text-gray-300 text-xs"
               >?</span>
               <div class="flex-1 min-w-0">
                 <MultiSelect

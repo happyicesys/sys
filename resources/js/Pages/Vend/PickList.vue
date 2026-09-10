@@ -83,7 +83,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm font-semibold text-center">
                         <div class="flex justify-center items-center">
-                          <img class="h-16 w-16 rounded-full" :src="item.product.thumbnail.full_url" alt="" v-if="item.product && item.product.thumbnail" :class="[item.product && !item.product.is_available ? 'opacity-50' : '']"/>
+                          <img class="h-16 w-16 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="item.product.thumbnail.full_url" alt="" v-if="item.product && item.product.thumbnail" :class="[item.product && !item.product.is_available ? 'opacity-50' : '']"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-center ">

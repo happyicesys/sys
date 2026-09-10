@@ -555,7 +555,7 @@
                               <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">To Be</span>
                             </div>
                             <div class="flex items-center justify-center" >
-                              <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                              <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
                             </div>
                             <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
                                 <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
@@ -707,7 +707,7 @@
                             <img
                               v-if="child.thumbnail_url"
                               :src="child.thumbnail_url"
-                              class="h-10 w-10 rounded-lg object-cover"
+                              class="h-10 w-10 rounded-lg object-contain bg-white p-0.5"
                               :class="[child.is_available ? '' : 'opacity-40']"
                               alt=""
                             />
@@ -813,7 +813,7 @@
                                 <img
                                   v-if="selectedNewChannel.product.thumbnail"
                                   :src="selectedNewChannel.product.thumbnail.full_url"
-                                  class="h-10 w-10 rounded-lg object-cover ring-1 ring-gray-200"
+                                  class="h-10 w-10 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200"
                                   alt=""
                                 />
                                 <span class="text-xs font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
@@ -994,7 +994,7 @@
                         </td>
                         <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
                           <div class="flex justify-center items-center" >
-                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
                           </div>
                         </td>
                         <td class="py-4 text-sm font-semibold text-center" :class="[(channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']">
@@ -1148,7 +1148,7 @@
                             <img
                               v-if="child.thumbnail_url"
                               :src="child.thumbnail_url"
-                              class="h-11 w-11 rounded-xl object-cover ring-1 ring-indigo-200 shadow-sm"
+                              class="h-11 w-11 rounded-xl object-contain bg-white p-0.5 ring-1 ring-indigo-200 shadow-sm"
                               :class="[child.is_available ? '' : 'opacity-40 grayscale']"
                               alt=""
                             />
@@ -1270,7 +1270,7 @@
                                 <img
                                   v-if="selectedNewChannel.product.thumbnail"
                                   :src="selectedNewChannel.product.thumbnail.full_url"
-                                  class="h-12 w-12 rounded-lg object-cover ring-1 ring-gray-200"
+                                  class="h-12 w-12 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200"
                                   alt=""
                                 />
                                 <span class="text-sm font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>

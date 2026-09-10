@@ -281,7 +281,7 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <div class="flex justify-center">
-                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product && deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail"/>
+                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product && deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail"/>
                             </div>
                           </td>
                           <td class="whitespace-normal py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left flex flex-col">

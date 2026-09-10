@@ -18,7 +18,7 @@
             <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
               <div class="sm:col-span-6 pb-3">
                 <div class="mt-1 flex flex-col md:flex-row space-y-2 md:space-y-0 items-center">
-                  <span class="h-28 w-28 overflow-hidden rounded-full bg-gray-100">
+                  <span class="h-28 w-28 overflow-hidden rounded-lg bg-gray-100">
                     <a :href="product.thumbnail.full_url" target="_blank" v-if="product && product.thumbnail">
                       <img class="h-28 w-28 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="product.thumbnail.full_url" alt="" v-if="product && product.thumbnail"/>
                       <RectangleStackIcon class="h-28 w-28 text-gray-300"></RectangleStackIcon>

@@ -73,7 +73,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                         <div class="flex justify-center items-center" >
-                          <img class="h-16 w-16 rounded-full" :src="deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.thumbnail.full_url" alt="" v-if="deliveryProductMapping.deliveryProductMappingItems[channelIndex] && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.thumbnail && deliveryProductMapping.deliveryProductMappingItems[channelIndex].channel_code == channel.vend_channel_code"/>
+                          <img class="h-16 w-16 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.thumbnail.full_url" alt="" v-if="deliveryProductMapping.deliveryProductMappingItems[channelIndex] && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.thumbnail && deliveryProductMapping.deliveryProductMappingItems[channelIndex].channel_code == channel.vend_channel_code"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-gray-900 text-center">

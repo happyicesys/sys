@@ -88,7 +88,7 @@
                                     <tr v-for="item in filteredProducts" :key="item.data.id" :class="[item.index % 2 === 0 ? 'bg-white' : 'bg-gray-50', 'hover:bg-gray-100']">
                                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">{{ item.index + 1 }}</td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 justify-center flex">
-                                             <img class="h-12 w-12 rounded-full border border-gray-200" :src="item.data.thumbnail.full_url" alt="" v-if="item.data.thumbnail" />
+                                             <img class="h-12 w-12 rounded-lg object-contain bg-white border border-gray-200 p-0.5" :src="item.data.thumbnail.full_url" alt="" v-if="item.data.thumbnail" />
                                              <div v-else class="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs text-center border border-gray-200">No Img</div>
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-center font-bold">{{ item.data.code }}</td>
