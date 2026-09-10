@@ -957,24 +957,37 @@
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Channel Code </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> Thumbnail </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> Product </th>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            <!-- P1/P2 are VMC price levels. A CityBox chiller has no VMC and
+                                 sells at one price their portal sets, so it gets a single column. -->
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="isChiller">
                               <div class="flex justify-center">
-                                <span> P1 </span>
+                                <span> CityBox Price </span>
                                 <span v-if="profile && profile.base_currency">
                                   ({{ profile.base_currency.currency_symbol }})
                                 </span>
-                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Selling price from CityBox — the promo price when their portal sets one, otherwise the list price. Read-only.'"></ExclamationCircleIcon>
                               </div>
                             </th>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="vendChannels.some(channel => 'amount2' in channel)">
-                              <div class="flex justify-center">
-                                <span> P2 </span>
-                                <span v-if="profile && profile.base_currency">
-                                  ({{ profile.base_currency.currency_symbol }})
-                                </span>
-                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
-                              </div>
-                            </th>
+                            <template v-else>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                <div class="flex justify-center">
+                                  <span> P1 </span>
+                                  <span v-if="profile && profile.base_currency">
+                                    ({{ profile.base_currency.currency_symbol }})
+                                  </span>
+                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                                </div>
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="vendChannels.some(channel => 'amount2' in channel)">
+                                <div class="flex justify-center">
+                                  <span> P2 </span>
+                                  <span v-if="profile && profile.base_currency">
+                                    ({{ profile.base_currency.currency_symbol }})
+                                  </span>
+                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
+                                </div>
+                              </th>
+                            </template>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Ref Price<template v-if="!isChiller"> {{ vend?.customer?.selling_price_type }}</template> </th>
                           </tr>
                         </thead>
@@ -990,21 +1003,30 @@
                               <span v-if="channel.product && channel.product.code"> {{ channel.product.code }} - </span>
                               <span v-if="channel.product && channel.product.name"> {{ channel.product.name }} </span>
                             </td>
-                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                              {{ formatCurrency(channel.amount) }}
-                            </td>
                             <td
                               class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
-                              v-if="vendChannels.some(channel => 'amount2' in channel)"
+                              v-if="isChiller"
+                              v-tooltip="channel.amount2 != null && channel.amount2 !== channel.amount ? 'CityBox list price ' + formatCurrency(channel.amount2) : ''"
                             >
-                              {{ formatCurrency(channel.amount2) }}
+                              {{ formatCurrency(channel.amount) }}
                             </td>
+                            <template v-else>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                                {{ formatCurrency(channel.amount) }}
+                              </td>
+                              <td
+                                class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                                v-if="vendChannels.some(channel => 'amount2' in channel)"
+                              >
+                                {{ formatCurrency(channel.amount2) }}
+                              </td>
+                            </template>
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                               {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                             </td>
                           </tr>
                           <tr v-if="!vendChannels || !vendChannels.length">
-                            <td colspan="6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
+                            <td :colspan="isChiller ? 5 : 6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
                           </tr>
                         </tbody>
                       </table>
