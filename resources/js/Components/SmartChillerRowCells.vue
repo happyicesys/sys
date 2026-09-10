@@ -50,7 +50,7 @@
       <div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="$emit('overview', vend)" v-tooltip="'View Channel Status'">
         <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2" v-if="channels.length">
           <li v-for="(ch, i) in channels" :key="ch.code" class="quick-look" :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'col-start-1' : '']">
-            <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 pt-1' : '']">
+            <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 border-gray-600 pt-1' : '']">
               <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }}</span>,
               <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
               <span :class="[active ? (ch.qty <= 2 && ch.qty > 0 ? 'text-blue-700' : (ch.qty == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
@@ -194,7 +194,7 @@
       <div class="flex flex-col space-y-2">
         <ul class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" v-if="channels.length" @click="$emit('overview', vend)">
           <li v-for="(ch, i) in channels" :key="ch.code" class="quick-look" :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'col-start-1' : '']">
-            <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 pt-1' : '']">
+            <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 border-gray-600 pt-1' : '']">
               <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }},</span>
               <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
               <span :class="[active ? (ch.qty <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
