@@ -45,11 +45,28 @@ class CityboxVendActionController extends Controller
     /**
      * JSON for SmartChillerChannelOverview.vue: 5 layers → channels from
      * vend_channels (qty/capacity/amount) joined to the mirror mapping + CityBox
-     * catalog for name/thumbnail. Reads only what the poller/planogram wrote.
+     * catalog for name/thumbnail.
+     *
+     * Opening the overview PULLS CityBox live first (Brian, 2026-09-10) — the
+     * same refresh the Pull button runs: device status, their Pre-Stock config
+     * (so par/prices/new SKUs land) and live stock. Never fatal: an offline
+     * chiller, a disabled integration or an API blip still renders the last
+     * synced planogram, with `refreshed:false` so the caption can say so.
      */
-    public function planogram(int $id): \Illuminate\Http\JsonResponse
+    public function planogram(int $id, CityboxOpenapiSync $sync): \Illuminate\Http\JsonResponse
     {
         $vend = $this->chillerOr403($id);
+
+        $refreshError = null;
+        try {
+            $vend = $sync->pull($vend);
+        } catch (\Throwable $e) {
+            $refreshError = $e->getMessage();
+            \Illuminate\Support\Facades\Log::info('Citybox overview: live refresh failed, serving last sync', [
+                'vend_id' => $vend->id, 'error' => $refreshError,
+            ]);
+        }
+
         $status = $vend->citybox_status_json ?? [];
 
         // Channel rows are the truth for qty/capacity/amount/product; layer = hundreds digit of the code (101…699).
@@ -92,7 +109,9 @@ class CityboxVendActionController extends Controller
             'offline_since' => $status['heartbeat_last_offline'] ?? null,
             'device_type' => $status['device_type'] ?? null,
             'synced_at' => $vend->citybox_synced_at?->format('Y-m-d H:i'),
-            'layers' => array_values(array_reverse($layers)), // layer 5 first = top of the rack
+            'refreshed' => $refreshError === null,
+            'refresh_error' => $refreshError,
+            'layers' => array_values($layers), // layer 1 first (Brian, 2026-09-10) — matches their OPS Pro layer list
             'total_qty' => $channels->sum('qty'),
             'total_capacity' => $channels->sum('capacity'),
             'unmapped_count' => $channels->whereNull('product_id')->count(),

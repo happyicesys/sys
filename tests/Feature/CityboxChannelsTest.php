@@ -346,7 +346,45 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame(8, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->capacity);
     }
 
-    public function test_planogram_endpoint_returns_five_layers_top_first_with_channels_and_totals(): void
+    public function test_opening_the_overview_pulls_citybox_live_before_answering(): void
+    {
+        $this->seedPar();
+        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $user = \App\Models\User::factory()->create();
+
+        // Their side changes AFTER our last poll: qty moves and a price is repriced.
+        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 9, 'layer' => 1, 'price' => '2.50']]);
+
+        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        // No extra poll ran — opening the popup did the pull itself.
+        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103);
+        $this->assertSame(9, $peach['qty'], 'overview must show the LIVE qty, not the last poll');
+        $this->assertSame(250, $peach['amount_cents']);
+        $this->assertTrue($r['refreshed']);
+        $this->assertSame(9, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->qty);
+    }
+
+    public function test_overview_still_renders_the_last_sync_when_the_live_pull_fails(): void
+    {
+        $this->seedPar();
+        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 6, 'layer' => 1, 'price' => '0.10']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $user = \App\Models\User::factory()->create();
+
+        // Their fleet call stops knowing the device (offline / API blip): refreshOne throws.
+        unset($this->gw->devices['E1']);
+
+        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        $this->assertFalse($r['refreshed']);
+        $this->assertStringContainsString('E1', $r['refresh_error']);
+        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103);
+        $this->assertSame(6, $peach['qty']); // last synced numbers, still rendered
+    }
+
+    public function test_planogram_endpoint_returns_five_layers_layer_one_first_with_channels_and_totals(): void
     {
         $product = Product::create(['code' => 'KSF-P', 'name' => 'KSF Peach']);
         CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Peach', 'product_id' => $product->id, 'img_url' => 'https://cdn/p.png', 'first_seen_at' => now()]);
@@ -362,12 +400,13 @@ class CityboxChannelsTest extends TestCase
         $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
 
         $this->assertCount(5, $r['layers']);
-        $this->assertSame(5, $r['layers'][0]['layer']); // top of rack first
-        $this->assertSame(1, $r['layers'][4]['layer']);
-        $this->assertCount(3, $r['layers'][4]['channels']);
+        $this->assertSame(1, $r['layers'][0]['layer']); // layer 1 first (Brian, 2026-09-10)
+        $this->assertSame(5, $r['layers'][4]['layer']);
+        $this->assertCount(3, $r['layers'][0]['channels']);
         $this->assertSame([1, 15], [$r['total_qty'], $r['total_capacity']]);
         $this->assertSame(2, $r['unmapped_count']);
-        $peach = collect($r['layers'][4]['channels'])->firstWhere('code', 103);
+        $this->assertTrue($r['refreshed']);
+        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103);
         $this->assertSame('KSF Peach', $peach['product']['name']);
         $this->assertSame('https://cdn/p.png', $peach['thumbnail']);
         $this->assertTrue($peach['mapped']);
@@ -391,7 +430,7 @@ class CityboxChannelsTest extends TestCase
         $r = $this->actingAs(\App\Models\User::factory()->create())
             ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
 
-        $peach = collect($r['layers'][4]['channels'])->firstWhere('code', 103);
+        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103); // layer 1 is first
         $this->assertNotNull($peach, 'the channel must survive its product being deactivated');
         $this->assertFalse($peach['product']['is_active']);
         $this->assertSame(4, $peach['qty']);

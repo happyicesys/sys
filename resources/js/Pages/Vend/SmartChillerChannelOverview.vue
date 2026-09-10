@@ -6,9 +6,11 @@
 
     Data = vend_channels (qty / capacity / amount / product) laid out by the
     layer digit of the channel code, joined to the CityBox catalog for
-    name/thumbnail. Layer 5 is drawn at the TOP like the physical rack.
+    name/thumbnail. Layers run 1 → 5 top to bottom (Brian, 2026-09-10 — the
+    order their OPS Pro lists them in).
     Capacity here IS CityBox's par (their portal is the planogram source of
-    truth); qty is the 3-min poll. Nothing is editable from this popup.
+    truth); qty is refreshed live when this popup opens, and by the per-minute
+    poll in between. Nothing is editable from this popup.
   -->
   <Teleport to="body">
     <Modal :open="showModal" @modalClose="onModalClose">
@@ -24,7 +26,7 @@
 
       <template #default>
         <div class="min-h-40">
-          <div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading planogram…</div>
+          <div v-if="loading" class="py-16 text-center text-sm text-gray-500">Syncing with CityBox…</div>
           <div v-else-if="loadError" class="py-16 text-center text-sm text-red-600">{{ loadError }}</div>
           <div v-else class="space-y-3">
             <!-- Summary strip -->
@@ -35,6 +37,9 @@
                 <span :class="data.online ? 'text-green-700' : 'text-red-600'">{{ data.online ? 'online' : ('offline' + (data.offline_since ? ' since ' + data.offline_since : '')) }}</span>
                 <span class="text-gray-400">·</span>
                 <span class="text-gray-500">stock as of {{ data.synced_at || '—' }}</span>
+                <!-- Opening this overview pulls CityBox live; say so when that pull failed
+                     (offline chiller / API blip) so nobody reads stale numbers as live. -->
+                <span v-if="data.refreshed === false" class="text-amber-700" :title="data.refresh_error">· live refresh failed — showing last sync</span>
                 <span v-if="data.unmapped_count" class="text-amber-700">· {{ data.unmapped_count }} unmapped SKU{{ data.unmapped_count === 1 ? '' : 's' }}</span>
               </div>
               <div class="text-xs text-gray-500">
@@ -44,7 +49,8 @@
               </div>
             </div>
 
-            <!-- The rack: layer 5 at top. Built for a driver's phone first: layers stack
+            <!-- The rack: layer 1 first, 5 last (Brian, 2026-09-10 — same order as their
+                 OPS Pro layer list). Built for a driver's phone first: layers stack
                  vertically, SKUs wrap in a responsive grid (a layer can hold many), each
                  tile leads with a big thumbnail and a big count so the whole cabinet can be
                  read at a glance. Empty layers collapse to one slim row so all five fit. -->
