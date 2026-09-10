@@ -48,7 +48,7 @@
     <!-- Inventory Status: #Channel, Required, Balance/Capacity · Stock Cost/Value → channels + their prices -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="$emit('overview', vend)" v-tooltip="'View Channel Status'">
-        <ul class="sm:grid sm:grid-cols-[1fr_1fr]" v-if="channels.length">
+        <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2" v-if="channels.length">
           <li v-for="(ch, i) in channels" :key="ch.code" class="quick-look" :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'col-start-1' : '']">
             <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 pt-1' : '']">
               <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }}</span>,
