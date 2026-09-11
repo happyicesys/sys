@@ -400,6 +400,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { Head, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 import axios from 'axios';
@@ -492,12 +493,7 @@ onMounted(() => {
   filters.value.locationType = locationTypeOptions.value[0]
   filters.value.operators = authOperator ? [
     operatorOptions.value.find(operator => operator.id === authOperator.id),
-    ...authOperator.code == 'HIPL' ? [
-      operatorOptions.value.find(operator => operator.code == 'HIMD'),
-      operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-    ] : [],
+    ...hiplDefaultOperators(authOperator, operatorOptions.value),
   ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]

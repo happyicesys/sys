@@ -684,7 +684,7 @@ class ReportController extends Controller
         }
 
         if ($operatorCode === 'HIPL') {
-            $codes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+            $codes = \App\Support\OperatorScope::DEFAULT_FILTER_CODES;
             $ids = $operatorOptions
                 ? $operatorOptions->whereIn('code', $codes)->pluck('id')->all()
                 : Operator::whereIn('code', $codes)->pluck('id')->all();
@@ -1003,13 +1003,7 @@ class ReportController extends Controller
         if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
-                    'operators' => array_filter([
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ]),
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -1055,13 +1049,7 @@ class ReportController extends Controller
         if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ],
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -1165,13 +1153,7 @@ class ReportController extends Controller
         if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ],
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -1238,13 +1220,7 @@ class ReportController extends Controller
         if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ],
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);

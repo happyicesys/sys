@@ -175,6 +175,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import fileDownload from 'js-file-download';
@@ -412,12 +413,7 @@ onMounted(() => {
   filters.value.location_types = [locationTypeOptions.value.find((o) => o.id === 'all')].filter(Boolean);
   filters.value.operators = authOperator ? [
     operatorOptions.value.find((o) => o.id === authOperator.id),
-    ...(authOperator.code === 'HIPL' ? [
-      operatorOptions.value.find((o) => o.code === 'HIMD'),
-      operatorOptions.value.find((o) => o.code === 'LEA'),
-      operatorOptions.value.find((o) => o.code === 'HIESG'),
-      operatorOptions.value.find((o) => o.code === 'UL-ST'),
-    ] : []),
+    ...hiplDefaultOperators(authOperator, operatorOptions.value),
   ].filter((o) => o !== undefined) : [operatorOptions.value[0]];
 });
 

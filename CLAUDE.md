@@ -74,6 +74,17 @@ see `App\Support\OperatorScope` (sibling-group rule) and
 transaction grids enforce). The two are deliberately different — do not swap one
 for the other, it moves live numbers.
 
+What an HIPL viewer's Operator filter **opens with** is a third list,
+`OperatorScope::DEFAULT_FILTER_CODES` (HIPL, HIMD, LEA, HIESG, UL-ST, XO, MSW —
+XO and MSW since 2026-09-11, Brian: their machines take payment on our Omise
+account and NETS terminals). It also decides whose sales the Dashboard's
+monthly sales popup totals. PHP reads it through
+`OperatorScope::defaultFilterIds()`; Vue through `hiplDefaultOperators()`
+(`resources/js/constants/defaultOperators.js`, fed by the shared
+`defaultOperatorCodes` Inertia prop). It used to be copied into ~50 controllers,
+exports and pages; `tests/Unit/NoInlineOperatorGroupTest.php` fails on a new
+copy. Change who HIPL sees by default there and nowhere else.
+
 Symptom to watch for: a summary card showing money against an empty grid. That
 means the card and the grid are drawn from different populations, and the card
 is almost always the one that has escaped the boundary. Regression coverage:

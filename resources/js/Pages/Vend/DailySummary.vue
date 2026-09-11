@@ -277,6 +277,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted, watch, computed } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import axios from 'axios';
 import fileDownload from 'js-file-download'
 import { useToast } from "vue-toastification";
@@ -351,12 +352,7 @@ onMounted(() => {
     // also fan out to HIMD/LEA/HIESG/UL-ST so HQ users see all sister operators.
     filters.value.operators = authOperator ? [
         operatorOptions.value.find(o => o.id === authOperator.id),
-        ...(authOperator.code == 'HIPL' ? [
-            operatorOptions.value.find(o => o.code == 'HIMD'),
-            operatorOptions.value.find(o => o.code == 'LEA'),
-            operatorOptions.value.find(o => o.code == 'HIESG'),
-            operatorOptions.value.find(o => o.code == 'UL-ST'),
-        ] : []),
+        ...hiplDefaultOperators(authOperator, operatorOptions.value),
     ].filter(o => o !== undefined) : [operatorOptions.value[0]]
 })
 

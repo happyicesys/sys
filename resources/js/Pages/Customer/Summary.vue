@@ -3053,6 +3053,7 @@ import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
 import { computed, ref, onMounted, nextTick, h } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from 'vue-toastification';
 import { vTooltip } from 'floating-vue';
 import moment from 'moment';
@@ -3588,12 +3589,7 @@ onMounted(() => {
   //   - no auth (unlikely): fall back to the first option ("All")
   filters.value.operators = authOperator ? [
     operatorOptions.value.find((operator) => operator.id === authOperator.id),
-    ...authOperator.code == 'HIPL' ? [
-      operatorOptions.value.find((operator) => operator.code == 'HIMD'),
-      operatorOptions.value.find((operator) => operator.code == 'LEA'),
-      operatorOptions.value.find((operator) => operator.code == 'HIESG'),
-      operatorOptions.value.find((operator) => operator.code == 'UL-ST'),
-    ] : [],
+    ...hiplDefaultOperators(authOperator, operatorOptions.value),
   ].filter((operator) => operator !== undefined) : [operatorOptions.value[0]];
   filters.value.period_report =
     periodReportLocalOptions.value.find((o) => o.id === (props.periodReport || 'current'))

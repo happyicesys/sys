@@ -118,6 +118,9 @@ class HandleInertiaRequests extends Middleware
                     ->values()
                     ->all();
             },
+            // What an HIPL viewer's Operator filter opens with. One list, on
+            // the server: see OperatorScope::DEFAULT_FILTER_CODES.
+            'defaultOperatorCodes' => \App\Support\OperatorScope::DEFAULT_FILTER_CODES,
             'logoUrl' => $logoUrl,
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,

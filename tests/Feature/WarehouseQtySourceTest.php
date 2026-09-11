@@ -105,7 +105,15 @@ class WarehouseQtySourceTest extends TestCase
 
     private function plannerUser(): User
     {
-        foreach (['read product-availability'] as $perm) {
+        // A planner sees the whole Warehouse Qty page: the stock balance, the
+        // Planning column group and the Excel export (all split onto their own
+        // permissions 2026-09-10 — see ProductAvailabilityPermissionTest).
+        $availabilityPermissions = [
+            'read product-availability',
+            'read product-availability-planning',
+            'export product-availability',
+        ];
+        foreach ($availabilityPermissions as $perm) {
             Permission::findOrCreate($perm, 'web');
         }
         // HIPL must be operator id 1: OperatorProductFilterScope keys "sees every
@@ -113,7 +121,7 @@ class WarehouseQtySourceTest extends TestCase
         $op = \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
         DB::table('operators')->where('id', $op->id)->update(['id' => 1]);
         $u = User::factory()->create(['operator_id' => 1]);
-        $u->givePermissionTo(['read products', 'update products', 'read product-availability']);
+        $u->givePermissionTo(array_merge(['read products', 'update products'], $availabilityPermissions));
 
         return $u;
     }

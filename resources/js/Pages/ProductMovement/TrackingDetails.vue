@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { MagnifyingGlassIcon, BackspaceIcon, ArrowDownTrayIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid'
 import axios from 'axios'
 import MultiSelect from '@/Components/MultiSelect.vue'
@@ -51,12 +52,7 @@ onMounted(() => {
     } else {
         filters.value.operators = authOperator ? [
             operatorOptions.value.find(operator => operator.id === authOperator.id),
-            ...authOperator.code == 'HIPL' ? [
-                operatorOptions.value.find(operator => operator.code == 'HIMD'),
-                operatorOptions.value.find(operator => operator.code == 'LEA'),
-                operatorOptions.value.find(operator => operator.code == 'HIESG'),
-                operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-            ] : [],
+            ...hiplDefaultOperators(authOperator, operatorOptions.value),
         ].filter(Boolean) : []
     }
 
@@ -105,12 +101,7 @@ const onResetFilterClicked = () => {
     // Reset operators default
     filters.value.operators = authOperator ? [
         operatorOptions.value.find(operator => operator.id === authOperator.id),
-        ...authOperator.code == 'HIPL' ? [
-            operatorOptions.value.find(operator => operator.code == 'HIMD'),
-            operatorOptions.value.find(operator => operator.code == 'LEA'),
-            operatorOptions.value.find(operator => operator.code == 'HIESG'),
-            operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-        ] : [],
+        ...hiplDefaultOperators(authOperator, operatorOptions.value),
     ].filter(Boolean) : []
 
     onSearchFilterUpdated()

@@ -433,7 +433,9 @@ class DashboardController extends Controller
             }
         }
 
-        $operatorIds = Operator::whereIn('code', ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'])
+        // XO + MSW count in this total since 2026-09-11 (Brian): same group as
+        // the default Operator filter.
+        $operatorIds = Operator::whereIn('code', \App\Support\OperatorScope::DEFAULT_FILTER_CODES)
             ->pluck('id')
             ->all();
 
@@ -647,17 +649,8 @@ class DashboardController extends Controller
     {
         if (! $request->operators || (is_array($request->operators) && in_array('all', $request->operators))) {
             if (auth()->user()->operator->code == 'HIPL') {
-                // Single query instead of 4 separate first() calls.
-                $operatorMap = Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
-                    ->pluck('id', 'code');
                 $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        $operatorMap->get('HIMD'),
-                        $operatorMap->get('LEA'),
-                        $operatorMap->get('HIESG'),
-                        $operatorMap->get('UL-ST'),
-                    ],
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);

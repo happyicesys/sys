@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Jobs\Concerns\AppendsUnreportedGatewayCsvRows;
 use App\Models\ExportJob;
 use App\Models\ExportJobChunk;
-use App\Models\Operator;
 use App\Models\RefundTicketItem;
 use App\Models\Tag;
 use App\Models\User;
@@ -128,13 +127,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
             if (! $request->operators) {
                 if ($user->operator->code == 'HIPL') {
                     $request->merge([
-                        'operators' => [
-                            $user->operator_id,
-                            Operator::where('code', 'HIMD')->first()?->id,
-                            Operator::where('code', 'LEA')->first()?->id,
-                            Operator::where('code', 'HIESG')->first()?->id,
-                            Operator::where('code', 'UL-ST')->first()?->id,
-                        ],
+                        'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                     ]);
                 } else {
                     $request->merge(['operators' => [$user->operator_id]]);

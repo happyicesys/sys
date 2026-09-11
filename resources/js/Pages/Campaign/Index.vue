@@ -226,6 +226,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 
 const props = defineProps({
   campaigns: Object,
@@ -267,12 +268,7 @@ onMounted(() => {
   // so this only keeps the widget honest about what is actually being shown.
   filters.value.operators = authOperator ? [
     operatorOptions.value.find(operator => operator.id === authOperator.id),
-    ...authOperator.code == 'HIPL' ? [
-      operatorOptions.value.find(operator => operator.code == 'HIMD'),
-      operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-    ] : [],
+    ...hiplDefaultOperators(authOperator, operatorOptions.value),
   ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 })
 

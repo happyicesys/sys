@@ -51,7 +51,7 @@
                     Search
                 </span>
             </Button>
-                      <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      <Button v-if="canExport" class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onExcelExportClicked()"
                       >
                         <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
@@ -61,6 +61,7 @@
                            Remarks changed (by someone else) since your last
                            visit, newest first. -->
                       <Button
+                        v-if="canSeeNotes"
                         :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
                           unreadMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
                         @click.prevent="toggleUnread()"
@@ -76,6 +77,7 @@
                       <!-- @Me Mentioned toggle: shows only products whose
                            Remarks @-mention the current user, newest first. -->
                       <Button
+                        v-if="canSeeNotes"
                         :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
                           mentionMode ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
                         @click.prevent="toggleMentioned()"
@@ -93,7 +95,7 @@
                       <span class="text-xs text-gray-500 self-center">
                           {{ products.data.length }} products found
                       </span>
-                      <div class="flex flex-row items-center gap-2">
+                      <div class="flex flex-row items-center gap-2" v-if="canSeePlanning">
                         <label class="text-xs font-semibold text-gray-700">Planning Date</label>
                         <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated" :minDate="today">
                             <template #trigger>
@@ -110,7 +112,7 @@
             <div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-100 sticky top-0 z-10">
-                  <tr>
+                  <tr v-if="canSeePlanning">
                     <th colspan="9" class="bg-gray-100"></th>
                     <th colspan="3" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
                       Planning
@@ -189,16 +191,16 @@
                       </div>
                       <span class="font-normal text-[10px] text-gray-600">(Qty in Warehouse, minus Picked Qty)</span>
                     </th>
-                    <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                    <th v-if="canSeePlanning" scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       To Pick Qty <br>
                       <!-- Live Update note similar to ProductMovement if desired, or just keep header simple -->
                       <span class="font-normal text-xs text-gray-600">(Live Update)</span>
                     </th>
-                    <th scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                    <th v-if="canSeePlanning" scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Needed by # of VM <br>
                       <span class="font-normal text-xs text-gray-600">(machines with To Pick Qty)</span>
                     </th>
-                    <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                    <th v-if="canSeePlanning" scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                       Capped Qty per Channel <br>
                       <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Planning Date & 4 Days Onwards)</span>
                     </th>
@@ -223,29 +225,36 @@
                         <div class="flex items-center gap-1">
                           <span class="text-green-700 font-bold text-xs">Available?</span>
                           <span v-if="product.is_available">
-                            <CheckCircleIcon class="h-5 w-5 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
+                            <CheckCircleIcon class="h-5 w-5 text-green-500" :class="canWriteAvailability ? 'hover:cursor-pointer hover:text-green-600' : 'cursor-default'" @click.prevent="onIsAvailableClicked(product)" />
                           </span>
                           <span v-else>
-                            <XCircleIcon class="h-5 w-5 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
+                            <XCircleIcon class="h-5 w-5 text-red-500" :class="canWriteAvailability ? 'hover:cursor-pointer hover:text-red-600' : 'cursor-default'" @click.prevent="onIsAvailableClicked(product)" />
                           </span>
                         </div>
-                        <span class="text-[10px] text-gray-500 mt-1" v-if="product.isAvailableUpdatedBy">
+                        <span class="text-[10px] text-gray-500 mt-1" v-if="canSeeNotes && product.isAvailableUpdatedBy">
                           {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                         </span>
                         <div class="mt-2 flex flex-col w-full">
-                            <MentionTextarea
-                                :model-value="product.remarks"
-                                @update:model-value="product.remarks = $event"
-                                @change="onRemarksChanged(product)"
-                                :users="mentionableUsers"
-                                :rows="1"
-                                :autogrow="true"
-                                placeholder="Remarks"
-                                textarea-class="text-xs text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full resize-none overflow-hidden"
-                            />
-                            <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
-                              {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
-                            </span>
+                            <!-- Remarks: internal ops coordination, hidden from a viewer
+                                 without the notes permission (prod_owner). The blind-SKU
+                                 badges below are product structure, not notes, so they
+                                 stay outside this gate. -->
+                            <template v-if="canSeeNotes">
+                              <MentionTextarea
+                                  :model-value="product.remarks"
+                                  @update:model-value="product.remarks = $event"
+                                  @change="onRemarksChanged(product)"
+                                  :readonly="!canWriteAvailability"
+                                  :users="mentionableUsers"
+                                  :rows="1"
+                                  :autogrow="true"
+                                  placeholder="Remarks"
+                                  textarea-class="text-xs text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full resize-none overflow-hidden"
+                              />
+                              <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
+                                {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
+                              </span>
+                            </template>
                             <!-- Blind SKU badges -->
                             <span
                               v-if="product.is_parent_sku"
@@ -314,9 +323,14 @@
                     <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                       {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       <div v-if="product.warehouse_qty_source === 'ledger'" class="mt-0.5">
-                        <Link :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
+                        <Link v-if="canReadLedger" :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
                           class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
                           title="Warehouse qty is the self-system ledger (manual incoming − picks), not CMS. Click to key incoming / see history.">Self-system ledger</Link>
+                        <!-- Same badge, no link: the ledger page is gated on `read products`,
+                             which a viewer of this page need not hold (prod_owner). -->
+                        <span v-else
+                          class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800"
+                          title="Warehouse qty is the self-system ledger (manual incoming − picks), not CMS.">Self-system ledger</span>
                       </div>
                     </td>
                     <!-- Picked Qty (Gray) -->
@@ -330,17 +344,17 @@
                       </span>
                     </td>
                     <!-- Needed Qty (Orange) -->
-                    <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
+                    <td v-if="canSeePlanning" class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
                       {{ Number(product.needed_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
                     <!-- Needed by # of VM: machines with a positive To-Pick contribution on the planning date -->
-                    <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
+                    <td v-if="canSeePlanning" class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
                       {{ Number(product.needed_vend_count ?? 0).toLocaleString() }}
                     </td>
                     <!-- Capped Qty / Limit (Select Input) -->
-                    <td class="p-1 sm:p-3 text-center">
+                    <td v-if="canSeePlanning" class="p-1 sm:p-3 text-center">
                       <div class="flex flex-col items-center gap-1">
-                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
+                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !canWriteAvailability" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                           <option :value="null">No</option>
                           <option v-for="n in 25 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
@@ -398,7 +412,7 @@
                         <span>&nbsp;</span>
                       </div>
                     </td>
-                    <td class="p-1 sm:p-3 text-center text-orange-600">
+                    <td v-if="canSeePlanning" class="p-1 sm:p-3 text-center text-orange-600">
                        <div class="flex flex-col space-y-1">
                         <span>{{ getProductNeededQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
@@ -406,8 +420,9 @@
                       </div>
                     </td>
                     <!-- Needed by # of VM: no total — the same machine needs many SKUs -->
-                    <td></td>
-                    <td></td>
+                    <td v-if="canSeePlanning"></td>
+                    <!-- Capped Qty per Channel: no total -->
+                    <td v-if="canSeePlanning"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -499,6 +514,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
 import { onBeforeMount, onMounted, ref, watch, computed } from 'vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';
@@ -526,6 +542,25 @@ const mentionMode = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+// The three in-page writes (availability toggle, Remarks, max ops-job pick
+// limit) all hang off this one permission — the same one ProductController
+// enforces, so read-only roles (prod_owner) never get a control that 403s.
+const canWriteAvailability = permissions.includes('admin-access product-availability')
+// The "Planning" column group (To Pick Qty / Needed by # of VM / Capped Qty per
+// Channel) and its Planning Date filter: OUR replenishment plan, not stock
+// balance. A product owner supplies the stock and does not run our picking, so
+// prod_owner is off this permission (2026-09-10) and the whole group is hidden.
+// The controller also strips the figures from the payload.
+const canSeePlanning = permissions.includes('read product-availability-planning')
+// The Remarks note on each row, its Unread / @Me Mentioned filters and the
+// "who last changed this" staff attribution lines. Internal ops coordination,
+// so prod_owner is off this permission too.
+const canSeeNotes = permissions.includes('read product-availability-notes')
+// Export Excel pulls the whole sheet, so it follows its own permission.
+const canExport = permissions.includes('export product-availability')
+// The self-system ledger page (/products/movements) is a different page with a
+// different permission — don't offer a link this viewer cannot follow.
+const canReadLedger = permissions.includes('read products')
 const filters = ref({
   product_name: '',
   product_code: '',
@@ -557,12 +592,7 @@ onMounted(() => {
   ]
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [
-			operatorOptions.value.find(operator => operator.code == 'HIMD'),
-			operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-		] : [],
+		...hiplDefaultOperators(authOperator, operatorOptions.value),
 	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 
   filters.value = {
@@ -763,7 +793,7 @@ function onLowStockClicked(product) {
 
 // Event handlers for availability toggling and limit selection
 function onIsAvailableClicked(product) {
-  if(permissions.includes('admin-access product-availability')) {
+  if(canWriteAvailability) {
     router.post('/products/availability/toggle-is-available', {
       product_id: product.id
     }, {
@@ -795,6 +825,7 @@ function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
 }
 
 function onRemarksChanged(product) {
+  if(!canWriteAvailability) return
   axios.post('/products/availability/update-remarks/' + product.id, {
     remarks: product.remarks,
   })

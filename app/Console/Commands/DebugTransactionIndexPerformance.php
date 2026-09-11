@@ -53,7 +53,7 @@ class DebugTransactionIndexPerformance extends Command
 
         // HIPL multi-operator expansion (mirrors transactionIndex logic)
         if ($operator->code === 'HIPL') {
-            $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+            $relatedCodes = \App\Support\OperatorScope::DEFAULT_FILTER_CODES;
             $operatorIds = Operator::whereIn('code', $relatedCodes)->pluck('id')->filter()->values()->toArray();
         } else {
             $operatorIds = [$operator->id];

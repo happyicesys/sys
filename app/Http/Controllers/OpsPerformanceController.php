@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\GpMetric;
-use App\Models\Operator;
 use App\Models\OpsMachineDailySnapshot;
 use App\Models\Vend;
 use App\Services\CustomerSummaryAggregator;
@@ -281,15 +280,7 @@ class OpsPerformanceController extends Controller
         $user = auth()->user();
 
         if ($user->operator && $user->operator->code === 'HIPL') {
-            $map = Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])->pluck('id', 'code');
-
-            return array_values(array_filter([
-                $user->operator_id,
-                $map->get('HIMD'),
-                $map->get('LEA'),
-                $map->get('HIESG'),
-                $map->get('UL-ST'),
-            ]));
+            return \App\Support\OperatorScope::defaultFilterIds();
         }
 
         return array_values(array_filter([$user->operator_id]));

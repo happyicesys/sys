@@ -1521,6 +1521,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
   import SingleSortItem from '@/Components/SingleSortItem.vue';
   import { ref, computed, onMounted } from 'vue';
   import { router, Link, Head, usePage } from '@inertiajs/vue3';
+  import { hiplDefaultOperators } from '@/constants/defaultOperators';
   import moment from 'moment';
   import axios from 'axios';
   import { useToast } from "vue-toastification";
@@ -1790,12 +1791,7 @@ filters.value.locationType = locationTypeOptions.value[0]
   filters.value.next_planned_driver = nextDeliveryDriverOptions.value[0]
   filters.value.operators = authOperator ? [
 	operatorOptions.value.find(operator => operator.id === authOperator.id),
-	...authOperator.code == 'HIPL' ? [
-		operatorOptions.value.find(operator => operator.code == 'HIMD'),
-		operatorOptions.value.find(operator => operator.code == 'LEA'),
-		operatorOptions.value.find(operator => operator.code == 'HIESG'),
-		operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-	] : [],
+	...hiplDefaultOperators(authOperator, operatorOptions.value),
 ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 filters.value.status = statusOptions.value[0]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})

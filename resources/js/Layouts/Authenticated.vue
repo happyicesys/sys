@@ -177,7 +177,21 @@ const navigation = computed(() => [
         icon: RectangleStackIcon,
         current: false,
         href: 'products',
-        permission: 'read products',
+        // Array = "any of these" (see canSee()). Was the plain string
+        // 'read products', which is the FIRST child — so a role granted only
+        // "Warehouse Qty (via API) & Planning" (prod_owner, 2026-09-10) had the
+        // whole section hidden and no way to reach the page it was given. The
+        // section header navigates nowhere (it is a Disclosure; the rail links
+        // to firstChildHref), so this widens visibility only. Keep it the union
+        // of the children's permissions.
+        permission: [
+            'read products',
+            'read product-mappings',
+            'read product-availability',
+            'read product-categories',
+            'read product-subcategories',
+            'read product-campaign-labels',
+        ],
         tagline: null,
         children: [
             {name: 'Products', href: '/products', permission: 'read products'},

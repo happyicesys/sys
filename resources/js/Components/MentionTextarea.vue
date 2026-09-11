@@ -18,6 +18,9 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   textareaClass: { type: String, default: '' },
   autogrow: { type: Boolean, default: false },
+  // Preview only: clicking never opens the editor, so a viewer without the
+  // write permission cannot type a change the server will only 403.
+  readonly: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
@@ -176,7 +179,7 @@ function onKeydown(e) {
 }
 
 function startEdit() {
-  if (editing.value) return;
+  if (props.readonly || editing.value) return;
   editStartValue.value = props.modelValue || '';
   editing.value = true;
   nextTick(() => {
@@ -208,7 +211,7 @@ watch(() => props.modelValue, grow);
     <!-- Preview: read-only, @mentions in blue. Click to edit. -->
     <div
       v-show="!editing"
-      :class="[textareaClass, 'min-h-[2.25rem] cursor-text whitespace-pre-wrap break-words']"
+      :class="[textareaClass, 'min-h-[2.25rem] whitespace-pre-wrap break-words', readonly ? 'cursor-default' : 'cursor-text']"
       @click="startEdit"
     >
       <template v-if="modelValue">

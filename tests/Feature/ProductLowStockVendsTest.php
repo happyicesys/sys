@@ -32,7 +32,9 @@ class ProductLowStockVendsTest extends TestCase
     {
         parent::setUp();
 
-        Permission::findOrCreate('read products', 'web');
+        // The drill-down belongs to the Warehouse Qty page, so it is gated on
+        // that page's own permission (split off 'read products' 2026-09-10).
+        Permission::findOrCreate('read product-availability', 'web');
 
         // HIPL must sit on the unrestricted id (RefreshDatabase does not
         // reset AUTO_INCREMENT, so insertion order gives no stable id).
@@ -69,7 +71,7 @@ class ProductLowStockVendsTest extends TestCase
         $this->makeChannel($unbound, 11, $product->id, 1);
 
         $user = User::factory()->create(['operator_id' => $this->hipl->id]);
-        $user->givePermissionTo('read products');
+        $user->givePermissionTo('read product-availability');
 
         $response = $this->actingAs($user)
             ->getJson("/products/availability/low-stock-vends/{$product->id}")
@@ -110,7 +112,7 @@ class ProductLowStockVendsTest extends TestCase
         $this->makeJobItem($pending, now()->subDays(3), OpsJob::STATUS_PICKED);
 
         $user = User::factory()->create(['operator_id' => $this->hipl->id]);
-        $user->givePermissionTo('read products');
+        $user->givePermissionTo('read product-availability');
 
         $vends = collect($this->actingAs($user)
             ->getJson("/products/availability/low-stock-vends/{$product->id}")
@@ -138,7 +140,7 @@ class ProductLowStockVendsTest extends TestCase
         $this->makeChannel($foreign, 11, $product->id, 1);
 
         $viewer = User::factory()->create(['operator_id' => $this->opA->id]);
-        $viewer->givePermissionTo('read products');
+        $viewer->givePermissionTo('read product-availability');
 
         $vends = $this->actingAs($viewer)
             ->getJson("/products/availability/low-stock-vends/{$product->id}")

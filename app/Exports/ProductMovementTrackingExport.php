@@ -38,13 +38,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
 
         if (!$request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
-                $operators = [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'UL-ST')->first()?->id,
-                ];
+                $operators = \App\Support\OperatorScope::defaultFilterIds();
             } else {
                 $operators = [auth()->user()->operator_id];
             }

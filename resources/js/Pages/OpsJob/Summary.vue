@@ -391,6 +391,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted, computed } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import moment from 'moment';
 
 const props = defineProps({
@@ -491,12 +492,7 @@ onMounted(() => {
 
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [
-			operatorOptions.value.find(operator => operator.code == 'HIMD'),
-			operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-		] : [],
+		...hiplDefaultOperators(authOperator, operatorOptions.value),
 	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 })
 

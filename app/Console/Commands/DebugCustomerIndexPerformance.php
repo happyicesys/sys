@@ -47,7 +47,7 @@ class DebugCustomerIndexPerformance extends Command
 
         // HIPL multi-operator expansion (mirrors indexCustomer logic)
         if ($operator->code === 'HIPL') {
-            $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+            $relatedCodes = \App\Support\OperatorScope::PARENT_GROUP_CODES;
             $operatorIds  = Operator::whereIn('code', $relatedCodes)->pluck('id')->filter()->values()->toArray();
         } else {
             $operatorIds = [$operator->id];

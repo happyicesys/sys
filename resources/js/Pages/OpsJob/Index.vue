@@ -482,6 +482,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from "vue-toastification";
 import moment from 'moment';
 
@@ -548,12 +549,7 @@ onMounted(() => {
 
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [
-			operatorOptions.value.find(operator => operator.code == 'HIMD'),
-			operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-		] : [],
+		...hiplDefaultOperators(authOperator, operatorOptions.value),
 	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 })
 

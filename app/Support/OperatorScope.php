@@ -13,7 +13,7 @@ use App\Models\User;
  * enforced inline (VendController::indexCustomer, ::index and
  * ::customerIndexAggregates):
  *
- *      HIPL staff  => HIPL + its sibling operators (HIMD, LEA, HIESG, UL-ST, CB)
+ *      HIPL staff  => HIPL + its sibling operators (PARENT_GROUP_CODES)
  *      everyone else => their own operator, and nothing else
  *
  * ==========================================================================
@@ -43,8 +43,25 @@ class OperatorScope
      * operator so settlement never mixes with vending, but HIPL ops staff run
      * them from the same Dashboard and Machines index — without CB here the
      * default (empty) Operator filter hid every chiller from them.
+     *
+     * XO and MSW joined 2026-09-11: their machines take payment on our Omise
+     * account and our NETS terminals, so HIPL ops staff run them alongside our
+     * own. Their own staff still see only their own operator (forUser()).
      */
-    public const PARENT_GROUP_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'CB'];
+    public const PARENT_GROUP_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'CB', 'XO', 'MSW'];
+
+    /**
+     * Operators pre-selected on every Operator filter for HIPL staff: the chips
+     * a page opens with, and what a controller fills in when the request
+     * carries no operators. Vue pages read it through the shared
+     * `defaultOperatorCodes` Inertia prop (constants/defaultOperators.js), so
+     * this is the only list — never spell it out in a page or controller again
+     * (tests/Unit/NoInlineOperatorGroupTest.php).
+     *
+     * CB is in the ceiling above but has never been part of these defaults;
+     * that is unchanged.
+     */
+    public const DEFAULT_FILTER_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'XO', 'MSW'];
 
     /**
      * Per-request memo, keyed by user id — the ceiling is asked for several
@@ -97,6 +114,28 @@ class OperatorScope
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Ids of DEFAULT_FILTER_CODES — the default Operator filter of an HIPL
+     * viewer. Callers decide HIPL-or-not themselves (everyone else defaults to
+     * their own operator). A deactivated operator drops out, exactly as it did
+     * from the old per-page `Operator::where('code', …)->first()` lists.
+     *
+     * OperatorFilterScope is dropped because queued exports call this with no
+     * authenticated user; for an HIPL viewer that scope is a no-op anyway.
+     *
+     * @return array<int, int>
+     */
+    public static function defaultFilterIds(): array
+    {
+        return Operator::withoutGlobalScope(OperatorFilterScope::class)
+            ->whereIn('code', self::DEFAULT_FILTER_CODES)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
             ->values()
             ->all();
     }

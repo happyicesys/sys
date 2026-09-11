@@ -119,6 +119,7 @@
 <script setup>
 import { ref, onBeforeMount, onMounted } from 'vue'
 import { Head, usePage, router } from '@inertiajs/vue3'
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Graph from '@/Components/Graph.vue'
 import Button from '@/Components/Button.vue'
@@ -187,9 +188,7 @@ onMounted(() => {
   filters.value.locationType = locationTypeOptions.value[0]
   filters.value.operators = authOperator ? [
     operatorOptions.value.find(o => o?.id === authOperator.id),
-    ...(authOperator.code === 'HIPL'
-      ? ['HIMD','LEA','HIESG','UL-ST'].map(c => operatorOptions.value.find(o => o?.code === c))
-      : []),
+    ...hiplDefaultOperators(authOperator, operatorOptions.value),
   ].filter(Boolean) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [vendPrefixOptions.value[0]]
 })

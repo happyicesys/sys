@@ -468,9 +468,78 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Product Management > "Warehouse Qty (via API) & Planning".
+                //
+                // Split read/export from the write half on 2026-09-10 so
+                // prod_owner can be given the page without the write controls -
+                // same shape as the 'tutorials-operators' split below.
+                //
+                // + technician: NOT a new grant. Technician holds 'read
+                // products', which used to be the controller's only gate, so
+                // /products/availability was already reachable for them (menu
+                // item hidden, URL open). The sheet's Technician column says Yes
+                // on this row, so the split keeps that access and now shows them
+                // the menu item too. Drop technician here to close it instead.
                 'product-availability',
-                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'prod_owner'],
+            ],
+
+            [
+                // Export Excel is the whole sheet in one file — every SKU, every
+                // figure, off the screen and into someone's laptop. prod_owner
+                // reads the page and does not get that, so 'export' is its own
+                // tuple rather than riding with 'read'.
+                //
+                // Technician is here and NOT on the write tuple below, which is
+                // why this cannot simply be folded into that one: technician
+                // held 'read products' and so was already exporting this sheet
+                // before the 2026-09-10 split (the button was ungated in the
+                // Vue), and the split must not quietly take it away.
+                'product-availability',
+                ['export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            [
+                // The write half: the availability toggle, the Remarks note and
+                // the max ops-job pick limit. ProductController gates all three
+                // on 'admin-access product-availability', which is also what
+                // Vend/ProductAvailability.vue checks before rendering them.
+                'product-availability',
+                ['create', 'update', 'delete', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            [
+                // The "Planning" column group on that page — To Pick Qty,
+                // Needed by # of VM, Capped Qty per Channel — plus the Planning
+                // Date filter that drives them. This is OUR replenishment plan,
+                // derived from ops_job_item_channels; the stock balance columns
+                // beside it are the supplier's business, this is not. So
+                // prod_owner (2026-09-10) reads the page without it, and the
+                // controller strips the figures from the payload rather than
+                // only hiding the columns.
+                //
+                // Everyone who could see the page before keeps it, technician
+                // included — this permission is new, so anything omitted here
+                // is a column that silently disappears for that role.
+                'product-availability-planning',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            [
+                // The Remarks note on each row, its "Unread" / "@Me Mentioned"
+                // filters, and the "<staff name> (date)" attribution lines under
+                // Available? and Remarks. Internal coordination between ops
+                // people, and it carries their names — so prod_owner is off it
+                // and the controller sends neither the notes, the roster, nor
+                // the unread/mention counts. Same "everyone else keeps it" rule
+                // as the planning tuple above.
+                'product-availability-notes',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
             [

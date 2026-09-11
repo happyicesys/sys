@@ -321,7 +321,7 @@ class CustomerController extends Controller
                 if ($userOperator && $userOperator->code === 'HIPL') {
                     $defaultOperatorIds = array_merge(
                         $defaultOperatorIds,
-                        \App\Models\Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
+                        \App\Models\Operator::whereIn('code', \App\Support\OperatorScope::DEFAULT_FILTER_CODES)
                             ->pluck('id')->map(fn ($v) => (int) $v)->all()
                     );
                 }
@@ -1026,7 +1026,7 @@ class CustomerController extends Controller
                 if ($userOperator && $userOperator->code === 'HIPL') {
                     $defaultOperatorIds = array_merge(
                         $defaultOperatorIds,
-                        \App\Models\Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
+                        \App\Models\Operator::whereIn('code', \App\Support\OperatorScope::DEFAULT_FILTER_CODES)
                             ->pluck('id')->map(fn ($v) => (int) $v)->all()
                     );
                 }

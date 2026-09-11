@@ -481,6 +481,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { hiplDefaultOperators } from '@/constants/defaultOperators';
 
 const props = defineProps({
   cmsEndpoint: String,
@@ -567,12 +568,7 @@ onMounted(() => {
   // filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [
-			operatorOptions.value.find(operator => operator.code == 'HIMD'),
-			operatorOptions.value.find(operator => operator.code == 'LEA'),
-      operatorOptions.value.find(operator => operator.code == 'HIESG'),
-      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
-		] : [],
+		...hiplDefaultOperators(authOperator, operatorOptions.value),
 	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
   const preselectedPlatformRef = platformRefNumberSelectOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)

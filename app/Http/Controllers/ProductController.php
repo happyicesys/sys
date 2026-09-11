@@ -55,7 +55,33 @@ class ProductController extends Controller
         $this->tagBindingService = new TagBindingService;
         $this->vendChannelService = new VendChannelService;
         $this->vendTransactionService = new VendTransactionService;
-        $this->middleware(['permission:read products']);
+
+        // "Warehouse Qty (via API) & Planning" (/products/availability) is its
+        // OWN page with its OWN permission, and until 2026-09-10 that
+        // permission gated nothing: the blanket 'read products' below covered
+        // every method here, so the page was reachable by anyone holding
+        // Product Management > Products and unreachable by anyone who did not.
+        //
+        // The sheet gives prod_owner the availability page but NOT Products, so
+        // the two gates are split apart here. Reads run on
+        // 'read product-availability'; the three in-page writes (availability
+        // toggle, remarks, ops-job pick limit) run on
+        // 'admin-access product-availability' - which is already the exact
+        // permission Vend/ProductAvailability.vue uses to show or hide those
+        // controls, so the server now enforces what the UI was only implying.
+        $availabilityRead = ['availability', 'exportAvailability', 'lowStockVends'];
+        $availabilityWrite = ['toggleIsAvailable', 'updateRemarks', 'updateMaxOpsJobPickLimit'];
+
+        $this->middleware(['permission:read products'])
+            ->except(array_merge($availabilityRead, $availabilityWrite));
+        $this->middleware(['permission:read product-availability'])
+            ->only(array_merge($availabilityRead, $availabilityWrite));
+        $this->middleware(['permission:admin-access product-availability'])
+            ->only($availabilityWrite);
+        // The export is the whole sheet in one file, so it answers to 'export'
+        // rather than 'read' - prod_owner reads the page and cannot pull it.
+        $this->middleware(['permission:export product-availability'])
+            ->only('exportAvailability');
     }
 
     public function index(Request $request)
@@ -354,13 +380,7 @@ class ProductController extends Controller
         if ($request->operators == null) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ],
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -377,25 +397,41 @@ class ProductController extends Controller
         // that isn't an in-page filter search (searched=1) or the Unread view
         // (unread=1). See NoteNotificationService.
         $authUser = auth()->user();
+
+        // Two blocks of this page are internal ops, not stock balance, and each
+        // has its own permission so a product owner can be given the page
+        // without them (2026-09-10 — prod_owner supplies the stock, we plan the
+        // picking). Both are enforced HERE as well as hidden in the Vue: a
+        // supplier outside the company should not receive the figures at all.
+        //
+        //   planning - "Planning" column group (To Pick Qty / Needed by # of VM
+        //              / Capped Qty per Channel) and its Planning Date filter.
+        //   notes    - the Remarks note, its Unread / @Me Mentioned filters and
+        //              the "who last changed this" staff attribution lines.
+        $canSeePlanning = $authUser?->can('read product-availability-planning') ?? false;
+        $canSeeNotes = $authUser?->can('read product-availability-notes') ?? false;
+
         $noteService = app(\App\Services\NoteNotificationService::class);
-        $isUnreadView = $request->boolean('unread');
+        $isUnreadView = $canSeeNotes && $request->boolean('unread');
         // "@Me Mentioned" view — products whose Remarks @-mention this user.
-        $isMentionView = $request->boolean('mentioned');
+        $isMentionView = $canSeeNotes && $request->boolean('mentioned');
         $isPartialReload = $request->hasHeader('X-Inertia-Partial-Data');
-        if ($authUser && ! $request->boolean('searched') && ! $isPartialReload) {
+        // Only stamp "viewed" for someone who actually has the notes: a
+        // read-only supplier arriving here must not consume ops' unread badge.
+        if ($authUser && $canSeeNotes && ! $request->boolean('searched') && ! $isPartialReload) {
             $noteService->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_AVAILABILITY);
         }
-        $availUnreadSince = $authUser
+        $availUnreadSince = ($authUser && $canSeeNotes)
             ? $noteService->unreadSince($authUser, \App\Services\NoteNotificationService::PAGE_AVAILABILITY)
             : null;
-        $availUnreadCount = $authUser
+        $availUnreadCount = ($authUser && $canSeeNotes)
             ? $noteService->productUnreadCount($authUser, $availUnreadSince)
             : 0;
         $availUnreadIds = ($isUnreadView && $authUser)
             ? $noteService->productUnreadIds($authUser, $availUnreadSince)
             : [];
         // Mention badge count + (when in the view) the matching product ids.
-        $availMentionCount = $authUser
+        $availMentionCount = ($authUser && $canSeeNotes)
             ? $noteService->productMentionedCount($authUser)
             : 0;
         $availMentionIds = ($isMentionView && $authUser)
@@ -665,6 +701,33 @@ class ProductController extends Controller
             $products = $this->sortByLastIncoming($products, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN));
         }
 
+        // Strip the two gated blocks from the payload, here at the boundary
+        // rather than earlier: the planning figures cannot just be skipped,
+        // because BlindPlanningService reads needed_qty to attribute a blind
+        // housing's Picked Qty down to its flavours, and Picked Qty is a column
+        // this viewer DOES get. unsetRelation() (not a null) so the resource's
+        // whenLoaded() drops the key entirely.
+        if (! $canSeePlanning || ! $canSeeNotes) {
+            foreach ($products as $product) {
+                if (! $canSeePlanning) {
+                    $product->needed_qty = null;
+                    $product->needed_value = null;
+                    $product->needed_vend_count = null;
+                    $product->max_ops_job_pick_limit = null;
+                    $product->limit_is_created_by_system = null;
+                    $product->unsetRelation('productLimits');
+                }
+
+                if (! $canSeeNotes) {
+                    $product->remarks = null;
+                    $product->remarks_updated_at = null;
+                    $product->is_available_updated_at = null;
+                    $product->unsetRelation('remarksUpdatedBy');
+                    $product->unsetRelation('isAvailableUpdatedBy');
+                }
+            }
+        }
+
         return Inertia::render('Vend/ProductAvailability', [
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
@@ -677,7 +740,12 @@ class ProductController extends Controller
             // Count of products that @-mention the user, for the "@Me Mentioned" button.
             'mentionCount' => $availMentionCount,
             // Same-operator users for the @-mention dropdown in the remarks cell.
-            'mentionableUsers' => $authUser ? $noteService->mentionableUsers($authUser) : [],
+            // Follows the notes permission: a viewer with no Remarks cell has no
+            // dropdown to open, so shipping them a roster of staff names would
+            // be payload they never asked for.
+            'mentionableUsers' => ($authUser && $canSeeNotes)
+                ? $noteService->mentionableUsers($authUser)
+                : [],
         ]);
     }
 
@@ -704,13 +772,7 @@ class ProductController extends Controller
         if ($request->operators == null) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
-                    ],
+                    'operators' => \App\Support\OperatorScope::defaultFilterIds(),
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
