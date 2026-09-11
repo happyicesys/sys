@@ -152,9 +152,20 @@ class CardTerminalBindingService
     /**
      * The terminal is already on the right machine, but the binding starts
      * AFTER a report line that proves it was there earlier. Pull bound_from
-     * back, but only into a window nothing else claims — widening over another
-     * binding would hand the same date two answers, and the matcher would then
-     * resolve a settled report line onto the wrong machine.
+     * back to that date.
+     *
+     * The terminal's own previous binding (the one a move closed on the day
+     * this one opened) normally still covers the gap — that is the binding
+     * the report just proved wrong for those days, so it is shortened to end
+     * on $date, exactly as a fresh move would have closed it. Live 2026-09-12:
+     * TID 23082812 moved 2003 → 2787 from 09-09 by the 09-09 report, then the
+     * 09-08 report proved it was on 2787 from 09-07 and the button refused
+     * forever because 2003's row "already covered" 09-07.
+     *
+     * Widening is refused when it would hand a date two answers the matcher
+     * cannot order: another terminal on the target machine in the gap, or a
+     * previous binding of this terminal that only STARTED inside the gap
+     * (shortening it would invert the range).
      *
      * @return array{moved: bool, note: string}
      */
@@ -163,20 +174,48 @@ class CardTerminalBindingService
         $from = $current->bound_from->toDateString();
         $gapEnd = Carbon::parse($from)->subDay()->toDateString();
 
-        $claimed = CardTerminalBinding::query()
+        $claims = CardTerminalBinding::query()
             ->where('id', '!=', $current->id)
             ->where(fn ($q) => $q->where('terminal_id', $unit->terminal_id)->orWhere('vend_id', $vend->id))
             ->where(fn ($q) => $q->whereNull('bound_from')->orWhere('bound_from', '<=', $gapEnd))
             ->where(fn ($q) => $q->whereNull('bound_until')->orWhere('bound_until', '>=', $date))
-            ->exists();
+            ->orderBy('id')
+            ->get();
 
-        if ($claimed) {
-            return ['moved' => false, 'note' => 'on '.$vend->code.' only from '.$from.', and an earlier binding covers '.$date];
+        $refusal = ['moved' => false, 'note' => 'on '.$vend->code.' only from '.$from.', and an earlier binding covers '.$date];
+
+        // A different terminal on the target machine during the gap — a real
+        // conflict, not a stale row of this terminal's own history.
+        if ($claims->contains(fn (CardTerminalBinding $b) => $b->terminal_id !== $unit->terminal_id)) {
+            return $refusal;
         }
 
-        $current->update(['bound_from' => $date]);
+        // This terminal's own history over the gap: only the single binding
+        // that ran up to $from can be shortened; anything else is ambiguous.
+        $previous = $claims->filter(fn (CardTerminalBinding $b) => $b->terminal_id === $unit->terminal_id);
+        if ($previous->count() > 1) {
+            return $refusal;
+        }
 
-        return ['moved' => true, 'note' => 'back-dated on '.$vend->code.' to '.$date];
+        $previous = $previous->first();
+        if ($previous && $previous->bound_from && $previous->bound_from->toDateString() >= $date) {
+            return $refusal;
+        }
+
+        DB::transaction(function () use ($current, $previous, $date) {
+            $previous?->update(['bound_until' => $date]);
+            $current->update(['bound_from' => $date]);
+        });
+
+        $note = 'back-dated on '.$vend->code.' to '.$date;
+        if ($previous) {
+            // Same fleet-wide lookup as the controller: the old machine may
+            // belong to another operator, and the note must still name it.
+            $previousCode = Vend::withoutGlobalScopes()->whereKey($previous->vend_id)->value('code');
+            $note .= ', closed its stay on '.($previousCode ?? 'machine #'.$previous->vend_id).' at '.$date;
+        }
+
+        return ['moved' => true, 'note' => $note];
     }
 
     /** The terminal currently on this machine, if any. */

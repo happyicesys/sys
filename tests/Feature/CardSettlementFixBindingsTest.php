@@ -251,14 +251,59 @@ class CardSettlementFixBindingsTest extends TestCase
         $this->assertSame('2026-08-10', $current->fresh()->bound_from->toDateString());
     }
 
-    public function test_it_refuses_to_widen_over_a_period_another_binding_already_claims(): void
+    /**
+     * Live 2026-09-12: TID 23082812 was moved 2003 → 2787 from 09-09 by the
+     * 09-09 report; the 09-08 report then proved it was on 2787 from 09-07.
+     * The terminal's OWN previous binding is what covers those days, and it
+     * is the binding the report just proved wrong — so it gets shortened, the
+     * way a fresh move would have closed it.
+     */
+    public function test_back_dating_shortens_the_terminals_own_previous_binding(): void
+    {
+        $wrong = $this->makeVend(2003);
+        $right = $this->makeVend(2787);
+        $this->unit();
+        $previous = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => self::TID,
+            'vend_id' => $wrong->id, 'bound_from' => '2026-09-02', 'bound_until' => '2026-09-09',
+        ]);
+        $current = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => self::TID,
+            'vend_id' => $right->id, 'bound_from' => '2026-09-09',
+        ]);
+
+        $report = $this->report();
+        $this->suspectRow($report, $wrong, 2787, '2026-09-07');
+        $this->suspectRow($report, $wrong, 2787, '2026-09-08');
+
+        $this->actingAs($this->staff())
+            ->post('/card-settlements/'.$report->id.'/fix-bindings')
+            ->assertSessionHas('message', fn ($m) => str_contains($m, 'Moved 1 of 1')
+                && str_contains($m, 'back-dated on 2787 to 2026-09-07')
+                && str_contains($m, 'closed its stay on 2003 at 2026-09-07'));
+
+        $this->assertSame('2026-09-07', $current->fresh()->bound_from->toDateString());
+        $this->assertSame('2026-09-07', $previous->fresh()->bound_until->toDateString());
+        // Still exactly one open binding for the terminal.
+        $this->assertSame(1, CardTerminalBinding::where('terminal_id', self::TID)->whereNull('bound_until')->count());
+        Queue::assertPushed(MatchCardSettlementReport::class);
+    }
+
+    public function test_it_refuses_to_widen_over_a_period_another_terminal_holds_the_target_machine(): void
     {
         $wrong = $this->makeVend(2443);
         $right = $this->makeVend(2518);
         $this->unit();
+        $this->unit('23107352');
         CardTerminalBinding::create([
             'provider' => 'nets', 'terminal_id' => self::TID,
             'vend_id' => $wrong->id, 'bound_from' => '2025-09-26', 'bound_until' => '2026-08-20',
+        ]);
+        // A DIFFERENT terminal sat on the right machine until the move — the
+        // gap has two owners, and the matcher cannot order them.
+        $other = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23107352',
+            'vend_id' => $right->id, 'bound_from' => '2026-08-01', 'bound_until' => '2026-08-20',
         ]);
         $current = CardTerminalBinding::create([
             'provider' => 'nets', 'terminal_id' => self::TID,
@@ -266,7 +311,7 @@ class CardSettlementFixBindingsTest extends TestCase
         ]);
 
         $report = $this->report();
-        $this->suspectRow($report, $wrong, 2518, '2026-08-10'); // inside the closed binding
+        $this->suspectRow($report, $wrong, 2518, '2026-08-10');
         $this->suspectRow($report, $wrong, 2518, '2026-08-11');
 
         $this->actingAs($this->staff())
@@ -274,6 +319,36 @@ class CardSettlementFixBindingsTest extends TestCase
             ->assertSessionHas('message', fn ($m) => str_contains($m, 'an earlier binding covers 2026-08-10'));
 
         $this->assertSame('2026-08-20', $current->fresh()->bound_from->toDateString());
+        $this->assertSame('2026-08-20', $other->fresh()->bound_until->toDateString());
+        Queue::assertNotPushed(MatchCardSettlementReport::class);
+    }
+
+    public function test_it_refuses_to_back_date_past_the_start_of_the_previous_binding(): void
+    {
+        $wrong = $this->makeVend(2443);
+        $right = $this->makeVend(2518);
+        $this->unit();
+        // The previous stay only began on 08-15; shortening it to end 08-10
+        // would invert its range, so this needs a human.
+        $previous = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => self::TID,
+            'vend_id' => $wrong->id, 'bound_from' => '2026-08-15', 'bound_until' => '2026-08-20',
+        ]);
+        $current = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => self::TID,
+            'vend_id' => $right->id, 'bound_from' => '2026-08-20',
+        ]);
+
+        $report = $this->report();
+        $this->suspectRow($report, $wrong, 2518, '2026-08-10');
+        $this->suspectRow($report, $wrong, 2518, '2026-08-11');
+
+        $this->actingAs($this->staff())
+            ->post('/card-settlements/'.$report->id.'/fix-bindings')
+            ->assertSessionHas('message', fn ($m) => str_contains($m, 'an earlier binding covers 2026-08-10'));
+
+        $this->assertSame('2026-08-20', $current->fresh()->bound_from->toDateString());
+        $this->assertSame('2026-08-15', $previous->fresh()->bound_from->toDateString());
         Queue::assertNotPushed(MatchCardSettlementReport::class);
     }
 
