@@ -49,6 +49,23 @@
             </div>
             <div>
                 <label for="text" class="block text-sm font-medium text-gray-700">
+                    Role
+                </label>
+                <MultiSelect
+                    v-model="filters.roles"
+                    :options="roleOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="name"
+                    placeholder="All"
+                    open-direction="bottom"
+                    mode="tags"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
                 Is Active?
                 </label>
                 <MultiSelect
@@ -254,6 +271,7 @@ const filters = ref({
     is_active: '',
   name: '',
   operator_id: '',
+  roles: [],
   uen: '',
   sortKey: '',
   sortBy: true,
@@ -262,6 +280,7 @@ const filters = ref({
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const operatorOptions = ref([])
+const roleOptions = props.roles.data
 const showFormModal = ref(false)
 const user = ref()
 const type = ref('')
@@ -343,6 +362,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_active: filters.value.is_active.id,
       operator_id: filters.value.operator_id.id,
+      roles: filters.value.roles.map((role) => role.id),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

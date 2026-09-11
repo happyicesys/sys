@@ -74,6 +74,9 @@ class UserController extends Controller
                         $query->where('operator_id', $search);
                     }
                 })
+                ->when(array_filter((array) $request->roles), function($query, $roleIds) {
+                    $query->whereHas('roles', fn ($q) => $q->whereIn('roles.id', $roleIds));
+                })
                 ->when($request->sortKey, function($query, $search) use ($request) {
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                 })
