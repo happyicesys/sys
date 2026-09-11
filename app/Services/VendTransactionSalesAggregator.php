@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Scopes\OperatorTransactionFilterScope;
+use App\Models\Scopes\OperatorUserTransactionFilterScope;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Support\DispenseVerdict;
@@ -114,12 +117,35 @@ class VendTransactionSalesAggregator
      * customers tried to buy. Keeping both numbers on one definition is the whole
      * point — "Y'day sold" is meant to be read against "average last 7 days".
      *
+     * Same POPULATION too, which is why the viewer's machine list (users.vends)
+     * is dropped here. The 7-day average is written by a job with nobody logged
+     * in, so it counts every machine; with the machine list left on, a product
+     * owner restricted to one machine read "Y'day 2" under an average of 484
+     * (prod, U-12, 2026-09-10).
+     *
+     * The machine list lives in TWO scopes: OperatorUserTransactionFilterScope,
+     * and OperatorTransactionFilterScope, which mixes it with the operator
+     * boundary. Both are removed and the operator boundary is put straight back
+     * through OperatorVendFilterScope::viewerOperatorId() — the one definition
+     * of that rule, and exactly what the removed scope enforced (HIPL sees every
+     * operator, anyone else only their own). The product allow-list and the
+     * transaction-access date are untouched.
+     *
      * @return \Illuminate\Support\Collection product_id => total_count
      */
     public static function productDayCounts(Carbon $date)
     {
-        return self::productTotals($date->copy()->startOfDay(), $date->copy()->endOfDay(), null, true)
-            ->pluck('total_count', 'product_id');
+        return self::productTotals(
+            $date->copy()->startOfDay(),
+            $date->copy()->endOfDay(),
+            fn (EloquentBuilder $query) => $query
+                ->withoutGlobalScopes([OperatorUserTransactionFilterScope::class, OperatorTransactionFilterScope::class])
+                ->when(
+                    OperatorVendFilterScope::viewerOperatorId(),
+                    fn (EloquentBuilder $q, int $operatorId) => $q->where('vend_transactions.operator_id', $operatorId)
+                ),
+            true
+        )->pluck('total_count', 'product_id');
     }
 
     /**

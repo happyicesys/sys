@@ -148,7 +148,7 @@
                                             </div>
                                             <span class="font-normal text-gray-600">(average last 7days)</span>
                                             <br>
-                                            <span class="font-semibold text-red-600">Y'day sold</span>
+                                            <span class="font-semibold text-gray-900">Y'day sold</span>
                                         </th>
 
                                         <!-- Last incoming: the ledger's latest incoming movement (adjustments excluded). Sorted by date. -->
@@ -166,7 +166,7 @@
                                             </div>
                                             <span class="font-normal text-gray-600">(Qty, Date)</span>
                                             <br>
-                                            <span class="font-semibold text-red-600">Last 2 incoming</span>
+                                            <span class="font-semibold text-gray-900">Last 2 incoming</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
@@ -242,7 +242,7 @@
                                             {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                           </div>
                                           <!-- Y'day sold: same measure as the 7-day average above it, for yesterday alone. -->
-                                          <div class="text-xs sm:text-sm font-semibold mt-0.5" :class="[product.is_available ? 'text-red-600' : 'text-gray-400']"
+                                          <div class="text-xs sm:text-sm font-semibold mt-0.5" :class="[product.is_available ? 'text-gray-900' : 'text-gray-400']"
                                             v-tooltip="{ content: 'Sold yesterday (' + yesterdayLabel + '), counted the same way as the 7-day average above.' }">
                                             Y'day {{ Number(product.yesterday_sold_count ?? 0).toLocaleString() }}
                                           </div>
