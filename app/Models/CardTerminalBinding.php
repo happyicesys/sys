@@ -19,6 +19,7 @@ class CardTerminalBinding extends Model
         'bound_from',
         'bound_until',
         'remarks',
+        'created_by',
     ];
 
     protected $casts = [
@@ -29,6 +30,22 @@ class CardTerminalBinding extends Model
     public function vend()
     {
         return $this->belongsTo(Vend::class);
+    }
+
+    /**
+     * The person who made this binding, or null when nothing human did — the
+     * Card Settlement auto-match, the importer, any console path. The screens
+     * render that null as "sys".
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** "sys" unless a person changed the terminal on the machine's Setting/Edit. */
+    public function boundByLabel(): string
+    {
+        return $this->creator?->name ?: 'sys';
     }
 
     /**

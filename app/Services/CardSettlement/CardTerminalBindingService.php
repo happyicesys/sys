@@ -34,9 +34,13 @@ class CardTerminalBindingService
      * Make `$unit` the machine's current terminal (or clear it when null).
      *
      * @param  string|null  $boundFrom  Y-m-d; blank/null = today.
+     * @param  int|null  $createdBy  the person fitting it on Setting/Edit; null
+     *                               for every unattended path (the settlement
+     *                               page's auto-match, the importer), which the
+     *                               screens show as "sys".
      * @return bool whether anything changed
      */
-    public function assignToVend(Vend $vend, ?CardTerminalUnit $unit, ?string $boundFrom = null): bool
+    public function assignToVend(Vend $vend, ?CardTerminalUnit $unit, ?string $boundFrom = null, ?int $createdBy = null): bool
     {
         $date = $this->resolveDate($boundFrom);
 
@@ -50,7 +54,7 @@ class CardTerminalBindingService
 
         $this->guardBackdating($currentOnVend, $date);
 
-        return DB::transaction(function () use ($vend, $unit, $date, $currentOnVend) {
+        return DB::transaction(function () use ($vend, $unit, $date, $currentOnVend, $createdBy) {
             foreach ($currentOnVend as $binding) {
                 $binding->update(['bound_until' => $date]);
             }
@@ -76,6 +80,7 @@ class CardTerminalBindingService
                 'bound_from' => $date,
                 'bound_until' => null,
                 'remarks' => null,
+                'created_by' => $createdBy,
             ]);
 
             return true;

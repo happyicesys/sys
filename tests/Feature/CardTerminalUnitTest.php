@@ -235,6 +235,136 @@ class CardTerminalUnitTest extends TestCase
         $this->assertCount(3, $this->listed(['is_bound' => 'all']));
     }
 
+    // ------------------------------------------------- batch + site display --
+
+    public function test_batch_filter_matches_a_batch_substring(): void
+    {
+        CardTerminalUnit::create(['terminal_id' => 'BAT00001', 'card_terminal_id' => $this->nets->id, 'batch' => 'Nets #3 (50x)']);
+        CardTerminalUnit::create(['terminal_id' => 'BAT00002', 'card_terminal_id' => $this->auresys->id, 'batch' => 'Auresys #2 (15x)']);
+        CardTerminalUnit::create(['terminal_id' => 'BAT00003', 'card_terminal_id' => $this->auresys->id, 'batch' => 'Auresys #1']);
+        // A terminal with no batch must never answer a batch search.
+        CardTerminalUnit::create(['terminal_id' => 'BAT00004', 'card_terminal_id' => $this->nets->id]);
+
+        $this->actingAs($this->staff(['read card-terminals']));
+
+        // Substring, so the whole Auresys series comes back from one word —
+        // the reason this is a text box and not a picker.
+        $this->assertSame(['BAT00002', 'BAT00003'], $this->listed(['batch' => 'auresys']));
+        $this->assertSame(['BAT00001'], $this->listed(['batch' => '#3']));
+        $this->assertCount(4, $this->listed(['batch' => '']));
+    }
+
+    public function test_batch_filter_reaches_the_export_too(): void
+    {
+        CardTerminalUnit::create(['terminal_id' => 'BXP00001', 'card_terminal_id' => $this->nets->id, 'batch' => 'Nets #5 (80x)']);
+        CardTerminalUnit::create(['terminal_id' => 'BXP00002', 'card_terminal_id' => $this->auresys->id, 'batch' => 'Auresys #1']);
+
+        $this->actingAs($this->staff(['read card-terminals', 'export card-terminals']));
+
+        $this->assertSame(
+            ['BXP00002'],
+            collect($this->exportSheet(['batch' => 'Auresys']))->pluck('Terminal ID')->all()
+        );
+    }
+
+    public function test_machine_id_column_carries_the_site_id_and_name(): void
+    {
+        // vends.name is empty across the fleet, so the site under the machine is
+        // the only thing in that cell that says WHERE the terminal is.
+        $vend = $this->makeVend(7055);
+        CardTerminalUnit::create(['terminal_id' => 'SITE0001', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => 'SITE0001',
+            'vend_id' => $vend->id, 'bound_from' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->actingAs($this->staff(['read card-terminals']))
+            ->get('/card-terminal-units')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('cardTerminalUnits.data.0.current_vend_code', $vend->code)
+                // The displayed Site ID, not the raw customers.id.
+                ->where('cardTerminalUnits.data.0.current_site_ref_id', $vend->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT)
+                ->where('cardTerminalUnits.data.0.current_site_name', 'Site 7055')
+                // …and when the binding was recorded, for the line under it.
+                ->where('cardTerminalUnits.data.0.bound_at', fn ($v) => $v !== null)
+            );
+    }
+
+    // ------------------------------------------------- Auresys terminal ID --
+
+    public function test_auresys_terminal_id_is_saved_and_listed(): void
+    {
+        $this->actingAs($this->staff(['read card-terminals', 'create card-terminals', 'update card-terminals']))
+            ->post('/card-terminal-units/create', [
+                'terminal_id' => '23113254',
+                'auresys_terminal_id' => '25670011',
+                'card_terminal_id' => $this->auresys->id,
+            ])->assertRedirect();
+
+        $unit = CardTerminalUnit::firstWhere('terminal_id', '23113254');
+        $this->assertSame('25670011', $unit->auresys_terminal_id);
+
+        $this->get('/card-terminal-units')->assertInertia(fn ($page) => $page
+            ->where('cardTerminalUnits.data.0.auresys_terminal_id', '25670011')
+        );
+
+        // Cleared on the form means the unit has none, not an empty string.
+        $this->post('/card-terminal-units/'.$unit->id.'/update', [
+            'terminal_id' => '23113254',
+            'auresys_terminal_id' => '',
+            'card_terminal_id' => $this->auresys->id,
+        ])->assertRedirect();
+        $this->assertNull($unit->fresh()->auresys_terminal_id);
+    }
+
+    public function test_a_non_numeric_auresys_terminal_id_is_refused(): void
+    {
+        $this->actingAs($this->staff(['create card-terminals']))
+            ->post('/card-terminal-units/create', [
+                'terminal_id' => '23113255',
+                'auresys_terminal_id' => 'EZTID: 25670012',
+                'card_terminal_id' => $this->auresys->id,
+            ])->assertSessionHasErrors('auresys_terminal_id');
+
+        $this->assertNull(CardTerminalUnit::firstWhere('terminal_id', '23113255'));
+    }
+
+    public function test_the_seeder_pulls_the_eztid_out_of_remarks(): void
+    {
+        $plain = CardTerminalUnit::create([
+            'terminal_id' => 'SEED0001', 'card_terminal_id' => $this->auresys->id,
+            'remarks' => 'EZTID: 25670011',
+        ]);
+        $loose = CardTerminalUnit::create([
+            'terminal_id' => 'SEED0002', 'card_terminal_id' => $this->auresys->id,
+            'remarks' => 'eztid 25670012 (spare)',
+        ]);
+        $noEz = CardTerminalUnit::create([
+            'terminal_id' => 'SEED0003', 'card_terminal_id' => $this->nets->id,
+            'remarks' => 'faulty reader',
+        ]);
+        // Already answered — a re-run must not overwrite a corrected value.
+        $already = CardTerminalUnit::create([
+            'terminal_id' => 'SEED0004', 'card_terminal_id' => $this->auresys->id,
+            'remarks' => 'EZTID: 25670013', 'auresys_terminal_id' => '99999999',
+        ]);
+
+        $this->seed(\Database\Seeders\CardTerminalAuresysTerminalIdSeeder::class);
+
+        $this->assertSame('25670011', $plain->fresh()->auresys_terminal_id);
+        $this->assertSame('25670012', $loose->fresh()->auresys_terminal_id);
+        $this->assertNull($noEz->fresh()->auresys_terminal_id);
+        $this->assertSame('99999999', $already->fresh()->auresys_terminal_id);
+
+        // The remark is kept: it is the only other copy of the number.
+        $this->assertSame('EZTID: 25670011', $plain->fresh()->remarks);
+
+        // Idempotent.
+        $this->seed(\Database\Seeders\CardTerminalAuresysTerminalIdSeeder::class);
+        $this->assertSame('25670011', $plain->fresh()->auresys_terminal_id);
+    }
+
     public function test_a_binding_to_a_machine_that_no_longer_exists_counts_as_unbound(): void
     {
         // The Machine ID column shows nothing for such a row, so the filter has
@@ -354,7 +484,8 @@ class CardTerminalUnitTest extends TestCase
         $rows = $this->exportSheet();
 
         $this->assertSame(
-            ['Terminal ID', 'Card Terminal Company', 'Machine ID', 'Site', 'Bound From', 'Batch', 'Auto Refund?', 'Remarks'],
+            ['Terminal ID', 'Auresys Terminal ID', 'Card Terminal Company', 'Machine ID', 'Site ID', 'Site',
+                'Bound From', 'Bound At', 'Batch', 'Auto Refund?', 'Remarks'],
             array_keys($rows[0])
         );
 
@@ -362,6 +493,7 @@ class CardTerminalUnitTest extends TestCase
         $this->assertSame('Nets', $bound['Card Terminal Company']);
         $this->assertSame((string) $vend->code, (string) $bound['Machine ID']);
         $this->assertSame('Site 7022', $bound['Site']);
+        $this->assertSame($vend->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT, $bound['Site ID']);
         $this->assertSame('2026-03-04', $bound['Bound From']);
         $this->assertSame('spare', $bound['Remarks']);
         $this->assertSame('Unknown', $bound['Auto Refund?']);
@@ -726,6 +858,122 @@ class CardTerminalUnitTest extends TestCase
                 ->component('Setting/Edit')
                 ->where('cardTerminalBinding.card_terminal_unit_id', $unit->id)
                 ->where('cardTerminalBinding.bound_from', '2026-08-01')
+            );
+    }
+
+    // ----------------------------------------------- who bound it, and when --
+
+    /**
+     * A person fitting the terminal on Setting/Edit owns that binding by name;
+     * everything unattended stays "sys" (Brian, 2026-09-12). bound_at is the
+     * moment the row was RECORDED, which a back-dated bound_from does not tell.
+     */
+    public function test_a_settings_save_stamps_the_person_who_made_the_binding(): void
+    {
+        $vend = $this->makeVend(7020);
+        $unit = CardTerminalUnit::create(['terminal_id' => '23005610', 'card_terminal_id' => $this->nets->id]);
+        $user = $this->staff(['read machine-settings', 'update machine-settings']);
+
+        $this->actingAs($user)
+            ->post('/vends/'.$vend->id.'/update', $this->savePayload($vend, [
+                'card_terminal_unit_id' => $unit->id,
+                'card_terminal_bound_from' => '2026-07-01',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $binding = CardTerminalBinding::firstOrFail();
+        $this->assertSame($user->id, (int) $binding->created_by);
+        $this->assertSame($user->name, $binding->boundByLabel());
+    }
+
+    public function test_a_binding_with_no_person_behind_it_reads_as_sys(): void
+    {
+        $vend = $this->makeVend(7021);
+        $binding = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23005611',
+            'vend_id' => $vend->id, 'bound_from' => '2026-08-01',
+        ]);
+
+        $this->assertNull($binding->created_by);
+        $this->assertSame('sys', $binding->boundByLabel());
+    }
+
+    /** The settlement page's one-click move is the matcher's doing, not a person's. */
+    public function test_a_terminal_moved_by_the_settlement_page_stays_sys(): void
+    {
+        $vend = $this->makeVend(7022);
+        $unit = CardTerminalUnit::create(['terminal_id' => '23005612', 'card_terminal_id' => $this->nets->id]);
+
+        $this->actingAs($this->staff(['read machine-settings', 'update machine-settings']));
+        app(\App\Services\CardSettlement\CardTerminalBindingService::class)
+            ->moveToVend($unit, $vend, '2026-08-05');
+
+        $binding = CardTerminalBinding::where('terminal_id', '23005612')->firstOrFail();
+        $this->assertNull($binding->created_by);
+        $this->assertSame('sys', $binding->boundByLabel());
+    }
+
+    public function test_the_settings_page_shows_when_and_by_whom_plus_the_last_three_bindings(): void
+    {
+        $vend = $this->makeVend(7023);
+        $user = $this->staff(['read machine-settings', 'update machine-settings']);
+
+        // Four bindings on this machine; only the newest three are offered to
+        // the hover, newest first, and the open one is the line on the form.
+        foreach (['23005613' => '2026-05-01', '23005614' => '2026-06-01', '23005615' => '2026-07-01'] as $tid => $from) {
+            CardTerminalBinding::create([
+                'provider' => 'nets', 'terminal_id' => $tid, 'vend_id' => $vend->id,
+                'bound_from' => $from, 'bound_until' => '2026-08-01',
+            ]);
+        }
+        $unit = CardTerminalUnit::create(['terminal_id' => '23005616', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23005616', 'vend_id' => $vend->id,
+            'bound_from' => '2026-08-01', 'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/settings/vend/'.$vend->id.'/update')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Setting/Edit')
+                ->where('cardTerminalBinding.card_terminal_unit_id', $unit->id)
+                ->where('cardTerminalBinding.bound_by', $user->name)
+                ->whereNot('cardTerminalBinding.bound_at', null)
+                ->count('cardTerminalBinding.history', 3)
+                ->where('cardTerminalBinding.history.0.terminal_id', '23005616')
+                ->where('cardTerminalBinding.history.1.terminal_id', '23005615')
+                ->where('cardTerminalBinding.history.2.bound_by', 'sys')
+            );
+    }
+
+    public function test_the_terminal_list_shows_when_and_by_whom_plus_the_last_three_machines(): void
+    {
+        $first = $this->makeVend(7024);
+        $second = $this->makeVend(7025);
+        $unit = CardTerminalUnit::create(['terminal_id' => '23005617', 'card_terminal_id' => $this->nets->id]);
+        $user = $this->staff(['read card-terminals']);
+
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23005617', 'vend_id' => $first->id,
+            'bound_from' => '2026-06-01', 'bound_until' => '2026-08-01',
+        ]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23005617', 'vend_id' => $second->id,
+            'bound_from' => '2026-08-01', 'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/card-terminal-units')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('cardTerminalUnits.data.0.current_vend_code', $second->code)
+                ->where('cardTerminalUnits.data.0.bound_by', $user->name)
+                ->whereNot('cardTerminalUnits.data.0.bound_at', null)
+                ->count('cardTerminalUnits.data.0.binding_history', 2)
+                ->where('cardTerminalUnits.data.0.binding_history.0.vend_code', $second->code)
+                ->where('cardTerminalUnits.data.0.binding_history.1.vend_code', $first->code)
+                ->where('cardTerminalUnits.data.0.binding_history.1.bound_by', 'sys')
             );
     }
 

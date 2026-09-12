@@ -26,6 +26,7 @@ use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendStickerResource;
 use App\Jobs\PublishMqtt;
 use App\Models\CardTerminal;
+use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
 use App\Models\CashlessTerminal;
 use App\Models\Category;
@@ -490,11 +491,32 @@ class SettingController extends Controller
             'cardTerminalBinding' => (function () use ($vend) {
                 $binding = app(CardTerminalBindingService::class)->currentBindingFor($vend);
 
+                // The last three terminals this machine carried, newest first —
+                // the hover behind the "bound … by …" line. bound_at is when the
+                // row was RECORDED; bound_from is the date it covers, and the two
+                // differ whenever a binding is back-dated.
+                $history = CardTerminalBinding::query()
+                    ->where('vend_id', $vend->id)
+                    ->with('creator:id,name')
+                    ->orderByDesc('id')
+                    ->limit(3)
+                    ->get()
+                    ->map(fn (CardTerminalBinding $row) => [
+                        'terminal_id' => $row->terminal_id,
+                        'bound_from' => $row->bound_from?->format('Y-m-d'),
+                        'bound_until' => $row->bound_until?->format('Y-m-d'),
+                        'bound_at' => $row->created_at?->toIso8601String(),
+                        'bound_by' => $row->boundByLabel(),
+                    ]);
+
                 return [
                     'card_terminal_unit_id' => $binding
                         ? CardTerminalUnit::where('terminal_id', $binding->terminal_id)->value('id')
                         : null,
                     'bound_from' => $binding?->bound_from?->format('Y-m-d'),
+                    'bound_at' => $binding?->created_at?->toIso8601String(),
+                    'bound_by' => $binding?->boundByLabel(),
+                    'history' => $history,
                 ];
             })(),
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(

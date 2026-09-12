@@ -466,6 +466,15 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   rematch"), the column does not — they disagree exactly when a binding was
   wrong at the moment of sale. Regression coverage:
   `tests/Feature/VendTransactionTerminalSnapshotTest.php`.
+- **A Nets-Auresys unit has TWO ids.** `card_terminal_units.terminal_id` is the
+  NETS TID — the only one settlement matching, the bindings and the
+  MerchantConnect report ever resolve on. `auresys_terminal_id` (2026-09-12) is
+  Auresys' own EZ terminal ID, the key THEIR report is written against; ops had
+  been typing it into remarks as "EZTID: 25670011" and
+  `CardTerminalAuresysTerminalIdSeeder` backfills it from there (idempotent,
+  never overwrites a set value, keeps the remark). Nullable, not unique, no
+  behaviour hangs off it yet — it exists so an Auresys report can be matched
+  later without parsing free text. Never swap the two.
 - `card-settlement:import-bindings` creates the `card_terminal_units` row
   alongside the binding, or the imported terminal would be invisible in the
   Setting/Edit picker and could never be moved.

@@ -5629,7 +5629,10 @@ class VendController extends Controller
             ]);
         }
 
-        if (! $service->assignToVend($vend, $unit, $request->input('card_terminal_bound_from'))) {
+        // A person is fitting this terminal by hand — stamp them on the binding.
+        // Everything unattended (the Card Settlement auto-match, the importer)
+        // passes no user and shows as "sys".
+        if (! $service->assignToVend($vend, $unit, $request->input('card_terminal_bound_from'), auth()->id())) {
             return;
         }
 

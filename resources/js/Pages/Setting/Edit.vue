@@ -519,7 +519,17 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <FieldAudit :entry="fieldAudit.card_terminal_unit_id" />
+                <!--
+                  Who fitted the terminal now on this machine, and when the
+                  binding was RECORDED (not the date it covers — a back-dated
+                  binding differs). Read off the binding row itself rather than
+                  the vend audit, because the Card Settlement page can move a
+                  terminal without ever touching this form; those show as "sys".
+                  Hover for the machine's last three bindings.
+                -->
+                <p v-if="cardTerminalBinding?.bound_at" class="mt-1 text-xs text-blue-600 italic" :title="bindingHistoryTitle">
+                  bound {{ fmtBoundAt(cardTerminalBinding.bound_at) }} &middot; by {{ cardTerminalBinding.bound_by }}
+                </p>
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_unit_id">
                   {{ form.errors.card_terminal_unit_id }}
                 </div>
@@ -1722,6 +1732,7 @@ import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLe
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
+import moment from 'moment';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
@@ -1804,6 +1815,22 @@ const statusOptions = ref([
 ])
 
 const cardTerminalOptions = ref([])
+
+// "bound <when> by <who>" under the Card Terminal picker, plus the machine's
+// last three bindings on hover. bound_at is when the binding was RECORDED;
+// bound_from (its own field above) is the date it covers.
+const fmtBoundAt = (iso) => (iso ? moment(iso).format('YYMMDD hh:mm a') : '')
+const bindingHistoryTitle = computed(() => {
+  const rows = props.cardTerminalBinding?.history ?? []
+  if (!rows.length) {
+    return ''
+  }
+
+  return 'Last ' + rows.length + ' binding' + (rows.length === 1 ? '' : 's') + ' on this machine:\n'
+    + rows.map((r) => r.terminal_id
+      + ' · ' + (r.bound_from ?? 'open') + ' → ' + (r.bound_until ?? 'open')
+      + ' · recorded ' + fmtBoundAt(r.bound_at) + ' by ' + r.bound_by).join('\n')
+})
 const cardTerminalUnitOptions = ref([])
 const cashlessTerminalOptions = ref([])
 const clawMachineBoardOptions = ref([])

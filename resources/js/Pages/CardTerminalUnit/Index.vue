@@ -76,6 +76,9 @@
             >
             </MultiSelect>
           </div>
+          <SearchInput placeholderStr="Batch" v-model="filters.batch">
+            Batch
+          </SearchInput>
           <SearchInput placeholderStr="Remarks" v-model="filters.remarks">
             Remarks
           </SearchInput>
@@ -181,7 +184,14 @@
                         {{ cardTerminalUnits.meta.from + unitIndex }}
                       </TableData>
                       <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left font-mono">
-                        {{ unit.terminal_id }}
+                        <span class="flex flex-col">
+                          <span>{{ unit.terminal_id }}</span>
+                          <!-- Auresys' own EZ terminal ID, where their report is
+                               keyed; only Nets-Auresys units carry one. -->
+                          <span v-if="unit.auresys_terminal_id" class="text-xs text-gray-500" title="Auresys terminal ID (EZ TID)">
+                            EZ {{ unit.auresys_terminal_id }}
+                          </span>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left">
                         {{ unit.card_terminal_name ?? '-' }}
@@ -198,7 +208,19 @@
                           <a class="text-blue-700 underline" target="_blank" :href="'/settings/vend/' + unit.current_vend_id + '/update'">
                             {{ unit.current_vend_code }}
                           </a>
-                          <span class="text-xs text-gray-500">{{ unit.current_vend_name }}</span>
+                          <!-- The SITE the machine stands at, as "<Site ID> - <name>".
+                               vends.name is empty on the whole fleet, so the site is
+                               what actually tells ops where this terminal is. -->
+                          <span v-if="unit.current_site_ref_id" class="text-xs text-gray-500">
+                            {{ unit.current_site_ref_id }} - {{ unit.current_site_name }}
+                          </span>
+                          <span v-else-if="unit.current_vend_name" class="text-xs text-gray-500">{{ unit.current_vend_name }}</span>
+                          <!-- When this binding was RECORDED and by whom; "sys"
+                               for the settlement auto-match and the importer.
+                               Hover for the terminal's last three machines. -->
+                          <span v-if="unit.bound_at" class="text-xs text-blue-600 italic" :title="bindingHistoryTitle(unit)">
+                            bound {{ fmtBoundAt(unit.bound_at) }} · by {{ unit.bound_by }}
+                          </span>
                         </span>
                         <span v-else class="text-gray-400">Not on a machine</span>
                       </TableData>
@@ -284,6 +306,22 @@ import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3'
 import moment from 'moment'
 
+// "bound <when> by <who>" under the machine, with the terminal's last three
+// machines on hover. bound_at is when the binding was recorded, which is not
+// bound_from whenever a binding was back-dated.
+const fmtBoundAt = (iso) => (iso ? moment(iso).format('YYMMDD hh:mm a') : '')
+function bindingHistoryTitle(unit) {
+  const rows = unit.binding_history ?? []
+  if (!rows.length) {
+    return ''
+  }
+
+  return 'Last ' + rows.length + ' binding' + (rows.length === 1 ? '' : 's') + ' of this terminal:\n'
+    + rows.map((r) => (r.vend_code ?? 'unknown machine')
+      + ' · ' + (r.bound_from ?? 'open') + ' → ' + (r.bound_until ?? 'open')
+      + ' · recorded ' + fmtBoundAt(r.bound_at) + ' by ' + r.bound_by).join('\n')
+}
+
 const props = defineProps({
   cardTerminalUnits: Object,
   cardTerminalOptions: Object,
@@ -296,6 +334,7 @@ const filters = ref({
   vend_code: props.filters?.vend_code ?? '',
   is_bound: null,
   will_auto_refund: null,
+  batch: props.filters?.batch ?? '',
   remarks: props.filters?.remarks ?? '',
   sortKey: props.filters?.sortKey ?? 'terminal_id',
   sortBy: props.filters?.sortBy ?? true,
@@ -411,6 +450,7 @@ function onSearchFilterUpdated() {
 function resetFilters() {
   filters.value.terminal_id = ''
   filters.value.vend_code = ''
+  filters.value.batch = ''
   filters.value.remarks = ''
   filters.value.card_terminal_id = companyFilterOptions.value[0]
   filters.value.is_bound = boundFilterOptions[0]

@@ -7,10 +7,12 @@ use App\Http\Resources\CardTerminalUnitResource;
 use App\Models\CardTerminal;
 use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
+use App\Models\Customer;
 use App\Models\Vend;
 use App\Traits\ExportOptimizationTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -55,14 +57,20 @@ class CardTerminalUnitController extends Controller
                 // Whole fleet by design: a terminal can sit on any machine and
                 // this page is HappyIce-staff only, so vend lookups skip the
                 // operator scoping the way the old bindings page did.
+                // The site under the machine comes along for the Machine ID
+                // cell's "<site ref id> - <site name>" line; unscoped for the
+                // same reason the vend is.
                 'bindings' => fn ($q) => $q->effectiveOn($today)
-                    ->with(['vend' => fn ($qq) => $qq->withoutGlobalScopes()->select('id', 'code', 'name')]),
+                    ->with(['vend' => fn ($qq) => $qq->withoutGlobalScopes()
+                        ->select('id', 'code', 'name', 'customer_id')
+                        ->with(['customer' => fn ($c) => $c->withoutGlobalScopes()->select('id', 'name')])]),
             ]);
 
+        $units = $query->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)->withQueryString();
+        $this->attachBindingHistory($units->getCollection());
+
         return Inertia::render('CardTerminalUnit/Index', [
-            'cardTerminalUnits' => CardTerminalUnitResource::collection(
-                $query->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)->withQueryString()
-            ),
+            'cardTerminalUnits' => CardTerminalUnitResource::collection($units),
             'cardTerminalOptions' => CardTerminalResource::collection(CardTerminal::orderBy('name')->get()),
             'filters' => [
                 'terminal_id' => $request->input('terminal_id', ''),
@@ -70,11 +78,54 @@ class CardTerminalUnitController extends Controller
                 'vend_code' => $request->input('vend_code', ''),
                 'is_bound' => $request->input('is_bound', 'all'),
                 'will_auto_refund' => $request->input('will_auto_refund', 'all'),
+                'batch' => $request->input('batch', ''),
                 'remarks' => $request->input('remarks', ''),
                 'sortKey' => $this->sortKey($request),
                 'sortBy' => $request->sortBy ?? true,
             ],
         ]);
+    }
+
+    /**
+     * The last three machines each listed terminal sat on, newest first, hung
+     * on the model as `binding_history` for CardTerminalUnitResource.
+     *
+     * One extra query for the whole page rather than a per-row limit: a page is
+     * at most a few hundred bindings, and the eager load above is already
+     * narrowed to TODAY's binding, which is the only one the row itself shows.
+     *
+     * @param  \Illuminate\Support\Collection<int, CardTerminalUnit>  $units
+     */
+    private function attachBindingHistory($units): void
+    {
+        $terminalIds = $units->pluck('terminal_id')->filter()->unique();
+        if ($terminalIds->isEmpty()) {
+            return;
+        }
+
+        $byTerminal = CardTerminalBinding::query()
+            ->whereIn('terminal_id', $terminalIds)
+            ->with([
+                'creator:id,name',
+                // Fleet-wide like the rest of this page: a terminal's history
+                // may run through machines of another operator.
+                'vend' => fn ($q) => $q->withoutGlobalScopes()->select('id', 'code'),
+            ])
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('terminal_id');
+
+        foreach ($units as $unit) {
+            $unit->setAttribute('binding_history', ($byTerminal[$unit->terminal_id] ?? collect())
+                ->take(3)
+                ->map(fn (CardTerminalBinding $row) => [
+                    'vend_code' => $row->vend?->code,
+                    'bound_from' => $row->bound_from?->format('Y-m-d'),
+                    'bound_until' => $row->bound_until?->format('Y-m-d'),
+                    'bound_at' => $row->created_at?->toIso8601String(),
+                    'bound_by' => $row->boundByLabel(),
+                ])->values()->all());
+        }
     }
 
     /**
@@ -100,10 +151,16 @@ class CardTerminalUnitController extends Controller
 
                 return [
                     'Terminal ID' => $unit->terminal_id,
+                    'Auresys Terminal ID' => $unit->auresys_terminal_id,
                     'Card Terminal Company' => $companies[$unit->card_terminal_id] ?? null,
                     'Machine ID' => $machine?->vend_code,
+                    // Site ID# as the rest of mark1 shows it, not the raw key.
+                    'Site ID' => $machine?->customer_id ? $machine->customer_id + Customer::RUNNING_NUMBER_INIT : null,
                     'Site' => $machine?->customer_name,
                     'Bound From' => $machine?->bound_from?->format('Y-m-d'),
+                    // When the binding was RECORDED, matching the listing's
+                    // "bound …" line; bound_from above is what it covers.
+                    'Bound At' => $machine?->bound_at ? Carbon::parse($machine->bound_at)->format('ymd h:i a') : null,
                     'Batch' => $unit->batch,
                     'Auto Refund?' => match ($unit->willAutoRefund()) {
                         true => 'Yes',
@@ -235,12 +292,16 @@ class CardTerminalUnitController extends Controller
                     default => $q,
                 };
             })
+            // Free text, like Terminal ID and Remarks: the batch names are
+            // human strings ("Nets #3 (50x)", "Auresys #2 (15x)"), so a
+            // substring search on "auresys" has to pull the whole series.
+            ->when($request->input('batch'), fn ($q, $s) => $q->where('batch', 'like', "%{$s}%"))
             ->when($request->input('remarks'), fn ($q, $s) => $q->where('remarks', 'like', "%{$s}%"));
     }
 
     /**
-     * terminal_id → { vend_code, customer_name, bound_from } for the binding in
-     * force today. Whole fleet, unscoped, same rationale as the listing.
+     * terminal_id → { vend_code, customer_id, customer_name, bound_from,
+     * bound_at } for the binding in force today. Whole fleet, unscoped, same rationale as the listing.
      */
     private function currentMachineByTerminal(string $today)
     {
@@ -252,7 +313,9 @@ class CardTerminalUnitController extends Controller
             ->get([
                 'card_terminal_bindings.terminal_id',
                 'card_terminal_bindings.bound_from',
+                'card_terminal_bindings.created_at AS bound_at',
                 'vends.code AS vend_code',
+                'customers.id AS customer_id',
                 'customers.name AS customer_name',
             ])
             // unique() before keyBy: keyBy would let the LAST row win, while
@@ -296,6 +359,10 @@ class CardTerminalUnitController extends Controller
                 Rule::unique('card_terminal_units', 'terminal_id')->ignore($ignoreId),
             ],
             'card_terminal_id' => ['nullable', 'integer', Rule::exists('card_terminals', 'id')],
+            // Auresys' own EZ terminal ID. Digits only — every one seen is
+            // numeric — but NOT unique: a duplicate has to stay saveable so it
+            // can be corrected on the page.
+            'auresys_terminal_id' => ['nullable', 'string', 'max:32', 'regex:/^\d+$/'],
             'remarks' => ['nullable', 'string', 'max:255'],
             'batch' => ['nullable', 'string', 'max:32'],
             // 'auto' = no override (seed / unknown), 'yes' / 'no' = a manual flag
@@ -307,6 +374,9 @@ class CardTerminalUnitController extends Controller
             'terminal_id' => trim($validated['terminal_id']),
             'card_terminal_id' => $validated['card_terminal_id'] ?? null,
             'remarks' => $validated['remarks'] ?? null,
+            // Blank clears it: a non-Auresys unit has no EZ TID at all, so an
+            // empty box must mean null rather than "".
+            'auresys_terminal_id' => trim((string) ($validated['auresys_terminal_id'] ?? '')) ?: null,
         ];
         if (array_key_exists('batch', $validated)) {
             $attrs['batch'] = $validated['batch'] !== null && $validated['batch'] !== '' ? trim($validated['batch']) : null;

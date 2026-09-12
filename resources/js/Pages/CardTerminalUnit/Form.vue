@@ -42,6 +42,15 @@
               </div>
             </div>
             <div class="sm:col-span-6">
+              <FormInput v-model="form.auresys_terminal_id" :error="form.errors.auresys_terminal_id">
+                Auresys Terminal ID (EZ TID)
+              </FormInput>
+              <div class="text-xs text-gray-500 mt-1">
+                Auresys' own terminal ID, digits only — the key THEIR report is written against.
+                Only Nets-Auresys units have one; settlement still matches on the NETS Terminal ID above.
+              </div>
+            </div>
+            <div class="sm:col-span-6">
               <FormInput v-model="form.batch" :error="form.errors.batch">
                 Batch (hardware batch, e.g. "Nets #3 (50x)")
               </FormInput>
@@ -161,6 +170,7 @@ onMounted(() => {
   form.value = useForm({
     id: unit?.id ?? null,
     terminal_id: unit?.terminal_id ?? '',
+    auresys_terminal_id: unit?.auresys_terminal_id ?? '',
     card_terminal_id: unit?.card_terminal_id
       ? companyOptions.value.find(c => c.id === unit.card_terminal_id) ?? null
       : null,
@@ -178,6 +188,7 @@ function getDefaultForm() {
   return {
     id: null,
     terminal_id: '',
+    auresys_terminal_id: '',
     card_terminal_id: null,
     remarks: '',
     batch: '',

@@ -29,6 +29,10 @@ class CardTerminalUnit extends Model
     protected $fillable = [
         'card_terminal_id',
         'terminal_id',
+        // Auresys' own EZ terminal ID — the key THEIR report is written
+        // against. Only Nets-Auresys units have one; settlement matching still
+        // runs on `terminal_id`, the NETS TID.
+        'auresys_terminal_id',
         'remarks',
         'batch',
         'is_will_auto_refund',
