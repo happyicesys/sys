@@ -99,6 +99,17 @@ class VendTransactionResource extends JsonResource
                     (bool) ($this->is_found_in_transaction ?? false),
                     $this->vend_channel_error_code ?? null
                 ),
+            // "Settlement Date" column: the banking day the acquirer pays this
+            // sale out (T+1 / T+2 from the matched report line's own transaction
+            // date, weekends and SG public holidays skipped) and the gateway it
+            // comes through. All three are null unless a settlement report line
+            // claims this sale AND its card type has a mapped schedule — a rail
+            // mark1 has not been told the terms for (Midtrans, any non-SG
+            // gateway) leaves the cell blank rather than borrowing NETS's.
+            // Populated per-page in VendController::transactionIndex.
+            'settlement_payout_date' => $this->settlement_payout_date ?? null,
+            'settlement_gateway' => $this->settlement_gateway ?? null,
+            'settlement_payout_note' => $this->settlement_payout_note ?? null,
             'payment_method_gateway_id' => isset($this->payment_method_gateway_id) ? (int) $this->payment_method_gateway_id : null,
             'payment_method_code' => isset($this->payment_method_code) ? (int) $this->payment_method_code : null,
             'payment_gateway_log_status' => isset($this->payment_gateway_log_status) ? (int) $this->payment_gateway_log_status : null,

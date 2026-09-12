@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Services\CardSettlement\Payout;
+
+use App\Contracts\CardSettlement\PayoutTermsResolver;
+use App\Support\CardSettlement\SettlementPayout;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+
+/**
+ * "When does this settlement line's money reach the bank, and through which
+ * gateway" — the single entry point for the Settlement Date column.
+ *
+ * Registry (provider → PayoutTermsResolver) plus the banking calendar. Nothing
+ * is stored: the answer is a pure function of the report line's own transaction
+ * date and its card type, so a corrected rule or a newly seeded public holiday
+ * fixes every historical row without a backfill. If a SQL-level filter on the
+ * settlement date is ever wanted, THAT is when a persisted column earns its
+ * migration.
+ *
+ * Returns null — never a guess — when the provider has no resolver or the card
+ * type has no mapped rule. A blank cell is the honest answer for a rail whose
+ * terms mark1 has not been told.
+ */
+class SettlementPayoutResolver
+{
+    public function __construct(protected BankingCalendar $calendar) {}
+
+    public static function resolverFor(string $provider): ?PayoutTermsResolver
+    {
+        $class = config("card_settlement.payout_terms_resolvers.{$provider}");
+
+        return $class ? app($class) : null;
+    }
+
+    public function for(
+        ?string $provider,
+        ?string $product,
+        ?string $cardIssuer,
+        CarbonInterface|string|null $transactionDate,
+    ): ?SettlementPayout {
+        if (blank($provider) || blank($transactionDate)) {
+            return null;
+        }
+
+        $terms = static::resolverFor($provider)?->resolve($product, $cardIssuer);
+        if ($terms === null) {
+            return null;
+        }
+
+        // The LINE's transaction date, never the file's cutover date: the NETS
+        // business day cuts over ~22:30, so one file spans two calendar dates
+        // and its late rows settle a day after its early ones.
+        $from = CarbonImmutable::parse($transactionDate)->startOfDay();
+
+        return new SettlementPayout(
+            date: $this->calendar->addBankingDays($from, $terms->termDays),
+            transactionDate: $from,
+            terms: $terms,
+            scheme: $this->scheme($product, $cardIssuer),
+        );
+    }
+
+    protected function scheme(?string $product, ?string $cardIssuer): ?string
+    {
+        $parts = array_values(array_filter([
+            trim((string) $product),
+            trim((string) $cardIssuer),
+        ], fn ($part) => $part !== ''));
+
+        return $parts === [] ? null : implode(' / ', $parts);
+    }
+}

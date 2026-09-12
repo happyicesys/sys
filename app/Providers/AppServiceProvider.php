@@ -29,6 +29,12 @@ class AppServiceProvider extends ServiceProvider
         // One registry per process: the dirty-day set's per-process dedupe and
         // the in-memory store used by tests both live on the instance.
         $this->app->singleton(\App\Services\Sales\DirtyDayRegistry::class);
+
+        // The banking calendar reads the public-holiday table once and keeps it
+        // on the instance; a per-row instance would re-query it for every card
+        // sale on a Sales Transactions page.
+        $this->app->singleton(\App\Services\CardSettlement\Payout\BankingCalendar::class);
+        $this->app->singleton(\App\Services\CardSettlement\Payout\SettlementPayoutResolver::class);
     }
 
     /**

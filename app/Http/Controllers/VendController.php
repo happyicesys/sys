@@ -43,6 +43,7 @@ use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Campaign;
 use App\Models\CampaignItem;
+use App\Models\CardSettlementRow;
 use App\Models\CardTerminal;
 use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
@@ -87,6 +88,7 @@ use App\Models\VendTransaction;
 use App\Models\Zone;
 use App\Services\CampaignWireSerializer;
 use App\Services\CardSettlement\CardTerminalBindingService;
+use App\Services\CardSettlement\Payout\SettlementPayoutResolver;
 use App\Services\CmsService;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
@@ -3919,6 +3921,56 @@ class VendController extends Controller
                 // included, and Auresys is the one the settlement report only
                 // partly covers.
                 $record->card_terminal_company = $unit?->company?->name;
+            }
+        }
+
+        // "Settlement Date" column: the banking day this sale's money reaches
+        // the bank, and the gateway it comes through. Derived, not stored — the
+        // acquirer's schedule is a pure function of the matched report line's
+        // OWN transaction date and its card type (Visa/Mastercard T+2 via DBS
+        // Card Centre; NETS, FlashPay and the cross-border schemes T+1 via COS
+        // or POS), so a corrected rule applies to every historical row at once.
+        //
+        // One bounded query for the page, like the terminal lookup above:
+        // card_settlement_rows.matched_vend_transaction_id is UNIQUE across all
+        // reports ever uploaded, so this is a PK-shaped lookup, and a reversal
+        // line claims no sale (the purchase line keeps the claim) so only
+        // purchase lines can land here.
+        if ($cardRecords->isNotEmpty()) {
+            $payoutResolver = app(SettlementPayoutResolver::class);
+
+            $settlementLines = CardSettlementRow::query()
+                ->join(
+                    'card_settlement_reports',
+                    'card_settlement_reports.id',
+                    '=',
+                    'card_settlement_rows.card_settlement_report_id'
+                )
+                ->whereIn(
+                    'card_settlement_rows.matched_vend_transaction_id',
+                    $cardRecords->pluck('id')->filter()->unique()->all()
+                )
+                ->get([
+                    'card_settlement_rows.matched_vend_transaction_id',
+                    'card_settlement_rows.product',
+                    'card_settlement_rows.card_issuer',
+                    'card_settlement_rows.transaction_date',
+                    'card_settlement_reports.provider',
+                ])
+                ->keyBy('matched_vend_transaction_id');
+
+            foreach ($cardRecords as $record) {
+                $line = $settlementLines->get($record->id);
+                $payout = $line === null ? null : $payoutResolver->for(
+                    $line->provider,
+                    $line->product,
+                    $line->card_issuer,
+                    $line->transaction_date,
+                );
+
+                $record->settlement_payout_date = $payout?->shortDate();
+                $record->settlement_gateway = $payout?->gateway();
+                $record->settlement_payout_note = $payout?->describe();
             }
         }
 

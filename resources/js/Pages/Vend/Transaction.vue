@@ -763,6 +763,9 @@
                             Settle Sync
                         </TableHead>
                         <TableHead>
+                            Settlement Date
+                        </TableHead>
+                        <TableHead>
                             Channels Error
                         </TableHead>
                         <TableHead>
@@ -945,6 +948,27 @@
                             </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <!-- Settlement Date = the banking day the acquirer pays this sale
+                                 out, and the gateway it comes through. Derived from the matched
+                                 settlement report line: T+2 via DBS Card Centre for Visa /
+                                 Mastercard, T+1 via COS or POS for NETS, FlashPay and the
+                                 cross-border schemes, weekends and SG public holidays skipped.
+                                 Blank when no report line claims the sale yet, or when the rail
+                                 has no mapped schedule (gateway rails, non-SG acquirers) — the
+                                 full derivation is in the tooltip. -->
+                            <div v-if="vendTransaction.settlement_payout_date"
+                                class="flex flex-col items-center leading-tight"
+                                :title="vendTransaction.settlement_payout_note">
+                                <span class="text-xs font-medium text-gray-900">
+                                    {{ vendTransaction.settlement_payout_date }}
+                                </span>
+                                <span v-if="vendTransaction.settlement_gateway"
+                                    class="text-[10px] font-semibold text-indigo-600">
+                                    {{ vendTransaction.settlement_gateway }}
+                                </span>
+                            </div>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.vend_channel_error_desc && vendTransaction.vend_channel_error_code != 0 && vendTransaction.vend_channel_error_code != 6">
                                 {{ vendTransaction.vend_channel_error_desc }}
                             </span>
@@ -1089,6 +1113,9 @@
                         <!-- Settle Sync column: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                         </TableData>
+                        <!-- Settlement Date: one payout per sale, so header-level only -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                        </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.vendChannelError && (vendTransactionItem.vendChannelError.code != 0 && vendTransactionItem.vendChannelError.code != 6)">
                                 {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
@@ -1135,7 +1162,7 @@
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
-                        <td colspan="26" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                        <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                             No Results Found
                         </td>
                     </tr>

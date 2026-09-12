@@ -163,6 +163,59 @@ any extra wiring. Dispense Status is the machine's verdict and never changes fro
 recorded on `card_settlement_reports.storage_disk`, and are served only via the authed
 `GET /card-settlements/{id}/download`. Nothing lands in the app's public disk.
 
+## Settlement date — when the money reaches the bank (2026-09-12)
+
+Sales Transactions has a **Settlement Date** column, right after Settle Sync: the banking day the
+acquirer pays that card sale out, with the payment gateway underneath (`260902` / `COS`). The whole
+thing is **derived on read, never stored** — it is arithmetic on the matched report line's own
+transaction date, so a corrected rule or a newly seeded public holiday fixes every historical row at
+once instead of needing a backfill.
+
+NETS payout schedule (Brian's NETS settlement standard, 2026-09-12), in
+`config/card_settlement.php` → `payout_terms.nets`, evaluated top-down, first fit wins:
+
+| Report `Product` | Issuer | Gateway | Term | MDR |
+|---|---|---|---|---|
+| `Scheme Credit/Debit` | VISA / MasterCard | DBS CARD CENTER | T+2 | 2.5%, after deduct MDR bank in |
+| `EFTPOS` | any (DBS Card / DBS PayLah / OCBC / UOB Mighty / HSBC / Maybank / SC / Unknown) | COS | T+1 | 0.8%, full back in |
+| `FLASHPAY` | NETS FlashPay | COS | T+1 | 0.8% |
+| `CROSS BORDER` | WeChat Pay | POS | T+1 | 0.8% |
+| `CROSS BORDER` | UnionPay / BHIM / Alipay+ / PayNet / RINTIS / JALIN / ARTAJASA | COS | T+1 | 1.8% |
+| (EZ-LINK) | — | AURESYS | T+2 | 2% + GST |
+
+Checked against every card type in the live reports (98,000 lines, 31 Jul – 9 Sep 2026): **0
+unmapped purchase lines**. Two of those rows are not from Brian's table and were his call on
+2026-09-12 — FlashPay placed on the NETS schedule, and Alipay+ / the ASEAN QR schemes grouped with
+UnionPay+BHIM at 1.8%; revisit if a NETS statement ever shows them settling elsewhere. **EZ-Link has
+never appeared as a line in a MerchantConnect file** (its TIDs are not NETS TIDs) — the rule records
+the term, it does not fire. `EFTPOS / DBS Settlement` is Logon-only, so it never reaches the column.
+
+- **T+N counts BANKING days.** Weekends and Singapore public holidays (`holiday_days.is_public`) are
+  skipped and a term landing on a closed day rolls forward: Friday 4 Sep T+1 → Monday 7 Sep; Friday
+  7 Aug T+1 → Tuesday 11 Aug, past the National Day pair. School holidays are not bank holidays.
+  `holiday_days` is populated 2020–2027; beyond that the calendar degrades to weekends only.
+- **The LINE's transaction date drives it, not the file's cutover date** — the NETS business day cuts
+  over ~22:30, so one file spans two calendar dates and its late rows settle a day after its early
+  ones.
+- **A rail with no mapped schedule shows nothing.** No resolver for the provider (Midtrans, any
+  non-Singapore gateway) or no rule for the card type ⇒ blank cell, never a borrowed date. Same for a
+  card sale no report line has claimed yet.
+- The column does not wait for Sync: the line existing is what says the acquirer has the money.
+  Settle Sync remains the separate "we have stamped it" fact.
+
+| Piece | Where |
+|---|---|
+| Schedule contract | `App\Contracts\CardSettlement\PayoutTermsResolver` (sibling of `SettlementReportParser` — the parser says what a line is, this says how it gets paid) |
+| Config-table base + NETS | `Services/CardSettlement/Payout/{ConfigPayoutTermsResolver,NetsPayoutTermsResolver}` — another acquirer is a 3-line subclass plus a `payout_terms.<key>` block |
+| Banking days | `Services/CardSettlement/Payout/BankingCalendar` (singleton; loads `holiday_days` once per request) |
+| Entry point | `Services/CardSettlement/Payout/SettlementPayoutResolver` → `App\Support\CardSettlement\SettlementPayout` (`shortDate()`, `gateway()`, `describe()` = the tooltip) |
+| Grid | one bounded per-page lookup in `VendController::transactionIndex` (`matched_vend_transaction_id` is UNIQUE, so PK-shaped), three fields on `VendTransactionResource`, column in `Pages/Vend/Transaction.vue` |
+| Tests | `tests/Unit/NetsPayoutTermsResolverTest.php`, `tests/Feature/CardSettlementPayoutDateTest.php` |
+
+Not done, deliberately: the CSV export has no Settle Sync column either, so it got no Settlement Date
+column; and there is no SQL-level filter on the settlement date — **that** is the day a persisted
+column on `card_settlement_rows` earns its migration, not before.
+
 ## Semantics / invariants
 
 - `card_settlement_synced_at` means "confirmed by an uploaded acquirer settlement report". It is
