@@ -128,7 +128,7 @@ class CardSettlementController extends Controller
             ->with('message', 'Report uploaded — matching runs in the background, refresh in a moment.');
     }
 
-    public function show(Request $request, $id)
+    public function show(Request $request, $id, CardSettlementOrphanSales $orphans)
     {
         $report = CardSettlementReport::with('attachment', 'uploader:id,name', 'syncer:id,name')->findOrFail($id);
 
@@ -196,6 +196,20 @@ class CardSettlementController extends Controller
             'transaction_time' => $r->transaction_time,
         ] : null;
 
+        // Work the Sync button still has to do: matched lines whose sale is not
+        // stamped yet, plus unmatched lines a Sync would turn into orphan sales.
+        // Zero on a synced report means the button has nothing left to stamp, so
+        // the page hides it instead of offering a no-op.
+        $pendingSync = $report->rows()
+            ->where('status', CardSettlementRow::STATUS_MATCHED)
+            ->whereNotNull('matched_vend_transaction_id')
+            ->whereExists(fn ($q) => $q->selectRaw('1')
+                ->from('vend_transactions')
+                ->whereColumn('vend_transactions.id', 'card_settlement_rows.matched_vend_transaction_id')
+                ->whereNull('vend_transactions.card_settlement_synced_at'))
+            ->count()
+            + $orphans->candidates($report)->count();
+
         $suspectBindings = $this->suspectBindings($report);
 
         // Terminals in this report with no binding — the one-time setup the
@@ -221,6 +235,7 @@ class CardSettlementController extends Controller
                 'duplicate_count' => $report->duplicate_count,
                 'ignored_count' => $report->ignored_count,
                 'synced_count' => $report->synced_count,
+                'pending_sync_count' => $pendingSync,
                 'refunded_count' => $report->refunded_count,
                 'error_message' => $report->error_message,
                 'uploaded_by' => $report->uploader?->name,

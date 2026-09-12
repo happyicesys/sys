@@ -41,7 +41,11 @@
               Rematch
             </span>
           </Button>
+          <!-- Hidden once the report is synced and nothing is left to stamp; a
+               Rematch (or a line resolved by hand) puts work back and brings it
+               straight back. The "Synced" summary tile still shows the outcome. -->
           <Button
+            v-if="canSync"
             class="bg-green-500 hover:bg-green-600 px-3 py-2 text-xs text-white flex space-x-1"
             :class="report.status === 'matching' || !report.matched_count ? 'opacity-50 cursor-not-allowed' : ''"
             @click="sync()"
@@ -51,6 +55,14 @@
               Sync {{ report.matched_count }} Matched
             </span>
           </Button>
+          <span
+            v-else
+            class="inline-flex items-center gap-1 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700"
+            :title="'Synced ' + (report.synced_at || '') + (report.synced_by ? ' by ' + report.synced_by : '')"
+          >
+            <CheckCircleIcon class="w-4 h-4 text-green-500"></CheckCircleIcon>
+            <span>Synced</span>
+          </span>
           <Button
             v-if="report.status !== 'synced'"
             class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
@@ -603,6 +615,12 @@ function rowStatusBadgeClass(status) {
 // and the tile must follow the refreshed counts without a hard reload.
 const queriesCount = computed(() => props.report.unmatched_count + props.report.ambiguous_count)
 
+// The Sync button only earns its place while a Sync would still do something:
+// a report that is synced with nothing left to stamp shows a plain badge instead.
+const canSync = computed(() =>
+  props.report.status !== 'synced' || props.report.pending_sync_count > 0
+)
+
 function pickStatus(key) {
   rowStatus.value = key
   router.get('/card-settlements/' + props.report.id, { row_status: key }, { preserveState: true, preserveScroll: true, replace: true })
@@ -665,7 +683,7 @@ function fixBindings() {
 }
 
 function sync() {
-  if (props.report.status === 'matching' || !props.report.matched_count) return
+  if (!canSync.value || props.report.status === 'matching' || !props.report.matched_count) return
   const approval = confirm('Stamp "settlement synced" onto ' + props.report.matched_count + ' matched transaction(s)?');
   if (!approval) {
       return;
