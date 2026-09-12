@@ -452,6 +452,20 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   on the same NETS MerchantConnect report, and all 312 pre-2026-09-05 rows carry
   `'nets'`. A company with no entry gets a slug of its own name, which matches
   no report on purpose: better unreconciled than mis-assigned to NETS.
+- **`vend_transactions.terminal_id` is a frozen snapshot, not a lookup**
+  (2026-09-12, Brian). Every card-terminal sale records the TID bound to its
+  machine ON ITS OWN DAY at write time (`CardTerminalBinding::terminalIdOn`,
+  newest binding wins on a swap day — the matcher's tie-break); a NETS-report
+  orphan takes the TID straight off the report line. A later rebind never
+  rewrites it, so it is the sibling of `cashless_mfg`. Null on cash and QR
+  sales, on a card sale with no binding that day, and on every row written
+  before the column existed (no backfill — the binding history can derive
+  one, but that is the live view, not what mark1 knew at the time). The
+  Sales / Refund grids still derive `card_terminal_unit_id` from the binding
+  history per page: that view FOLLOWS a binding repair ("Move N terminals &
+  rematch"), the column does not — they disagree exactly when a binding was
+  wrong at the moment of sale. Regression coverage:
+  `tests/Feature/VendTransactionTerminalSnapshotTest.php`.
 - `card-settlement:import-bindings` creates the `card_terminal_units` row
   alongside the binding, or the imported terminal would be invisible in the
   Setting/Edit picker and could never be moved.

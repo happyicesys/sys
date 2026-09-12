@@ -90,6 +90,7 @@ class VendTransaction extends Model
         'transaction_datetime',
         'amount',
         'cashless_mfg',
+        'terminal_id',
         'is_zero_amount',
         'gross_profit',
         'gross_profit_margin',
@@ -173,6 +174,18 @@ class VendTransaction extends Model
     public function paymentMethod()
     {
         return $this->belongsTo(PaymentMethod::class);
+    }
+
+    /**
+     * The physical card terminal that took this sale's money, via the TID
+     * frozen on the row at write time (`terminal_id`). Null on cash / gateway
+     * sales, on card sales that had no binding that day, and on every row
+     * written before 2026-09-12. History: this never follows a rebind — the
+     * Sales grid's day-of-sale binding lookup is the live view.
+     */
+    public function cardTerminalUnit()
+    {
+        return $this->belongsTo(CardTerminalUnit::class, 'terminal_id', 'terminal_id');
     }
 
     public function product()

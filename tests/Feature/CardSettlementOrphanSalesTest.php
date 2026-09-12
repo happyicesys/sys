@@ -112,6 +112,7 @@ class CardSettlementOrphanSalesTest extends TestCase
         $this->assertSame($this->vend->id, (int) $sale->vend_id);
         $this->assertSame($this->card->id, (int) $sale->payment_method_id);
         $this->assertSame('Nets', $sale->cashless_mfg);
+        $this->assertSame(self::TID, $sale->terminal_id, 'the report line names the terminal outright');
         $this->assertSame(DispenseVerdict::NOT_FOUND_CODE, $sale->vendChannelError->code);
         $this->assertFalse((bool) $sale->is_found_in_transaction);
         $this->assertSame(VendTransaction::SETTLEMENT_SETTLED, (int) $sale->settlement_status);

@@ -2,8 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Models\VendTransaction;
 use App\Jobs\Vend\SyncUnitCostJson;
+use App\Models\CardTerminalBinding;
+use App\Models\VendTransaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,7 +16,9 @@ class SyncBackDateVendTransaction implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
+
     protected $vend;
+
     /**
      * Create a new job instance.
      */
@@ -46,10 +49,21 @@ class SyncBackDateVendTransaction implements ShouldQueue
             $cashlessMfg = $rawMfg !== '' ? $rawMfg : null;
         }
 
+        // The TID bound to this machine on the BACKDATED day, not today —
+        // same freeze as the live TRADE path (VendTransactionService).
+        $terminalId = null;
+        if ((int) ($input['paymentMethodID'] ?? 0) === 2) {
+            $terminalId = CardTerminalBinding::terminalIdOn(
+                (int) $this->vend->id,
+                \Carbon\Carbon::parse($input['date'])->toDateString()
+            );
+        }
+
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $input['date'],
             'amount' => $input['amount'],
             'cashless_mfg' => $cashlessMfg,
+            'terminal_id' => $terminalId,
             'order_id' => $input['orderID'],
             'interface_type' => null,
             'is_multiple' => 0,

@@ -7,6 +7,7 @@ use App\Jobs\SendDataToDcvend;
 use App\Jobs\Vend\DecrementVendDailyStat;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
+use App\Models\CardTerminalBinding;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\PaymentGatewayLog;
@@ -404,11 +405,22 @@ class VendTransactionService
         if ($stamp = $resolved?->metaStamp()) {
             $meta['frame_time'] = $stamp;
         }
+        $transactionAt = $resolved ? $resolved->at : Carbon::parse($input['time']);
+
+        // Sibling snapshot to cashless_mfg: the acquirer TID on this machine
+        // on the sale's day. Bindings are effective-dated and terminals get
+        // moved, so the row keeps the terminal it was actually sold through
+        // after any later rebind. Card-terminal sales only — every other rail
+        // has no terminal — and null when no binding covers that day.
+        $terminalId = ($input['paymentClassification'] ?? null) === 'card'
+            ? CardTerminalBinding::terminalIdOn($vend->id, $transactionAt->toDateString())
+            : null;
 
         $vendTransaction = VendTransaction::create([
-            'transaction_datetime' => $resolved ? $resolved->at : Carbon::parse($input['time']),
+            'transaction_datetime' => $transactionAt,
             'amount' => $input['amount'],
             'cashless_mfg' => $cashlessMfg,
+            'terminal_id' => $terminalId,
             'is_zero_amount' => $input['amount'] == 0,
             'order_id' => $input['orderID'],
             'interface_type' => $input['interfaceType'],
@@ -501,6 +513,14 @@ class VendTransactionService
             'is_payment_received' => $input['isPaymentReceived'],
             'items_json' => $input['children'],
             'payment_method_id' => $input['paymentMethodID'] ?? $transaction->payment_method_id,
+            // A NETS orphan already names its terminal from the report line
+            // (the acquirer's own word, kept); a gateway row has none. Only a
+            // card TRADE landing on a still-blank row resolves it from the
+            // binding in force on the row's day.
+            'terminal_id' => $transaction->terminal_id
+                ?? (($input['paymentClassification'] ?? null) === 'card'
+                    ? CardTerminalBinding::terminalIdOn($vend->id, Carbon::parse($transaction->transaction_datetime)->toDateString())
+                    : null),
             'qty' => $input['qty'],
             'success_qty' => $input['success_qty'],
             'dispensed_qty' => $input['dispensed_qty'],

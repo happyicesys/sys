@@ -31,6 +31,26 @@ class CardTerminalBinding extends Model
         return $this->belongsTo(Vend::class);
     }
 
+    /**
+     * The TID sitting on this machine on `$date` (Y-m-d), or null. Newest
+     * binding wins: a move closes the old row and opens the new one on the
+     * SAME date and effectiveOn() is inclusive at both ends, so on a swap day
+     * the two rows overlap by one day — the same tie-break CardSettlementMatcher
+     * applies. This is what the sale rails freeze into
+     * `vend_transactions.terminal_id` at write time.
+     */
+    public static function terminalIdOn(int $vendId, string $date): ?string
+    {
+        $binding = static::query()
+            ->where('vend_id', $vendId)
+            ->effectiveOn($date)
+            ->orderByRaw('bound_from IS NULL, bound_from DESC')
+            ->orderByDesc('id')
+            ->first(['terminal_id']);
+
+        return $binding?->terminal_id;
+    }
+
     /** Bindings effective on the given date (null bounds = open-ended). */
     public function scopeEffectiveOn(Builder $query, string $date): Builder
     {

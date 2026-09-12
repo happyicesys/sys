@@ -124,6 +124,8 @@ final class PreCreatedSaleFactory
                 'items_json' => [],
                 'payment_method_id' => $paymentMethodId ?? PaymentMethod::query()->where('code', PaymentMethod::CODE_CARD_TERMINAL)->value('id'),
                 'cashless_mfg' => $cashlessMfg,
+                // The report names the terminal outright — no binding lookup.
+                'terminal_id' => $row->terminal_id,
                 'qty' => 1,
                 'success_qty' => 0,
                 'dispensed_qty' => 0,
