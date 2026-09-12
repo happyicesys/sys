@@ -194,9 +194,23 @@ the term, it does not fire. `EFTPOS / DBS Settlement` is Logon-only, so it never
   skipped and a term landing on a closed day rolls forward: Friday 4 Sep T+1 → Monday 7 Sep; Friday
   7 Aug T+1 → Tuesday 11 Aug, past the National Day pair. School holidays are not bank holidays.
   `holiday_days` is populated 2020–2027; beyond that the calendar degrades to weekends only.
-- **The LINE's transaction date drives it, not the file's cutover date** — the NETS business day cuts
-  over ~22:30, so one file spans two calendar dates and its late rows settle a day after its early
-  ones.
+- **The LINE's transaction date drives it** (Brian's instruction, 2026-09-12), not the file's cutover
+  date. There is no alternative in the data: the report HAS a `Business Date` / `Business Time` pair,
+  and it is **empty on all 91,748 rows of the 35 August files** — verified 2026-09-12, so the parser
+  is right to ignore it and the capture date is the only date a line carries.
+- **Two measured caveats on that basis** (both from the raw files, 2026-09-12):
+  1. **10.4 % of purchase lines are batched a day after they were captured** (cutover date −
+     transaction date = 1; 8,417 of 80,824, plus 7 at two days). These are terminals whose batch
+     uploaded late — a file's "previous day" rows span that whole day, not just the post-22:30 tail.
+     If NETS in fact funds from the batch date rather than the capture date, those rows land one
+     banking day later than the column says.
+  2. **41.9 % of purchase lines were captured on a weekend or public holiday** (33,877 of 80,824 —
+     residential machines, weekends are the busy days), which is why
+     `payout_calendar.non_banking_origin` is an explicit setting rather than an accident. Live
+     default `transaction_date`: on T+1 a Friday, Saturday and Sunday sale all land on the Monday.
+     The alternative `next_banking_day` rolls T to the Monday first, putting the weekend a day
+     behind Friday. Both readings agree on every banking-day capture, which is why the NETS standard
+     does not settle it. Pinned both ways in `CardSettlementPayoutDateTest`.
 - **A rail with no mapped schedule shows nothing.** No resolver for the provider (Midtrans, any
   non-Singapore gateway) or no rule for the card type ⇒ blank cell, never a borrowed date. Same for a
   card sale no report line has claimed yet.

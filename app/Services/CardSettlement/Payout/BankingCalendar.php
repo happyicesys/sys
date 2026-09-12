@@ -31,10 +31,21 @@ class BankingCalendar
      * @param  int  $days  N in T+N; 0 still rolls a weekend capture forward to
      *                     the next banking day, which is what "same day" means
      *                     to a bank.
+     *
+     * When the capture itself is on a non-banking day the two readings of "T"
+     * disagree, and 41.9 % of the Aug 2026 purchase lines are such captures —
+     * `payout_calendar.non_banking_origin` says which one is live, and its
+     * comment says why the choice exists. Default 'transaction_date': count
+     * forward from the capture date, so Friday's and the weekend's takings land
+     * together.
      */
     public function addBankingDays(CarbonInterface|string $from, int $days): CarbonImmutable
     {
         $date = CarbonImmutable::parse($from)->startOfDay();
+
+        if (config('card_settlement.payout_calendar.non_banking_origin') === 'next_banking_day') {
+            $date = $this->nextBankingDay($date);
+        }
 
         for ($i = 0; $i < max(0, $days); $i++) {
             $date = $this->nextBankingDay($date->addDay());

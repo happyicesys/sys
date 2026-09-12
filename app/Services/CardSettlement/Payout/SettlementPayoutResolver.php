@@ -6,6 +6,7 @@ use App\Contracts\CardSettlement\PayoutTermsResolver;
 use App\Support\CardSettlement\SettlementPayout;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use InvalidArgumentException;
 
 /**
  * "When does this settlement line's money reach the bank, and through which
@@ -24,13 +25,35 @@ use Carbon\CarbonInterface;
  */
 class SettlementPayoutResolver
 {
+    /** @var array<string,PayoutTermsResolver|null> memo, one entry per provider seen. */
+    protected array $resolvers = [];
+
     public function __construct(protected BankingCalendar $calendar) {}
 
-    public static function resolverFor(string $provider): ?PayoutTermsResolver
+    /**
+     * A page of card sales is one provider repeated, so resolve each provider's
+     * terms resolver once rather than per row.
+     *
+     * A configured class that is not a PayoutTermsResolver is a deploy-time
+     * mistake and throws, like ParserRegistry: silently blanking the column
+     * would hide the misconfiguration behind a plausible-looking empty cell.
+     */
+    public function resolverFor(string $provider): ?PayoutTermsResolver
     {
-        $class = config("card_settlement.payout_terms_resolvers.{$provider}");
+        if (array_key_exists($provider, $this->resolvers)) {
+            return $this->resolvers[$provider];
+        }
 
-        return $class ? app($class) : null;
+        $class = config("card_settlement.payout_terms_resolvers.{$provider}");
+        $resolver = $class ? app($class) : null;
+
+        if ($resolver !== null && ! $resolver instanceof PayoutTermsResolver) {
+            throw new InvalidArgumentException(
+                "Configured payout terms resolver for \"{$provider}\" is not a PayoutTermsResolver."
+            );
+        }
+
+        return $this->resolvers[$provider] = $resolver;
     }
 
     public function for(
@@ -43,7 +66,7 @@ class SettlementPayoutResolver
             return null;
         }
 
-        $terms = static::resolverFor($provider)?->resolve($product, $cardIssuer);
+        $terms = $this->resolverFor($provider)?->resolve($product, $cardIssuer);
         if ($terms === null) {
             return null;
         }

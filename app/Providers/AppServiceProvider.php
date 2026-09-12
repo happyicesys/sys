@@ -32,9 +32,11 @@ class AppServiceProvider extends ServiceProvider
 
         // The banking calendar reads the public-holiday table once and keeps it
         // on the instance; a per-row instance would re-query it for every card
-        // sale on a Sales Transactions page.
-        $this->app->singleton(\App\Services\CardSettlement\Payout\BankingCalendar::class);
-        $this->app->singleton(\App\Services\CardSettlement\Payout\SettlementPayoutResolver::class);
+        // sale on a Sales Transactions page. SCOPED, not singleton: a Horizon
+        // worker lives for days, and a singleton would serve a holiday table
+        // frozen at boot long after the sync added a date to it.
+        $this->app->scoped(\App\Services\CardSettlement\Payout\BankingCalendar::class);
+        $this->app->scoped(\App\Services\CardSettlement\Payout\SettlementPayoutResolver::class);
     }
 
     /**

@@ -107,6 +107,10 @@ class VendTransactionResource extends JsonResource
             // mark1 has not been told the terms for (Midtrans, any non-SG
             // gateway) leaves the cell blank rather than borrowing NETS's.
             // Populated per-page in VendController::transactionIndex.
+            //
+            // Deliberately NOT formatUserDateTime(): this is a bank's calendar
+            // day in Singapore, not an instant to be shown in the viewer's zone.
+            // Re-projecting it into another timezone would move the date.
             'settlement_payout_date' => $this->settlement_payout_date ?? null,
             'settlement_gateway' => $this->settlement_gateway ?? null,
             'settlement_payout_note' => $this->settlement_payout_note ?? null,

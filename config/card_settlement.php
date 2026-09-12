@@ -119,6 +119,28 @@ return [
     'payout_calendar' => [
         'skip_weekends' => true,
         'skip_public_holidays' => true,
+
+        /*
+         * What "T" means when the SALE ITSELF falls on a non-banking day.
+         * This is not a corner case: 41.9 % of the 80,824 purchase lines in the
+         * Aug 2026 files are on a weekend or public holiday (these are
+         * residential machines — weekends are the busy days), so the two
+         * readings below disagree about a large share of the fleet.
+         *
+         *   'transaction_date'  (default) T is the capture date and N banking
+         *                       days are counted forward from it, so on T+1 a
+         *                       Friday, Saturday and Sunday sale all land on
+         *                       the Monday — the weekend's takings arrive
+         *                       together.
+         *   'next_banking_day'  T is first rolled to the next banking day, so a
+         *                       Sat/Sun sale has T = Monday and T+1 lands on
+         *                       the Tuesday, one day behind the Friday's.
+         *
+         * Both readings agree on every sale captured on a banking day, which is
+         * why the NETS standard does not settle it. Flip this key if a DBS
+         * statement ever shows weekend takings arriving a day behind Friday's.
+         */
+        'non_banking_origin' => 'transaction_date',
     ],
 
     /*

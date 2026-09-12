@@ -109,6 +109,43 @@ class CardSettlementPayoutDateTest extends TestCase
         );
     }
 
+    /**
+     * The one genuinely contested rule, and it is not a corner case: 41.9 % of
+     * the Aug 2026 purchase lines were captured on a weekend or public holiday.
+     * Both readings are pinned so the live one is a visible choice, flipped by
+     * `payout_calendar.non_banking_origin` alone if a DBS statement disagrees.
+     */
+    public function test_the_non_banking_origin_setting_decides_where_a_weekend_sale_lands(): void
+    {
+        $friday = '2026-09-04';
+        $saturday = '2026-09-05';
+        $sunday = '2026-09-06';
+
+        // Live default: count forward from the capture date, so the weekend's
+        // takings arrive with Friday's.
+        config(['card_settlement.payout_calendar.non_banking_origin' => 'transaction_date']);
+        $calendar = new BankingCalendar;
+        $this->assertSame('2026-09-07', $calendar->addBankingDays($friday, 1)->toDateString());
+        $this->assertSame('2026-09-07', $calendar->addBankingDays($saturday, 1)->toDateString());
+        $this->assertSame('2026-09-07', $calendar->addBankingDays($sunday, 1)->toDateString());
+
+        // The alternative: roll T to the next banking day first, so a weekend
+        // sale sits one day behind Friday's.
+        config(['card_settlement.payout_calendar.non_banking_origin' => 'next_banking_day']);
+        $calendar = new BankingCalendar;
+        $this->assertSame('2026-09-07', $calendar->addBankingDays($friday, 1)->toDateString());
+        $this->assertSame('2026-09-08', $calendar->addBankingDays($saturday, 1)->toDateString());
+        $this->assertSame('2026-09-08', $calendar->addBankingDays($sunday, 1)->toDateString());
+    }
+
+    public function test_a_misconfigured_resolver_class_fails_loudly_rather_than_blanking_the_column(): void
+    {
+        config(['card_settlement.payout_terms_resolvers.bogus' => \stdClass::class]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(SettlementPayoutResolver::class)->for('bogus', 'EFTPOS', 'DBS Card', '2026-09-01');
+    }
+
     // ---------------------------------------------------------------- resolver
 
     public function test_the_resolver_combines_the_card_type_schedule_with_the_calendar(): void
