@@ -114,8 +114,7 @@
                         (ch.qty === 0 ? 'bg-white border-red-400' : (ch.qty <= 2 ? 'bg-white border-amber-300' : 'bg-white border-gray-200')),
                     ]"
                     :title="ch.off_plan ? `CityBox SKU ${ch.citybox_product_id} — on this shelf, not in CityBox's restock config` : (disabled(ch) ? `Channel ${ch.code} — disabled in CityBox` : `Channel ${ch.code}`)">
-                    <span class="absolute top-1 left-1 rounded text-white text-[10px] font-semibold px-1 leading-4"
-                      :class="ch.off_plan ? 'bg-gray-500/80' : 'bg-gray-800/80'">{{ ch.off_plan ? ch.citybox_product_id : '#' + ch.code }}</span>
+                    <span class="absolute top-1 left-1 rounded bg-gray-800/80 text-white text-[10px] font-semibold px-1 leading-4">{{ ch.off_plan ? '#—' : '#' + ch.code }}</span>
                     <span v-if="disabled(ch)" class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">OFF</span>
                     <span v-else-if="ch.qty === 0" class="absolute top-1 right-1 rounded bg-red-600 text-white text-[10px] font-bold px-1 leading-4">OUT</span>
                     <span v-else-if="ch.qty <= 2" class="absolute top-1 right-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1 leading-4">LOW</span>
@@ -136,8 +135,7 @@
                       </span>
                       <span class="text-xs tabular-nums" :class="disabled(ch) ? 'text-gray-400' : 'text-gray-600'">S${{ (ch.amount_cents / 100).toFixed(2) }}</span>
                     </div>
-                    <span v-if="ch.off_plan" class="mt-1 text-[10px] text-gray-500">not in restock config · not refillable</span>
-                    <span v-else-if="disabled(ch)" class="mt-1 text-[10px] text-gray-500">disabled in CityBox</span>
+                    <span v-if="disabled(ch) && !ch.off_plan" class="mt-1 text-[10px] text-gray-500">disabled in CityBox</span>
                     <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
                   </div>
                 </div>
