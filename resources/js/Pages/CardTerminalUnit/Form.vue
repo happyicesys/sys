@@ -132,16 +132,21 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
-const form = ref(
-  useForm(getDefaultForm())
-)
-const toast = useToast()
-
+// Declared BEFORE `form`: getDefaultForm() reads autoRefundOptions[0], and a
+// `const` is in its temporal dead zone until its line runs. With this below
+// the form, setup() threw a ReferenceError, Vue rendered the component as an
+// empty comment, and Edit / Create on the Card Terminal page silently did
+// nothing (2026-09-12).
 const autoRefundOptions = [
   { id: 'auto', name: 'Auto (workbook / unknown)' },
   { id: 'yes', name: 'Yes — terminal voids failed sales' },
   { id: 'no', name: 'No — customer stays charged' },
 ]
+
+const form = ref(
+  useForm(getDefaultForm())
+)
+const toast = useToast()
 
 const companyOptions = computed(() => ((props.cardTerminalOptions?.data) ?? []).map(company => ({
   id: company.id,
