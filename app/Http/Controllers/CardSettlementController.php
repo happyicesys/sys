@@ -8,6 +8,7 @@ use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\CardTerminalUnit;
 use App\Models\Vend;
+use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Services\CardSettlement\CardSettlementOrphanSales;
 use App\Services\CardSettlement\CardSettlementSyncService;
@@ -143,6 +144,15 @@ class CardSettlementController extends Controller
             ]))
             ->when(is_numeric($status), fn ($q) => $q->where('status', (int) $status))
             ->when($status === 'reversals', fn ($q) => $q->where('is_reversal', true))
+            // Lines whose sale carries channel error 99 — the sales grid shows
+            // them as "Machine transaction not found (NA)". Sync creates most
+            // of them (money in the report, no TRADE), so this is the review
+            // list for what a sync left behind.
+            ->when($status === 'na', fn ($q) => $q->whereExists(fn ($sub) => $sub->selectRaw('1')
+                ->from('vend_transactions')
+                ->whereColumn('vend_transactions.id', 'card_settlement_rows.matched_vend_transaction_id')
+                ->whereIn('vend_transactions.vend_channel_error_id',
+                    VendChannelError::idsForCodes([VendChannelError::CODE_NOT_FOUND]))))
             ->orderBy('terminal_id')
             ->orderBy('transaction_date')
             ->orderBy('transaction_time');

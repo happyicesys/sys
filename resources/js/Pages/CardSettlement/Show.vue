@@ -425,8 +425,9 @@
                         <!-- candidates to pick from (ambiguous / claimed-elsewhere rows) -->
                         <div v-if="(row.status === 3 || row.status === 2) && row.candidates && row.candidates.length" class="space-y-1">
                           <div v-for="c in row.candidates" :key="c.vend_transaction_id" class="flex items-center space-x-1 text-xs">
-                            <!-- A sale another line already holds cannot be picked: it would only bounce.
-                                 Show who holds it — if THAT line is the wrong one, ignore it first. -->
+                            <!-- A sale another line already holds cannot be picked: it would
+                                 only bounce. Show who holds it, so the pair can be checked
+                                 for a double charge. -->
                             <span
                               v-if="c.claimed_by_row"
                               class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-gray-200 text-gray-600"
@@ -454,18 +455,12 @@
                           >
                             Assign
                           </Button>
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800"
-                            @click="ignoreRow(row)"
-                          >
-                            Ignore
-                          </Button>
                         </div>
                       </TableData>
                       </tr>
                 <tr v-if="!rows.data.length">
                   <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      {{ rowStatus === 'queries' ? 'No open queries — everything matched, duplicated or ignored.' : 'No Results Found' }}
+                      {{ rowStatus === 'queries' ? 'No open queries — everything matched or duplicated.' : 'No Results Found' }}
                   </td>
                 </tr>
               </tbody>
@@ -556,6 +551,9 @@ const chips = [
   { key: '3', label: 'Ambiguous' },
   { key: 'reversals', label: 'Reversals' },
   { key: '5', label: 'Duplicates' },
+  // Lines whose sale is channel error 99 — mostly the orphans a Sync created
+  // for money the machine never reported a TRADE for.
+  { key: 'na', label: 'Machine transaction not found (NA)' },
   { key: 'all', label: 'All rows' },
 ]
 
@@ -579,7 +577,7 @@ function rowStatusBadgeClass(status) {
   }[status] || 'bg-gray-100 text-gray-700 border-gray-300'
 }
 
-// computed, not a const: Pick / Assign / Ignore reload props with preserveState,
+// computed, not a const: Pick / Assign reload props with preserveState,
 // and the tile must follow the refreshed counts without a hard reload.
 const queriesCount = computed(() => props.report.unmatched_count + props.report.ambiguous_count)
 
@@ -705,12 +703,5 @@ function resolveManual(row) {
   const id = String(manualTxnId.value[row.id] || '').trim().replace(/^#/, '')
   if (!/^\d{1,20}$/.test(id)) return
   resolveTo(row, id)
-}
-
-function ignoreRow(row) {
-  router.post('/card-settlements/' + props.report.id + '/rows/' + row.id + '/ignore', {}, {
-    preserveScroll: true,
-    onSuccess: () => toast.success("Row ignored", { timeout: 3000 }),
-  })
 }
 </script>
