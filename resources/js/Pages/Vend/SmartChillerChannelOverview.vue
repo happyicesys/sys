@@ -42,10 +42,32 @@
                 <span v-if="data.refreshed === false" class="text-amber-700" :title="data.refresh_error">· live refresh failed — showing last sync</span>
                 <span v-if="data.unmapped_count" class="text-amber-700">· {{ data.unmapped_count }} unmapped SKU{{ data.unmapped_count === 1 ? '' : 's' }}</span>
               </div>
-              <div class="text-xs text-gray-500">
-                CityBox: <span class="font-medium text-gray-700">{{ data.citybox_name || '—' }}</span>
-                <span v-if="data.device_type"> · {{ data.device_type }}</span>
-                · {{ data.vend.equipment_id }}
+              <div class="flex flex-col gap-1 sm:items-end">
+                <!-- Restocking view: a driver only cares about what is still sellable
+                     (and often about one SKU), so let them drop the OUT tiles and
+                     search by code or name. Layer bars keep the true cabinet numbers
+                     either way — only the tile grid is filtered. -->
+                <div class="flex items-center gap-3">
+                  <div class="relative">
+                    <input type="text" v-model="search" placeholder="Code or name…"
+                      title="Filter tiles by product code or product name."
+                      class="w-36 sm:w-40 shadow-sm text-xs py-1 pr-6 border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+                    <button v-if="search" type="button" title="Clear"
+                      class="absolute inset-y-0 right-0 px-1.5 text-gray-400 hover:text-gray-700 leading-none"
+                      @click="search = ''">×</button>
+                  </div>
+                  <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none whitespace-nowrap"
+                    title="Hide channels that are at 0 — show only SKUs with stock left. Layer totals still count the whole layer.">
+                    <input type="checkbox" v-model="inStockOnly"
+                      class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <span>In stock only<span v-if="soldOutCount" class="text-gray-500"> (hides {{ soldOutCount }})</span></span>
+                  </label>
+                </div>
+                <div class="text-xs text-gray-500">
+                  CityBox: <span class="font-medium text-gray-700">{{ data.citybox_name || '—' }}</span>
+                  <span v-if="data.device_type"> · {{ data.device_type }}</span>
+                  · {{ data.vend.equipment_id }}
+                </div>
               </div>
             </div>
 
@@ -55,19 +77,27 @@
                  tile leads with a big thumbnail and a big count so the whole cabinet can be
                  read at a glance. Empty layers collapse to one slim row so all five fit. -->
             <div class="rounded-xl border-2 border-gray-300 bg-white p-2 sm:p-3 space-y-2">
-              <div v-for="layer in data.layers" :key="layer.layer"
+              <div v-for="layer in layers" :key="layer.layer"
                    class="rounded-lg border bg-gray-50"
-                   :class="layer.channels.length ? 'border-gray-200 px-2 py-2 sm:px-3' : 'border-dashed border-gray-200 px-3 py-1.5'">
+                   :class="layer.total_channels ? 'border-gray-200 px-2 py-2 sm:px-3' : 'border-dashed border-gray-200 px-3 py-1.5'">
                 <div class="flex items-center gap-3">
                   <span class="text-sm font-bold text-gray-700 w-16 shrink-0">Layer {{ layer.layer }}</span>
-                  <template v-if="layer.channels.length">
+                  <template v-if="layer.total_channels">
                     <div class="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden" :title="layer.qty + ' of ' + layer.capacity">
                       <div class="h-full rounded-full" :class="barClass(layer.qty, layer.capacity)" :style="{ width: pct(layer.qty, layer.capacity) + '%' }"></div>
                     </div>
                     <span class="text-sm font-semibold tabular-nums shrink-0" :class="layer.qty === 0 ? 'text-red-600' : 'text-gray-800'">{{ layer.qty }} / {{ layer.capacity }}</span>
-                    <span class="text-xs text-gray-500 shrink-0 hidden sm:inline">{{ layer.channels.length }} SKU{{ layer.channels.length === 1 ? '' : 's' }}</span>
+                    <span class="text-xs text-gray-500 shrink-0 hidden sm:inline">
+                      {{ layer.channels.length }}<template v-if="layer.channels.length !== layer.total_channels"> of {{ layer.total_channels }}</template>
+                      SKU{{ layer.total_channels === 1 ? '' : 's' }}
+                    </span>
                   </template>
                   <span v-else class="text-xs text-gray-400 italic">empty</span>
+                </div>
+
+                <div v-if="layer.total_channels && !layer.channels.length" class="mt-2 text-xs text-gray-400 italic">
+                  <template v-if="query">nothing matching “{{ search.trim() }}” here</template>
+                  <template v-else>all {{ layer.total_channels }} SKU{{ layer.total_channels === 1 ? '' : 's' }} sold out</template>
                 </div>
 
                 <div v-if="layer.channels.length" class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -138,6 +168,30 @@ const loading = ref(true)
 const loadError = ref(null)
 const pulling = ref(false)
 const data = ref({ layers: [], vend: {} })
+// Off by default: the popup's first job is to show the cabinet as it stands,
+// OUT tiles included. The toggle is for the restock view.
+const inStockOnly = ref(false)
+const search = ref('')
+const query = computed(() => search.value.trim().toLowerCase())
+
+// Matches what the tile actually shows: the product code, the product name, and
+// the CityBox name a still-unmapped SKU falls back to.
+function matches(ch) {
+  if (!query.value) return true
+  return [ch.product && ch.product.code, ch.product && ch.product.name, ch.citybox_name]
+    .some((v) => v && String(v).toLowerCase().includes(query.value))
+}
+
+const soldOutCount = computed(() => (data.value.layers || [])
+  .reduce((n, layer) => n + layer.channels.filter((ch) => ch.qty <= 0 && matches(ch)).length, 0))
+
+// Layer qty / capacity stay the server's whole-layer figures — the filter only
+// drops tiles, so the bars never lie about how full the cabinet is.
+const layers = computed(() => (data.value.layers || []).map((layer) => ({
+  ...layer,
+  total_channels: layer.channels.length,
+  channels: layer.channels.filter((ch) => (inStockOnly.value ? ch.qty > 0 : true) && matches(ch)),
+})))
 
 async function load() {
   loading.value = true; loadError.value = null
