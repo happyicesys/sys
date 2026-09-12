@@ -436,6 +436,84 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame(4, $peach['qty']);
     }
 
+    /**
+     * Their live stock can report a SKU their Pre-Stock Setup does not carry —
+     * C6005, 2026-09-12: five units sat on an off-sale duplicate SKU. It gets no
+     * channel and no par, so the cabinet totals cannot see it; the overview
+     * lists it separately (greyed) instead of dropping stock that is physically
+     * in the box and still sells.
+     */
+    public function test_planogram_lists_stock_with_no_channel_as_off_planogram_without_touching_the_totals(): void
+    {
+        $product = Product::create(['code' => '90332', 'name' => 'KSF Cup Noodle', 'is_active' => false]);
+        CityboxProduct::create(['citybox_product_id' => 90332, 'name' => 'Cup Noodle', 'product_id' => $product->id, 'img_url' => 'https://cdn/n.png', 'first_seen_at' => now()]);
+        $this->seedPar(); // 3 SKUs on layer 1, par 5 each — 90332 is NOT one of them
+        $this->gw->seedStock('E1', [
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 0, 'layer' => 1, 'price' => '0.11'],
+            ['id' => 90332, 'name' => 'Cup Noodle', 'qty' => 5, 'layer' => 1, 'price' => '0.23'],
+            // Also channel-less, but empty: a stale catalog leftover, not hidden stock.
+            ['id' => 90328, 'name' => 'Snow Crackers', 'qty' => 0, 'layer' => 1, 'price' => '1.80'],
+        ]);
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        $r = $this->actingAs(\App\Models\User::factory()->create())
+            ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        $this->assertCount(3, $r['layers'][0]['channels'], 'their par config still defines the channels');
+        $this->assertSame([1, 15], [$r['total_qty'], $r['total_capacity']], 'cabinet totals stay par truth');
+
+        $this->assertCount(1, $r['off_planogram'], 'the empty channel-less SKU is not listed');
+        $this->assertSame(5, $r['off_planogram_qty']);
+        $off = $r['off_planogram'][0];
+        $this->assertSame(90332, $off['citybox_product_id']);
+        $this->assertSame(5, $off['qty']);
+        $this->assertSame(1, $off['layer']);
+        $this->assertSame(23, $off['amount_cents']);
+        $this->assertSame('https://cdn/90332.png', $off['thumbnail']);
+        $this->assertTrue($off['mapped']);
+        $this->assertSame('KSF Cup Noodle', $off['product']['name']);
+        $this->assertFalse($off['product']['is_active']);
+    }
+
+    /** Every stocked SKU is in their par config: nothing to grey in. */
+    public function test_planogram_reports_no_off_planogram_when_every_sku_has_a_channel(): void
+    {
+        $this->seedPar();
+        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 2, 'layer' => 1, 'price' => '0.10']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        $r = $this->actingAs(\App\Models\User::factory()->create())
+            ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        $this->assertSame([], $r['off_planogram']);
+        $this->assertSame(0, $r['off_planogram_qty']);
+    }
+
+    /**
+     * With no mirrored par config to compare against (cache gone AND the live
+     * pull failed) every SKU would look off-planogram. Claim nothing instead.
+     */
+    public function test_off_planogram_is_empty_when_the_par_config_is_unknown(): void
+    {
+        $this->seedPar();
+        $this->gw->seedStock('E1', [
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 2, 'layer' => 1, 'price' => '0.10'],
+            ['id' => 90332, 'name' => 'Cup Noodle', 'qty' => 5, 'layer' => 1, 'price' => '0.23'],
+        ]);
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        Cache::flush();                  // TTL gone
+        unset($this->gw->devices['E1']); // and the live refresh fails
+
+        $r = $this->actingAs(\App\Models\User::factory()->create())
+            ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        $this->assertFalse($r['refreshed']);
+        $this->assertSame([], $r['off_planogram']);
+    }
+
     public function test_planogram_endpoint_is_403_for_non_chiller(): void
     {
         $vm = Vend::create(['code' => 9501, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1]);

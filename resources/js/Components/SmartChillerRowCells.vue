@@ -58,6 +58,17 @@
           </li>
         </ul>
         <span v-else class="text-xs text-gray-500">No planogram yet — Pull to re-mirror.</span>
+        <!-- In the cabinet, not in their restock config: no channel, no par, not refillable. -->
+        <div v-if="offPlanogram.length" class="border-t border-dashed border-gray-400 pt-1">
+          <span class="text-[10px] text-gray-500 uppercase tracking-wide">Off-planogram · not refillable</span>
+          <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2">
+            <li v-for="sku in offPlanogram" :key="'off-' + sku.id" class="quick-look text-gray-400"
+              :title="'CityBox SKU ' + sku.id + (sku.name ? ' — ' + sku.name : '') + ' · layer ' + (sku.layer || '?') + ' · in the chiller but not in its CityBox restock config'">
+              <span>L{{ sku.layer || '?' }}·{{ sku.id }},</span>
+              <span>{{ sku.qty }}</span>
+            </li>
+          </ul>
+        </div>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
           <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
           <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
@@ -85,6 +96,12 @@
         <div class="flex justify-center border-b border-gray-300 pb-2 mb-2 w-full">
           <span :class="[active ? (stock.inStockPercent <= 40 ? 'text-red-700' : (stock.inStockPercent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']">
             {{ stock.inStockSkus }}/ {{ channels.length }} <br>({{ stock.inStockPercent }}%)
+            <!-- Stock with no channel is in neither ratio above; say so, so the counts
+                 never look like they lost a SKU. -->
+            <span v-if="offPlanogram.length" class="block text-[10px] text-gray-400"
+              :title="offPlanogram.length + ' SKU in the chiller are not in its CityBox restock config, so they have no channel and cannot be refilled'">
+              +{{ offPlanogramQty }} off-plan
+            </span>
           </span>
         </div>
       </div>
@@ -202,6 +219,17 @@
           </li>
         </ul>
         <span v-else class="text-xs text-gray-500">No planogram yet — Pull to re-mirror.</span>
+        <!-- In the cabinet, not in their restock config: no channel, no par, not refillable. -->
+        <div v-if="offPlanogram.length" class="border-t border-dashed border-gray-400 pt-1">
+          <span class="text-[10px] text-gray-500 uppercase tracking-wide">Off-planogram · not refillable</span>
+          <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2">
+            <li v-for="sku in offPlanogram" :key="'off-' + sku.id" class="quick-look text-gray-400"
+              :title="'CityBox SKU ' + sku.id + (sku.name ? ' — ' + sku.name : '') + ' · layer ' + (sku.layer || '?') + ' · in the chiller but not in its CityBox restock config'">
+              <span>L{{ sku.layer || '?' }}·{{ sku.id }},</span>
+              <span>{{ sku.qty }}</span>
+            </li>
+          </ul>
+        </div>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
           <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
           <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
@@ -223,6 +251,12 @@
         </span>
         <span :class="[active ? (stock.inStockPercent <= 40 ? 'text-red-700' : (stock.inStockPercent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']">
           {{ stock.inStockSkus }}/ {{ channels.length }} <br>({{ stock.inStockPercent }}%)
+          <!-- Stock with no channel is in neither ratio above; say so, so the counts
+               never look like they lost a SKU. -->
+          <span v-if="offPlanogram.length" class="block text-[10px] text-gray-400"
+            :title="offPlanogram.length + ' SKU in the chiller are not in its CityBox restock config, so they have no channel and cannot be refilled'">
+            +{{ offPlanogramQty }} off-plan
+          </span>
         </span>
       </div>
     </TableData>
@@ -347,6 +381,9 @@ const machine = computed(() => {
     layersUsed: [...new Set(stock.map(p => Number(p.layer)).filter(n => n > 0))].sort((a, b) => a - b),
     layerCount: 5,
     prices: stock.map(p => ({ id: p.product_id, price: Number(p.price ?? 0), active: Number(p.active_price ?? p.price ?? 0), qty: Number(p.quantity ?? 0) })),
+    // Their live device_product rows, straight from the poll snapshot — the set
+    // the off-planogram list is diffed out of.
+    stockRows: stock.map(p => ({ id: Number(p.product_id), name: p.name || '', qty: Number(p.quantity ?? 0), layer: Number(p.layer ?? 0) })),
     lastOpen: j.last_ops_open && j.last_ops_open.at ? j.last_ops_open : null,
     poll: j.poll && j.poll.at ? j.poll : null,
   }
@@ -359,6 +396,31 @@ const channels = computed(() => {
     .map(c => ({ code: c.code, qty: Number(c.qty ?? 0), capacity: Number(c.capacity ?? 0), amount: Number(c.amount ?? 0), product: c.product || null }))
     .sort((a, b) => Number(a.code) - Number(b.code))
 })
+
+/**
+ * SKUs the chiller reports holding that have NO channel, because CityBox's
+ * restock config does not carry them (C6005, 2026-09-12: five units on an
+ * off-sale duplicate SKU). They cannot be refilled and they are in none of the
+ * qty/capacity figures, so they are listed greyed out rather than dropped —
+ * otherwise that stock simply disappears from the dashboard.
+ *
+ * A CityBox product's mark1 code IS its citybox_product_id, which is how a
+ * channel maps back to a SKU here. If any channel has no product yet (unmapped)
+ * that link is missing, so we claim nothing rather than call a real channel's
+ * SKU off-planogram.
+ */
+const offPlanogram = computed(() => {
+  const rows = machine.value.stockRows
+  if (!rows.length || !channels.value.length) return []
+  if (channels.value.some(c => !c.product || !c.product.code)) return []
+  const onPlan = new Set(channels.value.map(c => String(c.product.code)))
+  // qty > 0 only: a channel-less SKU at 0 is a stale catalog leftover, not
+  // stock the dashboard is hiding. Same rule as the planogram endpoint.
+  return rows
+    .filter(r => r.id && r.qty > 0 && !onPlan.has(String(r.id)))
+    .sort((a, b) => (a.layer - b.layer) || (a.id - b.id))
+})
+const offPlanogramQty = computed(() => offPlanogram.value.reduce((n, r) => n + r.qty, 0))
 
 const stock = computed(() => {
   const qty = channels.value.reduce((s, c) => s + c.qty, 0)

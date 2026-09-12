@@ -47,13 +47,16 @@ class CityboxVendActionController extends Controller
      * vend_channels (qty/capacity/amount) joined to the mirror mapping + CityBox
      * catalog for name/thumbnail.
      *
+     * Plus `off_planogram`: SKUs their live stock reports that their restock
+     * config does not carry, which therefore have no channel (see below).
+     *
      * Opening the overview PULLS CityBox live first (Brian, 2026-09-10) — the
      * same refresh the Pull button runs: device status, their Pre-Stock config
      * (so par/prices/new SKUs land) and live stock. Never fatal: an offline
      * chiller, a disabled integration or an API blip still renders the last
      * synced planogram, with `refreshed:false` so the caption can say so.
      */
-    public function planogram(int $id, CityboxOpenapiSync $sync): \Illuminate\Http\JsonResponse
+    public function planogram(int $id, CityboxOpenapiSync $sync, \App\Services\Citybox\StockPollService $poll): \Illuminate\Http\JsonResponse
     {
         $vend = $this->chillerOr403($id);
 
@@ -102,6 +105,54 @@ class CityboxVendActionController extends Controller
             $layers[$layer]['capacity'] += (int) $ch->capacity;
         }
 
+        // ── Off-planogram: in the cabinet, absent from their Pre-Stock Setup ──
+        // device_product can report a SKU their restock config does not carry
+        // (C6005, 2026-09-12: five units sat on an off-sale duplicate SKU). Such
+        // a SKU gets no channel and no par, so ops cannot refill it — but the
+        // stock is physically inside and still sells, so it is GREYED IN here
+        // instead of hidden. This is also why the cabinet total can read lower
+        // than the device total CityBox itself reports.
+        //
+        // Their par config is the discriminator. When nothing is cached (TTL
+        // gone AND the live pull failed) we claim nothing rather than invent
+        // phantom rows out of every SKU.
+        $parIds = $poll->cachedPlanogramCodes($vend);
+        $offPlanogram = [];
+        if ($parIds !== []) {
+            $snapshot = is_array($status['stock'] ?? null) ? $status['stock'] : [];
+            // Only SKUs actually HOLDING stock. A channel-less SKU at 0 says
+            // nothing to ops — the whole point of the list is stock the cabinet
+            // totals cannot see — and C6005 carries four such empty leftovers.
+            $offRows = array_values(array_filter(
+                $snapshot,
+                fn ($r) => is_array($r)
+                    && (int) ($r['quantity'] ?? 0) > 0
+                    && ! isset($parIds[(int) ($r['product_id'] ?? 0)])
+            ));
+            $offCatalog = \App\Models\CityboxProduct::whereIn('citybox_product_id', array_map(fn ($r) => (int) ($r['product_id'] ?? 0), $offRows))
+                ->with('product:id,code,name,is_active')->get()->keyBy('citybox_product_id');
+
+            foreach ($offRows as $r) {
+                $cbId = (int) ($r['product_id'] ?? 0);
+                $cb = $offCatalog->get($cbId);
+                $layer = isset($r['layer']) && is_numeric($r['layer']) ? (int) $r['layer'] : null;
+                $offPlanogram[] = [
+                    'citybox_product_id' => $cbId,
+                    'layer' => $layer,
+                    'qty' => (int) ($r['quantity'] ?? 0),
+                    'amount_cents' => (int) ($r['active_price'] ?? $r['price'] ?? 0),
+                    'citybox_name' => $r['name'] ?? $cb?->name,
+                    'thumbnail' => $r['thumbnail'] ?? $cb?->img_url,
+                    'product' => $cb?->product ? [
+                        'id' => $cb->product->id, 'code' => $cb->product->code, 'name' => $cb->product->name,
+                        'is_active' => (bool) $cb->product->is_active,
+                    ] : null,
+                    'mapped' => $cb?->product_id !== null,
+                ];
+            }
+            usort($offPlanogram, fn ($a, $b) => [$a['layer'] ?? 99, $a['citybox_product_id']] <=> [$b['layer'] ?? 99, $b['citybox_product_id']]);
+        }
+
         return response()->json([
             'vend' => ['id' => $vend->id, 'code' => $vend->code, 'equipment_id' => $vend->citybox_equipment_id],
             'citybox_name' => $status['name'] ?? null,
@@ -115,6 +166,9 @@ class CityboxVendActionController extends Controller
             'total_qty' => $channels->sum('qty'),
             'total_capacity' => $channels->sum('capacity'),
             'unmapped_count' => $channels->whereNull('product_id')->count(),
+            // Channel totals above stay CityBox's par truth; these ride alongside.
+            'off_planogram' => $offPlanogram,
+            'off_planogram_qty' => array_sum(array_column($offPlanogram, 'qty')),
         ]);
     }
 

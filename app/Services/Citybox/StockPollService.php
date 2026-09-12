@@ -213,6 +213,19 @@ class StockPollService
         return $codes;
     }
 
+    /**
+     * The last mirrored par config, WITHOUT calling CityBox: keys are the
+     * citybox_product_ids their Pre-Stock Setup carries. Empty when nothing has
+     * been mirrored inside the TTL, which callers must read as "unknown", never
+     * as "their config is empty". Populated by refreshPlanogram / planogramCodes.
+     *
+     * @return array<int,array{code:int,par:int,layer:int}>
+     */
+    public function cachedPlanogramCodes(Vend $vend): array
+    {
+        return \Illuminate\Support\Facades\Cache::get($this->planogramKey($vend), []);
+    }
+
     /** @return array<int,array{code:int,par:int,layer:int}> */
     private function planogramCodes(Vend $vend): array
     {

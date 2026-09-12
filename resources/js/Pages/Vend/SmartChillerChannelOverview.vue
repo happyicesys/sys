@@ -41,6 +41,12 @@
                      (offline chiller / API blip) so nobody reads stale numbers as live. -->
                 <span v-if="data.refreshed === false" class="text-amber-700" :title="data.refresh_error">· live refresh failed — showing last sync</span>
                 <span v-if="data.unmapped_count" class="text-amber-700">· {{ data.unmapped_count }} unmapped SKU{{ data.unmapped_count === 1 ? '' : 's' }}</span>
+                <!-- The cabinet total counts channels only, so stock sitting on a SKU their
+                     restock config does not carry would silently go missing from it. Say so. -->
+                <span v-if="offPlanogramAll.length" class="text-gray-500"
+                  title="In the cabinet but not in CityBox's restock config — no channel, no par, ops cannot refill it.">
+                  · +{{ data.off_planogram_qty }} off-planogram
+                </span>
               </div>
               <div class="flex flex-col gap-1 sm:items-end">
                 <!-- Restocking view: a driver only cares about what is still sellable
@@ -136,6 +142,46 @@
               </div>
             </div>
 
+            <!-- Off-planogram SKUs: CityBox's live stock lists them, their Pre-Stock
+                 Setup does not, so they have no channel and no par. Greyed in rather
+                 than hidden (same rule as a disabled SKU, Brian 2026-09-05): the stock
+                 is physically in the cabinet and still sells — ops just cannot refill
+                 it. Kept OUT of the layer bars so those stay CityBox's par truth. -->
+            <div v-if="offPlanogram.length" class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-2 sm:p-3">
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span class="text-sm font-bold text-gray-600">Off-planogram</span>
+                <span class="text-xs text-gray-500">{{ offQtyShown }} unit{{ offQtyShown === 1 ? '' : 's' }} across {{ offPlanogram.length }} SKU{{ offPlanogram.length === 1 ? '' : 's' }} — in the cabinet, not in CityBox's restock config</span>
+                <span class="text-xs text-gray-400">· no channel, no par, not refillable</span>
+              </div>
+
+              <div class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                <div v-for="sku in offPlanogram" :key="'off-' + sku.citybox_product_id"
+                  class="relative rounded-lg border-2 border-dashed border-gray-300 bg-white p-2 flex flex-col min-w-0"
+                  :title="`CityBox SKU ${sku.citybox_product_id} — reported by the chiller, absent from its restock config`">
+                  <span class="absolute top-1 left-1 rounded bg-gray-500/80 text-white text-[10px] font-semibold px-1 leading-4">L{{ sku.layer || '?' }}</span>
+                  <span class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">OFF-PLAN</span>
+                  <div class="w-full h-24 sm:h-28 rounded-md bg-gray-50 flex items-center justify-center overflow-hidden">
+                    <img v-if="sku.thumbnail" :src="sku.thumbnail" loading="lazy" class="w-full h-full object-contain p-1 opacity-50 grayscale" />
+                    <span v-else class="text-3xl text-gray-300">🧃</span>
+                  </div>
+                  <div v-if="sku.product && sku.product.code" class="mt-1.5 text-[11px] font-mono font-semibold truncate text-gray-400" :title="`Product code ${sku.product.code}`">{{ sku.product.code }}</div>
+                  <div class="text-xs sm:text-[13px] font-medium leading-snug line-clamp-2 min-h-[2.5em] text-gray-400"
+                    :class="[sku.product && sku.product.code ? 'mt-0.5' : 'mt-1.5']"
+                    :title="sku.product ? sku.product.name : (sku.citybox_name || '')">
+                    {{ sku.product ? sku.product.name : (sku.citybox_name || 'Unknown SKU') }}
+                  </div>
+                  <div class="mt-auto pt-1 flex items-end justify-between gap-1">
+                    <span class="text-xl sm:text-2xl font-bold tabular-nums leading-none text-gray-400">
+                      {{ sku.qty }}<span class="text-sm font-medium text-gray-400"> / —</span>
+                    </span>
+                    <span class="text-xs tabular-nums text-gray-400">S${{ (sku.amount_cents / 100).toFixed(2) }}</span>
+                  </div>
+                  <span class="mt-1 text-[10px] text-gray-500">not in restock config</span>
+                  <span v-if="!sku.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
+                </div>
+              </div>
+            </div>
+
             <div class="flex justify-end">
               <Button class="bg-sky-700 hover:bg-sky-800 text-white flex items-center justify-center space-x-1 w-full sm:w-auto" :disabled="pulling" @click.prevent="pull">
                 <ArrowPathIcon class="w-4 h-4" :class="pulling ? 'animate-spin' : ''" />
@@ -192,6 +238,20 @@ const layers = computed(() => (data.value.layers || []).map((layer) => ({
   total_channels: layer.channels.length,
   channels: layer.channels.filter((ch) => (inStockOnly.value ? ch.qty > 0 : true) && matches(ch)),
 })))
+
+// Same tile filters as the rack, so a search or the restock view never leaves a
+// stray off-planogram tile behind. The summary strip keeps the TRUE total
+// (off_planogram_qty) — filtering tiles must never look like stock vanished.
+const offPlanogramAll = computed(() => data.value.off_planogram || [])
+const offPlanogram = computed(() => offPlanogramAll.value
+  .filter((sku) => (inStockOnly.value ? sku.qty > 0 : true) && matchesOff(sku)))
+const offQtyShown = computed(() => offPlanogram.value.reduce((n, sku) => n + sku.qty, 0))
+
+function matchesOff(sku) {
+  if (!query.value) return true
+  return [sku.product && sku.product.code, sku.product && sku.product.name, sku.citybox_name, sku.citybox_product_id]
+    .some((v) => v && String(v).toLowerCase().includes(query.value))
+}
 
 async function load() {
   loading.value = true; loadError.value = null
