@@ -107,14 +107,15 @@
                 </div>
 
                 <div v-if="layer.channels.length" class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  <div v-for="ch in layer.channels" :key="ch.code"
+                  <div v-for="ch in layer.channels" :key="ch.code || 'off-' + ch.citybox_product_id"
                     class="relative rounded-lg border-2 p-2 flex flex-col min-w-0"
                     :class="[
                       disabled(ch) ? 'bg-gray-50 border-gray-200 border-dashed' :
                         (ch.qty === 0 ? 'bg-white border-red-400' : (ch.qty <= 2 ? 'bg-white border-amber-300' : 'bg-white border-gray-200')),
                     ]"
-                    :title="disabled(ch) ? `Channel ${ch.code} — disabled in CityBox` : `Channel ${ch.code}`">
-                    <span class="absolute top-1 left-1 rounded bg-gray-800/80 text-white text-[10px] font-semibold px-1 leading-4">#{{ ch.code }}</span>
+                    :title="ch.off_plan ? `CityBox SKU ${ch.citybox_product_id} — on this shelf, not in CityBox's restock config` : (disabled(ch) ? `Channel ${ch.code} — disabled in CityBox` : `Channel ${ch.code}`)">
+                    <span class="absolute top-1 left-1 rounded text-white text-[10px] font-semibold px-1 leading-4"
+                      :class="ch.off_plan ? 'bg-gray-500/80' : 'bg-gray-800/80'">{{ ch.off_plan ? ch.citybox_product_id : '#' + ch.code }}</span>
                     <span v-if="disabled(ch)" class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">OFF</span>
                     <span v-else-if="ch.qty === 0" class="absolute top-1 right-1 rounded bg-red-600 text-white text-[10px] font-bold px-1 leading-4">OUT</span>
                     <span v-else-if="ch.qty <= 2" class="absolute top-1 right-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1 leading-4">LOW</span>
@@ -131,53 +132,14 @@
                     <div class="mt-auto pt-1 flex items-end justify-between gap-1">
                       <span class="text-xl sm:text-2xl font-bold tabular-nums leading-none"
                         :class="disabled(ch) ? 'text-gray-400' : (ch.qty === 0 ? 'text-red-600' : (ch.qty <= 2 ? 'text-amber-600' : 'text-green-700'))">
-                        {{ ch.qty }}<span class="text-sm font-medium text-gray-400"> / {{ ch.capacity }}</span>
+                        {{ ch.qty }}<span class="text-sm font-medium text-gray-400"> / {{ ch.off_plan ? '—' : ch.capacity }}</span>
                       </span>
                       <span class="text-xs tabular-nums" :class="disabled(ch) ? 'text-gray-400' : 'text-gray-600'">S${{ (ch.amount_cents / 100).toFixed(2) }}</span>
                     </div>
-                    <span v-if="disabled(ch)" class="mt-1 text-[10px] text-gray-500">disabled in CityBox</span>
+                    <span v-if="ch.off_plan" class="mt-1 text-[10px] text-gray-500">not in restock config · not refillable</span>
+                    <span v-else-if="disabled(ch)" class="mt-1 text-[10px] text-gray-500">disabled in CityBox</span>
                     <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Off-planogram SKUs: CityBox's live stock lists them, their Pre-Stock
-                 Setup does not, so they have no channel and no par. Greyed in rather
-                 than hidden (same rule as a disabled SKU, Brian 2026-09-05): the stock
-                 is physically in the cabinet and still sells — ops just cannot refill
-                 it. Kept OUT of the layer bars so those stay CityBox's par truth. -->
-            <div v-if="offPlanogram.length" class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-2 sm:p-3">
-              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span class="text-sm font-bold text-gray-600">Off-planogram</span>
-                <span class="text-xs text-gray-500">{{ offQtyShown }} unit{{ offQtyShown === 1 ? '' : 's' }} across {{ offPlanogram.length }} SKU{{ offPlanogram.length === 1 ? '' : 's' }} — in the cabinet, not in CityBox's restock config</span>
-                <span class="text-xs text-gray-400">· no channel, no par, not refillable</span>
-              </div>
-
-              <div class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                <div v-for="sku in offPlanogram" :key="'off-' + sku.citybox_product_id"
-                  class="relative rounded-lg border-2 border-dashed border-gray-300 bg-white p-2 flex flex-col min-w-0"
-                  :title="`CityBox SKU ${sku.citybox_product_id} — reported by the chiller, absent from its restock config`">
-                  <span class="absolute top-1 left-1 rounded bg-gray-500/80 text-white text-[10px] font-semibold px-1 leading-4">L{{ sku.layer || '?' }}</span>
-                  <span class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">OFF-PLAN</span>
-                  <div class="w-full h-24 sm:h-28 rounded-md bg-gray-50 flex items-center justify-center overflow-hidden">
-                    <img v-if="sku.thumbnail" :src="sku.thumbnail" loading="lazy" class="w-full h-full object-contain p-1 opacity-50 grayscale" />
-                    <span v-else class="text-3xl text-gray-300">🧃</span>
-                  </div>
-                  <div v-if="sku.product && sku.product.code" class="mt-1.5 text-[11px] font-mono font-semibold truncate text-gray-400" :title="`Product code ${sku.product.code}`">{{ sku.product.code }}</div>
-                  <div class="text-xs sm:text-[13px] font-medium leading-snug line-clamp-2 min-h-[2.5em] text-gray-400"
-                    :class="[sku.product && sku.product.code ? 'mt-0.5' : 'mt-1.5']"
-                    :title="sku.product ? sku.product.name : (sku.citybox_name || '')">
-                    {{ sku.product ? sku.product.name : (sku.citybox_name || 'Unknown SKU') }}
-                  </div>
-                  <div class="mt-auto pt-1 flex items-end justify-between gap-1">
-                    <span class="text-xl sm:text-2xl font-bold tabular-nums leading-none text-gray-400">
-                      {{ sku.qty }}<span class="text-sm font-medium text-gray-400"> / —</span>
-                    </span>
-                    <span class="text-xs tabular-nums text-gray-400">S${{ (sku.amount_cents / 100).toFixed(2) }}</span>
-                  </div>
-                  <span class="mt-1 text-[10px] text-gray-500">not in restock config</span>
-                  <span v-if="!sku.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
                 </div>
               </div>
             </div>
@@ -224,34 +186,38 @@ const query = computed(() => search.value.trim().toLowerCase())
 // the CityBox name a still-unmapped SKU falls back to.
 function matches(ch) {
   if (!query.value) return true
-  return [ch.product && ch.product.code, ch.product && ch.product.name, ch.citybox_name]
+  return [ch.product && ch.product.code, ch.product && ch.product.name, ch.citybox_name, ch.citybox_product_id]
     .some((v) => v && String(v).toLowerCase().includes(query.value))
 }
 
 const soldOutCount = computed(() => (data.value.layers || [])
   .reduce((n, layer) => n + layer.channels.filter((ch) => ch.qty <= 0 && matches(ch)).length, 0))
 
-// Layer qty / capacity stay the server's whole-layer figures — the filter only
-// drops tiles, so the bars never lie about how full the cabinet is.
-const layers = computed(() => (data.value.layers || []).map((layer) => ({
-  ...layer,
-  total_channels: layer.channels.length,
-  channels: layer.channels.filter((ch) => (inStockOnly.value ? ch.qty > 0 : true) && matches(ch)),
-})))
-
-// Same tile filters as the rack, so a search or the restock view never leaves a
-// stray off-planogram tile behind. The summary strip keeps the TRUE total
-// (off_planogram_qty) — filtering tiles must never look like stock vanished.
-const offPlanogramAll = computed(() => data.value.off_planogram || [])
-const offPlanogram = computed(() => offPlanogramAll.value
-  .filter((sku) => (inStockOnly.value ? sku.qty > 0 : true) && matchesOff(sku)))
-const offQtyShown = computed(() => offPlanogram.value.reduce((n, sku) => n + sku.qty, 0))
-
-function matchesOff(sku) {
-  if (!query.value) return true
-  return [sku.product && sku.product.code, sku.product && sku.product.name, sku.citybox_name, sku.citybox_product_id]
-    .some((v) => v && String(v).toLowerCase().includes(query.value))
+// A SKU their live stock reports but their restock config does not carry has no
+// channel and no par — yet it sits on a real shelf, so it rides in that layer as
+// an ordinary tile, greyed (Brian, 2026-09-12). Everything else about it behaves
+// like any other SKU: same search, same in-stock filter, same layout.
+function offFor(layer) {
+  return (data.value.off_planogram || [])
+    .filter((sku) => Number(sku.layer) === layer)
+    .map((sku) => ({ ...sku, off_plan: true, code: null, capacity: null }))
 }
+
+// Layer qty / capacity stay the server's whole-layer figures — the filter only
+// drops tiles, so the bars never lie about how full the cabinet is. Off-planogram
+// tiles are NOT added to them: they have no par to count against, and the bar is
+// CityBox's par truth.
+const layers = computed(() => (data.value.layers || []).map((layer) => {
+  const all = [...layer.channels, ...offFor(layer.layer)]
+  return {
+    ...layer,
+    total_channels: all.length,
+    channels: all.filter((ch) => (inStockOnly.value ? ch.qty > 0 : true) && matches(ch)),
+  }
+}))
+
+// Summary strip only: the TRUE off-planogram total, never the filtered view.
+const offPlanogramAll = computed(() => data.value.off_planogram || [])
 
 async function load() {
   loading.value = true; loadError.value = null
@@ -277,7 +243,8 @@ function pull() {
 // mark1 product by the per-minute status sync. The channel is GREYED OUT, never
 // removed — Brian, 2026-09-05 — matching how the ops-job channel list dims a
 // product that is not available, so the cabinet still reads as it is stocked.
-function disabled(ch) { return !!(ch.product && ch.product.is_active === false) }
+// …and a SKU with no channel at all: same greyscale, since ops cannot refill it.
+function disabled(ch) { return !!(ch.off_plan || (ch.product && ch.product.is_active === false)) }
 
 function pct(qty, cap) { return cap ? Math.max(0, Math.min(100, Math.round((qty / cap) * 100))) : 0 }
 function barClass(qty, cap) { const p = pct(qty, cap); return qty === 0 ? 'bg-red-500' : (p <= 40 ? 'bg-amber-400' : 'bg-green-500') }

@@ -48,27 +48,21 @@
     <!-- Inventory Status: #Channel, Required, Balance/Capacity · Stock Cost/Value → channels + their prices -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="$emit('overview', vend)" v-tooltip="'View Channel Status'">
-        <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2" v-if="channels.length">
-          <li v-for="(ch, i) in channels" :key="ch.code" class="quick-look" :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'col-start-1' : '']">
-            <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 border-gray-600 pt-1' : '']">
-              <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }}</span>,
-              <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
-              <span :class="[active ? (ch.qty <= 2 && ch.qty > 0 ? 'text-blue-700' : (ch.qty == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
+        <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2" v-if="rows.length">
+          <li v-for="(ch, i) in rows" :key="ch.key" class="quick-look" :class="[i > 0 && ch.layer !== rows[i - 1].layer ? 'col-start-1' : '']">
+            <span :class="[i > 0 && ch.layer !== rows[i - 1].layer ? 'border-t-4 border-gray-600 pt-1' : '']">
+              <!-- Off-planogram: stays on its own layer like any other SKU, greyed,
+                   with no par to fill against (Brian, 2026-09-12). -->
+              <span v-if="ch.off_plan" class="text-gray-400" :title="offTitle(ch)">{{ ch.id }}, —, {{ ch.qty }}/—</span>
+              <template v-else>
+                <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }}</span>,
+                <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
+                <span :class="[active ? (ch.qty <= 2 && ch.qty > 0 ? 'text-blue-700' : (ch.qty == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
+              </template>
             </span>
           </li>
         </ul>
         <span v-else class="text-xs text-gray-500">No planogram yet — Pull to re-mirror.</span>
-        <!-- In the cabinet, not in their restock config: no channel, no par, not refillable. -->
-        <div v-if="offPlanogram.length" class="border-t border-dashed border-gray-400 pt-1">
-          <span class="text-[10px] text-gray-500 uppercase tracking-wide">Off-planogram · not refillable</span>
-          <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2">
-            <li v-for="sku in offPlanogram" :key="'off-' + sku.id" class="quick-look text-gray-400"
-              :title="'CityBox SKU ' + sku.id + (sku.name ? ' — ' + sku.name : '') + ' · layer ' + (sku.layer || '?') + ' · in the chiller but not in its CityBox restock config'">
-              <span>L{{ sku.layer || '?' }}·{{ sku.id }},</span>
-              <span>{{ sku.qty }}</span>
-            </li>
-          </ul>
-        </div>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
           <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
           <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
@@ -209,27 +203,20 @@
     <!-- Inventory Status -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-2">
-        <ul class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" v-if="channels.length" @click="$emit('overview', vend)">
-          <li v-for="(ch, i) in channels" :key="ch.code" class="quick-look" :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'col-start-1' : '']">
-            <span :class="[i > 0 && String(ch.code)[0] !== String(channels[i - 1].code)[0] ? 'border-t-4 border-gray-600 pt-1' : '']">
-              <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }},</span>
-              <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
-              <span :class="[active ? (ch.qty <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
+        <ul class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" v-if="rows.length" @click="$emit('overview', vend)">
+          <li v-for="(ch, i) in rows" :key="ch.key" class="quick-look" :class="[i > 0 && ch.layer !== rows[i - 1].layer ? 'col-start-1' : '']">
+            <span :class="[i > 0 && ch.layer !== rows[i - 1].layer ? 'border-t-4 border-gray-600 pt-1' : '']">
+              <!-- Off-planogram: same layer as any other SKU, greyed, no par. -->
+              <span v-if="ch.off_plan" class="text-gray-400" :title="offTitle(ch)">{{ ch.id }}, —, {{ ch.qty }}/—</span>
+              <template v-else>
+                <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }},</span>
+                <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
+                <span :class="[active ? (ch.qty <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
+              </template>
             </span>
           </li>
         </ul>
         <span v-else class="text-xs text-gray-500">No planogram yet — Pull to re-mirror.</span>
-        <!-- In the cabinet, not in their restock config: no channel, no par, not refillable. -->
-        <div v-if="offPlanogram.length" class="border-t border-dashed border-gray-400 pt-1">
-          <span class="text-[10px] text-gray-500 uppercase tracking-wide">Off-planogram · not refillable</span>
-          <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2">
-            <li v-for="sku in offPlanogram" :key="'off-' + sku.id" class="quick-look text-gray-400"
-              :title="'CityBox SKU ' + sku.id + (sku.name ? ' — ' + sku.name : '') + ' · layer ' + (sku.layer || '?') + ' · in the chiller but not in its CityBox restock config'">
-              <span>L{{ sku.layer || '?' }}·{{ sku.id }},</span>
-              <span>{{ sku.qty }}</span>
-            </li>
-          </ul>
-        </div>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
           <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
           <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
@@ -410,17 +397,36 @@ const channels = computed(() => {
  * SKU off-planogram.
  */
 const offPlanogram = computed(() => {
-  const rows = machine.value.stockRows
-  if (!rows.length || !channels.value.length) return []
+  const stockRows = machine.value.stockRows
+  if (!stockRows.length || !channels.value.length) return []
   if (channels.value.some(c => !c.product || !c.product.code)) return []
   const onPlan = new Set(channels.value.map(c => String(c.product.code)))
   // qty > 0 only: a channel-less SKU at 0 is a stale catalog leftover, not
   // stock the dashboard is hiding. Same rule as the planogram endpoint.
-  return rows
+  return stockRows
     .filter(r => r.id && r.qty > 0 && !onPlan.has(String(r.id)))
     .sort((a, b) => (a.layer - b.layer) || (a.id - b.id))
 })
 const offPlanogramQty = computed(() => offPlanogram.value.reduce((n, r) => n + r.qty, 0))
+
+// What the cell actually lists: every channel, plus the channel-less stock on
+// the same layer, ordered layer by layer. An off-planogram row is an ordinary
+// row that happens to be greyed and to have no par — the layer separator treats
+// it like any other (Brian, 2026-09-12).
+const rows = computed(() => [
+  ...channels.value.map(c => ({ ...c, key: 'ch-' + c.code, layer: Number(String(c.code)[0]) })),
+  ...offPlanogram.value.map(r => ({ ...r, key: 'off-' + r.id, off_plan: true })),
+  // Channels first inside a layer (by code), then its channel-less stock by SKU
+  // id — never compare a code with a missing one, that yields NaN.
+].sort((a, b) => (a.layer - b.layer)
+  || ((a.off_plan ? 1 : 0) - (b.off_plan ? 1 : 0))
+  || (a.off_plan ? a.id - b.id : Number(a.code) - Number(b.code))))
+
+function offTitle(r) {
+  return 'CityBox SKU ' + r.id + (r.name ? ' — ' + r.name : '')
+    + ' · on layer ' + (r.layer || '?') + ' but not in this chiller\'s CityBox restock config'
+    + ' — no channel, no par, cannot be refilled'
+}
 
 const stock = computed(() => {
   const qty = channels.value.reduce((s, c) => s + c.qty, 0)
