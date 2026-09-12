@@ -2844,54 +2844,6 @@
 							</div>
 							<!-- Internet-link badge moved to the Error column's "SIM Card" block
 							     (Daniel, 2026-08-24) — see constants/internetLink.js. -->
-							<!--
-								Remote Modem — minimal badge, matches HTTP / MQTT styling.
-								Modem type, IMEI and Reset button have been moved to
-								Vend/Edit.vue (Advance Control) so this column stays
-								narrow.
-
-								Always rendered so the column is visually consistent
-								across rows. When the vend has no modem unit bound,
-								the badge falls back to a gray N/A — same pattern the
-								Payment Device column uses for missing parameters.
-
-								Coloring logic when a modem unit IS present mirrors
-								HTTP / MQTT badges:
-								  - green when modem reports online
-								  - red when modem reports offline (last_updated_at present)
-								  - gray when N/A (no last_updated_at) or vend inactive
-
-								Source is the flat modem_unit_* columns (see
-								VendController::indexCustomer) rather than the old
-								`vend.vend.modemUnit` relation, which was always null
-								for an unbound machine. modem_unit_last_updated_at
-								arrives pre-formatted ("7s ago") from VendResource.
-							-->
-							<div
-								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-								:class="[
-									(vend.is_active || vend.is_testing)
-										? (vend.modem_unit_last_updated_at
-											? (vend.modem_unit_is_online ? 'bg-green-200' : 'bg-red-200')
-											: 'bg-gray-200')
-										: 'bg-gray-200 text-gray-400'
-								]"
-							>
-								<div class="flex flex-col">
-									<span class="font-bold">Remote Modem</span>
-									<template v-if="vend.modem_unit_last_updated_at">
-										<span class="font-bold">
-											{{ vend.modem_unit_is_online ? 'Online' : 'Offline' }}
-										</span>
-										<span>
-											{{ vend.modem_unit_last_updated_at }}
-										</span>
-									</template>
-									<span v-else>
-										N/A
-									</span>
-								</div>
-							</div>
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
@@ -2961,10 +2913,12 @@
 								Vend/Index shows next to the IMEI.
 
 								Always rendered so the Payment Device column lines
-								up across rows. Colour follows the modem unit, not
-								the alias: green when online, red when offline,
-								gray when there is no modem unit reporting (or the
-								vend is inactive).
+								up across rows. Colour: when a modem unit is
+								reporting, green online / red offline; otherwise
+								green as soon as a modem type is assigned (the
+								common case — most modems never report a unit),
+								gray only when nothing is assigned (or the vend is
+								inactive). Brian, 2026-09-11.
 							-->
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -2972,7 +2926,7 @@
 										(vend.is_active || vend.is_testing)
 											? (vend.modem_unit_last_updated_at
 												? (vend.modem_unit_is_online ? 'bg-green-200' : 'bg-red-200')
-												: 'bg-gray-200')
+												: (vend.modem_type_alias ? 'bg-green-200' : 'bg-gray-200'))
 											: 'bg-gray-200 text-gray-400'
 									]"
 							>

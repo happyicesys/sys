@@ -1282,7 +1282,10 @@ class VendController extends Controller
                 //
                 // Correlated subqueries, not joins: same reasoning as
                 // telco_name above (see also the twelve-table SELECT note).
-                DB::raw('(SELECT mt.alias FROM modem_types mt
+                // COALESCE to the name so a bound type with no alias still
+                // renders (and colours the badge green) — same fallback the
+                // Modem filter options use.
+                DB::raw('(SELECT COALESCE(mt.alias, mt.name) FROM modem_types mt
                     WHERE mt.id = vends.modem_type_id) AS modem_type_alias'),
                 DB::raw('(SELECT mu.is_online FROM modem_units mu
                     WHERE mu.id = vends.modem_unit_id) AS modem_unit_is_online'),
