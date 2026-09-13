@@ -6373,6 +6373,15 @@ class VendController extends Controller
             $query->leftJoin('operators', 'operators.id', '=', 'customers.operator_id');
         }
 
+        // "Access Product(s)": a restricted viewer only sees channels holding
+        // their own products, so drop machines with none - they would render
+        // as empty rows. Here, not in the grid, so the Grouped? seed and the
+        // pre-Search cards count the same population.
+        $ownChannelSql = ProductAccess::vendHasChannelSql('vends.id');
+        if ($ownChannelSql !== null) {
+            $query->whereRaw($ownChannelSql);
+        }
+
         return $query
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')

@@ -127,7 +127,10 @@ class RolePermissionSyncSeeder extends Seeder
                 // of what 2 live users can see. dashboard-performance-lite is still
                 // granted, so both links appear. If the sheet meant "Performance (Lite)",
                 // remove prod_owner here and add a Performance (Lite) row to the sheet.
-                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user'],
+                // 2026-09-13 (Brian): - prod_owner. Lite only; the whole-machine page
+                // is closed to them. DashboardController::__construct gates the route
+                // on this permission and the sidebar link hides with it.
+                ['superadmin', 'admin', 'supervisor', 'observer', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user'],
             ],
 
             // Dashboard > Performance (Lite) — /dashboard/performance-lite.
@@ -265,6 +268,16 @@ class RolePermissionSyncSeeder extends Seeder
                 'transactions',
                 ['admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            // Sales Transactions "Show All Filters" toggle (Vend/Transaction.vue).
+            // Every 'read transactions' role EXCEPT prod_owner (Brian, 2026-09-13):
+            // a product owner gets the basic filter row only. Not folded into
+            // admin-access - franchisee / licensee / hid_user keep the toggle.
+            [
+                'transactions-all-filters',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user'],
             ],
 
             [
@@ -538,6 +551,17 @@ class RolePermissionSyncSeeder extends Seeder
                 // the unread/mention counts. Same "everyone else keeps it" rule
                 // as the planning tuple above.
                 'product-availability-notes',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            [
+                // The Operator and "Is Available?" filters on the same page.
+                // prod_owner is off it (Brian, 2026-09-13): their grid is already
+                // narrowed to their own SKUs by the Product scope, so both
+                // filters are noise to a supplier. Hidden only - the defaults
+                // still apply. Same "everyone else keeps it" rule as above.
+                'product-availability-filters',
                 ['read'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],

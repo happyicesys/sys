@@ -20,10 +20,10 @@
                   <SearchInput placeholderStr="Product Name" v-model="filters.product_name">
                     Product Name
                   </SearchInput>
-                  <div>
+                  <div v-if="canSeeFilters">
                     <OperatorFilter v-model="filters.operators" />
                   </div>
-                  <div>
+                  <div v-if="canSeeFilters">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                       Is Available?
                     </label>
@@ -556,6 +556,9 @@ const canSeePlanning = permissions.includes('read product-availability-planning'
 // "who last changed this" staff attribution lines. Internal ops coordination,
 // so prod_owner is off this permission too.
 const canSeeNotes = permissions.includes('read product-availability-notes')
+// The Operator and "Is Available?" filters. prod_owner is off it (2026-09-13):
+// hidden only, their defaults still travel with the search.
+const canSeeFilters = permissions.includes('read product-availability-filters')
 // Export Excel pulls the whole sheet, so it follows its own permission.
 const canExport = permissions.includes('export product-availability')
 // The self-system ledger page (/products/movements) is a different page with a

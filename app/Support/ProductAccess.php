@@ -229,6 +229,48 @@ class ProductAccess
     }
 
     /**
+     * WHERE fragment keeping only machines that carry at least one of the
+     * viewer's products on a live channel.
+     *
+     * Used by the Operation Dashboard: channels are already narrowed to the
+     * viewer's products, so a machine holding none of them rendered as an
+     * empty row. "Live channel" is is_active AND capacity > 0 - the same set
+     * SaveVendChannelsJson writes into the Channel Status blob - so a row
+     * survives exactly when its tile would show something.
+     *
+     * Correlated EXISTS, not a join (that query is join-sensitive). It probes
+     * idx_vc_vid_active_cap_prod (vend_id, is_active, capacity, product_id)
+     * index-only. A site with no machine has a NULL vend id, the EXISTS is
+     * false, and the row drops.
+     *
+     * null when unrestricted (add nothing), '1 = 0' when restricted to nothing.
+     *
+     * @param  array<int, int>|null  $ids  omit to resolve from the session
+     */
+    public static function vendHasChannelSql(string $vendIdColumn = 'vends.id', ?array $ids = null): ?string
+    {
+        if (func_num_args() < 2) {
+            $ids = self::current();
+        }
+
+        if ($ids === null) {
+            return null;
+        }
+
+        if ($ids === []) {
+            return '1 = 0';
+        }
+
+        return 'EXISTS (
+            SELECT 1 FROM vend_channels vc_own
+            WHERE vc_own.vend_id = ' . $vendIdColumn . '
+              AND vc_own.is_active = 1
+              AND vc_own.capacity > 0
+              AND vc_own.product_id IN (' . self::idList($ids) . ')
+        )';
+    }
+
+    /**
      * The self-contained WHERE fragment for vend_transactions.
      *
      * Correlated EXISTS only, no JOINs, so it is safe inside a global scope,
