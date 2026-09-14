@@ -74,7 +74,7 @@
                 the image is held in the server cache for 10 minutes and served
                 back through a permission-checked endpoint, never a public URL.
               -->
-              <div class="mt-2" v-if="isVendingMachine && vend && vend.code && permissions.includes('update machine-settings')">
+              <div class="mt-2" v-if="(isVendingMachine || isSmartFreezer) && vend && vend.code && permissions.includes('update machine-settings')">
                 <!--
                   Tooltip sits on the wrapper, not the button: a disabled native
                   <button> swallows mouse events, so a tooltip bound to it would
@@ -1962,11 +1962,22 @@ const toast = useToast()
 // apk_version_code means the machine has never checked in with OTA at all,
 // i.e. a pre-301 build - treated as unsupported. Bump this when the handler
 // actually ships in a build.
+//
+// A Smart Freezer runs its own APK (sg.mark1.freezer) on its own versionCode line,
+// restarted at 11 on 2026-09-14, so it gets its own floor: the SCREENSHOT handler
+// first ships in freezer build 12. It captures its own window with PixelCopy
+// (release builds keep FLAG_SECURE, which blocks screencap). Chillers have no APK
+// of ours and never show the button.
 const SCREENSHOT_MIN_APK_VERSION = 301
+const SMART_FREEZER_SCREENSHOT_MIN_APK_VERSION = 12
+
+const screenshotMinApkVersion = computed(() =>
+  isSmartFreezer.value ? SMART_FREEZER_SCREENSHOT_MIN_APK_VERSION : SCREENSHOT_MIN_APK_VERSION
+)
 
 const screenshotSupported = computed(() => {
   const v = Number(props.vend?.apk_version_code)
-  return Number.isFinite(v) && v >= SCREENSHOT_MIN_APK_VERSION
+  return Number.isFinite(v) && v >= screenshotMinApkVersion.value
 })
 
 const screenshotTooltip = computed(() => {
@@ -1975,9 +1986,9 @@ const screenshotTooltip = computed(() => {
   }
   const v = props.vend?.apk_version_code
   if (v === null || v === undefined || v === '') {
-    return `Screen capture needs APK v${SCREENSHOT_MIN_APK_VERSION} or newer. This machine has never reported its APK version (pre-OTA build) - update the APK first.`
+    return `Screen capture needs APK v${screenshotMinApkVersion.value} or newer. This machine has never reported its APK version (pre-OTA build) - update the APK first.`
   }
-  return `Screen capture needs APK v${SCREENSHOT_MIN_APK_VERSION} or newer. This machine is on v${v} - update the APK first.`
+  return `Screen capture needs APK v${screenshotMinApkVersion.value} or newer. This machine is on v${v} - update the APK first.`
 })
 
 const screenshotModalOpen = ref(false)
