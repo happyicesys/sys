@@ -556,7 +556,15 @@ class SettingController extends Controller
             ),
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::withoutGlobalScopes()
-                    ->with(['upcomingProductMapping', 'productMappingItems.product.thumbnail'])
+                    // sellingPrices (the Site's tier only): a machine with no live
+                    // vend_channels — every Smart Freezer — previews its menu straight
+                    // from this option object, and without prices its Ref Price column
+                    // and planogram prices were blank (1372, 2026-09-14).
+                    ->with([
+                        'upcomingProductMapping',
+                        'productMappingItems.product.thumbnail',
+                        'productMappingItems.product.sellingPrices' => fn ($query) => $query->where('type', $type),
+                    ])
                     ->where(function ($query) use ($vend) {
                         // Normal selectable options: match operator + active.
                         // DEPRECATED (2026-07): the prefix→mapping gate was removed —

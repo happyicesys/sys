@@ -961,8 +961,33 @@
                 </div> -->
             </div>
 
+            <!-- Smart Freezer: the mapping is a basket planogram, so draw the door (the same grid the
+                 Ops Dashboard popup, the ProductMapping editor and the kiosk show) instead of a row
+                 list. It follows the mapping picked above, before save. Price = the Site's RP tier,
+                 which is what a freezer sells at (it has no board price). -->
+            <div v-if="isSmartFreezer" class="sm:col-span-6">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <span class="text-sm font-medium text-gray-700">
+                  Planogram
+                  <span class="text-xs font-normal text-gray-500">
+                    · {{ freezerPlanogramItems.length }} of {{ freezerSlotCount }} slots bound
+                    <template v-if="vend?.customer?.selling_price_type"> · prices at RP{{ vend.customer.selling_price_type }}</template>
+                  </span>
+                </span>
+              </div>
+              <div v-if="!freezerPlanogramItems.length" class="rounded-md border border-dashed border-gray-300 py-8 text-center text-sm text-gray-500">
+                No products mapped yet.
+              </div>
+              <SmartFreezerPlanogramGrid
+                v-else
+                :basket-layout="freezerBasketLayout"
+                :items="freezerPlanogramItems"
+                :format-price="formatFreezerPrice"
+              />
+            </div>
+
             <!-- Vend Channels Section -->
-              <div class="flex flex-col sm:col-span-5">
+              <div v-if="!isSmartFreezer" class="flex flex-col sm:col-span-5">
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                   <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                     <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -1746,6 +1771,7 @@ import FieldAudit from '@/Components/FieldAudit.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
+import SmartFreezerPlanogramGrid from '@/Components/SmartFreezerPlanogramGrid.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -2699,6 +2725,55 @@ function applyMappingPreview(mapping) {
     .filter((channel) => channel && channel.code);
 
   vendChannels.value = channels;
+}
+
+// ── Smart Freezer planogram (drawn from vendChannels, i.e. the mapping currently picked) ──
+const FREEZER_BASKETS = 6
+
+const freezerPlanogramItems = computed(() => vendChannels.value
+  .filter(channel => channel && channel.code != null && channel.product)
+  .map(channel => ({
+    channel_code: String(channel.code),
+    product_id: channel.product.id ?? null,
+    product_code: channel.product.code ?? null,
+    product_name: channel.product.name ?? null,
+    thumbnail: channel.product.thumbnail?.full_url ?? null,
+    // Site-tier selling price, integer cents (selling_prices is pre-filtered to that tier).
+    price_cents: channel.product.selling_prices?.[0]?.amount ?? null,
+  })))
+
+// Divisions per basket, mirroring VendController::smartBasketLayout: every basket has at
+// least one slot, widened by the mapping's basket_layout_json and by any channel code
+// (`<basket><division>`) that reaches further.
+const freezerBasketLayout = computed(() => {
+  const divisions = {}
+  for (let basket = 1; basket <= FREEZER_BASKETS; basket++) divisions[basket] = 1
+
+  const mapping = selectedProductMapping.value?.data ?? selectedProductMapping.value ?? form.value?.product_mapping_id
+  const layout = Array.isArray(mapping?.basket_layout_json) ? mapping.basket_layout_json : []
+  for (const entry of layout) {
+    const basket = Number(entry?.basket)
+    if (basket >= 1) divisions[basket] = Math.max(divisions[basket] ?? 1, Number(entry?.divisions) || 1)
+  }
+
+  for (const item of freezerPlanogramItems.value) {
+    const code = item.channel_code
+    if (!/^\d{2,}$/.test(code)) continue
+    const basket = Number(code.slice(0, 1))
+    const division = Number(code.slice(1))
+    if (basket >= 1 && division >= 1) divisions[basket] = Math.max(divisions[basket] ?? 1, division)
+  }
+
+  return Object.keys(divisions)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(basket => ({ basket, divisions: divisions[basket] }))
+})
+
+const freezerSlotCount = computed(() => freezerBasketLayout.value.reduce((sum, basket) => sum + basket.divisions, 0))
+
+function formatFreezerPrice(cents) {
+  return (operatorCountry?.currency_symbol ?? '') + formatCurrency(cents)
 }
 
 function resetMappingPreview() {

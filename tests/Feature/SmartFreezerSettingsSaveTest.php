@@ -2,11 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
+use App\Models\Product;
 use App\Models\ProductMapping;
+use App\Models\ProductMappingItem;
+use App\Models\SellingPrice;
 use App\Models\User;
 use App\Models\Vend;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -22,7 +27,11 @@ class SmartFreezerSettingsSaveTest extends TestCase
     {
         parent::setUp();
         Queue::fake();
-        $this->actingAs(User::factory()->create());
+        $user = User::factory()->create();
+        foreach (['read machine-settings', 'update machine-settings'] as $p) {
+            $user->givePermissionTo(Permission::findOrCreate($p, 'web'));
+        }
+        $this->actingAs($user);
     }
 
     private function freezer(array $attrs = []): Vend
@@ -73,5 +82,37 @@ class SmartFreezerSettingsSaveTest extends TestCase
 
         $this->post('/vends/'.$vend->id.'/update', ['machine_type' => 'smart_freezer'])
             ->assertSessionHasErrors(['operator_id', 'vend_model_id']);
+    }
+
+    public function test_mapping_options_carry_the_sites_tier_price_for_the_planogram(): void
+    {
+        // A freezer has no live vend_channels, so Setting/Edit previews its menu (table and
+        // planogram) from the mapping option object. Without prices it read blank (1372).
+        $product = Product::create(['code' => 'U-01', 'name' => 'Cornetto']);
+        SellingPrice::create(['product_id' => $product->id, 'type' => SellingPrice::TYPE_1, 'amount' => 2.70]);
+        SellingPrice::create(['product_id' => $product->id, 'type' => SellingPrice::TYPE_2, 'amount' => 3.00]);
+        $mapping = ProductMapping::create([
+            'name' => 'Freezer planogram', 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER,
+            'is_smart' => true, 'is_active' => true, 'operator_id' => 1,
+        ]);
+        ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => '11', 'product_id' => $product->id]);
+        $customer = Customer::create([
+            'name' => 'Freezer Site', 'code' => 'FS1', 'operator_id' => 1,
+            'status_id' => Customer::STATUS_ACTIVE, 'selling_price_type' => SellingPrice::TYPE_2,
+        ]);
+        $vend = $this->freezer(['product_mapping_id' => $mapping->id, 'customer_id' => $customer->id]);
+        $rp2Cents = SellingPrice::where('product_id', $product->id)->where('type', SellingPrice::TYPE_2)->first()->getRawOriginal('amount');
+
+        $this->get('/settings/vend/'.$vend->id.'/update')
+            ->assertOk()
+            ->assertInertia(function ($page) use ($mapping, $rp2Cents) {
+                $options = collect($page->toArray()['props']['productMappingOptions']['data']);
+                $item = collect($options->firstWhere('id', $mapping->id)['productMappingItems'])->first();
+                $prices = $item['product']['sellingPrices'];
+
+                $this->assertCount(1, $prices, 'only the Site tier is shipped');
+                $this->assertSame(SellingPrice::TYPE_2, (int) $prices[0]['type']);
+                $this->assertEquals($rp2Cents, $prices[0]['amount']);
+            });
     }
 }
