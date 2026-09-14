@@ -96,6 +96,12 @@ Route::prefix('citybox')->middleware('throttle:120,1')->group(function () {
     Route::post('/close-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'closePush']);
 });
 
+// Smart-freezer supplier (Zijia) pushes door-session camera video URLs.
+// Static shared token (config smart_freezer.zijia), inert until it is set.
+Route::prefix('smart-freezer/zijia')->middleware('throttle:120,1')->group(function () {
+    Route::post('/videos', [\App\Http\Controllers\SmartFreezer\ZijiaVideoWebhookController::class, 'store']);
+});
+
 // RFC 7591 Dynamic Client Registration for the MCP connector (Claude calls
 // this unauthenticated when adding the connector). Public clients only, PKCE
 // enforced, redirect hosts allow-listed — see McpOAuthController::register.

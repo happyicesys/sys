@@ -544,6 +544,22 @@ Regression coverage: `tests/Feature/CardTerminalUnitTest.php` (including an
 end-to-end proof that a terminal bound from Setting/Edit still matches a
 settlement report).
 
+## Smart Freezer videos from Zijia: stored raw, contract not agreed
+
+`POST /api/smart-freezer/zijia/videos` (`SmartFreezer\ZijiaVideoWebhookController`,
+2026-09-14) receives the door-session camera video URLs Zijia's servers push.
+Static shared token (`config('smart_freezer.zijia.video_webhook_token')`, env
+`ZIJIA_VIDEO_WEBHOOK_TOKEN`; Bearer / `X-Api-Key` / `?token=`), 503 until set.
+The payload shape is unknown, so every push is kept whole in
+`smart_freezer_videos` (`raw_body` exact bytes, `payload` parsed) with
+`video_urls`, `order_no` (`SF-<vendCode>-<epoch>-<seq>`, the APK's orderOpenDoor
+ref) → `vend_id`, and `device_id` lifted out. Not `attachments` (255-char
+`full_url`, needs a known parent). Once Zijia confirms fields, extend the
+extraction there rather than dropping the raw columns. Not linked to
+`vend_transactions` yet — mark1 does not store the APK txnRef. Spec to send
+them + open questions: `apk/smart-freezer/ZIJIA_VIDEO_WEBHOOK_2026-09-14.md`.
+Regression coverage: `tests/Feature/ZijiaVideoWebhookTest.php`.
+
 ## Smart Chiller (CityBox): not a vending machine with extra fields
 
 A `machine_type = smart_chiller` vend is CityBox's hardware running CityBox's
