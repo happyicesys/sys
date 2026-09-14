@@ -556,7 +556,15 @@ rather than adding a new `if (citybox)` somewhere else:
   relaxes the hardware/binding `required` rules on it. A new vending-machine
   field on that page must be gated the same way, or a chiller can no longer be
   saved (prod 2026-09-02: vends 1363/1364 were unsavable for exactly this
-  reason). `SettingController::edit` still loads every option list for a
+  reason). **A Smart Freezer gets the same relaxation** (2026-09-14): our APK
+  on a Zijia board, but no VMC, setting chart, prefix, menu frame, LCD / LED
+  panel or fan signal, and its APK ignores RESET / REBOOTANDROID / UPDATELOG /
+  screenshot frames. Setting/Edit gates those on `isVendingMachine` (neither
+  chiller nor freezer) — P1/P2, APK Parameter, APK Logs, Restart VMC/APK and
+  View Screen included; a freezer keeps Push Products Info and Sync APK
+  Settings, the two frames its `PushMessageParser` acts on. So a new
+  VMC-board-only field is gated on `isVendingMachine`, and a chiller-only
+  exclusion on `isChiller`. `SettingController::edit` still loads every option list for a
   chiller on purpose: hidden pickers keep resolving and posting the stored ids,
   so an empty list would null hidden columns on save.
 - **A chiller's ProductMapping is a read-only mirror.** `ChillerPlanogram`

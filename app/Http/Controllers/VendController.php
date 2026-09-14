@@ -5471,10 +5471,14 @@ class VendController extends Controller
         // relax on), and its mapping/prefix are written by provisioning and the
         // poller, not by this form. Before 2026-09-02 the unconditional 'required'
         // rules meant a chiller with NULL lcd/menu could never be saved from
-        // Setting/Edit (vends 1363/1364 in prod). Keep them required for everything else.
+        // Setting/Edit (vends 1363/1364 in prod). A Smart Freezer is the same case
+        // (2026-09-14): an APK on a Zijia board, no VMC menu frame / LCD add-on /
+        // setting chart / machine prefix, and Setting/Edit hides those pickers for
+        // it. Keep them required for vending machines.
         $isChiller = $requestedType === Vend::MACHINE_TYPE_SMART_CHILLER;
-        $hardwareRule = $isChiller ? 'nullable' : 'required';
-        $bindingRule = ($isNA || $isChiller) ? 'nullable' : 'required';
+        $isFreezer = $requestedType === Vend::MACHINE_TYPE_SMART_FREEZER;
+        $hardwareRule = ($isChiller || $isFreezer) ? 'nullable' : 'required';
+        $bindingRule = ($isNA || $isChiller || $isFreezer) ? 'nullable' : 'required';
 
         $request->validate([
             'citybox_equipment_id' => [

@@ -104,6 +104,15 @@ class Vend extends Model
     }
 
     /**
+     * Our own Smart Freezer (sg.mark1.freezer APK on Zijia hardware): an APK of
+     * ours, but no VMC board, menu frame, LCD add-on, LED panel or setting chart.
+     */
+    public function isSmartFreezer(): bool
+    {
+        return $this->machine_type === self::MACHINE_TYPE_SMART_FREEZER;
+    }
+
+    /**
      * Ops-job stock actions this machine kind cannot perform. A CityBox chiller:
      *  - implement_new_mapping — its planogram is CityBox's (mark1 mirrors it) and
      *    the completion path pushes an APK channel frame it cannot receive;

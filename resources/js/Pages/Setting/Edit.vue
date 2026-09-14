@@ -20,7 +20,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ isChiller ? 'Smart Chiller' : 'Vending Machine' }} </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ machineKindLabel }} </span>
                 </div>
               </div>
             </div>
@@ -74,7 +74,7 @@
                 the image is held in the server cache for 10 minutes and served
                 back through a permission-checked endpoint, never a public URL.
               -->
-              <div class="mt-2" v-if="vend && vend.code && permissions.includes('update machine-settings')">
+              <div class="mt-2" v-if="isVendingMachine && vend && vend.code && permissions.includes('update machine-settings')">
                 <!--
                   Tooltip sits on the wrapper, not the button: a disabled native
                   <button> swallows mouse events, so a tooltip bound to it would
@@ -347,7 +347,7 @@
             </div>
 
             <hr class="sm:col-span-6">
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Setting Chart
@@ -378,7 +378,7 @@
                   {{ form.errors.vend_config_id }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Current Version
                 </label>
@@ -398,7 +398,7 @@
                   {{ form.errors.vend_vend_config_version }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Latest Version
                 </label>
@@ -409,7 +409,7 @@
                   disabled
                 />
             </div>
-            <div class="sm:col-span-3" v-if="form.vend_config_id">
+            <div class="sm:col-span-3" v-if="isVendingMachine && form.vend_config_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Machine Prefix
@@ -608,7 +608,7 @@
                   {{ form.errors.modem_unit_id }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-3">
+            <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Menu Frame
                   <span class="text-red-500">
@@ -678,7 +678,7 @@
                   {{ form.errors.claw_machine_board_id }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-3">
+            <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LCD Monitor
                   <span class="text-red-500">
@@ -701,7 +701,7 @@
                   {{ form.errors.lcd_monitor_id }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-3">
+            <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LED Matrix Panel
                 </label>
@@ -756,7 +756,7 @@
                   {{ form.errors.is_using_server_price }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-3">
+            <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Fan speed signal available?
                 </label>
@@ -873,7 +873,7 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (current)
-                    <span class="text-red-500" v-if="!isVendConfigNA">
+                    <span class="text-red-500" v-if="isVendingMachine && !isVendConfigNA">
                       *
                     </span>
                     <span v-if="form.product_mapping_id && form.product_mapping_id.id">
@@ -983,7 +983,8 @@
                                 <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Selling price from CityBox — the promo price when their portal sets one, otherwise the list price. Read-only.'"></ExclamationCircleIcon>
                               </div>
                             </th>
-                            <template v-else>
+                            <!-- A Smart Freezer has no board price either: it always sells at the Ref Price. -->
+                            <template v-else-if="isVendingMachine">
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 <div class="flex justify-center">
                                   <span> P1 </span>
@@ -1025,7 +1026,7 @@
                             >
                               {{ formatCurrency(channel.amount) }}
                             </td>
-                            <template v-else>
+                            <template v-else-if="isVendingMachine">
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 {{ formatCurrency(channel.amount) }}
                               </td>
@@ -1041,7 +1042,7 @@
                             </td>
                           </tr>
                           <tr v-if="!vendChannels || !vendChannels.length">
-                            <td :colspan="isChiller ? 5 : 6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
+                            <td :colspan="isVendingMachine ? 6 : 5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
                           </tr>
                         </tbody>
                       </table>
@@ -1084,7 +1085,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save Vending Machine
+                    Save {{ machineKindLabel }}
                   </span>
                 </Button>
                 <Button
@@ -1340,7 +1341,7 @@
           </template>
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
-            <div v-if="!isChiller" class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div v-if="isVendingMachine" class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -1350,7 +1351,7 @@
                 </div>
               </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-6 flex justify-between">
+            <div v-if="isVendingMachine" class="sm:col-span-6 flex justify-between">
               <div class="flex space-x-2 items-center">
                 <div>
                   <DatePicker
@@ -1370,7 +1371,7 @@
                 </Button>
               </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-6 flex flex-col mt-3">
+            <div v-if="isVendingMachine" class="sm:col-span-6 flex flex-col mt-3">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
               <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -1415,7 +1416,7 @@
             </div>
             </div>
 
-            <div v-if="!isChiller" class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div v-if="isVendingMachine" class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -1426,7 +1427,7 @@
               </div>
             </div>
 
-             <div v-if="!isChiller" class="sm:col-span-2">
+             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Grab Enabled?
                 </label>
@@ -1436,7 +1437,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Display Screen Available?
                 </label>
@@ -1446,7 +1447,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   QR Payment Method
                 </label>
@@ -1456,7 +1457,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Cash Payment Method
                 </label>
@@ -1466,7 +1467,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-             <div v-if="!isChiller" class="sm:col-span-2">
+             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Credit Card Payment Method
                 </label>
@@ -1476,7 +1477,7 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-2">
+            <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   HID Payment Method
                 </label>
@@ -1498,7 +1499,7 @@
               </div>
             </div>
 
-            <div v-if="!isChiller" class="sm:col-span-6 mb-4 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
+            <div v-if="isVendingMachine" class="sm:col-span-6 mb-4 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
               <div class="flex">
                 <div class="flex-shrink-0">
                   <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -1564,9 +1565,20 @@
               </span>
             </div>
 
+            <!-- Smart Freezer: no VMC, and its APK ignores RESET / REBOOTANDROID, so only the two
+                 nudges it does act on are offered (TYPESYNCAPICHANNELSLOTLIST → re-fetch /menu,
+                 TYPESYNCSETTINGSPARAM → re-read settings). -->
+            <div v-if="isSmartFreezer" class="sm:col-span-6 rounded-md bg-blue-50 p-3 text-xs text-blue-800 border border-blue-200">
+              <span class="font-semibold">Smart Freezer.</span>
+              Push Products Info makes the kiosk re-fetch its menu now; Sync APK Settings makes it re-read its settings.
+              Remote restart is not available — use Restart app in the kiosk's maintenance menu on site.
+              <span class="text-red-500 font-semibold">Not delivered to machines with 'offline' status.</span>
+            </div>
+
             <div v-if="!isChiller" class="sm:col-span-6">
               <span class="flex space-x-1">
                 <Button
+                    v-if="isVendingMachine"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
                     @click.prevent="restartVMC(vend.id)"
                   >
@@ -1576,6 +1588,7 @@
                     </span>
                 </Button>
                 <Button
+                    v-if="isVendingMachine"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
                     @click.prevent="restartAPK(vend.id)"
                   >
@@ -1781,6 +1794,13 @@ const props = defineProps({
 const isChiller = computed(() => props.vend && props.vend.machine_type === 'smart_chiller')
 // Pricing source is locked to "Yes" for a freezer (Vend::requiresServerPrice()).
 const isSmartFreezer = computed(() => props.vend && props.vend.machine_type === 'smart_freezer')
+// VMC-board-only controls (setting chart, prefix, menu frame, LCD / LED panel, fan signal,
+// P1/P2 board prices, APK Parameter readout, log upload, Restart VMC/APK, View Screen).
+// A Smart Freezer runs our APK on a Zijia board with no VMC, and its APK does not handle
+// RESET / REBOOTANDROID / UPDATELOG / screenshot frames. VendController::update relaxes
+// the matching `required` rules for both kinds.
+const isVendingMachine = computed(() => !isChiller.value && !isSmartFreezer.value)
+const machineKindLabel = computed(() => isChiller.value ? 'Smart Chiller' : (isSmartFreezer.value ? 'Smart Freezer' : 'Vending Machine'))
 
 // Why Open Door cannot be pressed right now, from CityBox's last poll (ChillerStatus):
 // null = go ahead. Only a KNOWN busy state blocks (door open / customer session /
