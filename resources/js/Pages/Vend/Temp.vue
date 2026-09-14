@@ -165,21 +165,22 @@
                                           <label class="pl-2">T1: Machine Temp</label>
                                       </span>
                                   </span>
-                                  <span class="inline-flex rounded-md shadow-sm" v-if="'t2' in vend.parameterJson && vend.parameterJson['t2'] != tempError">
+                                  <!-- A Smart Freezer has one probe (T1) and no alert logic yet, so T2-T4 and Show Alert Markers are hidden for it. -->
+                                  <span class="inline-flex rounded-md shadow-sm" v-if="!isSmartFreezer && 't2' in vend.parameterJson && vend.parameterJson['t2'] != tempError">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                           <label class="pl-2">T2: Evaporator Temp</label>
                                       </span>
                                   </span>
                                   <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson && vend.parameterJson['t3'] != tempError"> -->
-                                  <span class="inline-flex rounded-md shadow-sm ">
+                                  <span class="inline-flex rounded-md shadow-sm " v-if="!isSmartFreezer">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="3" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                           <label class="pl-2">T3</label>
                                       </span>
                                   </span>
                                   <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'t4' in vend.parameterJson && vend.parameterJson['t4'] != tempError"> -->
-                                  <span class="inline-flex rounded-md shadow-sm ">
+                                  <span class="inline-flex rounded-md shadow-sm " v-if="!isSmartFreezer">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="4" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                           <label class="pl-2">T4</label>
@@ -191,7 +192,7 @@
                                           <label class="pl-2" :class="[!vend.is_fan_enabled ? 'text-gray-400' : '']">Fan</label>
                                       </span>
                                   </span>
-                                  <span class="inline-flex rounded-md shadow-sm ">
+                                  <span class="inline-flex rounded-md shadow-sm " v-if="!isSmartFreezer">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" v-model="showMarkers" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                           <label class="pl-2">Show Alert Markers</label>
@@ -306,6 +307,8 @@ const labels = ref([])
 const datasets = ref([])
 const permissions = usePage().props.auth.permissions
 const vend = ref(props.vendObj.data)
+// Smart Freezer: single probe, no alert rules implemented yet (hides T2-T4 + alert markers).
+const isSmartFreezer = computed(() => vend.value?.machine_type === 'smart_freezer')
 const selectedVendOption = ref(null);
 const vendSelectionOptions = computed(() => {
   return (props.vendOptions ?? []).map((option) => {
@@ -370,7 +373,7 @@ const ALERT_TYPE_OFFSET_MINUTES = {
 }
 
 function buildAnnotations() {
-  if (!showMarkers.value) return {}
+  if (!showMarkers.value || isSmartFreezer.value) return {}
   const logs = props.vendAlertLogsObj ?? []
   const annotations = {}
   const activeAlertTypes = {}

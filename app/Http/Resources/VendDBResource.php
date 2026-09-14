@@ -46,6 +46,8 @@ class VendDBResource extends JsonResource
             'is_door_open' => isset($this->is_door_open) && $this->is_door_open ? 'Yes' : 'No',
             'is_fan_enabled' => isset($this->is_fan_enabled) ? ($this->is_fan_enabled === 0 || $this->is_fan_enabled === false ? false : true) : true,
             'is_mqtt' => isset($this->is_mqtt) ? $this->is_mqtt : null,
+            // Only when the caller selected it (Temp page gates freezer-only UI on it).
+            'machine_type' => isset($this->machine_type) ? $this->machine_type : null,
             'is_mqtt_active' => isset($this->is_mqtt_active) && $this->is_mqtt_active ? true : false,
             'is_mqtt_offline_notified' => isset($this->is_mqtt_offline_notified) && $this->is_mqtt_offline_notified ? true : false,
             'is_online' => isset($this->is_online) ? $this->is_online : null,

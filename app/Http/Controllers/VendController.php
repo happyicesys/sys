@@ -2713,6 +2713,8 @@ class VendController extends Controller
                 'vends.is_testing',
                 'vends.is_testing',
                 'vends.is_fan_enabled',
+                // Temp.vue hides the T2-T4 probe toggles and alert markers for a Smart Freezer.
+                'vends.machine_type',
                 'customers.id AS customer_id',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
