@@ -734,8 +734,13 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
+                  :disabled="isSmartFreezer"
+                  :canClear="!isSmartFreezer"
                 >
                 </MultiSelect>
+                <p v-if="isSmartFreezer" class="mt-1 text-xs text-gray-500">
+                  Smart Freezer always follows the Site's pricing — it has no machine price.
+                </p>
                 <!-- The RP tier is the Site's (Customer edit → Ref Price Type); the machine
                      only chooses whether to follow it. No per-machine RP override. -->
                 <p class="mt-1 text-xs text-blue-600">
@@ -1774,6 +1779,8 @@ const props = defineProps({
 // VMC/APK buttons, unbind) is gated on it. Keyed on the persisted vend, not the
 // form, so a mis-set picker can never expose or hide the wrong controls.
 const isChiller = computed(() => props.vend && props.vend.machine_type === 'smart_chiller')
+// Pricing source is locked to "Yes" for a freezer (Vend::requiresServerPrice()).
+const isSmartFreezer = computed(() => props.vend && props.vend.machine_type === 'smart_freezer')
 
 // Why Open Door cannot be pressed right now, from CityBox's last poll (ChillerStatus):
 // null = go ahead. Only a KNOWN busy state blocks (door open / customer session /
@@ -2356,7 +2363,7 @@ onMounted(() => {
     cashless_terminal_id: props.vend.cashless_terminal_id ? cashlessTerminalOptions.value.find(t => t.id == props.vend.cashless_terminal_id) : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
-    is_using_server_price: serverPriceOptions.value.find(option => option.id == (['1', 'true'].includes(String(props.vend.is_using_server_price)) ? 'true' : 'false')),
+    is_using_server_price: serverPriceOptions.value.find(option => option.id == ((isSmartFreezer.value || ['1', 'true'].includes(String(props.vend.is_using_server_price))) ? 'true' : 'false')),
     lcd_monitor_id: props.vend.lcd_monitor_id ? lcdMonitorOptions.value.find(lcdMonitor => lcdMonitor.id == props.vend.lcd_monitor_id) : null,
     led_matrix_panel_id: props.vend.led_matrix_panel_id ? ledMatrixPanelOptions.value.find(ledMatrixPanel => ledMatrixPanel.id == props.vend.led_matrix_panel_id) : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,

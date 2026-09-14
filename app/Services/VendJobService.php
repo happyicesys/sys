@@ -112,10 +112,15 @@ class VendJobService
      * the vend_channels write (ProductMappingService::syncChannels) BEFORE
      * sending, or the machine re-fetches the old menu.
      *
-     * Only the vending-machine boards (mark1-apk / mark1-apk-small) understand
-     * this frame, so other machine types are skipped here — smart freezers get
-     * their own nudge via SmartFreezerCatalogPush, and Citybox chillers have no
-     * APK of ours. Gated in ONE place so no caller has to remember.
+     * Sent to vending boards (mark1-apk / mark1-apk-small) AND smart freezers:
+     * the freezer APK maps this Type to a catalog revalidation of
+     * /api/vends/{code}/menu (debounced + conflated, so a second nudge from
+     * SmartFreezerCatalogPush costs nothing). Only Citybox chillers are skipped
+     * — no APK of ours. Freezers used to be skipped too (2026-08-14), which
+     * left every non-planogram menu change — pricing source, Site bind, Site
+     * RP, Setting/Edit rebind, ops-job new mapping, the manual Push button —
+     * invisible on a freezer until reboot (50001, 2026-09-14). Gated in ONE
+     * place so no caller has to remember.
      *
      * Deliberately does NOT go through dispatch() / create a VendJob row, unlike
      * syncSettingsToVend. VendJob tracking only works for frames the terminal
@@ -141,7 +146,7 @@ class VendJobService
             return false;
         }
 
-        if (($vendModel->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) !== Vend::MACHINE_TYPE_VENDING_MACHINE) {
+        if ($vendModel->isSmartChiller()) {
             return false;
         }
 

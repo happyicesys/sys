@@ -1388,8 +1388,9 @@ class ProductMappingController extends Controller
         // joined this mapping AND machines that just left it (their menu went
         // empty above). Kept machines only had their upcoming mapping adjusted
         // — the live menu is unchanged, so no push. Sent AFTER syncChannels so
-        // the re-fetch reads the committed rows. Non-vending machine types are
-        // skipped inside the service (freezers were nudged just above).
+        // the re-fetch reads the committed rows. Chillers are skipped inside the
+        // service; a freezer nudged just above may get a second frame, which its
+        // APK conflates into the same single menu reload.
         // Fetched in ONE query (withoutGlobalScopes, matching what the service
         // does for a bare id) — a big rebind must not turn into a point-SELECT
         // per machine.

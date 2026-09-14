@@ -62,6 +62,9 @@
                 <p class="mt-1 text-xs text-gray-500">
                   Vending Machine / Smart Freezer — fixed after creation; it decides which product mappings the machine can use.
                 </p>
+                <p v-if="form.machine_type && form.machine_type.id === 'smart_freezer'" class="mt-1 text-xs text-blue-600">
+                  Smart Freezer always follows the Site's pricing (Is Using Server Price = Yes).
+                </p>
                 <div class="text-sm text-red-600" v-if="form.errors.machine_type">
                   {{ form.errors.machine_type }}
                 </div>

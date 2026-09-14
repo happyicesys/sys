@@ -377,6 +377,26 @@ class Vend extends Model
     protected static function booted()
     {
         static::addGlobalScope(new OperatorVendFilterScope);
+
+        // A Smart Freezer has no board price: its APK drops every menu row
+        // without server_price, so "No, use machine price" leaves the kiosk
+        // with an empty menu (50001, 2026-09-14). Forced on every write, so
+        // creation, Machine Settings, the APK Settings toggle and API callers
+        // all land on Yes.
+        static::saving(function (Vend $vend) {
+            if ($vend->requiresServerPrice()) {
+                $vend->is_using_server_price = true;
+            }
+        });
+    }
+
+    /**
+     * Machine kinds whose pricing source is not a choice: always follow the
+     * Site's RP (Smart Freezer — no VMC board price to fall back on).
+     */
+    public function requiresServerPrice(): bool
+    {
+        return $this->machine_type === self::MACHINE_TYPE_SMART_FREEZER;
     }
 
     protected $casts = [

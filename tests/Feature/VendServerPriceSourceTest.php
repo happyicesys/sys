@@ -283,4 +283,93 @@ class VendServerPriceSourceTest extends TestCase
         ]);
         Queue::assertPushed(PublishMqtt::class, 4);
     }
+
+    /**
+     * Smart Freezer has no board price — its APK drops menu rows without
+     * server_price, so the switch is forced to Yes on every write (50001,
+     * 2026-09-14: created with No, kiosk showed an empty menu).
+     */
+    public function test_smart_freezer_is_created_following_the_site_even_when_asked_not_to(): void
+    {
+        Queue::fake();
+        foreach (['read machine-settings', 'create machine-settings'] as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
+        }
+        $user = User::factory()->create();
+        $user->givePermissionTo(['read machine-settings', 'create machine-settings']);
+
+        $this->actingAs($user)->post('/settings/vend/store', [
+            'code' => 99601, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertTrue(Vend::withoutGlobalScopes()->where('code', 99601)->first()->usesServerPrice());
+
+        $this->actingAs($user)->post('/settings/vend/store', [
+            'code' => 99602, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_using_server_price' => false,
+        ])->assertSessionHasNoErrors();
+        $this->assertTrue(Vend::withoutGlobalScopes()->where('code', 99602)->first()->usesServerPrice());
+
+        // A vending machine keeps the old default (board price).
+        $this->actingAs($user)->post('/settings/vend/store', [
+            'code' => 99603, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE,
+        ])->assertSessionHasNoErrors();
+        $this->assertFalse(Vend::withoutGlobalScopes()->where('code', 99603)->first()->usesServerPrice());
+    }
+
+    /**
+     * The freezer APK re-fetches /menu only on boot or on a TYPESYNCAPICHANNELSLOTLIST
+     * push. The gate used to skip every non-vending machine, so a pricing flip on 50001
+     * (2026-09-14) reached the device as a settings nudge only and the kiosk stayed
+     * empty until a reboot. Chillers (no APK of ours) are still skipped.
+     */
+    public function test_menu_nudge_reaches_smart_freezers_but_not_chillers(): void
+    {
+        Queue::fake();
+        $service = app(\App\Services\VendJobService::class);
+
+        $freezer = $this->makeVend(9941);
+        $freezer->forceFill(['machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER])->save();
+        Queue::fake(); // drop the nudges from becoming a freezer
+
+        $this->assertTrue($service->syncChannelSlotListToVend($freezer));
+        Queue::assertPushed(PublishMqtt::class, fn (PublishMqtt $job) => (fn () => $this->topic)->call($job) === 'CM9941');
+
+        $chiller = $this->makeVend(9942);
+        $chiller->forceFill(['machine_type' => Vend::MACHINE_TYPE_SMART_CHILLER])->save();
+        $this->assertFalse($service->syncChannelSlotListToVend($chiller));
+    }
+
+    public function test_smart_freezer_switch_cannot_be_turned_off(): void
+    {
+        Queue::fake();
+        $vend = $this->makeVend(9931, usesServerPrice: false);
+        $vend->forceFill(['machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER])->save();
+        $this->assertTrue($vend->fresh()->usesServerPrice(), 'becoming a freezer forces the switch on');
+
+        $user = User::factory()->create();
+
+        // APK Settings toggle: refused with a visible error, value unchanged.
+        $this->actingAs($user)
+            ->post('/apk-settings/vends/'.$vend->id.'/pricing-source', ['is_using_server_price' => false])
+            ->assertSessionHasErrors('is_using_server_price');
+        $this->assertTrue($vend->fresh()->usesServerPrice());
+
+        // Machine Settings save posting No: persisted as Yes.
+        $this->actingAs($user)->post('/vends/'.$vend->id.'/update', [
+            'name' => 'Freezer 9931',
+            'product_mapping_id' => $vend->product_mapping_id,
+            'lcd_monitor_id' => 1,
+            'menu_frame_id' => 1,
+            'operator_id' => 1,
+            'vend_model_id' => 1,
+            'vend_prefix_id' => 1,
+            'is_using_server_price' => false,
+        ])->assertSessionHasNoErrors();
+        $this->assertTrue($vend->fresh()->usesServerPrice());
+
+        // Direct model write (service, API, tinker) is forced too.
+        $vend = $vend->fresh();
+        $vend->is_using_server_price = false;
+        $vend->save();
+        $this->assertTrue($vend->fresh()->usesServerPrice());
+    }
 }

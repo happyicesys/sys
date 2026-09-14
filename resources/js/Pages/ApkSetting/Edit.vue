@@ -1272,7 +1272,7 @@
                           <!-- Saves immediately (own route), independent of the main Save button. -->
                           <select
                             :value="vend.is_using_server_price ? 'true' : 'false'"
-                            :disabled="pricingSourceSaving[vend.id]"
+                            :disabled="pricingSourceSaving[vend.id] || vend.machine_type === 'smart_freezer'"
                             @change="setVendPricingSource(vend, $event.target.value === 'true')"
                             class="rounded-md border-gray-300 text-sm py-1 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500 disabled:opacity-50"
                           >

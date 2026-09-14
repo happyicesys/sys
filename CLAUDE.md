@@ -129,6 +129,16 @@ Machine Settings save, the per-machine column on APK Settings → Edit, and a Si
 RP change — each tells the terminal to re-read settings **and** re-fetch its
 menu. Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
 
+**A Smart Freezer has no choice: always Yes** (Brian, 2026-09-14). The freezer
+APK has no board price and drops every menu row without `server_price`, so No
+means an empty kiosk (50001 was created that way). `Vend::requiresServerPrice()`
+plus a `saving` hook on `Vend` force the flag on every write — creation,
+Machine Settings, API — and the APK Settings toggle refuses No with an error.
+The selector is locked in Setting/Edit and APK Settings → Edit. The menu nudge
+(`VendJobService::syncChannelSlotListToVend`) reaches freezers too — only
+chillers are skipped; the freezer APK re-fetches `/menu` only on boot or on that
+frame, so skipping it left the kiosk stale until a reboot.
+
 **CityBox chillers are outside all of this.** A CityBox-owned product — one
 their catalog sync created, so `products.code` IS the `citybox_product_id`
 (`Product::isCityboxOwned()`) — is priced by their portal: channel amounts come

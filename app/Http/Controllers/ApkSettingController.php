@@ -335,6 +335,12 @@ class ApkSettingController extends Controller
 
         $vend = Vend::findOrFail($vendId);
 
+        if ($vend->requiresServerPrice() && ! $request->boolean('is_using_server_price')) {
+            return redirect()->back()->withErrors([
+                'is_using_server_price' => 'A Smart Freezer always follows the Site\'s pricing.',
+            ]);
+        }
+
         $this->vendPricingSourceService->setUsingServerPrice(
             $vend,
             $request->boolean('is_using_server_price')

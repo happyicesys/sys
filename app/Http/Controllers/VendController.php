@@ -5609,7 +5609,7 @@ class VendController extends Controller
         // slot list on boot or when nudged — machines kept selling the OLD
         // mapping until someone pressed the manual Sync button or rebooted.
         // Sent AFTER syncChannels so the re-fetch reads the committed rows.
-        // No-op for non-vending machine types (gated in the service).
+        // No-op for Citybox chillers (gated in the service).
         if ($isProductMappingChanged) {
             $this->vendJobService->syncChannelSlotListToVend($vend);
         }
