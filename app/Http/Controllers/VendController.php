@@ -619,7 +619,14 @@ class VendController extends Controller
         // revenue with the figures merely hidden. Fall back to the page's own
         // default sort instead of honouring the request.
         $requestedSortKey = isset($request->sortKey) ? $request->sortKey : 'balance_percent';
-        if (ProductAccess::isRestricted() && $this->isProductRestrictedSortKey($requestedSortKey)) {
+        // Sales(qty) is the exception: the column shows the viewer's OWN
+        // product sales (ProductScopedSales), so the rows are ranked by that
+        // figure in PHP once the population is known (sortByScopedSales()).
+        // SQL still falls back to the default sort underneath.
+        $scopedSalesSortKey = ProductAccess::isRestricted()
+            ? ProductScopedSales::sortableKeyOf($requestedSortKey)
+            : null;
+        if (ProductAccess::isRestricted() && ($scopedSalesSortKey !== null || $this->isProductRestrictedSortKey($requestedSortKey))) {
             $requestedSortKey = 'balance_percent';
         }
 
@@ -633,6 +640,8 @@ class VendController extends Controller
 
         $className = get_class(new Customer);
 
+        // Same reading filterVendsDB applies to sortBy (true = ascending).
+        $sortAscending = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN);
         $sortKey = $request->sortKey;
         $needsVc = in_array($sortKey, ['thirty_days_over_full_load_ratio', 'total_stock_amount', 'total_full_load_amount']);
         $needsVcCost = in_array($sortKey, ['total_stock_cost']);
@@ -1511,6 +1520,9 @@ class VendController extends Controller
                 // page boundaries, so global order must be known) and those same
                 // row objects are reused for the page — no second heavy query.
                 $allRows = $vends->get();
+                if ($scopedSalesSortKey !== null) {
+                    $allRows = $this->sortByScopedSales($allRows, $scopedSalesSortKey, $sortAscending);
+                }
 
                 $groupRows = [];
                 foreach ($allRows as $r) {
@@ -1536,6 +1548,30 @@ class VendController extends Controller
 
                 $total = count($orderedRows);
                 $items = collect(array_slice($orderedRows, ($page - 1) * $perPage, $perPage))->values();
+            } elseif ($scopedSalesSortKey !== null) {
+                // Rank the whole matched set by the viewer's own sales (a page
+                // break must not reset the order), then load only this page's
+                // rows. The id pass is light: two columns, ordered by id only so
+                // equal figures (every 0-sales machine) tie-break the same way on
+                // every page request - an unordered read may not, and a row
+                // would then repeat on one page and vanish from the next.
+                $ranked = $this->sortByScopedSales(
+                    (clone $vends)->reorder()->select(['customers.id', 'vends.id AS vend_id'])
+                        ->orderBy('customers.id')->orderBy('vends.id')->get(),
+                    $scopedSalesSortKey,
+                    $sortAscending
+                );
+                $slice = $ranked->slice(($page - 1) * $perPage, $perPage)->values();
+                $position = $slice->map(fn ($r) => $this->scopedSalesRowKey($r))->flip();
+                $items = $slice->isEmpty()
+                    ? collect()
+                    : $vends->where(function ($q) use ($slice) {
+                        $q->whereIn('customers.id', $slice->pluck('id')->filter()->values()->all() ?: [-1])
+                            ->orWhereIn('vends.id', $slice->pluck('vend_id')->filter()->values()->all() ?: [-1]);
+                    })->get()
+                        ->filter(fn ($r) => $position->has($this->scopedSalesRowKey($r)))
+                        ->sortBy(fn ($r) => $position[$this->scopedSalesRowKey($r)])
+                        ->values();
             } else {
                 $items = $vends->forPage($page, $perPage)->get();
             }
@@ -6827,6 +6863,33 @@ class VendController extends Controller
     /**
      * Would ordering by this key rank the page by money the viewer cannot see?
      */
+    /**
+     * Order Operation Dashboard rows by the viewer's OWN product sales - the
+     * figure their Sales(qty) column shows - instead of the whole-machine
+     * rollup they may not see. Ties keep the incoming (SQL default) order.
+     */
+    private function sortByScopedSales($rows, string $key, bool $ascending)
+    {
+        ProductScopedSales::warmFor($rows);
+
+        $ranked = $rows->values()->map(fn ($row, $i) => [
+            'row' => $row,
+            'i' => $i,
+            'value' => ProductScopedSales::forRow($row)[$key] ?? 0,
+        ])->all();
+
+        usort($ranked, fn ($a, $b) => ($ascending ? $a['value'] <=> $b['value'] : $b['value'] <=> $a['value'])
+            ?: $a['i'] <=> $b['i']);
+
+        return collect(array_column($ranked, 'row'));
+    }
+
+    /** One grid row = one (site, machine) pair; either half may be null. */
+    private function scopedSalesRowKey($row): string
+    {
+        return ($row->id ?? '').'-'.(ProductScopedSales::vendIdOf($row) ?? '');
+    }
+
     private function isProductRestrictedSortKey(?string $sortKey): bool
     {
         if ($sortKey === null || $sortKey === '') {
