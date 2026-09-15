@@ -134,7 +134,7 @@ class DeviceProvisioningService
             $model = $this->modelFor($device->type);
 
             $vend = Vend::create([
-                'code' => $this->runningNumbers->getRunningCode(new Vend, $operator->id),
+                'code' => $this->nextVendCode($operator),
                 'name' => $site['name'] ?? null,
                 'machine_type' => Vend::MACHINE_TYPE_SMART_CHILLER,
                 'citybox_equipment_id' => $device->equipmentId,
@@ -189,6 +189,28 @@ class DeviceProvisioningService
         return Operator::where('code', config('citybox.operator_code', 'CB'))->firstOr(function () {
             throw new CityboxApiException('Citybox operator not seeded — run CityboxOperatorSeeder');
         });
+    }
+
+    /**
+     * Next free vend code for a chiller. Keeps the CB running number, but a vend code is
+     * the machine's identity fleet-wide (vends.code has no unique index), so skip any code
+     * another operator already holds. Both reads bypass the viewer's operator scope, which
+     * would otherwise hide those vends. Locking the operator row serialises concurrent
+     * provisions inside the caller's transaction.
+     * (Prod 2026-09-01: chiller 1363 was given 10002, already used by vend 909.)
+     */
+    private function nextVendCode(Operator $operator): int
+    {
+        Operator::whereKey($operator->id)->lockForUpdate()->first();
+
+        $code = (int) Vend::withoutGlobalScopes()->where('operator_id', $operator->id)->max('code') + 1;
+        $code = max($code, 10001);
+
+        while (Vend::withoutGlobalScopes()->where('code', $code)->exists()) {
+            $code++;
+        }
+
+        return $code;
     }
 
     private function prefix(Operator $operator): VendPrefix
