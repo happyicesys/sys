@@ -10,6 +10,7 @@ use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Matches a settlement report's rows to vend_transactions.
@@ -65,6 +66,23 @@ class CardSettlementMatcher
         'vend_transactions.is_refunded',
         'vend_transactions.card_settlement_synced_at',
     ];
+
+    /**
+     * CANDIDATE_COLUMNS plus, for rows written before `received_at` existed,
+     * the frame's raw TIME. Until 2026-09-09 transaction_datetime was the
+     * SERVER time (so it is the receive anchor, not the board's), and the
+     * board's own stamp survives only inside vend_transaction_json — the one
+     * anchor that fits a burst-flushed outbox (2502, 2026-09-03). Extracted
+     * in SQL, only where received_at IS NULL, so the JSON blob never travels.
+     *
+     * @return array<int, string|\Illuminate\Contracts\Database\Query\Expression>
+     */
+    public static function candidateColumns(): array
+    {
+        return array_merge(self::CANDIDATE_COLUMNS, [
+            DB::raw("IF(vend_transactions.received_at IS NULL, JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.TIME')), NULL) AS frame_time_raw"),
+        ]);
+    }
 
     public function match(CardSettlementReport $report): void
     {
@@ -510,7 +528,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
-            ->get(self::CANDIDATE_COLUMNS);
+            ->get(self::candidateColumns());
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $fleet->pluck('vend_id')->unique())
@@ -603,7 +621,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
-            ->get(self::CANDIDATE_COLUMNS);
+            ->get(self::candidateColumns());
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $fleet->pluck('vend_id')->unique())
@@ -794,7 +812,7 @@ class CardSettlementMatcher
             // Approved from VMC-retained credit — no card presented, no
             // terminal settlement will ever exist for it.
             ->where('vend_transactions.is_retained_credit_settlement', false)
-            ->get(self::CANDIDATE_COLUMNS);
+            ->get(self::candidateColumns());
 
         $claimed = CardSettlementRow::query()
             ->whereIn('matched_vend_transaction_id', $candidates->pluck('id'))
@@ -830,7 +848,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
-            ->get(self::CANDIDATE_COLUMNS);
+            ->get(self::candidateColumns());
 
         return $candidates->groupBy('vend_id');
     }
@@ -878,9 +896,41 @@ class CardSettlementMatcher
     }
 
     /**
-     * timeDelta() plus WHICH anchor produced it. Both anchors are tested;
-     * when both fit, the one closer to the expected lag wins — the frame
-     * anchor on ties, since it is the sale's own stamp.
+     * The board's own stamp for a LEGACY row (no received_at): the raw
+     * frame TIME kept in vend_transaction_json, when candidateColumns()
+     * selected it, it parses, and it sits within the lag cap of the row's
+     * transaction_datetime (a 2008-dated frame from a dead RTC is noise).
+     * Null when it is the same instant as transaction_datetime — the frame
+     * anchor already covers it. Read in the app timezone: every operator's
+     * board stamps local time and the fleet is Asia/Singapore.
+     */
+    public static function legacyFrameAnchor(object $sale): ?Carbon
+    {
+        $raw = $sale->frame_time_raw ?? null;
+        if (! is_string($raw) || $raw === '' || ! empty($sale->received_at)) {
+            return null;
+        }
+        try {
+            $at = Carbon::parse($raw);
+        } catch (\Throwable) {
+            return null;
+        }
+        $txnAt = Carbon::parse($sale->transaction_datetime);
+        if ($at->equalTo($txnAt)) {
+            return null;
+        }
+        $maxLag = (int) config('card_settlement.match_received_anchor_max_lag_seconds', 86400);
+        if ($maxLag > 0 && abs($at->diffInSeconds($txnAt, false)) > $maxLag) {
+            return null;
+        }
+
+        return $at;
+    }
+
+    /**
+     * timeDelta() plus WHICH anchor produced it. Every anchor is tested;
+     * when more than one fits, the one closer to the expected lag wins — the
+     * frame anchor on ties, since it is the sale's own stamp.
      *
      * @return array{delta:int, anchor:string}|null
      */
@@ -894,6 +944,13 @@ class CardSettlementMatcher
         $frame = $this->anchorDelta($row, Carbon::parse($candidate->transaction_datetime), $earlySlack, $lateSlack);
         if ($frame !== null) {
             $fits[] = ['delta' => $frame, 'anchor' => self::ANCHOR_FRAME];
+        }
+        $legacyFrameAt = self::legacyFrameAnchor($candidate);
+        if ($legacyFrameAt !== null) {
+            $legacy = $this->anchorDelta($row, $legacyFrameAt, $earlySlack, $lateSlack);
+            if ($legacy !== null) {
+                $fits[] = ['delta' => $legacy, 'anchor' => self::ANCHOR_FRAME];
+            }
         }
         $receivedAt = self::receivedAnchor($candidate);
         if ($receivedAt !== null) {

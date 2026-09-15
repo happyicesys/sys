@@ -550,7 +550,11 @@ Both directions of "the report and the machine disagree" are handled at Sync
   is ignored beyond `match_received_anchor_max_lag_seconds` (24 h) so a
   replayed TRADE cannot claim a line at its arrival time. **Do not "fix"
   matching by switching to the order-id timestamp** — it is the same clock as
-  TIME. Every candidate query must select `CardSettlementMatcher::CANDIDATE_COLUMNS`.
+  TIME. Every candidate query must select `CardSettlementMatcher::candidateColumns()`
+  — which also pulls the raw frame TIME out of `vend_transaction_json` for
+  rows with no `received_at`: before 09-09 `transaction_datetime` WAS the
+  server time, so for those rows the board's stamp lives only in the JSON
+  (`legacyFrameAnchor()`; the August reports still in review hit this).
   `card-settlement:repair-orphans [--from --to --vend] [--apply]`
   (`CardSettlementOrphanRepair`) replaces orphans the single-anchor era
   created with the real sale that fits on either anchor (greedy, unique both

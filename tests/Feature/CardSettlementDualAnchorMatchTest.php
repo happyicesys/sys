@@ -157,6 +157,40 @@ class CardSettlementDualAnchorMatchTest extends TestCase
         $this->assertSame($late->id, $row2->fresh()->matched_vend_transaction_id);
     }
 
+    public function test_a_legacy_server_time_row_still_offers_the_boards_frame_time_from_the_raw_json(): void
+    {
+        // Before 09-09 transaction_datetime was the server time. 2502 on
+        // 2026-09-03: three sales received together at 20:59:46, the board's
+        // TIME (20:53:35) only in the raw frame. Only that anchor fits.
+        $legacy = $this->sale('2026-09-12 20:59:46', null, 460);
+        DB::table('vend_transactions')->where('id', $legacy->id)->update([
+            'created_at' => '2026-09-12 20:59:46',
+            'vend_transaction_json' => json_encode(['Type' => 'TRADE', 'TIME' => '2026-09-12 20:53:35', 'ORDRID' => '2026091220533500245']),
+        ]);
+        $report = $this->report();
+        $row = $this->row($report, '20:53:07', 460);
+
+        app(CardSettlementMatcher::class)->match($report);
+
+        $row->refresh();
+        $this->assertSame($legacy->id, $row->matched_vend_transaction_id);
+        $this->assertSame(28, $row->match_time_delta);
+        $this->assertNull($row->resolution_note, 'the board stamp is the frame anchor');
+
+        // A dead-RTC frame (years off) is ignored; a row WITH received_at never reads the JSON.
+        $dead = $this->sale('2026-09-12 21:30:00', null, 300);
+        DB::table('vend_transactions')->where('id', $dead->id)->update([
+            'created_at' => '2026-09-12 21:30:00',
+            'vend_transaction_json' => json_encode(['TIME' => '2008-11-08 16:50:11']),
+        ]);
+        $report2 = $this->report();
+        $row2 = $this->row($report2, '21:20:00', 300); // 10 min before: no anchor fits the normal window
+
+        app(CardSettlementMatcher::class)->match($report2);
+
+        $this->assertSame(CardSettlementRow::NOTE_MATCHED_WIDE, $row2->fresh()->resolution_note, 'only the wide pass on server time, not a bogus 2008 anchor');
+    }
+
     public function test_rows_written_before_received_at_existed_fall_back_to_created_at_only_when_the_trade_created_them(): void
     {
         // Legacy live row: no received_at, created_at is the receive moment → matches.
