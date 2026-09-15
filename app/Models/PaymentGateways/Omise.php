@@ -166,9 +166,10 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     }
 
     /** GET /charges/{id} — Omise's own record of a charge (status, refunded_amount, refunds). */
-    public function getCharge($chargeId)
+    public function getCharge($chargeId, int $timeoutSeconds = 30)
     {
         return Http::withHeaders($this->getHeaders($this->secretKey))
+            ->timeout($timeoutSeconds)
             ->get('https://api.omise.co/charges/'.$chargeId);
     }
 
