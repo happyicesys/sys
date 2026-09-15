@@ -751,3 +751,28 @@ The DB is large: `vend_transactions` ~4.8M rows, `gp_metrics` ~2.4M,
 schema and real values before writing migrations or queries — do not infer
 schema from model files alone.
 
+
+## Omise webhooks are verified against Omise, not trusted
+
+`POST /api/v1/payment-gateway-status/omise` is unauthenticated and Omise does
+not sign events, so `App\Services\Payment\WebhookVerifier` re-reads the charge
+with the merchant's secret key (`GET /charges/{id}`) and compares status,
+amount (minor units per operator currency) and `metadata.order_id` before an
+APPROVE dispenses or a REFUND marks a sale refunded (audit M3-01, 2026-09-15).
+Mode is `config('payment.webhook_verification')`:
+
+- `log` (shipped default) — the webhook is processed exactly as before; the
+  verdict is written by `VerifyPaymentWebhook` on the `low` queue. Grep
+  `payment.webhook.verify` in `storage/logs/laravel.log`; a `mismatch` line is
+  a webhook that `enforce` would have refused. Live day one: 9/9 `verified`,
+  139–218 ms per check.
+- `enforce` — inline; MISMATCH is refused with HTTP 200 (so Omise does not
+  retry) and no state change; UNVERIFIABLE (Omise API down/slow, 8 s timeout)
+  is allowed through with a warning, because refusing would stop every QR sale
+  during an Omise outage and an attacker cannot cause that condition.
+- `off` — the pre-2026-09-15 behaviour. Never ship it.
+
+Switch to `enforce` only after a clean run of `log` (no `mismatch` on genuine
+traffic) and a real QR sale on 2031 afterwards. Fiuu verifies its own
+signature in `PaymentController`; Midtrans is unused. Regression coverage:
+`tests/Feature/PaymentWebhookVerificationTest.php`.
