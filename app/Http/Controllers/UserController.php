@@ -289,11 +289,11 @@ class UserController extends Controller
                     ->get(['id', 'code', 'name'])
             ),
             'operatorProductCeiling' => $productCeiling === null ? null : [
-            'operatorName' => $user->operator?->name,
-            'products' => Product::withoutGlobalScopes()
-                ->whereIn('id', $productCeiling)
-                ->orderBy('code')
-                ->get(['id', 'code', 'name']),
+                'operatorName' => $user->operator?->name,
+                'products' => Product::withoutGlobalScopes()
+                    ->whereIn('id', $productCeiling)
+                    ->orderBy('code')
+                    ->get(['id', 'code', 'name']),
             ],
             // 'unbindedCustomers' => fn () =>
             //     CustomerResource::collection(
