@@ -105,6 +105,11 @@ class Kernel extends ConsoleKernel
         // Safety net: re-enqueue any freeze-eligible items the observer missed
         // (e.g. bulk/raw status updates that bypass model events).
         $schedule->command('ops:freeze-queue-reconcile')->hourly()->withoutOverlapping();
+        // Machines stuck behind the latest published APK get an OTA_CHECK every 30 min
+        // overnight (01:00, 01:30 … 07:00). Off switch: OTA_NIGHTLY_NUDGE=false.
+        // between() compares against the moment schedule:run boots, which is already a
+        // few hundred ms past 07:00:00 — an end of '07:00' would silently drop the last run.
+        $schedule->command('ota:nudge-stale')->everyThirtyMinutes()->between('01:00', '07:05')->withoutOverlapping();
         $schedule->command('vend:cleanup-jobs')->dailyAt('02:00');
         // Keep vend_records & gp_metrics tallied to vend_transactions and auto-heal
         // any drifted day (late settlements, backdated uploads, cost backfills,
