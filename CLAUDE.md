@@ -761,18 +761,19 @@ amount (minor units per operator currency) and `metadata.order_id` before an
 APPROVE dispenses or a REFUND marks a sale refunded (audit M3-01, 2026-09-15).
 Mode is `config('payment.webhook_verification')`:
 
-- `log` (shipped default) — the webhook is processed exactly as before; the
+- `log` (config default) — the webhook is processed exactly as before; the
   verdict is written by `VerifyPaymentWebhook` on the `low` queue. Grep
   `payment.webhook.verify` in `storage/logs/laravel.log`; a `mismatch` line is
   a webhook that `enforce` would have refused. Live day one: 9/9 `verified`,
   139–218 ms per check.
-- `enforce` — inline; MISMATCH is refused with HTTP 200 (so Omise does not
+- `enforce` (**prod since 2026-09-15 22:09**, `.env` `PAYMENT_WEBHOOK_VERIFICATION=enforce`) — inline; MISMATCH is refused with HTTP 200 (so Omise does not
   retry) and no state change; UNVERIFIABLE (Omise API down/slow, 8 s timeout)
   is allowed through with a warning, because refusing would stop every QR sale
   during an Omise outage and an attacker cannot cause that condition.
 - `off` — the pre-2026-09-15 behaviour. Never ship it.
 
-Switch to `enforce` only after a clean run of `log` (no `mismatch` on genuine
-traffic) and a real QR sale on 2031 afterwards. Fiuu verifies its own
+Enforce was switched on after 114/114 log-mode verdicts came back `verified`
+(126–294 ms) and the first inline verdicts dispensed normally. To fall back,
+set the env to `log` (never `off`). Fiuu verifies its own
 signature in `PaymentController`; Midtrans is unused. Regression coverage:
 `tests/Feature/PaymentWebhookVerificationTest.php`.
