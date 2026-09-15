@@ -305,7 +305,13 @@ class VendResource extends JsonResource
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'product_mapping_remarks' => isset($this->product_mapping_remarks) ? $this->product_mapping_remarks : null,
             'product_mapping_is_smart' => isset($this->product_mapping_is_smart) ? (bool) $this->product_mapping_is_smart : false,
-            'private_key' => isset($this->private_key) ? $this->private_key : null,
+            // The per-machine MQTT frame signing key. Only the machine edit
+            // forms (gated on `update vends`) ever read it; every other page
+            // that renders a VendResource must not carry it (audit M2-07).
+            'private_key' => $this->when(
+                (bool) $request->user()?->can('update vends'),
+                fn () => isset($this->private_key) ? $this->private_key : null
+            ),
             'simcard' => SimcardResource::make($this->whenLoaded('simcard')),
             'simcard_id' => isset($this->simcard_id) ? $this->simcard_id : null,
             // "SimCard Package" (telcos.name) reached through the machine's

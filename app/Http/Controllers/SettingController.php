@@ -55,6 +55,7 @@ use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SettingController extends Controller
@@ -666,60 +667,44 @@ class SettingController extends Controller
 
     public function store(Request $request)
     {
-        // Same normalisation + guard as VendController::update — citybox_equipment_id
-        // is fillable and this method mass-assigns, so creation must enforce the
-        // same rules or a duplicate serial 500s on the DB unique index instead of
-        // validating, and a non-chiller could be born already linked.
-        if ($request->has('citybox_equipment_id') && ! $request->citybox_equipment_id) {
-            $request->merge(['citybox_equipment_id' => null]);
-        }
-
-        $request->validate([
-            'code' => 'required',
-            'citybox_equipment_id' => [
-                'sometimes', 'nullable', 'string', 'max:64',
-                'unique:vends,citybox_equipment_id',
-                \Illuminate\Validation\Rule::prohibitedIf(
-                    fn () => $request->citybox_equipment_id
-                        && $request->machine_type !== Vend::MACHINE_TYPE_SMART_CHILLER
-                ),
+        $validated = $request->validate([
+            'code' => 'required|integer|min:1',
+            // A Smart Chiller is only born through the CityBox branch (POST /citybox/vends),
+            // which links the device, forces the CB operator and binds a site. Created here it
+            // would be a chiller with no CityBox link that nothing ever syncs.
+            'machine_type' => [
+                'nullable',
+                Rule::in([Vend::MACHINE_TYPE_VENDING_MACHINE, Vend::MACHINE_TYPE_SMART_FREEZER]),
             ],
-            'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
+            'begin_date' => 'nullable|date',
+        ], [
+            'machine_type.in' => 'Choose Vending Machine or Smart Freezer. Smart Chillers are created from a CityBox device.',
         ]);
 
-        $vend = Vend::where('code', $request->code)->first();
+        // The code is the machine's identity fleet-wide (MQTT topic, APK machine ID) but
+        // vends.code has no unique index, so check across every operator: the viewer's
+        // operator scope would hide another operator's vend and let a duplicate through.
+        $existing = Vend::withoutGlobalScopes()->where('code', $validated['code'])->first();
 
-        if ($vend) {
-            return redirect()->route('settings.edit', [$vend->id])->withErrors([
-                'code' => 'Vend Code already exists.',
+        if ($existing) {
+            return redirect()->back()->withErrors([
+                'code' => Vend::whereKey($existing->id)->exists()
+                    ? "Machine ID {$validated['code']} already exists."
+                    : "Machine ID {$validated['code']} is already used by another operator.",
             ]);
         }
 
-        // An explicit machine_type null passes the nullable rule but the column is NOT NULL
-        // (default only applies when the key is absent from a single-row INSERT), so normalize
-        // to the default here instead of 500ing on MySQL error 1048.
-        if ($request->has('machine_type') && ! $request->machine_type) {
-            $request->merge(['machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE]);
-        }
-
-        // Machine-type ↔ mapping guard at creation: both mapping fields are fillable, so an API
-        // caller could create a Smart Freezer already bound to a vending planogram. Same gate as
-        // VendController::update.
-        foreach ([
-            'product_mapping_id' => 'Product Mapping',
-            'upcoming_product_mapping_id' => 'Upcoming Product Mapping',
-        ] as $mappingField => $mappingLabel) {
-            if ($request->$mappingField) {
-                Vend::assertMappingMatchesMachineType(
-                    ProductMapping::withoutGlobalScopes()->find($request->$mappingField),
-                    $request->machine_type,
-                    $mappingField,
-                    $mappingLabel
-                );
-            }
-        }
-
-        $vend = Vend::create($request->all());
+        // Only the create form's own fields reach the model. This used to mass-assign
+        // $request->all(), and the page posts its whole form, so a customer_id left over
+        // from the CityBox branch (or any fillable column an API caller sent: customer_id,
+        // product mappings, citybox_equipment_id) was written with no binding history.
+        // Site, mappings and hardware are set on Setting/Edit, which guards each of them.
+        $vend = new Vend([
+            'code' => (int) $validated['code'],
+            // NOT NULL column: an explicit null would 500 on insert rather than take the default.
+            'machine_type' => $validated['machine_type'] ?? Vend::MACHINE_TYPE_VENDING_MACHINE,
+            'begin_date' => $validated['begin_date'] ?? null,
+        ]);
         $vend->operator_id = auth()->user()->operator_id;
         $vend->save();
 

@@ -34,23 +34,44 @@ class User extends Authenticatable
     public const DRIVER_ROLES = ['driver', 'sup_driver'];
 
     /**
+     * Roles a NON-HappyIce admin (today: operator_admin, the only operator-side
+     * role holding `read users`) may hand out from the Users screen. Everything
+     * else - superadmin, admin, supervisor, technician, driver, licensee, ... -
+     * is HappyIce staff or a role HappyIce assigns, and only superadmin/admin
+     * may grant it (AUDIT_2026-09-15 M2-01: an operator_admin could mint a
+     * superadmin through a hand-rolled POST). The same list narrows the role
+     * dropdown UserController hands to User/Form.vue and User/Edit.vue, so the
+     * screen and the server agree. Read through assignableRoleNames().
+     */
+    public const OPERATOR_ASSIGNABLE_ROLES = [
+        'operator_admin',
+        'operator_supervisor',
+        'operator_driver',
+        'operator_3pl',
+    ];
+
+    /** Roles that may assign ANY role, including their own. */
+    public const ROLE_ASSIGNMENT_UNRESTRICTED_ROLES = ['superadmin', 'admin'];
+
+    /**
      * The attributes that are mass assignable.
+     *
+     * Deliberately NOT here: access_token (set only by the personal-access-token
+     * command), is_active (toggleActivateDeactivate assigns it), product_access_mode
+     * and transaction_access_from (UserController::update assigns them behind
+     * their own markers). UserController used to fill($request->all()), so every
+     * name in this list was writable by anyone holding `read users`.
      *
      * @var array<int, string>
      */
     protected $fillable = [
-        'access_token',
         'name',
         'alias',
         'email',
-        'is_active',
         'is_production_status_only',
         'operator_id',
         'password',
-        'password_confirmation',
         'phone_country_id',
-        'product_access_mode',
-        'transaction_access_from',
         'phone_number',
         'profile_id',
         'username',
@@ -101,6 +122,31 @@ class User extends Authenticatable
     public function isDriver(): bool
     {
         return $this->hasAnyRole(self::DRIVER_ROLES);
+    }
+
+    /**
+     * Role names this user may assign to another user, or null when
+     * unrestricted (superadmin / admin). See OPERATOR_ASSIGNABLE_ROLES.
+     *
+     * @return array<int, string>|null
+     */
+    public function assignableRoleNames(): ?array
+    {
+        if ($this->hasAnyRole(self::ROLE_ASSIGNMENT_UNRESTRICTED_ROLES)) {
+            return null;
+        }
+
+        return self::OPERATOR_ASSIGNABLE_ROLES;
+    }
+
+    /**
+     * Whether this user may hand out the named role.
+     */
+    public function canAssignRole(string $roleName): bool
+    {
+        $allowed = $this->assignableRoleNames();
+
+        return $allowed === null || in_array($roleName, $allowed, true);
     }
 
     public function getRedirectRoute()

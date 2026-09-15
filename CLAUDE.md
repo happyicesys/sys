@@ -519,8 +519,10 @@ Both directions of "the report and the machine disagree" are handled at Sync
   this existed. Assign / Ignore on such a line deletes an orphan still awaiting
   its TRADE (`release()`); an adopted one is a real sale and stays.
 - **A late card TRADE adopts the orphan** (`VendTransactionService::findSettlementOrphan`:
-  same machine, same cents, report time within −300/+60 s of the frame time,
-  row-locked) and overwrites the synthetic order id; `applyTradeToPreCreatedRow`
+  same machine, same cents, report time within −300/+60 s of EITHER the frame
+  time or the moment we received the frame — the same two anchors the matcher
+  uses, closest to the expected lag wins — row-locked) and overwrites the
+  synthetic order id; `applyTradeToPreCreatedRow`
   fills the rest exactly as for a gateway row. "Pre-created by a rail" is ONE
   rule, `VendTransaction::scopeAwaitingTrade()` / `isAwaitingTrade()`
   (gateway log OR settlement row, no TRADE yet) — the ingest, the nightly 99
@@ -534,10 +536,37 @@ Both directions of "the report and the machine disagree" are handled at Sync
   60/300 s window is paired by a second pass within
   `config('card_settlement.match_wide_window_seconds')` ONLY when the pairing
   is unique both ways (note "Matched in wide window").
+- **Two time anchors per sale, never one** (2026-09-15). A NETS line is tested
+  against the sale's `transaction_datetime` (the frame's own TIME — for
+  TXN_SRC 0 keypad sales the VMC **board** builds the whole TRADE JSON, so
+  ORDRID and TIME are the same board-RTC instant, and ~60 boards drift by
+  whole minutes: 2760 −314 s, 2116 −611 s) AND against `received_at` (our
+  clock at ingest, which agrees with the NETS terminal — but is wrong when an
+  offline machine flushes its outbox in one burst, 2502 on 2026-09-03).
+  `CardSettlementMatcher::timeDeltaDetail()` returns the fit closer to the
+  expected +15 s lag; a receive-anchor match carries the note "Matched on
+  receive time". Rows older than the column fall back to `created_at` only
+  when the TRADE itself created them (`receivedAnchor()`); the receive anchor
+  is ignored beyond `match_received_anchor_max_lag_seconds` (24 h) so a
+  replayed TRADE cannot claim a line at its arrival time. **Do not "fix"
+  matching by switching to the order-id timestamp** — it is the same clock as
+  TIME. Every candidate query must select `CardSettlementMatcher::candidateColumns()`
+  — which also pulls the raw frame TIME out of `vend_transaction_json` for
+  rows with no `received_at`: before 09-09 `transaction_datetime` WAS the
+  server time, so for those rows the board's stamp lives only in the JSON
+  (`legacyFrameAnchor()`; the August reports still in review hit this).
+  `card-settlement:repair-orphans [--from --to --vend] [--apply]`
+  (`CardSettlementOrphanRepair`) replaces orphans the single-anchor era
+  created with the real sale that fits on either anchor (greedy, unique both
+  ways, normal window only), carries the Sync stamp over, dirties the days
+  and re-runs the refund reconciler; the line keeps the note
+  "Repaired: orphan replaced by the machine's sale".
 
 Regression coverage: `tests/Feature/CardSettlementOrphanSalesTest.php`,
 `tests/Feature/CardSettlementStateAndVoidTickTest.php`,
 `tests/Feature/CardSettlementWideMatchTest.php`,
+`tests/Feature/CardSettlementDualAnchorMatchTest.php`,
+`tests/Feature/CardSettlementOrphanRepairTest.php`,
 `tests/Feature/CardTerminalAutoRefundFlagTest.php`.
 
 Regression coverage: `tests/Feature/CardTerminalUnitTest.php` (including an
@@ -722,3 +751,29 @@ The DB is large: `vend_transactions` ~4.8M rows, `gp_metrics` ~2.4M,
 schema and real values before writing migrations or queries — do not infer
 schema from model files alone.
 
+
+## Omise webhooks are verified against Omise, not trusted
+
+`POST /api/v1/payment-gateway-status/omise` is unauthenticated and Omise does
+not sign events, so `App\Services\Payment\WebhookVerifier` re-reads the charge
+with the merchant's secret key (`GET /charges/{id}`) and compares status,
+amount (minor units per operator currency) and `metadata.order_id` before an
+APPROVE dispenses or a REFUND marks a sale refunded (audit M3-01, 2026-09-15).
+Mode is `config('payment.webhook_verification')`:
+
+- `log` (config default) — the webhook is processed exactly as before; the
+  verdict is written by `VerifyPaymentWebhook` on the `low` queue. Grep
+  `payment.webhook.verify` in `storage/logs/laravel.log`; a `mismatch` line is
+  a webhook that `enforce` would have refused. Live day one: 9/9 `verified`,
+  139–218 ms per check.
+- `enforce` (**prod since 2026-09-15 22:09**, `.env` `PAYMENT_WEBHOOK_VERIFICATION=enforce`) — inline; MISMATCH is refused with HTTP 200 (so Omise does not
+  retry) and no state change; UNVERIFIABLE (Omise API down/slow, 8 s timeout)
+  is allowed through with a warning, because refusing would stop every QR sale
+  during an Omise outage and an attacker cannot cause that condition.
+- `off` — the pre-2026-09-15 behaviour. Never ship it.
+
+Enforce was switched on after 114/114 log-mode verdicts came back `verified`
+(126–294 ms) and the first inline verdicts dispensed normally. To fall back,
+set the env to `log` (never `off`). Fiuu verifies its own
+signature in `PaymentController`; Midtrans is unused. Regression coverage:
+`tests/Feature/PaymentWebhookVerificationTest.php`.

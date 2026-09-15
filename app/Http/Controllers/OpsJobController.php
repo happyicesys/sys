@@ -18,6 +18,7 @@ use App\Models\OpsJobTask;
 use App\Models\ProductLimit;
 use App\Models\ProductMapping;
 use App\Models\ProductMovement;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\User;
 use App\Models\Vend;
@@ -91,11 +92,93 @@ class OpsJobController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+
+        // Daily Jobs (audit M2-04). The `operations` tuple grants read / create /
+        // update / delete to the same eleven roles (staff, driver, sup_driver,
+        // picker, the operator_* roles, operator_3pl); only `admin-access` is
+        // split off (no picker) and stays enforced in-body on renumberItems /
+        // saveSequence. Drivers and pickers work every write route below daily,
+        // so nothing here may require admin-access.
+        $this->middleware(['permission:read operations'])
+            ->only(['index', 'summary', 'edit', 'editItem', 'route', 'qtyList']);
+        $this->middleware(['permission:create operations'])
+            ->only(['store', 'assign', 'createItem', 'addChannel', 'create']);
+        $this->middleware(['permission:update operations'])
+            ->only([
+                'update', 'updateJobStockAction', 'undoItemStatus', 'updateItem', 'batchUpdateItems',
+                'updateItemRemarks', 'updateStockAction', 'undoStockAction', 'toggleIsIgnoreLimit',
+                'syncCmsInvoices', 'syncInventory', 'confirmItem', 'verifyItem', 'saveItem',
+                'uploadItemAttachments', 'itemCashCollected', 'undoItemCashCollected',
+                'settleItemChannelError', 'renumberItems', 'saveSequence', 'sortItems',
+                'complete', 'pick', 'deliver', 'createCmsEmptyInvoices',
+            ]);
+        // changeItemStatus is the item page's Cancel (99) / Delete (-1) button,
+        // which OpsJob/EditItem.vue gates on `delete operations`.
+        $this->middleware(['permission:delete operations'])
+            ->only(['delete', 'deleteItem', 'deleteChannel', 'changeItemStatus']);
+
         $this->mapService = new MapService;
         $this->opsJobService = new OpsJobService;
         $this->productMappingService = new ProductMappingService;
         $this->runningNumberService = new RunningNumberService;
         $this->vendJobService = new VendJobService;
+    }
+
+    // ------------------------------------------------------------ tenancy
+
+    /**
+     * Pin the request's operators[] to the viewer's ceiling. A request filter
+     * is a preference, not an entitlement (CLAUDE.md): a scoped viewer (anyone
+     * outside operator 1) is always narrowed to their own operator no matter
+     * what was posted; operator 1 keeps whatever the page chose. Mirrors
+     * VendController::customerIndexAggregates.
+     */
+    private function pinOperatorsToViewer(Request $request): void
+    {
+        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
+
+        if ($viewerOperatorId !== null) {
+            $request->merge(['operators' => [$viewerOperatorId]]);
+        }
+    }
+
+    /**
+     * 404 when the job belongs to an operator the viewer may not see. Every
+     * job carries operator_id (NOT NULL; live data: it always equals the
+     * driver's operator), so this is the cheapest correct boundary. Deliberately
+     * NOT a global scope on OpsJob — the cron / driver API paths must keep
+     * reading every job.
+     */
+    private function assertWithinViewerCeiling(?OpsJob $opsJob): OpsJob
+    {
+        abort_if($opsJob === null, 404);
+
+        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
+
+        abort_if($viewerOperatorId !== null && (int) $opsJob->operator_id !== $viewerOperatorId, 404);
+
+        return $opsJob;
+    }
+
+    private function scopedOpsJob($id): OpsJob
+    {
+        return $this->assertWithinViewerCeiling(OpsJob::find($id));
+    }
+
+    private function scopedOpsJobItem($id): OpsJobItem
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+        $this->assertWithinViewerCeiling($opsJobItem->opsJob);
+
+        return $opsJobItem;
+    }
+
+    private function scopedOpsJobItemChannel($id): OpsJobItemChannel
+    {
+        $opsJobItemChannel = OpsJobItemChannel::findOrFail($id);
+        $this->assertWithinViewerCeiling($opsJobItemChannel->opsJob);
+
+        return $opsJobItemChannel;
     }
 
     public function index(Request $request)
@@ -109,6 +192,7 @@ class OpsJobController extends Controller
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
+        $this->pinOperatorsToViewer($request);
 
         $request->merge([
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
@@ -377,6 +461,7 @@ class OpsJobController extends Controller
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
+        $this->pinOperatorsToViewer($request);
 
         $request->merge([
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDays(7)->setTimezone($this->getUserTimezone())->startOfDay(),
@@ -608,7 +693,7 @@ class OpsJobController extends Controller
 
     public function confirmItem(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         switch ($opsJobItem->status) {
             case 1:
@@ -908,7 +993,7 @@ class OpsJobController extends Controller
 
     public function addChannel(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         // Guard: only allowed in pending status with no stock action
         if ($opsJobItem->status != OpsJob::STATUS_PENDING || $opsJobItem->stock_action_type) {
@@ -991,7 +1076,7 @@ class OpsJobController extends Controller
 
     public function deleteChannel(Request $request, $itemChannelId)
     {
-        $opsJobItemChannel = \App\Models\OpsJobItemChannel::findOrFail($itemChannelId);
+        $opsJobItemChannel = $this->scopedOpsJobItemChannel($itemChannelId);
         $opsJobItem = $opsJobItemChannel->opsJobItem;
 
         // Guard: only allowed in pending status with no stock action
@@ -1017,7 +1102,7 @@ class OpsJobController extends Controller
 
     public function saveItem(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
         // Per-SKU freeze semantics:
         //   - Front-end only sends channels the operator manually touched
         //     (is_user_modified or is_user_unfreeze).
@@ -1103,7 +1188,7 @@ class OpsJobController extends Controller
 
     public function syncCmsInvoices($id)
     {
-        $opsJob = OpsJob::findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id);
 
         $opsJob = OpsJob::query()
             ->with([
@@ -1169,7 +1254,7 @@ class OpsJobController extends Controller
 
     public function syncInventory($id)
     {
-        $opsJob = OpsJob::with('opsJobItems')->findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id)->load('opsJobItems');
 
         $opsJob->opsJobItems->each(function ($opsJobItem) {
             if ($opsJobItem->status >= OpsJob::STATUS_DELIVERED && $opsJobItem->status != OpsJob::STATUS_CANCELLED && ! $opsJobItem->is_inventory_adjusted) {
@@ -1439,7 +1524,8 @@ class OpsJobController extends Controller
                 // Tasks: simple indexed query, ordered by sequence
                 'opsJobTasks' => fn ($q) => $q->with('createdBy:id,name', 'pickedBy:id,name', 'completedBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
-            ->findOrFail($id);
+            ->find($id);
+        $this->assertWithinViewerCeiling($opsJob);
 
         // Load opsJobItemChannels in a single query keyed on ops_job_id rather than
         // letting Laravel eager-load via ops_job_item_id IN (...).
@@ -1539,7 +1625,7 @@ class OpsJobController extends Controller
 
     public function editItem(Request $request, $id)
     {
-        $opsJob = OpsJobItem::findOrFail($id)->opsJob;
+        $opsJob = $this->scopedOpsJobItem($id)->opsJob;
         $opsJobItem = OpsJobItem::query()
             ->with([
                 // machine_type + citybox_equipment_id feed OpsJobItemResource.is_citybox_chiller,
@@ -1802,12 +1888,14 @@ class OpsJobController extends Controller
 
     public function createItem(Request $request, $id)
     {
+        $this->scopedOpsJob($id);
+
         $this->createOpsJobItem($id, $request->vend_id);
     }
 
     public function changeItemStatus(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         if ($request->nextStatus) {
             switch ($request->nextStatus) {
@@ -1834,7 +1922,7 @@ class OpsJobController extends Controller
 
     public function itemCashCollected(Request $request, $opsJobItemID)
     {
-        $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
+        $opsJobItem = $this->scopedOpsJobItem($opsJobItemID);
         $opsJobItem->update([
             'is_cash_collected' => true,
             'cash_amount' => $request->cash_amount ? $request->cash_amount : 0,
@@ -1853,7 +1941,7 @@ class OpsJobController extends Controller
         // enforces the same permission; the endpoint must too.)
         abort_unless(auth()->user()?->can('admin-access operations'), 403);
 
-        $opsJob = OpsJob::findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id);
 
         // Tasks are always renumberable (the Route page treats every task as
         // pending), so their presence keeps the route editable even when every
@@ -1959,6 +2047,7 @@ class OpsJobController extends Controller
                 'opsJobTasks' => fn ($q) => $q->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->find($id);
+        $this->assertWithinViewerCeiling($opsJob);
 
         $opsJobAddresses = $opsJob->opsJobItems->pluck('customer.deliveryAddress')->filter()->unique('id');
 
@@ -1985,7 +2074,7 @@ class OpsJobController extends Controller
         // /sequence would make the /renumber gate pointless.
         abort_unless(auth()->user()?->can('admin-access operations'), 403);
 
-        $opsJob = OpsJob::findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id);
 
         abort_unless(
             $opsJob->opsJobItems()->where('status', '<', OpsJob::STATUS_DELIVERED)->exists()
@@ -2020,7 +2109,7 @@ class OpsJobController extends Controller
             if (isset($opsJobItemRequest['_isTask']) and $opsJobItemRequest['_isTask'] == true) {
                 continue;
             }
-            $opsJobItem = OpsJobItem::findOrFail($opsJobItemRequest['id']);
+            $opsJobItem = $this->scopedOpsJobItem($opsJobItemRequest['id']);
             $opsJobItem->update([
                 'sequence' => $opsJobItemRequest['generated_sequence'],
             ]);
@@ -2031,7 +2120,7 @@ class OpsJobController extends Controller
 
     public function settleItemChannelError($opsJobItemChannelID)
     {
-        $opsJobItemChannel = OpsJobItemChannel::findOrFail($opsJobItemChannelID);
+        $opsJobItemChannel = $this->scopedOpsJobItemChannel($opsJobItemChannelID);
         $opsJobItemChannel->update([
             'error_settled_at' => Carbon::now(),
             'is_error_settle' => true,
@@ -2074,7 +2163,7 @@ class OpsJobController extends Controller
 
     public function delete($id)
     {
-        $opsJob = OpsJob::findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id);
 
         if ($opsJob->opsJobItems) {
             foreach ($opsJob->opsJobItems as $opsJobItem) {
@@ -2092,7 +2181,7 @@ class OpsJobController extends Controller
 
     public function deleteItem($id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
         $opsJobId = $opsJobItem->ops_job_id;
 
         if ($opsJobItem->cms_transaction_id) {
@@ -2110,7 +2199,7 @@ class OpsJobController extends Controller
 
     public function toggleIsIgnoreLimit(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
         $opsJobItem->update([
             'is_ignore_limit' => ! $opsJobItem->is_ignore_limit,
         ]);
@@ -2120,7 +2209,7 @@ class OpsJobController extends Controller
 
     public function undoItemStatus($id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         switch ($opsJobItem->status) {
             case OpsJob::STATUS_PICKED:
@@ -2213,18 +2302,47 @@ class OpsJobController extends Controller
         }
     }
 
+    /**
+     * Job-level edit. The only live caller is OpsJob/Edit.vue's "remarks"
+     * save (it posts {id, vend_id, remarks}); date / driver reassignment is
+     * accepted too, validated, but never `created_by`, `operator_id`, `status`,
+     * `code` — those were mass-assignable from the raw request before
+     * (audit M2-04).
+     */
     public function update(Request $request, $id)
     {
-        $opsJob = OpsJob::findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id);
 
-        $opsJob->update($request->all());
+        $data = $request->validate([
+            'remarks' => 'sometimes|nullable|string|max:5000',
+            'date' => 'sometimes|required|date',
+            'delivered_by' => 'sometimes|required|integer|exists:users,id',
+        ]);
+
+        // A scoped viewer may only hand the job to a driver of their own
+        // operator; operator 1 is unrestricted.
+        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
+        if (isset($data['delivered_by']) && $viewerOperatorId !== null) {
+            $driverOperatorId = (int) User::whereKey($data['delivered_by'])->value('operator_id');
+            if ($driverOperatorId !== $viewerOperatorId) {
+                throw ValidationException::withMessages([
+                    'delivered_by' => 'You can only assign drivers of your own operator.',
+                ]);
+            }
+        }
+
+        if ($data !== []) {
+            $opsJob->update(array_merge($data, [
+                'updated_by' => auth()->id(),
+            ]));
+        }
 
         return redirect()->back();
     }
 
     public function updateItem(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         if ($request->cash_amount or $request->temp_cash_amount_from_vmc or $request->cashless_amount or $request->remarks) {
             $opsJobItem->update([
@@ -2309,7 +2427,7 @@ class OpsJobController extends Controller
 
         // Move regular job items
         foreach ($itemIds as $itemId) {
-            $opsJobItem = OpsJobItem::findOrFail($itemId);
+            $opsJobItem = $this->scopedOpsJobItem($itemId);
 
             if ($opsJobItem->ops_job_id === $targetOpsJob->id) {
                 continue;
@@ -2346,7 +2464,7 @@ class OpsJobController extends Controller
 
     public function undoItemCashCollected(Request $request, $opsJobItemID)
     {
-        $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
+        $opsJobItem = $this->scopedOpsJobItem($opsJobItemID);
         $opsJobItem->update([
             'is_cash_collected' => false,
         ]);
@@ -2356,7 +2474,7 @@ class OpsJobController extends Controller
 
     public function updateStockAction(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
         $stockActionType = $request->stock_action_type;
         $this->assertStockActionAllowedForMachine($opsJobItem, $stockActionType);
 
@@ -2420,7 +2538,7 @@ class OpsJobController extends Controller
 
     public function undoStockAction(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         // Only allow undo when in Picked status with an auto-pick stock action
         if (
@@ -2454,7 +2572,7 @@ class OpsJobController extends Controller
 
     public function updateJobStockAction(Request $request, $id)
     {
-        $opsJob = OpsJob::findOrFail($id);
+        $opsJob = $this->scopedOpsJob($id);
         $opsJob->update([
             'stock_action_type' => $request->stock_action_type,
         ]);
@@ -2737,7 +2855,7 @@ class OpsJobController extends Controller
 
     public function updateItemRemarks(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
         $opsJobItem->update([
             'remarks' => $request->remarks,
             'remarks_updated_at' => Carbon::now(),
@@ -2749,7 +2867,7 @@ class OpsJobController extends Controller
 
     public function uploadItemAttachments(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         if ($request->files) {
             $files = $request->file('files');
@@ -2768,7 +2886,7 @@ class OpsJobController extends Controller
 
     public function verifyItem(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobItem = $this->scopedOpsJobItem($id);
 
         switch ($request->verify) {
             case 0:

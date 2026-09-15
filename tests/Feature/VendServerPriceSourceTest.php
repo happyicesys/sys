@@ -48,6 +48,21 @@ class VendServerPriceSourceTest extends TestCase
         SellingPrice::create(['product_id' => $this->product->id, 'type' => SellingPrice::TYPE_3, 'amount' => 3.50]);
     }
 
+    /**
+     * A staff user allowed on /vends/{id}/update and /customers/{id}/update —
+     * both gated since 2026-09-15 (audit M2-03 / M2-06).
+     */
+    private function machineEditor(): User
+    {
+        foreach (['update machine-settings', 'update customers'] as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
+        }
+        $user = User::factory()->create();
+        $user->givePermissionTo(['update machine-settings', 'update customers']);
+
+        return $user;
+    }
+
     /** A vending machine on a Site at RP3, mapping + channel 11 = the product. */
     private function makeVend(int $code, ?int $siteRp = SellingPrice::TYPE_3, bool $usesServerPrice = false): Vend
     {
@@ -155,7 +170,7 @@ class VendServerPriceSourceTest extends TestCase
     {
         Queue::fake();
         $vend = $this->makeVend(9915, usesServerPrice: false);
-        $user = User::factory()->create();
+        $user = $this->machineEditor();
 
         $this->actingAs($user)
             ->post('/apk-settings/vends/'.$vend->id.'/pricing-source', ['is_using_server_price' => true])
@@ -173,7 +188,7 @@ class VendServerPriceSourceTest extends TestCase
     {
         Queue::fake();
         $vend = $this->makeVend(9916, usesServerPrice: false);
-        $user = User::factory()->create();
+        $user = $this->machineEditor();
 
         $payload = [
             'name' => 'Machine 9916',
@@ -267,7 +282,7 @@ class VendServerPriceSourceTest extends TestCase
             'product_mapping_id' => $follower->product_mapping_id, 'is_using_server_price' => true,
         ]);
         $boardPriced = $this->makeVend(9918, usesServerPrice: false);
-        $user = User::factory()->create();
+        $user = $this->machineEditor();
 
         $this->actingAs($user)->post('/customers/'.$follower->customer_id.'/update', [
             'customer' => ['selling_price_type' => SellingPrice::TYPE_2],

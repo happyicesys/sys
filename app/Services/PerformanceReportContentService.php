@@ -219,13 +219,14 @@ class PerformanceReportContentService
                 $start = $activeStart;
             }
         }
-        if ($customer->removed_date) {
+        $feeEnd = CustomerSummaryAggregator::feeEndDate($customer);
+        if ($feeEnd) {
             // Exclusive removal: the site stops operating ON the removal date,
             // so the last ACTIVE (billable) day is the day before it. Mirrors
             // CustomerSummaryAggregator::computeActiveDayRatio so the report /
             // invoice prorate identically to the Summary row (e.g. removed on
             // the 16th of a 30-day month → active 1st–15th → 15/30).
-            $removedEnd = Carbon::parse($customer->removed_date)->startOfDay()->subDay();
+            $removedEnd = Carbon::parse($feeEnd)->startOfDay()->subDay();
             if ($removedEnd->lt($end)) {
                 $end = $removedEnd;
             }

@@ -25,6 +25,17 @@ class SimcardController extends Controller
      */
     public const USAGE_STATUSES = ['Activated', 'Inactive'];
 
+    public function __construct()
+    {
+        // Data Management > SIM Card. The `simcards` tuple (staff only since the
+        // 2026-07-23 sheet sync) was never enforced on the routes (audit M2-11):
+        // the sidebar link hid, the URL and the writes stayed open.
+        $this->middleware(['permission:read simcards'])->only(['index', 'exportExcel']);
+        $this->middleware(['permission:create simcards'])->only('store');
+        $this->middleware(['permission:update simcards'])->only('update');
+        $this->middleware(['permission:delete simcards'])->only('delete');
+    }
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

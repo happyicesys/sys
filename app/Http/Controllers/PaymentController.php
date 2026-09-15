@@ -6,6 +6,7 @@ use App\Jobs\PublishMqtt;
 use App\Jobs\RefundOmiseJob;
 use App\Jobs\Vend\CreateGatewayVendTransaction;
 use App\Jobs\Vend\LogNofoundTxnIfStillMissing;
+use App\Jobs\VerifyPaymentWebhook;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Fiuu;
@@ -14,6 +15,8 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Services\MqttService;
+use App\Services\Payment\WebhookVerdict;
+use App\Services\Payment\WebhookVerifier;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
@@ -217,6 +220,34 @@ class PaymentController extends Controller
                     return;
                 }
             }
+        }
+
+        // Webhook authenticity (audit M3-01). Omise webhooks carry no signature,
+        // so before an APPROVE dispenses or a REFUND marks a sale refunded the
+        // charge is re-read from Omise with the merchant's secret key.
+        //   enforce: inline, a MISMATCH is refused here (200 so Omise does not
+        //            retry; nothing below runs). UNVERIFIABLE passes with a
+        //            warning - see config/payment.php for why.
+        //   log:     queued AFTER processing (bottom of this method) so the
+        //            approval path is untouched while the check is proven.
+        $verificationMode = config('payment.webhook_verification', 'log');
+        if ($verificationMode === 'enforce') {
+            $verdict = app(WebhookVerifier::class)->verify($company, $input, $paymentGatewayLog, $status);
+            $verdictContext = $verdict->toLogContext() + ['mode' => 'enforce', 'company' => $company, 'log_id' => $paymentGatewayLog->id, 'vend_code' => $paymentGatewayLog->vend_code, 'status' => $status];
+            if ($verdict->isMismatch()) {
+                Log::warning('payment.webhook.verify mismatch REFUSED', $verdictContext);
+
+                return;
+            }
+            if ($verdict->outcome === WebhookVerdict::UNVERIFIABLE) {
+                Log::warning('payment.webhook.verify unverifiable, allowed through', $verdictContext);
+            } elseif ($verdict->outcome === WebhookVerdict::VERIFIED) {
+                Log::info('payment.webhook.verify verified', $verdictContext);
+            }
+        } elseif ($verificationMode === 'log' && in_array($status, [PaymentGatewayLog::STATUS_APPROVE, PaymentGatewayLog::STATUS_REFUND], true)) {
+            // Dispatched now (after commit of this request's writes is not needed:
+            // the job re-reads the log by id) and runs on `low`, off this path.
+            VerifyPaymentWebhook::dispatch($paymentGatewayLog->id, $company, $input, $status);
         }
 
         // Fold the approval timestamp into this single updateOrCreate instead of

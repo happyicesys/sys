@@ -35,11 +35,12 @@ class CityboxChillerGuardsTest extends TestCase
         Queue::fake();
         config(['citybox.openapi.enabled' => true, 'citybox.openapi.app_id' => 'A', 'citybox.openapi.secret' => 'S']);
         $this->app->instance(ChillerGateway::class, new FakeChillerGateway);
-        foreach (['read product-mappings', 'update operations', 'admin-access operations'] as $p) {
+        // + update machine-settings: /vends/{id}/update is gated since 2026-09-15 (audit M2-03).
+        foreach (['read product-mappings', 'update operations', 'admin-access operations', 'update machine-settings'] as $p) {
             Permission::findOrCreate($p, 'web');
         }
         $this->user = User::factory()->create();
-        $this->user->givePermissionTo(['read product-mappings', 'update operations', 'admin-access operations']);
+        $this->user->givePermissionTo(['read product-mappings', 'update operations', 'admin-access operations', 'update machine-settings']);
         $this->actingAs($this->user);
     }
 

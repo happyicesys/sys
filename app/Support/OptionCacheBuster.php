@@ -59,18 +59,17 @@ class OptionCacheBuster
      */
     protected const STATIC_KEYS = [
         DeliveryPlatform::class => ['delivery_platform_options'],
-        LocationType::class     => ['location_type_options'],
+        LocationType::class => ['location_type_options'],
         VendChannelError::class => ['vend_channel_errors'],
-        VendConfig::class       => ['vend_config_options'],
-        VendContract::class     => ['vend_contract_options'],
-        VendModel::class        => ['vend_model_options'],
-        Zone::class             => ['zone_options'], // "Refilling Routes" dropdown
-        ProductMapping::class   => ['product_mapping_options'],
-        CardTerminal::class     => ['card_terminal_options'],
-        Telco::class            => ['telco_options'], // "SimCard Package" dropdown
-        ModemType::class        => ['modem_type_options'], // "Modem" dropdown
-        Tag::class              => ['tag_options_product'],
-        PaymentMethod::class    => ['payment_methods', 'payment_method_id_credit_card'],
+        VendConfig::class => ['vend_config_options'],
+        VendContract::class => ['vend_contract_options'],
+        VendModel::class => ['vend_model_options'],
+        Zone::class => ['zone_options'], // "Refilling Routes" dropdown
+        CardTerminal::class => ['card_terminal_options'],
+        Telco::class => ['telco_options'], // "SimCard Package" dropdown
+        ModemType::class => ['modem_type_options'], // "Modem" dropdown
+        Tag::class => ['tag_options_product'],
+        PaymentMethod::class => ['payment_methods', 'payment_method_id_credit_card'],
     ];
 
     public static function listen(): void
@@ -107,7 +106,14 @@ class OptionCacheBuster
         // ProductMapping global scope narrows the list per viewer; busted on any
         // mapping save so activating/deactivating or renaming one shows up at
         // once instead of aging out over the 24h TTL.
-        self::onChange(ProductMapping::class, fn () => self::forgetPerOperator('upcoming_product_mapping_options_'));
+        //
+        // product_mapping_options_{operator_id} — the plain "Mapping" filter
+        // list on the same page, keyed the same way since 2026-09-15 (it used to
+        // be ONE entry shared by every operator — audit M2-09).
+        self::onChange(ProductMapping::class, function () {
+            self::forgetPerOperator('upcoming_product_mapping_options_');
+            self::forgetPerOperator('product_mapping_options_');
+        });
 
         // categories_{classname} / category_groups_{classname} — bust the
         // changed row's classname plus every classname still in the table
@@ -135,7 +141,7 @@ class OptionCacheBuster
         self::onChange(Product::class, function ($model) {
             if (
                 $model->wasRecentlyCreated
-                || !$model->exists // deleted
+                || ! $model->exists // deleted
                 || $model->wasChanged([
                     'code', 'desc', 'name', 'operator_id',
                     'is_active', 'is_inventory', 'is_available',
@@ -149,12 +155,12 @@ class OptionCacheBuster
         // testing_vend_ids — used by Dashboard/exports/aggregators (up to 1h
         // TTL). Vend rows are saved constantly by machine sync, so guard hard:
         // only the is_testing flag flipping matters.
-        Event::listen('eloquent.saved: ' . Vend::class, function (Vend $vend) {
+        Event::listen('eloquent.saved: '.Vend::class, function (Vend $vend) {
             if ($vend->wasChanged('is_testing')) {
                 Cache::forget('testing_vend_ids');
             }
         });
-        Event::listen('eloquent.deleted: ' . Vend::class, function (Vend $vend) {
+        Event::listen('eloquent.deleted: '.Vend::class, function (Vend $vend) {
             if ($vend->is_testing) {
                 Cache::forget('testing_vend_ids');
             }
@@ -185,8 +191,8 @@ class OptionCacheBuster
      */
     protected static function onChange(string $modelClass, callable $callback): void
     {
-        Event::listen('eloquent.saved: ' . $modelClass, $callback);
-        Event::listen('eloquent.deleted: ' . $modelClass, $callback);
+        Event::listen('eloquent.saved: '.$modelClass, $callback);
+        Event::listen('eloquent.deleted: '.$modelClass, $callback);
     }
 
     /**
@@ -195,7 +201,7 @@ class OptionCacheBuster
     protected static function forgetPerOperator(string $prefix): void
     {
         foreach (DB::table('operators')->pluck('id') as $operatorId) {
-            Cache::forget($prefix . $operatorId);
+            Cache::forget($prefix.$operatorId);
         }
     }
 
@@ -212,7 +218,7 @@ class OptionCacheBuster
         }
 
         foreach (array_unique($classnames) as $classname) {
-            Cache::forget($prefix . $classname);
+            Cache::forget($prefix.$classname);
         }
     }
 

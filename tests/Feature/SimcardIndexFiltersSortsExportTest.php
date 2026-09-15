@@ -19,13 +19,25 @@ class SimcardIndexFiltersSortsExportTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Data Management > SIM Card is gated on the `simcards` tuple since 2026-09-15 (audit M2-11). */
+    private function simcardStaff(array $attributes = []): User
+    {
+        foreach (['read simcards', 'create simcards', 'update simcards', 'delete simcards'] as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
+        }
+        $user = User::factory()->create($attributes);
+        $user->givePermissionTo(['read simcards', 'create simcards', 'update simcards', 'delete simcards']);
+
+        return $user;
+    }
+
     private Telco $telco;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->be(User::factory()->create());
+        $this->be($this->simcardStaff());
         $this->telco = Telco::create(['name' => 'VoicePing 6GB/y']);
     }
 
@@ -342,7 +354,7 @@ class SimcardIndexFiltersSortsExportTest extends TestCase
             'simcard_id' => $sim->id, 'customer_id' => $secretSite->id,
         ]);
 
-        $this->be(User::factory()->create(['operator_id' => $opB->id]));
+        $this->be($this->simcardStaff(['operator_id' => $opB->id]));
 
         $this->assertStringNotContainsString(
             'Operator A Confidential Site',

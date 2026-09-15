@@ -12,8 +12,8 @@ class OperatorResource extends JsonResource
         $emailRecipientsJson = $this->email_recipients_json ?? [];
 
         // Safe timezone mapping
-        $tzList  = DateTimeZone::listIdentifiers();
-        $tzName  = $this->timezone;
+        $tzList = DateTimeZone::listIdentifiers();
+        $tzName = $this->timezone;
         $tzIndex = null;
         if ($tzName !== null) {
             $found = array_search($tzName, $tzList, true);
@@ -21,39 +21,44 @@ class OperatorResource extends JsonResource
         }
 
         return [
-            'id'          => $this->id,
-            'code'        => $this->code,
-            'name'        => $this->name,
-            'full_name'   => $this->code . ' - ' . $this->name,
-            'remarks'     => $this->remarks,
-            'gst_vat_rate'=> $this->gst_vat_rate,
-            'bank_account_no'   => $this->bank_account_no,
-            'bank_account_name' => $this->bank_account_name,
-            'is_active'   => (bool) $this->is_active,
+            'id' => $this->id,
+            'code' => $this->code,
+            'name' => $this->name,
+            'full_name' => $this->code.' - '.$this->name,
+            'remarks' => $this->remarks,
+            'gst_vat_rate' => $this->gst_vat_rate,
+            // Partner bank details. This resource also feeds the plain operator
+            // dropdowns (Ops Dashboard, Ops Jobs, APK/Machine Settings...) which
+            // every role sees, so the two fields ride only for viewers who may
+            // open Admin > Operators (`read operators`: superadmin/admin) —
+            // audit M2-08.
+            'bank_account_no' => $this->when((bool) $request->user()?->can('read operators'), $this->bank_account_no),
+            'bank_account_name' => $this->when((bool) $request->user()?->can('read operators'), $this->bank_account_name),
+            'is_active' => (bool) $this->is_active,
 
             'timezone' => [
-                'id'   => $tzIndex,
+                'id' => $tzIndex,
                 'name' => $tzName,
             ],
 
-            'country'    => CountryResource::make($this->whenLoaded('country')),
+            'country' => CountryResource::make($this->whenLoaded('country')),
             'country_id' => CountryResource::make($this->whenLoaded('country')),
 
             'address' => AddressResource::make($this->whenLoaded('address')),
 
-            'customers'                => CustomerResource::collection($this->whenLoaded('customers')),
-            'vends'                    => VendResource::collection($this->whenLoaded('vends')),
+            'customers' => CustomerResource::collection($this->whenLoaded('customers')),
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
 
             // "Access Product(s)" allow-list + mode flag. This is the hard
             // ceiling for every user under this operator - see
             // App\Support\ProductAccess::forUser().
-            'product_access_mode'      => $this->product_access_mode,
+            'product_access_mode' => $this->product_access_mode,
             // "Transaction Access From" - the floor for every user in this
             // operator. Same normalise-for-the-date-input reason as UserResource.
-            'transaction_access_from'  => \App\Support\TransactionAccess::normalise($this->transaction_access_from),
-            'access_products'          => ProductResource::collection($this->whenLoaded('accessProducts')),
-            'deliveryPlatformOperators'=> DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
-            'operatorPaymentGateways'  => OperatorPaymentGatewayResource::collection($this->whenLoaded('operatorPaymentGateways')),
+            'transaction_access_from' => \App\Support\TransactionAccess::normalise($this->transaction_access_from),
+            'access_products' => ProductResource::collection($this->whenLoaded('accessProducts')),
+            'deliveryPlatformOperators' => DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
+            'operatorPaymentGateways' => OperatorPaymentGatewayResource::collection($this->whenLoaded('operatorPaymentGateways')),
 
             // Current UI field (single multiselect backing)
             'email_recipients' => $emailRecipientsJson,
@@ -68,7 +73,7 @@ class OperatorResource extends JsonResource
 
             // Back-compat fields; will be [] when json is a flat string array
             'email_user_ids' => data_get($emailRecipientsJson, 'user_ids', []),
-            'email_customs'  => data_get($emailRecipientsJson, 'customs', []),
+            'email_customs' => data_get($emailRecipientsJson, 'customs', []),
         ];
     }
 }

@@ -234,6 +234,77 @@ class CustomerSummaryAggregator
     }
 
     /**
+     * First month the Inactive status stops a location fee. Months before it
+     * were generated under the old rule (Inactive did not gate the fee) and are
+     * left exactly as they were.
+     */
+    public const INACTIVE_FEE_STOP_FROM = '2026-09-01';
+
+    /**
+     * The day an Inactive Date stops the fee: the date itself, but never
+     * before INACTIVE_FEE_STOP_FROM (forward-only).
+     */
+    public static function inactiveFeeStop($inactiveDate): Carbon
+    {
+        $date = Carbon::parse($inactiveDate)->startOfDay();
+        $floor = Carbon::parse(self::INACTIVE_FEE_STOP_FROM)->startOfDay();
+
+        return $date->lt($floor) ? $floor : $date;
+    }
+
+    /**
+     * Status-log rows that open or close a fee interval: Active (when
+     * $withActive), Removed, and Inactive dated on/after INACTIVE_FEE_STOP_FROM.
+     * An older Inactive row is ignored outright — under the old rule it never
+     * stopped the fee, and moving it forward could close an interval the site
+     * has since re-opened.
+     */
+    public static function whereFeeStatusEvent($q, string $statusCol, string $dateCol, bool $withActive = true)
+    {
+        $statuses = $withActive
+            ? [\App\Models\Customer::STATUS_ACTIVE, \App\Models\Customer::STATUS_REMOVED]
+            : [\App\Models\Customer::STATUS_REMOVED];
+
+        return $q->whereIn($statusCol, $statuses)
+            ->orWhere(fn ($i) => $i->where($statusCol, \App\Models\Customer::STATUS_INACTIVE)
+                ->where($dateCol, '>=', self::INACTIVE_FEE_STOP_FROM));
+    }
+
+    /**
+     * The EXCLUSIVE end of a site's fee window — the date every flat-fee
+     * proration passes as its "removed date".
+     *
+     * Removed Date always ends it. An INACTIVE site also stops accruing from
+     * its Inactive Date (termination_date) — Brian, 2026-09-15: three sites
+     * set Inactive instead of Removed kept billing rent every month and Finance
+     * re-waived each one by hand. The earlier of the two wins.
+     *
+     * FORWARD-ONLY: the Inactive stop is never earlier than
+     * INACTIVE_FEE_STOP_FROM, so every month before it keeps the fee it was
+     * generated with (locked or not) — "the already one, leave it" (Brian).
+     *
+     * Gated on the CURRENT status, never on termination_date alone: machine
+     * unbind stamps it and rebind never clears it, and a legacy import stamped
+     * 2024-02-07 on ~400 rows, so an Active site can carry a stale one (see
+     * Customer::salesWindowEnd). A site set Active again pays again.
+     *
+     * $customer is any object with status_id, removed_date and termination_date
+     * — an Eloquent model or a raw DB row that selected all three.
+     */
+    public static function feeEndDate($customer)
+    {
+        $end = $customer->removed_date;
+        if ((int) $customer->status_id === \App\Models\Customer::STATUS_INACTIVE && $customer->termination_date) {
+            $inactive = self::inactiveFeeStop($customer->termination_date);
+            if (! $end || $inactive->lt(Carbon::parse($end)->startOfDay())) {
+                $end = $inactive->toDateString();
+            }
+        }
+
+        return $end;
+    }
+
+    /**
      * Flat-fee proration ratio for a stored summary ROW, segment-aware.
      *
      * A whole-month row prorates the flat fee over the site's full active
@@ -293,10 +364,10 @@ class CustomerSummaryAggregator
      * active_date/removed_date pair path unchanged.
      *
      * $events: array of ['date' => 'Y-m-d', 'is_active' => bool], where is_active
-     * marks an ACTIVE (open) event and !is_active a REMOVED (close) event — the
-     * caller pre-filters to those two statuses (Inactive/New/Potential are not
-     * billing cut-offs and are excluded). Conventions match
-     * computeActiveDayRatio: active day inclusive, removal day EXCLUSIVE (last
+     * marks an ACTIVE (open) event and !is_active a REMOVED or INACTIVE (close)
+     * event — the caller pre-filters to those statuses (New/Potential are not
+     * billing cut-offs and are excluded; Inactive is one since 2026-09-15).
+     * Conventions match computeActiveDayRatio: active day inclusive, removal day EXCLUSIVE (last
      * billable day = removed_date − 1), denominator = full calendar month.
      *
      * If the earliest event isn't an open, an Active is anchored at $beginDate
@@ -363,8 +434,8 @@ class CustomerSummaryAggregator
 
     /**
      * Customer IDs that have been RE-ACTIVATED — i.e. their status history holds
-     * an ACTIVE event dated strictly after a REMOVED event. These are the only
-     * sites whose single active_date/removed_date pair is insufficient (the pair
+     * an ACTIVE event dated strictly after a REMOVED or INACTIVE event. These
+     * are the only sites whose single active_date/removed_date pair is insufficient (the pair
      * only remembers the latest interval), so they use activeDaysFromLog()
      * instead. Everything else is untouched.
      */
@@ -373,7 +444,7 @@ class CustomerSummaryAggregator
         return DB::table('customer_status_logs as a')
             ->join('customer_status_logs as r', 'r.customer_id', '=', 'a.customer_id')
             ->where('a.status_id', \App\Models\Customer::STATUS_ACTIVE)
-            ->where('r.status_id', \App\Models\Customer::STATUS_REMOVED)
+            ->where(fn ($q) => self::whereFeeStatusEvent($q, 'r.status_id', 'r.status_date', false))
             ->whereColumn('a.status_date', '>', 'r.status_date')
             ->distinct()
             ->pluck('a.customer_id')
@@ -656,8 +727,8 @@ class CustomerSummaryAggregator
         //     period_end to qualify for this month.
         //   - removed end: removed_date. The site must NOT have been removed
         //     before this month started. NULL removed_date = still active.
-        // (termination_date / Inactive is record-only and does NOT gate the
-        // calc — Removed Date is the commission cutoff.)
+        //   - inactive end: an INACTIVE site stops at its termination_date too
+        //     (feeEndDate). The date alone never gates — only with the status.
         // ── Re-activation handling (RARE edge) ─────────────────────────────
         // A site removed then set Active again can't be billed from the single
         // active_date/removed_date pair (it only remembers the LATEST interval).
@@ -674,7 +745,7 @@ class CustomerSummaryAggregator
             $logsByCustomer = [];
             DB::table('customer_status_logs')
                 ->whereIn('customer_id', $reIds)
-                ->whereIn('status_id', [\App\Models\Customer::STATUS_ACTIVE, \App\Models\Customer::STATUS_REMOVED])
+                ->where(fn ($q) => self::whereFeeStatusEvent($q, 'status_id', 'status_date'))
                 ->orderBy('customer_id')->orderBy('status_date')
                 ->get(['customer_id', 'status_id', 'status_date'])
                 ->each(function ($r) use (&$logsByCustomer) {
@@ -713,6 +784,14 @@ class CustomerSummaryAggregator
                         });
                     })->where(function ($q) use ($monthStart) {
                         $q->whereNull('removed_date')->orWhere('removed_date', '>=', $monthStart);
+                    })->when($monthStart->gte(Carbon::parse(self::INACTIVE_FEE_STOP_FROM)), function ($pair) use ($monthStart) {
+                        // Forward-only: months before INACTIVE_FEE_STOP_FROM keep
+                        // the old eligibility, so an Inactive site never leaves them.
+                        $pair->where(function ($q) use ($monthStart) {
+                            $q->where('status_id', '<>', \App\Models\Customer::STATUS_INACTIVE)
+                                ->orWhereNull('termination_date')
+                                ->orWhere('termination_date', '>=', $monthStart);
+                        });
                     });
                 });
                 // (b) … OR a re-activated site that was active this month per its
@@ -892,6 +971,7 @@ class CustomerSummaryAggregator
             'begin_date',
             'active_date',
             'removed_date',
+            'termination_date',
             'contract_commission_type',
             'contract_commission_value',
             'contract_commission_value2',
@@ -943,7 +1023,7 @@ class CustomerSummaryAggregator
                 } else {
                     $flatDayRatio = self::computeActiveDayRatio(
                         $customer->active_date ?? $customer->begin_date,
-                        $customer->removed_date,
+                        self::feeEndDate($customer),
                         $monthStart
                     );
                 }

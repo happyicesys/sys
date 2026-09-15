@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ApkReleaseResource;
-use App\Jobs\PublishMqtt;
 use App\Models\ApkRelease;
 use App\Models\Vend;
 use App\Services\OtaChannelResolver;
-use Carbon\Carbon;
+use App\Services\OtaCheckNudge;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -234,7 +233,7 @@ class ApkReleaseController extends Controller
      * envelope as the other VMC/APK commands. The device still pulls, verifies the
      * hash and applies its own rollout gate — this only shortens the wait.
      */
-    public function pushOtaCheck(Request $request)
+    public function pushOtaCheck(Request $request, OtaCheckNudge $nudge)
     {
         $channel = $this->channels->normalise($request->input('channel'));
 
@@ -242,13 +241,13 @@ class ApkReleaseController extends Controller
         $this->fleetQuery($channel)
             ->where('is_active', true)
             ->select(['id', 'code', 'private_key'])
-            ->chunkById(200, function ($vends) use (&$count) {
+            ->chunkById(200, function ($vends) use (&$count, $nudge) {
                 foreach ($vends as $vend) {
                     if (empty($vend->code)) {
                         continue;
                     }
 
-                    PublishMqtt::dispatch('CM'.$vend->code, $this->otaCheckFrame($vend))->onQueue('high');
+                    $nudge->send($vend);
                     $count++;
                 }
             });
@@ -374,22 +373,5 @@ class ApkReleaseController extends Controller
         $slug = preg_replace('/[^A-Za-z0-9._-]/', '-', $package.'_'.$validated['version_code'].'_'.$validated['version_name']);
 
         return trim($slug, '-').'.apk';
-    }
-
-    /** Signed CSV MQTT envelope carrying the OTA_CHECK command. */
-    private function otaCheckFrame(Vend $vend): string
-    {
-        $fid = 1;
-        $content = base64_encode(json_encode([
-            'Type' => 'OTA_CHECK',
-            'time' => Carbon::now()->timestamp,
-            'action' => '',
-            'mid' => $vend->code,
-        ]));
-        $contentLength = strlen($content);
-        $key = $vend->private_key ?: config('vend.private_key', '123456789110138A');
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-        return $fid.','.$contentLength.','.$content.','.$md5;
     }
 }

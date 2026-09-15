@@ -130,7 +130,14 @@ class ProductScopedSales
             return;
         }
 
-        if ($products === []) {
+        // "Transaction Access From" (TransactionAccess): the viewer's earliest
+        // visible sales day. These are raw DB::table reads, so the
+        // TransactionAccessScope on VendTransaction never reaches them - apply
+        // the floor by hand or Y'day / 7d / 30d show days the Dashboard and
+        // Transactions pages hide. A floor after today leaves nothing visible.
+        $from = TransactionAccess::current();
+
+        if ($products === [] || ($from !== null && $from > Carbon::today()->toDateString())) {
             foreach ($vendIds as $id) {
                 self::$memo[$id] = self::zeroRow();
             }
@@ -154,7 +161,8 @@ class ProductScopedSales
         $thirtyStart = $today->copy()->subDays(29)->toDateString();
 
         try {
-            $rolled = self::rolledUp($vendIds, $products, $todayDate, $yesterday, $sevenStart, $thirtyStart);
+            // Today's legs need no floor: $from <= today was checked above.
+            $rolled = self::rolledUp($vendIds, $products, $todayDate, $yesterday, $sevenStart, $thirtyStart, $from);
             $todayRows = self::today($vendIds, $products, $todayStart);
             $todaySingleRows = self::todaySingles($vendIds, $products, $todayStart);
         } catch (\Throwable $e) {
@@ -246,6 +254,26 @@ class ProductScopedSales
         return $scoped;
     }
 
+    /**
+     * The self::KEYS entry a grid sort key asks for, or null when the sort is
+     * not on a figure this class owns. Accepts the JSON-path spelling both
+     * dashboards send (`totals_json->today_amount`,
+     * `vend_transaction_totals_json->seven_days_count`).
+     */
+    public static function sortableKeyOf(?string $sortKey): ?string
+    {
+        if ($sortKey === null || ! str_contains($sortKey, '->')) {
+            return null;
+        }
+
+        [$column, $key] = explode('->', $sortKey, 2);
+
+        return in_array($column, ['totals_json', 'vend_transaction_totals_json'], true)
+            && in_array($key, self::KEYS, true)
+                ? $key
+                : null;
+    }
+
     /** Reset between requests/tests, and for long-lived workers. */
     public static function flush(): void
     {
@@ -260,8 +288,14 @@ class ProductScopedSales
      * (daysVendRecords(29, 0)). Today is added by the caller, because
      * vend_product_records has no row for it.
      */
-    private static function rolledUp(array $vendIds, array $products, string $todayDate, string $yesterday, string $sevenStart, string $thirtyStart)
+    private static function rolledUp(array $vendIds, array $products, string $todayDate, string $yesterday, string $sevenStart, string $thirtyStart, ?string $from = null)
     {
+        // Every window below is a SUM over rows already inside this range, so
+        // raising the lower bound narrows all four at once.
+        if ($from !== null && $from > $thirtyStart) {
+            $thirtyStart = $from;
+        }
+
         return DB::table('vend_product_records')
             ->selectRaw('vend_id')
             ->selectRaw('SUM(CASE WHEN `date` = ? THEN total_amount ELSE 0 END) AS yday_amount', [$yesterday])

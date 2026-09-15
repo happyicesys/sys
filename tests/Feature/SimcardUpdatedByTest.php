@@ -19,9 +19,16 @@ class SimcardUpdatedByTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Data Management > SIM Card is gated on the `simcards` tuple since 2026-09-15 (audit M2-11). */
     private function admin(): User
     {
-        return User::factory()->create();
+        foreach (['read simcards', 'create simcards', 'update simcards', 'delete simcards'] as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
+        }
+        $user = User::factory()->create();
+        $user->givePermissionTo(['read simcards', 'create simcards', 'update simcards', 'delete simcards']);
+
+        return $user;
     }
 
     public function test_update_stamps_updated_by_and_time(): void

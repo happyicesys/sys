@@ -2,15 +2,31 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\RoleResource;
 use App\Http\Resources\PermissionResource;
+use App\Http\Resources\RoleResource;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
+/**
+ * Raw Spatie role / permission CRUD (/roles, /permissions). Neither page is
+ * linked from the sidebar and RolePermissionSyncSeeder is the source of truth
+ * for what exists, so this is a superadmin-only escape hatch: renaming
+ * `superadmin` or deleting `update refunds` from here would lock staff out
+ * until the seeder is re-run (audit M2-05). The seeder defines no
+ * roles/permissions tuple to gate on, and adding one just for this page would
+ * hand it to whichever roles held the tuple — so the gate is the ROLE itself
+ * (Spatie's `role` middleware, registered in app/Http/Kernel.php).
+ */
 class RolePermissionController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['role:superadmin']);
+    }
+
     public function indexPermission(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
@@ -20,11 +36,11 @@ class RolePermissionController extends Controller
         return Inertia::render('Permission/Index', [
             'permissions' => PermissionResource::collection(
                 Permission::query()
-                    ->when($request->name, function($query, $search) {
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -34,23 +50,26 @@ class RolePermissionController extends Controller
 
     public function createPermission(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:125', Rule::unique('permissions', 'name')->where('guard_name', 'web')],
         ]);
 
-        Permission::create($request->all());
+        Permission::create(['name' => $data['name'], 'guard_name' => 'web']);
 
         return redirect()->route('permissions');
     }
 
     public function updatePermission(Request $request, $permissionId)
     {
-        $request->validate([
-            'name' => 'required',
+        $permission = Permission::findOrFail($permissionId);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:125', Rule::unique('permissions', 'name')->where('guard_name', $permission->guard_name)->ignore($permission->id)],
         ]);
 
-        $permission = Permission::findOrFail($permissionId);
-        $permission->update($request->all());
+        // Only the name is editable; guard_name stays what it was so a row can
+        // never be moved off the `web` guard by a stray form field.
+        $permission->update(['name' => $data['name']]);
 
         return redirect()->route('permissions');
     }
@@ -72,11 +91,11 @@ class RolePermissionController extends Controller
         return Inertia::render('Role/Index', [
             'roles' => RoleResource::collection(
                 Role::query()
-                    ->when($request->name, function($query, $search) {
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -86,23 +105,26 @@ class RolePermissionController extends Controller
 
     public function createRole(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:125', Rule::unique('roles', 'name')->where('guard_name', 'web')],
         ]);
 
-        Role::create($request->all());
+        Role::create(['name' => $data['name'], 'guard_name' => 'web']);
 
         return redirect()->route('roles');
     }
 
     public function updateRole(Request $request, $roleId)
     {
-        $request->validate([
-            'name' => 'required',
+        // Was `PaymentMethod::findOrFail()` — an unimported class, i.e. this
+        // endpoint fatalled on every call. Fixed to the Role it edits.
+        $role = Role::findOrFail($roleId);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:125', Rule::unique('roles', 'name')->where('guard_name', $role->guard_name)->ignore($role->id)],
         ]);
 
-        $role = PaymentMethod::findOrFail($roleId);
-        $role->update($request->all());
+        $role->update(['name' => $data['name']]);
 
         return redirect()->route('roles');
     }
@@ -114,5 +136,4 @@ class RolePermissionController extends Controller
 
         return redirect()->route('roles');
     }
-
 }

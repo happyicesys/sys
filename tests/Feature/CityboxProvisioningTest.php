@@ -93,6 +93,23 @@ class CityboxProvisioningTest extends TestCase
         $this->assertSame(1, CustomerVendBinding::where('vend_id', $vend->id)->where('customer_id', $customer->id)->where('is_binding', true)->count());
     }
 
+    public function test_provision_skips_a_code_another_operator_already_holds(): void
+    {
+        // Prod 2026-09-01: the running number looked only at CB's own vends, so chiller 1363
+        // was given 10002 while vend 909 (another operator) already carried it.
+        $otherOperator = Operator::create(['code' => 'OTHR', 'name' => 'Other', 'country_id' => 1]);
+        Vend::withoutGlobalScopes()->create(['code' => 10001, 'operator_id' => $otherOperator->id]);
+        Vend::withoutGlobalScopes()->create(['code' => 10002, 'operator_id' => $otherOperator->id]);
+        $this->gw->seedDevice('E1', 'Singapore1')->seedDevice('E2', 'Singapore2');
+        $svc = app(DeviceProvisioningService::class);
+
+        $first = $svc->provision($svc->device('E1'), ['new_customer' => ['name' => 'Site 1']], $this->user);
+        $second = $svc->provision($svc->device('E2'), ['new_customer' => ['name' => 'Site 2']], $this->user);
+
+        $this->assertSame(10003, (int) $first->code);
+        $this->assertSame(10004, (int) $second->code);
+    }
+
     public function test_provision_binds_to_existing_customer_by_id(): void
     {
         $existing = Customer::create(['name' => 'Existing Site', 'code' => 10001, 'operator_id' => $this->op()->id, 'status_id' => Customer::STATUS_ACTIVE]);

@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use App\Models\OpsJob;
 use App\Models\Scopes\OperatorCustomerFilterScope;
+use App\Support\SiteSearch;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Support\SiteSearch;
 
 class Customer extends Model
 {
@@ -38,9 +37,13 @@ class Customer extends Model
     // boolean is now a derived mirror: is_active = (status_id === STATUS_ACTIVE),
     // kept in sync on save so existing infra reading is_active keeps working.
     const STATUS_POTENTIAL = 5;
+
     const STATUS_NEW = 4;
+
     const STATUS_PENDING = 3;
+
     const STATUS_ACTIVE = 2;
+
     const STATUS_INACTIVE = 1;
 
     // "Pending" was relabelled to "Removed" (the status now means the site has
@@ -50,10 +53,13 @@ class Customer extends Model
     const STATUS_REMOVED = self::STATUS_PENDING;
 
     const ADDRESS_TYPE_BILLING = 1;
+
     const ADDRESS_TYPE_DELIVERY = 2;
 
     const FILE_TYPE_ATTACHMENT = 1;
+
     const FILE_TYPE_PHOTO = 2;
+
     const FILE_TYPE_CONTRACT = 3;
 
     // Order here drives the dropdown order in the UI (Customer/Edit,
@@ -424,7 +430,6 @@ class Customer extends Model
             ->take(1);    // Take the second-to-last entry
     }
 
-
     public function nextOpsJobItem()
     {
         return $this->hasOne(OpsJobItem::class)
@@ -594,7 +599,7 @@ class Customer extends Model
 
         $start = null;
         foreach ([$this->begin_date, $this->active_date] as $candidate) {
-            if (!$candidate) {
+            if (! $candidate) {
                 continue;
             }
             $parsed = Carbon::parse($candidate)->startOfDay();
@@ -618,10 +623,10 @@ class Customer extends Model
     //   otherwise (Active / New / Potential) -> today, i.e. never capped
     //
     // The previous rule was `removed_date ?? termination_date ?? today`, which
-    // capped the window on termination_date regardless of status - the one
-    // field documented as record-only ("does NOT gate the calc", see
-    // CustomerController::update). Two writers put a termination_date on sites
-    // that were never closed: VendController::unbindCustomer(), which stamps it
+    // capped the window on termination_date regardless of status - a field
+    // that only means something while the site is Inactive (the location fee
+    // follows the same status gate, CustomerSummaryAggregator::feeEndDate).
+    // Two writers put a termination_date on sites that were never closed: VendController::unbindCustomer(), which stamps it
     // on every machine unbind and never clears it on re-bind, and a legacy bulk
     // import that stamped 2024-02-07 across ~400 rows. Between them 178 sites
     // had their Lifetime Sales truncated, 29 of them Active and still selling.
@@ -657,7 +662,7 @@ class Customer extends Model
         // Active / New / Potential, or a status with no date recorded: the site
         // is still trading, so the window runs to today. No query needed - this
         // is the common path.
-        if (!$statusEnd) {
+        if (! $statusEnd) {
             return ($this->salesWindowEndMemo = $today)->copy();
         }
 
@@ -697,6 +702,50 @@ class Customer extends Model
     }
 
     // scopes
+    /**
+     * "Preferred Day(s)" filter — the ONLY place customers.preferred_visit_days_json
+     * is searched (Operation Dashboard, Sites index, Machines index, Sales
+     * Transactions all call this).
+     *
+     * The request carries DAYS_MAPPING keys ("1".."8", as the Vue pages post
+     * `dayOptions[].id`) and the column is `{"1": true, "2": false, ...}`, so
+     * each value is allow-listed against those keys and the JSON path is a
+     * BINDING - the old four inline copies interpolated the raw request value
+     * into the SQL (AUDIT_2026-09-15 M2-02). Anything else ('all', garbage) is
+     * dropped; a list with nothing left applies no filter at all, like every
+     * other filter on these pages treats a value it cannot honour.
+     *
+     * Works on an Eloquent builder rooted at Customer AND on a raw
+     * DB::table() builder that has joined `customers` (HasFilter::filterVendsDB
+     * / filterVendTransactionsDB) - hence a static, not a scope.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     * @param  mixed  $days  the raw request value
+     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
+     */
+    public static function wherePreferredDays($query, $days)
+    {
+        $allowed = array_map('strval', array_keys(self::DAYS_MAPPING));
+
+        $days = array_values(array_unique(array_filter(
+            array_map(fn ($day) => is_scalar($day) ? (string) $day : null, (array) $days),
+            fn ($day) => $day !== null && in_array($day, $allowed, true)
+        )));
+
+        if ($days === []) {
+            return $query;
+        }
+
+        return $query->where(function ($subQuery) use ($days) {
+            foreach ($days as $day) {
+                $subQuery->orWhereRaw(
+                    "JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, ?)) = 'true'",
+                    ['$."'.$day.'"']
+                );
+            }
+        });
+    }
+
     public function scopeFilterIndex($query, $request)
     {
         return $query->when($request->categories, function ($query, $search) {
@@ -704,11 +753,11 @@ class Customer extends Model
                 $query->whereIn('id', $search);
             });
         })
-            ->when($request->categoryGroups, fn($query, $input) => $query->whereHas('category.categoryGroup', function ($query) use ($input) {
+            ->when($request->categoryGroups, fn ($query, $input) => $query->whereHas('category.categoryGroup', function ($query) use ($input) {
                 $query->whereIn('id', $input);
             }))
-            ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%' . $input . '%'))
-            ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
+            ->when($request->code, fn ($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
+            ->when($request->created_in, fn ($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
             ->when($request->customer, function ($query, $search) {
                 // The "Site" box matches the Site Name, the virtual code/prefix,
                 // the CMS code and the displayed Site ID (ref_id = customers.id +
@@ -746,7 +795,7 @@ class Customer extends Model
                     $query->whereIn('frequency_per_week_status', $search);
                 }
             })
-            ->when($request->is_active, function ($query, $search) use ($request) {
+            ->when($request->is_active, function ($query, $search) {
                 if ($search != 'all') {
                     $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 }
@@ -754,9 +803,9 @@ class Customer extends Model
             ->when($request->is_binded_vend, function ($query, $search) {
                 if ($search != 'all') {
                     $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
-                    if ($searchBoolean)
+                    if ($searchBoolean) {
                         $query->whereHas('vend');
-                    else {
+                    } else {
                         $query->doesntHave('vend');
                     }
                 }
@@ -764,9 +813,9 @@ class Customer extends Model
             ->when($request->is_cms, function ($query, $search) {
                 if ($search != 'all') {
                     $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
-                    if ($searchBoolean)
+                    if ($searchBoolean) {
                         $query->whereNotNull('person_id');
-                    else {
+                    } else {
                         $query->whereNull('person_id');
                     }
                 }
@@ -784,9 +833,9 @@ class Customer extends Model
                     }
                 }
             })
-            ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
+            ->when($request->handled_by, fn ($query, $input) => $query->where('handled_by', $input))
             ->when($request->location_types, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('location_type_id', $search);
                 }
             })
@@ -796,23 +845,17 @@ class Customer extends Model
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('customers.operator_id', $search);
                 }
             })
-            ->when($request->preferredDays, function ($query, $search) {
-                $query->where(function ($subQuery) use ($search) {
-                    foreach ($search as $day) {
-                        $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
-                    }
-                });
-            })
-            ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
-            ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
+            ->when($request->preferredDays, fn ($query, $search) => self::wherePreferredDays($query, $search))
+            ->when($request->price_template_id, fn ($query, $input) => $query->where('price_template_id', $input))
+            ->when($request->profile_id, fn ($query, $input) => $query->where('profile_id', $input))
             ->when($request->ref_id, function ($query, $search) {
                 $query->where('customers.id', '=', ($search - 20000));
             })
-            ->when($request->selling_price_type, fn($query, $input) => $query->where('selling_price_type', $input))
+            ->when($request->selling_price_type, fn ($query, $input) => $query->where('selling_price_type', $input))
             ->when($request->status, function ($query, $input) {
                 // Site Status filter — now multi-select. Accepts an array of
                 // status_ids OR a single scalar (backwards compatible). 'all'
@@ -822,7 +865,7 @@ class Customer extends Model
                     is_array($input) ? $input : [$input],
                     fn ($v) => $v !== null && $v !== '' && (string) $v !== 'all'
                 ));
-                if (!empty($vals)) {
+                if (! empty($vals)) {
                     $query->whereIn('status_id', $vals);
                 }
             })
@@ -835,7 +878,7 @@ class Customer extends Model
                     is_array($search) ? $search : [$search],
                     fn ($v) => $v !== null && $v !== '' && $v !== 'all'
                 ));
-                if (!empty($tagIds)) {
+                if (! empty($tagIds)) {
                     $query->whereHas('tagBindings', function ($q) use ($tagIds) {
                         $q->whereIn('tag_id', $tagIds);
                     });
@@ -844,7 +887,7 @@ class Customer extends Model
             ->when($request->vend_code, function ($query, $search) {
                 $query->whereIn(
                     'customers.id',
-                    Vend::where('code', 'LIKE', '%' . $search . '%')
+                    Vend::where('code', 'LIKE', '%'.$search.'%')
                         ->pluck('customer_id')
                 );
             })
@@ -856,7 +899,7 @@ class Customer extends Model
                 }
             })
             ->when($request->vendConfigs, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereHas('vend', function ($query) use ($search) {
                         $query->whereIn('vend_config_id', $search);
                     });
@@ -872,14 +915,14 @@ class Customer extends Model
                 });
             })
             ->when($request->zones, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('zone_id', $search);
                 }
             })
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 // Check if the sortKey involves a JSON field
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
@@ -890,9 +933,9 @@ class Customer extends Model
                         $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount' or
                         $search === 'vend_transaction_totals_json->thirty_days_gross_profit'
                     ) {
-                        $query->orderByRaw('(CAST(json_unquote(json_extract(`' . 'totals_json' . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('(CAST(json_unquote(json_extract(`'.'totals_json'.'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {
-                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     }
 
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');

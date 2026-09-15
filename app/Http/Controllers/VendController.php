@@ -175,6 +175,40 @@ class VendController extends Controller
         $this->middleware(['permission:read machine-view'])->only('index');
         $this->middleware(['permission:read machine-view|read vend-customers'])->only('logs');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
+
+        // Phase 2 of the Operation Dashboard (full + Lite): same gate as the two
+        // pages it serves — it returns site money for any posted customer ids.
+        $this->middleware(['permission:read vend-customers|read vend-customers-lite'])->only('customerIndexAggregates');
+
+        // Write routes (2026-09-15 audit M2-03). Each is gated on the permission
+        // held by the page(s) whose buttons post to it — a wrong gate here 403s a
+        // live workflow, so the pairing is documented per group:
+        //  - /vends/{id}/update: Setting/Edit + Setting/Parameter (update
+        //    machine-settings) and the Machine View form (update vends).
+        //  - unbind-customer: Setting/Edit and DeliveryPlatform/EditItem (its
+        //    button is gated on `update vends`, operator_admin holds it).
+        //  - edit-products / upload-attachments have no live Vue caller today
+        //    (Vend/ChannelOverview + Vend/Form are not imported anywhere); gated
+        //    with the same pair so the dead routes are not open doors.
+        $this->middleware(['permission:update machine-settings|update vends'])
+            ->only(['update', 'unbindCustomer', 'editProducts', 'uploadAttachment']);
+        // Setting/Edit only (route /settings/vend/{id}/update is staff-only).
+        $this->middleware(['permission:update machine-settings'])
+            ->only(['unbindCustomerDeactivate', 'syncApkSettings', 'replaceProductMapping', 'promoteUpcomingProductMapping']);
+        // Remote controls. Rendered UNGATED on Vend/Edit (Advance Control), which
+        // is reached from Machine View (`read machine-view`) and from the Ops
+        // Dashboard's machine link (`admin-access vend-customers`), and gated on
+        // `update machine-settings` on Setting/Edit. The OR is exactly the set
+        // of roles that can open a page carrying the button; driver / picker /
+        // prod_owner / licensee / franchisee / hid_user / observer are outside it.
+        $this->middleware(['permission:update machine-settings|update vends|read machine-view|admin-access vend-customers'])
+            ->only(['restartAPK', 'restartVMC', 'syncVendChannels', 'triggerLogUpload']);
+        // /vends/create has no live caller (Vend/Create.vue is not imported);
+        // machines are created via /settings/vend/store under this permission.
+        $this->middleware(['permission:create machine-settings'])->only('create');
+        // Free dispense over MQTT — staff only.
+        $this->middleware(['permission:admin-access vends'])->only('dispenseProduct');
+
         $this->cmsService = $cmsService;
         $this->historyService = $historyService;
         $this->mapService = new MapService;
@@ -367,7 +401,6 @@ class VendController extends Controller
             'vends.out_of_stock_sku_percent',
             'vends.parameter_json',
             'vends.product_mapping_id',
-            'vends.private_key',
             'vends.is_fan_enabled',
             'vends.termination_date',
             'vends.vend_channel_totals_json',
@@ -619,7 +652,14 @@ class VendController extends Controller
         // revenue with the figures merely hidden. Fall back to the page's own
         // default sort instead of honouring the request.
         $requestedSortKey = isset($request->sortKey) ? $request->sortKey : 'balance_percent';
-        if (ProductAccess::isRestricted() && $this->isProductRestrictedSortKey($requestedSortKey)) {
+        // Sales(qty) is the exception: the column shows the viewer's OWN
+        // product sales (ProductScopedSales), so the rows are ranked by that
+        // figure in PHP once the population is known (sortByScopedSales()).
+        // SQL still falls back to the default sort underneath.
+        $scopedSalesSortKey = ProductAccess::isRestricted()
+            ? ProductScopedSales::sortableKeyOf($requestedSortKey)
+            : null;
+        if (ProductAccess::isRestricted() && ($scopedSalesSortKey !== null || $this->isProductRestrictedSortKey($requestedSortKey))) {
             $requestedSortKey = 'balance_percent';
         }
 
@@ -633,6 +673,8 @@ class VendController extends Controller
 
         $className = get_class(new Customer);
 
+        // Same reading filterVendsDB applies to sortBy (true = ascending).
+        $sortAscending = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN);
         $sortKey = $request->sortKey;
         $needsVc = in_array($sortKey, ['thirty_days_over_full_load_ratio', 'total_stock_amount', 'total_full_load_amount']);
         $needsVcCost = in_array($sortKey, ['total_stock_cost']);
@@ -1137,7 +1179,6 @@ class VendController extends Controller
                 'vends.out_of_stock_sku_percent',
                 DB::raw('CASE WHEN customers.id IS NULL OR customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
-                'vends.private_key',
                 'vends.is_fan_enabled',
                 'vends.vend_channel_totals_json',
                 DB::raw('CASE WHEN customers.id IS NULL OR customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
@@ -1511,6 +1552,9 @@ class VendController extends Controller
                 // page boundaries, so global order must be known) and those same
                 // row objects are reused for the page — no second heavy query.
                 $allRows = $vends->get();
+                if ($scopedSalesSortKey !== null) {
+                    $allRows = $this->sortByScopedSales($allRows, $scopedSalesSortKey, $sortAscending);
+                }
 
                 $groupRows = [];
                 foreach ($allRows as $r) {
@@ -1536,6 +1580,30 @@ class VendController extends Controller
 
                 $total = count($orderedRows);
                 $items = collect(array_slice($orderedRows, ($page - 1) * $perPage, $perPage))->values();
+            } elseif ($scopedSalesSortKey !== null) {
+                // Rank the whole matched set by the viewer's own sales (a page
+                // break must not reset the order), then load only this page's
+                // rows. The id pass is light: two columns, ordered by id only so
+                // equal figures (every 0-sales machine) tie-break the same way on
+                // every page request - an unordered read may not, and a row
+                // would then repeat on one page and vanish from the next.
+                $ranked = $this->sortByScopedSales(
+                    (clone $vends)->reorder()->select(['customers.id', 'vends.id AS vend_id'])
+                        ->orderBy('customers.id')->orderBy('vends.id')->get(),
+                    $scopedSalesSortKey,
+                    $sortAscending
+                );
+                $slice = $ranked->slice(($page - 1) * $perPage, $perPage)->values();
+                $position = $slice->map(fn ($r) => $this->scopedSalesRowKey($r))->flip();
+                $items = $slice->isEmpty()
+                    ? collect()
+                    : $vends->where(function ($q) use ($slice) {
+                        $q->whereIn('customers.id', $slice->pluck('id')->filter()->values()->all() ?: [-1])
+                            ->orWhereIn('vends.id', $slice->pluck('vend_id')->filter()->values()->all() ?: [-1]);
+                    })->get()
+                        ->filter(fn ($r) => $position->has($this->scopedSalesRowKey($r)))
+                        ->sortBy(fn ($r) => $position[$this->scopedSalesRowKey($r)])
+                        ->values();
             } else {
                 $items = $vends->forPage($page, $perPage)->get();
             }
@@ -1996,7 +2064,11 @@ class VendController extends Controller
         $zoneOptions = Cache::remember('zone_options', $ttl, fn () => ZoneResource::collection(Zone::orderBy('name')->get())->resolve()
         );
 
-        $productMappingOptions = Cache::remember('product_mapping_options', $ttl, fn () => ProductMappingResource::collection(ProductMapping::orderBy('name')->get())->resolve()
+        // Keyed per viewer operator: ProductMapping carries an operator global
+        // scope (own + null), so one shared entry would let whoever warmed it
+        // decide what every other operator sees for 24h (CLAUDE.md, shared
+        // caches). Busted per operator by OptionCacheBuster on any mapping save.
+        $productMappingOptions = Cache::remember('product_mapping_options_'.auth()->user()->operator_id, $ttl, fn () => ProductMappingResource::collection(ProductMapping::orderBy('name')->get())->resolve()
         );
 
         // "Upcoming Mapping" filter list. Active mappings — same rule as the
@@ -2013,8 +2085,8 @@ class VendController extends Controller
         // the dropdown exposes as its own "— None —" entry instead.
         //
         // Keyed per operator because ProductMapping carries an operator global
-        // scope (the plain 'product_mapping_options' key above predates that and
-        // is left alone). Busted by OptionCacheBuster on any mapping save.
+        // scope (same as 'product_mapping_options_{op}' above). Busted by
+        // OptionCacheBuster on any mapping save.
         $upcomingProductMappingOptions = Cache::remember(
             'upcoming_product_mapping_options_'.auth()->user()->operator_id,
             $ttl,
@@ -2580,10 +2652,22 @@ class VendController extends Controller
         return redirect()->back();
     }
 
+    /**
+     * Typeahead behind SearchVendCodeInput / SearchVendCodeWithOperatorInput
+     * (Setting/Create, Operator/Edit). Those read `code`, `operator.name` and
+     * the selected row's `id`/`code` — nothing else. The row is whitelisted
+     * rather than returned whole: a full vends row carries `private_key`, the
+     * per-machine MQTT frame signing key, and this route sits in the public
+     * api group (audit M3-15).
+     */
     public function searchVendCode($vendCode)
     {
         $vends = Vend::query()
-            ->with(['operator', 'customer'])
+            ->with([
+                'operator:id,code,name',
+                'customer:id,code,name,operator_id',
+            ])
+            ->select('vends.id', 'vends.code', 'vends.name', 'vends.operator_id', 'vends.customer_id', 'vends.is_active')
             ->where('vends.code', 'LIKE', "{$vendCode}%")
             ->get();
 
@@ -5482,7 +5566,16 @@ class VendController extends Controller
         $hardwareRule = ($isChiller || $isFreezer) ? 'nullable' : 'required';
         $bindingRule = ($isNA || $isChiller || $isFreezer) ? 'nullable' : 'required';
 
+        // Tenancy: a scoped viewer (anyone outside operator 1) may only keep the
+        // machine under their own operator. Changing operator_id here also moves
+        // the bound Site (below), i.e. it would push a machine AND its site into
+        // another operator's tenancy. HIPL is unrestricted, as everywhere else.
+        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
+
         $request->validate([
+            'operator_id' => $viewerOperatorId === null
+                ? 'required'
+                : ['required', \Illuminate\Validation\Rule::in([$viewerOperatorId])],
             'citybox_equipment_id' => [
                 'sometimes', 'nullable', 'string', 'max:64',
                 \Illuminate\Validation\Rule::unique('vends', 'citybox_equipment_id')->ignore($vend->id),
@@ -5498,11 +5591,12 @@ class VendController extends Controller
             'lcd_monitor_id' => $hardwareRule,
             'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
             'menu_frame_id' => $hardwareRule,
-            'operator_id' => 'required',
             'product_mapping_id' => $bindingRule,
             // 'vend_config_id' => 'required',
             'vend_model_id' => 'required',
             'vend_prefix_id' => $bindingRule,
+        ], [
+            'operator_id.in' => 'You can only keep this machine under your own operator.',
         ]);
 
         // --- Machine-type ↔ mapping compatibility (2026-08-12) ---------------------------------
@@ -6827,6 +6921,33 @@ class VendController extends Controller
     /**
      * Would ordering by this key rank the page by money the viewer cannot see?
      */
+    /**
+     * Order Operation Dashboard rows by the viewer's OWN product sales - the
+     * figure their Sales(qty) column shows - instead of the whole-machine
+     * rollup they may not see. Ties keep the incoming (SQL default) order.
+     */
+    private function sortByScopedSales($rows, string $key, bool $ascending)
+    {
+        ProductScopedSales::warmFor($rows);
+
+        $ranked = $rows->values()->map(fn ($row, $i) => [
+            'row' => $row,
+            'i' => $i,
+            'value' => ProductScopedSales::forRow($row)[$key] ?? 0,
+        ])->all();
+
+        usort($ranked, fn ($a, $b) => ($ascending ? $a['value'] <=> $b['value'] : $b['value'] <=> $a['value'])
+            ?: $a['i'] <=> $b['i']);
+
+        return collect(array_column($ranked, 'row'));
+    }
+
+    /** One grid row = one (site, machine) pair; either half may be null. */
+    private function scopedSalesRowKey($row): string
+    {
+        return ($row->id ?? '').'-'.(ProductScopedSales::vendIdOf($row) ?? '');
+    }
+
     private function isProductRestrictedSortKey(?string $sortKey): bool
     {
         if ($sortKey === null || $sortKey === '') {

@@ -14,70 +14,63 @@
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
           <form @submit.prevent="submit" id="submit">
-            <!-- Machine source fork (design §8c.2): a radio, because the two branches ask different questions. -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-if="type == 'create'">
+            <!-- Machine Type: ONE choice between the three machine kinds, chosen once at creation
+                 (Setting/Edit shows it read-only). Each card opens the fields its kind needs —
+                 a Smart Chiller is provisioned from a CityBox device (POST /citybox/vends), the
+                 other two from a Machine ID (POST /settings/vend/store). -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
-                <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">Machine source</label>
-                <div class="flex flex-col sm:flex-row sm:space-x-6 space-y-1 sm:space-y-0">
-                  <label class="inline-flex items-center space-x-2 cursor-pointer">
-                    <input type="radio" value="standard" v-model="source" class="text-indigo-600" />
-                    <span class="text-sm">Vending machine / Smart freezer</span>
-                  </label>
-                  <label class="inline-flex items-center space-x-2 cursor-pointer" :class="cityboxEnabled ? '' : 'opacity-50'">
-                    <input type="radio" value="citybox" v-model="source" :disabled="!cityboxEnabled" class="text-indigo-600" />
-                    <span class="text-sm">Smart Chiller — CityBox <span v-if="!cityboxEnabled" class="text-xs text-gray-400">(integration disabled)</span></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Standard branch: today's form, unchanged -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-if="source === 'standard'">
-              <div class="sm:col-span-6">
-                <SearchVendCodeInput v-model="form.code" @selected="onVendCodeSelected" required="true" :error="form.errors.code" v-if="type == 'create'">
-                  Machine ID
-                </SearchVendCodeInput>
-              </div>
-              <!-- Machine Type is chosen ONCE, here at creation. Setting/Edit shows it read-only
-                   (it drives which product mappings the machine may bind, and a chiller's
-                   CityBox link travels with it). Smart Chiller is not offered on this branch —
-                   it is the "Smart Chiller — CityBox" source above. -->
-              <div class="sm:col-span-6">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">
                   Machine Type
                   <span class="text-red-500 ml-1">*</span>
                 </label>
-                <MultiSelect
-                  v-model="form.machine_type"
-                  :options="standardMachineTypeOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="value"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1 sm:w-1/2"
-                  :canClear="false"
-                >
-                </MultiSelect>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label
+                    v-for="option in machineTypeCards"
+                    :key="option.id"
+                    class="flex items-start gap-2 rounded-md border p-3 transition"
+                    :class="[
+                      machineType === option.id ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200',
+                      option.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50',
+                    ]"
+                  >
+                    <input type="radio" :value="option.id" v-model="machineType" :disabled="option.disabled" class="mt-1 text-indigo-600" />
+                    <span class="flex flex-col">
+                      <span class="text-sm font-semibold text-gray-900">{{ option.label }}</span>
+                      <span class="text-xs text-gray-500">{{ option.hint }}</span>
+                    </span>
+                  </label>
+                </div>
                 <p class="mt-1 text-xs text-gray-500">
-                  Vending Machine / Smart Freezer — fixed after creation; it decides which product mappings the machine can use.
-                </p>
-                <p v-if="form.machine_type && form.machine_type.id === 'smart_freezer'" class="mt-1 text-xs text-blue-600">
-                  Smart Freezer always follows the Site's pricing (Is Using Server Price = Yes).
+                  Fixed after creation — it decides which product mappings the machine can use.
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.machine_type">
                   {{ form.errors.machine_type }}
                 </div>
               </div>
+            </div>
+
+            <!-- Vending Machine / Smart Freezer -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-if="!isChiller">
+              <div class="sm:col-span-6">
+                <SearchVendCodeInput v-model="form.code" @selected="onVendCodeSelected" required="true" :error="form.errors.code">
+                  Machine ID
+                </SearchVendCodeInput>
+              </div>
+              <div class="sm:col-span-6" v-if="machineType === 'smart_freezer'">
+                <p class="text-xs text-blue-600">
+                  Smart Freezer always follows the Site's pricing (Is Using Server Price = Yes).
+                </p>
+              </div>
               <div class="sm:col-span-3">
-                <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
+                <DatePicker v-model="form.begin_date" :error="form.errors.begin_date"
                 v-if="permissions.includes('update machine-settings')">
                   Begin Date
                 </DatePicker>
               </div>
             </div>
 
-            <!-- CityBox branch -->
+            <!-- Smart Chiller (CityBox) -->
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-else>
               <div class="sm:col-span-6 rounded-md bg-indigo-50 p-3 text-xs text-indigo-800">
                 Pick one of the CityBox devices not yet in ConnectVend. Identity, model, online status and the CityBox name are filled automatically;
@@ -208,11 +201,11 @@ const props = defineProps({
     machineTypeOptions: Object,
   })
 
-  // {vending_machine: 'Vending Machine', ...} → MultiSelect rows, minus Smart Chiller
-  // (created through the CityBox source branch, never picked by hand).
-  const standardMachineTypeOptions = Object.entries(props.machineTypeOptions || {})
-    .filter(([id]) => id !== 'smart_chiller')
-    .map(([id, name]) => ({ id, value: name }))
+  const MACHINE_TYPE_HINTS = {
+    vending_machine: 'Our terminal APK on a VMC board, identified by its Machine ID.',
+    smart_freezer: 'Our freezer APK on Zijia hardware, identified by its Machine ID.',
+    smart_chiller: 'Pick a device from the CityBox fleet and bind it to a site.',
+  }
 
   const booleanOptions = ref([])
   const form = ref(
@@ -225,7 +218,17 @@ const props = defineProps({
   const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
   const cityboxEnabled = usePage().props.cityboxEnabled ?? false
-  const source = ref('standard')
+  const machineType = ref('vending_machine')
+  const isChiller = computed(() => machineType.value === 'smart_chiller')
+
+  // Cards come from Vend::MACHINE_TYPE_MAPPINGS (server labels), so a type is named the
+  // same here as on Setting/Edit. The chiller card names its supplier.
+  const machineTypeCards = computed(() => Object.entries(props.machineTypeOptions || {}).map(([id, name]) => ({
+    id,
+    label: id === 'smart_chiller' ? `${name} (CityBox)` : name,
+    hint: id === 'smart_chiller' && !cityboxEnabled ? 'CityBox integration is disabled.' : (MACHINE_TYPE_HINTS[id] ?? ''),
+    disabled: id === 'smart_chiller' && !cityboxEnabled,
+  })))
   const cb = reactive({ devices: [], loaded: false, loading: false, error: null, device: null, equipment_id: null, preview: null,
                         customerMode: 'new', customerQuery: '', customerResults: [], searchTimer: null })
 
@@ -245,9 +248,8 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     code: '',
-    machine_type: standardMachineTypeOptions.find(o => o.id === 'vending_machine') || standardMachineTypeOptions[0] || null,
     begin_date: moment().format('YYYY-MM-DD'),
-    // CityBox branch fields (ignored by the standard branch)
+    // Smart Chiller fields (never posted for the other two types)
     equipment_id: null,
     name: null,
     customer_id: null,
@@ -255,7 +257,10 @@ function getDefaultForm() {
   }
 }
 
-watch(source, (v) => { if (v === 'citybox' && !cb.loaded) loadDevices(false) })
+watch(machineType, (v) => {
+  form.value.clearErrors()
+  if (v === 'smart_chiller' && !cb.loaded) loadDevices(false)
+})
 
 async function loadDevices(fresh) {
   cb.loading = true; cb.error = null
@@ -278,11 +283,18 @@ async function onDevicePicked() {
   cb.equipment_id = cb.device ? cb.device.equipment_id : null
   form.value.equipment_id = cb.equipment_id
   cb.preview = null
+  // Reset the site step for the new device: a customer chosen for the previous device must
+  // never ride along if this device's preview fails or has no same-name site.
+  cb.customerMode = 'new'
+  form.value.customer_id = null
   if (!cb.equipment_id) return
-  const d = cb.devices.find(x => x.equipment_id === cb.equipment_id)
+  const requested = cb.equipment_id
+  const d = cb.devices.find(x => x.equipment_id === requested)
   form.value.new_customer.name = d ? d.name : ''
   try {
-    const { data } = await axios.get(`/citybox/devices/${cb.equipment_id}/preview`)
+    const { data } = await axios.get(`/citybox/devices/${requested}/preview`)
+    // A slower response for a device the user has since moved off must not win.
+    if (cb.equipment_id !== requested) return
     cb.preview = data
     // Default the customer step to the safest choice: bind to a same-name site if one exists.
     cb.customerMode = data.existing_customer ? 'existing' : 'new'
@@ -300,8 +312,12 @@ function searchCustomers() {
   clearTimeout(cb.searchTimer)
   cb.searchTimer = setTimeout(async () => {
     if (!cb.customerQuery || cb.customerQuery.length < 2) { cb.customerResults = []; return }
-    const { data } = await axios.get('/citybox/customers/search', { params: { q: cb.customerQuery } })
-    cb.customerResults = data
+    try {
+      const { data } = await axios.get('/citybox/customers/search', { params: { q: cb.customerQuery } })
+      cb.customerResults = data
+    } catch (e) {
+      cb.customerResults = []
+    }
   }, 250)
 }
 
@@ -311,7 +327,8 @@ function onVendCodeSelected(vend) {
 
 function submit() {
   form.value.clearErrors()
-  if (props.type === 'create' && source.value === 'citybox') {
+  if (props.type !== 'create') return
+  if (isChiller.value) {
     form.value
       .transform(data => ({
         equipment_id: data.equipment_id,
@@ -323,18 +340,17 @@ function submit() {
       .post('/citybox/vends', { preserveState: true })
     return
   }
-  if(props.type === 'create') {
-    form.value
+  // Only this type's own fields: leftovers from the chiller branch (customer_id, a device)
+  // must never reach the vend create.
+  form.value
     .transform(data => ({
-      ...data,
-      // Server expects the id; the picker holds {id, value}. An empty pick falls back
-      // to Vending Machine rather than posting null.
-      machine_type: data.machine_type ? data.machine_type.id : 'vending_machine',
+      code: data.code,
+      machine_type: machineType.value,
+      begin_date: data.begin_date,
     }))
     .post('/settings/vend/store', {
       preserveState: true,
       replace: true,
     })
-  }
 }
 </script>

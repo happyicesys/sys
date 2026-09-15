@@ -60,6 +60,25 @@ return [
      */
     'max_upload_kb' => (int) env('OTA_MAX_UPLOAD_KB', 262144), // 256 MB
 
+    /*
+     * Nightly nudge (ota:nudge-stale, scheduled every 30 min 01:00–07:00 SGT).
+     * Sends OTA_CHECK only to online machines running an OTA-capable build older
+     * than the channel's latest published one. Machines already on the latest
+     * build get nothing. OTA_NIGHTLY_NUDGE=false (then config:cache) stops it
+     * without a code deploy.
+     *
+     * Only channels listed under 'channels' are nudged. min_version_code is the
+     * first build on that channel with an OTA client (older builds ignore
+     * OTA_CHECK). vending_small is deliberately absent: its stream restarted at 11,
+     * below the old 129+ field builds, which OTA can never upgrade.
+     */
+    'nightly_nudge' => [
+        'enabled' => (bool) env('OTA_NIGHTLY_NUDGE', true),
+        'channels' => [
+            'vending' => ['min_version_code' => 301],
+        ],
+    ],
+
     'channels' => [
 
         'vending' => [
