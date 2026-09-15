@@ -20,6 +20,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\CardSettlement\CardSettlementMatcher;
 use App\Services\Sales\LateTradeTracker;
 use App\Support\DispenseVerdict;
 use App\Support\TradeTimestampResolver;
@@ -137,7 +138,7 @@ class VendTransactionService
                 // waiting for its TRADE. The machine's TRADE now fills it with
                 // ground truth instead of creating a second row.
                 if ($existingVendTransaction && $existingVendTransaction->isAwaitingTrade()) {
-                    $this->applyTradeToPreCreatedRow($existingVendTransaction, $vend, $processedInput);
+                    $this->applyTradeToPreCreatedRow($existingVendTransaction, $vend, $processedInput, $isCurrentTime);
                     // A TRADE landing on a past day → that day's rollups are rebuilt tonight.
                     $this->lateTradeTracker()->noteLanded($existingVendTransaction);
 
@@ -418,6 +419,10 @@ class VendTransactionService
 
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $transactionAt,
+            // Our clock at ingest — the second matching anchor for the NETS
+            // report (CardSettlementMatcher::receivedAnchor). Only a live
+            // frame has one; a backdated entry is not a receipt.
+            'received_at' => $isCurrentTime ? Carbon::now() : null,
             'amount' => $input['amount'],
             'cashless_mfg' => $cashlessMfg,
             'terminal_id' => $terminalId,
@@ -483,7 +488,7 @@ class VendTransactionService
      *
      * Settlement is decided by resolvePreCreatedSettlement() — see there.
      */
-    private function applyTradeToPreCreatedRow(VendTransaction $transaction, $vend, $input): void
+    private function applyTradeToPreCreatedRow(VendTransaction $transaction, $vend, $input, bool $isCurrentTime = true): void
     {
         $gstVatRate = $input['gstVatRate'];
         $amount = $transaction->amount; // keep the gateway-charged amount
@@ -548,6 +553,8 @@ class VendTransactionService
             // cleared_at, in this same write (no second UPDATE).
             'meta_json' => LateTradeTracker::withClearStamp($transaction->meta_json, Carbon::now()),
             'is_found_in_transaction' => true,
+            // The TRADE has now been received — a pre-created row had no receipt.
+            'received_at' => $isCurrentTime ? Carbon::now() : $transaction->received_at,
             // Resolved above — never demotes a confirmed dispense or resurrects a
             // refunded row.
             'settlement_status' => $settlementStatus,
@@ -566,30 +573,47 @@ class VendTransactionService
     /**
      * The NETS-report orphan this card TRADE belongs to, if any: same machine,
      * same cents, still awaiting a TRADE, dated inside the matcher's window
-     * around the frame's own time (the report stamps approval time, the TRADE
-     * lands 10–25 s later). Row-locked — the APK replays its file line by
-     * line, so two frames for one sale can arrive seconds apart; the second
-     * then finds the row already carrying its ORDRID and short-circuits as a
-     * duplicate. One indexed point query (vend_id, transaction_datetime).
+     * around EITHER anchor of the frame — its own TIME (the board's clock,
+     * minutes off on some machines) or the moment we received it (our clock,
+     * which agrees with the NETS terminal; wrong only for a burst-flushed
+     * outbox). Same two anchors as CardSettlementMatcher, same window, the
+     * orphan closest to the expected lag wins. Row-locked — the APK replays
+     * its file line by line, so two frames for one sale can arrive seconds
+     * apart; the second then finds the row already carrying its ORDRID and
+     * short-circuits as a duplicate. Indexed on (vend_id, transaction_datetime).
      */
     private function findSettlementOrphan(Vend $vend, array $input, bool $isCurrentTime): ?VendTransaction
     {
-        $tradeAt = $isCurrentTime
+        $frameAt = $isCurrentTime
             ? TradeTimestampResolver::fromFrame($input['time'] ?? null, $vend->operator?->timezone)->at
             : Carbon::parse($input['time']);
+        $receivedAt = $isCurrentTime ? Carbon::now() : null;
         $early = (int) config('card_settlement.match_early_slack_seconds');
         $late = (int) config('card_settlement.match_late_slack_seconds');
+        $lag = CardSettlementMatcher::EXPECTED_LAG_SECONDS;
 
-        return VendTransaction::query()
+        // The line's time T fits an anchor A when (A − T) ∈ [−early, +late],
+        // i.e. T ∈ [A − late, A + early].
+        $anchors = array_values(array_filter([$frameAt, $receivedAt]));
+        $ranges = array_map(fn (Carbon $a) => [$a->copy()->subSeconds($late), $a->copy()->addSeconds($early)], $anchors);
+
+        $query = VendTransaction::query()
             ->withoutGlobalScopes()
             ->where('vend_id', $vend->id)
-            ->whereBetween('transaction_datetime', [$tradeAt->copy()->subSeconds($late), $tradeAt->copy()->addSeconds($early)])
+            ->where(function ($q) use ($ranges) {
+                foreach ($ranges as $r) {
+                    $q->orWhereBetween('transaction_datetime', $r);
+                }
+            })
             ->whereNotNull('card_settlement_row_id')
             ->where('is_found_in_transaction', false)
-            ->where('amount', (int) $input['amount'])
-            ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, transaction_datetime, ?))', [$tradeAt->toDateTimeString()])
-            ->lockForUpdate()
-            ->first();
+            ->where('amount', (int) $input['amount']);
+
+        // Closest to the expected lag on its best-fitting anchor.
+        $distance = implode(', ', array_fill(0, count($anchors), 'ABS(TIMESTAMPDIFF(SECOND, transaction_datetime, ?) - '.$lag.')'));
+        $query->orderByRaw(count($anchors) > 1 ? "LEAST($distance)" : $distance, array_map(fn (Carbon $a) => $a->toDateTimeString(), $anchors));
+
+        return $query->lockForUpdate()->first();
     }
 
     /**

@@ -24,6 +24,22 @@ return [
     'match_late_slack_seconds' => 300,
 
     /*
+     * A sale is tested against the window on TWO anchors and the one closer
+     * to the expected lag wins: its `transaction_datetime` (the frame's own
+     * TIME — the board's clock, which drifts by minutes on ~60 keypad
+     * machines) and its `received_at` (our clock, which agrees with the NETS
+     * terminal — but is wrong when an offline machine flushes its outbox in
+     * one burst). Measured 2026-09-15: receive time fits 96 % of keypad
+     * lines within 30 s, frame time 53 %; the 2502 burst on 2026-09-03 is the
+     * case only frame time fits.
+     *
+     * The receive anchor is ignored when it trails the frame by more than
+     * this many seconds: a TRADE replayed a day later must not claim a
+     * same-amount line that happens to sit at its arrival time.
+     */
+    'match_received_anchor_max_lag_seconds' => 86400,
+
+    /*
      * Second, wider pass (Part 2): a line still unmatched after the window
      * above is paired with an unclaimed card sale on the same machine, same
      * cents, within this many seconds either way — but ONLY when the pairing

@@ -18,7 +18,17 @@ use Illuminate\Support\Collection;
  * RRN/STAN/TID), so the join is: terminal binding (TID → vend, effective on
  * the row's date) + exact amount in cents + a time window. The terminal
  * stamps card-approval time; our TRADE frame lands 10–25 s later, so the
- * report time normally precedes transaction_datetime.
+ * report time normally precedes the sale's time.
+ *
+ * "The sale's time" is tested on TWO anchors (timeDelta): the frame's own
+ * TIME (`transaction_datetime` since 2026-09-09 — the VMC board's RTC for
+ * keypad sales, which drifts by whole minutes on ~60 machines) and the
+ * moment mark1 received the frame (`received_at`, our clock, which agrees
+ * with the NETS terminal — wrong only when an offline machine flushes its
+ * outbox in one burst). Whichever fits closer to the expected lag wins.
+ * Measured 2026-09-15 on 27k matched lines: receive time within 30 s for
+ * 96 % of keypad sales, frame time 53 %; either alone leaves duplicates
+ * (2760's slow clock → 89 orphans; 2502's burst → 2 orphans).
  *
  * Rows from Excel-damaged files carry only mm:ss (hour lost) and match
  * circularly within the hour; when plausible sales exist in more than one
@@ -36,6 +46,25 @@ class CardSettlementMatcher
 {
     /** Observed TRADE-frame lag behind terminal approval time, seconds. */
     const EXPECTED_LAG_SECONDS = 15;
+
+    /** Which anchor a delta was measured on (timeDeltaDetail). */
+    const ANCHOR_FRAME = 'frame';
+
+    const ANCHOR_RECEIVED = 'received';
+
+    /** Columns every candidate query must select for timeDelta to see both anchors. */
+    const CANDIDATE_COLUMNS = [
+        'vend_transactions.id',
+        'vend_transactions.vend_id',
+        'vend_transactions.transaction_datetime',
+        'vend_transactions.received_at',
+        'vend_transactions.created_at',
+        'vend_transactions.is_found_in_transaction',
+        'vend_transactions.card_settlement_row_id',
+        'vend_transactions.amount',
+        'vend_transactions.is_refunded',
+        'vend_transactions.card_settlement_synced_at',
+    ];
 
     public function match(CardSettlementReport $report): void
     {
@@ -282,11 +311,11 @@ class CardSettlementMatcher
                 if ($candidate->amount !== $row->amount_cents) {
                     continue;
                 }
-                $delta = $this->timeDelta($row, $candidate, $earlySlack, $lateSlack);
-                if ($delta === null) {
+                $fit = $this->timeDeltaDetail($row, $candidate, $earlySlack, $lateSlack);
+                if ($fit === null) {
                     continue;
                 }
-                $pair = ['row' => $row, 'candidate' => $candidate, 'delta' => $delta];
+                $pair = ['row' => $row, 'candidate' => $candidate, 'delta' => $fit['delta'], 'anchor' => $fit['anchor']];
                 $pairs[] = $pair;
                 $eligibleByRow[$row->id][] = $pair;
             }
@@ -336,7 +365,7 @@ class CardSettlementMatcher
                     'matched_vend_transaction_id' => $txnId,
                     'match_time_delta' => $pair['delta'],
                     'candidates_json' => null,
-                    'resolution_note' => null,
+                    'resolution_note' => $pair['anchor'] === self::ANCHOR_RECEIVED ? CardSettlementRow::NOTE_MATCHED_RECEIVED : null,
                 ]);
             } catch (QueryException) {
                 // Unique index: the sale was claimed by another report between
@@ -481,13 +510,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
-            ->get([
-                'vend_transactions.id',
-                'vend_transactions.vend_id',
-                'vend_transactions.transaction_datetime',
-                'vend_transactions.amount',
-                'vend_transactions.is_refunded',
-            ]);
+            ->get(self::CANDIDATE_COLUMNS);
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $fleet->pluck('vend_id')->unique())
@@ -580,13 +603,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
-            ->get([
-                'vend_transactions.id',
-                'vend_transactions.vend_id',
-                'vend_transactions.transaction_datetime',
-                'vend_transactions.amount',
-                'vend_transactions.is_refunded',
-            ]);
+            ->get(self::CANDIDATE_COLUMNS);
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $fleet->pluck('vend_id')->unique())
@@ -777,14 +794,7 @@ class CardSettlementMatcher
             // Approved from VMC-retained credit — no card presented, no
             // terminal settlement will ever exist for it.
             ->where('vend_transactions.is_retained_credit_settlement', false)
-            ->get([
-                'vend_transactions.id',
-                'vend_transactions.vend_id',
-                'vend_transactions.transaction_datetime',
-                'vend_transactions.amount',
-                'vend_transactions.is_refunded',
-                'vend_transactions.card_settlement_synced_at',
-            ]);
+            ->get(self::CANDIDATE_COLUMNS);
 
         $claimed = CardSettlementRow::query()
             ->whereIn('matched_vend_transaction_id', $candidates->pluck('id'))
@@ -797,17 +807,112 @@ class CardSettlementMatcher
     }
 
     /**
+     * Unclaimed card-terminal sales on the given machines, dated inside
+     * [$from, $until] — the same population loadCandidates() feeds the
+     * matcher, exposed for the orphan repair (CardSettlementOrphanRepair).
+     *
+     * @param  int[]  $vendIds
+     * @return Collection<int, Collection<int, object>> vend_id → candidates
+     */
+    public function unclaimedCandidates(array $vendIds, Carbon $from, Carbon $until): Collection
+    {
+        $candidates = VendTransaction::query()
+            ->withoutGlobalScopes()
+            ->join('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->whereIn('vend_transactions.vend_id', $vendIds)
+            ->whereBetween('vend_transactions.transaction_datetime', [$from, $until])
+            ->whereNull('payment_methods.payment_gateway_id')
+            ->where('payment_methods.code', PaymentMethod::CODE_CARD_TERMINAL)
+            ->where('vend_transactions.is_retained_credit_settlement', false)
+            ->where('vend_transactions.is_found_in_transaction', true)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('card_settlement_rows')
+                    ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
+            })
+            ->get(self::CANDIDATE_COLUMNS);
+
+        return $candidates->groupBy('vend_id');
+    }
+
+    /**
+     * The sale's second anchor: when mark1 received its TRADE frame.
+     *
+     * `received_at` where the ingest stamped it (rows from 2026-09-15 on).
+     * Before that the only record of arrival is `created_at`, which IS the
+     * receive moment for a row the TRADE itself created — but not for a
+     * pre-created gateway row, a NETS orphan or an adopted orphan (created at
+     * webhook / Sync time), so those get no fallback. Null when the anchor
+     * trails the frame by more than the configured lag: a TRADE replayed a
+     * day later must not claim a same-amount line at its arrival time.
+     */
+    public static function receivedAnchor(object $sale): ?Carbon
+    {
+        $at = null;
+        if (! empty($sale->received_at)) {
+            $at = Carbon::parse($sale->received_at);
+        } elseif (! empty($sale->created_at) && ! empty($sale->is_found_in_transaction) && empty($sale->card_settlement_row_id)) {
+            $at = Carbon::parse($sale->created_at);
+        }
+        if ($at === null) {
+            return null;
+        }
+
+        $maxLag = (int) config('card_settlement.match_received_anchor_max_lag_seconds', 86400);
+        $frameAt = Carbon::parse($sale->transaction_datetime);
+        if ($maxLag > 0 && $at->diffInSeconds($frameAt, false) < -$maxLag) {
+            return null;
+        }
+
+        return $at;
+    }
+
+    /**
      * Seconds between the sale and the report row (txn − report), or null when
-     * outside the window. Partial rows compare circularly within the hour.
+     * outside the window on both anchors. Partial rows compare circularly
+     * within the hour.
      */
     protected function timeDelta(CardSettlementRow $row, object $candidate, int $earlySlack, int $lateSlack): ?int
+    {
+        return $this->timeDeltaDetail($row, $candidate, $earlySlack, $lateSlack)['delta'] ?? null;
+    }
+
+    /**
+     * timeDelta() plus WHICH anchor produced it. Both anchors are tested;
+     * when both fit, the one closer to the expected lag wins — the frame
+     * anchor on ties, since it is the sale's own stamp.
+     *
+     * @return array{delta:int, anchor:string}|null
+     */
+    public function timeDeltaDetail(CardSettlementRow $row, object $candidate, int $earlySlack, int $lateSlack): ?array
     {
         if ($row->transaction_time === null) {
             return null;
         }
 
-        $txnAt = Carbon::parse($candidate->transaction_datetime);
+        $fits = [];
+        $frame = $this->anchorDelta($row, Carbon::parse($candidate->transaction_datetime), $earlySlack, $lateSlack);
+        if ($frame !== null) {
+            $fits[] = ['delta' => $frame, 'anchor' => self::ANCHOR_FRAME];
+        }
+        $receivedAt = self::receivedAnchor($candidate);
+        if ($receivedAt !== null) {
+            $received = $this->anchorDelta($row, $receivedAt, $earlySlack, $lateSlack);
+            if ($received !== null) {
+                $fits[] = ['delta' => $received, 'anchor' => self::ANCHOR_RECEIVED];
+            }
+        }
+        if (empty($fits)) {
+            return null;
+        }
+        usort($fits, fn ($a, $b) => abs($a['delta'] - self::EXPECTED_LAG_SECONDS) <=> abs($b['delta'] - self::EXPECTED_LAG_SECONDS));
 
+        return $fits[0];
+    }
+
+    /** Window test for one anchor time; see timeDeltaDetail(). */
+    protected function anchorDelta(CardSettlementRow $row, Carbon $txnAt, int $earlySlack, int $lateSlack): ?int
+    {
         if (! $row->time_is_partial) {
             $reportAt = Carbon::parse($row->transaction_date->toDateString().' '.$row->transaction_time);
             $delta = $reportAt->diffInSeconds($txnAt, false);

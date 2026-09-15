@@ -27,6 +27,15 @@ class CardSettlementRow extends Model
     /** resolution_note on a line matched by the second, wider pass. */
     const NOTE_MATCHED_WIDE = 'Matched in wide window';
 
+    /**
+     * resolution_note on a line whose sale fit only on the server RECEIVE
+     * time, not on the frame's own TIME (board clock off by minutes).
+     */
+    const NOTE_MATCHED_RECEIVED = 'Matched on receive time';
+
+    /** resolution_note on a line the repair command re-pointed from an orphan to the real sale. */
+    const NOTE_REPAIRED_FROM_ORPHAN = 'Repaired: orphan replaced by the machine\'s sale';
+
     const STATUS_LABELS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_MATCHED => 'Matched',
