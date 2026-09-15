@@ -113,6 +113,22 @@
               </span>
             </div>
 
+            <div class="rounded-md border border-gray-200 p-2 md:col-span-2">
+              <div class="text-xs text-gray-500 mb-1">Pull the machine's log (kept on the machine for about a day; the host's own lines are included when READ_LOGS was granted at install)</div>
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="text-xs text-gray-600">last
+                  <input v-model.number="logPull.minutes" type="number" :min="data.log_pull?.minutes.min" :max="data.log_pull?.minutes.max" class="ml-1 w-20 rounded border-gray-300 text-xs py-1" /> min</label>
+                <label class="text-xs text-gray-600">up to
+                  <input v-model.number="logPull.lines" type="number" :min="data.log_pull?.lines.min" :max="data.log_pull?.lines.max" step="100" class="ml-1 w-24 rounded border-gray-300 text-xs py-1" /> lines</label>
+                <label class="text-xs text-gray-600">containing
+                  <input v-model.trim="logPull.grep" type="text" maxlength="64" placeholder="e.g. Ag325, SERVICE-MODE, camera" class="ml-1 w-56 rounded border-gray-300 text-xs py-1" /></label>
+                <Button type="button" class="text-white" :class="canSend ? 'bg-sky-700 hover:bg-sky-800' : 'bg-gray-300'" :disabled="!canSend"
+                        @click.prevent="send('logs', { minutes: logPull.minutes, lines: logPull.lines, grep: logPull.grep || undefined })">
+                  <DocumentArrowDownIcon class="h-4 w-4 mr-1" /> Pull logs
+                </Button>
+              </div>
+            </div>
+
             <div v-if="data.can_door" class="rounded-md border border-red-200 bg-red-50 p-2 flex items-center justify-between gap-2">
               <span class="text-sm text-gray-700">Door</span>
               <span class="flex gap-1">
@@ -128,27 +144,50 @@
           </div>
         </div>
 
-        <!-- Command log -->
+        <!-- Timeline: commands from here, controls pressed on the kiosk, and the machine's own events -->
         <div v-if="data.commands.length" class="border-t pt-3">
-          <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Recent commands</span>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Timeline · commands, kiosk panel and machine events</span>
+            <span class="flex items-center gap-2 text-xs">
+              <input v-model.trim="timelineFilter" type="text" placeholder="filter rows…" class="w-40 rounded border-gray-300 text-xs py-1" />
+              <label class="text-gray-600"><input v-model="showEvents" type="checkbox" class="rounded border-gray-300 mr-1" />machine events</label>
+              <button type="button" class="text-sky-700 hover:underline" @click.prevent="limit = limit >= 200 ? 30 : 200; load()">{{ limit >= 200 ? 'fewer' : 'more' }}</button>
+            </span>
+          </div>
           <div class="mt-1 overflow-x-auto">
             <table class="min-w-full text-xs">
               <thead class="text-left text-gray-500">
-                <tr><th class="py-1 pr-3">Sent</th><th class="py-1 pr-3">Command</th><th class="py-1 pr-3">By</th><th class="py-1 pr-3">Result</th><th class="py-1">Machine said</th></tr>
+                <tr><th class="py-1 pr-3">When</th><th class="py-1 pr-3">What</th><th class="py-1 pr-3">From</th><th class="py-1 pr-3">Result</th><th class="py-1 pr-3">Machine said</th><th class="py-1">Log</th></tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <tr v-for="c in data.commands" :key="c.id">
-                  <td class="py-1 pr-3 whitespace-nowrap text-gray-600">{{ formatTime(c.requested_at) }}</td>
-                  <td class="py-1 pr-3 whitespace-nowrap">{{ describe(c) }}</td>
-                  <td class="py-1 pr-3 whitespace-nowrap text-gray-600">{{ c.requested_by || '—' }}</td>
-                  <td class="py-1 pr-3 whitespace-nowrap">
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 font-medium" :class="badge(c.status)">
-                      {{ label(c.status) }}
-                    </span>
-                    <span v-if="c.responded_at" class="ml-1 text-gray-400">{{ answeredIn(c) }}</span>
-                  </td>
-                  <td class="py-1 text-gray-700">{{ c.message || '' }}</td>
-                </tr>
+                <template v-for="c in visibleCommands" :key="c.id">
+                  <tr :class="c.source === 'event' ? 'bg-gray-50' : ''">
+                    <td class="py-1 pr-3 whitespace-nowrap text-gray-600">{{ formatTime(c.requested_at) }}</td>
+                    <td class="py-1 pr-3 whitespace-nowrap">{{ describe(c) }}</td>
+                    <td class="py-1 pr-3 whitespace-nowrap text-gray-600">
+                      <span class="inline-flex items-center rounded px-1.5 py-0.5" :class="sourceBadge(c.source)">{{ sourceLabel(c) }}</span>
+                    </td>
+                    <td class="py-1 pr-3 whitespace-nowrap">
+                      <span class="inline-flex items-center rounded-full px-2 py-0.5 font-medium" :class="badge(c.status)">{{ label(c.status) }}</span>
+                      <span v-if="c.responded_at && c.source === 'mark1'" class="ml-1 text-gray-400">{{ answeredIn(c) }}</span>
+                    </td>
+                    <td class="py-1 pr-3 text-gray-700 max-w-md">{{ c.message || '' }}</td>
+                    <td class="py-1 whitespace-nowrap">
+                      <button v-if="c.log" type="button" class="text-sky-700 hover:underline mr-2" @click.prevent="toggle(c.id)">
+                        {{ open.has(c.id) ? 'hide' : 'excerpt' }}<span v-if="c.log_scope === 'app'" class="text-gray-400"> (app only)</span>
+                      </button>
+                      <template v-if="c.log_file">
+                        <a :href="c.log_file.url" target="_blank" class="text-sky-700 hover:underline mr-2">view {{ c.log_file.lines ? c.log_file.lines + ' lines' : 'file' }}</a>
+                        <a :href="c.log_file.url + '?download=1'" class="text-sky-700 hover:underline">download</a>
+                      </template>
+                    </td>
+                  </tr>
+                  <tr v-if="c.log && open.has(c.id)">
+                    <td colspan="6" class="py-1">
+                      <pre class="max-h-72 overflow-auto rounded bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ c.log }}</pre>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -174,7 +213,7 @@
 <script setup>
 import Button from '@/Components/Button.vue'
 import Modal from '@/Components/Modal.vue'
-import { ArrowPathIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
+import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
 import { computed, defineComponent, h, onMounted, onUnmounted, ref } from 'vue'
 import moment from 'moment'
 import { useToast } from 'vue-toastification'
@@ -190,6 +229,20 @@ const confirm = ref(null)
 const setpoint = ref(-18)
 const now = ref(Date.now())
 const data = ref({ commands: [], setpoint: { min: -30, max: -5 }, pending: false, supported: false })
+const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
+const timelineFilter = ref('')
+const showEvents = ref(true)
+const limit = ref(30)
+const open = ref(new Set())
+function toggle(id) { const n = new Set(open.value); n.has(id) ? n.delete(id) : n.add(id); open.value = n }
+const visibleCommands = computed(() => data.value.commands.filter(c => {
+  if (!showEvents.value && c.source === 'event') return false
+  const q = timelineFilter.value.toLowerCase()
+  if (!q) return true
+  return [describe(c), c.requested_by, c.message, c.status, c.source].filter(Boolean).join(' ').toLowerCase().includes(q)
+}))
+function sourceLabel(c) { return c.source === 'panel' ? 'Kiosk panel' : c.source === 'event' ? 'Machine' : (c.requested_by || 'mark1') }
+function sourceBadge(source) { return source === 'panel' ? 'bg-indigo-100 text-indigo-800' : source === 'event' ? 'bg-gray-200 text-gray-700' : 'bg-sky-100 text-sky-800' }
 
 const s = computed(() => data.value.status || null)
 const t = computed(() => s.value?.thermostat || { available: false })
@@ -202,14 +255,16 @@ const alarmText = computed(() => {
   return 'none'
 })
 
-const OP_LABELS = { status: 'Sync status', lock: 'Lock door', unlock: 'Unlock door', fan: 'Cabinet fan', light: 'Light', compressor: 'Compressor', setpoint: 'Setpoint', volume: 'Volume' }
+const OP_LABELS = { status: 'Sync status', lock: 'Lock door', unlock: 'Unlock door', fan: 'Cabinet fan', light: 'Light', compressor: 'Compressor', setpoint: 'Setpoint', volume: 'Volume', logs: 'Pull logs', boot: 'Machine booted' }
 const RESULT_LABELS = { pending: 'waiting', ok: 'done', refused: 'refused', indeterminate: 'no answer from host', unsupported: 'not supported', busy: 'busy (sale)', invalid: 'invalid', expired: 'expired', duplicate: 'duplicate', error: 'error', timeout: 'no answer' }
 
 function describe(c) {
   const a = c.args || {}
+  if (c.op && c.op.startsWith('error:')) return 'Error logged by ' + c.op.slice(6)
   if ('on' in a) return OP_LABELS[c.op] + ' ' + (a.on ? 'on' : 'off')
   if ('celsius' in a) return OP_LABELS[c.op] + ' ' + a.celsius + ' °C'
   if ('step' in a) return OP_LABELS[c.op] + ' ' + a.step
+  if (c.op === 'logs') return 'Pull logs' + (a.minutes ? ' · last ' + a.minutes + ' min' : '') + (a.grep ? ' · "' + a.grep + '"' : '')
   return OP_LABELS[c.op] || c.op
 }
 function label(status) { return RESULT_LABELS[status] || status }
@@ -230,14 +285,19 @@ function answeredIn(c) {
 }
 
 let timer = null
+let logPullInit = false
 async function load() {
   try {
-    const res = await axios.get('/vends/' + props.vendId + '/freezer-controls')
+    const res = await axios.get('/vends/' + props.vendId + '/freezer-controls', { params: { limit: limit.value } })
     const wasPending = data.value.pending
     data.value = res.data
     loaded.value = true
+    if (res.data.log_pull && !logPullInit) {
+      logPullInit = true
+      logPull.value = { minutes: res.data.log_pull.minutes.default, lines: res.data.log_pull.lines.default, grep: '' }
+    }
     if (wasPending && !res.data.pending) {
-      const last = res.data.commands[0]
+      const last = res.data.commands.find(c => c.source === 'mark1')
       if (last && last.op !== 'status') {
         last.status === 'ok' ? toast.success(describe(last) + ': done') : toast.warning(describe(last) + ': ' + label(last.status))
       }

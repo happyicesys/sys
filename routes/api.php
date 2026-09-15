@@ -40,6 +40,9 @@ Route::prefix('v1')->group(function () {
     // endpoint in this group (the APK holds no credential); the single-use
     // token minted by VendScreenshotController::request() is the control.
     Route::post('/vends/{code}/screenshot', [\App\Http\Controllers\VendScreenshotController::class, 'upload']);
+    // Device -> mark1 full-log upload for a smart freezer's `logs` command; the pending
+    // cmdId is the credential (FreezerControlService::storeLogUpload).
+    Route::post('/vends/{code}/logs', [\App\Http\Controllers\FreezerControlController::class, 'upload']);
     Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
 
 });

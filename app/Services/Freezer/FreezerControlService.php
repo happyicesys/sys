@@ -28,7 +28,28 @@ class FreezerControlService
     public const TTL_SECONDS = 60;
 
     /** Ops mark1 may send, with the argument each takes. */
-    public const OPS = ['status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'setpoint', 'volume'];
+    public const OPS = ['status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'setpoint', 'volume', 'logs'];
+
+    /** Bounds for `logs` args (mirror DeviceLog on the APK). */
+    public const LOG_LINES_MIN = 200;
+
+    public const LOG_LINES_MAX = 20000;
+
+    public const LOG_LINES_DEFAULT = 5000;
+
+    public const LOG_MINUTES_MIN = 1;
+
+    public const LOG_MINUTES_MAX = 2880;
+
+    public const LOG_MINUTES_DEFAULT = 60;
+
+    public const LOG_GREP_MAX = 64;
+
+    /** Longest `log` excerpt kept per command. */
+    public const RESPONSE_LOG_MAX_BYTES = 16384;
+
+    /** Largest full-log upload accepted, bytes gzipped. */
+    public const LOG_UPLOAD_MAX_BYTES = 4194304;
 
     /** Setpoint range accepted by the APK (ThermostatLimits). */
     public const SETPOINT_MIN = -30;
@@ -106,17 +127,33 @@ class FreezerControlService
         }
 
         $status = is_array($input['status'] ?? null) ? $input['status'] : null;
+        $source = in_array($input['source'] ?? null, [FreezerControlCommand::SOURCE_PANEL, FreezerControlCommand::SOURCE_EVENT], true)
+            ? $input['source'] : null;
+        $answer = [
+            'status' => $result,
+            'response_msg' => is_string($input['msg'] ?? null) ? Str::limit($input['msg'], 250, '') : null,
+            'response_log' => is_string($input['log'] ?? null) ? mb_strcut($input['log'], 0, self::RESPONSE_LOG_MAX_BYTES) : null,
+            'log_scope' => in_array($input['logScope'] ?? null, ['app', 'system'], true) ? $input['logScope'] : null,
+            'responded_at' => Carbon::now(),
+        ];
 
-        DB::transaction(function () use ($vend, $cmdId, $result, $input, $status) {
+        DB::transaction(function () use ($vend, $cmdId, $input, $status, $source, $answer) {
             $command = FreezerControlCommand::where('cmd_id', $cmdId)->where('vend_id', $vend->id)->lockForUpdate()->first();
-            if (! $command) {
+            if (! $command && $source && preg_match('/^'.$source.'-[A-Za-z0-9]{1,40}$/', $cmdId)) {
+                // Not an answer to us: a control pressed on the kiosk's own panel, or something the
+                // machine reported by itself (a boot, an ERROR log line). Filed in the same log so
+                // one page is the timeline of what was done and what went wrong in between.
+                FreezerControlCommand::create($answer + [
+                    'vend_id' => $vend->id,
+                    'cmd_id' => $cmdId,
+                    'op' => is_string($input['op'] ?? null) ? Str::limit($input['op'], 60, '') : 'unknown',
+                    'source' => $source,
+                    'requested_by_name' => $source === FreezerControlCommand::SOURCE_PANEL ? 'Kiosk panel' : 'Machine',
+                ]);
+            } elseif (! $command) {
                 Log::warning('FREEZERCTLACK ignored: unknown cmdId for this vend', ['vend_code' => $vend->code, 'cmd_id' => $cmdId]);
             } elseif ($command->status === FreezerControlCommand::STATUS_PENDING) {
-                $command->update([
-                    'status' => $result,
-                    'response_msg' => is_string($input['msg'] ?? null) ? Str::limit($input['msg'], 250, '') : null,
-                    'responded_at' => Carbon::now(),
-                ]);
+                $command->update($answer);
             }
 
             if ($status !== null) {
@@ -126,6 +163,28 @@ class FreezerControlService
                 ]);
             }
         });
+    }
+
+    /**
+     * Stores a full-log upload from the device. The cmdId must belong to a `logs` command of this
+     * vend that is still pending — that is the whole authorisation, the same way the screenshot
+     * upload is keyed by its single-use token. Returns false when refused.
+     */
+    public function storeLogUpload(Vend $vend, string $cmdId, int $lines, string $tmpPath, int $bytes): bool
+    {
+        if ($bytes <= 0 || $bytes > self::LOG_UPLOAD_MAX_BYTES) {
+            return false;
+        }
+        $command = FreezerControlCommand::where('cmd_id', $cmdId)->where('vend_id', $vend->id)
+            ->where('op', 'logs')->where('status', FreezerControlCommand::STATUS_PENDING)->first();
+        if (! $command) {
+            return false;
+        }
+        $path = 'freezer-logs/'.$vend->id.'/'.$cmdId.'.log.gz';
+        \Illuminate\Support\Facades\Storage::disk('local')->put($path, file_get_contents($tmpPath));
+        $command->update(['log_path' => $path, 'log_lines' => max(0, $lines)]);
+
+        return true;
     }
 
     /** @return array<string, mixed> the arguments to send */
@@ -144,6 +203,11 @@ class FreezerControlService
             'volume' => in_array($args['step'] ?? null, ['up', 'down', 'mute'], true)
                 ? ['step' => $args['step']]
                 : throw ValidationException::withMessages(['args.step' => 'Choose up, down or mute.']),
+            'logs' => array_filter([
+                'lines' => is_int($args['lines'] ?? null) ? max(self::LOG_LINES_MIN, min(self::LOG_LINES_MAX, $args['lines'])) : self::LOG_LINES_DEFAULT,
+                'minutes' => is_int($args['minutes'] ?? null) ? max(self::LOG_MINUTES_MIN, min(self::LOG_MINUTES_MAX, $args['minutes'])) : self::LOG_MINUTES_DEFAULT,
+                'grep' => is_string($args['grep'] ?? null) && trim($args['grep']) !== '' ? Str::limit(trim($args['grep']), self::LOG_GREP_MAX, '') : null,
+            ], fn ($v) => $v !== null),
         };
     }
 

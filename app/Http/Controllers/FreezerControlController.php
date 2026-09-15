@@ -8,6 +8,8 @@ use App\Services\Freezer\FreezerControlService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Setting/Edit > Smart Freezer > Remote controls.
@@ -29,7 +31,7 @@ class FreezerControlController extends Controller
         $now = Carbon::now();
         $commands = FreezerControlCommand::where('vend_id', $vend->id)
             ->orderByDesc('id')
-            ->limit(15)
+            ->limit((int) $request->integer('limit', 30) > 0 ? min(200, $request->integer('limit', 30)) : 30)
             ->get();
 
         $status = $vend->freezer_control_status_json;
@@ -53,17 +55,74 @@ class FreezerControlController extends Controller
             'can_door' => $request->user()->can(self::DOOR_PERMISSION),
             'setpoint' => ['min' => FreezerControlService::SETPOINT_MIN, 'max' => FreezerControlService::SETPOINT_MAX],
             'pending' => $commands->contains(fn ($c) => $c->displayStatus($now) === FreezerControlCommand::STATUS_PENDING),
+            'log_pull' => [
+                'lines' => ['min' => FreezerControlService::LOG_LINES_MIN, 'max' => FreezerControlService::LOG_LINES_MAX, 'default' => FreezerControlService::LOG_LINES_DEFAULT],
+                'minutes' => ['min' => FreezerControlService::LOG_MINUTES_MIN, 'max' => FreezerControlService::LOG_MINUTES_MAX, 'default' => FreezerControlService::LOG_MINUTES_DEFAULT],
+            ],
             'commands' => $commands->map(fn (FreezerControlCommand $c) => [
                 'id' => $c->id,
                 'op' => $c->op,
                 'args' => $c->args,
+                'source' => $c->source,
                 'status' => $c->displayStatus($now),
                 'message' => $c->response_msg,
+                'log' => $c->response_log,
+                'log_scope' => $c->log_scope,
+                'log_file' => $c->log_path ? ['lines' => $c->log_lines, 'url' => route('vends.freezer-controls.log', [$vend->id, $c->id])] : null,
                 'requested_by' => $c->requested_by_name,
                 'requested_at' => $c->created_at?->toIso8601String(),
                 'responded_at' => $c->responded_at?->toIso8601String(),
             ])->values(),
         ]);
+    }
+
+    /**
+     * A full-log upload as text (gunzipped); `?q=` keeps only lines containing it (case-insensitive),
+     * `?download=1` sends it as a file.
+     */
+    public function log(Request $request, Vend $vend, FreezerControlCommand $command)
+    {
+        abort_unless($command->vend_id === $vend->id && $command->log_path, 404);
+        $gz = Storage::disk('local')->get($command->log_path);
+        $text = @gzdecode($gz);
+        abort_if($text === false, 404);
+        $q = trim((string) $request->query('q', ''));
+        if ($q !== '') {
+            $text = implode("\n", array_values(array_filter(explode("\n", $text), fn ($l) => mb_stripos($l, $q) !== false)));
+        }
+        $name = 'freezer-'.$vend->code.'-'.$command->created_at?->format('Ymd-His').'.log';
+        $headers = ['Content-Type' => 'text/plain; charset=utf-8'];
+        if ($request->boolean('download')) {
+            $headers['Content-Disposition'] = 'attachment; filename="'.$name.'"';
+        }
+
+        return response($text, 200, $headers);
+    }
+
+    /**
+     * Device -> mark1: the `logs` command's file. Unauthenticated like the other device endpoints;
+     * the pending cmdId is the authorisation (see FreezerControlService::storeLogUpload).
+     */
+    public function upload(Request $request, string $code): JsonResponse
+    {
+        $request->validate([
+            'cmdId' => 'required|string|max:64',
+            'lines' => 'nullable|integer',
+            'file' => 'required|file|max:4096',
+        ]);
+        $vend = Vend::withoutGlobalScopes()->where('code', $code)->first();
+        if (! $vend) {
+            return response()->json(['ok' => false, 'message' => 'Unknown machine.'], 404);
+        }
+        $file = $request->file('file');
+        $ok = $this->service->storeLogUpload($vend, $request->input('cmdId'), (int) $request->input('lines', 0), $file->getRealPath(), (int) $file->getSize());
+        if (! $ok) {
+            Log::warning('Freezer log upload rejected', ['vend_code' => $code, 'cmd_id' => $request->input('cmdId'), 'ip' => $request->ip()]);
+
+            return response()->json(['ok' => false, 'message' => 'No pending log command for this machine.'], 403);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function store(Request $request, Vend $vend): JsonResponse

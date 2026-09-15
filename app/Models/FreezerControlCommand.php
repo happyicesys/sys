@@ -21,9 +21,16 @@ class FreezerControlCommand extends Model
     /** Results the device may send back in FREEZERCTLACK.result. */
     public const RESULTS = ['ok', 'refused', 'indeterminate', 'unsupported', 'busy', 'invalid', 'expired', 'duplicate', 'error'];
 
+    public const SOURCE_MARK1 = 'mark1';
+
+    public const SOURCE_PANEL = 'panel';
+
+    /** Reported by the machine on its own: a boot, an ERROR log line. */
+    public const SOURCE_EVENT = 'event';
+
     protected $fillable = [
-        'vend_id', 'cmd_id', 'op', 'args', 'status', 'response_msg',
-        'requested_by', 'requested_by_name', 'ip', 'expires_at', 'responded_at',
+        'vend_id', 'cmd_id', 'op', 'args', 'status', 'response_msg', 'response_log', 'log_scope', 'log_path', 'log_lines',
+        'source', 'requested_by', 'requested_by_name', 'ip', 'expires_at', 'responded_at',
     ];
 
     protected $casts = [

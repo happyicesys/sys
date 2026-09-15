@@ -28,6 +28,16 @@ return new class extends Migration
             // pending until the device answers; then one of the FREEZERCTLACK results.
             $table->string('status', 20)->default('pending');
             $table->string('response_msg', 255)->nullable();
+            // Device-log excerpt from the command's start to its reply (hardware tags only).
+            $table->text('response_log')->nullable();
+            // 'app' (own lines) or 'system' (READ_LOGS granted: host lines too).
+            $table->string('log_scope', 10)->nullable();
+            // Where the full `logs` upload landed on the local disk, relative to storage/app.
+            $table->string('log_path')->nullable();
+            $table->unsignedInteger('log_lines')->nullable();
+            // 'mark1' for commands sent from Setting/Edit; 'panel' for controls pressed on the kiosk;
+            // 'event' for things the machine reported on its own (boot, ERROR log lines).
+            $table->string('source', 10)->default('mark1');
             $table->unsignedBigInteger('requested_by')->nullable();
             $table->string('requested_by_name')->nullable();
             $table->string('ip', 45)->nullable();

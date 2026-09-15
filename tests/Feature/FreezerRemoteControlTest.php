@@ -194,6 +194,68 @@ class FreezerRemoteControlTest extends TestCase
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'status'])->assertStatus(202);
     }
 
+    public function test_ack_log_excerpt_is_stored_and_shown(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'fan', 'args' => ['on' => true]]);
+        $row = FreezerControlCommand::sole();
+        $this->ack($vend, ['cmdId' => $row->cmd_id, 'op' => 'fan', 'result' => 'ok', 'log' => '09-15 10:00:01.000 I/BoxCommandDispatcher( 1): dispatch ok action=openFan', 'logScope' => 'system']);
+        $this->getJson("/vends/{$vend->id}/freezer-controls")
+            ->assertJsonPath('commands.0.log_scope', 'system')
+            ->assertJsonFragment(['log' => '09-15 10:00:01.000 I/BoxCommandDispatcher( 1): dispatch ok action=openFan']);
+    }
+
+    public function test_kiosk_panel_controls_are_filed_in_the_same_log(): void
+    {
+        $vend = $this->freezer();
+        $this->ack($vend, ['cmdId' => 'panel-abc123', 'source' => 'panel', 'op' => 'set temperature -20°C', 'result' => 'refused', 'msg' => '不支持', 'log' => 'x', 'logScope' => 'app']);
+        $row = FreezerControlCommand::sole();
+        $this->assertSame('panel', $row->source);
+        $this->assertSame('refused', $row->status);
+        $this->assertSame('Kiosk panel', $row->requested_by_name);
+        // a replay of the same panel cmdId does not create a second row
+        $this->ack($vend, ['cmdId' => 'panel-abc123', 'source' => 'panel', 'op' => 'set temperature -20°C', 'result' => 'ok']);
+        $this->assertSame(1, FreezerControlCommand::count());
+        $this->assertSame('refused', $row->refresh()->status);
+    }
+
+    public function test_machine_events_are_filed_as_timeline_rows(): void
+    {
+        $vend = $this->freezer();
+        $this->ack($vend, ['cmdId' => 'event-b00t', 'source' => 'event', 'op' => 'boot', 'result' => 'ok', 'msg' => 'boot reason reboot,adb', 'log' => 'x', 'logScope' => 'system']);
+        $this->ack($vend, ['cmdId' => 'event-err1', 'source' => 'event', 'op' => 'error:Maintenance', 'result' => 'ok', 'msg' => 'SERVICE-MODE light on REFUSED']);
+        // a spoofed source without the matching cmdId prefix is not filed
+        $this->ack($vend, ['cmdId' => 'random1', 'source' => 'event', 'op' => 'boot', 'result' => 'ok']);
+        $this->assertSame(2, FreezerControlCommand::count());
+        $this->getJson("/vends/{$vend->id}/freezer-controls")
+            ->assertJsonPath('commands.0.source', 'event')
+            ->assertJsonPath('commands.0.requested_by', 'Machine')
+            ->assertJsonPath('commands.1.op', 'boot');
+    }
+
+    public function test_logs_command_upload_and_view(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'logs', 'args' => ['lines' => 500, 'minutes' => 99999, 'grep' => ' Ag325 ']])->assertStatus(202);
+        $row = FreezerControlCommand::sole();
+        [, $body] = $this->publishedFrame();
+        $this->assertSame(['lines' => 500, 'minutes' => 2880, 'grep' => 'Ag325'], $body['args']);
+
+        $text = "09-15 10:00:00.000 I/A( 1): one\n09-15 10:00:01.000 I/B( 1): two\n";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('logcat.txt.gz', gzencode($text));
+        // wrong cmdId: refused
+        $this->post("/api/v1/vends/{$vend->code}/logs", ['cmdId' => 'nope', 'lines' => 2, 'file' => $file])->assertStatus(403);
+        $this->post("/api/v1/vends/{$vend->code}/logs", ['cmdId' => $row->cmd_id, 'lines' => 2, 'file' => $file])->assertOk();
+        $this->ack($vend, ['cmdId' => $row->cmd_id, 'op' => 'logs', 'result' => 'ok', 'msg' => '2 lines']);
+
+        $json = $this->getJson("/vends/{$vend->id}/freezer-controls")->assertJsonPath('commands.0.log_file.lines', 2);
+        $url = $json->json('commands.0.log_file.url');
+        $this->get($url)->assertOk()->assertSee('I/B( 1): two');
+        $this->get($url.'?q=i/a(')->assertOk()->assertSee('one')->assertDontSee('two');
+        $this->get($url.'?download=1')->assertHeader('Content-Disposition');
+    }
+
     public function test_readers_without_update_permission_cannot_send(): void
     {
         $reader = User::factory()->create(['operator_id' => 1]);
