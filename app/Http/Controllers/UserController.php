@@ -11,34 +11,96 @@ use App\Http\Resources\VendResource;
 use App\Models\Country;
 use App\Models\Operator;
 use App\Models\Product;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\User;
+use App\Models\Vend;
 use App\Support\ProductAccess;
 use App\Support\TransactionAccess;
-use App\Models\Vend;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 
 class UserController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['permission:read users']);
+        // Account Settings (/self) is every user's own profile - a driver or
+        // licensee holds no `read users` and used to 403 on it (M2-12).
+        $this->middleware(['permission:read users'])->except(['selfIndex', 'selfUpdate']);
+    }
+
+    /**
+     * Operator ceiling for every user read/write on this controller.
+     *
+     * `users` carries no global scope (auth and the driver APIs read it
+     * unfiltered - see CLAUDE.md), so the boundary is applied here by hand:
+     * a viewer outside HappyIce may only touch users of their OWN operator.
+     * The rule is OperatorVendFilterScope::viewerOperatorId() - the same one
+     * the machine and transaction grids enforce - so it keeps one definition.
+     *
+     * @param  int|string|null  $targetOperatorId  the operator the user IS on (edit /
+     *                                             update / delete / toggle) or is being
+     *                                             put on (create, a posted operator_id)
+     */
+    private function assertWithinOperatorCeiling($targetOperatorId): void
+    {
+        $ceiling = OperatorVendFilterScope::viewerOperatorId();
+
+        if ($ceiling === null) {
+            return;
+        }
+
+        abort_if($targetOperatorId === null || (int) $targetOperatorId !== $ceiling, 403);
+    }
+
+    /**
+     * The role the request asks for, checked against what the CALLER may hand
+     * out (User::assignableRoleNames()). Null when no (existing) role was
+     * posted - create() and update() then leave the roles alone, as before.
+     */
+    private function requestedAssignableRole(Request $request): ?Role
+    {
+        $role = $request->filled('role_id') ? Role::find($request->role_id) : null;
+
+        if ($role === null) {
+            return null;
+        }
+
+        abort_unless(auth()->user()->canAssignRole($role->name), 403);
+
+        return $role;
+    }
+
+    /**
+     * Roles the create / edit screens may offer the current viewer - the same
+     * allow-list requestedAssignableRole() enforces, so the dropdown never
+     * shows a role the save would refuse.
+     */
+    private function rolesForViewer()
+    {
+        $allowed = auth()->user()->assignableRoleNames();
+
+        return Role::query()
+            ->when($allowed !== null, fn ($query) => $query->whereIn('name', $allowed))
+            ->orderBy('name')
+            ->get();
     }
 
     public function index(Request $request)
     {
+        // A scoped viewer's operator filter is a preference the ceiling
+        // overrides: operator_id=<other> or 'all' must not list other operators'
+        // users. HappyIce viewers keep the free filter.
+        $ceiling = OperatorVendFilterScope::viewerOperatorId();
+
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name',
             'sortBy' => $request->sortBy ? $request->sortBy : true,
-            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
+            'operator_id' => $ceiling ?? ($request->operator_id ? $request->operator_id : auth()->user()->operator_id),
         ]);
 
         return Inertia::render('User/Index', [
@@ -56,52 +118,51 @@ class UserController extends Controller
                     'vends:id,code,name',
                     'vends.customer:id,code,name',
                 ])
-                ->selectRaw('users.*')
-                ->selectRaw('(SELECT roles.name FROM roles JOIN model_has_roles ON model_has_roles.role_id = roles.id WHERE model_has_roles.model_id = users.id AND model_has_roles.model_type = "App\\\Models\\\User" LIMIT 1) as role_name')
-                ->when($request->is_active, function($query, $search) {
-                    if($search != 'all') {
-                        $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                    }
-                })
-                ->when($request->name, function($query, $search) {
-                    $query->where('name', 'LIKE', "%{$search}%");
-                })
-                ->when($request->email, function($query, $search) {
-                    $query->where('email', 'LIKE', "%{$search}%");
-                })
-                ->when($request->operator_id, function($query, $search) {
-                    if($search != 'all') {
-                        $query->where('operator_id', $search);
-                    }
-                })
-                ->when(array_filter((array) $request->roles), function($query, $roleIds) {
-                    $query->whereHas('roles', fn ($q) => $q->whereIn('roles.id', $roleIds));
-                })
-                ->when($request->sortKey, function($query, $search) use ($request) {
-                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                })
-                ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-                ->withQueryString()
+                    ->selectRaw('users.*')
+                    ->selectRaw('(SELECT roles.name FROM roles JOIN model_has_roles ON model_has_roles.role_id = roles.id WHERE model_has_roles.model_id = users.id AND model_has_roles.model_type = "App\\\Models\\\User" LIMIT 1) as role_name')
+                    ->when($request->is_active, function ($query, $search) {
+                        if ($search != 'all') {
+                            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                        }
+                    })
+                    ->when($request->name, function ($query, $search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->email, function ($query, $search) {
+                        $query->where('email', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->operator_id, function ($query, $search) {
+                        if ($search != 'all') {
+                            $query->where('operator_id', $search);
+                        }
+                    })
+                    ->when(array_filter((array) $request->roles), function ($query, $roleIds) {
+                        $query->whereHas('roles', fn ($q) => $q->whereIn('roles.id', $roleIds));
+                    })
+                    ->when($request->sortKey, function ($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                    })
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
+                    ->withQueryString()
             ),
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'roles' => RoleResource::collection(Role::orderBy('name')->get()),
-            'unbindedVends' => fn () =>
-                VendResource::collection(
-                    Vend::with([
-                        'customer:id,code,name'
-                    ])->whereHas('users', function($query) use ($request) {
-                        $query->whereNot('user_id', $request->user_id);
-                    })
-                    // ->whereNotIn('id', function($query) use ($request) {
-                    //     $query->select('vend_id')
-                    //         ->from('user_vend')
-                    //         ->where('user_id', $request->user_id);
-                    // })
+            'roles' => RoleResource::collection($this->rolesForViewer()),
+            'unbindedVends' => fn () => VendResource::collection(
+                Vend::with([
+                    'customer:id,code,name',
+                ])->whereHas('users', function ($query) use ($request) {
+                    $query->whereNot('user_id', $request->user_id);
+                })
+                // ->whereNotIn('id', function($query) use ($request) {
+                //     $query->select('vend_id')
+                //         ->from('user_vend')
+                //         ->where('user_id', $request->user_id);
+                // })
                     ->orderBy('code')
                     ->get()
-            )
+            ),
 
         ]);
     }
@@ -113,16 +174,34 @@ class UserController extends Controller
             'email' => 'nullable|email|max:255|required_without:username|unique:users,email',
             'username' => 'nullable|required_without:email|unique:users,username',
             'password' => 'required',
-            'operator_id' => 'required',
+            'operator_id' => 'required|integer|exists:operators,id',
             'alias' => 'nullable|string|max:50',
+            'phone_country_id' => 'nullable|integer',
+            'phone_number' => 'nullable|numeric',
         ]);
-        $user = new User();
-        $user->fill($request->all());
+
+        // Both checks BEFORE the insert: a refused create must leave no row.
+        $this->assertWithinOperatorCeiling($request->operator_id);
+        $role = $this->requestedAssignableRole($request);
+
+        // Explicit list, never fill($request->all()): is_active, access_token,
+        // product_access_mode and transaction_access_from used to be settable
+        // from this POST by anyone holding `read users` (M2-01).
+        $user = new User;
+        $user->fill($request->only([
+            'name',
+            'alias',
+            'email',
+            'username',
+            'password',
+            'operator_id',
+            'phone_country_id',
+            'phone_number',
+        ]));
         $user->profile_id = 1;
         $user->save();
 
-        $role = Role::find($request->role_id);
-        if($role) {
+        if ($role) {
             $user->assignRole($role->name);
         }
 
@@ -134,12 +213,14 @@ class UserController extends Controller
         return Inertia::render('User/Self/Form', [
             'user' => UserResource::make(
                 auth()->user()
-            )
+            ),
         ]);
     }
 
     public function edit($id)
     {
+        $this->assertWithinOperatorCeiling(User::findOrFail($id)->operator_id);
+
         $user = User::with([
             'phoneCountry',
             'roles',
@@ -176,45 +257,43 @@ class UserController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'roles' => RoleResource::collection(Role::orderBy('name')->get()),  // Ensure roles are correctly retrieved
+            'roles' => RoleResource::collection($this->rolesForViewer()),
             'type' => 'update',
             'operatorTransactionFloor' => $transactionFloor === null ? null : [
                 'operatorName' => optional($user->operator)->name ?? 'Operator',
                 'from' => $transactionFloor,
             ],
-            'unbindedVends' => fn () =>
-                VendResource::collection(
-                    Vend::with([
-                        'customer:id,code,name'
-                    ])
+            'unbindedVends' => fn () => VendResource::collection(
+                Vend::with([
+                    'customer:id,code,name',
+                ])
                     ->where('operator_id', $user->operator_id)
-                    ->whereHas('customer', function($query) use ($user) {
+                    ->whereHas('customer', function ($query) {
                         $query->where('is_active', true);
                     })
                     ->orderBy('code')
                     ->select('id', 'code', 'name', 'customer_id')
                     ->get()
-                ),
+            ),
             // Deliberately withoutGlobalScope(ProductAccessProductScope): an
             // ADMIN who is themselves product-restricted must still be able to
             // grant the full range to someone else. The operator boundary is
             // still enforced (OperatorProductFilterScope stays on, plus the
             // explicit operator_id filter), and update() re-clamps server-side.
-            'unbindedProducts' => fn () =>
-                ProductResource::collection(
-                    Product::withoutGlobalScope(ProductAccessProductScope::class)
-                        ->where('products.operator_id', $user->operator_id)
-                        ->where('is_active', true)
-                        ->when($productCeiling !== null, fn ($query) => $query->whereIn('products.id', $productCeiling))
-                        ->orderBy('code')
-                        ->get(['id', 'code', 'name'])
-                ),
-            'operatorProductCeiling' => $productCeiling === null ? null : [
-                'operatorName' => $user->operator?->name,
-                'products' => Product::withoutGlobalScopes()
-                    ->whereIn('id', $productCeiling)
+            'unbindedProducts' => fn () => ProductResource::collection(
+                Product::withoutGlobalScope(ProductAccessProductScope::class)
+                    ->where('products.operator_id', $user->operator_id)
+                    ->where('is_active', true)
+                    ->when($productCeiling !== null, fn ($query) => $query->whereIn('products.id', $productCeiling))
                     ->orderBy('code')
-                    ->get(['id', 'code', 'name']),
+                    ->get(['id', 'code', 'name'])
+            ),
+            'operatorProductCeiling' => $productCeiling === null ? null : [
+            'operatorName' => $user->operator?->name,
+            'products' => Product::withoutGlobalScopes()
+                ->whereIn('id', $productCeiling)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
             ],
             // 'unbindedCustomers' => fn () =>
             //     CustomerResource::collection(
@@ -232,23 +311,28 @@ class UserController extends Controller
         ]);
     }
 
-
-    public function selfUpdate(Request $request, $id)
+    /**
+     * Account Settings save. The route still carries {id} so User/Self/Form.vue
+     * needs no change, but it is NOT trusted: this only ever edits the caller
+     * (M2-01 - any `read users` holder could POST /self/<superadmin>/update
+     * with a new password).
+     */
+    public function selfUpdate(Request $request, $id = null)
     {
+        $user = $request->user();
+
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255|required_without:username|unique:users,email,'.$id,
-            'username' => 'nullable|required_without:email|unique:users,username,'.$id,
+            'email' => 'nullable|email|max:255|required_without:username|unique:users,email,'.$user->id,
+            'username' => 'nullable|required_without:email|unique:users,username,'.$user->id,
             'password' => 'nullable|confirmed',
         ]);
 
-        if($request->password and $request->password_confirmation) {
+        if ($request->password and $request->password_confirmation) {
             $validated = $request->only('name', 'email', 'username', 'password');
-        }else {
+        } else {
             $validated = $request->only('name', 'email', 'username');
         }
-
-        $user = User::findOrFail($id);
 
         $user->update($validated);
 
@@ -258,7 +342,9 @@ class UserController extends Controller
     public function toggleActivateDeactivate($id)
     {
         $user = User::findOrFail($id);
-        $user->is_active = !$user->is_active;
+        $this->assertWithinOperatorCeiling($user->operator_id);
+
+        $user->is_active = ! $user->is_active;
         $user->save();
 
         return redirect()->route('users');
@@ -273,19 +359,30 @@ class UserController extends Controller
             'username' => 'nullable|required_without:email|unique:users,username,'.$userId,
             'password' => 'nullable',
             'alias' => 'nullable|string|max:50',
+            'operator_id' => 'nullable|integer|exists:operators,id',
             'product_access_mode' => 'nullable|in:all,list',
             'user.data.access_products' => 'nullable|array',
             'user.data.access_products.*.id' => 'integer',
             'transaction_access_from' => 'nullable|date',
         ]);
 
-        if($request->password) {
+        if ($request->password) {
             $validated = $request->only('name', 'alias', 'email', 'username', 'password', 'operator_id', 'phone_country_id', 'phone_number');
-        }else {
+        } else {
             $validated = $request->only('name', 'alias', 'email', 'username', 'operator_id', 'phone_country_id', 'phone_number');
         }
 
         $user = User::findOrFail($userId);
+
+        // Ceiling on BOTH ends of a move: the user must already be inside the
+        // viewer's operator, and if the POST carries an operator_id that one
+        // must be too - so a scoped admin can neither reach another operator's
+        // user nor re-parent their own into HappyIce (M2-01).
+        $this->assertWithinOperatorCeiling($user->operator_id);
+        if ($request->has('operator_id')) {
+            $this->assertWithinOperatorCeiling($request->operator_id);
+        }
+        $role = $this->requestedAssignableRole($request);
 
         // Capture BEFORE update(): $validated can contain a new operator_id, and
         // every clamp below must validate the posted ids against the operator the
@@ -297,8 +394,7 @@ class UserController extends Controller
         $user->update($validated);
 
         // role update
-        $role = Role::find($request->role_id);
-        if($role) {
+        if ($role) {
             $user->roles()->detach();
             $user->assignRole($role->name);
         }
@@ -345,13 +441,13 @@ class UserController extends Controller
             Vend::withoutGlobalScopes()->where('operator_id', $originalOperatorId)->pluck('id')
         );
 
-        if($removeVends) {
-            foreach($removeVends as $removeVend) {
+        if ($removeVends) {
+            foreach ($removeVends as $removeVend) {
                 $user->vends()->detach($removeVend);
             }
         }
-        if($addVends) {
-            foreach($addVends as $addVend) {
+        if ($addVends) {
+            foreach ($addVends as $addVend) {
                 $user->vends()->attach($addVend);
             }
         }
@@ -469,6 +565,8 @@ class UserController extends Controller
     public function delete($userId)
     {
         $user = User::findOrFail($userId);
+        $this->assertWithinOperatorCeiling($user->operator_id);
+
         $user->delete();
 
         return redirect()->route('users');
@@ -476,7 +574,10 @@ class UserController extends Controller
 
     public function bindVend(Request $request)
     {
+        // NB: the request key is operator_id but it carries a USER id.
         $user = User::findOrFail($request->operator_id);
+        $this->assertWithinOperatorCeiling($user->operator_id);
+
         $user->vends()->attach($request->vend_id);
 
         return redirect()->route('users');
@@ -485,6 +586,8 @@ class UserController extends Controller
     public function unbindVend(Request $request)
     {
         $user = User::findOrFail($request->operator_id);
+        $this->assertWithinOperatorCeiling($user->operator_id);
+
         $user->vends()->detach($request->vend_id);
 
         return redirect()->route('users');
