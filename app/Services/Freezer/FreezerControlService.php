@@ -21,6 +21,9 @@ use Illuminate\Validation\ValidationException;
  *
  * The device refuses replays (it remembers cmdIds), expired frames, and door commands during a sale,
  * so this side only has to record intent, send once, and store the answer.
+ *
+ * Log retention is 72 hours on both sides: `freezer-logs:prune` (hourly) clears uploaded files and
+ * excerpts older than that; the machine's own archive drops its segments on the same window.
  */
 class FreezerControlService
 {

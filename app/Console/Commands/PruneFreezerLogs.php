@@ -8,28 +8,37 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Deletes smart-freezer log uploads older than the retention window and clears their rows'
- * `log_path`; the rows themselves (who did what, verdict, excerpt) stay.
+ * Smart-freezer log retention: 72 hours (Brian, 2026-09-15), matching the archive on the machine.
+ *
+ * Deletes uploaded log files and stored excerpts older than --hours; the rows themselves (who did
+ * what, when, the verdict and the host's message) stay as the audit trail.
  */
 class PruneFreezerLogs extends Command
 {
-    protected $signature = 'freezer-logs:prune {--days=30}';
+    protected $signature = 'freezer-logs:prune {--hours=72}';
 
-    protected $description = 'Delete smart-freezer full-log uploads older than --days';
+    protected $description = 'Delete smart-freezer log uploads and excerpts older than --hours';
 
     public function handle(): int
     {
-        $cutoff = Carbon::now()->subDays((int) $this->option('days'));
-        $n = 0;
-        FreezerControlCommand::whereNotNull('log_path')->where('created_at', '<', $cutoff)
-            ->orderBy('id')->chunkById(200, function ($rows) use (&$n) {
+        $cutoff = Carbon::now()->subHours((int) $this->option('hours'));
+        $files = 0;
+        $excerpts = 0;
+        FreezerControlCommand::where('created_at', '<', $cutoff)
+            ->where(fn ($q) => $q->whereNotNull('log_path')->orWhereNotNull('response_log'))
+            ->orderBy('id')->chunkById(200, function ($rows) use (&$files, &$excerpts) {
                 foreach ($rows as $row) {
-                    Storage::disk('local')->delete($row->log_path);
-                    $row->update(['log_path' => null]);
-                    $n++;
+                    if ($row->log_path) {
+                        Storage::disk('local')->delete($row->log_path);
+                        $files++;
+                    }
+                    if ($row->response_log !== null) {
+                        $excerpts++;
+                    }
+                    $row->update(['log_path' => null, 'response_log' => null]);
                 }
             });
-        $this->info("Pruned $n log upload(s) older than {$cutoff->toDateString()}.");
+        $this->info("Pruned $files log file(s) and $excerpts excerpt(s) older than {$cutoff->toDateTimeString()}.");
 
         return self::SUCCESS;
     }

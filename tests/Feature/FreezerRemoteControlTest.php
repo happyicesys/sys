@@ -256,6 +256,26 @@ class FreezerRemoteControlTest extends TestCase
         $this->get($url.'?download=1')->assertHeader('Content-Disposition');
     }
 
+    public function test_prune_clears_files_and_excerpts_older_than_72_hours_but_keeps_rows(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $vend = $this->freezer();
+        \Illuminate\Support\Facades\Storage::disk('local')->put('freezer-logs/old.gz', 'x');
+        $old = FreezerControlCommand::create(['vend_id' => $vend->id, 'cmd_id' => 'old000000000000000000000001', 'op' => 'logs', 'status' => 'ok', 'log_path' => 'freezer-logs/old.gz', 'response_log' => 'old excerpt', 'response_msg' => 'kept']);
+        FreezerControlCommand::where('id', $old->id)->update(['created_at' => Carbon::now()->subHours(73)]);
+        $fresh = FreezerControlCommand::create(['vend_id' => $vend->id, 'cmd_id' => 'new000000000000000000000001', 'op' => 'fan', 'status' => 'ok', 'response_log' => 'fresh excerpt']);
+        FreezerControlCommand::where('id', $fresh->id)->update(['created_at' => Carbon::now()->subHours(71)]);
+
+        $this->artisan('freezer-logs:prune')->assertSuccessful();
+
+        $old->refresh();
+        $this->assertNull($old->log_path);
+        $this->assertNull($old->response_log);
+        $this->assertSame('kept', $old->response_msg);
+        $this->assertFalse(\Illuminate\Support\Facades\Storage::disk('local')->exists('freezer-logs/old.gz'));
+        $this->assertSame('fresh excerpt', $fresh->refresh()->response_log);
+    }
+
     public function test_readers_without_update_permission_cannot_send(): void
     {
         $reader = User::factory()->create(['operator_id' => 1]);

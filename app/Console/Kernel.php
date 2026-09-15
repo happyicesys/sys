@@ -82,7 +82,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('contract:apply-scheduled')->dailyAt('00:50')->withoutOverlapping();
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
-        $schedule->command('freezer-logs:prune --days=30')->dailyAt('04:10');
+        $schedule->command('freezer-logs:prune --hours=72')->hourly();
         // Ingest the regional rainfall snapshot (data.gov.sg refreshes every 5 min);
         // idempotent, so overlap-guarded re-runs never double-insert. Gated by
         // WEATHER_SYNC_ENABLED (config weather.enabled) so only opted-in regions
