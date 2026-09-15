@@ -24,9 +24,21 @@ class SimcardSiteColumnTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Data Management > SIM Card is gated on the `simcards` tuple since 2026-09-15 (audit M2-11). */
+    private function simcardStaff(array $attributes = []): User
+    {
+        foreach (['read simcards', 'create simcards', 'update simcards', 'delete simcards'] as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
+        }
+        $user = User::factory()->create($attributes);
+        $user->givePermissionTo(['read simcards', 'create simcards', 'update simcards', 'delete simcards']);
+
+        return $user;
+    }
+
     private function rowFor(string $simcardCode, array $query = []): ?array
     {
-        $response = $this->actingAs(User::factory()->create())
+        $response = $this->actingAs($this->simcardStaff())
             ->get('/simcards?'.http_build_query($query));
         $response->assertOk();
 
@@ -157,7 +169,7 @@ class SimcardSiteColumnTest extends TestCase
             'simcard_id' => $sim->id, 'customer_id' => $secretSite->id,
         ]);
 
-        $viewer = User::factory()->create(['operator_id' => $opB->id]);
+        $viewer = $this->simcardStaff(['operator_id' => $opB->id]);
         $response = $this->actingAs($viewer)->get('/simcards');
         $response->assertOk();
 

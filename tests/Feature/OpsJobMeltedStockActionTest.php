@@ -31,6 +31,12 @@ class OpsJobMeltedStockActionTest extends TestCase
             'username' => 'testuser',
         ]);
         $user->assignRole('operator');
+        // Daily Jobs routes are gated on the `operations` tuple since 2026-09-15
+        // (audit M2-04); mirror the seeder's driver/operator grants.
+        foreach (['read operations', 'create operations', 'update operations', 'delete operations'] as $p) {
+            \Spatie\Permission\Models\Permission::findOrCreate($p, 'web');
+        }
+        $user->givePermissionTo(['read operations', 'create operations', 'update operations', 'delete operations']);
 
         $customer = Customer::create([
             'name' => 'Test Site',

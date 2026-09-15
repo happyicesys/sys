@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerContractLog;
+use App\Models\CustomerPeriodSummary;
 use App\Models\CustomerScheduledContract;
 use App\Models\Operator;
 use App\Models\Profile;
@@ -35,6 +36,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Rap2hpoutre\FastExcel\FastExcel;
 
@@ -71,6 +73,26 @@ class CustomerController extends Controller
 
     public function __construct(HistoryService $historyService, VendPricingSourceService $vendPricingSourceService)
     {
+        // Site writes (audit M2-06). The `customers` tuple grants
+        // read/create/update/delete to the same six roles (staff +
+        // operator_admin/operator_supervisor); Customer/Create + Customer/Edit
+        // gate their buttons on `update customers`, Summary & Comm is reached
+        // only with `admin-access customers` (a subset). Reads keep the gates
+        // they already had (route middleware / in-body checks).
+        $this->middleware(['permission:create customers'])->only('store');
+        $this->middleware(['permission:update customers'])->only([
+            'update', 'bindVend', 'uploadAttachment', 'uploadPhoto', 'uploadContract',
+            'storeScheduledContract', 'cancelScheduledContract', 'disconnectCms',
+            'updateLocFeeRemarks', 'syncCmsInvoice', 'syncCmsInvoicesBulk',
+        ]);
+        // Site Note + Ops Note are ALSO edited inline (ungated textareas) on the
+        // full Operation Dashboard, which `read vend-customers` roles without
+        // `update customers` use daily (sup_driver, operator_driver, franchisee,
+        // licensee). The OR keeps that workflow and still shuts out every role
+        // that cannot open either page.
+        $this->middleware(['permission:update customers|read vend-customers'])->only(['updateNotes', 'updateOpsNote']);
+        $this->middleware(['permission:delete customers'])->only('delete');
+
         $this->historyService = $historyService;
         $this->vendPricingSourceService = $vendPricingSourceService;
         $this->mapService = new MapService;
@@ -4932,9 +4954,34 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * Hard delete of a Site — only when nothing still hangs off it. A machine
+     * bound to it would keep pointing at a row that no longer exists (prod has
+     * no FK on vends.customer_id), and settlement / period-summary rows are
+     * commission history. Deactivate is the path for a live site (audit M2-06).
+     */
     public function delete($id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::findOrFail($id);
+
+        $blockers = [];
+
+        if ($customer->vends()->exists()) {
+            $blockers[] = 'a machine is still bound to it';
+        }
+        if ($customer->settlements()->exists()) {
+            $blockers[] = 'it has settlement entries';
+        }
+        if (CustomerPeriodSummary::where('customer_id', $customer->id)->exists()) {
+            $blockers[] = 'it has period summaries';
+        }
+
+        if ($blockers) {
+            throw ValidationException::withMessages([
+                'delete' => 'This site cannot be deleted because '.implode(', ', $blockers).'. Deactivate it instead.',
+            ]);
+        }
+
         $customer->delete();
 
         return redirect()->route('customers');

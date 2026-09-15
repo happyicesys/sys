@@ -28,6 +28,10 @@ class OpsJobRenumberGateTest extends TestCase
     {
         $operator = Operator::create(['code' => 'OP1', 'name' => 'Test Operator']);
         $user = User::factory()->create(['operator_id' => $operator->id]);
+        // Every write route is gated on `update operations` since 2026-09-15 (audit
+        // M2-04); the admin-access check under test stays in-body on top of it.
+        Permission::findOrCreate('update operations', 'web');
+        $user->givePermissionTo('update operations');
         $customer = Customer::create(['name' => 'Site', 'operator_id' => $operator->id]);
         $vend = Vend::create(['code' => 'V901', 'operator_id' => $operator->id]);
 
