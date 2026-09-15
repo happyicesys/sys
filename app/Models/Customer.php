@@ -618,10 +618,10 @@ class Customer extends Model
     //   otherwise (Active / New / Potential) -> today, i.e. never capped
     //
     // The previous rule was `removed_date ?? termination_date ?? today`, which
-    // capped the window on termination_date regardless of status - the one
-    // field documented as record-only ("does NOT gate the calc", see
-    // CustomerController::update). Two writers put a termination_date on sites
-    // that were never closed: VendController::unbindCustomer(), which stamps it
+    // capped the window on termination_date regardless of status - a field
+    // that only means something while the site is Inactive (the location fee
+    // follows the same status gate, CustomerSummaryAggregator::feeEndDate).
+    // Two writers put a termination_date on sites that were never closed: VendController::unbindCustomer(), which stamps it
     // on every machine unbind and never clears it on re-bind, and a legacy bulk
     // import that stamped 2024-02-07 across ~400 rows. Between them 178 sites
     // had their Lifetime Sales truncated, 29 of them Active and still selling.

@@ -618,6 +618,8 @@ class CustomerController extends Controller
                     'customers.begin_date',
                     'customers.active_date',
                     'customers.removed_date',
+                    'customers.status_id',
+                    'customers.termination_date',
                     'operators.gst_vat_rate'
                 )
                 ->get()
@@ -647,7 +649,7 @@ class CustomerController extends Controller
                 $isMachineSplit = $cr->vend_id !== null;
                 $flatDayRatio = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                     $c->active_date ?? $c->begin_date,
-                    $c->removed_date,
+                    \App\Services\CustomerSummaryAggregator::feeEndDate($c),
                     \Carbon\Carbon::parse($cr->year_month)->startOfMonth(),
                     $toDateAsOf,
                     $isMachineSplit,
@@ -675,7 +677,7 @@ class CustomerController extends Controller
                 if (! $totalsHasToDateProration) {
                     $fullRatio = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                         $c->active_date ?? $c->begin_date,
-                        $c->removed_date,
+                        \App\Services\CustomerSummaryAggregator::feeEndDate($c),
                         \Carbon\Carbon::parse($cr->year_month)->startOfMonth(),
                         null,
                         $isMachineSplit,
@@ -2062,7 +2064,7 @@ class CustomerController extends Controller
             $flatDayRatio = $summary->year_month
                 ? \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                     $c->active_date ?? $c->begin_date,
-                    $c->removed_date,
+                    \App\Services\CustomerSummaryAggregator::feeEndDate($c),
                     \Carbon\Carbon::parse($summary->year_month)->startOfMonth(),
                     null,
                     $summary->vend_id !== null,
@@ -2690,6 +2692,8 @@ class CustomerController extends Controller
                 'customers.begin_date',
                 'customers.active_date',
                 'customers.removed_date',
+                'customers.status_id',
+                'customers.termination_date',
                 'operators.gst_vat_rate'
             )
             ->get()
@@ -2740,7 +2744,7 @@ class CustomerController extends Controller
                         : null;
                     $flatDayRatio = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                         $c->active_date ?? $c->begin_date,
-                        $c->removed_date,
+                        \App\Services\CustomerSummaryAggregator::feeEndDate($c),
                         \Carbon\Carbon::parse($r->year_month)->startOfMonth(),
                         $toDateAsOf,
                         $r->vend_id !== null,
@@ -2881,6 +2885,8 @@ class CustomerController extends Controller
                 'customers.begin_date',
                 'customers.active_date',
                 'customers.removed_date',
+                'customers.status_id',
+                'customers.termination_date',
                 'operators.gst_vat_rate'
             )
             ->get()
@@ -2912,7 +2918,7 @@ class CustomerController extends Controller
                     // Prorate the previous month's flat fee for its own month.
                     $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
                         $c->active_date ?? $c->begin_date,
-                        $c->removed_date,
+                        \App\Services\CustomerSummaryAggregator::feeEndDate($c),
                         \Carbon\Carbon::parse($prevKey)->startOfMonth()
                     );
                     $locationFeesCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
@@ -3925,6 +3931,8 @@ class CustomerController extends Controller
                 'customers.begin_date',
                 'customers.active_date',
                 'customers.removed_date',
+                'customers.status_id',
+                'customers.termination_date',
                 'operators.gst_vat_rate'
             )
             ->get()
@@ -3960,7 +3968,7 @@ class CustomerController extends Controller
                         : null;
                     $flatDayRatio = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                         $c->active_date ?? $c->begin_date,
-                        $c->removed_date,
+                        \App\Services\CustomerSummaryAggregator::feeEndDate($c),
                         \Carbon\Carbon::parse($r->year_month)->startOfMonth(),
                         $toDateAsOf,
                         $r->vend_id !== null,
@@ -4119,7 +4127,7 @@ class CustomerController extends Controller
                     $flatDayRatio = $row->year_month
                         ? \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
                             $customer->active_date ?? $customer->begin_date,
-                            $customer->removed_date,
+                            \App\Services\CustomerSummaryAggregator::feeEndDate($customer),
                             \Carbon\Carbon::parse($row->year_month)->startOfMonth(),
                             $exportToDateAsOf
                         )
@@ -5957,8 +5965,9 @@ class CustomerController extends Controller
         //              new active interval, so removed_date is cleared.
         //   Removed  → Removed Date (from the prompt; defaults today). Commission
         //              stops after this date (removal month prorated).
-        //   Inactive → auto-stamps termination_date (record-only Inactive Date;
-        //              not user-settable, does NOT gate the calc).
+        //   Inactive → auto-stamps termination_date (the Inactive Date; not
+        //              user-settable). Flat fees stop from it while the site
+        //              stays Inactive (CustomerSummaryAggregator::feeEndDate).
         //   Potential/New → no date.
         $statusActuallyChanged = $customer && (int) $customer->status_id !== $statusId;
         // Also treat a changed Active/Removed effective date (even when the
@@ -6223,7 +6232,8 @@ class CustomerController extends Controller
             // Capture the pre-update lifecycle dates so we can recompute the
             // affected month span below if they change (flat-fee proration).
             $oldActiveDate = $customer->active_date;
-            $oldRemovedDate = $customer->removed_date;
+            // Fee end, not the raw Removed Date: an Inactive switch moves it too.
+            $oldRemovedDate = \App\Services\CustomerSummaryAggregator::feeEndDate($customer);
             $oldSellingPriceType = $customer->selling_price_type;
 
             $customer->update($request->customer);
@@ -6261,7 +6271,7 @@ class CustomerController extends Controller
                 $oldActiveDate,
                 $customer->active_date,
                 $oldRemovedDate,
-                $customer->removed_date
+                \App\Services\CustomerSummaryAggregator::feeEndDate($customer)
             );
 
             // Append a row to customer_contract_logs whenever any contract field

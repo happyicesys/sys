@@ -107,7 +107,7 @@ class CustomerPeriodSummaryResource extends JsonResource
             $activeDate = $this->customer->active_date ?? $this->customer->begin_date;
             $flatDayRatioFull = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                 $activeDate,
-                $this->customer->removed_date,
+                \App\Services\CustomerSummaryAggregator::feeEndDate($this->customer),
                 $monthStart,
                 null,
                 $isMachineSplit,
@@ -118,7 +118,7 @@ class CustomerPeriodSummaryResource extends JsonResource
             $flatDayRatio = $toDateAsOf
                 ? \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                     $activeDate,
-                    $this->customer->removed_date,
+                    \App\Services\CustomerSummaryAggregator::feeEndDate($this->customer),
                     $monthStart,
                     $toDateAsOf,
                     $isMachineSplit,
