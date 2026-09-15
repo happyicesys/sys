@@ -954,6 +954,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{vend}/freezer-controls', [FreezerControlController::class, 'store'])
             ->name('vends.freezer-controls.store')
             ->middleware('can:update machine-settings');
+        Route::get('/{vend}/freezer-controls/{command}/excerpt', [FreezerControlController::class, 'excerpt'])
+            ->name('vends.freezer-controls.excerpt')
+            ->middleware('can:read machine-settings');
         Route::get('/{vend}/freezer-controls/{command}/log', [FreezerControlController::class, 'log'])
             ->name('vends.freezer-controls.log')
             ->middleware('can:read machine-settings');

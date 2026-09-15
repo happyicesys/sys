@@ -20,8 +20,8 @@ use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\IncrementVendDailyStat;
 use App\Jobs\Vend\SyncFeatureApkSetting;
 // use App\Jobs\Vend\CreateVendStatistics;
-use App\Jobs\Vend\SyncFreezerPowerEvent;
 use App\Jobs\Vend\SyncFreezerControlAck;
+use App\Jobs\Vend\SyncFreezerPowerEvent;
 use App\Jobs\Vend\SyncFreezerStatus;
 use App\Jobs\Vend\SyncJobApkSetting;
 use App\Jobs\Vend\SyncVendChannels;
@@ -457,6 +457,9 @@ class VendDataService
                         // Smart freezer's answer to a remote cabinet control from Setting/Edit
                         // (FreezerControlService). 'high': a technician is watching the button.
                         SyncFreezerControlAck::dispatch($processedInput, $vend)->onQueue('high');
+                        // Already stored in full (excerpt included) in freezer_control_commands;
+                        // mirroring the 12 KB payload into vend_data would double it for no reader.
+                        $saveVendData = false;
                         break;
                     case 'POWERCUT':
                     case 'POWERRESTORED':

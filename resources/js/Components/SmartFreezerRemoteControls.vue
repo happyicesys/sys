@@ -173,7 +173,7 @@
                     </td>
                     <td class="py-1 pr-3 text-gray-700 max-w-md">{{ c.message || '' }}</td>
                     <td class="py-1 whitespace-nowrap">
-                      <button v-if="c.log" type="button" class="text-sky-700 hover:underline mr-2" @click.prevent="toggle(c.id)">
+                      <button v-if="c.has_log" type="button" class="text-sky-700 hover:underline mr-2" @click.prevent="toggle(c.id)">
                         {{ open.has(c.id) ? 'hide' : 'excerpt' }}<span v-if="c.log_scope === 'app'" class="text-gray-400"> (app only)</span>
                       </button>
                       <template v-if="c.log_file">
@@ -182,9 +182,9 @@
                       </template>
                     </td>
                   </tr>
-                  <tr v-if="c.log && open.has(c.id)">
+                  <tr v-if="c.has_log && open.has(c.id)">
                     <td colspan="6" class="py-1">
-                      <pre class="max-h-72 overflow-auto rounded bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ c.log }}</pre>
+                      <pre class="max-h-72 overflow-auto rounded bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ excerpts[c.id] ?? 'loading…' }}</pre>
                     </td>
                   </tr>
                 </template>
@@ -234,7 +234,18 @@ const timelineFilter = ref('')
 const showEvents = ref(true)
 const limit = ref(30)
 const open = ref(new Set())
-function toggle(id) { const n = new Set(open.value); n.has(id) ? n.delete(id) : n.add(id); open.value = n }
+const excerpts = ref({})
+async function toggle(id) {
+  const n = new Set(open.value); n.has(id) ? n.delete(id) : n.add(id); open.value = n
+  if (n.has(id) && excerpts.value[id] === undefined) {
+    try {
+      const res = await axios.get('/vends/' + props.vendId + '/freezer-controls/' + id + '/excerpt')
+      excerpts.value = { ...excerpts.value, [id]: res.data.log || '(empty)' }
+    } catch (e) {
+      excerpts.value = { ...excerpts.value, [id]: 'Could not load the excerpt.' }
+    }
+  }
+}
 const visibleCommands = computed(() => data.value.commands.filter(c => {
   if (!showEvents.value && c.source === 'event') return false
   const q = timelineFilter.value.toLowerCase()

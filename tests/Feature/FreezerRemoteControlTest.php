@@ -199,10 +199,16 @@ class FreezerRemoteControlTest extends TestCase
         $vend = $this->freezer();
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'fan', 'args' => ['on' => true]]);
         $row = FreezerControlCommand::sole();
-        $this->ack($vend, ['cmdId' => $row->cmd_id, 'op' => 'fan', 'result' => 'ok', 'log' => '09-15 10:00:01.000 I/BoxCommandDispatcher( 1): dispatch ok action=openFan', 'logScope' => 'system']);
+        $line = '09-15 10:00:01.000 I/BoxCommandDispatcher( 1): dispatch ok action=openFan';
+        $this->ack($vend, ['cmdId' => $row->cmd_id, 'op' => 'fan', 'result' => 'ok', 'log' => $line, 'logScope' => 'system']);
+        // The list carries a flag only; the text is fetched when a row is expanded.
         $this->getJson("/vends/{$vend->id}/freezer-controls")
             ->assertJsonPath('commands.0.log_scope', 'system')
-            ->assertJsonFragment(['log' => '09-15 10:00:01.000 I/BoxCommandDispatcher( 1): dispatch ok action=openFan']);
+            ->assertJsonPath('commands.0.has_log', true)
+            ->assertDontSee('dispatch ok action=openFan');
+        $this->getJson("/vends/{$vend->id}/freezer-controls/{$row->id}/excerpt")->assertJsonPath('log', $line);
+        // Acks are not mirrored into vend_data.
+        Queue::assertNotPushed(\App\Jobs\Vend\CreateVendData::class);
     }
 
     public function test_kiosk_panel_controls_are_filed_in_the_same_log(): void

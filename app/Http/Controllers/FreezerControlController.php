@@ -66,7 +66,9 @@ class FreezerControlController extends Controller
                 'source' => $c->source,
                 'status' => $c->displayStatus($now),
                 'message' => $c->response_msg,
-                'log' => $c->response_log,
+                // The excerpt itself is fetched on demand (excerpt route): 30 rows × 12 KB on
+                // every 20 s poll would be most of the page's traffic for text nobody opened.
+                'has_log' => $c->response_log !== null && $c->response_log !== '',
                 'log_scope' => $c->log_scope,
                 'log_file' => $c->log_path ? ['lines' => $c->log_lines, 'url' => route('vends.freezer-controls.log', [$vend->id, $c->id])] : null,
                 'requested_by' => $c->requested_by_name,
@@ -74,6 +76,14 @@ class FreezerControlController extends Controller
                 'responded_at' => $c->responded_at?->toIso8601String(),
             ])->values(),
         ]);
+    }
+
+    /** One row's device-log excerpt, fetched when the technician expands it. */
+    public function excerpt(Vend $vend, FreezerControlCommand $command): JsonResponse
+    {
+        abort_unless($command->vend_id === $vend->id, 404);
+
+        return response()->json(['log' => $command->response_log, 'log_scope' => $command->log_scope]);
     }
 
     /**
