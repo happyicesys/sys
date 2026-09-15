@@ -21,6 +21,7 @@ use App\Jobs\Vend\IncrementVendDailyStat;
 use App\Jobs\Vend\SyncFeatureApkSetting;
 // use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\SyncFreezerPowerEvent;
+use App\Jobs\Vend\SyncFreezerControlAck;
 use App\Jobs\Vend\SyncFreezerStatus;
 use App\Jobs\Vend\SyncJobApkSetting;
 use App\Jobs\Vend\SyncVendChannels;
@@ -451,6 +452,11 @@ class VendDataService
                         // Smart freezer serviceability snapshot / daily diagnostic. Merged into
                         // vends.freezer_status_json in one statement (see FreezerStatusService).
                         SyncFreezerStatus::dispatch($processedInput, $vend, $processedInput['Type'])->onQueue('default');
+                        break;
+                    case 'FREEZERCTLACK':
+                        // Smart freezer's answer to a remote cabinet control from Setting/Edit
+                        // (FreezerControlService). 'high': a technician is watching the button.
+                        SyncFreezerControlAck::dispatch($processedInput, $vend)->onQueue('high');
                         break;
                     case 'POWERCUT':
                     case 'POWERRESTORED':

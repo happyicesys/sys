@@ -1,0 +1,206 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Jobs\PublishMqtt;
+use App\Models\FreezerControlCommand;
+use App\Models\User;
+use App\Models\Vend;
+use App\Services\Freezer\FreezerControlService;
+use App\Services\VendDataService;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Spatie\Permission\Models\Permission;
+use Tests\TestCase;
+
+/**
+ * Setting/Edit remote cabinet controls for smart freezers: the FREEZERCTL frame mark1 sends, the
+ * permissions around it, and the FREEZERCTLACK the device sends back.
+ */
+class FreezerRemoteControlTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Queue::fake();
+        $this->user = User::factory()->create(['name' => 'Tech One', 'operator_id' => 1]);
+        foreach (['read machine-settings', 'update machine-settings'] as $p) {
+            $this->user->givePermissionTo(Permission::findOrCreate($p, 'web'));
+        }
+        $this->actingAs($this->user);
+    }
+
+    private function freezer(array $attrs = []): Vend
+    {
+        $attrs = array_merge([
+            'code' => 50001, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER,
+            'is_active' => 1, 'operator_id' => 1, 'vend_model_id' => 1,
+            'apk_version_code' => 11, 'private_key' => 'TESTKEY000000001',
+        ], $attrs);
+        $vend = new Vend;
+        $vend->forceFill($attrs)->save(); // apk_version_code / private_key are device-written, not fillable
+
+        return $vend->refresh();
+    }
+
+    /** @return array{0:string,1:array} topic and decoded JSON of the one published frame */
+    private function publishedFrame(): array
+    {
+        $frame = null;
+        Queue::assertPushed(PublishMqtt::class, function (PublishMqtt $job) use (&$frame) {
+            $frame = (fn () => [$this->topic, $this->message])->call($job);
+
+            return true;
+        });
+        [$topic, $wire] = $frame;
+        [$fid, $len, $b64, $md5] = explode(',', $wire);
+        $this->assertSame(strlen($b64), (int) $len);
+        $this->assertSame(md5($fid.','.$len.','.$b64.'TESTKEY000000001'), $md5, 'frame must be signed with the vend key');
+
+        return [$topic, json_decode(base64_decode($b64), true)];
+    }
+
+    private function ack(Vend $vend, array $payload): void
+    {
+        $service = new VendDataService;
+        $message = 'f=6&t=5&m='.$vend->code.'&g=20&p='.base64_encode(json_encode(['Type' => 'FREEZERCTLACK'] + $payload));
+        $std = $service->standardizedVendData($message, 'mqtt');
+        $service->processVendData($std, $service->decodeVendData($std), '127.0.0.1', 'mqtt');
+        // Queue is faked: run the dispatched ack job for real.
+        Queue::assertPushed(\App\Jobs\Vend\SyncFreezerControlAck::class, function ($job) {
+            $job->handle(app(FreezerControlService::class));
+
+            return true;
+        });
+    }
+
+    public function test_setpoint_sends_a_signed_frame_and_records_a_pending_command(): void
+    {
+        Carbon::setTestNow('2026-09-15 10:00:00');
+        $vend = $this->freezer();
+
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => -20]])
+            ->assertStatus(202)->assertJsonPath('status', 'pending');
+
+        [$topic, $body] = $this->publishedFrame();
+        $this->assertSame('CM50001', $topic);
+        $this->assertSame('FREEZERCTL', $body['Type']);
+        $this->assertSame('setpoint', $body['op']);
+        $this->assertSame(['celsius' => -20], $body['args']);
+        $this->assertSame(Carbon::now()->timestamp + FreezerControlService::TTL_SECONDS, $body['expiresAt']);
+
+        $row = FreezerControlCommand::sole();
+        $this->assertSame($body['cmdId'], $row->cmd_id);
+        $this->assertSame('Tech One', $row->requested_by_name);
+    }
+
+    public function test_out_of_range_or_malformed_args_are_rejected_before_sending(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => 2]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => -18.5]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'fan', 'args' => ['on' => 'yes']])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'selfdestruct'])->assertStatus(422);
+        Queue::assertNotPushed(PublishMqtt::class);
+        $this->assertSame(0, FreezerControlCommand::count());
+    }
+
+    public function test_door_commands_need_the_door_permission(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'unlock'])->assertStatus(403);
+        Queue::assertNotPushed(PublishMqtt::class);
+
+        $this->user->givePermissionTo(Permission::findOrCreate('update freezer-remote-door', 'web'));
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'unlock'])->assertStatus(202);
+    }
+
+    public function test_one_pending_command_at_a_time(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'status'])->assertStatus(202);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'light', 'args' => ['on' => true]])->assertStatus(429);
+    }
+
+    public function test_non_freezer_and_old_apk_are_refused(): void
+    {
+        $vm = $this->freezer(['code' => 2031, 'machine_type' => 'vending_machine']);
+        $this->postJson("/vends/{$vm->id}/freezer-controls", ['op' => 'status'])->assertStatus(404);
+
+        $old = $this->freezer(['code' => 50003, 'apk_version_code' => 9]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'status'])->assertStatus(422);
+    }
+
+    public function test_ack_completes_the_command_and_stores_the_status_snapshot(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => true]]);
+        $row = FreezerControlCommand::sole();
+
+        $this->ack($vend, [
+            'cmdId' => $row->cmd_id, 'op' => 'compressor', 'result' => 'ok', 'msg' => '已发送压缩机状态指令',
+            'status' => ['thermostat' => ['available' => true, 'celsius' => -19.6, 'compressorOn' => true]],
+        ]);
+
+        $row->refresh();
+        $this->assertSame('ok', $row->status);
+        $this->assertSame('已发送压缩机状态指令', $row->response_msg);
+        $this->assertNotNull($row->responded_at);
+
+        $json = $this->getJson("/vends/{$vend->id}/freezer-controls")->assertOk();
+        $json->assertJsonPath('status.thermostat.celsius', -19.6)
+            ->assertJsonPath('commands.0.status', 'ok')
+            ->assertJsonPath('commands.0.requested_by', 'Tech One')
+            ->assertJsonPath('pending', false);
+    }
+
+    public function test_a_replayed_duplicate_answer_does_not_overwrite_the_verdict(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'light', 'args' => ['on' => true]]);
+        $row = FreezerControlCommand::sole();
+        app(FreezerControlService::class)->recordAck($vend, ['cmdId' => $row->cmd_id, 'result' => 'ok']);
+        app(FreezerControlService::class)->recordAck($vend, ['cmdId' => $row->cmd_id, 'result' => 'duplicate']);
+        $this->assertSame('ok', $row->refresh()->status);
+    }
+
+    public function test_another_vends_cmd_id_is_ignored(): void
+    {
+        $a = $this->freezer();
+        $b = $this->freezer(['code' => 50002]);
+        $this->postJson("/vends/{$a->id}/freezer-controls", ['op' => 'status']);
+        $row = FreezerControlCommand::sole();
+        app(FreezerControlService::class)->recordAck($b, ['cmdId' => $row->cmd_id, 'result' => 'ok', 'status' => ['x' => 1]]);
+        $this->assertSame('pending', $row->refresh()->status);
+        $this->assertNull(DB::table('vends')->where('id', $a->id)->value('freezer_control_status_json'));
+    }
+
+    public function test_unanswered_command_shows_as_timeout_after_expiry(): void
+    {
+        Carbon::setTestNow('2026-09-15 10:00:00');
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'status']);
+        Carbon::setTestNow('2026-09-15 10:02:00');
+        $this->getJson("/vends/{$vend->id}/freezer-controls")
+            ->assertJsonPath('commands.0.status', 'timeout')
+            ->assertJsonPath('pending', false);
+        // and a new command is allowed again
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'status'])->assertStatus(202);
+    }
+
+    public function test_readers_without_update_permission_cannot_send(): void
+    {
+        $reader = User::factory()->create(['operator_id' => 1]);
+        $reader->givePermissionTo(Permission::findOrCreate('read machine-settings', 'web'));
+        $this->actingAs($reader);
+        $vend = $this->freezer();
+        $this->getJson("/vends/{$vend->id}/freezer-controls")->assertOk()->assertJsonPath('can_control', false);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'status'])->assertStatus(403);
+    }
+}

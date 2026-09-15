@@ -69,6 +69,7 @@ use App\Http\Controllers\VendCriteriaBindingController;
 use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\VendModelController;
 use App\Http\Controllers\VendPrefixController;
+use App\Http\Controllers\FreezerControlController;
 use App\Http\Controllers\VendScreenshotController;
 use App\Http\Controllers\VendSerialNumberController;
 use App\Http\Controllers\VendStickerController;
@@ -943,6 +944,16 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // stripWholeMachineMoney() the page itself uses.
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
             ->name('vends.customer.aggregates');
+
+        // Smart Freezer remote cabinet controls — Setting > Edit > "Remote controls".
+        // JSON only, polled by the panel. Lock/unlock additionally need
+        // `update freezer-remote-door` (checked in the controller).
+        Route::get('/{vend}/freezer-controls', [FreezerControlController::class, 'show'])
+            ->name('vends.freezer-controls.show')
+            ->middleware('can:read machine-settings');
+        Route::post('/{vend}/freezer-controls', [FreezerControlController::class, 'store'])
+            ->name('vends.freezer-controls.store')
+            ->middleware('can:update machine-settings');
 
         // Remote screen capture — Setting > Edit > "View Screen". ONE frame per
         // deliberate click; nothing is stored (see VendScreenshotController).

@@ -418,6 +418,16 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Smart Freezer remote door lock/unlock from Setting/Edit (FreezerControlController).
+                // Unlocking remotely is unmetered stock access — no order, no video, no AI check —
+                // so it is narrower than machine-settings. 2026-09-15 code-side addition — add this
+                // row to the Google Sheet so the next sheet sync does not drop it.
+                'freezer-remote-door',
+                ['update'],
+                ['superadmin', 'admin'],
+            ],
+
+            [
                 // APK OTA Updates (/apk-releases). Deliberately NOT sharing
                 // machine-settings: uploading and publishing a binary pushes code to
                 // every machine on a channel, which is a far wider blast radius than
