@@ -29,7 +29,7 @@ class PruneFreezerLogs extends Command
             ->orderBy('id')->chunkById(200, function ($rows) use (&$files, &$excerpts) {
                 foreach ($rows as $row) {
                     if ($row->log_path) {
-                        Storage::disk('local')->delete($row->log_path);
+                        Storage::delete($row->log_path);
                         $files++;
                     }
                     if ($row->response_log !== null) {

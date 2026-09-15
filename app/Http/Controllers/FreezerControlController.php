@@ -83,7 +83,7 @@ class FreezerControlController extends Controller
     public function log(Request $request, Vend $vend, FreezerControlCommand $command)
     {
         abort_unless($command->vend_id === $vend->id && $command->log_path, 404);
-        $gz = Storage::disk('local')->get($command->log_path);
+        $gz = Storage::get($command->log_path);
         $text = @gzdecode($gz);
         abort_if($text === false, 404);
         $q = trim((string) $request->query('q', ''));

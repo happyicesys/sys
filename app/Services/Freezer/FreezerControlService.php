@@ -9,6 +9,7 @@ use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -183,8 +184,10 @@ class FreezerControlService
         if (! $command) {
             return false;
         }
+        // Default disk = DigitalOcean Spaces on prod (config/filesystems.php), private: a log can
+        // carry order ids and the host's own chatter, so it is served only through the gated route.
         $path = 'freezer-logs/'.$vend->id.'/'.$cmdId.'.log.gz';
-        \Illuminate\Support\Facades\Storage::disk('local')->put($path, file_get_contents($tmpPath));
+        Storage::put($path, file_get_contents($tmpPath), 'private');
         $command->update(['log_path' => $path, 'log_lines' => max(0, $lines)]);
 
         return true;
