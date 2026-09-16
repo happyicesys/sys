@@ -25,7 +25,7 @@ class FreezerChannelSyncTest extends TestCase
 
     private function freezer(): Vend
     {
-        $product = Product::create(['code' => 'U-01', 'name' => 'Cornetto']);
+        $product = Product::create(['code' => 'U-01', 'name' => 'Cornetto', 'freezer_slot_qty' => 24]);
         SellingPrice::create(['product_id' => $product->id, 'type' => SellingPrice::TYPE_1, 'amount' => 2.70]);
         SellingPrice::create(['product_id' => $product->id, 'type' => SellingPrice::TYPE_2, 'amount' => 3.00]);
         $mapping = ProductMapping::create([
@@ -70,7 +70,7 @@ class FreezerChannelSyncTest extends TestCase
         $this->assertSame([11, 21], array_keys($channels));
         $this->assertSame(300, $channels[11]['amount'], 'RP2 = the Site tier, in cents');
         $this->assertSame(0, $channels[11]['qty'], 'a new slot starts empty');
-        $this->assertSame((int) config('smart_freezer.channel_capacity'), $channels[11]['capacity']);
+        $this->assertSame(24, $channels[11]['capacity'], "the SKU's own measured par");
     }
 
     public function test_it_keeps_our_ledger_and_retires_a_slot_that_left_the_planogram(): void
@@ -84,8 +84,19 @@ class FreezerChannelSyncTest extends TestCase
 
         $channels = $this->pushedFrame();
         $this->assertSame(7, $channels[11]['qty'], 'topup ledger is never reset by a re-sync');
-        $this->assertSame(12, $channels[11]['capacity'], "ops's own capacity is kept");
+        $this->assertSame(24, $channels[11]['capacity'], 'the par follows the product, not the stale row');
         $this->assertSame(0, $channels[61]['capacity'], 'a slot off the planogram is retired, not left sold out');
+    }
+
+    public function test_an_unmeasured_product_leaves_the_par_blank_rather_than_inventing_one(): void
+    {
+        Queue::fake();
+        $vend = $this->freezer();
+        Product::query()->update(['freezer_slot_qty' => null]);
+
+        app(FreezerChannelSync::class)->sync($vend);
+
+        $this->assertSame(0, $this->pushedFrame()[11]['capacity'], '0 reads as "-" on the dashboard');
     }
 
     public function test_a_vending_machine_is_not_touched(): void

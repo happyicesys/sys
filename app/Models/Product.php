@@ -73,6 +73,8 @@ class Product extends Model
         'measurement_count',
         'measurement_unit',
         'measurement_value',
+        // Pieces of this SKU per smart-freezer slot (FreezerChannelSync writes it onto the channel).
+        'freezer_slot_qty',
         'name',
         'nutri_grade',
         'operator_id',

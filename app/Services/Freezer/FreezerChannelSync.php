@@ -3,6 +3,7 @@
 namespace App\Services\Freezer;
 
 use App\Jobs\Vend\SyncVendChannels;
+use App\Models\Product;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -19,9 +20,10 @@ use App\Models\VendChannel;
  * Two things this deliberately does NOT own:
  *  - **qty.** It is our ledger (ops-job topup in, each sale out), not a supplier feed, so an existing
  *    row keeps its quantity through every re-sync. A new row starts empty.
- *  - **capacity.** Nobody has measured a basket yet; `config('smart_freezer.channel_capacity')` is
- *    the placeholder par, and an existing row's capacity is kept in case ops has set a real one.
- *    It has to be > 0 or SyncVendChannels files the channel as inactive and it disappears again.
+ *  - **capacity.** It belongs to the SKU, not the cabinet (`products.freezer_slot_qty`, set on
+ *    Product > Edit > Smart Freezer): a box of cones and a tub of Magnum do not fit the same number
+ *    in the same basket. Unmeasured products leave the slot at 0, which reads as "-" on the
+ *    dashboard rather than as a made-up par; a freezer channel stays active either way.
  *
  * Prices are the Site's RP tier, which is what a freezer sells at — it has no board price
  * (Vend::serverPriceType). A slot that has left the planogram is sent with capacity 0, which
@@ -44,8 +46,9 @@ class FreezerChannelSync
         }
 
         $existing = VendChannel::where('vend_id', $vend->id)->get()->keyBy(fn ($row) => (int) $row->code);
-        $defaultCapacity = (int) config('smart_freezer.channel_capacity', 20);
-        $prices = $this->serverPrices($vend, $mapping->productMappingItems->pluck('product_id')->filter()->unique()->all());
+        $productIds = $mapping->productMappingItems->pluck('product_id')->filter()->unique()->all();
+        $prices = $this->serverPrices($vend, $productIds);
+        $pars = Product::whereIn('id', $productIds)->pluck('freezer_slot_qty', 'id');
 
         $channels = [];
         $seen = [];
@@ -59,7 +62,7 @@ class FreezerChannelSync
             $channels[] = [
                 'channel_code' => $code,
                 'qty' => (int) ($row?->qty ?? 0),
-                'capacity' => (int) ($row?->capacity ?: $defaultCapacity),
+                'capacity' => (int) ($pars[$item->product_id] ?? 0),
                 'amount' => (int) ($prices[$item->product_id] ?? $item->getRawOriginal('server_amount') ?? 0),
                 'amount2' => 0,
                 'error_code' => 0,

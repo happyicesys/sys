@@ -355,6 +355,40 @@
                   </div>
                 </div>
               </div>
+              <!--
+                Smart Freezer par. Capacity belongs to the SKU, not the cabinet: a box of cones and a
+                tub of Magnum do not fit the same number in the same basket, so it is set once here
+                and every freezer's channels take it from the planogram (FreezerChannelSync). Blank
+                means nobody has measured it — the machine then shows "-" instead of a made-up par.
+              -->
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Smart Freezer</span>
+                  </div>
+                </div>
+              </div>
+              <div class="sm:col-span-3" v-if="form.id">
+                <FormInput
+                  v-model="form.freezer_slot_qty"
+                  inputType="number"
+                  :minValue="1"
+                  :maxValue="999"
+                  placeholderStr="e.g. 24"
+                  :error="form.errors.freezer_slot_qty"
+                  :disabled="!permissions.includes('update products')"
+                >
+                  Pieces per freezer slot
+                </FormInput>
+                <p class="mt-1 text-xs text-gray-500">
+                  How many of this product fit in ONE basket division. Used as the channel capacity on every
+                  Smart Freezer that carries it; leave blank until it has been counted.
+                </p>
+              </div>
+
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -723,6 +757,7 @@ function getDefaultForm() {
     category_id: '',
     measurement_count: '',
     measurement_value: '',
+    freezer_slot_qty: '',
     measurement_unit: '',
     nutri_grade: '',
     operator_id: '',

@@ -1883,10 +1883,11 @@
 													#{{channel.code}}
 											</span>,
 											<span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
-													{{channel.capacity - channel.qty}},
+													<!-- Capacity 0 = par not measured (a freezer SKU with no freezer_slot_qty), not "room for none". -->
+													{{ channel.capacity ? channel.capacity - channel.qty : '—' }},
 											</span>
 											<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 && channel['qty'] > 0 ? 'text-blue-700' : (channel['qty'] == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">
-													{{channel.qty}}/{{channel.capacity}}
+													{{channel.qty}}/{{ channel.capacity || '—' }}
 											</span>
 											<span class="text-gray-500">
 													({{channel.last_stock_in_qty}})

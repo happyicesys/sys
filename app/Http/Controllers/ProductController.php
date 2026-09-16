@@ -889,6 +889,8 @@ class ProductController extends Controller
         // dd($request->all());
         $request->validate([
             'warehouse_qty_source' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::in(['cms', 'ledger'])],
+            // Pieces per smart-freezer slot. Blank means "not measured", never zero pieces.
+            'freezer_slot_qty' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:999'],
             'code' => 'required',
             'name' => 'required',
             'operator_id' => 'required',

@@ -253,6 +253,14 @@ class SyncVendChannels implements ShouldQueue
     // get vend channel status by custom logic
     private function getVendChannelStatus($channel)
     {
+        // A vending machine's board reports capacity, so capacity 0 there means "no such slot". A
+        // Smart Freezer's capacity comes from the SKU's measured par (products.freezer_slot_qty),
+        // which is blank until someone counts it — the slot still exists and still sells, so it
+        // stays active and shows its par as "-" (2026-09-16).
+        if ($this->vend->isSmartFreezer()) {
+            return $this->isCodeInRange((int) $channel['channel_code']);
+        }
+
         return $channel['capacity'] > 0 && $this->isCodeInRange((int) $channel['channel_code']);
     }
 

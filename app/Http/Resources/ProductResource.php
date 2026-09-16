@@ -81,6 +81,8 @@ class ProductResource extends JsonResource
             'measurement_count' => $this->measurement_count,
             'measurement_unit' => ['id' => $this->measurement_unit, 'name' => $this->measurement_unit],
             'measurement_value' => $this->measurement_value,
+            // Smart-freezer par: pieces per basket division, null until someone measures it.
+            'freezer_slot_qty' => $this->freezer_slot_qty,
             'net_available_qty_pcs_api' => isset($this->net_available_qty_pcs_api) ? $this->net_available_qty_pcs_api : null,
             'not_yet_sync_api_qty' => isset($this->not_yet_sync_api_qty) ? $this->not_yet_sync_api_qty : null,
             'nutri_grade' => $this->nutri_grade,
