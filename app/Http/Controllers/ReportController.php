@@ -264,8 +264,21 @@ class ReportController extends Controller
 
         $vendIds = $request->vend_ids;
 
-        // Fetch codes to filter the dashboard data
-        $vends = Vend::whereIn('id', $vendIds)->orWhereIn('customer_id', $vendIds)->get();
+        // Fetch codes to filter the dashboard data. Smart Freezers are left out: every
+        // machine-health rule here is written for a vending machine (T1/T2 probes, channel error
+        // codes, cash/no-transaction patterns), so a badge on a freezer row is a rule firing on
+        // data that means something else. Nothing alerts on a freezer until its own rules exist
+        // (Brian, 2026-09-16). Both its ids are silenced — rows on the Operation Dashboard are
+        // keyed by customer id — and the guard sits in $addAlert below, because the connectivity
+        // fallback re-reads the requested ids rather than this list.
+        $requested = Vend::whereIn('id', $vendIds)->orWhereIn('customer_id', $vendIds)->get();
+        $freezers = $requested->filter(fn (Vend $vend) => $vend->isSmartFreezer());
+        $silenced = $freezers->pluck('id')
+            ->merge($freezers->pluck('customer_id')->filter())
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->all();
+        $vends = $requested->reject(fn (Vend $vend) => $vend->isSmartFreezer())->values();
         $machineCodes = $vends->pluck('code')->toArray();
         $resolvedVendIds = $vends->pluck('id')->toArray();
 
@@ -288,7 +301,10 @@ class ReportController extends Controller
         $alertsByVend = [];
 
         // Helper to add alert with double-keying
-        $addAlert = function ($vid, $alert) use (&$alertsByVend, $idMap) {
+        $addAlert = function ($vid, $alert) use (&$alertsByVend, $idMap, $silenced) {
+            if (in_array((string) $vid, $silenced, true)) {
+                return;
+            }
             if (! isset($alertsByVend[$vid])) {
                 $alertsByVend[$vid] = [];
             }

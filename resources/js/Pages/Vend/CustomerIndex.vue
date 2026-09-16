@@ -1854,9 +1854,17 @@
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="'View Channel Status'">
+							<!--
+								A Smart Freezer reports no vend_channels, so this cell had nothing in it and the
+								planogram popup behind it was invisible (Brian, 2026-09-16). Name it instead.
+							-->
+							<div v-if="isFreezer(vend)" class="flex flex-col items-center gap-1 py-1">
+								<span class="inline-flex items-center rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white">View planogram</span>
+								<span v-if="vend.product_mapping_name" class="text-xs text-gray-500">{{ vend.product_mapping_name }}</span>
+							</div>
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr]"
-							v-if="vend && vend.vendChannelsJson"
+							v-else-if="vend && vend.vendChannelsJson"
 							>
 								<li v-for="(channel, channelIndex) in vend.vendChannelsJson"
 										class="quick-look"
@@ -3857,6 +3865,8 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 
 	// Smart Chiller rows render their own cells under the same headers (SmartChillerRowCells).
 	const isChiller = (vend) => vend && vend.machine_type === 'smart_chiller'
+	// Our own freezer: no vend_channels telemetry and no machine-health rules written for it yet.
+	const isFreezer = (vend) => vend && vend.machine_type === 'smart_freezer'
 	const initBinded = usePage().props.initBinded
 	const hasSearched = ref(props.autoLoad ?? false)
 	const now = ref((props.autoLoad ? moment().format('HH:mm:ss') : '--:--'))
@@ -4767,7 +4777,7 @@ function onChannelOverviewClicked(vendData) {
 		// the same one Dashboard Lite uses.
 		if (isChiller(vendData)) {
 			showChillerChannelOverviewModal.value = true
-		} else if (vendData.product_mapping_is_smart) {
+		} else if (isFreezer(vendData) || vendData.product_mapping_is_smart) {
 			showSmartChannelOverviewModal.value = true
 		} else {
 			showChannelOverviewModal.value = true
