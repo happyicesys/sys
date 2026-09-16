@@ -30,6 +30,12 @@
         This machine's app (versionCode {{ data.apk_version_code ?? 'unknown' }}) is too old for remote controls.
       </p>
 
+      <p v-if="loaded && data.supported && (t.compressorRemoteMode === false || t.fanRemoteMode === false)" class="text-amber-800 text-xs">
+        <template v-if="t.compressorRemoteMode === false">The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.</template>
+        <template v-if="t.compressorRemoteMode === false && t.fanRemoteMode === false"><br></template>
+        <template v-if="t.fanRemoteMode === false">The fan follows the door switch on the controller, so Cabinet fan on/off is ignored. Only Zijia's portal can change that today.</template>
+      </p>
+
       <template v-if="loaded">
         <!-- Status -->
         <div>
@@ -57,6 +63,7 @@
               </div>
             </div>
             <StatusCell label="Compressor" :value="onOff(t.compressorOn)" :tone="t.compressorOn === true ? 'on' : 'neutral'" />
+            <StatusCell label="Compressor control" :value="modeText(t.compressorRemoteMode)" :tone="t.compressorRemoteMode === true ? 'warn' : 'neutral'" />
             <StatusCell label="Cooling demand" :value="onOff(t.coolingDemand)" />
             <StatusCell label="Defrost" :value="onOff(t.defrosting)" :tone="t.defrosting ? 'warn' : 'neutral'" />
             <StatusCell label="Alarm" :value="alarmText" :tone="alarmText === 'none' ? 'ok' : alarmText === '—' ? 'neutral' : 'bad'" />
@@ -64,6 +71,7 @@
             <StatusCell label="Door" :value="s.door?.doorState ?? '—'" :tone="s.door?.doorState === 'closed' ? 'ok' : s.door?.doorState === 'opened' ? 'warn' : 'neutral'" />
             <StatusCell label="Lock link" :value="s.door?.lockOnlineState ?? '—'" :tone="s.door?.lockOnlineState === 'online' ? 'ok' : 'neutral'" />
             <StatusCell label="Cabinet fan" :value="onOff(s.fanOn)" />
+            <StatusCell label="Fan control" :value="modeText(t.fanRemoteMode)" :tone="t.fanRemoteMode === true ? 'warn' : 'neutral'" />
             <StatusCell label="Light" :value="s.lightState || 'not reported'" />
             <StatusCell label="Volume" :value="s.volume ?? '—'" />
             <StatusCell label="Host bridge" :value="s.bridge ? (s.bridge.bound ? (s.bridge.hostReady ? 'ready' : 'bound, not ready') : 'not bound') : '—'"
@@ -101,6 +109,15 @@
             </div>
 
             <ToggleRow label="Compressor" :disabled="!canSend" @on="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')" @off="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')" />
+            <div class="rounded-md border border-gray-200 p-2 flex items-center justify-between gap-2">
+              <span class="text-sm text-gray-700">Compressor control</span>
+              <span class="flex gap-1">
+                <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend"
+                        @click.prevent="ask('comprmode', { on: false }, 'Give the compressor back to the controller?', 'The controller then runs it from its own setpoint and differential, and remote on/off stops working.')">Controller</Button>
+                <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend"
+                        @click.prevent="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</Button>
+              </span>
+            </div>
             <ToggleRow label="Cabinet fan" :disabled="!canSend" @on="send('fan', { on: true })" @off="send('fan', { on: false })" />
             <ToggleRow label="Light" :disabled="!canSend" @on="send('light', { on: true })" @off="send('light', { on: false })" />
 
@@ -266,7 +283,11 @@ const alarmText = computed(() => {
   return 'none'
 })
 
-const OP_LABELS = { status: 'Sync status', lock: 'Lock door', unlock: 'Unlock door', fan: 'Cabinet fan', light: 'Light', compressor: 'Compressor', setpoint: 'Setpoint', volume: 'Volume', logs: 'Pull logs', boot: 'Machine booted' }
+const OP_LABELS = { status: 'Sync status', lock: 'Lock door', unlock: 'Unlock door', fan: 'Cabinet fan', light: 'Light', compressor: 'Compressor', comprmode: 'Compressor control', setpoint: 'Setpoint', volume: 'Volume', logs: 'Pull logs', boot: 'Machine booted' }
+
+// The controller's own flags: false = it runs that output from its setpoint loop and ignores our
+// commands; true = it obeys us and stops cycling on its own.
+const modeText = (v) => (v === true ? 'remote (us)' : v === false ? 'controller' : '—')
 const RESULT_LABELS = { pending: 'waiting', ok: 'done', refused: 'refused', indeterminate: 'no answer from host', unsupported: 'not supported', busy: 'busy (sale)', invalid: 'invalid', expired: 'expired', duplicate: 'duplicate', error: 'error', timeout: 'no answer' }
 
 function describe(c) {

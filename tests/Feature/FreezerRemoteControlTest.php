@@ -41,7 +41,7 @@ class FreezerRemoteControlTest extends TestCase
         $attrs = array_merge([
             'code' => 50001, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER,
             'is_active' => 1, 'operator_id' => 1, 'vend_model_id' => 1,
-            'apk_version_code' => 11, 'private_key' => 'TESTKEY000000001',
+            'apk_version_code' => 13, 'private_key' => 'TESTKEY000000001',
         ], $attrs);
         $vend = new Vend;
         $vend->forceFill($attrs)->save(); // apk_version_code / private_key are device-written, not fillable
@@ -133,8 +133,44 @@ class FreezerRemoteControlTest extends TestCase
         $vm = $this->freezer(['code' => 2031, 'machine_type' => 'vending_machine']);
         $this->postJson("/vends/{$vm->id}/freezer-controls", ['op' => 'status'])->assertStatus(404);
 
-        $old = $this->freezer(['code' => 50003, 'apk_version_code' => 9]);
+        // 12 is refused, not just 9: the build published under 12 is the audit-fix batch, which has
+        // no FREEZERCTL handler at all, so a command to it would sit pending until it timed out.
+        $old = $this->freezer(['code' => 50003, 'apk_version_code' => 12]);
         $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'status'])->assertStatus(422);
+    }
+
+    public function test_compressor_control_mode_is_sent_as_its_own_op(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'comprmode', 'args' => ['on' => true]])
+            ->assertStatus(202);
+        $row = FreezerControlCommand::sole();
+        $this->assertSame('comprmode', $row->op);
+        $this->assertSame(['on' => true], $row->args);
+
+        // Same shape as every other on/off control: anything that is not a boolean is refused.
+        // A second machine, because the one above still has a command in flight (one at a time).
+        $other = $this->freezer(['code' => 50004]);
+        $this->postJson("/vends/{$other->id}/freezer-controls", ['op' => 'comprmode', 'args' => ['on' => 'remote']])
+            ->assertStatus(422);
+    }
+
+    public function test_ack_keeps_the_controller_mode_flags_in_the_status_snapshot(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'fan', 'args' => ['on' => true]]);
+        $row = FreezerControlCommand::sole();
+
+        $this->ack($vend, [
+            'cmdId' => $row->cmd_id, 'op' => 'fan', 'result' => 'ok',
+            'msg' => 'ok — the controller still owns the fan (风机控制=0, door switch), so it ignores on/off until the mode is remote',
+            'status' => ['thermostat' => ['available' => true, 'compressorRemoteMode' => false, 'fanRemoteMode' => false]],
+        ]);
+
+        $status = json_decode(DB::table('vends')->where('id', $vend->id)->value('freezer_control_status_json'), true);
+        $this->assertFalse($status['thermostat']['compressorRemoteMode']);
+        $this->assertFalse($status['thermostat']['fanRemoteMode']);
+        $this->assertStringContainsString('风机控制=0', $row->fresh()->response_msg);
     }
 
     public function test_ack_completes_the_command_and_stores_the_status_snapshot(): void
