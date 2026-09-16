@@ -358,6 +358,8 @@ class FreezerRemoteControlTest extends TestCase
         $this->getJson("/vends/{$vend->id}/freezer-controls?limit=1")
             ->assertOk()
             ->assertJsonCount(1, 'commands')
+            // "last 1 of 7": the page says how much it is NOT showing.
+            ->assertJsonPath('total', 7)
             ->assertJsonPath('setpoint.last.celsius', -25)
             ->assertJsonPath('setpoint.last.by', 'Tech One');
     }

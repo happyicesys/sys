@@ -29,6 +29,10 @@ class FreezerControlController extends Controller
         abort_unless($vend->isSmartFreezer(), 404);
 
         $now = Carbon::now();
+        // The page asks for the newest 20; `total` lets it say "last 20 of 143" so nobody assumes
+        // the list is everything. Rows are kept for good (only log files and excerpts are pruned
+        // at 72 h), and a busy machine writes a few hundred event rows a day.
+        $total = FreezerControlCommand::where('vend_id', $vend->id)->count();
         $commands = FreezerControlCommand::where('vend_id', $vend->id)
             ->orderByDesc('id')
             ->limit((int) $request->integer('limit', 30) > 0 ? min(200, $request->integer('limit', 30)) : 30)
@@ -61,6 +65,7 @@ class FreezerControlController extends Controller
                 // so a machine nobody has touched lately would read as "never set".
                 'last' => $this->lastSetpoint($vend),
             ],
+            'total' => $total,
             'pending' => $commands->contains(fn ($c) => $c->displayStatus($now) === FreezerControlCommand::STATUS_PENDING),
             'log_pull' => [
                 'lines' => ['min' => FreezerControlService::LOG_LINES_MIN, 'max' => FreezerControlService::LOG_LINES_MAX, 'default' => FreezerControlService::LOG_LINES_DEFAULT],

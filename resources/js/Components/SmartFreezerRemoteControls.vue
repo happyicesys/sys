@@ -202,7 +202,10 @@
             <span class="flex items-center gap-2 text-xs">
               <input v-model.trim="timelineFilter" type="text" placeholder="filter rows…" class="w-40 rounded border-gray-300 text-xs py-1" />
               <label class="text-gray-600"><input v-model="showEvents" type="checkbox" class="rounded border-gray-300 mr-1" />machine events</label>
-              <button type="button" class="text-sky-700 hover:underline" @click.prevent="limit = limit >= 200 ? 30 : 200; load()">{{ limit >= 200 ? 'fewer' : 'more' }}</button>
+              <span class="text-gray-500">
+                last {{ data.commands.length }}<template v-if="data.total"> of {{ data.total }}</template>
+              </span>
+              <button type="button" class="text-sky-700 hover:underline" @click.prevent="limit = limit >= 200 ? 20 : 200; load()">{{ limit >= 200 ? 'fewer' : 'more' }}</button>
             </span>
           </div>
           <div class="mt-1 overflow-x-auto">
@@ -283,7 +286,8 @@ const data = ref({ commands: [], setpoint: { min: -30, max: -5 }, pending: false
 const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
 const timelineFilter = ref('')
 const showEvents = ref(true)
-const limit = ref(30)
+/** Newest 20 rows by default (Brian, 2026-09-16); "more" widens to 200 without a page reload. */
+const limit = ref(20)
 const open = ref(new Set())
 const excerpts = ref({})
 async function toggle(id) {
