@@ -17,4 +17,15 @@ return [
         // Raw request body cap. A push carries URLs + metadata, never the video itself.
         'video_webhook_max_bytes' => (int) env('ZIJIA_VIDEO_WEBHOOK_MAX_BYTES', 256 * 1024),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Planogram channels
+    |--------------------------------------------------------------------------
+    | A freezer's vend_channels are written from its planogram (FreezerChannelSync).
+    | Nobody has measured how many pieces a basket division holds, so this is the
+    | placeholder par every new slot starts on; it must be > 0 or the channel is
+    | filed inactive and never shows. A capacity ops has already set is kept.
+    */
+    'channel_capacity' => (int) env('SMART_FREEZER_CHANNEL_CAPACITY', 20),
 ];

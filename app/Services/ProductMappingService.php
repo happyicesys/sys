@@ -1,13 +1,13 @@
 <?php
 
 namespace App\Services;
+
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendChannel;
-use Carbon\Carbon;
 
 class ProductMappingService
 {
@@ -17,6 +17,16 @@ class ProductMappingService
 
         if ($productMapping->vends()->exists()) {
             foreach ($productMapping->vends as $vend) {
+                // A Smart Freezer has no board frame to create its channels, so the loop below —
+                // which only ever UPDATES rows that already exist — never reached one. Its channels
+                // are written from this planogram instead (FreezerChannelSync), then the same
+                // product/price pass runs over them via SyncVendChannels.
+                if ($vend->isSmartFreezer()) {
+                    app(\App\Services\Freezer\FreezerChannelSync::class)->sync($vend);
+
+                    continue;
+                }
+
                 if ($vend->vendChannels()->exists()) {
                     $vend->vendChannels()->update(['product_id' => null]);
 
@@ -139,5 +149,4 @@ class ProductMappingService
             SaveVendChannelsJson::dispatch($vend->id)->onQueue('high');
         }
     }
-
 }

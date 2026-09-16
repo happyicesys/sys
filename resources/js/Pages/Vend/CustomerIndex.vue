@@ -1855,10 +1855,14 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="'View Channel Status'">
 							<!--
-								A Smart Freezer reports no vend_channels, so this cell had nothing in it and the
-								planogram popup behind it was invisible (Brian, 2026-09-16). Name it instead.
+								A Smart Freezer's channels are written from its planogram by
+								FreezerChannelSync (it sends no CHANNEL frame of its own), so from
+								2026-09-16 it reads here exactly like a vending machine: code, product,
+								price and OUR qty — the ledger is ops-job topup in, each sale out.
+								Until its first sync lands there is nothing to list, so the cell still
+								names what the click opens.
 							-->
-							<div v-if="isFreezer(vend)" class="flex flex-col items-center gap-1 py-1">
+							<div v-if="isFreezer(vend) && !vend.vendChannelsJson" class="flex flex-col items-center gap-1 py-1">
 								<span class="inline-flex items-center rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white">View planogram</span>
 								<span v-if="vend.product_mapping_name" class="text-xs text-gray-500">{{ vend.product_mapping_name }}</span>
 							</div>

@@ -48,5 +48,11 @@ class VendPricingSourceService
     {
         $this->vendJobService->syncSettingsToVend($vend);
         $this->vendJobService->syncChannelSlotListToVend($vend);
+
+        // A freezer's vend_channels carry the Site's RP as their amount, so the price the dashboard
+        // and the stock value read has to follow the same change the machine is being told about.
+        if ($vend->isSmartFreezer()) {
+            app(\App\Services\Freezer\FreezerChannelSync::class)->sync($vend);
+        }
     }
 }
