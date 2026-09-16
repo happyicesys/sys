@@ -32,7 +32,7 @@ class FreezerControlService
     public const TTL_SECONDS = 60;
 
     /** Ops mark1 may send, with the argument each takes. */
-    public const OPS = ['status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'setpoint', 'volume', 'logs'];
+    public const OPS = ['status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'comprmode', 'setpoint', 'volume', 'logs'];
 
     /** Bounds for `logs` args (mirror DeviceLog on the APK). */
     public const LOG_LINES_MIN = 200;
@@ -60,8 +60,15 @@ class FreezerControlService
 
     public const SETPOINT_MAX = -5;
 
-    /** Smallest APK versionCode that understands FREEZERCTL. Older builds log and drop it. */
-    public const MIN_APK_VERSION_CODE = 11;
+    /**
+     * Smallest APK versionCode that understands FREEZERCTL.
+     *
+     * 13, not 11: two different builds were both numbered 12 and the one published to the OTA
+     * channel (sha 186db185…, the F1 audit-fix batch) has no handler at all, so every command to a
+     * unit on 12 is dropped without an answer — seen on 50002 on 2026-09-16. 13 is the first build
+     * that carries the controls, and `comprmode` plus the control-mode flags exist only there.
+     */
+    public const MIN_APK_VERSION_CODE = 13;
 
     /**
      * Validates, records and sends one command.
@@ -202,7 +209,7 @@ class FreezerControlService
 
         return match ($op) {
             'status', 'lock', 'unlock' => [],
-            'fan', 'light', 'compressor' => is_bool($args['on'] ?? null)
+            'fan', 'light', 'compressor', 'comprmode' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => 'Choose on or off.']),
             'setpoint' => $this->setpoint($args['celsius'] ?? null),
