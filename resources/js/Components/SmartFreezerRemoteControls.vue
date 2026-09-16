@@ -183,55 +183,55 @@
               </div>
 
               <!--
-                APK v15: the machine itself. Read-only probes first (self-check, photo, diagnostics),
+                APK v14: the machine itself. Read-only probes first (self-check, photo, diagnostics),
                 the two that drop the app or the box behind a confirm, and the raw SDK call last —
                 a research tool, superadmin only, with the same bounds the device enforces.
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="text-sm font-medium text-gray-800">Machine</span>
-                  <StateChip v-if="!data.supported_v15" value="needs app v15" tone="warn" />
+                  <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
                   Self-check and diagnostics read; a photo comes from the cabinet camera; restart and reboot are refused by the machine while a sale is in progress.
                 </p>
-                <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="v15Blocked">
-                  <ControlButton tone="primary" class="rounded-md" :disabled="!canSendV15" @click="send('selfcheck')">
+                <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
+                  <ControlButton tone="primary" class="rounded-md" :disabled="!canSendBatch2" @click="send('selfcheck')">
                     <ArrowPathIcon v-if="busyOp === 'selfcheck'" class="mr-1 h-4 w-4 animate-spin" /> Self-check
                   </ControlButton>
                   <span class="isolate inline-flex -space-x-px shadow-sm">
-                    <select v-model.number="photoCamera" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendV15">
+                    <select v-model.number="photoCamera" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
                       <option v-for="cam in cameraChoices" :key="cam.id" :value="cam.id">{{ cam.label }}</option>
                     </select>
-                    <ControlButton class="rounded-r-md" :disabled="!canSendV15" @click="send('photo', { cameraId: photoCamera })">
+                    <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('photo', { cameraId: photoCamera })">
                       <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" /> Take photo
                     </ControlButton>
                   </span>
                   <span class="isolate inline-flex -space-x-px shadow-sm">
-                    <select v-model="diagProbe" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendV15">
+                    <select v-model="diagProbe" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
                       <option v-for="(label, key) in data.diag_probes || {}" :key="key" :value="key">{{ label }}</option>
                     </select>
-                    <ControlButton class="rounded-r-md" :disabled="!canSendV15" @click="send('diag', { probe: diagProbe })">
+                    <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('diag', { probe: diagProbe })">
                       <ArrowPathIcon v-if="busyOp === 'diag'" class="mr-1 h-4 w-4 animate-spin" /> Run diagnostics
                     </ControlButton>
                   </span>
-                  <ControlButton :disabled="!canSendV15"
+                  <ControlButton :disabled="!canSendBatch2"
                                  @click="ask('restart', {}, 'Restart the kiosk app?', 'The app relaunches in a few seconds and reports a boot event when it is back. The machine refuses while a sale is in progress.')">
                     <ArrowPathIcon v-if="busyOp === 'restart'" class="mr-1 h-4 w-4 animate-spin" /> Restart app
                   </ControlButton>
-                  <ControlButton tone="danger" :disabled="!canSendV15"
+                  <ControlButton tone="danger" :disabled="!canSendBatch2"
                                  @click="ask('reboot', {}, 'Reboot the whole box?', 'Android restarts; the kiosk is back in about a minute and reports a boot event. The machine refuses while a sale is in progress.', true)">
                     <ArrowPathIcon v-if="busyOp === 'reboot'" class="mr-1 h-4 w-4 animate-spin" /> Reboot Android
                   </ControlButton>
                 </div>
                 <div v-if="data.can_sdk_raw" class="mt-3 border-t border-dashed border-gray-200 pt-2">
                   <div class="text-xs font-medium text-gray-700">Raw SDK call <span class="font-normal text-gray-500">— superadmin · what the host's plugin answers to an action name; e.g. <code>thermostatControl</code> with <code>{"key":"fanMode","value":1}</code></span></div>
-                  <div class="mt-1 flex flex-wrap items-center gap-2" v-tooltip="v15Blocked">
+                  <div class="mt-1 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
                     <input v-model.trim="sdkCall.action" type="text" maxlength="40" placeholder="action" pattern="[A-Za-z][A-Za-z0-9_]{2,39}"
-                           class="w-44 rounded-md border-gray-300 py-1 font-mono text-xs" :disabled="!canSendV15" />
+                           class="w-44 rounded-md border-gray-300 py-1 font-mono text-xs" :disabled="!canSendBatch2" />
                     <input v-model.trim="sdkCall.params" type="text" maxlength="512" placeholder='{"doorId":1}'
-                           class="w-80 rounded-md border-gray-300 py-1 font-mono text-xs" :disabled="!canSendV15" />
-                    <ControlButton tone="danger" class="rounded-md" :disabled="!canSendV15 || !sdkCall.action"
+                           class="w-80 rounded-md border-gray-300 py-1 font-mono text-xs" :disabled="!canSendBatch2" />
+                    <ControlButton tone="danger" class="rounded-md" :disabled="!canSendBatch2 || !sdkCall.action"
                                    @click="ask('sdkcall', { action: sdkCall.action, params: sdkCall.params || '{}' }, 'Send raw action ' + sdkCall.action + '?', 'This hands the action straight to the Zijia host. Whatever it does, it does — the reply is shown in the timeline.', true)">
                       <ArrowPathIcon v-if="busyOp === 'sdkcall'" class="mr-1 h-4 w-4 animate-spin" /> Send
                     </ControlButton>
@@ -303,9 +303,9 @@ const photoCamera = ref(0)
 const diagProbe = ref('system')
 const sdkCall = ref({ action: '', params: '' })
 
-/** The second batch of controls needs app v15 on top of everything `canSend` checks. */
-const canSendV15 = computed(() => canSend.value && !!data.value.supported_v15)
-const v15Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_v15 ? '' : "This machine's app is older than v15; these controls need the update."))
+/** The second batch of controls needs app v14 on top of everything `canSend` checks. */
+const canSendBatch2 = computed(() => canSend.value && !!data.value.supported_batch2)
+const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_batch2 ? '' : "This machine's app is older than v14; these controls need the update."))
 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */
 const cameraChoices = computed(() => {

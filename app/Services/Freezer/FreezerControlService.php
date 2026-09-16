@@ -34,17 +34,17 @@ class FreezerControlService
     /** Ops mark1 may send, with the argument each takes. */
     public const OPS = [
         'status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'comprmode', 'setpoint', 'volume', 'logs',
-        // APK v15
+        // APK v14
         'selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
     public const DISRUPTIVE_OPS = ['restart', 'reboot'];
 
-    /** Ops that need APK 15 (the first build with the second batch of controls). */
-    public const V15_OPS = ['selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall'];
+    /** Ops that need APK 14 (the first build with the second batch of controls). */
+    public const BATCH2_OPS = ['selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall'];
 
-    public const MIN_APK_VERSION_CODE_V15 = 15;
+    public const MIN_APK_VERSION_CODE_BATCH2 = 14;
 
     /** The device's fixed diagnostic probes (DiagProbe on the APK) — a closed list, never free text. */
     public const DIAG_PROBES = [
@@ -258,7 +258,7 @@ class FreezerControlService
     /** The smallest APK versionCode that understands $op. */
     public static function minApkVersionFor(string $op): int
     {
-        return in_array($op, self::V15_OPS, true) ? self::MIN_APK_VERSION_CODE_V15 : self::MIN_APK_VERSION_CODE;
+        return in_array($op, self::BATCH2_OPS, true) ? self::MIN_APK_VERSION_CODE_BATCH2 : self::MIN_APK_VERSION_CODE;
     }
 
     /** @return array<string, mixed> the arguments to send */

@@ -365,9 +365,9 @@ class FreezerRemoteControlTest extends TestCase
             ->assertJsonPath('setpoint.last.by', 'Tech One');
     }
 
-    public function test_v15_ops_validate_their_arguments_and_need_app_15(): void
+    public function test_second_batch_ops_validate_their_arguments_and_need_app_14(): void
     {
-        $vend = $this->freezer(['apk_version_code' => 15]);
+        $vend = $this->freezer(['apk_version_code' => 14]);
 
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'diag', 'args' => ['probe' => 'network']])->assertStatus(202);
         [, $frame] = $this->publishedFrame();
@@ -395,7 +395,7 @@ class FreezerRemoteControlTest extends TestCase
 
     public function test_sdkcall_is_superadmin_only_and_bounded(): void
     {
-        $vend = $this->freezer(['apk_version_code' => 15]);
+        $vend = $this->freezer(['apk_version_code' => 14]);
         $args = ['action' => 'thermostatControl', 'params' => '{"key":"fanMode","value":1}'];
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => $args])->assertStatus(403);
         $this->assertSame(0, FreezerControlCommand::count());
@@ -415,7 +415,7 @@ class FreezerRemoteControlTest extends TestCase
 
     public function test_output_scope_ack_and_photo_upload_are_stored_and_served(): void
     {
-        $vend = $this->freezer(['apk_version_code' => 15]);
+        $vend = $this->freezer(['apk_version_code' => 14]);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'diag', 'args' => ['probe' => 'system']])->assertStatus(202);
         $cmd = FreezerControlCommand::latest('id')->first();
         $this->ack($vend, ['cmdId' => $cmd->cmd_id, 'op' => 'diag', 'result' => 'ok', 'msg' => 'System: 9 lines', 'log' => "$ getprop\nBZ-X6-1.0.0", 'logScope' => 'output']);
@@ -438,14 +438,14 @@ class FreezerRemoteControlTest extends TestCase
         $show = $this->getJson("/vends/{$vend->id}/freezer-controls")->assertOk()->json();
         $row = collect($show['commands'])->firstWhere('id', $photo->id);
         $this->assertSame('photo', $row['attachment']['type']);
-        $this->assertTrue($show['supported_v15']);
+        $this->assertTrue($show['supported_batch2']);
         $this->assertArrayHasKey('network', $show['diag_probes']);
         $this->get($row['attachment']['url'])->assertOk()->assertHeader('Content-Type', 'image/jpeg');
     }
 
     public function test_mains_and_camera_events_file_as_timeline_rows(): void
     {
-        $vend = $this->freezer(['apk_version_code' => 15]);
+        $vend = $this->freezer(['apk_version_code' => 14]);
         $this->ack($vend, ['cmdId' => 'event-abc123', 'source' => 'event', 'op' => 'power', 'result' => 'ok', 'msg' => 'mains lost — running on the box battery', 'log' => '09-16 22:10:00.000 W/HostEventRelay( 1): power', 'logScope' => 'system']);
         $row = FreezerControlCommand::where('cmd_id', 'event-abc123')->first();
         $this->assertSame('event', $row->source);

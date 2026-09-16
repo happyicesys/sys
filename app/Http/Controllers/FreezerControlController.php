@@ -61,8 +61,8 @@ class FreezerControlController extends Controller
             'can_control' => $request->user()->can('update machine-settings'),
             'can_door' => $request->user()->can(self::DOOR_PERMISSION),
             'can_sdk_raw' => $request->user()->can(self::SDK_RAW_PERMISSION),
-            // The second batch of controls needs APK 15; the page greys them on an older build.
-            'supported_v15' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_V15,
+            // The second batch of controls needs APK 14; the page greys them on an older build.
+            'supported_batch2' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_BATCH2,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'setpoint' => [

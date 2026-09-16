@@ -165,7 +165,7 @@ export class FreezerStatus {
         return this.raw?.telemetry || null;
     }
 
-    /** APK v15: who the machine is to Zijia, and the host/plugin versions that move under us. */
+    /** APK v14: who the machine is to Zijia, and the host/plugin versions that move under us. */
     get identity() {
         return this.raw?.identity || null;
     }
@@ -246,12 +246,12 @@ export class FreezerStatus {
             },
             { label: 'Sale in progress', value: this.raw?.saleInProgress ? 'yes' : 'no', tone: this.raw?.saleInProgress ? TONE.WARN : TONE.OFF },
             { label: 'App', value: apk ? `v${apk.versionName} (${apk.versionCode})` : '—', tone: apk ? TONE.INFO : TONE.UNKNOWN },
-            ...this.v15Tiles,
+            ...this.batch2Tiles,
         ];
     }
 
-    /** Tiles that only a v15+ app fills; omitted entirely on older builds so the grid does not show a row of dashes. */
-    get v15Tiles() {
+    /** Tiles that only a v14+ app fills; omitted entirely on older builds so the grid does not show a row of dashes. */
+    get batch2Tiles() {
         if (!this.raw?.identity && !this.raw?.power && !this.cameras.length && !this.compressorDuty) return [];
         const duty = this.compressorDuty;
         const cams = this.cameras;
