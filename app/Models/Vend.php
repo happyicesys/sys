@@ -784,9 +784,30 @@ class Vend extends Model
         return $this->hasMany(VendLog::class)->latest('occurred_at');
     }
 
+    /**
+     * The machine's live channels.
+     *
+     * `capacity > 0` is a VENDING rule: the board reports capacity, so a zero there means the slot
+     * does not exist, and 20 machines carry such rows today. A Smart Freezer's capacity is the SKU's
+     * measured par (`products.freezer_slot_qty`) and is simply blank until someone counts it — the
+     * slot still exists and still sells, so it must not vanish from the dashboard for want of a
+     * number (2026-09-16). Expressed in SQL rather than on `$this` because eager loading resolves
+     * this relation on an empty model, where a machine_type check would read as "vending machine".
+     */
     public function vendChannels()
     {
-        return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
+        return $this->hasMany(VendChannel::class)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->where('capacity', '>', 0)
+                    ->orWhereExists(function ($sub) {
+                        $sub->selectRaw('1')
+                            ->from('vends')
+                            ->whereColumn('vends.id', 'vend_channels.vend_id')
+                            ->where('vends.machine_type', self::MACHINE_TYPE_SMART_FREEZER);
+                    });
+            })
+            ->orderBy('code');
     }
 
     public function offlineAlertMinutes(): int
