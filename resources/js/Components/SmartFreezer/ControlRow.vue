@@ -9,7 +9,12 @@
       <p v-if="hint" class="mt-0.5 text-xs text-gray-500">{{ hint }}</p>
       <slot name="detail" />
     </div>
-    <span class="isolate inline-flex -space-x-px shadow-sm">
+    <!--
+      The tooltip sits on this wrapper, never on the buttons: a disabled <button> swallows mouse
+      events, so a tooltip bound to it would never show - and that is exactly when the reason is
+      wanted.
+    -->
+    <span class="isolate inline-flex -space-x-px shadow-sm" v-tooltip="reason">
       <slot />
     </span>
   </div>
@@ -27,5 +32,7 @@ defineProps({
   note: { type: String, default: '' },
   hint: { type: String, default: '' },
   danger: { type: Boolean, default: false },
+  /** Why this row's buttons are disabled, shown on hover. Empty when they work. */
+  reason: { type: String, default: '' },
 })
 </script>

@@ -25,7 +25,24 @@ export function useFreezerControls(vendId) {
     const data = ref({ commands: [], setpoint: { min: -30, max: -5 }, pending: false, supported: false });
 
     const status = computed(() => FreezerStatus.from(data.value.status));
-    const canSend = computed(() => data.value.can_control && data.value.supported && !data.value.pending && !sending.value);
+    /**
+     * Sending anything at all: permission, a new enough app, and no command already outstanding.
+     * `canSend` adds "the machine is online" on top, because a command to an offline freezer is
+     * accepted here and then expires unanswered a minute later — the buttons say so instead
+     * (Brian, 2026-09-16). Sync stays on `canSync`: it changes nothing and is how you find out
+     * whether the machine is really gone.
+     */
+    const canSync = computed(() => data.value.can_control && data.value.supported && !data.value.pending && !sending.value);
+    const canSend = computed(() => canSync.value && !!data.value.is_online);
+
+    /** Why the controls are disabled, for the hover — empty when they are not. */
+    const blockedReason = computed(() => {
+        if (!data.value.can_control) return 'You do not have permission to send commands to this machine.';
+        if (!data.value.supported) return "This machine's app is too old for remote controls.";
+        if (data.value.pending || sending.value) return 'Waiting for the machine to answer the last command.';
+        if (!data.value.is_online) return 'The machine is offline, so it cannot receive commands. Press Sync now to check.';
+        return '';
+    });
     /** Older than 10 minutes and the panel stops presenting the snapshot as current. */
     const statusStale = computed(() => !data.value.status_at || now.value - Date.parse(data.value.status_at) > 10 * 60 * 1000);
     const lastSetpoint = computed(() => data.value.setpoint?.last ?? null);
@@ -67,7 +84,7 @@ export function useFreezerControls(vendId) {
     }
 
     async function send(op, args = {}) {
-        if (!canSend.value) return;
+        if (op === 'status' ? !canSync.value : !canSend.value) return;
         sending.value = true;
         try {
             await axios.post(`/vends/${id()}/freezer-controls`, { op, args });
@@ -102,7 +119,7 @@ export function useFreezerControls(vendId) {
         document.removeEventListener('visibilitychange', onVisibility);
     });
 
-    return { data, status, loaded, sending, canSend, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded };
+    return { data, status, loaded, sending, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded };
 }
 
 const OP_LABELS = {

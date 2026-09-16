@@ -19,12 +19,14 @@
           </span>
           <span v-if="data.last_seen_at" class="text-xs text-gray-500">last seen {{ ago(data.last_seen_at) }}</span>
         </div>
-        <Button type="button" class="text-white"
-                :class="canSend ? 'bg-sky-700 hover:bg-sky-800' : 'bg-gray-300 cursor-not-allowed'"
-                :disabled="!canSend" @click.prevent="send('status')">
-          <ArrowPathIcon class="mr-1 h-4 w-4" :class="data.pending ? 'animate-spin' : ''" />
-          Sync now
-        </Button>
+        <span class="inline-block" v-tooltip="canSync ? '' : blockedReason">
+          <Button type="button" class="text-white"
+                  :class="canSync ? 'bg-sky-700 hover:bg-sky-800' : 'bg-gray-300 cursor-not-allowed'"
+                  :disabled="!canSync" @click.prevent="send('status')">
+            <ArrowPathIcon class="mr-1 h-4 w-4" :class="data.pending ? 'animate-spin' : ''" />
+            Sync now
+          </Button>
+        </span>
       </header>
 
       <div class="space-y-5 p-4 text-sm">
@@ -82,7 +84,9 @@
               </span>
             </header>
             <p v-if="data.pending" class="mt-1 text-xs text-sky-700">Waiting for the machine to answer the last command…</p>
-            <p v-else-if="!data.is_online" class="mt-1 text-xs text-amber-700">The machine looks offline — commands expire after a minute if it does not answer.</p>
+            <p v-else-if="!data.is_online" class="mt-1 text-xs text-amber-700">
+              The machine is offline, so the controls are disabled — a command it never receives would expire unanswered. Press Sync now to check.
+            </p>
 
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
               <!-- The controller has no setpoint read, so "now" is the last setpoint mark1 got accepted. -->
@@ -100,7 +104,7 @@
                     The controller cannot report its setpoint — chamber is {{ status.chamber.text }} · whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }}
                   </template>
                 </p>
-                <div class="mt-2 flex items-center gap-2">
+                <div class="mt-2 flex items-center gap-2" v-tooltip="blockedReason">
                   <span class="isolate inline-flex -space-x-px shadow-sm">
                     <ControlButton :disabled="!canSend" @click="setpoint = Math.max(data.setpoint.min, setpoint - 1)">−</ControlButton>
                     <span class="inline-flex w-20 items-center justify-center bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300">
@@ -115,32 +119,32 @@
                 </div>
               </div>
 
-              <ControlRow label="Compressor" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)">
+              <ControlRow label="Compressor" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.compressorOn === true"
                                @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')">On</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.compressorOn === false"
                                @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')">Off</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Compressor control" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)">
+              <ControlRow label="Compressor control" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.compressorRemote === false"
                                @click="ask('comprmode', { on: false }, 'Give the compressor back to the controller?', 'The controller then runs it from its own setpoint and differential, and remote on/off stops working.')">Controller</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.compressorRemote === true"
                                @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Cabinet fan" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :note="modeText(status.fanRemote)">
+              <ControlRow label="Cabinet fan" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :note="modeText(status.fanRemote)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
               </ControlRow>
 
               <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
-              <ControlRow label="Light" :state="status.lightState || 'not reported'" :tone="status.lightState ? 'info' : 'unknown'">
+              <ControlRow label="Light" :state="status.lightState || 'not reported'" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" @click="send('light', { on: true })">On</ControlButton>
                 <ControlButton :disabled="!canSend" @click="send('light', { on: false })">Off</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Music volume" :state="status.volume ?? '—'" :tone="volumeTone">
+              <ControlRow label="Music volume" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
                 <ControlButton :disabled="!canSend"
                                @click="ask('volume', { step: 'mute' }, 'Mute the machine?', 'Mute persists across restarts until someone turns it back up.')">Mute</ControlButton>
                 <ControlButton :disabled="!canSend" @click="send('volume', { step: 'down' })">Down</ControlButton>
@@ -152,7 +156,7 @@
                 <p class="mt-0.5 text-xs text-gray-500">
                   Kept on the machine for about a day; the host's own lines are included when READ_LOGS was granted at install.
                 </p>
-                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600" v-tooltip="blockedReason">
                   <label>last
                     <input v-model.number="logPull.minutes" type="number" :min="data.log_pull?.minutes.min" :max="data.log_pull?.minutes.max"
                            class="ml-1 w-20 rounded-md border-gray-300 py-1 text-xs" /> min</label>
@@ -169,7 +173,7 @@
                 </div>
               </div>
 
-              <ControlRow v-if="data.can_door" label="Door" :state="status.doorText" :tone="status.doorTone" danger
+              <ControlRow v-if="data.can_door" label="Door" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
                           hint="Unlocking here opens the lock with no order, no video and no AI check." class="md:col-span-2">
                 <ControlButton :disabled="!canSend" @click="send('lock')">
                   <LockClosedIcon class="mr-1 h-4 w-4" /> Lock
@@ -223,7 +227,7 @@ const props = defineProps({
   vendId: { type: Number, required: true },
 })
 
-const { data, status, loaded, canSend, statusStale, lastSetpoint, limit, now, send, setLimit, whenLoaded } =
+const { data, status, loaded, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, send, setLimit, whenLoaded } =
   useFreezerControls(props.vendId)
 
 const confirm = ref(null)
