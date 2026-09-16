@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\VendProductRecord;
+use App\Models\VendTransaction;
 use App\Support\DispenseVerdict;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -92,6 +93,10 @@ class StoreVendProductRecords implements ShouldQueue
                 $q->where('vt.is_multiple', false)->orWhereNull('vt.is_multiple');
             })
             ->where('vt.amount', '>', 0)
+            // Settlement gate (audit M1-02): a refunded gateway sale is code 99 (a sale
+            // code) with product_id set at pre-create, so without this it landed in the
+            // product rollup as revenue. Same gate as StoreVendsRecord / GpMetricsAggregator.
+            ->where('vt.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->whereBetween('vt.transaction_datetime', [$dateFrom, $dateTo])
             ->whereNotNull(DB::raw('COALESCE(vt.product_id, vc.product_id)'))
             ->select(
@@ -162,6 +167,7 @@ class StoreVendProductRecords implements ShouldQueue
             ->leftJoin('location_types as lt', 'c.location_type_id', '=', 'lt.id')
             ->where('vt.is_multiple', true)
             ->where('vt.amount', '>', 0)
+            ->where('vt.settlement_status', VendTransaction::SETTLEMENT_SETTLED) // audit M1-02, see above
             ->whereBetween('vt.transaction_datetime', [$dateFrom, $dateTo])
             ->whereNotNull(DB::raw('COALESCE(vti.product_id, vc.product_id)'))
             ->select(

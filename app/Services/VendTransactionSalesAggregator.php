@@ -45,6 +45,10 @@ class VendTransactionSalesAggregator
             });
 
         if (! $includeAll) {
+            // Settlement gate (audit M1-02): refunded / not-yet-settled gateway rows are
+            // not sales. includeAll keeps them on purpose - it means "attempted", the
+            // demand figure the Warehouse Qty pages read against the 7-day average.
+            $singleQuery->countsAsSale();
             $singleQuery->where(function (EloquentBuilder $query) {
                 $query->whereNull('vend_transactions.vend_channel_error_id')
                     ->orWhereIn('vend_transactions.vend_channel_error_id', VendChannelError::idsForCodes(DispenseVerdict::SALE_CODES));
@@ -90,6 +94,7 @@ class VendTransactionSalesAggregator
                 // vti.unit_price_amount
                 ->selectRaw('SUM(COALESCE(vti.unit_price_amount, 0)) as total_amount');
         } else {
+            $multiQuery->countsAsSale(); // audit M1-02, same gate as the single leg
             $multiQuery
                 ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').' THEN 1 ELSE 0 END) as total_count')
                 ->selectRaw('SUM(CASE WHEN '.DispenseVerdict::sqlSale('vti.vend_channel_error_code').' THEN COALESCE(vti.unit_price_amount, 0) ELSE 0 END) as total_amount');
