@@ -214,33 +214,62 @@
                 <tr><th class="py-1 pr-3">When</th><th class="py-1 pr-3">What</th><th class="py-1 pr-3">From</th><th class="py-1 pr-3">Result</th><th class="py-1 pr-3">Machine said</th><th class="py-1">Log</th></tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <template v-for="c in visibleCommands" :key="c.id">
-                  <tr :class="c.source === 'event' ? 'bg-gray-50' : ''">
-                    <td class="py-1 pr-3 whitespace-nowrap text-gray-600">{{ formatTime(c.requested_at) }}</td>
-                    <td class="py-1 pr-3 whitespace-nowrap">{{ describe(c) }}</td>
+                <!--
+                  Runs of the same machine event collapse into their newest row (Brian, 2026-09-16):
+                  an unanswered card reader files one every two minutes, and 20 identical CardDetect
+                  lines buried everything else. Click the count to see the individual rows.
+                -->
+                <template v-for="g in timelineGroups" :key="g.lead.id">
+                  <tr :class="g.lead.source === 'event' ? 'bg-gray-50' : ''">
                     <td class="py-1 pr-3 whitespace-nowrap text-gray-600">
-                      <span class="inline-flex items-center rounded px-1.5 py-0.5" :class="sourceBadge(c.source)">{{ sourceLabel(c) }}</span>
+                      {{ formatTime(g.lead.requested_at) }}
+                      <span v-if="g.count > 1" class="block text-gray-400">since {{ formatTime(g.oldest.requested_at) }}</span>
                     </td>
                     <td class="py-1 pr-3 whitespace-nowrap">
-                      <span class="inline-flex items-center rounded-full px-2 py-0.5 font-medium" :class="badge(c.status)">{{ label(c.status) }}</span>
-                      <span v-if="c.responded_at && c.source === 'mark1'" class="ml-1 text-gray-400">{{ answeredIn(c) }}</span>
-                    </td>
-                    <td class="py-1 pr-3 text-gray-700 max-w-md">{{ c.message || '' }}</td>
-                    <td class="py-1 whitespace-nowrap">
-                      <button v-if="c.has_log" type="button" class="text-sky-700 hover:underline mr-2" @click.prevent="toggle(c.id)">
-                        {{ open.has(c.id) ? 'hide' : 'excerpt' }}<span v-if="c.log_scope === 'app'" class="text-gray-400"> (app only)</span>
+                      {{ describe(g.lead) }}
+                      <button v-if="g.count > 1" type="button" class="ml-1 rounded-full bg-slate-600 px-2 py-0.5 font-medium text-white"
+                              @click.prevent="toggleGroup(g.lead.id)">
+                        ×{{ g.count }} {{ openGroups.has(g.lead.id) ? '▾' : '▸' }}
                       </button>
-                      <template v-if="c.log_file">
-                        <a :href="c.log_file.url" target="_blank" class="text-sky-700 hover:underline mr-2">view {{ c.log_file.lines ? c.log_file.lines + ' lines' : 'file' }}</a>
-                        <a :href="c.log_file.url + '?download=1'" class="text-sky-700 hover:underline">download</a>
+                    </td>
+                    <td class="py-1 pr-3 whitespace-nowrap text-gray-600">
+                      <span class="inline-flex items-center rounded px-1.5 py-0.5" :class="sourceBadge(g.lead.source)">{{ sourceLabel(g.lead) }}</span>
+                    </td>
+                    <td class="py-1 pr-3 whitespace-nowrap">
+                      <span class="inline-flex items-center rounded-full px-2 py-0.5 font-medium" :class="badge(g.lead.status)">{{ label(g.lead.status) }}</span>
+                      <span v-if="g.lead.responded_at && g.lead.source === 'mark1'" class="ml-1 text-gray-400">{{ answeredIn(g.lead) }}</span>
+                    </td>
+                    <td class="py-1 pr-3 text-gray-700 max-w-md">{{ g.lead.message || '' }}</td>
+                    <td class="py-1 whitespace-nowrap">
+                      <button v-if="g.lead.has_log" type="button" class="text-sky-700 hover:underline mr-2" @click.prevent="toggle(g.lead.id)">
+                        {{ open.has(g.lead.id) ? 'hide' : 'excerpt' }}<span v-if="g.lead.log_scope === 'app'" class="text-gray-400"> (app only)</span>
+                      </button>
+                      <template v-if="g.lead.log_file">
+                        <a :href="g.lead.log_file.url" target="_blank" class="text-sky-700 hover:underline mr-2">view {{ g.lead.log_file.lines ? g.lead.log_file.lines + ' lines' : 'file' }}</a>
+                        <a :href="g.lead.log_file.url + '?download=1'" class="text-sky-700 hover:underline">download</a>
                       </template>
                     </td>
                   </tr>
-                  <tr v-if="c.has_log && open.has(c.id)">
+                  <tr v-if="g.lead.has_log && open.has(g.lead.id)">
                     <td colspan="6" class="py-1">
-                      <pre class="max-h-72 overflow-auto rounded bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ excerpts[c.id] ?? 'loading…' }}</pre>
+                      <pre class="max-h-72 overflow-auto rounded bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ excerpts[g.lead.id] ?? 'loading…' }}</pre>
                     </td>
                   </tr>
+                  <!-- The collapsed run, opened on demand: same rows, just indented and dimmed. -->
+                  <template v-if="g.count > 1 && openGroups.has(g.lead.id)">
+                    <tr v-for="m in g.rest" :key="m.id" class="bg-gray-50 text-gray-500">
+                      <td class="py-1 pr-3 pl-4 whitespace-nowrap">{{ formatTime(m.requested_at) }}</td>
+                      <td class="py-1 pr-3 whitespace-nowrap">{{ describe(m) }}</td>
+                      <td class="py-1 pr-3 whitespace-nowrap">
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5" :class="sourceBadge(m.source)">{{ sourceLabel(m) }}</span>
+                      </td>
+                      <td class="py-1 pr-3 whitespace-nowrap">
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 font-medium" :class="badge(m.status)">{{ label(m.status) }}</span>
+                      </td>
+                      <td class="py-1 pr-3 max-w-md">{{ m.message || '' }}</td>
+                      <td class="py-1"></td>
+                    </tr>
+                  </template>
                 </template>
               </tbody>
             </table>
@@ -307,6 +336,32 @@ const visibleCommands = computed(() => data.value.commands.filter(c => {
   if (!q) return true
   return [describe(c), c.requested_by, c.message, c.status, c.source].filter(Boolean).join(' ').toLowerCase().includes(q)
 }))
+/**
+ * Consecutive rows that say exactly the same thing (same source, op, verdict and message) fold into
+ * the newest one. Only CONSECUTIVE runs fold, so the order of events is never rearranged: an
+ * unrelated row between two CardDetect errors splits them into two runs, as it should.
+ */
+const timelineGroups = computed(() => {
+  const groups = []
+  for (const c of visibleCommands.value) {
+    const key = [c.source, c.op, c.status, c.message].join('\u0000')
+    const last = groups[groups.length - 1]
+    if (last && last.key === key) {
+      last.rest.push(c)
+      last.oldest = c
+      last.count++
+    } else {
+      groups.push({ key, lead: c, oldest: c, rest: [], count: 1 })
+    }
+  }
+  return groups
+})
+const openGroups = ref(new Set())
+function toggleGroup(id) {
+  const n = new Set(openGroups.value)
+  n.has(id) ? n.delete(id) : n.add(id)
+  openGroups.value = n
+}
 function sourceLabel(c) { return c.source === 'panel' ? 'Kiosk panel' : c.source === 'event' ? 'Machine' : (c.requested_by || 'mark1') }
 function sourceBadge(source) { return source === 'panel' ? 'bg-indigo-100 text-indigo-800' : source === 'event' ? 'bg-gray-200 text-gray-700' : 'bg-sky-100 text-sky-800' }
 
