@@ -18,6 +18,15 @@ class CreateVendTransaction implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * A transient DB failure (lock wait, deadlock after the in-transaction
+     * retries, connection drop) is retried, then lands in failed_jobs. A
+     * duplicate key never retries — handle() swallows it (see below).
+     */
+    public $tries = 3;
+
+    public $backoff = [10, 60];
+
     protected $input;
 
     protected $vend;
@@ -61,7 +70,10 @@ class CreateVendTransaction implements ShouldQueue
             $vendTransactionService->create($this->vend, $this->input, $this->isCurrentTime);
         } catch (QueryException $e) {
             // Backstop for the race between the pre-check and the insert (two workers draining the
-            // same outbox). Anything that is not a duplicate-key violation still fails loudly.
+            // same outbox), and for a re-sent TRADE whose stored order id no pre-check candidate
+            // matches. Anything that is not a duplicate-key violation still fails loudly — the
+            // service no longer swallows it (2026-09-16), so it retries per $tries and then lands
+            // in failed_jobs instead of vanishing.
             if (! $this->isDuplicateEntry($e)) {
                 throw $e;
             }

@@ -7,7 +7,6 @@ use App\Models\DeliveryPlatformOrder;
 use App\Models\DispenseRecord;
 use App\Models\PaymentGatewayLog;
 use App\Models\VendTransaction;
-use App\Services\MqttService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,7 +32,6 @@ class GetPurchaseConfirm implements ShouldQueue
     {
         $this->orderId = $orderId;
         $this->vend = $vend;
-        $this->mqttService = new MqttService;
     }
 
     /**

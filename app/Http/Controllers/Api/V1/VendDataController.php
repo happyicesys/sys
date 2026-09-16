@@ -3,20 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\PaymentMethod;
 use App\Models\Vend;
-use App\Models\VendChannel;
-use App\Models\VendChannelError;
-use App\Models\VendChannelErrorLog;
-use App\Models\VendData;
-use App\Models\VendTemp;
-use App\Models\VendTransaction;
 use App\Services\VendDataService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
-use Log;
+use Illuminate\Support\Facades\Storage;
 
 class VendDataController extends Controller
 {
@@ -34,33 +25,10 @@ class VendDataController extends Controller
         $ipAddress = $request->ip();
         $connectionType = 'http';
 
-        // TEMP DEBUG: trace ACBVMCPA delivery for vend code 2004 only.
-        // Writes to storage/logs/vend2004.log via the 'vend2004' channel.
-        // Remove once ACBVMCPA reception is confirmed.
-        $isDebugVend = isset($input['m']) && (int) $input['m'] === 2004;
-        if ($isDebugVend) {
-            Log::channel('vend2004')->info('SetPara2 incoming', [
-                'ip' => $ipAddress,
-                'content_type' => $request->header('Content-Type'),
-                'raw_body_len' => strlen($request->getContent()),
-                'input_keys' => array_keys($input),
-                'p_len' => strlen($input['p'] ?? ''),
-                'p_last_30' => substr($input['p'] ?? '', -30),
-            ]);
-        }
-
         $standardizedVendData = $this->vendDataService->standardizedVendData($input, $connectionType);
         // dd($standardizedVendData);
         $decodedData = $this->vendDataService->decodeVendData($standardizedVendData);
         // dd($decodedData);
-
-        if ($isDebugVend) {
-            $decodedArr = is_array($decodedData) ? $decodedData : (method_exists($decodedData, 'toArray') ? $decodedData->toArray() : []);
-            Log::channel('vend2004')->info('SetPara2 decoded', [
-                'type' => $decodedArr['Type'] ?? '(no Type)',
-                'decoded_keys' => array_keys($decodedArr),
-            ]);
-        }
 
         $response = $this->vendDataService->processVendData($standardizedVendData, $decodedData, $ipAddress, $connectionType);
 
@@ -105,6 +73,7 @@ class VendDataController extends Controller
 
         $imgUrl = Cache::remember($cacheKey, 600, function () use ($code) {
             $vend = Vend::with('mediaContents')->where('code', $code)->firstOrFail();
+
             return $vend->mediaContents->first()->full_url ?? null;
         });
 

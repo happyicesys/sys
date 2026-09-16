@@ -28,8 +28,6 @@ class RefundOmiseJob implements ShouldQueue
 
     public $backoff = [30, 120];
 
-    protected $errorService;
-
     protected $orderId;
 
     /** One of App\Support\AutoRefundSource::OMISE_* — why this refund is being made. */
@@ -40,7 +38,6 @@ class RefundOmiseJob implements ShouldQueue
      */
     public function __construct($orderId, ?string $source = null)
     {
-        $this->errorService = new ErrorService;
         $this->orderId = $orderId;
         $this->source = $source ?: AutoRefundSource::OMISE_MANUAL;
     }
@@ -59,9 +56,9 @@ class RefundOmiseJob implements ShouldQueue
     }
 
     /**
-     * Execute the job.
+     * Execute the job. ErrorService is resolved here, not serialised with the job.
      */
-    public function handle(): void
+    public function handle(ErrorService $errorService): void
     {
         $paymentGatewayLog = PaymentGatewayLog::where('order_id', $this->orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
 
@@ -89,7 +86,7 @@ class RefundOmiseJob implements ShouldQueue
                 'body' => $response->body(),
             ]);
             // Throws → this attempt fails → Horizon retries per $tries/$backoff.
-            $this->errorService->throwErrorWithMqtt('Refund failed'.$response->body(), $paymentGatewayLog->vend);
+            $errorService->throwErrorWithMqtt('Refund failed'.$response->body(), $paymentGatewayLog->vend);
         }
 
         // Single recording path (log status, linked vend_transaction, ticket

@@ -7,6 +7,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendLog;
+use App\Support\DispenseVerdict;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -59,10 +60,13 @@ class SyncVendChannelErrorLog implements ShouldBeUnique, ShouldQueue
         $vendChannelErrorCode = $this->vendChannelErrorCode;
         $vendTransactionId = $this->vendTransactionId;
 
-        $vendChannelError = VendChannelError::where('code', $vendChannelErrorCode)->first();
+        // Every frame-code lookup goes through forFrameCode(): the server-reserved
+        // 99 is refused there, so a board or adapter emitting it never raises a
+        // Machine Health alert for a code DispenseVerdict says is not a fault.
+        $vendChannelError = VendChannelError::forFrameCode($vendChannelErrorCode, null, $vend->code);
 
         if ($vendChannelError) {
-            if ($vendChannelError->code > 0) {
+            if (DispenseVerdict::isMachineFault($vendChannelError->code)) {
                 $vendChannel = VendChannel::firstOrCreate([
                     'vend_id' => $vend->id,
                     'code' => (int) $vendChannelCode,

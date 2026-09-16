@@ -4,33 +4,25 @@ namespace App\Jobs\Vend;
 
 use App\Jobs\PublishMqtt;
 use App\Models\Vend;
-use App\Models\PaymentGatewayLog;
-use App\Models\VendData;
-use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\RunningNumberService;
-use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
-
-
 
 class GetPaymentGatewayQR
-//implements ShouldQueue
+// implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $originalInput;
+
     protected $input;
+
     protected $vend;
-    protected $paymentGatewayService;
-    protected $runningNumberService;
-    protected $mqttService;
+
     /**
      * Create a new job instance.
      *
@@ -41,49 +33,47 @@ class GetPaymentGatewayQR
         $this->originalInput = $originalInput;
         $this->input = $input;
         $this->vend = $vend;
-        $this->paymentGatewayService = new PaymentGatewayService();
-        $this->runningNumberService = new RunningNumberService();
-        $this->mqttService = new MqttService();
     }
 
     /**
-     * Execute the job.
+     * Execute the job. Services are resolved here rather than built in the
+     * constructor and carried on the job.
      *
      * @return void
      */
-    public function handle()
+    public function handle(PaymentGatewayService $paymentGatewayService, RunningNumberService $runningNumberService)
     {
         $originalInput = $this->originalInput;
         $vend = $this->vend;
         $input = $this->input;
         // $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
         // if($vendChannel) {
-            $orderId = $this->runningNumberService->getVendOrderID($vend);
-            $response = $this->paymentGatewayService->createPaymentQrText($vend, [
-                'request' => $this->input,
-                'amount' => $input['PRICE'],
-                'expiry_seconds' => isset($input['expiry_seconds']) ? $input['expiry_seconds'] : null,
-                'type' => isset($input['payment_gateway_slug']) ? $input['payment_gateway_slug'] : null,
-                'metadata' => [
-                    'order_id' => $orderId,
-                    'vend_id' => $vend->code,
-                    'cust_id' => $vend->customer ? $vend->customer->refID : null,
-                    'cust_name' => $vend->customer && $vend->customer->person_id ?
-                            $vend->customer->virtual_customer_prefix.'-'.$vend->customer->virtual_customer_code . ' ' . $vend->customer->name : null,
-                    'txn_src' => isset($input['txn_src']) ? $input['txn_src'] : null,
-                ],
-            ]);
+        $orderId = $runningNumberService->getVendOrderID($vend);
+        $response = $paymentGatewayService->createPaymentQrText($vend, [
+            'request' => $this->input,
+            'amount' => $input['PRICE'],
+            'expiry_seconds' => isset($input['expiry_seconds']) ? $input['expiry_seconds'] : null,
+            'type' => isset($input['payment_gateway_slug']) ? $input['payment_gateway_slug'] : null,
+            'metadata' => [
+                'order_id' => $orderId,
+                'vend_id' => $vend->code,
+                'cust_id' => $vend->customer ? $vend->customer->refID : null,
+                'cust_name' => $vend->customer && $vend->customer->person_id ?
+                        $vend->customer->virtual_customer_prefix.'-'.$vend->customer->virtual_customer_code.' '.$vend->customer->name : null,
+                'txn_src' => isset($input['txn_src']) ? $input['txn_src'] : null,
+            ],
+        ]);
 
-            if($response['errorMsg']) {
-                PublishMqtt::dispatch('CM'.$vend->code, $response['errorMsg'])->onQueue('high');
-                // $this->mqttService->publish('CM'.$vend->code, $response['errorMsg']);
-            }
+        if ($response['errorMsg']) {
+            PublishMqtt::dispatch('CM'.$vend->code, $response['errorMsg'])->onQueue('high');
+            // $this->mqttService->publish('CM'.$vend->code, $response['errorMsg']);
+        }
 
-            if($response['paymentGatewayLog']) {
-                $encodeMsg = base64_encode('QRCODE'.$response['paymentGatewayLog']->qr_text.','.$orderId);
-                PublishMqtt::dispatch('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg)->onQueue('high');
-                // $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
-            }
+        if ($response['paymentGatewayLog']) {
+            $encodeMsg = base64_encode('QRCODE'.$response['paymentGatewayLog']->qr_text.','.$orderId);
+            PublishMqtt::dispatch('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg)->onQueue('high');
+            // $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
+        }
 
         // }else {
         //     $this->mqttService->publish('CM'.$vend->code, 'This vending channel is not available');

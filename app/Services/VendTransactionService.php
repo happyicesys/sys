@@ -81,22 +81,19 @@ class VendTransactionService
 
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
 
-        // Session tuning for the ingest transaction below. Only at level 0: inside
-        // an outer transaction (the test suite's RefreshDatabase wrapper) MySQL
-        // refuses SET TRANSACTION, and the lock timeout is the outer owner's call.
-        if (DB::transactionLevel() === 0) {
-            DB::statement('SET innodb_lock_wait_timeout = 5'); // Prevent long waits
-            DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
-        }
-
         // Set true when this TRADE updates a gateway row that was pre-created at
         // paid-time (unified transactions), as opposed to a fresh insert. Drives
         // the post-transaction branching below.
         $wasPreCreatedUpdate = false;
 
-        try {
+        // No catch around the ingest transaction: a QueryException that is not a
+        // duplicate key must reach CreateVendTransaction::handle, which retries it
+        // and lets Horizon record it in failed_jobs. Swallowing it here (until
+        // 2026-09-16) turned every transient DB failure into a silently lost sale
+        // — the device had already been acked and had deleted its outbox entry.
+        $vendTransaction = $this->withIngestSession(function () use ($processedInput, $vend, $isCurrentTime, &$wasPreCreatedUpdate) {
             // 🔥 Store the result of the transaction
-            $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $isCurrentTime, &$wasPreCreatedUpdate) {
+            return DB::transaction(function () use ($processedInput, $vend, $isCurrentTime, &$wasPreCreatedUpdate) {
                 $rawOrderId = (string) $processedInput['orderID'];
                 if ($processedInput['interfaceType'] == '50') {
                     $processedInput['orderID'] = Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$rawOrderId;
@@ -106,9 +103,6 @@ class VendTransactionService
                 // raw id, this month's and last month's TXN_SRC-50 prefix (a TRADE
                 // replayed across a month-digit boundary must still find the row
                 // its gateway pre-created), plus the legacy double-prefixed form.
-                // Done for ALL vends so a gateway pre-created row is always found
-                // (the 2007 dedup bypass below only governs the genuine-duplicate
-                // short-circuit).
                 $orderIdCandidates = array_values(array_unique(array_merge(
                     VendTransaction::orderIdCandidates($rawOrderId, Carbon::now()),
                     VendTransaction::orderIdCandidates($processedInput['orderID'], Carbon::now()),
@@ -164,20 +158,18 @@ class VendTransactionService
                     return $existingVendTransaction;
                 }
 
-                if ($vend->code != '2007') {
-                    if ($existingVendTransaction) {
-                        return null; // Exit and return null if duplicate exists
-                    }
+                if ($existingVendTransaction) {
+                    return null; // Exit and return null if duplicate exists
+                }
 
-                    $shortVersionCreatedBefore = VendTransaction::query()
-                        ->where('order_id', substr($processedInput['orderID'], 2))
-                        ->where('vend_id', $vend->id)
-                        ->lockForUpdate()
-                        ->first();
+                $shortVersionCreatedBefore = VendTransaction::query()
+                    ->where('order_id', substr($processedInput['orderID'], 2))
+                    ->where('vend_id', $vend->id)
+                    ->lockForUpdate()
+                    ->first();
 
-                    if ($shortVersionCreatedBefore) {
-                        $shortVersionCreatedBefore->delete();
-                    }
+                if ($shortVersionCreatedBefore) {
+                    $shortVersionCreatedBefore->delete();
                 }
 
                 // ✅ Create and return vend transaction
@@ -208,63 +200,32 @@ class VendTransactionService
 
                 return $transaction;
             }, 3); // Retry up to 3 times
+        });
 
-            if (! $vendTransaction) {
-                return; // Prevent further execution if duplicate order ID
+        if (! $vendTransaction) {
+            return; // Prevent further execution if duplicate order ID
+        }
+
+        // Delivery-platform + PG-log linking only apply to the fresh-create
+        // path. A pre-created gateway row was already linked at paid-time, and
+        // its nofound_txn counter was never incremented (the row existed), so
+        // there is nothing to decrement here.
+        //
+        // The sale is committed at this point. A failure in this linking is
+        // logged and isolated: re-throwing would fail the job, whose retry
+        // short-circuits on the recorded order and never reaches here again.
+        if (! $wasPreCreatedUpdate) {
+            try {
+                $this->linkFreshSale($vendTransaction, $processedInput);
+            } catch (\Throwable $e) {
+                \Log::error('Vend transaction committed but post-commit linking failed', [
+                    'vend_transaction_id' => $vendTransaction->id,
+                    'vend_code' => $vend->code,
+                    'order_id' => $vendTransaction->order_id,
+                    'exception' => get_class($e),
+                    'error' => $e->getMessage(),
+                ]);
             }
-
-            // Delivery-platform + PG-log linking only apply to the fresh-create
-            // path. A pre-created gateway row was already linked at paid-time, and
-            // its nofound_txn counter was never incremented (the row existed), so
-            // there is nothing to decrement here.
-            if (! $wasPreCreatedUpdate) {
-                // store vend transaction id if found delivery platform order
-                if ($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
-                    $deliveryPlatformOrder->update([
-                        'vend_transaction_id' => $vendTransaction->id,
-                        'status' => $deliveryPlatformOrder->status < DeliveryPlatformOrder::STATUS_DISPENSED ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
-                        'status_json' => array_merge_recursive((array) $deliveryPlatformOrder->status_json, [
-                            'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
-                            'datetime' => Carbon::now()->toDateTimeString(),
-                        ]),
-                        'dispensed_at' => Carbon::now(),
-                    ]);
-                }
-
-                if ($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
-                    $vendTransaction->update([
-                        'payment_gateway_log_id' => $paymentGatewayLog->id,
-                    ]);
-
-                    // "Found in Transactions?" just flipped false → true for this
-                    // PG log. If the LogNofoundTxnIfStillMissing job already ran
-                    // (i.e. >5 minutes have passed since approved_at), the +1 is
-                    // already on vend_daily_stats and we need a matching -1 so the
-                    // counter reflects only currently-unresolved anomalies.
-                    // Under 5 minutes? The delayed log job hasn't fired yet — when
-                    // it does, it'll re-check this PG log, see the txn linked,
-                    // and no-op. Either way the counter ends up correct.
-                    $approvedAt = $paymentGatewayLog->approved_at;
-                    if ($approvedAt && $approvedAt->lt(Carbon::now()->subMinutes(5)) && $paymentGatewayLog->vend_id) {
-                        DecrementVendDailyStat::dispatch(
-                            (int) $paymentGatewayLog->vend_id,
-                            'nofound_txn',
-                            $approvedAt->copy()->toDateString()
-                        )->onQueue('low');
-                    }
-                }
-            } // end if (!$wasPreCreatedUpdate)
-
-            // if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
-            //     $deliveryPlatformOrder->update([
-            //         'vend_transaction_id' => $vendTransaction->id,
-            //     ]);
-            // }
-
-        } catch (\Exception $e) {
-            \Log::error('Error creating vend transaction: '.$e->getMessage());
-
-            return;
         }
 
         // ── Unified-transactions settle path ────────────────────────────────
@@ -365,6 +326,86 @@ class VendTransactionService
                 $payload = $resource->resolve();
 
                 \App\Jobs\SendOperatorCallback::dispatch($callback->url, $payload)->onQueue('default');
+            }
+        }
+    }
+
+    /**
+     * Session tuning for the ingest transaction, scoped to this call.
+     *
+     * Both settings are SESSION variables on the queue worker's persistent
+     * connection, so they are captured first and restored in `finally` —
+     * before 2026-09-16 the 5 s lock wait leaked onto every later job on the
+     * same Horizon worker (rollup rebuilds, settlement sync). The isolation
+     * level is set at session scope on purpose: `SET TRANSACTION ISOLATION
+     * LEVEL` applies to the next transaction only, and DB::transaction(…, 3)
+     * begins a new one per deadlock retry, so attempts 2–3 used to run
+     * REPEATABLE READ. Only at level 0: inside an outer transaction (the test
+     * suite's RefreshDatabase wrapper) MySQL refuses to change the isolation
+     * level, and the lock timeout is the outer owner's call.
+     */
+    private function withIngestSession(callable $ingest)
+    {
+        if (DB::transactionLevel() !== 0) {
+            return $ingest();
+        }
+
+        $previous = DB::selectOne('SELECT @@session.innodb_lock_wait_timeout AS lock_wait, @@session.transaction_isolation AS isolation');
+        $previousLockWait = max((int) $previous->lock_wait, 1);
+        $previousIsolation = in_array($previous->isolation, self::ISOLATION_LEVELS, true) ? $previous->isolation : 'REPEATABLE-READ';
+
+        DB::statement('SET SESSION innodb_lock_wait_timeout = 5'); // Prevent long waits
+        DB::statement("SET SESSION transaction_isolation = 'READ-COMMITTED'");
+
+        try {
+            return $ingest();
+        } finally {
+            DB::statement('SET SESSION innodb_lock_wait_timeout = '.$previousLockWait);
+            DB::statement("SET SESSION transaction_isolation = '".$previousIsolation."'");
+        }
+    }
+
+    private const ISOLATION_LEVELS = ['READ-UNCOMMITTED', 'READ-COMMITTED', 'REPEATABLE-READ', 'SERIALIZABLE'];
+
+    /**
+     * Post-commit linking for a freshly inserted sale: the delivery-platform
+     * order and the payment-gateway log that carry the same order id.
+     */
+    private function linkFreshSale(VendTransaction $vendTransaction, array $processedInput): void
+    {
+        // store vend transaction id if found delivery platform order
+        if ($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
+            $deliveryPlatformOrder->update([
+                'vend_transaction_id' => $vendTransaction->id,
+                'status' => $deliveryPlatformOrder->status < DeliveryPlatformOrder::STATUS_DISPENSED ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
+                'status_json' => array_merge_recursive((array) $deliveryPlatformOrder->status_json, [
+                    'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
+                    'datetime' => Carbon::now()->toDateTimeString(),
+                ]),
+                'dispensed_at' => Carbon::now(),
+            ]);
+        }
+
+        if ($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
+            $vendTransaction->update([
+                'payment_gateway_log_id' => $paymentGatewayLog->id,
+            ]);
+
+            // "Found in Transactions?" just flipped false → true for this
+            // PG log. If the LogNofoundTxnIfStillMissing job already ran
+            // (i.e. >5 minutes have passed since approved_at), the +1 is
+            // already on vend_daily_stats and we need a matching -1 so the
+            // counter reflects only currently-unresolved anomalies.
+            // Under 5 minutes? The delayed log job hasn't fired yet — when
+            // it does, it'll re-check this PG log, see the txn linked,
+            // and no-op. Either way the counter ends up correct.
+            $approvedAt = $paymentGatewayLog->approved_at;
+            if ($approvedAt && $approvedAt->lt(Carbon::now()->subMinutes(5)) && $paymentGatewayLog->vend_id) {
+                DecrementVendDailyStat::dispatch(
+                    (int) $paymentGatewayLog->vend_id,
+                    'nofound_txn',
+                    $approvedAt->copy()->toDateString()
+                )->onQueue('low');
             }
         }
     }
@@ -1035,7 +1076,13 @@ class VendTransactionService
         $data = [];
 
         $data['originalJson'] = $input;
-        $data['amount'] = isset($input['Price']) ? (isset($input['transf_info']) ? ($input['Price'] * 100) : $input['Price']) : 0;
+        // Header Price is dollars on a transf_info frame ("4.6") and cents
+        // otherwise ("350"). Round before the int cast: 4.6 * 100 is
+        // 459.999… in binary, and (int) truncates it to 459 — the orphan
+        // lookup then asked for cents the row never had.
+        $data['amount'] = isset($input['Price'])
+            ? (isset($input['transf_info']) ? (int) round((float) $input['Price'] * 100) : (int) $input['Price'])
+            : 0;
         $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
         $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
         // Process labels: Legacy 'label' + New 'campaign_label_pivot'
@@ -1079,7 +1126,10 @@ class VendTransactionService
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
-        $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
+        // No substitute for a missing TIME: TradeTimestampResolver books it at
+        // arrival and stamps meta_json.frame_time.reason = missing. A server
+        // "now" here was parsed downstream as the operator's zone.
+        $data['time'] = $input['TIME'] ?? null;
         $data['errorCode'] = isset($input['SErr']) ? $input['SErr'] : (isset($input['errorCode']) ? $input['errorCode'] : 0);
         $data['vendChannelCode'] = isset($input['SId']) ? $input['SId'] : 0;
         $data['interfaceType'] = isset($input['TXN_SRC']) ? $input['TXN_SRC'] : null;

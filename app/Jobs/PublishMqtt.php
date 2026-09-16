@@ -12,14 +12,17 @@ use Illuminate\Queue\SerializesModels;
 class PublishMqtt implements ShouldQueue
 {
     public $timeout = 5;
+
     public $tries = 1;
 
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $mqttConnection; // Renamed to avoid conflict
+
     protected $message;
-    protected $mqttService;
+
     protected $qos;
+
     protected $topic;
 
     /**
@@ -29,16 +32,16 @@ class PublishMqtt implements ShouldQueue
     {
         $this->mqttConnection = $mqttConnection;
         $this->message = $message;
-        $this->mqttService = new MqttService();
         $this->qos = $qos;
         $this->topic = $topic;
     }
 
     /**
-     * Execute the job.
+     * Execute the job. The service is resolved here, not serialised into
+     * every ack payload from the constructor.
      */
-    public function handle(): void
+    public function handle(MqttService $mqttService): void
     {
-        $this->mqttService->publish($this->topic, $this->message, $this->qos, $this->mqttConnection);
+        $mqttService->publish($this->topic, $this->message, $this->qos, $this->mqttConnection);
     }
 }

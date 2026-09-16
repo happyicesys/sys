@@ -26,6 +26,9 @@ class NoInlineDispensePredicateTest extends TestCase
         // code = 0 OR … / code != 0 on an error-code column (payment_methods.code is fine)
         '/(?:vend_channel_errors?|vce(?:_\w+)?|e)\.code\s*(?:=|!=|<>)\s*0\b/',
         '/vend_channel_error_code\s*(?:=|!=|<>)\s*["\']?0["\']?\b/',
+        // $vendChannelError->code > 0 (PHP) / vce.code > 0 (SQL) as a fault test — 6 and 99 are not faults
+        '/[cC]hannel[eE]rror\w*->code\s*(?:>|>=|<|<=|==|===|!=|!==)\s*["\']?0["\']?\b/',
+        '/(?:vend_channel_errors?|vce(?:_\w+)?|e)\.code\s*(?:>|>=|<|<=)\s*0\b/',
         // FK id lists on vend_channel_error_id: Eloquent arrays and SQL IN (1) / NOT IN (1, 5)
         '/vend_channel_error_id\', \[\d/',
         '/vend_channel_error_id\s+(?:NOT\s+)?IN\s*\(\s*\d/i',

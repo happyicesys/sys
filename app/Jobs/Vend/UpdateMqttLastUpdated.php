@@ -17,10 +17,16 @@ class UpdateMqttLastUpdated implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 0;
-    public $timeout = 2;
+    // tries = 0 meant "retry forever" and 2 s was killing the worker on any lock
+    // wait on the hot vends row (audit M3-06, 2026-09-16).
+    public $tries = 3;
+
+    public $backoff = [5, 30];
+
+    public $timeout = 10;
 
     protected $vendID;
+
     /**
      * Create a new job instance.
      */
@@ -35,12 +41,12 @@ class UpdateMqttLastUpdated implements ShouldQueue
     public function handle(): void
     {
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->find($this->vendID);
-        if (!$vend) {
+        if (! $vend) {
             return;
         }
 
         $now = Carbon::now();
-        if (!$vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInSeconds($now) >= 30 || !$vend->is_mqtt_active) {
+        if (! $vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInSeconds($now) >= 30 || ! $vend->is_mqtt_active) {
             $vend->update([
                 'is_mqtt' => true,
                 'is_mqtt_active' => true,

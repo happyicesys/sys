@@ -86,8 +86,8 @@ class TradeTimestampResolverTest extends TestCase
         $this->assertSame(TradeTimestampResolver::REASON_UNPARSEABLE, $junk->reason);
         $this->assertSame($this->now->toDateTimeString(), $junk->at->toDateTimeString());
 
-        // No TIME at all is not a rejection worth stamping; a garbage TIME is.
-        $this->assertNull($missing->metaStamp());
+        // A missing TIME is stamped too (raw null), so a row booked at arrival always says why.
+        $this->assertSame(['raw' => null, 'rejected' => true, 'reason' => 'missing'], $missing->metaStamp());
         $this->assertSame(['raw' => 'not a date', 'rejected' => true, 'reason' => 'unparseable'], $junk->metaStamp());
     }
 

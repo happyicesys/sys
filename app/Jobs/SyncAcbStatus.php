@@ -7,7 +7,6 @@ use App\Models\VendFan;
 use App\Models\VendTemp;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,11 +16,18 @@ class SyncAcbStatus implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 0;
-    public $timeout = 2;
+    // tries = 0 meant "retry forever" and 2 s was killing the worker on any lock
+    // wait on the hot vends row (audit M3-06, 2026-09-16).
+    public $tries = 3;
+
+    public $backoff = [5, 30];
+
+    public $timeout = 10;
 
     protected $input;
+
     protected $vend;
+
     /**
      * Create a new job instance.
      */
@@ -46,7 +52,6 @@ class SyncAcbStatus implements ShouldQueue
             $vend->save();
         }
     }
-
 
     private function createVendFan($input, Vend $vend)
     {
@@ -96,7 +101,7 @@ class SyncAcbStatus implements ShouldQueue
             }
         }
         $now = Carbon::now();
-        if (!$vend->temp_updated_at || $vend->temp_updated_at->diffInSeconds($now) >= 60) {
+        if (! $vend->temp_updated_at || $vend->temp_updated_at->diffInSeconds($now) >= 60) {
             $vend->temp_updated_at = $now;
         }
     }

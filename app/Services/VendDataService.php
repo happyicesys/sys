@@ -47,8 +47,15 @@ class VendDataService
 
         if (strpos($input, '&') !== false) {
             $input = $input->first();
+            $finalInput = [];
             foreach (explode('&', $input) as $processInput) {
-                [$a, $b] = explode('=', $processInput);
+                // A segment without '=' (or with a bare key) is skipped, not fatal:
+                // the value may itself contain '=' (base64 padding), so split once.
+                $parts = explode('=', $processInput, 2);
+                if (count($parts) !== 2) {
+                    continue;
+                }
+                [$a, $b] = $parts;
                 $finalInput[$a] = $b;
             }
             $finalInput = collect($finalInput);
@@ -243,6 +250,12 @@ class VendDataService
         return ($apkVerJson['deviceType'] ?? null) === 'ZC-83A';
     }
 
+    /** Cache key of the apk_ver_json read behind the MQTT ack gate; UpdateApkVersion forgets it. */
+    public static function apkVerCacheKey(int $vendId): string
+    {
+        return 'vend_apkver_'.$vendId;
+    }
+
     public function processVendData($originalInput, $processedInput, $ipAddress, $connectionType)
     {
         $response = isset($originalInput['f']) ? $originalInput['f'].',4,MQ==' : true;
@@ -322,14 +335,6 @@ class VendDataService
             if (isset($processedInput['Type'])) {
                 switch ($processedInput['Type']) {
                     case 'ACBVMCPA':
-                        // TEMP DEBUG: confirm dispatch fires for vend 2004 ACBVMCPA.
-                        // if ((int) $vend->code === 2004) {
-                        //   \Log::channel('vend2004')->info('Dispatching SyncAcbVmcPa', [
-                        //     'vend_id' => $vend->id,
-                        //     'vend_code' => $vend->code,
-                        //     'payload_keys' => array_keys((array) $processedInput),
-                        //   ]);
-                        // }
                         SyncAcbVmcPa::dispatch($processedInput, $vend)->onQueue('default');
                         break;
                     case 'ACBSTATUS':
@@ -350,6 +355,9 @@ class VendDataService
                         SyncFeatureApkSetting::dispatch($processedInput, $vend)->onQueue('default');
                         break;
                     case 'PWRON':
+                        // The ack gate below caches apk_ver_json; drop it now (and again
+                        // in the job once written) so the new version is read at once.
+                        Cache::forget(self::apkVerCacheKey($vend->id));
                         UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
                         // Daily PWRON counter per machine. Date is captured here (not in
                         // the job) so a queue lag across midnight still buckets correctly.
@@ -376,18 +384,6 @@ class VendDataService
                     case 'REFILL':
                         break;
                     case 'REQQR':
-                        $timezone = $vend->operator->timezone ?? config('app.timezone');
-
-                        // Hardcoded maintenance window
-                        $start = Carbon::create(2026, 1, 11, 0, 0, 0, $timezone);
-                        $end = Carbon::create(2026, 1, 11, 6, 0, 0, $timezone);
-
-                        $now = Carbon::now($timezone);
-
-                        if ($now->between($start, $end)) {
-                            break; // skip during maintenance
-                        }
-
                         GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)
                             ->onQueue('high');
                         break;
@@ -410,20 +406,6 @@ class VendDataService
                         SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
                         break;
                     case 'P':
-                        $vendCodeNum = (int) $vend->code;
-                        // Type 'P' is also considered a heartbeat for target machines
-                        if (in_array($vendCodeNum, [2003])) {
-                            $encodedOriginalHb = json_encode($originalInput);
-                            \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-                                'value' => $encodedOriginalHb,
-                                'ip_address' => $ipAddress,
-                                'connection' => $connectionType,
-                                'type' => strlen($encodedOriginalHb),
-                                'vend_code' => $vendCodeNum,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-                        }
                         // 'P' is a heartbeat that fires continuously per machine. SyncP only
                         // rewrites offline_restart_count + its datetime — a monotonic counter
                         // that rarely moves — so almost every dispatch was a queued no-op.
@@ -498,12 +480,16 @@ class VendDataService
                     Cache::put('mqtt_last_updated_'.$vend->id, true, now()->addSeconds(30));
                 }
 
-                // Fetch apk_ver_json fresh (not from the cached model) — it changes when
-                // the machine sends PWRON and UpdateApkVersion updates the DB. Using a
-                // stale cached value here would cause incorrect MQTT publish decisions.
-                $freshApkVer = (array) Vend::withoutGlobalScope(OperatorVendFilterScope::class)
-                    ->where('id', $vend->id)
-                    ->value('apk_ver_json');
+                // apk_ver_json is read apart from the cached vend row (which is trimmed
+                // to a few columns) and cached 5 min under its own key. It changes only
+                // on PWRON, and that branch above forgets the key before dispatching
+                // UpdateApkVersion (which forgets it again after writing), so the gate
+                // still sees a new version at once — without a PK read per frame.
+                $freshApkVer = Cache::remember(self::apkVerCacheKey($vend->id), now()->addMinutes(5), function () use ($vend) {
+                    return (array) Vend::withoutGlobalScope(OperatorVendFilterScope::class)
+                        ->where('id', $vend->id)
+                        ->value('apk_ver_json');
+                });
                 if ($this->apkUnderstandsMqttAck($freshApkVer)) {
                     PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
                 }

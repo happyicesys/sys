@@ -30,13 +30,14 @@ final class ResolvedTradeTime
     }
 
     /**
-     * The audit stamp for meta_json.frame_time — only when a frame time WAS
-     * given and was NOT used. A trusted frame and a frame with no TIME at all
-     * both leave no stamp (nothing was rejected).
+     * The audit stamp for meta_json.frame_time — whenever the frame's own
+     * time was NOT used, a missing TIME included (`raw` null, reason
+     * `missing`), so a row booked at arrival always says why. A trusted frame
+     * leaves no stamp.
      */
     public function metaStamp(): ?array
     {
-        if ($this->isTrusted() || $this->reason === TradeTimestampResolver::REASON_MISSING) {
+        if ($this->isTrusted()) {
             return null;
         }
 
