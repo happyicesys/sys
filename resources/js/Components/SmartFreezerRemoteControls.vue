@@ -90,13 +90,33 @@
 
         <!-- Controls -->
         <div v-if="data.can_control && data.supported" class="border-t pt-3">
-          <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Controls</span>
+          <!--
+            Every row states WHAT IT IS NOW before the buttons that change it (Brian, 2026-09-16):
+            pressing On/Off blind is how a cabinet ends up with the compressor left off. The values
+            are the machine's last status snapshot, so the row also says how old that is.
+          -->
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Controls</span>
+            <span class="text-xs" :class="statusStale ? 'text-amber-700' : 'text-gray-500'">
+              <template v-if="!data.status_at">Values unknown until the machine reports — press Sync now.</template>
+              <template v-else>Values as at {{ formatTime(data.status_at) }} ({{ ago(data.status_at) }})</template>
+            </span>
+          </div>
           <p v-if="data.pending" class="text-xs text-sky-700">Waiting for the machine to answer the last command…</p>
           <p v-else-if="!data.is_online" class="text-xs text-amber-700">The machine looks offline — commands expire after a minute if it does not answer.</p>
 
           <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
             <div class="rounded-md border border-gray-200 p-2">
               <div class="text-xs text-gray-500 mb-1">Temperature controller setpoint (whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }})</div>
+              <!-- The controller has no setpoint read, so "now" is the last setpoint mark1 got accepted. -->
+              <div class="mb-1 text-sm">
+                <span class="text-gray-500 text-xs">Now:</span>
+                <template v-if="lastSetpoint">
+                  <span class="font-semibold text-gray-900">{{ lastSetpoint.celsius }} °C</span>
+                  <span class="text-xs text-gray-500"> · set from mark1 {{ ago(lastSetpoint.at) }}{{ lastSetpoint.by ? ' by ' + lastSetpoint.by : '' }}</span>
+                </template>
+                <span v-else class="text-gray-500">not reported by the machine — chamber is {{ t.available && t.celsius !== null && t.celsius !== undefined ? Number(t.celsius).toFixed(1) + ' °C' : 'unknown' }}</span>
+              </div>
               <div class="flex items-center gap-2">
                 <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend" @click.prevent="setpoint = Math.max(data.setpoint.min, setpoint - 1)">−</Button>
                 <span class="w-20 text-center text-lg font-semibold">{{ setpoint }} °C</span>
@@ -108,9 +128,12 @@
               </div>
             </div>
 
-            <ToggleRow label="Compressor" :disabled="!canSend" @on="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')" @off="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')" />
+            <ToggleRow label="Compressor" :state="onOff(t.compressorOn)" :tone="t.compressorOn === true ? 'on' : 'neutral'" :disabled="!canSend" @on="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')" @off="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')" />
             <div class="rounded-md border border-gray-200 p-2 flex items-center justify-between gap-2">
-              <span class="text-sm text-gray-700">Compressor control</span>
+              <span class="text-sm text-gray-700">
+                Compressor control
+                <StateChip :value="modeText(t.compressorRemoteMode)" :tone="t.compressorRemoteMode === true ? 'warn' : 'neutral'" />
+              </span>
               <span class="flex gap-1">
                 <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend"
                         @click.prevent="ask('comprmode', { on: false }, 'Give the compressor back to the controller?', 'The controller then runs it from its own setpoint and differential, and remote on/off stops working.')">Controller</Button>
@@ -118,11 +141,18 @@
                         @click.prevent="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</Button>
               </span>
             </div>
-            <ToggleRow label="Cabinet fan" :disabled="!canSend" @on="send('fan', { on: true })" @off="send('fan', { on: false })" />
-            <ToggleRow label="Light" :disabled="!canSend" @on="send('light', { on: true })" @off="send('light', { on: false })" />
+            <ToggleRow label="Cabinet fan" :state="onOff(s?.fanOn)" :tone="s?.fanOn === true ? 'on' : 'neutral'"
+                       :note="t.fanRemoteMode === true ? 'remote (us)' : t.fanRemoteMode === false ? 'controller' : ''"
+                       :disabled="!canSend" @on="send('fan', { on: true })" @off="send('fan', { on: false })" />
+            <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
+            <ToggleRow label="Light" :state="s?.lightState || 'not reported'" :disabled="!canSend"
+                       @on="send('light', { on: true })" @off="send('light', { on: false })" />
 
             <div class="rounded-md border border-gray-200 p-2 flex items-center justify-between gap-2">
-              <span class="text-sm text-gray-700">Music volume</span>
+              <span class="text-sm text-gray-700">
+                Music volume
+                <StateChip :value="s?.volume ?? '—'" :tone="s?.volume === 0 ? 'warn' : 'neutral'" />
+              </span>
               <span class="flex gap-1">
                 <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend" @click.prevent="ask('volume', { step: 'mute' }, 'Mute the machine?', 'Mute persists across restarts until someone turns it back up.')">Mute</Button>
                 <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend" @click.prevent="send('volume', { step: 'down' })">Down</Button>
@@ -147,7 +177,11 @@
             </div>
 
             <div v-if="data.can_door" class="rounded-md border border-red-200 bg-red-50 p-2 flex items-center justify-between gap-2">
-              <span class="text-sm text-gray-700">Door</span>
+              <span class="text-sm text-gray-700">
+                Door
+                <StateChip :value="(s?.door?.lockState ?? '—') + ' · ' + (s?.door?.doorState ?? '—')"
+                           :tone="s?.door?.lockState === 'unlocked' || s?.door?.doorState === 'opened' ? 'warn' : 'neutral'" />
+              </span>
               <span class="flex gap-1">
                 <Button type="button" class="text-white" :class="canSend ? 'bg-gray-700 hover:bg-gray-800' : 'bg-gray-300'" :disabled="!canSend" @click.prevent="send('lock')">
                   <LockClosedIcon class="h-4 w-4 mr-1" /> Lock
@@ -276,6 +310,15 @@ const s = computed(() => data.value.status || null)
 const t = computed(() => s.value?.thermostat || { available: false })
 const canSend = computed(() => data.value.can_control && data.value.supported && !data.value.pending && !sending.value)
 const statusStale = computed(() => !data.value.status_at || now.value - Date.parse(data.value.status_at) > 10 * 60 * 1000)
+/**
+ * The setpoint the controller is on, as far as mark1 can know: the newest `setpoint` command it
+ * accepted. The AG325 exposes no setpoint read (SDK has a write only), so an untouched machine
+ * shows "not reported" rather than a number nobody verified.
+ */
+const lastSetpoint = computed(() => {
+  const c = data.value.commands.find(x => x.op === 'setpoint' && x.status === 'ok' && x.args && 'celsius' in x.args)
+  return c ? { celsius: c.args.celsius, at: c.responded_at || c.requested_at, by: c.requested_by } : null
+})
 const alarmText = computed(() => {
   if (!t.value.available) return '—'
   if (t.value.highTempAlarm) return 'HIGH temp'
@@ -322,8 +365,12 @@ async function load() {
   try {
     const res = await axios.get('/vends/' + props.vendId + '/freezer-controls', { params: { limit: limit.value } })
     const wasPending = data.value.pending
+    const firstLoad = !loaded.value
     data.value = res.data
     loaded.value = true
+    // Open the stepper on the last setpoint we set, so "Set" without touching it is a no-op
+    // rather than a silent jump to the -18 default.
+    if (firstLoad && lastSetpoint.value) setpoint.value = lastSetpoint.value.celsius
     if (res.data.log_pull && !logPullInit) {
       logPullInit = true
       logPull.value = { minutes: res.data.log_pull.minutes.default, lines: res.data.log_pull.lines.default, grep: '' }
@@ -385,11 +432,23 @@ const StatusCell = defineComponent({
     h('div', { class: 'text-sm font-semibold ' + (TONES[p.tone] || TONES.neutral) }, String(p.value ?? '—')),
   ]),
 })
+/** The "what it is now" chip that every control row wears, so no button is pressed blind. */
+const CHIP_TONES = { ok: 'bg-green-100 text-green-800', on: 'bg-sky-100 text-sky-800', warn: 'bg-amber-100 text-amber-800', bad: 'bg-red-100 text-red-800', neutral: 'bg-gray-100 text-gray-700' }
+const StateChip = defineComponent({
+  props: { value: [String, Number], tone: { type: String, default: 'neutral' }, note: String },
+  setup: (p) => () => h('span', { class: 'ml-2 inline-flex items-center gap-1' }, [
+    h('span', { class: 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ' + (CHIP_TONES[p.tone] || CHIP_TONES.neutral) }, String(p.value ?? '—')),
+    p.note ? h('span', { class: 'text-xs text-gray-500' }, p.note) : null,
+  ]),
+})
 const ToggleRow = defineComponent({
-  props: { label: String, disabled: Boolean },
+  props: { label: String, disabled: Boolean, state: [String, Number], tone: String, note: String },
   emits: ['on', 'off'],
   setup: (p, { emit }) => () => h('div', { class: 'rounded-md border border-gray-200 p-2 flex items-center justify-between gap-2' }, [
-    h('span', { class: 'text-sm text-gray-700' }, p.label),
+    h('span', { class: 'text-sm text-gray-700' }, [
+      p.label,
+      p.state !== undefined && p.state !== null ? h(StateChip, { value: p.state, tone: p.tone || 'neutral', note: p.note }) : null,
+    ]),
     h('span', { class: 'flex gap-1' }, [
       h('button', { type: 'button', disabled: p.disabled, class: 'inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md shadow-sm ' + (p.disabled ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'), onClick: () => emit('on') }, 'On'),
       h('button', { type: 'button', disabled: p.disabled, class: 'inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md shadow-sm ' + (p.disabled ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'), onClick: () => emit('off') }, 'Off'),
