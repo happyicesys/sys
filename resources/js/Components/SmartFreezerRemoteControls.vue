@@ -128,11 +128,11 @@
               </div>
             </div>
 
-            <ToggleRow label="Compressor" :state="onOff(t.compressorOn)" :tone="t.compressorOn === true ? 'on' : 'neutral'" :disabled="!canSend" @on="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')" @off="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')" />
+            <ToggleRow label="Compressor" :state="onOff(t.compressorOn)" :tone="boolTone(t.compressorOn)" :disabled="!canSend" @on="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')" @off="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')" />
             <div class="rounded-md border border-gray-200 p-2 flex items-center justify-between gap-2">
               <span class="text-sm text-gray-700">
                 Compressor control
-                <StateChip :value="modeText(t.compressorRemoteMode)" :tone="t.compressorRemoteMode === true ? 'warn' : 'neutral'" />
+                <StateChip :value="modeText(t.compressorRemoteMode)" :tone="modeTone(t.compressorRemoteMode)" />
               </span>
               <span class="flex gap-1">
                 <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend"
@@ -141,17 +141,17 @@
                         @click.prevent="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</Button>
               </span>
             </div>
-            <ToggleRow label="Cabinet fan" :state="onOff(s?.fanOn)" :tone="s?.fanOn === true ? 'on' : 'neutral'"
+            <ToggleRow label="Cabinet fan" :state="onOff(s?.fanOn)" :tone="boolTone(s?.fanOn)"
                        :note="t.fanRemoteMode === true ? 'remote (us)' : t.fanRemoteMode === false ? 'controller' : ''"
                        :disabled="!canSend" @on="send('fan', { on: true })" @off="send('fan', { on: false })" />
             <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
-            <ToggleRow label="Light" :state="s?.lightState || 'not reported'" :disabled="!canSend"
+            <ToggleRow label="Light" :state="s?.lightState || 'not reported'" :tone="s?.lightState ? 'info' : 'unknown'" :disabled="!canSend"
                        @on="send('light', { on: true })" @off="send('light', { on: false })" />
 
             <div class="rounded-md border border-gray-200 p-2 flex items-center justify-between gap-2">
               <span class="text-sm text-gray-700">
                 Music volume
-                <StateChip :value="s?.volume ?? '—'" :tone="s?.volume === 0 ? 'warn' : 'neutral'" />
+                <StateChip :value="s?.volume ?? '—'" :tone="s?.volume === 0 ? 'warn' : s?.volume === undefined || s?.volume === null ? 'unknown' : 'info'" />
               </span>
               <span class="flex gap-1">
                 <Button type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-800" :disabled="!canSend" @click.prevent="ask('volume', { step: 'mute' }, 'Mute the machine?', 'Mute persists across restarts until someone turns it back up.')">Mute</Button>
@@ -180,7 +180,7 @@
               <span class="text-sm text-gray-700">
                 Door
                 <StateChip :value="(s?.door?.lockState ?? '—') + ' · ' + (s?.door?.doorState ?? '—')"
-                           :tone="s?.door?.lockState === 'unlocked' || s?.door?.doorState === 'opened' ? 'warn' : 'neutral'" />
+                           :tone="!s?.door?.lockState ? 'unknown' : s.door.lockState === 'unlocked' || s.door?.doorState === 'opened' ? 'warn' : 'ok'" />
               </span>
               <span class="flex gap-1">
                 <Button type="button" class="text-white" :class="canSend ? 'bg-gray-700 hover:bg-gray-800' : 'bg-gray-300'" :disabled="!canSend" @click.prevent="send('lock')">
@@ -349,6 +349,10 @@ function badge(status) {
   return 'bg-red-100 text-red-800'
 }
 function onOff(v) { return v === true ? 'on' : v === false ? 'off' : '—' }
+/** Chip colour for a tri-state flag: green on, slate off, grey when the machine never said. */
+function boolTone(v) { return v === true ? 'on' : v === false ? 'off' : 'unknown' }
+/** Controller = normal (indigo); remote = we are holding it, which someone must hand back (amber). */
+function modeTone(v) { return v === true ? 'warn' : v === false ? 'info' : 'unknown' }
 function secs(n) { return !n ? '—' : n % 60 === 0 ? (n / 60) + ' min' : n + ' s' }
 function formatTime(iso) { return iso ? moment(iso).format('DD MMM HH:mm:ss') : '' }
 function ago(iso) { return iso ? moment(iso).from(moment(now.value)) : '' }
@@ -431,7 +435,19 @@ const StatusCell = defineComponent({
   ]),
 })
 /** The "what it is now" chip that every control row wears, so no button is pressed blind. */
-const CHIP_TONES = { ok: 'bg-green-100 text-green-800', on: 'bg-sky-100 text-sky-800', warn: 'bg-amber-100 text-amber-800', bad: 'bg-red-100 text-red-800', neutral: 'bg-gray-100 text-gray-700' }
+// Solid fills, not the pale badges used elsewhere: this chip is the one thing that must be read
+// before a button is pressed, and a grey-on-grey pill was missed at a glance (Brian, 2026-09-16).
+// Grey is kept for "we do not know" only, so a colourless chip always means exactly that.
+const CHIP_TONES = {
+  ok: 'bg-emerald-600 text-white',
+  on: 'bg-emerald-600 text-white',
+  off: 'bg-slate-600 text-white',
+  info: 'bg-indigo-600 text-white',
+  warn: 'bg-amber-500 text-white',
+  bad: 'bg-red-600 text-white',
+  unknown: 'bg-gray-400 text-white',
+  neutral: 'bg-slate-600 text-white',
+}
 const StateChip = defineComponent({
   props: { value: [String, Number], tone: { type: String, default: 'neutral' }, note: String },
   setup: (p) => () => h('span', { class: 'ml-2 inline-flex items-center gap-1' }, [
