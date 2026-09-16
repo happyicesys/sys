@@ -53,7 +53,14 @@ class FreezerControlController extends Controller
             'periodic_status_at' => $periodic['status_at'] ?? null,
             'can_control' => $request->user()->can('update machine-settings'),
             'can_door' => $request->user()->can(self::DOOR_PERMISSION),
-            'setpoint' => ['min' => FreezerControlService::SETPOINT_MIN, 'max' => FreezerControlService::SETPOINT_MAX],
+            'setpoint' => [
+                'min' => FreezerControlService::SETPOINT_MIN,
+                'max' => FreezerControlService::SETPOINT_MAX,
+                // The AG325 has no setpoint read, so the panel shows the last one WE set. Resolved
+                // here rather than from the timeline the page holds: that is capped at `limit` rows,
+                // so a machine nobody has touched lately would read as "never set".
+                'last' => $this->lastSetpoint($vend),
+            ],
             'pending' => $commands->contains(fn ($c) => $c->displayStatus($now) === FreezerControlCommand::STATUS_PENDING),
             'log_pull' => [
                 'lines' => ['min' => FreezerControlService::LOG_LINES_MIN, 'max' => FreezerControlService::LOG_LINES_MAX, 'default' => FreezerControlService::LOG_LINES_DEFAULT],
@@ -76,6 +83,27 @@ class FreezerControlController extends Controller
                 'responded_at' => $c->responded_at?->toIso8601String(),
             ])->values(),
         ]);
+    }
+
+    /**
+     * The newest setpoint this machine accepted: `{celsius, at, by}`, or null if it never took one.
+     * Only `ok` counts — a refused or unanswered write left the controller where it was.
+     */
+    private function lastSetpoint(Vend $vend): ?array
+    {
+        $command = FreezerControlCommand::where('vend_id', $vend->id)
+            ->where('op', 'setpoint')
+            ->where('status', 'ok')
+            ->orderByDesc('id')
+            ->first();
+
+        $celsius = $command?->args['celsius'] ?? null;
+
+        return $celsius === null ? null : [
+            'celsius' => (int) $celsius,
+            'at' => ($command->responded_at ?? $command->created_at)?->toIso8601String(),
+            'by' => $command->requested_by_name,
+        ];
     }
 
     /** One row's device-log excerpt, fetched when the technician expands it. */

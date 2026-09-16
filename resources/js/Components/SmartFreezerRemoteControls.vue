@@ -312,13 +312,11 @@ const canSend = computed(() => data.value.can_control && data.value.supported &&
 const statusStale = computed(() => !data.value.status_at || now.value - Date.parse(data.value.status_at) > 10 * 60 * 1000)
 /**
  * The setpoint the controller is on, as far as mark1 can know: the newest `setpoint` command it
- * accepted. The AG325 exposes no setpoint read (SDK has a write only), so an untouched machine
- * shows "not reported" rather than a number nobody verified.
+ * accepted (resolved server-side, so it does not fall out of the timeline window). The AG325
+ * exposes no setpoint read, so an untouched machine shows "not reported" rather than a number
+ * nobody verified.
  */
-const lastSetpoint = computed(() => {
-  const c = data.value.commands.find(x => x.op === 'setpoint' && x.status === 'ok' && x.args && 'celsius' in x.args)
-  return c ? { celsius: c.args.celsius, at: c.responded_at || c.requested_at, by: c.requested_by } : null
-})
+const lastSetpoint = computed(() => data.value.setpoint?.last ?? null)
 const alarmText = computed(() => {
   if (!t.value.available) return '—'
   if (t.value.highTempAlarm) return 'HIGH temp'

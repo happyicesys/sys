@@ -327,4 +327,38 @@ class FreezerRemoteControlTest extends TestCase
         $this->getJson("/vends/{$vend->id}/freezer-controls")->assertOk()->assertJsonPath('can_control', false);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'status'])->assertStatus(403);
     }
+
+    public function test_panel_reports_the_last_accepted_setpoint_however_old_the_timeline_is(): void
+    {
+        // The panel prints "Now: -20 C" beside the setpoint buttons; the AG325 has no setpoint read,
+        // so it can only be the last write the machine accepted - and it must survive falling out of
+        // the timeline window the page asks for.
+        $vend = $this->freezer();
+
+        $this->getJson("/vends/{$vend->id}/freezer-controls")
+            ->assertOk()
+            ->assertJsonPath('setpoint.last', null);
+
+        FreezerControlCommand::create([
+            'vend_id' => $vend->id, 'cmd_id' => 'c1', 'op' => 'setpoint', 'args' => ['celsius' => -25],
+            'status' => 'ok', 'source' => FreezerControlCommand::SOURCE_MARK1, 'requested_by_name' => 'Tech One',
+        ]);
+        FreezerControlCommand::create([
+            'vend_id' => $vend->id, 'cmd_id' => 'c2', 'op' => 'setpoint', 'args' => ['celsius' => -12],
+            'status' => 'refused', 'source' => FreezerControlCommand::SOURCE_MARK1, 'requested_by_name' => 'Tech One',
+        ]);
+        foreach (range(1, 5) as $n) {
+            FreezerControlCommand::create([
+                'vend_id' => $vend->id, 'cmd_id' => 'f'.$n, 'op' => 'fan', 'args' => ['on' => true],
+                'status' => 'ok', 'source' => FreezerControlCommand::SOURCE_MARK1, 'requested_by_name' => 'Tech One',
+            ]);
+        }
+
+        // limit=1 keeps only the newest fan row in `commands` - the setpoint must still be reported.
+        $this->getJson("/vends/{$vend->id}/freezer-controls?limit=1")
+            ->assertOk()
+            ->assertJsonCount(1, 'commands')
+            ->assertJsonPath('setpoint.last.celsius', -25)
+            ->assertJsonPath('setpoint.last.by', 'Tech One');
+    }
 }
