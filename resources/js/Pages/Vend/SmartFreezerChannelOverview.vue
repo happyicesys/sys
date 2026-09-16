@@ -108,6 +108,14 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
+/**
+ * Operation Dashboard rows are keyed by CUSTOMER id and carry the machine's own id as `vend_id`
+ * (the query aliases vends.id AS vend_id). Reading `id` there fetched another row's planogram —
+ * on 50001 it answered "No products mapped to this freezer yet" against a full 10-slot mapping
+ * (2026-09-16). SmartChillerChannelOverview resolves it the same way.
+ */
+const vendId = computed(() => props.vend?.vend_id ?? props.vend?.id)
+
 const loading = ref(true)
 const loadError = ref(false)
 const basketLayout = ref([])
@@ -132,7 +140,7 @@ function onModalClose() {
 }
 
 onMounted(() => {
-  axios.get(`/vends/${props.vend.id}/smart-planogram`)
+  axios.get(`/vends/${vendId.value}/smart-planogram`)
     .then((res) => {
       const data = res.data || {}
       basketLayout.value = (Array.isArray(data.basket_layout) ? data.basket_layout : [])
