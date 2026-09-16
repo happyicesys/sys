@@ -246,12 +246,27 @@ class StoreVendProductRecords implements ShouldQueue
             }
         }
 
-        if (empty($merged)) {
+        // ── 3b. Stale groups ──────────────────────────────────────────────────
+        // updateOrCreate only ever adds or overwrites. A (vend, customer, product, date)
+        // group that is no longer in the fresh result - its only sale was refunded, moved
+        // by an orphan repair, or re-dated by a late TRADE - kept its old row forever, so a
+        // rebuild could never lower a day (found 2026-09-16: 6 of 14 rebuilt days still
+        // carried a refunded sale each). Drop every existing row in the range whose key is
+        // not in $merged, inside the same transaction as the upserts so a reader never sees
+        // a half-written day.
+        $staleIds = DB::table('vend_product_records')
+            ->whereBetween('date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->get(['id', 'vend_id', 'customer_id', 'product_id', 'date'])
+            ->reject(fn ($r) => isset($merged["{$r->product_id}_{$r->vend_id}_{$r->customer_id}_{$r->date}"]))
+            ->pluck('id')
+            ->all();
+
+        if (empty($merged) && empty($staleIds)) {
             return;
         }
 
         // ── 4. Bulk-fetch product metadata (name, code, categories) ───────────
-        $productIds = array_unique(array_column($merged, 'product_id'));
+        $productIds = array_unique(array_column($merged, 'product_id')) ?: [0];
 
         $products = DB::table('products as p')
             ->leftJoin('categories as cat', 'p.category_id', '=', 'cat.id')
@@ -294,7 +309,18 @@ class StoreVendProductRecords implements ShouldQueue
             }
         }
 
-        // ── 5. Upsert into vend_product_records ───────────────────────────────
+        // ── 5. Delete stale groups, upsert the rest - one transaction per day ──
+        DB::transaction(function () use ($merged, $products, $staleIds) {
+            foreach (array_chunk($staleIds, 500) as $chunk) {
+                DB::table('vend_product_records')->whereIn('id', $chunk)->delete();
+            }
+
+            $this->upsert($merged, $products);
+        });
+    }
+
+    private function upsert(array $merged, $products): void
+    {
         foreach ($merged as $row) {
             $productId = $row['product_id'];
             $product = $products->get($productId);

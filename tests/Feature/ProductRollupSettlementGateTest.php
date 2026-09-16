@@ -85,6 +85,26 @@ class ProductRollupSettlementGateTest extends TestCase
         $this->assertSame(750, (int) $row->revenue);
     }
 
+    public function test_rebuild_removes_a_group_whose_only_sale_is_no_longer_settled(): void
+    {
+        // Day already rolled up while the sale was SETTLED; it was refunded afterwards.
+        $sale = $this->single('S-LATE-REFUND', 350, VendTransaction::SETTLEMENT_SETTLED);
+        (new StoreVendProductRecords(self::DAY, self::DAY))->handle();
+        $this->assertSame(350, (int) DB::table('vend_product_records')->where('date', self::DAY)->sum('total_amount'));
+        // A row on another day must survive the rebuild untouched.
+        DB::table('vend_product_records')->insert([
+            'vend_id' => $this->vendId, 'customer_id' => null, 'product_id' => self::PRODUCT, 'date' => '2026-09-09',
+            'total_amount' => 999, 'total_count' => 1, 'revenue' => 999, 'gross_profit' => 999,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $sale->forceFill(['settlement_status' => VendTransaction::SETTLEMENT_REFUNDED])->save();
+        (new StoreVendProductRecords(self::DAY, self::DAY))->handle();
+
+        $this->assertSame(0, DB::table('vend_product_records')->where('date', self::DAY)->count(), 'stale group deleted');
+        $this->assertSame(999, (int) DB::table('vend_product_records')->where('date', '2026-09-09')->sum('total_amount'));
+    }
+
     public function test_product_totals_exclude_refunded_unless_attempted_counts_are_asked_for(): void
     {
         $this->single('S-OK', 250, VendTransaction::SETTLEMENT_SETTLED);
