@@ -150,6 +150,14 @@ const OP_LABELS = {
     volume: 'Volume',
     logs: 'Pull logs',
     boot: 'Machine booted',
+    selfcheck: 'Self-check',
+    restart: 'Restart app',
+    reboot: 'Reboot Android',
+    photo: 'Take photo',
+    diag: 'Diagnostics',
+    sdkcall: 'SDK call',
+    power: 'Mains',
+    camera: 'Camera',
 };
 
 const RESULT_LABELS = {
@@ -176,6 +184,9 @@ export function describeCommand(command) {
     if (command.op === 'logs') {
         return 'Pull logs' + (args.minutes ? ` · last ${args.minutes} min` : '') + (args.grep ? ` · "${args.grep}"` : '');
     }
+    if (command.op === 'photo') return `Take photo · camera ${args.cameraId ?? 0}`;
+    if (command.op === 'diag') return `Diagnostics · ${args.probe || '?'}`;
+    if (command.op === 'sdkcall') return `SDK call · ${args.action || '?'}`;
     return OP_LABELS[command.op] || command.op;
 }
 

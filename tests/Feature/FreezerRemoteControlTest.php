@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -362,5 +363,93 @@ class FreezerRemoteControlTest extends TestCase
             ->assertJsonPath('total', 7)
             ->assertJsonPath('setpoint.last.celsius', -25)
             ->assertJsonPath('setpoint.last.by', 'Tech One');
+    }
+
+    public function test_v15_ops_validate_their_arguments_and_need_app_15(): void
+    {
+        $vend = $this->freezer(['apk_version_code' => 15]);
+
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'diag', 'args' => ['probe' => 'network']])->assertStatus(202);
+        [, $frame] = $this->publishedFrame();
+        $this->assertSame('diag', $frame['op']);
+        $this->assertSame(['probe' => 'network'], $frame['args']);
+        FreezerControlCommand::query()->delete();
+
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'diag', 'args' => ['probe' => 'rm -rf /']])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'photo', 'args' => ['cameraId' => 9]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'photo', 'args' => ['cameraId' => 2]])->assertStatus(202);
+        $this->assertSame(['cameraId' => 2], FreezerControlCommand::latest('id')->first()->args);
+        FreezerControlCommand::query()->delete();
+
+        foreach (['selfcheck', 'restart', 'reboot'] as $op) {
+            $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => $op])->assertStatus(202);
+            $this->assertNull(FreezerControlCommand::latest('id')->first()->args);
+            FreezerControlCommand::query()->delete();
+        }
+
+        // A v13 app knows none of these: refused before anything is sent.
+        $old = $this->freezer(['code' => 50002, 'apk_version_code' => 13]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'selfcheck'])->assertStatus(422);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'status'])->assertStatus(202);
+    }
+
+    public function test_sdkcall_is_superadmin_only_and_bounded(): void
+    {
+        $vend = $this->freezer(['apk_version_code' => 15]);
+        $args = ['action' => 'thermostatControl', 'params' => '{"key":"fanMode","value":1}'];
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => $args])->assertStatus(403);
+        $this->assertSame(0, FreezerControlCommand::count());
+
+        $this->user->givePermissionTo(Permission::findOrCreate('update freezer-sdk-raw', 'web'));
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => $args])->assertStatus(202);
+        [, $frame] = $this->publishedFrame();
+        $this->assertSame($args, $frame['args']);
+        FreezerControlCommand::query()->delete();
+
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => ['action' => 'open lock; reboot']])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => ['action' => 'getFanState', 'params' => '[1,2]']])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => ['action' => 'getFanState', 'params' => str_repeat('{"a":1}', 100)]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'sdkcall', 'args' => ['action' => 'getFanState']])->assertStatus(202);
+        $this->assertSame(['action' => 'getFanState', 'params' => '{}'], FreezerControlCommand::latest('id')->first()->args);
+    }
+
+    public function test_output_scope_ack_and_photo_upload_are_stored_and_served(): void
+    {
+        $vend = $this->freezer(['apk_version_code' => 15]);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'diag', 'args' => ['probe' => 'system']])->assertStatus(202);
+        $cmd = FreezerControlCommand::latest('id')->first();
+        $this->ack($vend, ['cmdId' => $cmd->cmd_id, 'op' => 'diag', 'result' => 'ok', 'msg' => 'System: 9 lines', 'log' => "$ getprop\nBZ-X6-1.0.0", 'logScope' => 'output']);
+        $cmd->refresh();
+        $this->assertSame('ok', $cmd->status);
+        $this->assertSame('output', $cmd->log_scope);
+        $this->getJson("/vends/{$vend->id}/freezer-controls/{$cmd->id}/excerpt")->assertOk()->assertJsonPath('log_scope', 'output');
+
+        Storage::fake();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'photo', 'args' => ['cameraId' => 1]])->assertStatus(202);
+        $photo = FreezerControlCommand::latest('id')->first();
+        $jpeg = \Illuminate\Http\UploadedFile::fake()->createWithContent('camera.jpg', str_repeat('x', 2048));
+        $this->post("/api/v1/vends/{$vend->code}/photos", ['cmdId' => 'not-a-command', 'cameraId' => 1, 'file' => $jpeg])->assertStatus(403);
+        $this->post("/api/v1/vends/{$vend->code}/photos", ['cmdId' => $photo->cmd_id, 'cameraId' => 1, 'file' => $jpeg])->assertOk();
+        $photo->refresh();
+        $this->assertSame('photo', $photo->attachment_type);
+        Storage::assertExists($photo->attachment_path);
+
+        $this->ack($vend, ['cmdId' => $photo->cmd_id, 'op' => 'photo', 'result' => 'ok', 'msg' => 'camera 1: 2 KB uploaded']);
+        $show = $this->getJson("/vends/{$vend->id}/freezer-controls")->assertOk()->json();
+        $row = collect($show['commands'])->firstWhere('id', $photo->id);
+        $this->assertSame('photo', $row['attachment']['type']);
+        $this->assertTrue($show['supported_v15']);
+        $this->assertArrayHasKey('network', $show['diag_probes']);
+        $this->get($row['attachment']['url'])->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+    }
+
+    public function test_mains_and_camera_events_file_as_timeline_rows(): void
+    {
+        $vend = $this->freezer(['apk_version_code' => 15]);
+        $this->ack($vend, ['cmdId' => 'event-abc123', 'source' => 'event', 'op' => 'power', 'result' => 'ok', 'msg' => 'mains lost — running on the box battery', 'log' => '09-16 22:10:00.000 W/HostEventRelay( 1): power', 'logScope' => 'system']);
+        $row = FreezerControlCommand::where('cmd_id', 'event-abc123')->first();
+        $this->assertSame('event', $row->source);
+        $this->assertSame('power', $row->op);
+        $this->assertSame('Machine', $row->requested_by_name);
     }
 }

@@ -428,6 +428,16 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Smart Freezer raw SDK call from Setting/Edit (FreezerControlController::SDK_RAW_PERMISSION):
+                // hands an arbitrary (bounded) action name to the Zijia host's plugin. A research
+                // instrument, not an operator control. 2026-09-16 code-side addition — add this row
+                // to the Google Sheet so the next sheet sync does not drop it.
+                'freezer-sdk-raw',
+                ['update'],
+                ['superadmin'],
+            ],
+
+            [
                 // APK OTA Updates (/apk-releases). Deliberately NOT sharing
                 // machine-settings: uploading and publishing a binary pushes code to
                 // every machine on a channel, which is a far wider blast radius than

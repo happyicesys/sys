@@ -22,6 +22,9 @@ class FreezerControlController extends Controller
     /** Opening the door remotely is unmetered stock access, so it has its own permission. */
     public const DOOR_PERMISSION = 'update freezer-remote-door';
 
+    /** A raw SDK call can ask the host anything its plugin answers to; superadmin only. */
+    public const SDK_RAW_PERMISSION = 'update freezer-sdk-raw';
+
     public function __construct(private FreezerControlService $service) {}
 
     public function show(Request $request, Vend $vend): JsonResponse
@@ -57,6 +60,11 @@ class FreezerControlController extends Controller
             'periodic_status_at' => $periodic['status_at'] ?? null,
             'can_control' => $request->user()->can('update machine-settings'),
             'can_door' => $request->user()->can(self::DOOR_PERMISSION),
+            'can_sdk_raw' => $request->user()->can(self::SDK_RAW_PERMISSION),
+            // The second batch of controls needs APK 15; the page greys them on an older build.
+            'supported_v15' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_V15,
+            'diag_probes' => FreezerControlService::DIAG_PROBES,
+            'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'setpoint' => [
                 'min' => FreezerControlService::SETPOINT_MIN,
                 'max' => FreezerControlService::SETPOINT_MAX,
@@ -83,6 +91,7 @@ class FreezerControlController extends Controller
                 'has_log' => $c->response_log !== null && $c->response_log !== '',
                 'log_scope' => $c->log_scope,
                 'log_file' => $c->log_path ? ['lines' => $c->log_lines, 'url' => route('vends.freezer-controls.log', [$vend->id, $c->id])] : null,
+                'attachment' => $c->attachment_path ? ['type' => $c->attachment_type, 'url' => route('vends.freezer-controls.attachment', [$vend->id, $c->id])] : null,
                 'requested_by' => $c->requested_by_name,
                 'requested_at' => $c->created_at?->toIso8601String(),
                 'responded_at' => $c->responded_at?->toIso8601String(),
@@ -142,6 +151,42 @@ class FreezerControlController extends Controller
         return response($text, 200, $headers);
     }
 
+    /** A `photo` command's still, streamed from the private disk. */
+    public function attachment(Vend $vend, FreezerControlCommand $command)
+    {
+        abort_unless($command->vend_id === $vend->id && $command->attachment_path, 404);
+        abort_unless(Storage::exists($command->attachment_path), 404);
+        $name = 'freezer-'.$vend->code.'-'.$command->created_at?->format('Ymd-His').'.jpg';
+
+        return Storage::response($command->attachment_path, $name, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private, max-age=3600']);
+    }
+
+    /**
+     * Device -> mark1: a `photo` command's still. Same contract as the log upload: unauthenticated,
+     * the pending cmdId is the authorisation (FreezerControlService::storePhotoUpload).
+     */
+    public function uploadPhoto(Request $request, string $code): JsonResponse
+    {
+        $request->validate([
+            'cmdId' => 'required|string|max:64',
+            'cameraId' => 'nullable|integer|min:0|max:'.FreezerControlService::CAMERA_ID_MAX,
+            'file' => 'required|file|max:6144',
+        ]);
+        $vend = Vend::withoutGlobalScopes()->where('code', $code)->first();
+        if (! $vend) {
+            return response()->json(['ok' => false, 'message' => 'Unknown machine.'], 404);
+        }
+        $file = $request->file('file');
+        $ok = $this->service->storePhotoUpload($vend, $request->input('cmdId'), (int) $request->input('cameraId', 0), $file->getRealPath(), (int) $file->getSize());
+        if (! $ok) {
+            Log::warning('Freezer photo upload rejected', ['vend_code' => $code, 'cmd_id' => $request->input('cmdId'), 'ip' => $request->ip()]);
+
+            return response()->json(['ok' => false, 'message' => 'No pending photo command for this machine.'], 403);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     /**
      * Device -> mark1: the `logs` command's file. Unauthenticated like the other device endpoints;
      * the pending cmdId is the authorisation (see FreezerControlService::storeLogUpload).
@@ -183,9 +228,12 @@ class FreezerControlController extends Controller
         if (in_array($data['op'], ['lock', 'unlock'], true) && ! $request->user()->can(self::DOOR_PERMISSION)) {
             return response()->json(['message' => 'You do not have permission to lock or unlock the door remotely.'], 403);
         }
+        if ($data['op'] === 'sdkcall' && ! $request->user()->can(self::SDK_RAW_PERMISSION)) {
+            return response()->json(['message' => 'Raw SDK calls are limited to superadmins.'], 403);
+        }
 
-        if ((int) $vend->apk_version_code < FreezerControlService::MIN_APK_VERSION_CODE) {
-            return response()->json(['message' => 'This machine\'s app is too old for remote controls.'], 422);
+        if ((int) $vend->apk_version_code < FreezerControlService::minApkVersionFor($data['op'])) {
+            return response()->json(['message' => 'This machine\'s app is too old for this control (needs versionCode '.FreezerControlService::minApkVersionFor($data['op']).').'], 422);
         }
 
         // One command at a time per machine: the device executes them serially anyway, and a

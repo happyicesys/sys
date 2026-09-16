@@ -25,11 +25,17 @@ class FreezerControlCommand extends Model
 
     public const SOURCE_PANEL = 'panel';
 
-    /** Reported by the machine on its own: a boot, an ERROR log line. */
+    /** Reported by the machine on its own: a boot, an ERROR log line, mains or a camera event. */
     public const SOURCE_EVENT = 'event';
+
+    /** `log_scope` values: where the ack's log field came from. `output` = the op's own text, not a logcat excerpt. */
+    public const LOG_SCOPES = ['app', 'system', 'hostfile', 'output'];
+
+    public const ATTACHMENT_PHOTO = 'photo';
 
     protected $fillable = [
         'vend_id', 'cmd_id', 'op', 'args', 'status', 'response_msg', 'response_log', 'log_scope', 'log_path', 'log_lines',
+        'attachment_path', 'attachment_type',
         'source', 'requested_by', 'requested_by_name', 'ip', 'expires_at', 'responded_at',
     ];
 

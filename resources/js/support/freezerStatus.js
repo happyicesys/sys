@@ -165,6 +165,47 @@ export class FreezerStatus {
         return this.raw?.telemetry || null;
     }
 
+    /** APK v15: who the machine is to Zijia, and the host/plugin versions that move under us. */
+    get identity() {
+        return this.raw?.identity || null;
+    }
+
+    /** 'present' | 'cut' | null — the box's mains feed as the driver board reports it. */
+    get mains() {
+        return this.raw?.power?.mains ?? null;
+    }
+
+    get humidity() {
+        const v = Number(this.raw?.humidity);
+        return Number.isFinite(v) ? v : null;
+    }
+
+    get watchdog() {
+        return this.raw?.watchdog ?? null;
+    }
+
+    /** [{id, state, open, description}] as the host lists them; empty when not reported. */
+    get cameras() {
+        return Array.isArray(this.raw?.cameras) ? this.raw.cameras : [];
+    }
+
+    /** Relay duty and cycles from the machine's own thermostat samples (CompressorDutyMeter). */
+    get compressorDuty() {
+        return this.raw?.compressor || null;
+    }
+
+    /**
+     * A climbing duty is the earliest sign of a cabinet losing cold. Amber past 80 %, red at 95 %
+     * once at least an hour of samples backs the number.
+     */
+    get dutyTone() {
+        const d = this.compressorDuty;
+        if (!d || (d.coveredMinutes ?? 0) < 60) return TONE.UNKNOWN;
+        if (d.dutyPercent1h >= 95) return TONE.BAD;
+        if (d.dutyPercent1h >= 80) return TONE.WARN;
+        return TONE.OK;
+    }
+
     /**
      * A command sent while the controller owns the compressor or the fan is accepted by the host and
      * changes nothing, so the panel says so before the button is pressed rather than after.
@@ -205,6 +246,30 @@ export class FreezerStatus {
             },
             { label: 'Sale in progress', value: this.raw?.saleInProgress ? 'yes' : 'no', tone: this.raw?.saleInProgress ? TONE.WARN : TONE.OFF },
             { label: 'App', value: apk ? `v${apk.versionName} (${apk.versionCode})` : '—', tone: apk ? TONE.INFO : TONE.UNKNOWN },
+            ...this.v15Tiles,
+        ];
+    }
+
+    /** Tiles that only a v15+ app fills; omitted entirely on older builds so the grid does not show a row of dashes. */
+    get v15Tiles() {
+        if (!this.raw?.identity && !this.raw?.power && !this.cameras.length && !this.compressorDuty) return [];
+        const duty = this.compressorDuty;
+        const cams = this.cameras;
+        const open = cams.filter((c) => c.open === true).length;
+        return [
+            { label: 'Mains', value: this.mains === 'present' ? 'present' : this.mains === 'cut' ? 'CUT — on battery' : '—', tone: this.mains === 'present' ? TONE.OK : this.mains === 'cut' ? TONE.BAD : TONE.UNKNOWN },
+            {
+                label: 'Compressor duty (1 h)',
+                value: duty ? `${duty.dutyPercent1h}% · ${duty.cycles1h} cycle${duty.cycles1h === 1 ? '' : 's'}` : '—',
+                tone: this.dutyTone,
+            },
+            {
+                label: 'Cameras',
+                value: cams.length ? `${open}/${cams.length} open` : '—',
+                tone: !cams.length ? TONE.UNKNOWN : open === cams.length ? TONE.OK : TONE.BAD,
+            },
+            { label: 'Watchdog', value: this.watchdog ?? '—', tone: this.watchdog ? TONE.INFO : TONE.UNKNOWN },
+            ...(this.humidity !== null ? [{ label: 'Humidity', value: `${Math.round(this.humidity)}%`, tone: TONE.INFO }] : []),
         ];
     }
 }

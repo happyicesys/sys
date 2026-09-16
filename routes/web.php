@@ -960,6 +960,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{vend}/freezer-controls/{command}/log', [FreezerControlController::class, 'log'])
             ->name('vends.freezer-controls.log')
             ->middleware('can:read machine-settings');
+        Route::get('/{vend}/freezer-controls/{command}/attachment', [FreezerControlController::class, 'attachment'])
+            ->name('vends.freezer-controls.attachment')->middleware('can:read machine-settings');
 
         // Remote screen capture — Setting > Edit > "View Screen". ONE frame per
         // deliberate click; nothing is stored (see VendScreenshotController).

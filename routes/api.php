@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
     // Device -> mark1 full-log upload for a smart freezer's `logs` command; the pending
     // cmdId is the credential (FreezerControlService::storeLogUpload).
     Route::post('/vends/{code}/logs', [\App\Http\Controllers\FreezerControlController::class, 'upload']);
+    Route::post('/vends/{code}/photos', [\App\Http\Controllers\FreezerControlController::class, 'uploadPhoto']);
     Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
 
 });

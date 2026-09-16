@@ -64,9 +64,12 @@
               <td class="max-w-md px-3 py-1.5 text-gray-700">{{ group.lead.message || '' }}</td>
               <td class="whitespace-nowrap px-3 py-1.5">
                 <button v-if="group.lead.has_log" type="button" class="mr-2 text-sky-700 hover:underline" @click.prevent="toggleExcerpt(group.lead.id)">
-                  {{ openExcerpts.has(group.lead.id) ? 'hide' : 'excerpt' }}
+                  {{ openExcerpts.has(group.lead.id) ? 'hide' : (group.lead.log_scope === 'output' ? 'output' : 'excerpt') }}
                   <span v-if="group.lead.log_scope === 'app'" class="text-gray-400">(app only)</span>
                 </button>
+                <a v-if="group.lead.attachment" :href="group.lead.attachment.url" target="_blank" class="mr-2 text-sky-700 hover:underline">
+                  {{ group.lead.attachment.type === 'photo' ? 'open photo' : 'open file' }}
+                </a>
                 <template v-if="group.lead.log_file">
                   <a :href="group.lead.log_file.url" target="_blank" class="mr-2 text-sky-700 hover:underline">
                     view {{ group.lead.log_file.lines ? group.lead.log_file.lines + ' lines' : 'file' }}

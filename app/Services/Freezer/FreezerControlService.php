@@ -32,7 +32,41 @@ class FreezerControlService
     public const TTL_SECONDS = 60;
 
     /** Ops mark1 may send, with the argument each takes. */
-    public const OPS = ['status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'comprmode', 'setpoint', 'volume', 'logs'];
+    public const OPS = [
+        'status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'comprmode', 'setpoint', 'volume', 'logs',
+        // APK v15
+        'selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall',
+    ];
+
+    /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
+    public const DISRUPTIVE_OPS = ['restart', 'reboot'];
+
+    /** Ops that need APK 15 (the first build with the second batch of controls). */
+    public const V15_OPS = ['selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall'];
+
+    public const MIN_APK_VERSION_CODE_V15 = 15;
+
+    /** The device's fixed diagnostic probes (DiagProbe on the APK) — a closed list, never free text. */
+    public const DIAG_PROBES = [
+        'system' => 'System — build, clock, uptime, boot reason',
+        'battery' => 'Battery / mains as Android sees it',
+        'storage' => 'Storage — free space on /data and the card',
+        'network' => 'Network — interfaces, routes, modem registration',
+        'processes' => 'Processes — ours, the host, memory',
+        'load' => 'Load — CPU, top processes',
+        'host' => 'Zijia host — package version, services, its log files',
+    ];
+
+    /** `photo`: camera ids as the host numbers them. */
+    public const CAMERA_ID_MAX = 7;
+
+    /** `sdkcall`: what may be handed to BoxSDK.call — a bare action name and a small JSON object. */
+    public const SDK_ACTION_PATTERN = '/^[A-Za-z][A-Za-z0-9_]{2,39}$/';
+
+    public const SDK_PARAMS_MAX = 512;
+
+    /** Largest camera still accepted, bytes. */
+    public const PHOTO_UPLOAD_MAX_BYTES = 6291456;
 
     /** Bounds for `logs` args (mirror DeviceLog on the APK). */
     public const LOG_LINES_MIN = 200;
@@ -144,7 +178,7 @@ class FreezerControlService
             'status' => $result,
             'response_msg' => is_string($input['msg'] ?? null) ? Str::limit($input['msg'], 250, '') : null,
             'response_log' => is_string($input['log'] ?? null) ? mb_strcut($input['log'], 0, self::RESPONSE_LOG_MAX_BYTES) : null,
-            'log_scope' => in_array($input['logScope'] ?? null, ['app', 'system'], true) ? $input['logScope'] : null,
+            'log_scope' => in_array($input['logScope'] ?? null, FreezerControlCommand::LOG_SCOPES, true) ? $input['logScope'] : null,
             'responded_at' => Carbon::now(),
         ];
 
@@ -200,6 +234,33 @@ class FreezerControlService
         return true;
     }
 
+    /**
+     * Stores a `photo` command's still. Same authorisation as a log upload: the cmdId must be a
+     * pending `photo` command of this vend. Returns false when refused.
+     */
+    public function storePhotoUpload(Vend $vend, string $cmdId, int $cameraId, string $tmpPath, int $bytes): bool
+    {
+        if ($bytes <= 0 || $bytes > self::PHOTO_UPLOAD_MAX_BYTES) {
+            return false;
+        }
+        $command = FreezerControlCommand::where('cmd_id', $cmdId)->where('vend_id', $vend->id)
+            ->where('op', 'photo')->where('status', FreezerControlCommand::STATUS_PENDING)->first();
+        if (! $command) {
+            return false;
+        }
+        $path = 'freezer-photos/'.$vend->id.'/'.$cmdId.'-cam'.max(0, $cameraId).'.jpg';
+        Storage::put($path, file_get_contents($tmpPath), 'private');
+        $command->update(['attachment_path' => $path, 'attachment_type' => FreezerControlCommand::ATTACHMENT_PHOTO]);
+
+        return true;
+    }
+
+    /** The smallest APK versionCode that understands $op. */
+    public static function minApkVersionFor(string $op): int
+    {
+        return in_array($op, self::V15_OPS, true) ? self::MIN_APK_VERSION_CODE_V15 : self::MIN_APK_VERSION_CODE;
+    }
+
     /** @return array<string, mixed> the arguments to send */
     private function validate(string $op, array $args): array
     {
@@ -208,7 +269,12 @@ class FreezerControlService
         }
 
         return match ($op) {
-            'status', 'lock', 'unlock' => [],
+            'status', 'lock', 'unlock', 'selfcheck', 'restart', 'reboot' => [],
+            'photo' => $this->cameraId($args['cameraId'] ?? 0),
+            'diag' => array_key_exists($args['probe'] ?? '', self::DIAG_PROBES)
+                ? ['probe' => $args['probe']]
+                : throw ValidationException::withMessages(['args.probe' => 'Choose one of the listed diagnostics.']),
+            'sdkcall' => $this->sdkCall($args['action'] ?? null, $args['params'] ?? null),
             'fan', 'light', 'compressor', 'comprmode' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => 'Choose on or off.']),
@@ -222,6 +288,39 @@ class FreezerControlService
                 'grep' => is_string($args['grep'] ?? null) && trim($args['grep']) !== '' ? Str::limit(trim($args['grep']), self::LOG_GREP_MAX, '') : null,
             ], fn ($v) => $v !== null),
         };
+    }
+
+    private function cameraId(mixed $cameraId): array
+    {
+        if (! is_int($cameraId) || $cameraId < 0 || $cameraId > self::CAMERA_ID_MAX) {
+            throw ValidationException::withMessages(['args.cameraId' => 'Camera must be 0 to '.self::CAMERA_ID_MAX.'.']);
+        }
+
+        return ['cameraId' => $cameraId];
+    }
+
+    /**
+     * A raw SDK call is a diagnostic instrument, so it is bounded here exactly as the device bounds
+     * it: a bare action name and a small JSON object. Nothing else reaches BoxSDK.call.
+     */
+    private function sdkCall(mixed $action, mixed $params): array
+    {
+        if (! is_string($action) || ! preg_match(self::SDK_ACTION_PATTERN, $action)) {
+            throw ValidationException::withMessages(['args.action' => 'Action must be a bare name: 3 to 40 letters, digits or underscores.']);
+        }
+        $params = is_string($params) ? trim($params) : '';
+        if ($params === '') {
+            $params = '{}';
+        }
+        if (strlen($params) > self::SDK_PARAMS_MAX) {
+            throw ValidationException::withMessages(['args.params' => 'Params must be at most '.self::SDK_PARAMS_MAX.' characters.']);
+        }
+        $decoded = json_decode($params, true);
+        if (! is_array($decoded) || array_is_list($decoded) && $decoded !== []) {
+            throw ValidationException::withMessages(['args.params' => 'Params must be a JSON object, e.g. {"key":"fanMode","value":1}.']);
+        }
+
+        return ['action' => $action, 'params' => $params];
     }
 
     private function setpoint(mixed $celsius): array
