@@ -3154,10 +3154,19 @@
 									<span class="text-gray-900" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
 											{{ vend.apkVerJson['deviceType'] }}
 									</span>
-									<span class="text-gray-900" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
-										Apk: {{ vend.apkVerJson['apkver'] }}
-										<span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
-												{{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
+									<!-- Reported APK version. Merged server-side from BOTH
+										report channels (PWRON frame + OTA check-in) by
+										App\ValueObjects\ReportedApkVersion, so machines that
+										only ever OTA - the smart freezers - show a version
+										here instead of a blank. build_time is frame-only;
+										checked_in_at is filled for the OTA-only case. -->
+									<span class="text-gray-900" v-if="vend.apkVersion && vend.apkVersion.code">
+										Apk: {{ vend.apkVersion.code }}
+										<span v-if="vend.apkVersion.build_time">
+												{{ moment(new Date(vend.apkVersion.build_time)).format('YYMMDD HH:mm:ss')  }}
+										</span>
+										<span v-else-if="vend.apkVersion.checked_in_at" class="text-gray-500" :title="'Reported by OTA check-in at ' + vend.apkVersion.checked_in_at">
+												OTA {{ vend.apkVersion.checked_in_at }}
 										</span>
 									</span>
 									<span class="text-green-600" v-if="vend.acbVmcPaJson && 'ACBVer' in vend.acbVmcPaJson">

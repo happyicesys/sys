@@ -1361,10 +1361,16 @@
               <span>
                 {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
               </span>
-              <span class="text-blue-600" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
-                Apk: {{ vend.apkVerJson['apkver'] }}
-                <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
-                  {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss') }}
+              <!-- Merged from both report channels server-side (see
+                App\ValueObjects\ReportedApkVersion): OTA-only machines such as
+                the smart freezers have no apk_ver_json to read. -->
+              <span class="text-blue-600" v-if="vend.apkVersion && vend.apkVersion.code">
+                Apk: {{ vend.apkVersion.code }}
+                <span v-if="vend.apkVersion.build_time">
+                  {{ moment(new Date(vend.apkVersion.build_time)).format('YYMMDD HH:mm:ss') }}
+                </span>
+                <span v-else-if="vend.apkVersion.checked_in_at" class="text-gray-500" :title="'Reported by OTA check-in at ' + vend.apkVersion.checked_in_at">
+                  OTA {{ vend.apkVersion.checked_in_at }}
                 </span>
               </span>
               <!-- LCD Monitor -->

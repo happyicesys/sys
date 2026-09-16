@@ -367,6 +367,12 @@ class VendController extends Controller
             'vends.code',
             'vends.acb_vmc_pa_json',
             'vends.apk_ver_json',
+            // OTA check-in channel: the smart freezer reports ONLY here, so
+            // apk_ver_json is NULL on it. Merged with apk_ver_json.apkver by
+            // App\ValueObjects\ReportedApkVersion in VendResource. Plain
+            // columns off the already-joined vends row - no extra join.
+            'vends.apk_version_code',
+            'vends.apk_checked_in_at',
             'vends.balance_percent',
             'vends.serial_num',
             'vends.temp',
@@ -1139,6 +1145,11 @@ class VendController extends Controller
                 'vends.name AS vend_name',
                 'vends.acb_vmc_pa_json',
                 'vends.apk_ver_json',
+                // See index() above: the freezer's version lives here only.
+                // Columns, not a join - customerIndexBaseQuery is
+                // join-sensitive.
+                'vends.apk_version_code',
+                'vends.apk_checked_in_at',
                 'vends.balance_percent',
                 'vends.serial_num',
                 // `customers.id IS NULL` = unbound machine (RIGHT JOIN row, see

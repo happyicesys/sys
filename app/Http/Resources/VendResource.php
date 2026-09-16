@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Customer;
 use App\Models\Vend;
 use App\Traits\GetUserTimezone;
+use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,6 +21,37 @@ class VendResource extends JsonResource
     protected function filterChannelsJsonForProductAccess($channels)
     {
         return \App\Support\ProductAccess::filterChannelsJson($channels);
+    }
+
+    /**
+     * The machine's reported APK version for the Inertia pages, merged from
+     * both report channels by the value object. Built from ATTRIBUTES, not
+     * from Vend::reportedApkVersionDetail(), because this resource also wraps
+     * the Operation Dashboard's Customer rows (customerIndex selects the vends
+     * columns onto a Customer model) and a stdClass has no model methods.
+     *
+     * @return array<string, mixed>
+     */
+    protected function apkVersionPayload(): array
+    {
+        $version = ReportedApkVersion::fromAttributes(
+            isset($this->apk_version_code) ? $this->apk_version_code : null,
+            isset($this->apk_ver_json) ? $this->apk_ver_json : null
+        );
+
+        $payload = $version->toArray();
+
+        // The check-in time is only rendered for OTA-only machines (smart
+        // freezers today, a handful of rows), so the vending fleet's ~1200
+        // dashboard rows never pay for a Carbon parse they would not show.
+        // Pre-formatted in the user's timezone and in the compact shape the
+        // neighbouring build time uses, so the page prints the string as-is
+        // rather than re-parsing a timestamp of unstated zone client-side.
+        $payload['checked_in_at'] = $version->isOtaOnly() && isset($this->apk_checked_in_at)
+            ? Carbon::parse($this->apk_checked_in_at)->setTimezone($this->getUserTimezone())->format('ymd H:i')
+            : null;
+
+        return $payload;
     }
 
     protected function maskWholeMachineMoneyForProductAccess($totals)
@@ -82,6 +114,13 @@ class VendResource extends JsonResource
             'acbVmcPaJson' => isset($this->acb_vmc_pa_json) ? $this->acb_vmc_pa_json : null,
             'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day / 100 : null,
             'apkVerJson' => isset($this->apk_ver_json) ? $this->apk_ver_json : null,
+            // The reported APK versionCode with its provenance, merged from
+            // BOTH report channels by App\ValueObjects\ReportedApkVersion —
+            // a smart freezer only ever reports through the OTA check-in, so
+            // apk_ver_json is NULL on it and reading that column alone left
+            // the Operation Dashboard's APK line blank. Pages read this, not
+            // apkVerJson.apkver.
+            'apkVersion' => $this->apkVersionPayload(),
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'binded_at' => isset($this->binded_at) ? Carbon::parse($this->binded_at)->setTimezone($this->getUserTimezone())->toDateTimeString() : null,

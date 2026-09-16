@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Vend;
 use App\Models\VendTemp;
 use App\Support\SiteSearch;
+use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Arr;
@@ -745,7 +746,8 @@ trait HasFilter
                 $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
             })
             ->when($request->apk_ver, function ($query, $search) {
-                $query->where('apk_ver_json->apkver', 'LIKE', "{$search}%");
+                // Both report channels — see ReportedApkVersion::applyVersionFilter.
+                ReportedApkVersion::applyVersionFilter($query, $search);
             })
             ->when($request->firmware_ver, function ($query, $search) {
                 $search = hexdec($search);

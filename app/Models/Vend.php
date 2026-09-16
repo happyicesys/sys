@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Support\SiteSearch;
+use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -629,9 +630,20 @@ class Vend extends Model
      */
     public function reportedApkVersion(): int
     {
-        return max(
-            (int) $this->apk_version_code,
-            (int) data_get($this->apk_ver_json, 'apkver', 0)
+        return $this->reportedApkVersionDetail()->code;
+    }
+
+    /**
+     * The same reading with its provenance (which channel, build time, last
+     * OTA check-in) — what the Operation Dashboard renders. A smart freezer
+     * only ever reports through OTA, so apk_ver_json stays NULL on it.
+     */
+    public function reportedApkVersionDetail(): ReportedApkVersion
+    {
+        return ReportedApkVersion::fromAttributes(
+            $this->apk_version_code,
+            $this->apk_ver_json,
+            $this->apk_checked_in_at
         );
     }
 
@@ -1363,7 +1375,8 @@ class Vend extends Model
                 });
             })
             ->when($request->apk_ver, function ($query, $search) {
-                $query->where('apk_ver_json->apkver', 'LIKE', "{$search}%");
+                // Both report channels — see ReportedApkVersion::applyVersionFilter.
+                ReportedApkVersion::applyVersionFilter($query, $search);
             })
             ->when($request->firmware_ver, function ($query, $search) {
                 $search = hexdec($search);
