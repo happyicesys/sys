@@ -389,7 +389,9 @@ class SettingController extends Controller
             )
             ->first();
 
-        $customers = Customer::query()
+        // Only a machine with no Site can bind one, and this list is every unbound Site (1.4 MB).
+        // A bound machine renders the Site as read-only text, so it never needs the picker.
+        $customers = $vendInit && $vendInit->customer_id ? collect() : Customer::query()
             ->select(
                 'id',
                 'code',
@@ -557,15 +559,14 @@ class SettingController extends Controller
             ),
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::withoutGlobalScopes()
-                    // sellingPrices (the Site's tier only): a machine with no live
-                    // vend_channels — every Smart Freezer — previews its menu straight
-                    // from this option object, and without prices its Ref Price column
-                    // and planogram prices were blank (1372, 2026-09-14).
-                    ->with([
-                        'upcomingProductMapping',
-                        'productMappingItems.product.thumbnail',
-                        'productMappingItems.product.sellingPrices' => fn ($query) => $query->where('type', $type),
-                    ])
+                    // Options carry NO items (2026-09-16). Shipping every active mapping's items,
+                    // products and thumbnails made this one prop 9.8 MB of a 12 MB page — a 6.5 s
+                    // load on every machine. The dropdown only reads id / name / machine_type /
+                    // basket_layout_json; the channel table and the freezer planogram read the
+                    // vend's own live channels, and a mapping the user PREVIEWS is fetched on
+                    // demand as `selectedProductMapping` (with items and the Site-tier prices)
+                    // by fetchProductMappingPreviewById.
+                    ->with(['upcomingProductMapping'])
                     ->where(function ($query) use ($vend) {
                         // Normal selectable options: match operator + active.
                         // DEPRECATED (2026-07): the prefix→mapping gate was removed —

@@ -84,10 +84,11 @@ class SmartFreezerSettingsSaveTest extends TestCase
             ->assertSessionHasErrors(['operator_id', 'vend_model_id']);
     }
 
-    public function test_mapping_options_carry_the_sites_tier_price_for_the_planogram(): void
+    public function test_the_previewed_mapping_carries_the_sites_tier_price_and_the_options_stay_lean(): void
     {
-        // A freezer has no live vend_channels, so Setting/Edit previews its menu (table and
-        // planogram) from the mapping option object. Without prices it read blank (1372).
+        // The dropdown options ship NO items (9.8 MB of a 12 MB page before 2026-09-16); a mapping
+        // the user previews is fetched on demand and THAT payload carries the Site-tier price the
+        // Ref Price column and the planogram read.
         $product = Product::create(['code' => 'U-01', 'name' => 'Cornetto']);
         SellingPrice::create(['product_id' => $product->id, 'type' => SellingPrice::TYPE_1, 'amount' => 2.70]);
         SellingPrice::create(['product_id' => $product->id, 'type' => SellingPrice::TYPE_2, 'amount' => 3.00]);
@@ -105,9 +106,22 @@ class SmartFreezerSettingsSaveTest extends TestCase
 
         $this->get('/settings/vend/'.$vend->id.'/update')
             ->assertOk()
-            ->assertInertia(function ($page) use ($mapping, $rp2Cents) {
-                $options = collect($page->toArray()['props']['productMappingOptions']['data']);
-                $item = collect($options->firstWhere('id', $mapping->id)['productMappingItems'])->first();
+            ->assertInertia(function ($page) use ($mapping) {
+                $props = $page->toArray()['props'];
+                $option = collect($props['productMappingOptions']['data'])->firstWhere('id', $mapping->id);
+
+                $this->assertSame($mapping->name, $option['name']);
+                $this->assertArrayNotHasKey('productMappingItems', $option, 'options must not carry items');
+                // A bound machine cannot bind another Site, so the unbound-Site picker is not shipped.
+                $this->assertSame([], $props['adminCustomerOptions']['data']);
+            });
+
+        $this->get('/settings/vend/'.$vend->id.'/update?product_mapping_id='.$mapping->id)
+            ->assertOk()
+            ->assertInertia(function ($page) use ($rp2Cents) {
+                $mapping = $page->toArray()['props']['selectedProductMapping'];
+                $mapping = $mapping['data'] ?? $mapping; // ProductMappingResource::make wraps in `data`
+                $item = collect($mapping['productMappingItems'])->first();
                 $prices = $item['product']['sellingPrices'];
 
                 $this->assertCount(1, $prices, 'only the Site tier is shipped');

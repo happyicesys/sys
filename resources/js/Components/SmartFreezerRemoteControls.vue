@@ -112,6 +112,7 @@
                     </span>
                     <ControlButton :disabled="!canSend" @click="setpoint = Math.min(data.setpoint.max, setpoint + 1)">+</ControlButton>
                   </span>
+                  <ArrowPathIcon v-if="busyOp === 'setpoint'" class="h-4 w-4 animate-spin text-sky-700" />
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSend"
                                  @click="ask('setpoint', { celsius: setpoint }, 'Set the temperature controller to ' + setpoint + ' °C?', 'The cabinet will cool to this target until someone changes it. The machine cannot report its current setpoint, so check the chamber temperature afterwards.')">
                     Set
@@ -119,32 +120,32 @@
                 </div>
               </div>
 
-              <ControlRow label="Compressor" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="blockedReason">
+              <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.compressorOn === true"
                                @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')">On</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.compressorOn === false"
                                @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')">Off</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Compressor control" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)" :reason="blockedReason">
+              <ControlRow label="Compressor control" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.compressorRemote === false"
                                @click="ask('comprmode', { on: false }, 'Give the compressor back to the controller?', 'The controller then runs it from its own setpoint and differential, and remote on/off stops working.')">Controller</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.compressorRemote === true"
                                @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Cabinet fan" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :note="modeText(status.fanRemote)" :reason="blockedReason">
+              <ControlRow label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :note="modeText(status.fanRemote)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
               </ControlRow>
 
               <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
-              <ControlRow label="Light" :state="status.lightState || 'not reported'" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
+              <ControlRow label="Light" :busy="busyOp === 'light'" :state="status.lightState || 'not reported'" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" @click="send('light', { on: true })">On</ControlButton>
                 <ControlButton :disabled="!canSend" @click="send('light', { on: false })">Off</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Music volume" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
+              <ControlRow label="Music volume" :busy="busyOp === 'volume'" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
                 <ControlButton :disabled="!canSend"
                                @click="ask('volume', { step: 'mute' }, 'Mute the machine?', 'Mute persists across restarts until someone turns it back up.')">Mute</ControlButton>
                 <ControlButton :disabled="!canSend" @click="send('volume', { step: 'down' })">Down</ControlButton>
@@ -166,6 +167,7 @@
                   <label>containing
                     <input v-model.trim="logPull.grep" type="text" maxlength="64" placeholder="e.g. Ag325, SERVICE-MODE, camera"
                            class="ml-1 w-56 rounded-md border-gray-300 py-1 text-xs" /></label>
+                  <ArrowPathIcon v-if="busyOp === 'logs'" class="h-4 w-4 animate-spin text-sky-700" />
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSend"
                                  @click="send('logs', { minutes: logPull.minutes, lines: logPull.lines, grep: logPull.grep || undefined })">
                     <DocumentArrowDownIcon class="mr-1 h-4 w-4" /> Pull logs
@@ -173,7 +175,7 @@
                 </div>
               </div>
 
-              <ControlRow v-if="data.can_door" label="Door" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
+              <ControlRow v-if="data.can_door" label="Door" :busy="['lock', 'unlock'].includes(busyOp)" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
                           hint="Unlocking here opens the lock with no order, no video and no AI check." class="md:col-span-2">
                 <ControlButton :disabled="!canSend" @click="send('lock')">
                   <LockClosedIcon class="mr-1 h-4 w-4" /> Lock
@@ -227,7 +229,7 @@ const props = defineProps({
   vendId: { type: Number, required: true },
 })
 
-const { data, status, loaded, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, send, setLimit, whenLoaded } =
+const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, send, setLimit, whenLoaded } =
   useFreezerControls(props.vendId)
 
 const confirm = ref(null)

@@ -47,6 +47,20 @@ export function useFreezerControls(vendId) {
     const statusStale = computed(() => !data.value.status_at || now.value - Date.parse(data.value.status_at) > 10 * 60 * 1000);
     const lastSetpoint = computed(() => data.value.setpoint?.last ?? null);
 
+    /**
+     * The op we are waiting on, so the row that was pressed can show a spinner instead of the page
+     * looking inert for the seconds the freezer takes to answer. Set the moment we POST and kept
+     * from the server's own view of the outstanding command afterwards, so a reload (or a second
+     * tab) still shows which control is busy.
+     */
+    const inFlight = ref(null);
+    const busyOp = computed(() => {
+        if (inFlight.value) return inFlight.value;
+        if (!data.value.pending) return null;
+        const outstanding = data.value.commands.find((c) => c.source === 'mark1' && c.status === 'pending');
+        return outstanding ? outstanding.op : null;
+    });
+
     let timer = null;
     let firstLoad = true;
     const onFirstLoad = [];
@@ -86,6 +100,7 @@ export function useFreezerControls(vendId) {
     async function send(op, args = {}) {
         if (op === 'status' ? !canSync.value : !canSend.value) return;
         sending.value = true;
+        inFlight.value = op;
         try {
             await axios.post(`/vends/${id()}/freezer-controls`, { op, args });
             await load();
@@ -93,6 +108,7 @@ export function useFreezerControls(vendId) {
             toast.error(e.response?.data?.message || 'Could not send the command.');
         } finally {
             sending.value = false;
+            inFlight.value = null;
         }
     }
 
@@ -119,7 +135,7 @@ export function useFreezerControls(vendId) {
         document.removeEventListener('visibilitychange', onVisibility);
     });
 
-    return { data, status, loaded, sending, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded };
+    return { data, status, loaded, sending, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded };
 }
 
 const OP_LABELS = {

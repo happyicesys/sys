@@ -5,6 +5,10 @@
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-sm font-medium text-gray-800">{{ label }}</span>
         <StateChip v-if="state !== undefined" :value="state" :tone="tone" :note="note" />
+        <span v-if="busy" class="inline-flex items-center gap-1 text-xs font-medium text-sky-700">
+          <ArrowPathIcon class="h-3.5 w-3.5 animate-spin" />
+          waiting for the machine…
+        </span>
       </div>
       <p v-if="hint" class="mt-0.5 text-xs text-gray-500">{{ hint }}</p>
       <slot name="detail" />
@@ -22,6 +26,7 @@
 
 <script setup>
 import StateChip from '@/Components/SmartFreezer/StateChip.vue'
+import { ArrowPathIcon } from '@heroicons/vue/20/solid'
 import { TONE } from '@/support/freezerStatus'
 
 /** Label + current value on the left, its button group on the right. One shape for every control. */
@@ -34,5 +39,7 @@ defineProps({
   danger: { type: Boolean, default: false },
   /** Why this row's buttons are disabled, shown on hover. Empty when they work. */
   reason: { type: String, default: '' },
+  /** This row's command is out and the machine has not answered yet. */
+  busy: { type: Boolean, default: false },
 })
 </script>
