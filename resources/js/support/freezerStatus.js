@@ -90,6 +90,16 @@ class ChamberReading {
     }
 }
 
+/**
+ * A camera is healthy when the host calls it online (state 在线 or online). `open` only says a
+ * stream is running, and the host opens them for a sale — idle cameras are online and not open
+ * (50001 on 2026-09-17: three cameras 在线, all open:false), so `open` must not read as a fault.
+ */
+export function cameraOnline(camera) {
+    const state = String(camera?.state ?? '').trim().toLowerCase();
+    return state === '在线' || state === 'online' || state === 'connected';
+}
+
 export class FreezerStatus {
     static from(raw) {
         return new FreezerStatus(raw);
@@ -260,7 +270,8 @@ export class FreezerStatus {
         if (!this.raw?.identity && !this.raw?.power && !this.cameras.length && !this.compressorDuty && !this.radar) return [];
         const duty = this.compressorDuty;
         const cams = this.cameras;
-        const open = cams.filter((c) => c.open === true).length;
+        const online = cams.filter(cameraOnline).length;
+        const streaming = cams.filter((c) => c.open === true).length;
         return [
             { label: 'Mains', value: this.mains === 'present' ? 'present' : this.mains === 'cut' ? 'CUT — on battery' : '—', tone: this.mains === 'present' ? TONE.OK : this.mains === 'cut' ? TONE.BAD : TONE.UNKNOWN },
             {
@@ -270,8 +281,8 @@ export class FreezerStatus {
             },
             {
                 label: 'Cameras',
-                value: cams.length ? `${open}/${cams.length} open` : '—',
-                tone: !cams.length ? TONE.UNKNOWN : open === cams.length ? TONE.OK : TONE.BAD,
+                value: cams.length ? `${online}/${cams.length} online` + (streaming ? ` · ${streaming} streaming` : '') : '—',
+                tone: !cams.length ? TONE.UNKNOWN : online === cams.length ? TONE.OK : TONE.BAD,
             },
             { label: 'Watchdog', value: this.watchdog ?? '—', tone: this.watchdog ? TONE.INFO : TONE.UNKNOWN },
             ...(this.radar

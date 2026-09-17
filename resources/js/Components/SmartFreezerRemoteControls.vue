@@ -330,7 +330,7 @@ import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } fr
 import { computed, ref } from 'vue'
 import moment from 'moment'
 import { resultLabel, useFreezerControls } from '@/composables/useFreezerControls'
-import { boolTone, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
+import { boolTone, cameraOnline, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
 
 const props = defineProps({
   vendId: { type: Number, required: true },
@@ -387,7 +387,7 @@ const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */
 const cameraChoices = computed(() => {
   const listed = status.value.cameras
-  if (listed.length) return listed.map((c) => ({ id: c.id, label: `camera ${c.id}${c.description ? ' · ' + c.description : ''}${c.open === false ? ' (down)' : ''}` }))
+  if (listed.length) return listed.map((c) => ({ id: c.id, label: `camera ${c.id}${c.description ? ' · ' + c.description : ''}${cameraOnline(c) ? '' : ' (offline)'}` }))
   return [0, 1, 2].map((id) => ({ id, label: `camera ${id}` }))
 })
 
