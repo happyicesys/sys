@@ -149,10 +149,14 @@
 
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700">Signed APK file <span class="text-red-500">*</span></label>
+            <!--
+              No `accept` filter: iOS has no file type for .apk, so Safari greyed out every APK in
+              the picker and the build could not be uploaded from an iPhone (2026-09-17). The name
+              is checked on pick; the server checks the file itself (AndroidManifest, hash, size).
+            -->
             <input
               type="file"
-              accept=".apk,application/vnd.android.package-archive"
-              @change="e => uploadForm.apk = e.target.files[0]"
+              @change="onApkPicked"
               class="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700"
             />
             <p v-if="uploadForm.errors.apk" class="text-xs text-red-500 mt-1">{{ uploadForm.errors.apk }}</p>
@@ -411,6 +415,19 @@ const reloadOpts = {
 function switchChannel(key) {
   if (key === props.channel) return;
   router.get('/apk-releases', { channel: key }, { preserveScroll: true, preserveState: false });
+}
+
+/** Keep the picked file only if it is named like an APK; say so on the field otherwise. */
+function onApkPicked(e) {
+  const file = e.target.files?.[0] ?? null
+  uploadForm.clearErrors('apk')
+  if (file && !file.name.toLowerCase().endsWith('.apk')) {
+    uploadForm.apk = null
+    uploadForm.setError('apk', `"${file.name}" is not an .apk file.`)
+    e.target.value = ''
+    return
+  }
+  uploadForm.apk = file
 }
 
 function submitUpload() {
