@@ -191,6 +191,16 @@ class FreezerStatusService
         if (isset($input['comprDuty2h'])) {
             $status['comprDuty2h'] = (int) $input['comprDuty2h'];
         }
+        // The thermostat's alarm bits (APK 14+), for the Ops Dashboard badges. Booleans only: a bit
+        // that is not a boolean goes into the patch as null, which JSON_MERGE_PATCH removes — it
+        // reads as unknown, never as a guessed value. A packet without the block keeps the last bits.
+        if (is_array($input['alarms'] ?? null)) {
+            $status['alarms'] = [];
+            foreach (['highTemp', 'lowTemp', 'sensorOk', 'communicating'] as $bit) {
+                $v = $input['alarms'][$bit] ?? null;
+                $status['alarms'][$bit] = is_bool($v) ? $v : null;
+            }
+        }
         if (array_key_exists('locks', $input)) {
             $status['locks'] = $locks;
         }

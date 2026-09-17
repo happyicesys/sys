@@ -127,6 +127,41 @@
                 </div>
               </div>
 
+              <!--
+                Daily setpoint plan (night setback, pre-cool). mark1 sends each entry as an ordinary
+                Setpoint command at its time, so every run shows in the timeline with the machine's
+                verdict. The controller cannot read its setpoint back: the chamber is the proof.
+              -->
+              <div class="rounded-lg border border-gray-200 bg-white p-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-medium text-gray-800">Setpoint schedule</span>
+                  <StateChip :value="activeSchedule ? activeSchedule + ' active' : 'none'" :tone="activeSchedule ? 'info' : 'unknown'" />
+                </div>
+                <p class="mt-0.5 text-xs text-gray-500">Every day, Singapore time. An entry more than 15 min late (machine busy or offline) waits for the next day.</p>
+                <ul v-if="(data.schedule || []).length" class="mt-2 divide-y divide-gray-100 text-xs">
+                  <li v-for="entry in data.schedule" :key="entry.id" class="flex flex-wrap items-center gap-2 py-1.5">
+                    <span class="w-12 font-mono font-semibold" :class="entry.is_active ? 'text-gray-900' : 'text-gray-400 line-through'">{{ entry.run_at }}</span>
+                    <span class="w-14" :class="entry.is_active ? 'text-gray-900' : 'text-gray-400'">{{ entry.celsius }} °C</span>
+                    <span class="flex-1 text-gray-500">
+                      <template v-if="entry.last_run_on">last {{ entry.last_run_on }}<template v-if="entry.last_status"> · {{ resultLabel(entry.last_status) }}</template></template>
+                      <template v-else>not run yet</template>
+                      <template v-if="entry.created_by"> · added by {{ entry.created_by }}</template>
+                    </span>
+                    <button type="button" class="text-sky-700 hover:underline disabled:text-gray-300" :disabled="scheduleBusy"
+                            @click="toggleSchedule(entry)">{{ entry.is_active ? 'Pause' : 'Resume' }}</button>
+                    <button type="button" class="text-red-600 hover:underline disabled:text-gray-300" :disabled="scheduleBusy"
+                            @click="removeSchedule(entry)">Remove</button>
+                  </li>
+                </ul>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <input v-model="newSchedule.run_at" type="time" class="rounded-md border-gray-300 py-1 text-xs" />
+                  <input v-model.number="newSchedule.celsius" type="number" :min="data.setpoint.min" :max="data.setpoint.max" step="1"
+                         class="w-20 rounded-md border-gray-300 py-1 text-xs" /> °C
+                  <ControlButton tone="primary" class="rounded-md" :disabled="scheduleBusy || !newSchedule.run_at" @click="addSchedule">Add</ControlButton>
+                  <span v-if="scheduleError" class="text-red-600">{{ scheduleError }}</span>
+                </div>
+              </div>
+
               <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.compressorOn === true"
                                @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')">On</ControlButton>
@@ -193,7 +228,7 @@
                   <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  Self-check and diagnostics read; a photo comes from the cabinet camera; restart and reboot are refused by the machine while a sale is in progress.
+                  Self-check and diagnostics read; a photo comes from the cabinet camera; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSendBatch2" @click="send('selfcheck')">
@@ -213,6 +248,14 @@
                     </select>
                     <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('diag', { probe: diagProbe })">
                       <ArrowPathIcon v-if="busyOp === 'diag'" class="mr-1 h-4 w-4 animate-spin" /> Run diagnostics
+                    </ControlButton>
+                  </span>
+                  <span class="isolate inline-flex -space-x-px shadow-sm">
+                    <select v-model.number="beepSeconds" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
+                      <option v-for="s in beepChoices" :key="s" :value="s">{{ s }} s</option>
+                    </select>
+                    <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('beep', { seconds: beepSeconds })">
+                      <ArrowPathIcon v-if="busyOp === 'beep'" class="mr-1 h-4 w-4 animate-spin" /> Beep
                     </ControlButton>
                   </span>
                   <ControlButton :disabled="!canSendBatch2"
@@ -286,14 +329,14 @@ import StatusTile from '@/Components/SmartFreezer/StatusTile.vue'
 import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
 import { computed, ref } from 'vue'
 import moment from 'moment'
-import { useFreezerControls } from '@/composables/useFreezerControls'
+import { resultLabel, useFreezerControls } from '@/composables/useFreezerControls'
 import { boolTone, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
 
 const props = defineProps({
   vendId: { type: Number, required: true },
 })
 
-const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, send, setLimit, whenLoaded } =
+const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded } =
   useFreezerControls(props.vendId)
 
 const confirm = ref(null)
@@ -302,6 +345,40 @@ const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
 const photoCamera = ref(0)
 const diagProbe = ref('system')
 const sdkCall = ref({ action: '', params: '' })
+const beepSeconds = ref(3)
+const beepChoices = computed(() => Array.from({ length: data.value.beep_seconds_max || 10 }, (_, i) => i + 1))
+
+const newSchedule = ref({ run_at: '22:00', celsius: -20 })
+const scheduleBusy = ref(false)
+const scheduleError = ref('')
+const activeSchedule = computed(() => (data.value.schedule || []).filter((s) => s.is_active).length)
+
+async function scheduleCall(fn) {
+  scheduleBusy.value = true
+  scheduleError.value = ''
+  try {
+    await fn()
+    await load()
+  } catch (e) {
+    const errors = e.response?.data?.errors
+    scheduleError.value = errors ? Object.values(errors).flat()[0] : e.response?.data?.message || 'Could not save the schedule.'
+  } finally {
+    scheduleBusy.value = false
+  }
+}
+
+function addSchedule() {
+  scheduleCall(() => axios.post(`/vends/${props.vendId}/freezer-controls/schedules`, { ...newSchedule.value }))
+}
+
+function toggleSchedule(entry) {
+  scheduleCall(() => axios.patch(`/vends/${props.vendId}/freezer-controls/schedules/${entry.id}`, { is_active: !entry.is_active }))
+}
+
+function removeSchedule(entry) {
+  if (!window.confirm(`Remove the ${entry.run_at} entry (${entry.celsius} °C)?`)) return
+  scheduleCall(() => axios.delete(`/vends/${props.vendId}/freezer-controls/schedules/${entry.id}`))
+}
 
 /** The second batch of controls needs app v14 on top of everything `canSend` checks. */
 const canSendBatch2 = computed(() => canSend.value && !!data.value.supported_batch2)

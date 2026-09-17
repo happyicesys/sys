@@ -59,7 +59,7 @@
                 <span class="inline-flex items-center rounded-full px-2 py-0.5 font-medium" :class="resultBadge(group.lead.status)">
                   {{ resultLabel(group.lead.status) }}
                 </span>
-                <span v-if="group.lead.responded_at && group.lead.source === 'mark1'" class="ml-1 text-gray-400">{{ answeredIn(group.lead) }}</span>
+                <span v-if="group.lead.responded_at && ['mark1', 'schedule'].includes(group.lead.source)" class="ml-1 text-gray-400">{{ answeredIn(group.lead) }}</span>
               </td>
               <td class="max-w-md px-3 py-1.5 text-gray-700">{{ group.lead.message || '' }}</td>
               <td class="whitespace-nowrap px-3 py-1.5">
@@ -184,6 +184,7 @@ function sourceLabel(c) {
 function sourceBadge(source) {
   if (source === 'panel') return 'bg-indigo-100 text-indigo-800'
   if (source === 'event') return 'bg-gray-200 text-gray-700'
+  if (source === 'schedule') return 'bg-violet-100 text-violet-800'
   return 'bg-sky-100 text-sky-800'
 }
 

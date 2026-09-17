@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FreezerControlCommand;
+use App\Models\FreezerSetpointSchedule;
 use App\Models\Vend;
 use App\Services\Freezer\FreezerControlService;
 use Carbon\Carbon;
@@ -10,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 /**
  * Setting/Edit > Smart Freezer > Remote controls.
@@ -65,6 +67,8 @@ class FreezerControlController extends Controller
             'supported_batch2' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_BATCH2,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
+            'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,
+            'schedule' => $this->schedulePayload($vend),
             'setpoint' => [
                 'min' => FreezerControlService::SETPOINT_MIN,
                 'max' => FreezerControlService::SETPOINT_MAX,
@@ -118,6 +122,71 @@ class FreezerControlController extends Controller
             'at' => ($command->responded_at ?? $command->created_at)?->toIso8601String(),
             'by' => $command->requested_by_name,
         ];
+    }
+
+    /** The machine's daily setpoint entries, earliest first, each with its last run's verdict. */
+    private function schedulePayload(Vend $vend): array
+    {
+        $now = Carbon::now();
+
+        return FreezerSetpointSchedule::with('lastCommand')
+            ->where('vend_id', $vend->id)
+            ->orderBy('run_at')
+            ->get()
+            ->map(fn (FreezerSetpointSchedule $s) => [
+                'id' => $s->id,
+                'run_at' => $s->runAtLabel(),
+                'celsius' => $s->celsius,
+                'is_active' => $s->is_active,
+                'created_by' => $s->created_by_name,
+                'last_run_on' => $s->last_run_on?->toDateString(),
+                'last_status' => $s->lastCommand?->displayStatus($now),
+                'last_message' => $s->lastCommand?->response_msg,
+            ])->values()->all();
+    }
+
+    /** Adds one daily entry. Same permission and range as a manual setpoint. */
+    public function storeSchedule(Request $request, Vend $vend): JsonResponse
+    {
+        abort_unless($vend->isSmartFreezer(), 404);
+        $data = $request->validate([
+            'run_at' => ['required', 'date_format:H:i', Rule::unique('freezer_setpoint_schedules', 'run_at')->where('vend_id', $vend->id)],
+            'celsius' => ['required', 'integer', 'min:'.FreezerControlService::SETPOINT_MIN, 'max:'.FreezerControlService::SETPOINT_MAX],
+        ], [
+            'run_at.unique' => 'This machine already has an entry at that time.',
+        ]);
+        $schedule = FreezerSetpointSchedule::create([
+            'vend_id' => $vend->id,
+            'run_at' => $data['run_at'].':00',
+            'celsius' => $data['celsius'],
+            // An entry added after its time today waits for tomorrow rather than firing at once.
+            'last_run_on' => $data['run_at'] < Carbon::now()->format('H:i') ? Carbon::today() : null,
+            'created_by' => $request->user()->id,
+            'created_by_name' => $request->user()->name,
+        ]);
+        Log::info('Freezer setpoint schedule added', ['vend_code' => $vend->code, 'run_at' => $data['run_at'], 'celsius' => $data['celsius'], 'user' => $request->user()->name]);
+
+        return response()->json(['id' => $schedule->id], 201);
+    }
+
+    /** Pauses or resumes one entry. */
+    public function updateSchedule(Request $request, Vend $vend, FreezerSetpointSchedule $schedule): JsonResponse
+    {
+        abort_unless($schedule->vend_id === $vend->id, 404);
+        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $schedule->update(['is_active' => $data['is_active']]);
+        Log::info('Freezer setpoint schedule '.($data['is_active'] ? 'resumed' : 'paused'), ['vend_code' => $vend->code, 'run_at' => $schedule->runAtLabel(), 'user' => $request->user()->name]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function destroySchedule(Request $request, Vend $vend, FreezerSetpointSchedule $schedule): JsonResponse
+    {
+        abort_unless($schedule->vend_id === $vend->id, 404);
+        Log::info('Freezer setpoint schedule removed', ['vend_code' => $vend->code, 'run_at' => $schedule->runAtLabel(), 'celsius' => $schedule->celsius, 'user' => $request->user()->name]);
+        $schedule->delete();
+
+        return response()->json(['ok' => true]);
     }
 
     /** One row's device-log excerpt, fetched when the technician expands it. */

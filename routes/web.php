@@ -954,6 +954,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{vend}/freezer-controls', [FreezerControlController::class, 'store'])
             ->name('vends.freezer-controls.store')
             ->middleware('can:update machine-settings');
+        Route::post('/{vend}/freezer-controls/schedules', [FreezerControlController::class, 'storeSchedule'])
+            ->name('vends.freezer-controls.schedules.store')
+            ->middleware('can:update machine-settings');
+        Route::patch('/{vend}/freezer-controls/schedules/{schedule}', [FreezerControlController::class, 'updateSchedule'])
+            ->name('vends.freezer-controls.schedules.update')
+            ->middleware('can:update machine-settings');
+        Route::delete('/{vend}/freezer-controls/schedules/{schedule}', [FreezerControlController::class, 'destroySchedule'])
+            ->name('vends.freezer-controls.schedules.destroy')
+            ->middleware('can:update machine-settings');
         Route::get('/{vend}/freezer-controls/{command}/excerpt', [FreezerControlController::class, 'excerpt'])
             ->name('vends.freezer-controls.excerpt')
             ->middleware('can:read machine-settings');

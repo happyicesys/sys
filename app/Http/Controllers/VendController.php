@@ -1345,6 +1345,20 @@ class VendController extends Controller
                     WHERE mu.id = vends.modem_unit_id) AS modem_unit_is_online'),
                 DB::raw('(SELECT mu.last_updated_at FROM modem_units mu
                     WHERE mu.id = vends.modem_unit_id) AS modem_unit_last_updated_at'),
+                // Smart-freezer health badges (Machine Status). Read off the freezer's own
+                // status blob on the vends row — no join, and the CASE keeps the JSON parse to
+                // freezer rows. The 15-min FREEZERSTATUS carries mains, lock link, cameras and
+                // (APK 14+) the thermostat alarm bits; the daily self-check sits beside it.
+                DB::raw("CASE WHEN vends.machine_type = 'smart_freezer' THEN JSON_OBJECT(
+                    'status_at', JSON_UNQUOTE(JSON_EXTRACT(vends.freezer_status_json, '$.status_at')),
+                    'power', JSON_UNQUOTE(JSON_EXTRACT(vends.freezer_status_json, '$.status.powerState')),
+                    'lock_link', JSON_UNQUOTE(JSON_EXTRACT(vends.freezer_status_json, '$.status.locks[0].lockOnlineState')),
+                    'cameras', JSON_EXTRACT(vends.freezer_status_json, '$.status.cameras'),
+                    'alarms', JSON_EXTRACT(vends.freezer_status_json, '$.status.alarms'),
+                    'selfcheck_passed', JSON_EXTRACT(vends.freezer_status_json, '$.selfcheck.passed'),
+                    'selfcheck_errors', JSON_EXTRACT(vends.freezer_status_json, '$.selfcheck.errors'),
+                    'selfcheck_at', JSON_UNQUOTE(JSON_EXTRACT(vends.freezer_status_json, '$.selfcheck_at'))
+                ) END AS freezer_health"),
             ];
 
             if ($needsVc) {

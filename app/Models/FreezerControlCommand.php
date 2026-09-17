@@ -28,6 +28,9 @@ class FreezerControlCommand extends Model
     /** Reported by the machine on its own: a boot, an ERROR log line, mains or a camera event. */
     public const SOURCE_EVENT = 'event';
 
+    /** Sent by mark1's setpoint schedule (`freezer:run-setpoint-schedules`), not by a person. */
+    public const SOURCE_SCHEDULE = 'schedule';
+
     /** `log_scope` values: where the ack's log field came from. `output` = the op's own text, not a logcat excerpt. */
     public const LOG_SCOPES = ['app', 'system', 'hostfile', 'output'];
 

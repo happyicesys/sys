@@ -194,6 +194,11 @@ export class FreezerStatus {
         return this.raw?.compressor || null;
     }
 
+    /** Radar footfall, only once the machine has seen its radar fire (RadarCounter). */
+    get radar() {
+        return this.raw?.radar || null;
+    }
+
     /**
      * A climbing duty is the earliest sign of a cabinet losing cold. Amber past 80 %, red at 95 %
      * once at least an hour of samples backs the number.
@@ -252,7 +257,7 @@ export class FreezerStatus {
 
     /** Tiles that only a v14+ app fills; omitted entirely on older builds so the grid does not show a row of dashes. */
     get batch2Tiles() {
-        if (!this.raw?.identity && !this.raw?.power && !this.cameras.length && !this.compressorDuty) return [];
+        if (!this.raw?.identity && !this.raw?.power && !this.cameras.length && !this.compressorDuty && !this.radar) return [];
         const duty = this.compressorDuty;
         const cams = this.cameras;
         const open = cams.filter((c) => c.open === true).length;
@@ -269,6 +274,9 @@ export class FreezerStatus {
                 tone: !cams.length ? TONE.UNKNOWN : open === cams.length ? TONE.OK : TONE.BAD,
             },
             { label: 'Watchdog', value: this.watchdog ?? '—', tone: this.watchdog ? TONE.INFO : TONE.UNKNOWN },
+            ...(this.radar
+                ? [{ label: 'Footfall (radar)', value: `${this.radar.enters1h} in 1 h · ${this.radar.enters24h} in 24 h`, tone: TONE.INFO }]
+                : []),
             ...(this.humidity !== null ? [{ label: 'Humidity', value: `${Math.round(this.humidity)}%`, tone: TONE.INFO }] : []),
         ];
     }

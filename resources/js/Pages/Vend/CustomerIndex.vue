@@ -2827,6 +2827,24 @@
 									</div>
 							</div>
 							<!--
+								Smart-freezer health (Brian, 2026-09-17): mains, lock link,
+								cameras, the controller's alarm bits and the daily self-check,
+								from the freezer's own 15-min status — see freezerHealth.js.
+							-->
+							<template v-if="isFreezer(vend) && (vend.is_active || vend.is_testing)">
+								<div
+										v-for="badge in freezerHealthBadges(vend.freezer_health)"
+										:key="badge.label"
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+										:class="badge.cls"
+								>
+										<div class="flex flex-col">
+												<span class="font-bold">{{ badge.label }}</span>
+												<span v-if="badge.detail">{{ badge.detail }}</span>
+										</div>
+								</div>
+							</template>
+							<!--
 								SimCard Package — the data plan the machine's bound SIM
 								card sits on (Data Management > SimCard Package, i.e.
 								telcos.name), selected via the simcards/telcos joins in
@@ -3453,6 +3471,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 	import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
 	import { telcoBadgeStyle } from '@/constants/telcoColors';
+	import { freezerHealthBadges } from '@/support/freezerHealth';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));

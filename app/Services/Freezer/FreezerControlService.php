@@ -35,14 +35,14 @@ class FreezerControlService
     public const OPS = [
         'status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'comprmode', 'setpoint', 'volume', 'logs',
         // APK v14
-        'selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall',
+        'selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall', 'beep',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
     public const DISRUPTIVE_OPS = ['restart', 'reboot'];
 
     /** Ops that need APK 14 (the first build with the second batch of controls). */
-    public const BATCH2_OPS = ['selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall'];
+    public const BATCH2_OPS = ['selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall', 'beep'];
 
     public const MIN_APK_VERSION_CODE_BATCH2 = 14;
 
@@ -56,6 +56,11 @@ class FreezerControlService
         'load' => 'Load — CPU, top processes',
         'host' => 'Zijia host — package version, services, its log files',
     ];
+
+    /** `beep`: seconds of "find the machine" pulses (RemoteControlParser on the APK). */
+    public const BEEP_SECONDS_DEFAULT = 3;
+
+    public const BEEP_SECONDS_MAX = 10;
 
     /** `photo`: camera ids as the host numbers them. */
     public const CAMERA_ID_MAX = 7;
@@ -107,9 +112,11 @@ class FreezerControlService
     /**
      * Validates, records and sends one command.
      *
+     * @param  string|null  $source  `schedule` for a setpoint-schedule run; mark1 otherwise
+     *
      * @throws ValidationException when the op or its argument is not acceptable
      */
-    public function dispatch(Vend $vend, string $op, array $args, ?User $user, ?string $ip): FreezerControlCommand
+    public function dispatch(Vend $vend, string $op, array $args, ?User $user, ?string $ip, ?string $source = null, ?string $requestedByName = null): FreezerControlCommand
     {
         $clean = $this->validate($op, $args);
         $now = Carbon::now();
@@ -121,7 +128,8 @@ class FreezerControlService
             'args' => $clean ?: null,
             'status' => FreezerControlCommand::STATUS_PENDING,
             'requested_by' => $user?->id,
-            'requested_by_name' => $user?->name,
+            'requested_by_name' => $requestedByName ?? $user?->name,
+            'source' => $source ?? FreezerControlCommand::SOURCE_MARK1,
             'ip' => $ip,
             'expires_at' => $now->copy()->addSeconds(self::TTL_SECONDS),
         ]);
@@ -271,6 +279,7 @@ class FreezerControlService
         return match ($op) {
             'status', 'lock', 'unlock', 'selfcheck', 'restart', 'reboot' => [],
             'photo' => $this->cameraId($args['cameraId'] ?? 0),
+            'beep' => $this->beepSeconds($args['seconds'] ?? self::BEEP_SECONDS_DEFAULT),
             'diag' => array_key_exists($args['probe'] ?? '', self::DIAG_PROBES)
                 ? ['probe' => $args['probe']]
                 : throw ValidationException::withMessages(['args.probe' => 'Choose one of the listed diagnostics.']),
@@ -288,6 +297,15 @@ class FreezerControlService
                 'grep' => is_string($args['grep'] ?? null) && trim($args['grep']) !== '' ? Str::limit(trim($args['grep']), self::LOG_GREP_MAX, '') : null,
             ], fn ($v) => $v !== null),
         };
+    }
+
+    private function beepSeconds(mixed $seconds): array
+    {
+        if (! is_int($seconds) || $seconds < 1 || $seconds > self::BEEP_SECONDS_MAX) {
+            throw ValidationException::withMessages(['args.seconds' => 'Beep for 1 to '.self::BEEP_SECONDS_MAX.' seconds.']);
+        }
+
+        return ['seconds' => $seconds];
     }
 
     private function cameraId(mixed $cameraId): array

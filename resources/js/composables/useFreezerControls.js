@@ -57,7 +57,7 @@ export function useFreezerControls(vendId) {
     const busyOp = computed(() => {
         if (inFlight.value) return inFlight.value;
         if (!data.value.pending) return null;
-        const outstanding = data.value.commands.find((c) => c.source === 'mark1' && c.status === 'pending');
+        const outstanding = data.value.commands.find((c) => SENT_BY_MARK1.includes(c.source) && c.status === 'pending');
         return outstanding ? outstanding.op : null;
     });
 
@@ -138,6 +138,9 @@ export function useFreezerControls(vendId) {
     return { data, status, loaded, sending, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded };
 }
 
+/** Sources that are commands mark1 sent (a person, or the setpoint schedule), as opposed to machine reports. */
+const SENT_BY_MARK1 = ['mark1', 'schedule'];
+
 const OP_LABELS = {
     status: 'Sync status',
     lock: 'Lock door',
@@ -156,6 +159,7 @@ const OP_LABELS = {
     photo: 'Take photo',
     diag: 'Diagnostics',
     sdkcall: 'SDK call',
+    beep: 'Beep',
     power: 'Mains',
     camera: 'Camera',
 };
@@ -187,6 +191,7 @@ export function describeCommand(command) {
     if (command.op === 'photo') return `Take photo · camera ${args.cameraId ?? 0}`;
     if (command.op === 'diag') return `Diagnostics · ${args.probe || '?'}`;
     if (command.op === 'sdkcall') return `SDK call · ${args.action || '?'}`;
+    if (command.op === 'beep') return `Beep · ${args.seconds ?? 3} s`;
     return OP_LABELS[command.op] || command.op;
 }
 

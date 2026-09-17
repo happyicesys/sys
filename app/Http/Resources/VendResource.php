@@ -361,6 +361,9 @@ class VendResource extends JsonResource
             // Badge tint for that name — one of Telco::COLORS or null for the
             // default blue (resources/js/constants/telcoColors.js).
             'telco_color' => isset($this->telco_color) ? $this->telco_color : null,
+            // Smart-freezer health for the Ops Dashboard badges (resources/js/support/freezerHealth.js);
+            // a JSON_OBJECT string from VendController::indexCustomer, null for every other machine.
+            'freezer_health' => isset($this->freezer_health) ? json_decode($this->freezer_health, true) : null,
             'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
             'settings_parameter_json' => isset($this->settings_parameter_json) ? $this->settings_parameter_json : null,
             'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,
