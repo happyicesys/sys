@@ -2867,6 +2867,8 @@
 									:class="[vend.is_active || vend.is_testing ? '' : 'bg-gray-200 text-gray-400']"
 									:style="vend.is_active || vend.is_testing ? telcoBadgeStyle(vend.telco_color) : null"
 									v-if="vend.telco_name"
+									@mouseenter="loadFieldAudit(vend.vend_id)"
+									v-tooltip="{ content: fieldAuditTooltip(vend.vend_id, [{ key: 'simcard_id' }]), html: true }"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">SimCard Package</span>
@@ -3137,6 +3139,8 @@
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.card_terminal_name ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+									@mouseenter="loadFieldAudit(vend.vend_id)"
+									v-tooltip="{ content: fieldAuditTooltip(vend.vend_id, [{ key: 'card_terminal_id', label: 'Company' }, { key: 'card_terminal_unit_id', label: 'Terminal ID' }]), html: true }"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
@@ -3886,6 +3890,96 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const operatorRole = usePage().props.auth.operatorRole
 	const permissions = usePage().props.auth.permissions
 	const roles = usePage().props.auth.roles
+
+	// ------------------------------------------------------------------
+	// "Who last changed this, and when" for the SimCard Package and Card
+	// Terminal badges (Machine Status / Payment Device columns).
+	//
+	// Same source as the italic lines on the machine Setting/Edit page:
+	// VendController@fieldAudit, derived from the app-wide user_logs audit.
+	// Fetched ONE ROW AT A TIME, on hover, and cached — never eagerly for the
+	// page and never as a column on the Operation Dashboard query, which must
+	// not grow another join or subquery (see the twelve-table SELECT note in
+	// VendController::indexCustomer).
+	//
+	// The endpoint is gated on 'read machine-settings'; without it no tooltip
+	// is rendered at all rather than hovering into a 403.
+	// ------------------------------------------------------------------
+	const canReadFieldAudit = (permissions ?? []).includes('read machine-settings')
+	const fieldAuditCache = ref({})
+
+	function loadFieldAudit(vendId) {
+		if (!canReadFieldAudit || !vendId) {
+			return;
+		}
+		// Loaded or in flight — nothing to do. A previous FAILURE is the one
+		// state worth re-hovering: retry it instead of leaving the row stuck on
+		// the error text for the life of the page.
+		const cached = fieldAuditCache.value[vendId]
+		if (cached && !cached.error) {
+			return;
+		}
+		fieldAuditCache.value[vendId] = { loading: true }
+		axios.get('/vends/' + vendId + '/field-audit')
+			.then(res => { fieldAuditCache.value[vendId] = { loading: false, data: res.data || {} } })
+			.catch(() => { fieldAuditCache.value[vendId] = { loading: false, error: true } })
+	}
+
+	// html: true tooltips interpolate raw markup, and the "who" is a user-entered
+	// name — escape it.
+	const escapeTooltipHtml = (value) => String(value ?? '')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+
+	// `fields` is [{ key, label }] — key being the vends column as
+	// VendController@fieldAudit reports it, label optional (a badge that shows
+	// one field needs no label). Fields changed in the same save carry the same
+	// who/when, so they collapse onto one line instead of repeating it. Fields
+	// with no recorded change are dropped; when nothing is left the tooltip says
+	// so, because an empty tooltip would read as one still loading.
+	function fieldAuditTooltip(vendId, fields) {
+		if (!canReadFieldAudit || !vendId) {
+			return '';
+		}
+		const cached = fieldAuditCache.value[vendId]
+		if (!cached || cached.loading) {
+			return 'Loading last change…';
+		}
+		if (cached.error) {
+			return 'Could not load the last change.';
+		}
+
+		const groups = []
+		fields.forEach(field => {
+			const entry = cached.data ? cached.data[field.key] : null
+			if (!entry || !entry.who) {
+				return;
+			}
+			const stamp = entry.who + '|' + (entry.at ?? '')
+			const existing = groups.find(group => group.stamp === stamp)
+			if (existing) {
+				existing.labels.push(field.label)
+			} else {
+				groups.push({ stamp, labels: [field.label], entry })
+			}
+		})
+
+		if (!groups.length) {
+			return 'No change recorded in the audit log.';
+		}
+
+		const lines = groups.map(group => {
+			const at = group.entry.at ? moment(group.entry.at).format('YYMMDD hh:mm a') : ''
+			const labels = group.labels.filter(label => label)
+			const prefix = labels.length === group.labels.length && labels.length
+				? escapeTooltipHtml(labels.join(' & ')) + ': '
+				: ''
+			return prefix + escapeTooltipHtml(group.entry.who) + (at ? ' &middot; ' + at : '');
+		})
+
+		return 'Last changed<br>' + lines.join('<br>');
+	}
 
 	// Smart Chiller rows render their own cells under the same headers (SmartChillerRowCells).
 	const isChiller = (vend) => vend && vend.machine_type === 'smart_chiller'
