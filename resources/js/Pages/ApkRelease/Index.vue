@@ -12,30 +12,30 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 space-y-4">
 
       <!-- Channel tabs: one Android build per fleet, independent version streams -->
-      <div class="border-b border-gray-200">
-        <nav class="-mb-px flex space-x-4" aria-label="APK channel">
+      <div class="border-b border-gray-200 overflow-x-auto">
+        <nav class="-mb-px flex space-x-2 sm:space-x-4" aria-label="APK channel">
           <button
             v-for="c in channels"
             :key="c.key"
             type="button"
             @click="switchChannel(c.key)"
             :class="[
-              'whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium',
+              'shrink-0 whitespace-nowrap border-b-2 px-2 sm:px-3 py-2 text-left text-sm font-medium',
               c.key === channel
                 ? 'border-indigo-500 text-indigo-600'
                 : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
             ]"
           >
             {{ c.label }}
-            <span class="ml-1 font-mono text-xs text-gray-400">{{ c.package_name }}</span>
+            <span class="block sm:inline sm:ml-1 font-mono text-xs text-gray-400">{{ c.package_name }}</span>
           </button>
         </nav>
       </div>
 
       <!-- Fleet version spread -->
       <div class="bg-white rounded-md border px-4 py-3">
-        <div class="flex items-center justify-between">
-          <div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
             <h3 class="text-sm font-semibold text-gray-800">Fleet version spread</h3>
             <p class="text-xs text-gray-500">
               {{ fleetCount }} machine(s) on {{ activeChannel.label }}. Each reports its running APK version when it polls for updates.
@@ -43,7 +43,7 @@
           </div>
           <Button
             v-if="canUpdate"
-            class="inline-flex space-x-1 items-center rounded-md border bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+            class="inline-flex shrink-0 self-start sm:self-auto space-x-1 items-center whitespace-nowrap rounded-md border bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
             @click="pushOtaCheck"
           >
             <ArrowPathIcon class="h-4 w-4" />
@@ -76,7 +76,7 @@
         </template>
 
         <div class="text-sm">
-          <div class="flex items-center justify-between gap-3 mb-3">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-3">
             <p class="text-xs text-gray-500">
               <span v-if="fleetModal.loading">Loading…</span>
               <span v-else>
@@ -91,13 +91,13 @@
               v-model="fleetModal.filter"
               type="text"
               placeholder="Filter machine ID or site…"
-              class="w-56 rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              class="w-full sm:w-56 rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
 
           <p v-if="fleetModal.error" class="text-xs text-red-600">{{ fleetModal.error }}</p>
 
-          <div v-else class="max-h-96 overflow-y-auto rounded-md border">
+          <div v-else class="max-h-96 overflow-auto rounded-md border">
             <table class="min-w-full divide-y divide-gray-200 text-left">
               <thead class="bg-gray-50 sticky top-0">
                 <tr class="text-xs font-semibold text-gray-600">
@@ -263,7 +263,7 @@
                   <div v-if="r.uploaded_by">{{ r.uploaded_by }}</div>
                 </td>
                 <td class="px-2 py-2">
-                  <div class="flex items-center justify-end space-x-2">
+                  <div class="flex items-center justify-end space-x-2 whitespace-nowrap">
                     <button type="button" v-if="canUpdate && r.status !== 'published'" @click="publish(r)" class="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">Publish</button>
                     <button type="button" v-if="canUpdate && r.status === 'published'" @click="unpublish(r)" class="rounded bg-amber-500 px-2 py-1 text-xs text-white hover:bg-amber-600">Unpublish</button>
                     <a :href="r.file_url" target="_blank" class="rounded border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">APK</a>
