@@ -32,24 +32,30 @@
           </p>
         </div>
 
-        <div v-if="photos.length">
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last {{ photos.length }}</p>
-          <div class="mt-1 flex flex-wrap gap-2">
-            <button
-              v-for="photo in photos"
-              :key="photo.id"
-              type="button"
-              class="overflow-hidden rounded-md border-2 focus:outline-none"
-              :class="photo.id === selectedId ? 'border-sky-600' : 'border-transparent hover:border-gray-300'"
-              @click="selectedId = photo.id"
-            >
-              <img :src="photo.url" :alt="viewName(photo.camera_id)" class="h-16 w-28 object-cover" />
-              <span class="block bg-gray-50 px-1 py-0.5 text-[11px] text-gray-600">
-                {{ viewName(photo.camera_id) }} · {{ formatTime(photo.taken_at) }}
-              </span>
-            </button>
+        <!--
+          One line per camera, newest on the left, so a technician compares a view with ITSELF
+          over time instead of scanning a mixed strip for the two shots that belong together.
+        -->
+        <div v-if="photos.length" class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">History</p>
+          <div v-for="row in rows" :key="row.cameraId" class="flex items-start gap-2">
+            <span class="w-28 shrink-0 pt-1 text-xs font-medium text-gray-700">{{ row.label }}</span>
+            <div class="flex flex-1 gap-2 overflow-x-auto pb-1">
+              <button
+                v-for="photo in row.photos"
+                :key="photo.id"
+                type="button"
+                class="shrink-0 overflow-hidden rounded-md border-2 focus:outline-none"
+                :class="photo.id === selectedId ? 'border-sky-600' : 'border-transparent hover:border-gray-300'"
+                @click="selectedId = photo.id"
+              >
+                <img :src="photo.url" :alt="row.label" class="h-16 w-28 object-cover" />
+                <span class="block bg-gray-50 px-1 py-0.5 text-[11px] text-gray-600">{{ formatTime(photo.taken_at) }}</span>
+              </button>
+              <span v-if="!row.photos.length" class="pt-5 text-xs text-gray-400">No photo yet.</span>
+            </div>
           </div>
-          <p class="mt-1 text-xs text-gray-400">
+          <p class="text-xs text-gray-400">
             Stored with the machine's command history; open a photo from the timeline to download it.
           </p>
         </div>
@@ -107,6 +113,30 @@ watch(() => props.cameras, (cameras) => {
 }, { immediate: true })
 
 const selected = computed(() => props.photos.find((p) => p.id === selectedId.value) || null)
+
+/**
+ * One row per camera — every camera the machine lists, even an unused one, plus any camera the
+ * stored photos came from that the machine no longer reports. Photos arrive newest first and that
+ * order is kept inside each row.
+ */
+const rows = computed(() => {
+  const listed = props.cameras.map((cam) => ({
+    cameraId: cam.id,
+    label: cam.label || `cam ${cam.id}`,
+    photos: props.photos.filter((p) => p.camera_id === cam.id),
+  }))
+  const known = new Set(props.cameras.map((c) => c.id))
+  for (const photo of props.photos) {
+    if (known.has(photo.camera_id)) continue
+    known.add(photo.camera_id)
+    listed.push({
+      cameraId: photo.camera_id,
+      label: `cam ${photo.camera_id}`,
+      photos: props.photos.filter((p) => p.camera_id === photo.camera_id),
+    })
+  }
+  return listed
+})
 
 /** The view name for a camera id, taken from the same list the picker uses. */
 function viewName(id) {

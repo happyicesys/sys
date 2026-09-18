@@ -24,8 +24,14 @@ class FreezerControlController extends Controller
     /** Opening the door remotely is unmetered stock access, so it has its own permission. */
     public const DOOR_PERMISSION = 'update freezer-remote-door';
 
-    /** How many recent camera stills the panel's viewer offers. */
+    /** How many recent stills the panel keeps PER CAMERA — the viewer shows one row each. */
     public const PHOTO_HISTORY = 5;
+
+    /**
+     * How far back to look for them. A camera nobody has photographed in the last [self::PHOTO_SCAN]
+     * shots simply has no history to show, which is the truth rather than an expensive full scan.
+     */
+    private const PHOTO_SCAN = 120;
 
     /** A raw SDK call can ask the host anything its plugin answers to; superadmin only. */
     public const SDK_RAW_PERMISSION = 'update freezer-sdk-raw';
@@ -129,18 +135,27 @@ class FreezerControlController extends Controller
     }
 
     /**
-     * The newest [self::PHOTO_HISTORY] camera stills this machine uploaded, newest first, for the
-     * panel's photo viewer. The image itself is fetched through the gated attachment route; only
-     * its URL travels in this payload.
+     * The camera stills this machine uploaded, newest first, for the panel's photo viewer — at most
+     * [self::PHOTO_HISTORY] per camera, so one busy camera cannot push the others off the list and
+     * the page can show each camera's own latest shot side by side. The image itself is fetched
+     * through the gated attachment route; only its URL travels in this payload.
      */
     private function photoPayload(Vend $vend): array
     {
+        $perCamera = [];
+
         return FreezerControlCommand::where('vend_id', $vend->id)
             ->where('op', 'photo')
             ->whereNotNull('attachment_path')
             ->orderByDesc('id')
-            ->limit(self::PHOTO_HISTORY)
+            ->limit(self::PHOTO_SCAN)
             ->get()
+            ->filter(function (FreezerControlCommand $c) use (&$perCamera) {
+                $camera = (int) ($c->args['cameraId'] ?? 0);
+                $perCamera[$camera] = ($perCamera[$camera] ?? 0) + 1;
+
+                return $perCamera[$camera] <= self::PHOTO_HISTORY;
+            })
             ->map(fn (FreezerControlCommand $c) => [
                 'id' => $c->id,
                 'camera_id' => (int) ($c->args['cameraId'] ?? 0),

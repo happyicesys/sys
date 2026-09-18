@@ -196,8 +196,10 @@
 
               <!--
                 Cameras get their own card: a photo is the one control whose answer is a picture, so
-                the last few live on the page instead of behind a button. Clicking one opens it full
-                size; the machine is asked only when Take photo is pressed.
+                the newest one from EACH camera lives on the page instead of behind a button — three
+                thumbnails, one view each, rather than five shots of whichever camera was used last.
+                Clicking one opens it full size, where each camera's own history is a row. The
+                machine is asked only when Take photo is pressed.
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="flex flex-wrap items-center gap-2">
@@ -206,7 +208,8 @@
                   <StateChip v-else-if="status.cameras.length" :value="cameraSummary" :tone="cameraTone" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  The cabinet's own cameras. A photo takes a few seconds; it is kept with the command timeline.
+                  The cabinet's own cameras — the newest shot of each. A photo takes a few seconds; open one for that
+                  camera's history.
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
                   <span class="isolate inline-flex -space-x-px shadow-sm">
@@ -217,12 +220,12 @@
                       <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" /> Take photo
                     </ControlButton>
                   </span>
-                  <ControlButton v-if="data.photos?.length" class="rounded-md" @click="cameraOpen = true">View larger</ControlButton>
+                  <ControlButton v-if="data.photos?.length" class="rounded-md" @click="openPhoto(null)">View larger</ControlButton>
                   <span v-if="busyOp === 'photo'" class="text-xs text-sky-700">Waiting for the machine…</span>
                 </div>
-                <div v-if="data.photos?.length" class="mt-2 flex flex-wrap gap-2">
+                <div v-if="latestPerCamera.length" class="mt-2 flex flex-wrap gap-2">
                   <button
-                    v-for="photo in data.photos"
+                    v-for="photo in latestPerCamera"
                     :key="photo.id"
                     type="button"
                     class="overflow-hidden rounded-md border border-gray-200 hover:border-sky-500 focus:outline-none"
@@ -393,11 +396,31 @@ const cameraOpen = ref(false)
 const cameraOpenId = ref(null)
 const photoCamera = ref(3)
 
-/** Opens the big view on the photo that was clicked. */
+/** Opens the big view on the photo that was clicked, or on the newest one when nothing was. */
 function openPhoto(photo) {
-  cameraOpenId.value = photo.id
+  cameraOpenId.value = photo?.id ?? null
   cameraOpen.value = true
 }
+
+/**
+ * One thumbnail per camera — its newest shot — in the picker's order, so the card always reads
+ * Inner / Planar / Customer rather than three copies of whichever camera was asked last. A camera
+ * with nothing in the kept history is simply absent; the popup holds the rest.
+ */
+const latestPerCamera = computed(() => {
+  const photos = data.value.photos || []
+  const seen = new Set()
+  const ordered = []
+  for (const cam of cameraChoices.value) {
+    const newest = photos.find((p) => p.camera_id === cam.id)
+    if (newest) { ordered.push(newest); seen.add(cam.id) }
+  }
+  // A photo from a camera the machine no longer lists still deserves its tile.
+  for (const photo of photos) {
+    if (!seen.has(photo.camera_id)) { ordered.push(photo); seen.add(photo.camera_id) }
+  }
+  return ordered
+})
 
 /** "Planar View (cam 4)" for a stored photo, from the same labels the picker uses. */
 function photoLabel(photo) {

@@ -223,17 +223,27 @@ class FreezerV14AdditionsTest extends TestCase
 
     // ------------------------------------------------------------ camera photos
 
-    public function test_the_panel_lists_the_last_five_camera_photos_newest_first(): void
+    public function test_the_panel_keeps_the_last_five_photos_of_each_camera_newest_first(): void
     {
         $vend = $this->freezer();
-        // Seven uploaded stills plus one photo command that never produced a file.
+        // Seven stills from camera 3 — a technician retrying one view — and two from camera 4, so a
+        // busy camera must not push the other view out of the list.
         foreach (range(1, 7) as $i) {
             FreezerControlCommand::create([
-                'vend_id' => $vend->id, 'cmd_id' => 'PH'.$i, 'op' => 'photo', 'args' => ['cameraId' => $i % 3],
+                'vend_id' => $vend->id, 'cmd_id' => 'PH'.$i, 'op' => 'photo', 'args' => ['cameraId' => 3],
                 'status' => 'ok', 'requested_by_name' => 'Tech One',
                 'attachment_path' => 'freezer-photos/'.$vend->id.'/PH'.$i.'.jpg',
                 'attachment_type' => FreezerControlCommand::ATTACHMENT_PHOTO,
                 'responded_at' => Carbon::parse('2026-09-18 10:0'.$i.':00'),
+            ]);
+        }
+        foreach (range(1, 2) as $i) {
+            FreezerControlCommand::create([
+                'vend_id' => $vend->id, 'cmd_id' => 'PL'.$i, 'op' => 'photo', 'args' => ['cameraId' => 4],
+                'status' => 'ok', 'requested_by_name' => 'Tech One',
+                'attachment_path' => 'freezer-photos/'.$vend->id.'/PL'.$i.'.jpg',
+                'attachment_type' => FreezerControlCommand::ATTACHMENT_PHOTO,
+                'responded_at' => Carbon::parse('2026-09-18 11:0'.$i.':00'),
             ]);
         }
         FreezerControlCommand::create([
@@ -242,14 +252,13 @@ class FreezerV14AdditionsTest extends TestCase
         ]);
 
         $photos = $this->getJson("/vends/{$vend->id}/freezer-controls")->json('photos');
+        $codes = array_map(fn ($p) => FreezerControlCommand::find($p['id'])->cmd_id, $photos);
 
-        $this->assertCount(FreezerControlController::PHOTO_HISTORY, $photos);
-        // Newest first, and only the ones that actually have an image.
-        $this->assertSame(['PH7', 'PH6', 'PH5', 'PH4', 'PH3'], array_map(
-            fn ($p) => FreezerControlCommand::find($p['id'])->cmd_id,
-            $photos,
-        ));
-        $this->assertSame(1, $photos[0]['camera_id']);
+        // Newest first overall, only the ones that actually have an image, five per camera at most —
+        // camera 4's two shots survive camera 3's seven, and PH1/PH2 fall off.
+        $this->assertSame(['PL2', 'PL1', 'PH7', 'PH6', 'PH5', 'PH4', 'PH3'], $codes);
+        $this->assertCount(FreezerControlController::PHOTO_HISTORY, array_filter($photos, fn ($p) => $p['camera_id'] === 3));
+        $this->assertCount(2, array_filter($photos, fn ($p) => $p['camera_id'] === 4));
         $this->assertSame('Tech One', $photos[0]['by']);
         $this->assertStringContainsString("/vends/{$vend->id}/freezer-controls/", $photos[0]['url']);
         $this->assertStringEndsWith('/attachment', $photos[0]['url']);
