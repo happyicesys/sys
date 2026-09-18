@@ -196,10 +196,11 @@
 
               <!--
                 Cameras get their own card: a photo is the one control whose answer is a picture, so
-                the newest one from EACH camera lives on the page instead of behind a button — three
-                thumbnails, one view each, rather than five shots of whichever camera was used last.
-                Clicking one opens it full size, where each camera's own history is a row. The
-                machine is asked only when Take photo is pressed.
+                the newest shot of EACH camera lives on the page instead of behind a button. One
+                button refreshes the whole set — the controller answers one command at a time, so
+                the cameras are asked in turn and the tile updates as each still lands. Clicking a
+                tile opens that view full size with its own history. The machine is asked only when
+                the button is pressed.
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="flex flex-wrap items-center gap-2">
@@ -208,20 +209,17 @@
                   <StateChip v-else-if="status.cameras.length" :value="cameraSummary" :tone="cameraTone" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  The cabinet's own cameras — the newest shot of each. A photo takes a few seconds; open one for that
-                  camera's history.
+                  The cabinet's own cameras — the newest shot of each. Click a photo for that camera's history.
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
-                  <span class="isolate inline-flex -space-x-px shadow-sm">
-                    <select v-model.number="photoCamera" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
-                      <option v-for="cam in cameraChoices" :key="cam.id" :value="cam.id">{{ cam.label }}</option>
-                    </select>
-                    <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('photo', { cameraId: photoCamera })">
-                      <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" /> Take photo
-                    </ControlButton>
+                  <ControlButton tone="primary" class="rounded-md" :disabled="!canSendBatch2 || !!photoRun" @click="takeAllPhotos">
+                    <ArrowPathIcon v-if="photoRun || busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" />
+                    Take photo now
+                  </ControlButton>
+                  <span v-if="photoRun" class="text-xs text-sky-700">
+                    {{ photoRun.label }} ({{ photoRun.index }} of {{ photoRun.total }})…
                   </span>
-                  <ControlButton v-if="data.photos?.length" class="rounded-md" @click="openPhoto(null)">View larger</ControlButton>
-                  <span v-if="busyOp === 'photo'" class="text-xs text-sky-700">Waiting for the machine…</span>
+                  <span v-else-if="busyOp === 'photo'" class="text-xs text-sky-700">Waiting for the machine…</span>
                 </div>
                 <div v-if="latestPerCamera.length" class="mt-2 flex flex-wrap gap-2">
                   <button
@@ -396,23 +394,55 @@ const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
 const cameraOpen = ref(false)
 const cameraOpenId = ref(null)
 const cameraOpenCam = ref(3)
-const photoCamera = ref(3)
+/** The camera walk behind "Take photo now": null when idle, else which view is being asked. */
+const photoRun = ref(null)
 
 /**
- * Opens one camera's window — the view of the thumbnail that was clicked, or the view the picker
- * names when the button was pressed instead. The dialog has no picker of its own, so this is the
- * only place the view is chosen.
+ * Opens one camera's window on the thumbnail that was clicked. The dialog has no picker of its own,
+ * so the tile is the only place the view is chosen.
  */
 function openPhoto(photo) {
-  cameraOpenCam.value = photo?.camera_id ?? photoCamera.value
+  cameraOpenCam.value = photo?.camera_id ?? cameraChoices.value[0]?.id ?? 0
   cameraOpenId.value = photo?.id ?? null
   cameraOpen.value = true
 }
 
+/** How long one camera is given to answer before the walk moves on to the next. */
+const PHOTO_ANSWER_WAIT_MS = 90000
+
 /**
- * One thumbnail per camera — its newest shot — in the picker's order, so the card always reads
- * Inner / Planar / Customer rather than three copies of whichever camera was asked last. A camera
- * with nothing in the kept history is simply absent; the popup holds the rest.
+ * "Take photo now" refreshes every view in one press. The freezer answers ONE command at a time, so
+ * the cameras are asked in turn — send, wait for the answer, next — and each tile updates as its
+ * still lands. A camera that never answers is given up on after PHOTO_ANSWER_WAIT_MS, and the walk
+ * stops early if the machine goes offline, rather than firing commands nothing will receive.
+ */
+async function takeAllPhotos() {
+  if (!canSendBatch2.value || photoRun.value) return
+  const cameras = cameraChoices.value
+  try {
+    for (let i = 0; i < cameras.length; i++) {
+      if (!canSendBatch2.value) break
+      photoRun.value = { index: i + 1, total: cameras.length, label: cameras[i].label }
+      await send('photo', { cameraId: cameras[i].id })
+      await untilAnswered()
+    }
+  } finally {
+    photoRun.value = null
+  }
+}
+
+/** Resolves when the outstanding command has been answered (the poll clears it), or on timeout. */
+async function untilAnswered() {
+  const deadline = Date.now() + PHOTO_ANSWER_WAIT_MS
+  while (data.value.pending && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
+
+/**
+ * One thumbnail per camera — its newest shot — in the machine's camera order, so the card always
+ * reads Inner / Planar / Customer rather than three copies of whichever camera was asked last. A
+ * camera with nothing in the kept history is simply absent until its first photo lands.
  */
 const latestPerCamera = computed(() => {
   const photos = data.value.photos || []
@@ -429,7 +459,7 @@ const latestPerCamera = computed(() => {
   return ordered
 })
 
-/** "Planar View (cam 4)" for a stored photo, from the same labels the picker uses. */
+/** "Planar View (cam 4)" for a stored photo, from the same labels the dialog's title uses. */
 function photoLabel(photo) {
   return cameraChoices.value.find((c) => c.id === photo.camera_id)?.label || `cam ${photo.camera_id}`
 }
