@@ -9,7 +9,7 @@
     "after" without leaving the page.
   -->
   <Modal :open="open" @modalClose="$emit('close')">
-    <template #header><span class="font-semibold text-black">Cabinet cameras</span></template>
+    <template #header><span class="font-semibold text-black">Cameras</span></template>
     <template #default>
       <div class="space-y-3">
         <div class="flex flex-wrap items-center gap-2" v-tooltip="blockedReason">
@@ -73,6 +73,8 @@ const props = defineProps({
   canTake: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },
   blockedReason: { type: String, default: '' },
+  /** Which stored photo to show when the dialog opens; null = the newest. */
+  initialPhotoId: { type: Number, default: null },
 })
 
 defineEmits(['take', 'close'])
@@ -93,8 +95,12 @@ watch(
   { immediate: true, deep: true },
 )
 
-// Opening the dialog always starts on the newest shot.
-watch(() => props.open, (open) => { if (open) selectedId.value = props.photos[0]?.id ?? null })
+// Opening the dialog starts on the photo that was clicked, else the newest.
+watch(() => props.open, (open) => {
+  if (!open) return
+  const wanted = props.initialPhotoId
+  selectedId.value = (wanted && props.photos.some((p) => p.id === wanted)) ? wanted : (props.photos[0]?.id ?? null)
+})
 
 watch(() => props.cameras, (cameras) => {
   if (cameras.length && !cameras.some((c) => c.id === cameraId.value)) cameraId.value = cameras[0].id

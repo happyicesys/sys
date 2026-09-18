@@ -194,6 +194,49 @@
                 <ControlButton :disabled="!canSend" @click="send('volume', { step: 'up' })">Up</ControlButton>
               </ControlRow>
 
+              <!--
+                Cameras get their own card: a photo is the one control whose answer is a picture, so
+                the last few live on the page instead of behind a button. Clicking one opens it full
+                size; the machine is asked only when Take photo is pressed.
+              -->
+              <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-medium text-gray-800">Cameras</span>
+                  <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
+                  <StateChip v-else-if="status.cameras.length" :value="cameraSummary" :tone="cameraTone" />
+                </div>
+                <p class="mt-0.5 text-xs text-gray-500">
+                  The cabinet's own cameras. A photo takes a few seconds; it is kept with the command timeline.
+                </p>
+                <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
+                  <span class="isolate inline-flex -space-x-px shadow-sm">
+                    <select v-model.number="photoCamera" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
+                      <option v-for="cam in cameraChoices" :key="cam.id" :value="cam.id">{{ cam.label }}</option>
+                    </select>
+                    <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('photo', { cameraId: photoCamera })">
+                      <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" /> Take photo
+                    </ControlButton>
+                  </span>
+                  <ControlButton v-if="data.photos?.length" class="rounded-md" @click="cameraOpen = true">View larger</ControlButton>
+                  <span v-if="busyOp === 'photo'" class="text-xs text-sky-700">Waiting for the machine…</span>
+                </div>
+                <div v-if="data.photos?.length" class="mt-2 flex flex-wrap gap-2">
+                  <button
+                    v-for="photo in data.photos"
+                    :key="photo.id"
+                    type="button"
+                    class="overflow-hidden rounded-md border border-gray-200 hover:border-sky-500 focus:outline-none"
+                    @click="openPhoto(photo)"
+                  >
+                    <img :src="photo.url" :alt="photoLabel(photo)" class="h-16 w-28 object-cover" loading="lazy" />
+                    <span class="block bg-gray-50 px-1 py-0.5 text-[11px] text-gray-600">
+                      {{ photoLabel(photo) }} · {{ ago(photo.taken_at) }}
+                    </span>
+                  </button>
+                </div>
+                <p v-else class="mt-2 text-xs text-gray-400">No photo yet.</p>
+              </div>
+
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="text-sm font-medium text-gray-800">Machine log</div>
                 <p class="mt-0.5 text-xs text-gray-500">
@@ -228,15 +271,11 @@
                   <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  Self-check and diagnostics read; Cameras opens the cabinet's own cameras with the last {{ data.photos?.length || 0 }} shots; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.
+                  Self-check and diagnostics read; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSendBatch2" @click="send('selfcheck')">
                     <ArrowPathIcon v-if="busyOp === 'selfcheck'" class="mr-1 h-4 w-4 animate-spin" /> Self-check
-                  </ControlButton>
-                  <ControlButton class="rounded-md" :disabled="!data.supported_batch2" @click="cameraOpen = true">
-                    <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" />
-                    Cameras<span v-if="data.photos?.length" class="ml-1 text-gray-500">({{ data.photos.length }})</span>
                   </ControlButton>
                   <span class="isolate inline-flex -space-x-px shadow-sm">
                     <select v-model="diagProbe" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
@@ -306,6 +345,7 @@
         :can-take="canSendBatch2"
         :busy="busyOp === 'photo'"
         :blocked-reason="batch2Blocked"
+        :initial-photo-id="cameraOpenId"
         @take="(id) => send('photo', { cameraId: id })"
         @close="cameraOpen = false"
       />
@@ -350,6 +390,29 @@ const confirm = ref(null)
 const setpoint = ref(-18)
 const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
 const cameraOpen = ref(false)
+const cameraOpenId = ref(null)
+const photoCamera = ref(3)
+
+/** Opens the big view on the photo that was clicked. */
+function openPhoto(photo) {
+  cameraOpenId.value = photo.id
+  cameraOpen.value = true
+}
+
+/** "Planar View (cam 4)" for a stored photo, from the same labels the picker uses. */
+function photoLabel(photo) {
+  return cameraChoices.value.find((c) => c.id === photo.camera_id)?.label || `cam ${photo.camera_id}`
+}
+
+const cameraSummary = computed(() => {
+  const cams = status.value.cameras
+  const online = cams.filter(cameraOnline).length
+  return `${online}/${cams.length} online`
+})
+const cameraTone = computed(() => {
+  const cams = status.value.cameras
+  return cams.length && cams.every(cameraOnline) ? 'ok' : 'bad'
+})
 const diagProbe = ref('system')
 const sdkCall = ref({ action: '', params: '' })
 const beepSeconds = ref(3)
