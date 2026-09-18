@@ -1123,7 +1123,10 @@ class VendTransactionService
         // Deduplicate and assign
         $labels = array_values(array_unique($labels));
         $data['label'] = ! empty($labels) ? $labels : null;
-        $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
+        // Trimmed: a claw board (IDN 18004, since 2026-09-03) pads ORDRID with a
+        // leading space. MySQL compares leading spaces, so the padded id missed
+        // the row its gateway pre-created and booked every QR sale twice.
+        $data['orderID'] = isset($input['ORDRID']) ? trim((string) $input['ORDRID']) : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
         // No substitute for a missing TIME: TradeTimestampResolver books it at

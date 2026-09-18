@@ -146,7 +146,8 @@ class CreateVendTransaction implements ShouldQueue
 
         $orderId = $this->input['ORDRID'] ?? $this->input['orderID'] ?? null;
 
-        return is_scalar($orderId) ? (string) $orderId : null;
+        // Trimmed exactly as VendTransactionService::processInput() stores it.
+        return is_scalar($orderId) ? trim((string) $orderId) : null;
     }
 
     /**
