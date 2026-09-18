@@ -228,20 +228,16 @@
                   <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  Self-check and diagnostics read; a photo comes from the cabinet camera; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.
+                  Self-check and diagnostics read; Cameras opens the cabinet's own cameras with the last {{ data.photos?.length || 0 }} shots; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSendBatch2" @click="send('selfcheck')">
                     <ArrowPathIcon v-if="busyOp === 'selfcheck'" class="mr-1 h-4 w-4 animate-spin" /> Self-check
                   </ControlButton>
-                  <span class="isolate inline-flex -space-x-px shadow-sm">
-                    <select v-model.number="photoCamera" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
-                      <option v-for="cam in cameraChoices" :key="cam.id" :value="cam.id">{{ cam.label }}</option>
-                    </select>
-                    <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('photo', { cameraId: photoCamera })">
-                      <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" /> Take photo
-                    </ControlButton>
-                  </span>
+                  <ControlButton class="rounded-md" :disabled="!data.supported_batch2" @click="cameraOpen = true">
+                    <ArrowPathIcon v-if="busyOp === 'photo'" class="mr-1 h-4 w-4 animate-spin" />
+                    Cameras<span v-if="data.photos?.length" class="ml-1 text-gray-500">({{ data.photos.length }})</span>
+                  </ControlButton>
                   <span class="isolate inline-flex -space-x-px shadow-sm">
                     <select v-model="diagProbe" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
                       <option v-for="(label, key) in data.diag_probes || {}" :key="key" :value="key">{{ label }}</option>
@@ -303,6 +299,16 @@
     </div>
 
     <Teleport to="body">
+      <CameraPhotoDialog
+        :open="cameraOpen"
+        :photos="data.photos || []"
+        :cameras="cameraChoices"
+        :can-take="canSendBatch2"
+        :busy="busyOp === 'photo'"
+        :blocked-reason="batch2Blocked"
+        @take="(id) => send('photo', { cameraId: id })"
+        @close="cameraOpen = false"
+      />
       <Modal :open="!!confirm" @modalClose="confirm = null">
         <template #header><span class="font-semibold text-black">{{ confirm?.title }}</span></template>
         <template #default>
@@ -321,6 +327,7 @@
 <script setup>
 import Button from '@/Components/Button.vue'
 import Modal from '@/Components/Modal.vue'
+import CameraPhotoDialog from '@/Components/SmartFreezer/CameraPhotoDialog.vue'
 import CommandTimeline from '@/Components/SmartFreezer/CommandTimeline.vue'
 import ControlButton from '@/Components/SmartFreezer/ControlButton.vue'
 import ControlRow from '@/Components/SmartFreezer/ControlRow.vue'
@@ -330,7 +337,7 @@ import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } fr
 import { computed, ref } from 'vue'
 import moment from 'moment'
 import { resultLabel, useFreezerControls } from '@/composables/useFreezerControls'
-import { boolTone, cameraOnline, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
+import { boolTone, cameraLabel, cameraOnline, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
 
 const props = defineProps({
   vendId: { type: Number, required: true },
@@ -342,7 +349,7 @@ const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusSta
 const confirm = ref(null)
 const setpoint = ref(-18)
 const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
-const photoCamera = ref(0)
+const cameraOpen = ref(false)
 const diagProbe = ref('system')
 const sdkCall = ref({ action: '', params: '' })
 const beepSeconds = ref(3)
@@ -387,8 +394,9 @@ const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */
 const cameraChoices = computed(() => {
   const listed = status.value.cameras
-  if (listed.length) return listed.map((c) => ({ id: c.id, label: `camera ${c.id}${c.description ? ' · ' + c.description : ''}${cameraOnline(c) ? '' : ' (offline)'}` }))
-  return [0, 1, 2].map((id) => ({ id, label: `camera ${id}` }))
+  if (listed.length) return listed.map((c, i) => ({ id: c.id, label: cameraLabel(c, i) + (cameraOnline(c) ? '' : ' — offline') }))
+  // Nothing reported yet: offer the ids these boards use, named by the same order.
+  return [3, 4, 5].map((id, i) => ({ id, label: cameraLabel({ id }, i) }))
 })
 
 // Open the stepper on the last setpoint we set, so "Set" without touching it is a no-op rather than

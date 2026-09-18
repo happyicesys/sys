@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\FreezerControlController;
 use App\Jobs\PublishMqtt;
 use App\Models\FreezerControlCommand;
 use App\Models\FreezerSetpointSchedule;
@@ -218,6 +219,40 @@ class FreezerV14AdditionsTest extends TestCase
         $this->artisan('freezer:run-setpoint-schedules')->assertSuccessful();
         $this->assertSame(0, FreezerControlCommand::count());
         $this->assertSame('2026-09-17', $oldEntry->fresh()->last_run_on->toDateString());
+    }
+
+    // ------------------------------------------------------------ camera photos
+
+    public function test_the_panel_lists_the_last_five_camera_photos_newest_first(): void
+    {
+        $vend = $this->freezer();
+        // Seven uploaded stills plus one photo command that never produced a file.
+        foreach (range(1, 7) as $i) {
+            FreezerControlCommand::create([
+                'vend_id' => $vend->id, 'cmd_id' => 'PH'.$i, 'op' => 'photo', 'args' => ['cameraId' => $i % 3],
+                'status' => 'ok', 'requested_by_name' => 'Tech One',
+                'attachment_path' => 'freezer-photos/'.$vend->id.'/PH'.$i.'.jpg',
+                'attachment_type' => FreezerControlCommand::ATTACHMENT_PHOTO,
+                'responded_at' => Carbon::parse('2026-09-18 10:0'.$i.':00'),
+            ]);
+        }
+        FreezerControlCommand::create([
+            'vend_id' => $vend->id, 'cmd_id' => 'PHX', 'op' => 'photo', 'args' => ['cameraId' => 3],
+            'status' => 'refused', 'response_msg' => 'camera_not_found: 3',
+        ]);
+
+        $photos = $this->getJson("/vends/{$vend->id}/freezer-controls")->json('photos');
+
+        $this->assertCount(FreezerControlController::PHOTO_HISTORY, $photos);
+        // Newest first, and only the ones that actually have an image.
+        $this->assertSame(['PH7', 'PH6', 'PH5', 'PH4', 'PH3'], array_map(
+            fn ($p) => FreezerControlCommand::find($p['id'])->cmd_id,
+            $photos,
+        ));
+        $this->assertSame(1, $photos[0]['camera_id']);
+        $this->assertSame('Tech One', $photos[0]['by']);
+        $this->assertStringContainsString("/vends/{$vend->id}/freezer-controls/", $photos[0]['url']);
+        $this->assertStringEndsWith('/attachment', $photos[0]['url']);
     }
 
     // ------------------------------------------------- alarms + dashboard

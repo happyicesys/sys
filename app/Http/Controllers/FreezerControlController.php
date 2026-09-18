@@ -24,6 +24,9 @@ class FreezerControlController extends Controller
     /** Opening the door remotely is unmetered stock access, so it has its own permission. */
     public const DOOR_PERMISSION = 'update freezer-remote-door';
 
+    /** How many recent camera stills the panel's viewer offers. */
+    public const PHOTO_HISTORY = 5;
+
     /** A raw SDK call can ask the host anything its plugin answers to; superadmin only. */
     public const SDK_RAW_PERMISSION = 'update freezer-sdk-raw';
 
@@ -69,6 +72,7 @@ class FreezerControlController extends Controller
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,
             'schedule' => $this->schedulePayload($vend),
+            'photos' => $this->photoPayload($vend),
             'setpoint' => [
                 'min' => FreezerControlService::SETPOINT_MIN,
                 'max' => FreezerControlService::SETPOINT_MAX,
@@ -122,6 +126,28 @@ class FreezerControlController extends Controller
             'at' => ($command->responded_at ?? $command->created_at)?->toIso8601String(),
             'by' => $command->requested_by_name,
         ];
+    }
+
+    /**
+     * The newest [self::PHOTO_HISTORY] camera stills this machine uploaded, newest first, for the
+     * panel's photo viewer. The image itself is fetched through the gated attachment route; only
+     * its URL travels in this payload.
+     */
+    private function photoPayload(Vend $vend): array
+    {
+        return FreezerControlCommand::where('vend_id', $vend->id)
+            ->where('op', 'photo')
+            ->whereNotNull('attachment_path')
+            ->orderByDesc('id')
+            ->limit(self::PHOTO_HISTORY)
+            ->get()
+            ->map(fn (FreezerControlCommand $c) => [
+                'id' => $c->id,
+                'camera_id' => (int) ($c->args['cameraId'] ?? 0),
+                'url' => route('vends.freezer-controls.attachment', [$vend->id, $c->id]),
+                'taken_at' => ($c->responded_at ?? $c->created_at)?->toIso8601String(),
+                'by' => $c->requested_by_name,
+            ])->values()->all();
     }
 
     /** The machine's daily setpoint entries, earliest first, each with its last run's verdict. */
