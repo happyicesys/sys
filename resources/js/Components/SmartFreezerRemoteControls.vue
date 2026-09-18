@@ -345,6 +345,7 @@
         :open="cameraOpen"
         :photos="data.photos || []"
         :cameras="cameraChoices"
+        :camera-id="cameraOpenCam"
         :can-take="canSendBatch2"
         :busy="busyOp === 'photo'"
         :blocked-reason="batch2Blocked"
@@ -394,10 +395,16 @@ const setpoint = ref(-18)
 const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
 const cameraOpen = ref(false)
 const cameraOpenId = ref(null)
+const cameraOpenCam = ref(3)
 const photoCamera = ref(3)
 
-/** Opens the big view on the photo that was clicked, or on the newest one when nothing was. */
+/**
+ * Opens one camera's window — the view of the thumbnail that was clicked, or the view the picker
+ * names when the button was pressed instead. The dialog has no picker of its own, so this is the
+ * only place the view is chosen.
+ */
 function openPhoto(photo) {
+  cameraOpenCam.value = photo?.camera_id ?? photoCamera.value
   cameraOpenId.value = photo?.id ?? null
   cameraOpen.value = true
 }

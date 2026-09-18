@@ -6,20 +6,17 @@
     host locally, uploads the still and the panel polls it back. So the newest picture appears a few
     seconds after the button, not instantly, and every shot stays in the machine's command timeline.
 
-    The dialog shows ONE view at a time — the picker chooses it, and the picture, the history strip
-    and Take photo all follow it. A technician looking at the planar view is comparing baskets over
-    time; the customer-facing camera's shots in the same strip would only be noise.
+    The dialog is ONE camera's window: the view you opened is the title, Take photo asks that same
+    camera, and the strip below is that camera's own shots. There is no picker — a technician
+    comparing baskets over time should not be able to leave the title and the history disagreeing.
   -->
   <Modal :open="open" @modalClose="$emit('close')">
     <template #header>
-      <span class="font-semibold text-black">Camera · {{ viewName(cameraId) }}</span>
+      <span class="font-semibold text-black">{{ viewName(cameraId) }}</span>
     </template>
     <template #default>
       <div class="space-y-3">
         <div class="flex flex-wrap items-center gap-2" v-tooltip="blockedReason">
-          <select v-model.number="cameraId" class="rounded-md border-gray-300 py-1.5 text-sm">
-            <option v-for="cam in cameras" :key="cam.id" :value="cam.id">{{ cam.label }}</option>
-          </select>
           <ControlButton tone="primary" class="rounded-md" :disabled="!canTake" @click="$emit('take', cameraId)">
             <ArrowPathIcon v-if="busy" class="mr-1 h-4 w-4 animate-spin" />
             {{ busy ? 'Taking photo…' : 'Take photo' }}
@@ -39,7 +36,7 @@
         <!-- This view's own shots, newest first: the same camera over time, nothing else. -->
         <div v-if="history.length" class="space-y-1">
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            {{ viewName(cameraId) }} · last {{ history.length }}
+            History · last {{ history.length }}
           </p>
           <div class="flex gap-2 overflow-x-auto pb-1">
             <button
@@ -78,25 +75,25 @@ const props = defineProps({
   canTake: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },
   blockedReason: { type: String, default: '' },
-  /** Which stored photo to show when the dialog opens; null = the newest. */
+  /** The one camera this window is about — its name is the title and Take photo asks it. */
+  cameraId: { type: Number, default: 0 },
+  /** Which stored photo to show when the dialog opens; null = that camera's newest. */
   initialPhotoId: { type: Number, default: null },
 })
 
 defineEmits(['take', 'close'])
 
-const cameraId = ref(props.cameras[0]?.id ?? 0)
 const selectedId = ref(null)
 
 /** This camera's own shots, newest first — the payload already arrives in that order. */
-const history = computed(() => props.photos.filter((p) => p.camera_id === cameraId.value))
+const history = computed(() => props.photos.filter((p) => p.camera_id === props.cameraId))
 
 const selected = computed(() => history.value.find((p) => p.id === selectedId.value) || null)
 
 /**
- * Keep the picture on this view: the newest shot of the selected camera, unless the technician is
- * looking at an older one of the SAME view (then it stays put), and unless the selection belongs to
- * a camera that is no longer the chosen one (switching view, so the newest of the new view wins).
- * Watching the derived list rather than the raw payload means one rule covers both.
+ * Keep the picture on this view: its newest shot, unless the technician is looking at an older one
+ * of the SAME camera (then it stays put), or the window was reopened on another camera (then the
+ * old selection is not in the list any more and the newest wins).
  */
 watch(
   history,
@@ -108,20 +105,14 @@ watch(
   { immediate: true },
 )
 
-// Opening the dialog lands on the photo that was clicked — and therefore on ITS camera — else on
-// the newest shot of the view already selected.
+// Opening lands on the thumbnail that was clicked, else on this camera's newest shot.
 watch(() => props.open, (open) => {
   if (!open) return
-  const wanted = props.photos.find((p) => p.id === props.initialPhotoId)
-  if (wanted) cameraId.value = wanted.camera_id
+  const wanted = history.value.find((p) => p.id === props.initialPhotoId)
   selectedId.value = wanted ? wanted.id : (history.value[0]?.id ?? null)
 })
 
-watch(() => props.cameras, (cameras) => {
-  if (cameras.length && !cameras.some((c) => c.id === cameraId.value)) cameraId.value = cameras[0].id
-}, { immediate: true })
-
-/** The view name for a camera id, taken from the same list the picker uses. */
+/** The view name for a camera id, taken from the same list the panel's picker uses. */
 function viewName(id) {
   const i = props.cameras.findIndex((c) => c.id === id)
   return i >= 0 ? (props.cameras[i].label || `cam ${id}`) : `cam ${id}`
