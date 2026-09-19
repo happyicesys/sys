@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ScopesOpsJobToViewer;
 use App\Http\Resources\AddressResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\OpsJobItemResource;
@@ -20,6 +21,8 @@ use App\Models\ProductMapping;
 use App\Models\ProductMovement;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
+use App\Models\ServiceNotice;
+use App\Models\StockCheck;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -30,6 +33,7 @@ use App\Services\OpsJobService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
 use App\Services\VendJobService;
+use App\Support\OpsJobStopRegistry;
 use App\Support\SiteSearch;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
@@ -44,6 +48,8 @@ use Inertia\Inertia;
 
 class OpsJobController extends Controller
 {
+    use ScopesOpsJobToViewer;
+
     /**
      * Default "To Pick Qty" for a channel whose upcoming product replaces the
      * current one. Mirrored in resources/js/Pages/OpsJob/EditItem.vue
@@ -143,28 +149,8 @@ class OpsJobController extends Controller
         }
     }
 
-    /**
-     * 404 when the job belongs to an operator the viewer may not see. Every
-     * job carries operator_id (NOT NULL; live data: it always equals the
-     * driver's operator), so this is the cheapest correct boundary. Deliberately
-     * NOT a global scope on OpsJob — the cron / driver API paths must keep
-     * reading every job.
-     */
-    private function assertWithinViewerCeiling(?OpsJob $opsJob): OpsJob
-    {
-        abort_if($opsJob === null, 404);
-
-        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
-
-        abort_if($viewerOperatorId !== null && (int) $opsJob->operator_id !== $viewerOperatorId, 404);
-
-        return $opsJob;
-    }
-
-    private function scopedOpsJob($id): OpsJob
-    {
-        return $this->assertWithinViewerCeiling(OpsJob::find($id));
-    }
+    // assertWithinViewerCeiling() / scopedOpsJob() live in ScopesOpsJobToViewer,
+    // shared with the controllers of the stops that ride on a job.
 
     private function scopedOpsJobItem($id): OpsJobItem
     {
@@ -363,16 +349,31 @@ class OpsJobController extends Controller
                 ->get()
                 ->keyBy('ops_job_id');
 
+            // 3b. Service notices + stock checks: stops with no pick step, so a
+            // finished one counts as both picked and delivered (the progress bars
+            // would otherwise never reach 100%); a cancelled one counts as nothing.
+            $stopStats = collect([ServiceNotice::class, StockCheck::class])
+                ->map(fn (string $model) => $model::query()
+                    ->whereIn('ops_job_id', $opsJobIds)
+                    ->where('status', '<>', $model::STATUS_CANCELLED)
+                    ->selectRaw('ops_job_id, COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done', [$model::STATUS_COMPLETED])
+                    ->groupBy('ops_job_id')
+                    ->get())
+                ->flatten(1)
+                ->groupBy('ops_job_id')
+                ->map(fn ($rows) => (object) ['total' => (int) $rows->sum('total'), 'done' => (int) $rows->sum('done')]);
+
             // 4. Merge Data
             foreach ($opsJobs as $job) {
                 $iStat = $itemStats->get($job->id);
                 $cStat = $channelStats->get($job->id);
                 $tStat = $taskStats->get($job->id);
+                $sStat = $stopStats->get($job->id);
 
                 $job->ops_job_tasks_count = (int) ($tStat?->ops_job_tasks_count ?? 0);
-                $job->ops_job_items_count = ($iStat?->ops_job_items_count ?? 0) + $job->ops_job_tasks_count;
-                $job->ops_job_items_delivered_count = ($iStat?->ops_job_items_delivered_count ?? 0) + (int) ($tStat?->tasks_completed_count ?? 0);
-                $job->ops_job_items_picked_count = ($iStat?->ops_job_items_picked_count ?? 0) + (int) ($tStat?->tasks_picked_count ?? 0);
+                $job->ops_job_items_count = ($iStat?->ops_job_items_count ?? 0) + $job->ops_job_tasks_count + ($sStat?->total ?? 0);
+                $job->ops_job_items_delivered_count = ($iStat?->ops_job_items_delivered_count ?? 0) + (int) ($tStat?->tasks_completed_count ?? 0) + ($sStat?->done ?? 0);
+                $job->ops_job_items_picked_count = ($iStat?->ops_job_items_picked_count ?? 0) + (int) ($tStat?->tasks_picked_count ?? 0) + ($sStat?->done ?? 0);
                 $job->ops_job_items_verified_count = $iStat?->ops_job_items_verified_count ?? 0;
                 $job->total_cash_amount = $iStat?->total_cash_amount ?? 0;
                 $job->total_cash_amount_from_vmc = $iStat?->total_cash_amount_from_vmc ?? 0;
@@ -1524,6 +1525,9 @@ class OpsJobController extends Controller
                 'updatedBy:id,name',
                 // Tasks: simple indexed query, ordered by sequence
                 'opsJobTasks' => fn ($q) => $q->with('createdBy:id,name', 'pickedBy:id,name', 'completedBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
+                // Machine-bound stops that are not stock visits: rows of their own in the job table.
+                'serviceNotices' => fn ($q) => $q->with('vend', 'customer.deliveryAddress', 'items:id,service_notice_id,status', 'createdBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
+                'stockChecks' => fn ($q) => $q->with('vend', 'customer.deliveryAddress', 'channels', 'createdBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->find($id);
         $this->assertWithinViewerCeiling($opsJob);
@@ -1586,9 +1590,12 @@ class OpsJobController extends Controller
             ->select(['id', 'customer_id', 'operator_id', 'code'])
             ->with(['customer:id,name'])
             ->whereNotNull('customer_id')
-            ->when($vendIdsInJob->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $vendIdsInJob))
+            // Every bound machine, including those already on this job: the same
+            // dropdown now also opens a Service Notice or a Stock Count, and a
+            // machine being topped up today can still need a repair or a count.
+            // `in_job` lets the page refuse only a second top-up job for it.
             ->get()
-            ->map(function ($vend) {
+            ->map(function ($vend) use ($vendIdsInJob) {
                 if ($vend->customer && $vend->customer->person_id) {
                     $label = '('.$vend->code.')  - '.$vend->customer->virtual_customer_code.' - '.$vend->customer->name;
                 } elseif ($vend->customer && ! $vend->customer->person_id) {
@@ -1600,6 +1607,7 @@ class OpsJobController extends Controller
                 return [
                     'id' => $vend->id,
                     'cust_full_name' => $label,
+                    'in_job' => $vendIdsInJob->contains($vend->id),
                 ];
             });
 
@@ -1949,7 +1957,7 @@ class OpsJobController extends Controller
         // item has been delivered.
         abort_unless(
             $opsJob->opsJobItems()->where('status', '<', OpsJob::STATUS_DELIVERED)->exists()
-                || $opsJob->opsJobTasks()->exists(),
+                || OpsJobStopRegistry::hasReorderableStops($opsJob),
             403,
             'This job is completed — its route can no longer be renumbered.'
         );
@@ -1969,15 +1977,8 @@ class OpsJobController extends Controller
             // New unified format
             $sequence = 1;
             foreach ($mergedOrder as $entry) {
-                if (($entry['type'] ?? '') === 'task') {
-                    OpsJobTask::where('id', $entry['id'])
-                        ->where('ops_job_id', $opsJob->id) // safety: only own tasks
-                        ->update(['sequence' => $sequence]);
-                } else {
-                    OpsJobItem::where('id', $entry['id'])
-                        ->where('ops_job_id', $opsJob->id) // safety: only own items
-                        ->update(['sequence' => $sequence]);
-                }
+                // Scoped to this job inside the registry: only own stops move.
+                OpsJobStopRegistry::applySequence($opsJob, $entry['type'] ?? null, $entry['id'], $sequence);
                 $sequence++;
             }
         } else {
@@ -2046,6 +2047,8 @@ class OpsJobController extends Controller
                 'opsJobItems.vend.vendPrefix',
                 // Tasks are loaded separately; Route.vue merges them into the items array
                 'opsJobTasks' => fn ($q) => $q->orderByRaw('ISNULL(sequence), sequence ASC'),
+                'serviceNotices' => fn ($q) => $q->with('vend', 'customer.deliveryAddress', 'items:id,service_notice_id,status')->orderByRaw('ISNULL(sequence), sequence ASC'),
+                'stockChecks' => fn ($q) => $q->with('vend', 'customer.deliveryAddress', 'channels')->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->find($id);
         $this->assertWithinViewerCeiling($opsJob);
@@ -2079,7 +2082,7 @@ class OpsJobController extends Controller
 
         abort_unless(
             $opsJob->opsJobItems()->where('status', '<', OpsJob::STATUS_DELIVERED)->exists()
-                || $opsJob->opsJobTasks()->exists(),
+                || OpsJobStopRegistry::hasReorderableStops($opsJob),
             403,
             'This job is completed — its route can no longer be resequenced.'
         );
@@ -2087,15 +2090,7 @@ class OpsJobController extends Controller
         // New unified path: mergedOrder with type markers
         if ($request->has('mergedOrder') && is_array($request->mergedOrder)) {
             foreach ($request->mergedOrder as $entry) {
-                if (($entry['type'] ?? '') === 'task') {
-                    OpsJobTask::where('id', $entry['id'])
-                        ->where('ops_job_id', $opsJob->id)
-                        ->update(['sequence' => $entry['generated_sequence']]);
-                } else {
-                    OpsJobItem::where('id', $entry['id'])
-                        ->where('ops_job_id', $opsJob->id)
-                        ->update(['sequence' => $entry['generated_sequence']]);
-                }
+                OpsJobStopRegistry::applySequence($opsJob, $entry['type'] ?? null, $entry['id'], $entry['generated_sequence']);
             }
 
             return redirect()->back();

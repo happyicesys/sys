@@ -11,10 +11,15 @@ class OpsJob extends Model
     use GetUserTimezone, HasFactory;
 
     const STATUS_PENDING = '1';
+
     const STATUS_PICKED = '2';
+
     const STATUS_DELIVERED = '3';
+
     const STATUS_VERIFIED = '4';
+
     const STATUS_FLAGGED = '98';
+
     const STATUS_CANCELLED = '99';
 
     const STATUS_MAPPINGS = [
@@ -71,6 +76,16 @@ class OpsJob extends Model
         return $this->hasMany(OpsJobTask::class);
     }
 
+    public function serviceNotices()
+    {
+        return $this->hasMany(ServiceNotice::class);
+    }
+
+    public function stockChecks()
+    {
+        return $this->hasMany(StockCheck::class);
+    }
+
     public function pickedBy()
     {
         return $this->belongsTo(User::class, 'picked_by');
@@ -80,5 +95,4 @@ class OpsJob extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
-
 }

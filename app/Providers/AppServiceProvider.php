@@ -37,6 +37,15 @@ class AppServiceProvider extends ServiceProvider
         // frozen at boot long after the sync added a date to it.
         $this->app->scoped(\App\Services\CardSettlement\Payout\BankingCalendar::class);
         $this->app->scoped(\App\Services\CardSettlement\Payout\SettlementPayoutResolver::class);
+
+        // Stock check "sync": one strategy per machine kind, first match wins.
+        // A new machine kind that owns its stock differently is one more entry.
+        $this->app->when(\App\Services\StockCheck\StockCheckService::class)
+            ->needs('$syncTargets')
+            ->give(fn ($app) => [
+                $app->make(\App\Services\StockCheck\Sync\CityboxSyncTarget::class),
+                $app->make(\App\Services\StockCheck\Sync\SystemQtySyncTarget::class),
+            ]);
     }
 
     /**

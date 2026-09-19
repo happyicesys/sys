@@ -49,10 +49,12 @@ use App\Http\Controllers\RefundSettlementController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\ServiceNoticeController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SimcardController;
 use App\Http\Controllers\SiteGroupingController;
 use App\Http\Controllers\StatusController;
+use App\Http\Controllers\StockCheckController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelcoController;
@@ -600,6 +602,48 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/tasks/{taskId}/update-status', [OpsJobTaskController::class, 'updateStatus']);
         Route::post('/tasks/{taskId}/undo-status', [OpsJobTaskController::class, 'undoStatus']);
         Route::delete('/tasks/{taskId}', [OpsJobTaskController::class, 'destroy']);
+
+        // Stops opened from the job page's machine dropdown
+        Route::post('/{id}/service-notices', [ServiceNoticeController::class, 'store']);
+        Route::post('/{id}/stock-checks', [StockCheckController::class, 'store']);
+        Route::get('/{id}/stock-checks/draw-options/{vendId}', [StockCheckController::class, 'drawOptions']);
+    });
+
+    // Service Notice: a repair stop inside an ops job (SERVICE_NOTICE_PLAN_2026-09-19.md)
+    Route::prefix('service-notices')->group(function () {
+        Route::get('/', [ServiceNoticeController::class, 'index'])->name('service-notices');
+        Route::get('/excel', [ServiceNoticeController::class, 'exportExcel']);
+        Route::get('/{id}/edit', [ServiceNoticeController::class, 'edit'])->name('service-notices.edit');
+        Route::post('/{id}/update', [ServiceNoticeController::class, 'update']);
+        Route::post('/{id}/update-sequence', [ServiceNoticeController::class, 'updateSequence']);
+        Route::post('/{id}/complete', [ServiceNoticeController::class, 'complete']);
+        Route::post('/{id}/undo-complete', [ServiceNoticeController::class, 'undoComplete']);
+        Route::post('/{id}/cancel', [ServiceNoticeController::class, 'cancel']);
+        Route::delete('/{id}', [ServiceNoticeController::class, 'destroy']);
+        Route::post('/{id}/items', [ServiceNoticeController::class, 'storeItem']);
+        Route::post('/items/{itemId}/update', [ServiceNoticeController::class, 'updateItem']);
+        Route::post('/items/{itemId}/status', [ServiceNoticeController::class, 'setItemStatus']);
+        Route::delete('/items/{itemId}', [ServiceNoticeController::class, 'destroyItem']);
+        Route::post('/items/{itemId}/attachments', [ServiceNoticeController::class, 'storeAttachment']);
+        Route::delete('/items/{itemId}/attachments/{attachmentId}', [ServiceNoticeController::class, 'destroyAttachment']);
+    });
+
+    // "Stock Count" spot check: a count stop inside an ops job (STOCK_CHECK_PLAN_2026-09-19.md).
+    // Not the nightly valuation report at /reports/stock-count.
+    Route::prefix('stock-checks')->group(function () {
+        Route::get('/', [StockCheckController::class, 'index'])->name('stock-checks');
+        Route::get('/excel', [StockCheckController::class, 'exportExcel']);
+        Route::get('/{id}/edit', [StockCheckController::class, 'edit'])->name('stock-checks.edit');
+        Route::post('/{id}/update', [StockCheckController::class, 'update']);
+        Route::post('/{id}/update-sequence', [StockCheckController::class, 'updateSequence']);
+        Route::post('/{id}/redraw', [StockCheckController::class, 'redraw']);
+        Route::post('/{id}/submit', [StockCheckController::class, 'submit']);
+        Route::post('/{id}/undo', [StockCheckController::class, 'undo']);
+        Route::post('/{id}/sync', [StockCheckController::class, 'sync']);
+        Route::post('/{id}/cancel', [StockCheckController::class, 'cancel']);
+        Route::delete('/{id}', [StockCheckController::class, 'destroy']);
+        Route::post('/{id}/attachments', [StockCheckController::class, 'storeAttachment']);
+        Route::delete('/{id}/attachments/{attachmentId}', [StockCheckController::class, 'destroyAttachment']);
     });
 
     Route::prefix('reports')->group(function () {

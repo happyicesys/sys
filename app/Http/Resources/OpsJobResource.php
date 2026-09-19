@@ -6,11 +6,11 @@ use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\OpsJobTaskResource;
 
 class OpsJobResource extends JsonResource
 {
     use GetUserTimezone;
+
     /**
      * Transform the resource into an array.
      *
@@ -42,7 +42,7 @@ class OpsJobResource extends JsonResource
                             && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
                         )
                         ? 'tomorrow'
-                        : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 . ' days')))
+                        : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next '.ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())).' days') : ((Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last '.ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 .' days')))
                     )
                 )
                 : null,
@@ -55,6 +55,8 @@ class OpsJobResource extends JsonResource
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'opsJobItems' => OpsJobItemResource::collection($this->whenLoaded('opsJobItems')),
             'opsJobTasks' => OpsJobTaskResource::collection($this->whenLoaded('opsJobTasks')),
+            'serviceNotices' => ServiceNoticeResource::collection($this->whenLoaded('serviceNotices')),
+            'stockChecks' => StockCheckResource::collection($this->whenLoaded('stockChecks')),
             'ops_job_items_count' => isset($this->ops_job_items_count) ? (int) $this->ops_job_items_count : 0,
             'ops_job_tasks_count' => isset($this->ops_job_tasks_count) ? (int) $this->ops_job_tasks_count : 0,
             'ops_job_items_delivered_count' => isset($this->ops_job_items_delivered_count) ? (int) $this->ops_job_items_delivered_count : 0,

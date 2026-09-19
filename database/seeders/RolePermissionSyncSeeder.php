@@ -363,6 +363,43 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Service Notice: a repair stop inside a Daily Job (2026-09-19, Brian).
+                // Whoever works the job works its notices: the ops roles minus
+                // picker (a picker picks stock, it does not repair) and minus
+                // operator_3pl (third-party delivery only).
+                'service-notices',
+                ['read', 'create', 'update'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver'],
+            ],
+
+            [
+                // Deleting a notice/item (and its photos) and the Excel export are
+                // office actions — supervisor and above.
+                'service-notices',
+                ['delete', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            [
+                // "Stock Count" spot check (2026-09-19, Brian). `stock-checks`, not
+                // `stock-counts`: that name is the nightly valuation report's.
+                // read + update = open a count and submit the real quantities.
+                'stock-checks',
+                ['read', 'update'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver'],
+            ],
+
+            [
+                // Assigning a count, RE-DRAWING its random sample, SYNCING the result
+                // into the system quantity, deleting and exporting: supervisor and
+                // above (Brian: "redraw by supervisor and above"). A driver who
+                // could re-draw could roll until the sample suited him.
+                'stock-checks',
+                ['create', 'redraw', 'sync', 'delete', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor'],
+            ],
+
+            [
                 'operation-job-summaries',
                 ['read', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: HappyIce staff only - operator_admin/
