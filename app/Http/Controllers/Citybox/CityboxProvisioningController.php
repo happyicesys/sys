@@ -45,6 +45,8 @@ class CityboxProvisioningController extends Controller
 
         return response()->json([
             'device' => $p['device'] ? $this->deviceRow($p['device']) : null,
+            'machine_id' => $p['machine_id'],
+            'machine_id_error' => $p['machine_id_error'],
             'state' => $p['state'],
             'product_count' => $p['product_count'],
             'existing_customer' => $p['existing_customer'] ? ['id' => $p['existing_customer']->id, 'name' => $p['existing_customer']->name, 'code' => $p['existing_customer']->code] : null,
@@ -68,7 +70,7 @@ class CityboxProvisioningController extends Controller
 
         return redirect()->route('settings.edit', [$vend->id])->with('success', sprintf(
             'Smart Chiller %s created and linked to %s. Bound to "%s" — this chiller can now be added to ops jobs. First stock sync in ≤3 min, or press Pull.',
-            $vend->code, $device->equipmentId, $customerName,
+            $vend->codeLabel(), $device->equipmentId, $customerName,
         ));
     }
 

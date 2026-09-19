@@ -300,7 +300,7 @@ class FreezerControlController extends Controller
             'cameraId' => 'nullable|integer|min:0|max:'.FreezerControlService::CAMERA_ID_MAX,
             'file' => 'required|file|max:6144',
         ]);
-        $vend = Vend::withoutGlobalScopes()->where('code', $code)->first();
+        $vend = Vend::withoutGlobalScopes()->bareCode($code)->first();
         if (! $vend) {
             return response()->json(['ok' => false, 'message' => 'Unknown machine.'], 404);
         }
@@ -326,7 +326,7 @@ class FreezerControlController extends Controller
             'lines' => 'nullable|integer',
             'file' => 'required|file|max:4096',
         ]);
-        $vend = Vend::withoutGlobalScopes()->where('code', $code)->first();
+        $vend = Vend::withoutGlobalScopes()->bareCode($code)->first();
         if (! $vend) {
             return response()->json(['ok' => false, 'message' => 'Unknown machine.'], 404);
         }

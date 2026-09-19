@@ -16,7 +16,7 @@
     <!-- Machine ID · Setting Chart · Prefix · Product Mapping · Site · Postcode · Ref Price · Campaign -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1 max-w-[150px]">
-        <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-tooltip="'Open this machine\'s settings'">{{ vend.code }}</Link>
+        <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-tooltip="'Open this machine\'s settings'">{{ vendCodeLabel(vend) }}</Link>
         <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">Smart Chiller · CityBox</span>
         <span class="text-[10px] text-gray-500 font-mono leading-none">{{ vend.citybox_equipment_id }}</span>
         <span v-if="status.name" class="text-xs text-gray-800">{{ status.name }}</span>
@@ -170,7 +170,7 @@
     <!-- Machine ID · Setting Chart · Prefix · Product Mapping · Site · Ref Price -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1">
-        <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">{{ vend.code }}</Link>
+        <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">{{ vendCodeLabel(vend) }}</Link>
         <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">Smart Chiller · CityBox</span>
         <span class="text-[10px] text-gray-500 font-mono leading-none">{{ vend.citybox_equipment_id }}</span>
         <span v-if="status.name" class="text-xs text-gray-800">{{ status.name }}</span>
@@ -299,6 +299,7 @@
 </template>
 
 <script setup>
+import { vendCodeLabel } from '@/utils/vendCode'
 import { computed, defineComponent, h } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { ArrowPathIcon, EllipsisHorizontalCircleIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
@@ -501,7 +502,7 @@ const ActionButtons = defineComponent({
     let busy = false
     const id = () => p.vend.vend_id ?? p.vend.id
     const openDoor = () => {
-      if (!confirm('Open chiller ' + p.vend.code + ' (' + (p.status.name || p.vend.citybox_equipment_id) + ') for restocking now?')) return
+      if (!confirm('Open chiller ' + vendCodeLabel(p.vend) + ' (' + (p.status.name || p.vend.citybox_equipment_id) + ') for restocking now?')) return
       busy = true
       router.post('/vends/' + id() + '/citybox-open-door', {}, {
         preserveScroll: true,

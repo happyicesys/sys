@@ -685,13 +685,17 @@ class SettingController extends Controller
         // The code is the machine's identity fleet-wide (MQTT topic, APK machine ID) but
         // vends.code has no unique index, so check across every operator: the viewer's
         // operator scope would hide another operator's vend and let a duplicate through.
-        $existing = Vend::withoutGlobalScopes()->where('code', $validated['code'])->first();
+        // Prefixed machines count too: a new vending 6003 next to CityBox C6003 would make
+        // every terminal lookup by bare number ambiguous, so the number stays taken.
+        $existing = Vend::withoutGlobalScopes()->where('code', $validated['code'])->first(['id', 'code', 'code_prefix']);
 
         if ($existing) {
             return redirect()->back()->withErrors([
-                'code' => Vend::whereKey($existing->id)->exists()
-                    ? "Machine ID {$validated['code']} already exists."
-                    : "Machine ID {$validated['code']} is already used by another operator.",
+                'code' => $existing->code_prefix
+                    ? "Machine ID {$validated['code']} is taken by {$existing->codeLabel()}."
+                    : (Vend::whereKey($existing->id)->exists()
+                        ? "Machine ID {$validated['code']} already exists."
+                        : "Machine ID {$validated['code']} is already used by another operator."),
             ]);
         }
 

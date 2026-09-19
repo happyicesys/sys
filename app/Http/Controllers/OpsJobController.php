@@ -31,6 +31,7 @@ use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
 use App\Services\VendJobService;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -231,7 +232,7 @@ class OpsJobController extends Controller
             })
             ->when($request->vend_code, function ($query, $search) {
                 $query->whereHas('opsJobItems.vend', function ($query) use ($search) {
-                    $query->where('code', $search);
+                    VendCode::whereLabels($query, [$search]);
                 });
             })
             ->whereHas('deliveredBy', function ($query) use ($request) {
@@ -1495,7 +1496,7 @@ class OpsJobController extends Controller
                 },
                 'opsJobItems.attachments',
                 // machine_type/citybox_* /is_online: the Smart Chiller Open Door button + status on each row (§6b).
-                'opsJobItems.vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,parameter_json,vend_channel_error_logs_json,machine_type,citybox_equipment_id,is_online,citybox_status_json',
+                'opsJobItems.vend:id,customer_id,code,code_prefix,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,parameter_json,vend_channel_error_logs_json,machine_type,citybox_equipment_id,is_online,citybox_status_json',
                 'opsJobItems.vend.productMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
@@ -1630,7 +1631,7 @@ class OpsJobController extends Controller
             ->with([
                 // machine_type + citybox_equipment_id feed OpsJobItemResource.is_citybox_chiller,
                 // which hides "Implement New Mapping" for a Smart Chiller on this page.
-                'vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,machine_type,citybox_equipment_id',
+                'vend:id,customer_id,code,code_prefix,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,machine_type,citybox_equipment_id',
                 'vend.productMapping.productMappingItemsNormalSequence.product',
                 'vend.productMapping.productMappingItemsNormalSequence.product.thumbnail',
                 'vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',

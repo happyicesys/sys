@@ -14,6 +14,7 @@ use App\Models\VendPrefix;
 use App\Services\Citybox\DTO\ChillerDevice;
 use App\Services\HistoryService;
 use App\Services\RunningNumberService;
+use App\Support\VendCode;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\Log;
  *
  * What is automatic: everything their API supplies (identity, type→model,
  * online/heartbeats, their name → the CUSTOMER name), the dedicated Citybox
- * operator, the vend code (running number under the CB prefix), the binding
+ * operator, the machine ID (their OPS Pro name → code_prefix + code), the binding
  * record. What is human: the four things their API cannot supply — which
  * customer (existing by normalised-name match, or a new one), address,
  * contact, contract — captured by the Create page and passed in as $site.
@@ -84,8 +85,20 @@ class DeviceProvisioningService
             // offline devices 400 on stock; the card just shows less
         }
 
+        $machineId = null;
+        $machineIdError = null;
+        if ($device) {
+            try {
+                $machineId = $this->machineIdFor($device)->toLabel();
+            } catch (CityboxApiException $e) {
+                $machineIdError = $e->getMessage();
+            }
+        }
+
         return [
             'device' => $device,
+            'machine_id' => $machineId,
+            'machine_id_error' => $machineIdError,
             'state' => $state,
             'product_count' => $productCount,
             'existing_customer' => $device ? $this->matchCustomerByName($device->name) : null,
@@ -133,8 +146,12 @@ class DeviceProvisioningService
             $prefix = $this->prefix($operator);
             $model = $this->modelFor($device->type);
 
+            Operator::whereKey($operator->id)->lockForUpdate()->first();
+            $machineId = $this->machineIdFor($device);
+
             $vend = Vend::create([
-                'code' => $this->nextVendCode($operator),
+                'code' => $machineId->number,
+                'code_prefix' => $machineId->prefix,
                 'name' => $site['name'] ?? null,
                 'machine_type' => Vend::MACHINE_TYPE_SMART_CHILLER,
                 'citybox_equipment_id' => $device->equipmentId,
@@ -192,25 +209,31 @@ class DeviceProvisioningService
     }
 
     /**
-     * Next free vend code for a chiller. Keeps the CB running number, but a vend code is
-     * the machine's identity fleet-wide (vends.code has no unique index), so skip any code
-     * another operator already holds. Both reads bypass the viewer's operator scope, which
-     * would otherwise hide those vends. Locking the operator row serialises concurrent
-     * provisions inside the caller's transaction.
-     * (Prod 2026-09-01: chiller 1363 was given 10002, already used by vend 909.)
+     * The machine ID is OPS Pro's (Brian, 2026-09-19: "do not recreate another ID"):
+     * their machine name "C6003" → code_prefix C, code 6003. Refused rather than
+     * invented when the name carries no ID or another vend already holds it, so a
+     * human fixes the name in OPS Pro. Only the (prefix, code) pair must be free —
+     * the bare number may belong to an old vending machine (vends.code has no unique
+     * index; terminal lookups use Vend::scopeBareCode). provision() locks the
+     * operator row first, so concurrent provisions cannot both take one ID.
+     *
+     * @throws CityboxApiException
      */
-    private function nextVendCode(Operator $operator): int
+    public function machineIdFor(ChillerDevice $device): VendCode
     {
-        Operator::whereKey($operator->id)->lockForUpdate()->first();
-
-        $code = (int) Vend::withoutGlobalScopes()->where('operator_id', $operator->id)->max('code') + 1;
-        $code = max($code, 10001);
-
-        while (Vend::withoutGlobalScopes()->where('code', $code)->exists()) {
-            $code++;
+        $machineId = VendCode::fromExternalName($device->name);
+        if (! $machineId) {
+            throw new CityboxApiException("OPS Pro machine name \"{$device->name}\" has no machine ID (expected like C6003) — rename it in OPS Pro, then Refresh.");
         }
 
-        return $code;
+        $holder = Vend::withoutGlobalScopes()
+            ->where('code_prefix', $machineId->prefix)->where('code', $machineId->number)
+            ->first(['id', 'citybox_equipment_id']);
+        if ($holder) {
+            throw new CityboxApiException("Machine ID {$machineId->toLabel()} is already used by vend #{$holder->id}".($holder->citybox_equipment_id ? " (CityBox {$holder->citybox_equipment_id})" : '').' — fix the duplicate name in OPS Pro.');
+        }
+
+        return $machineId;
     }
 
     private function prefix(Operator $operator): VendPrefix

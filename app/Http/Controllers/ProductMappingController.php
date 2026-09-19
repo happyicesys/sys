@@ -468,6 +468,7 @@ class ProductMappingController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 'vends.customer_id',
                 'vends.product_mapping_id',
                 'vends.upcoming_product_mapping_id',

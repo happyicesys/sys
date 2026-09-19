@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
@@ -105,6 +106,10 @@ class VendResource extends JsonResource
             'claw_machine_board_id' => isset($this->claw_machine_board_id) ? $this->claw_machine_board_id : null,
             'claw_machine_body_id' => isset($this->claw_machine_body_id) ? $this->claw_machine_body_id : null,
             'code' => $this->code,
+            // Letters another system owns in front of the number (CityBox "C6003");
+            // null for every mark1-numbered machine. code_label is what people see.
+            'code_prefix' => isset($this->code_prefix) ? $this->code_prefix : null,
+            'code_label' => VendCode::label(isset($this->code_prefix) ? $this->code_prefix : null, $this->code),
             // vends.name — the machine's own free-text name, aliased as
             // vend_name by the Operation Dashboard select (it collides with
             // customers.name otherwise).

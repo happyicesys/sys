@@ -105,6 +105,7 @@ use App\Support\DispenseVerdict;
 use App\Support\ProductAccess;
 use App\Support\ProductScopedSales;
 use App\Support\TransactionAccess;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -365,6 +366,7 @@ class VendController extends Controller
             'vends.begin_date',
             'vends.card_terminal_id',
             'vends.code',
+            'vends.code_prefix',
             'vends.acb_vmc_pa_json',
             'vends.apk_ver_json',
             // OTA check-in channel: the smart freezer reports ONLY here, so
@@ -1139,6 +1141,7 @@ class VendController extends Controller
                 'vends.t1_lowest_48h',
                 'vends.amount_average_day',
                 'vends.code',
+                'vends.code_prefix',
                 // Machine's own free-text name (vends.name) — rendered as a
                 // badge above the Site id on the Operation Dashboard. Column,
                 // not a join: customerIndexBaseQuery() is join-sensitive.
@@ -2692,8 +2695,8 @@ class VendController extends Controller
                 'operator:id,code,name',
                 'customer:id,code,name,operator_id',
             ])
-            ->select('vends.id', 'vends.code', 'vends.name', 'vends.operator_id', 'vends.customer_id', 'vends.is_active')
-            ->where('vends.code', 'LIKE', "{$vendCode}%")
+            ->select('vends.id', 'vends.code', 'vends.code_prefix', 'vends.name', 'vends.operator_id', 'vends.customer_id', 'vends.is_active')
+            ->tap(fn ($q) => VendCode::whereSearch($q, (string) $vendCode))
             ->get();
 
         return $vends;
@@ -2812,6 +2815,7 @@ class VendController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 'vends.name',
                 'vends.last_updated_at',
                 'vends.mqtt_last_updated_at',
@@ -2895,6 +2899,7 @@ class VendController extends Controller
                 ->select(
                     'vends.id',
                     'vends.code',
+                    'vends.code_prefix',
                     'customers.name as customer_name',
                     'customers.virtual_customer_prefix',
                     'customers.virtual_customer_code',
@@ -2947,6 +2952,7 @@ class VendController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 'vends.name',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
@@ -3129,7 +3135,7 @@ class VendController extends Controller
             'vendChannels.product.category',
             'vendChannels.product.tagBindings.tag',
             'productMapping.productMappingItems',
-        ])->where('code', $vendCode)->first();
+        ])->bareCode($vendCode)->first();
 
         if (! $vend || $vend->vendChannels->isEmpty()) {
             return response()->json([], 200);
@@ -3231,7 +3237,7 @@ class VendController extends Controller
             'productMapping.productMappingItems.product.thumbnail',
             'productMapping.productMappingItems.product.category',
             'productMapping.productMappingItems.product.tagBindings.tag',
-        ])->where('code', $vendCode)->first();
+        ])->bareCode($vendCode)->first();
 
         if (! $vend) {
             return response()->json([], 200);
@@ -3491,7 +3497,7 @@ class VendController extends Controller
         // apkSettings relation), so we skip vends' large JSON blobs. The eager
         // loads still resolve off vends.id.
         $vend = Vend::with(['apkSettings.images'])
-            ->where('code', $vendCode)
+            ->bareCode($vendCode)
             ->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) { // Ensure vend exists and apkSettings is not empty
@@ -3519,7 +3525,7 @@ class VendController extends Controller
         // Only the apkSettings relation is read below (belongsToMany, keyed on
         // vends.id). Select id only so this per-poll lookup doesn't drag vends'
         // ~17 large JSON columns off disk. Same row, same relation, same output.
-        $vend = Vend::where('code', $vendCode)->first(['id']);
+        $vend = Vend::bareCode($vendCode)->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
@@ -3546,7 +3552,7 @@ class VendController extends Controller
         // Only the apkSettings relation is read below (belongsToMany, keyed on
         // vends.id). Select id only so this per-poll lookup doesn't drag vends'
         // ~17 large JSON columns off disk. Same row, same relation, same output.
-        $vend = Vend::where('code', $vendCode)->first(['id']);
+        $vend = Vend::bareCode($vendCode)->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
@@ -3573,7 +3579,7 @@ class VendController extends Controller
         // Only the apkSettings relation is read below (belongsToMany, keyed on
         // vends.id). Select id only so this per-poll lookup doesn't drag vends'
         // ~17 large JSON columns off disk. Same row, same relation, same output.
-        $vend = Vend::where('code', $vendCode)->first(['id']);
+        $vend = Vend::bareCode($vendCode)->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
@@ -3599,7 +3605,7 @@ class VendController extends Controller
         $vendChannel = VendChannel::query()
             ->with('product.thumbnail')
             ->whereHas('vend', function ($query) use ($vendCode) {
-                $query->where('code', $vendCode);
+                $query->bareCode($vendCode);
             })
             ->where('code', $vendChannelCode)
             ->first();
@@ -3630,7 +3636,7 @@ class VendController extends Controller
     {
         // Real-time data - no caching (campaign settings need to be current)
         $campaignItems = [];
-        $vend = Vend::where('code', $vendCode)->firstOrFail();
+        $vend = Vend::bareCode($vendCode)->firstOrFail();
         $apkSetting = $vend->apkSettings()
             ->with([
                 'campaignItems.tagBindings.tag',
@@ -4535,7 +4541,7 @@ class VendController extends Controller
         $paymentGatewayLogs = PaymentGatewayLog::query()
             ->with([
                 'operatorPaymentGateway.operator',
-                'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
+                'vend:id,code,code_prefix,customer_id,name,label_name,is_active,vend_prefix_id',
                 'vend.customer',
                 'vend.vendPrefix',
                 'vendTransaction.vendChannelError',
@@ -5087,7 +5093,7 @@ class VendController extends Controller
         $paymentGatewayLogs = PaymentGatewayLog::query()
             ->with([
                 'operatorPaymentGateway.operator',
-                'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
+                'vend:id,code,code_prefix,customer_id,name,label_name,is_active,vend_prefix_id',
                 'vend.customer',
                 'vend.vendPrefix',
                 'vendTransaction.vendChannelError',
@@ -5100,7 +5106,7 @@ class VendController extends Controller
         $totals = PaymentGatewayLog::query()
             ->with([
                 'operatorPaymentGateway.operator',
-                'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
+                'vend:id,code,code_prefix,customer_id,name,label_name,is_active,vend_prefix_id',
                 'vend.customer',
                 'vend.vendPrefix',
                 'vendTransaction',
@@ -6080,6 +6086,7 @@ class VendController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 // FK required by the eager-loaded `modemUnit` belongsTo
                 // relationship — omitting it would leave modemUnit null.
                 'vends.modem_unit_id',

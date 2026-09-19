@@ -18,7 +18,7 @@
             <span class="text-blue-800">
               <a :href="'/settings/vend/' + opsJobItem.vend.id + '/update'" target="_blank" class="text-blue-700">
                 <span>
-                  {{ opsJobItem.vend.code }}
+                  {{ vendCodeLabel(opsJobItem.vend) }}
                 </span>
               </a>
             </span>
@@ -1720,6 +1720,7 @@
 </template>
 
 <script setup>
+import { vendCodeLabel } from '@/utils/vendCode'
 import AttachmentList from '@/Components/AttachmentList.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';

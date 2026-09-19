@@ -46,7 +46,7 @@ class VoucherItemApiResource extends JsonResource
 
     private function getVendChannelsByProducts($productIDArr)
     {
-        $vend = Vend::where('code', $this->vendCode)->first();
+        $vend = Vend::bareCode($this->vendCode)->first();
 
         if (!$vend) {
             return [];

@@ -27,6 +27,7 @@ use App\Support\DispenseVerdict;
 use App\Support\IndexHint;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
@@ -877,7 +878,7 @@ class DashboardController extends Controller
         $table = $this->recordTable();
 
         return $this->recordQuery(self::IDX_BY_DATE)
-            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
+            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,code_prefix,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
             ->whereNotIn('vend_id', $testingVendIds)
@@ -1262,7 +1263,7 @@ class DashboardController extends Controller
                         $codes = strpos($request->codes, ',') !== false
                             ? array_map('trim', explode(',', $request->codes))
                             : [$request->codes];
-                        $sub->whereIn('code', $codes);
+                        VendCode::whereLabels($sub, $codes);
                     }
                 });
             })

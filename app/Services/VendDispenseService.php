@@ -32,7 +32,7 @@ class VendDispenseService
       ]);
     } else if($type == 'delivery-platform') {
       $deliveryPlatformOrder = DeliveryPlatformOrder::find($refID);
-      $vendID = Vend::where('code', $deliveryPlatformOrder->vend_code)->first()?->id;
+      $vendID = Vend::bareCode($deliveryPlatformOrder->vend_code)->first()?->id;
 
       $dispenseRecord = DispenseRecord::updateOrCreate(
       [

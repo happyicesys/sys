@@ -36,7 +36,7 @@ class RepairCardSettlementOrphans extends Command
 
         $vendId = null;
         if ($code = $this->option('vend')) {
-            $vend = Vend::withoutGlobalScopes()->where('code', $code)->first();
+            $vend = Vend::withoutGlobalScopes()->bareCode($code)->first();
             if (! $vend) {
                 $this->error("No machine with code {$code}.");
 

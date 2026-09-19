@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -887,7 +888,7 @@ class Customer extends Model
             ->when($request->vend_code, function ($query, $search) {
                 $query->whereIn(
                     'customers.id',
-                    Vend::where('code', 'LIKE', '%'.$search.'%')
+                    Vend::query()->tap(fn ($q) => VendCode::whereSearch($q, (string) $search, contains: true))
                         ->pluck('customer_id')
                 );
             })

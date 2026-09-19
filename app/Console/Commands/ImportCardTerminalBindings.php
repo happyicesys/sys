@@ -52,7 +52,7 @@ class ImportCardTerminalBindings extends Command
             }
 
             $provider = $row['provider'] ?: $this->option('provider');
-            $vend = Vend::withoutGlobalScopes()->where('code', $row['vend_code'])->first();
+            $vend = Vend::withoutGlobalScopes()->bareCode($row['vend_code'])->first();
             if (! $vend) {
                 $this->warn("SKIP {$row['terminal_id']}: no machine with code {$row['vend_code']}");
                 $missing++;

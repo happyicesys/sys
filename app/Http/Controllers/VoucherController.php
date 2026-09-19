@@ -220,7 +220,7 @@ class VoucherController extends Controller
         $codeArr = [];
         $dcvendUserID = $request->dcvend_user_id ?? null;
         $vendCode = $request->vend_code;
-        $vend = Vend::where('code', $vendCode)->first();
+        $vend = Vend::bareCode($vendCode)->first();
 
         if (!$code || !$vend) {
             return response([

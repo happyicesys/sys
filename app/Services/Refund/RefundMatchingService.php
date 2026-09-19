@@ -22,7 +22,7 @@ class RefundMatchingService
 {
     public function resolveMachine(string $machineID): ?Vend
     {
-        return Vend::withoutGlobalScopes()->where('code', $machineID)->first();
+        return Vend::withoutGlobalScopes()->bareCode($machineID)->first();
     }
 
     /**

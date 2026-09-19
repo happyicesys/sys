@@ -9,6 +9,7 @@ use App\Models\Scopes\TransactionAccessScope;
 use App\Support\DispenseVerdict;
 use App\Support\SaleStatus;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\CarbonInterface;
 use DB;
@@ -636,13 +637,13 @@ class VendTransaction extends Model
                     $search = array_map('trim', explode(',', $search));
                     // Use whereIn subquery instead of whereHas to avoid correlated EXISTS subquery
                     $query->whereIn('vend_transactions.vend_id', function ($q) use ($search) {
-                        $q->select('id')->from('vends')->whereIn('code', $search);
+                        $q->select('id')->from('vends')->tap(fn ($v) => VendCode::whereLabels($v, $search));
                     });
                 } else {
                     // Keep LIKE for non-dashboard callers that may expect partial matching.
                     // Dashboard always hits the pre-resolved-IDs branch above.
                     $query->whereIn('vend_transactions.vend_id', function ($q) use ($search) {
-                        $q->select('id')->from('vends')->where('code', 'LIKE', "%{$search}%");
+                        $q->select('id')->from('vends')->tap(fn ($v) => VendCode::whereSearch($v, (string) $search, contains: true));
                     });
                 }
             })

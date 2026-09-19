@@ -433,7 +433,7 @@ class CardSettlementController extends Controller
             return $empty;
         }
 
-        $target = \App\Models\Vend::withoutGlobalScopes()->where('code', $suggestedVendCode)->get(['id']);
+        $target = \App\Models\Vend::withoutGlobalScopes()->bareCode($suggestedVendCode)->get(['id']);
         if ($target->count() !== 1) {
             return $empty;
         }
@@ -521,7 +521,7 @@ class CardSettlementController extends Controller
             // operator-scoped read would silently skip another operator's
             // machine and leave those lines unmatched forever.
             $candidates = \App\Models\Vend::withoutGlobalScopes()
-                ->where('code', $suspect['suggested_vend_code'])->get();
+                ->bareCode($suspect['suggested_vend_code'])->get();
             if ($candidates->count() !== 1) {
                 $skipped[] = "{$terminalId}: machine {$suspect['suggested_vend_code']} "
                     .($candidates->isEmpty() ? 'not found' : 'is not unique');
@@ -600,7 +600,7 @@ class CardSettlementController extends Controller
         foreach ($targets as $t) {
             $terminalId = $t['terminal_id'];
 
-            $vends = \App\Models\Vend::withoutGlobalScopes()->where('code', $t['suggested_vend_code'])->get();
+            $vends = \App\Models\Vend::withoutGlobalScopes()->bareCode($t['suggested_vend_code'])->get();
             if ($vends->count() !== 1) {
                 $skipped[] = "{$terminalId}: machine {$t['suggested_vend_code']} ".($vends->isEmpty() ? 'not found' : 'is not unique');
 

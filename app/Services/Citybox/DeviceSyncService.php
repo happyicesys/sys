@@ -6,12 +6,13 @@ use App\Contracts\Citybox\ChillerGateway;
 use App\Exceptions\CityboxApiException;
 use App\Models\Vend;
 use App\Services\Citybox\DTO\ChillerDevice;
+use App\Support\VendCode;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Fleet STATUS half of the poll: box_list → linked Smart Chiller vends
- * (is_online, heartbeats, ops status, type, CityBox name). One responsibility;
+ * (is_online, heartbeats, ops status, type, CityBox name, machine ID). One responsibility;
  * stock lives in StockPollService.
  *
  * Rules (unchanged from phase 2):
@@ -84,6 +85,8 @@ class DeviceSyncService
         $previous = $vend->citybox_status_json ?? [];
         $status = $device->opsStatus;
 
+        $this->followMachineId($vend, $device, $previous['name'] ?? null);
+
         $vend->forceFill([
             'is_online' => $device->online,
             // The generic 5-min offline sweeper keys on last_updated_at — touch it
@@ -111,6 +114,44 @@ class DeviceSyncService
                 'previous_status' => $previousStatus,
             ]);
         }
+    }
+
+    /**
+     * OPS Pro owns the machine ID (Brian, 2026-09-19), so a rename there ("C6001" →
+     * "C6004") renumbers the vend here on the next poll. Nothing durable keys on
+     * vends.code (history and sales hold vend_id), so the change is safe; what is not
+     * safe is two vends sharing a label, so a name that carries no ID, or an ID another
+     * vend holds, keeps the current one and warns — once per name change, not per poll.
+     */
+    private function followMachineId(Vend $vend, ChillerDevice $device, ?string $previousName): void
+    {
+        $machineId = VendCode::fromExternalName($device->name);
+        if ($machineId && $machineId->prefix === $vend->code_prefix && $machineId->number === (int) $vend->code) {
+            return;
+        }
+        $nameChanged = $previousName !== $device->name;
+
+        if (! $machineId) {
+            if ($nameChanged) {
+                Log::warning('Citybox machine name carries no machine ID — keeping the current one', ['vend_id' => $vend->id, 'equipment_id' => $vend->citybox_equipment_id, 'name' => $device->name, 'kept' => $vend->codeLabel()]);
+            }
+
+            return;
+        }
+
+        $holder = Vend::withoutGlobalScopes()->whereKeyNot($vend->id)
+            ->where('code_prefix', $machineId->prefix)->where('code', $machineId->number)
+            ->value('id');
+        if ($holder) {
+            if ($nameChanged) {
+                Log::warning('Citybox machine ID already held by another vend — keeping the current one', ['vend_id' => $vend->id, 'equipment_id' => $vend->citybox_equipment_id, 'wanted' => $machineId->toLabel(), 'held_by_vend_id' => $holder, 'kept' => $vend->codeLabel()]);
+            }
+
+            return;
+        }
+
+        Log::info('Citybox machine ID follows OPS Pro', ['vend_id' => $vend->id, 'equipment_id' => $vend->citybox_equipment_id, 'from' => $vend->codeLabel(), 'to' => $machineId->toLabel()]);
+        $vend->forceFill(['code' => $machineId->number, 'code_prefix' => $machineId->prefix]);
     }
 
     public static function linkedVendsQuery()

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
 use DB;
@@ -492,6 +493,7 @@ class Vend extends Model
         'citybox_status_json',
         'citybox_synced_at',
         'code',
+        'code_prefix',
         'customer_id',
         'customer_movement_history_json',
         'label_name',
@@ -870,6 +872,23 @@ class Vend extends Model
         return $this->vendModel?->name === VendModel::SMART_VEND;
     }
 
+    /** Machine ID as people see it: code_prefix + code ("C6003"; "2031" when unprefixed). */
+    public function codeLabel(): string
+    {
+        return VendCode::label($this->code_prefix, $this->code);
+    }
+
+    /**
+     * Resolve a machine by the bare number a terminal, board or external feed reports
+     * (MQTT topic, APK/OTA calls, NETS/refund machine id). Those numbers are only ever
+     * mark1-allocated codes, so prefixed machines (CityBox "C6001") are excluded — they
+     * may share the number with an old vending machine.
+     */
+    public function scopeBareCode($query, int|string|null $code)
+    {
+        return $query->where($query->qualifyColumn('code'), $code)->whereNull($query->qualifyColumn('code_prefix'));
+    }
+
     /** Restricts a query to smart vends only — for admin lists, reports and smart-only jobs. */
     public function scopeSmart($query)
     {
@@ -1155,12 +1174,7 @@ class Vend extends Model
                 $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
             })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
-                    $query->whereIn('vends.code', $search);
-                } else {
-                    $query->where('vends.code', 'LIKE', "%{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search, contains: true);
             })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {

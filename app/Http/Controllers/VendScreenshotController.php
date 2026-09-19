@@ -184,7 +184,7 @@ class VendScreenshotController extends Controller
             'token' => 'required|string',
         ]);
 
-        $vend = Vend::query()->where('code', $code)->first();
+        $vend = Vend::query()->bareCode($code)->first();
 
         if (! $vend) {
             return response()->json(['ok' => false, 'message' => 'Unknown machine.'], 404);

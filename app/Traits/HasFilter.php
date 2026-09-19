@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Vend;
 use App\Models\VendTemp;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
 use DB;
@@ -133,12 +134,7 @@ trait HasFilter
                 $query->whereIn('category_groups.id', $search);
             })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $search = array_map('trim', explode(',', $search));
-                    $query->whereIn('vends.code', $search);
-                } else {
-                    $query->where('vends.code', 'LIKE', "{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search, contains: false);
             })
             ->when($request->customer_code, function ($query, $search) {
                 $query->where('customers.code', 'LIKE', "%{$search}%");
@@ -216,14 +212,7 @@ trait HasFilter
                 $query->whereIn('gm.category_group_id', $search);
             })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $codes = array_filter(array_map('trim', explode(',', $search)));
-                    if (! empty($codes)) {
-                        $query->whereIn('vends.code', $codes);
-                    }
-                } else {
-                    $query->where('vends.code', 'LIKE', "{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search, contains: false);
             })
             ->when($request->customer_code, function ($query, $search) {
                 $query->where('customers.code', 'LIKE', "%{$search}%");
@@ -320,14 +309,7 @@ trait HasFilter
                 }
             })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $codes = array_filter(array_map('trim', explode(',', $search)));
-                    if (! empty($codes)) {
-                        $query->whereIn('vends.code', $codes);
-                    }
-                } else {
-                    $query->where('vends.code', 'LIKE', "{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search, contains: false);
             })
             ->when($request->customer_code, function ($query, $search) {
                 $query->where('customers.code', 'LIKE', "%{$search}%");
@@ -451,12 +433,7 @@ trait HasFilter
                 }
             })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $search = array_map('trim', explode(',', $search));
-                    $query->whereIn('vends.code', $search);
-                } else {
-                    $query->where('vends.code', 'LIKE', "{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search, contains: false);
             })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
@@ -990,12 +967,7 @@ trait HasFilter
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
         $query = $query->when($request->codes, function ($query, $search) {
-            if (strpos($search, ',') !== false) {
-                $search = array_map('trim', explode(',', $search));
-                $query->whereIn('vends.code', $search);
-            } else {
-                $query->where('vends.code', 'LIKE', "%{$search}%");
-            }
+            VendCode::whereSearch($query, (string) $search, contains: true);
         })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
@@ -1164,12 +1136,7 @@ trait HasFilter
             }
         })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
-                    $query->whereIn('vends.code', $search);
-                } else {
-                    $query->where('vends.code', 'LIKE', "%{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search, contains: true);
             })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {

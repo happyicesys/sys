@@ -19,7 +19,7 @@
           <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-700 text-white text-xs font-semibold px-2.5 py-1">
             Smart Chiller · CityBox
           </span>
-          <span v-if="vend.code" class="font-semibold">ID# {{ vend.code }}</span>
+          <span v-if="vend.code" class="font-semibold">ID# {{ vendCodeLabel(vend) }}</span>
           <span v-if="vend.customer_code" class="text-gray-600 text-sm">({{ vend.customer_code }}) {{ vend.customer_name }}</span>
         </div>
       </template>
@@ -156,6 +156,7 @@
 </template>
 
 <script setup>
+import { vendCodeLabel } from '@/utils/vendCode'
 import Button from '@/Components/Button.vue'
 import Modal from '@/Components/Modal.vue'
 import { ArrowPathIcon } from '@heroicons/vue/20/solid'

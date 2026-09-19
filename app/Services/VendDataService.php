@@ -279,7 +279,7 @@ class VendDataService
                 // and re-fetches a full, fresh row by id at execution, so trimming the
                 // columns cached here doesn't starve them.
                 $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)
-                    ->where('code', $vendCode)
+                    ->bareCode($vendCode)
                     ->first(['id', 'code', 'operator_id', 'customer_id', 'offline_restart_count']);
                 if ($vend) {
                     Cache::put($vendCacheKey, $vend, now()->addMinutes(5));

@@ -617,6 +617,20 @@ rather than adding a new `if (citybox)` somewhere else:
   `assertEditable()` refuse every human write path, and the ops-job
   `implement_new_mapping` action is refused/skipped for chiller items (it
   would push an APK channel frame). Keep the mapping — ops jobs read it.
+- **Its machine ID is OPS Pro's, stored as `vends.code_prefix` + `vends.code`**
+  (2026-09-19, Brian: "do not recreate another ID"). Their machine name
+  "C6003" → prefix `C`, code `6003`; label via `Vend::codeLabel()` / VendResource
+  `code_label` / JS `vendCodeLabel()`. Every other machine has a NULL prefix and
+  its label is its code. `App\Support\VendCode` owns the parse. Provisioning
+  refuses a name with no ID or a (prefix, code) another vend holds; the minute
+  poll (`DeviceSyncService`) follows a rename in OPS Pro and warns-and-keeps on a
+  duplicate or unparseable name. The bare number MAY equal an old vending
+  machine's (5001–5004, 6001, 6002 exist, inactive), so:
+  **a lookup by a number a terminal/board/feed reports uses `Vend::bareCode()`**,
+  never `where('code', …)->first()`; search boxes use `VendCode::whereSearch` /
+  `whereLabels` so "C6003" matches; and machine create keeps refusing any number
+  a prefixed vend holds, so a new vending machine can never collide.
+  Regression coverage: `tests/Feature/VendCodePrefixTest.php`, `tests/Unit/VendCodeTest.php`.
 - **Their status is a separate layer, not our Status.** `ChillerStatus`
   (`Vend::chillerStatus()`) is their ops status / online / heartbeat, built
   from the last poll on the row and shown read-only. mark1's Status

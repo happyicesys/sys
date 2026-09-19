@@ -74,7 +74,7 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-else>
               <div class="sm:col-span-6 rounded-md bg-indigo-50 p-3 text-xs text-indigo-800">
                 Pick one of the CityBox devices not yet in ConnectVend. Identity, model, online status and the CityBox name are filled automatically;
-                the vend code is allocated under the <b>Citybox</b> operator. You must bind it to a site (customer) — the CityBox device name is offered as the site name.
+                the machine ID is taken from the OPS Pro machine name (e.g. <b>C6003</b>) — rename it there if it is wrong. You must bind it to a site (customer) — the CityBox device name is offered as the site name.
               </div>
               <div class="sm:col-span-4">
                 <label class="flex justify-start text-sm font-medium text-gray-700">CityBox device</label>
@@ -108,6 +108,8 @@
               <!-- Preview card -->
               <div class="sm:col-span-6 rounded-md border border-gray-200 p-3 text-sm" v-if="cb.preview">
                 <div class="flex flex-wrap gap-x-6 gap-y-1">
+                  <span v-if="cb.preview.machine_id"><span class="text-gray-500">Machine ID:</span> <b>{{ cb.preview.machine_id }}</b></span>
+                  <span v-else-if="cb.preview.machine_id_error" class="text-red-700">{{ cb.preview.machine_id_error }}</span>
                   <span><span class="text-gray-500">Model:</span> {{ cb.preview.device?.model }}</span>
                   <span><span class="text-gray-500">State:</span> {{ cb.preview.state || '—' }}</span>
                   <span><span class="text-gray-500">Products configured:</span> {{ cb.preview.product_count ?? '—' }}</span>

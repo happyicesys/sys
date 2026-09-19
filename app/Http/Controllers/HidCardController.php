@@ -202,7 +202,7 @@ class HidCardController extends Controller
         $hidCardValue = $request->hid_card_id;
         $vendCode = $request->vend_code;
 
-        $vend = Vend::where('code', $vendCode)->first();
+        $vend = Vend::bareCode($vendCode)->first();
 
         if (!$vend) {
             return response()->json([

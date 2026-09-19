@@ -154,7 +154,7 @@ class CityboxVendActionController extends Controller
         }
 
         return response()->json([
-            'vend' => ['id' => $vend->id, 'code' => $vend->code, 'equipment_id' => $vend->citybox_equipment_id],
+            'vend' => ['id' => $vend->id, 'code' => $vend->code, 'code_label' => $vend->codeLabel(), 'equipment_id' => $vend->citybox_equipment_id],
             'citybox_name' => $status['name'] ?? null,
             'online' => (bool) ($status['online'] ?? $vend->is_online),
             'offline_since' => $status['heartbeat_last_offline'] ?? null,

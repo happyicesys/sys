@@ -84,7 +84,7 @@ class ZijiaVideoWebhookController extends Controller
         foreach ($strings as $s) {
             if (preg_match(self::ORDER_NO_PATTERN, $s, $m)) {
                 $orderNo = $m[0];
-                $vendId = Vend::withoutGlobalScopes()->where('code', $m[1])->value('id');
+                $vendId = Vend::withoutGlobalScopes()->bareCode($m[1])->value('id');
                 break;
             }
         }

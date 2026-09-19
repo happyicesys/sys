@@ -4,7 +4,7 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Editing Machine
-        {{ vend.code }}
+        {{ vendCodeLabel(vend) }}
       </h2>
     </template>
 
@@ -64,7 +64,7 @@
                 <input
                   type="text"
                   class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value="vend ? vend.code : ''"
+                  :value="vendCodeLabel(vend)"
                   disabled
                 />
               </div>
@@ -1725,7 +1725,7 @@
        in a shared cache. -->
   <Modal :open="screenshotModalOpen" @modalClose="closeScreenshot()">
     <template #header>
-      Machine Screen - #{{ vend ? vend.code : '' }}
+      Machine Screen - #{{ vendCodeLabel(vend) }}
     </template>
 
     <div class="flex flex-col items-center">
@@ -1766,6 +1766,7 @@
 </template>
 
 <script setup>
+  import { vendCodeLabel } from '@/utils/vendCode'
 import AttachmentList from '@/Components/AttachmentList.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
