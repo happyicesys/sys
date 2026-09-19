@@ -277,6 +277,28 @@ class StockCheckTest extends TestCase
         $this->deleteJson('/stock-checks/'.$check->id)->assertStatus(422);
     }
 
+    public function test_a_queue_that_cannot_be_reached_does_not_fail_a_committed_sync(): void
+    {
+        $check = $this->assign();
+        $this->actingAs($this->driver)
+            ->postJson('/stock-checks/'.$check->id.'/submit', $this->answers($check, [11 => 8, 12 => 0, 14 => 5]))->assertOk();
+
+        // Seen in a preview with no Redis: the qty was written, then the snapshot
+        // job's dispatch threw and the person saw a 500 for a sync that had worked.
+        Bus::swap(new class(app(\Illuminate\Contracts\Bus\Dispatcher::class)) extends \Illuminate\Support\Testing\Fakes\BusFake
+        {
+            public function dispatch($command)
+            {
+                throw new \RuntimeException('Connection refused');
+            }
+        });
+
+        $this->actingAs($this->supervisor)->postJson('/stock-checks/'.$check->id.'/sync')->assertOk();
+
+        $this->assertSame(0, (int) VendChannel::where('vend_id', $this->vend->id)->where('code', 12)->value('qty'));
+        $this->assertNotNull($check->fresh()->synced_at);
+    }
+
     public function test_sync_skips_a_channel_whose_product_changed_and_never_goes_below_zero(): void
     {
         $check = $this->assign();

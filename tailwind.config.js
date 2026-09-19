@@ -7,6 +7,8 @@ module.exports = {
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
         './resources/js/**/*.vue',
+        // Style maps that live in a .js module (class names Tailwind must still see).
+        './resources/js/Pages/OpsJob/Stops/*.js',
     ],
 
     theme: {

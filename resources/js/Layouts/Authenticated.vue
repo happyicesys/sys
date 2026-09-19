@@ -107,6 +107,9 @@ const navigation = computed(() => [
         children: [
             {name: 'Jobs', href: '/ops-jobs', permission: 'read operation-jobs'},
             {name: 'Summary', href: '/ops-jobs/summary', permission: 'read operation-job-summaries'}, // Changed permission to match seeder
+            // "Stock Counts" = driver spot checks. Not Reports > "Daily Stock Count" (the nightly valuation snapshot).
+            {name: 'Stock Counts', href: '/stock-checks', permission: 'read stock-checks'},
+            {name: 'Service Notices', href: '/service-notices', permission: 'read service-notices'},
         ]
     },
     // {

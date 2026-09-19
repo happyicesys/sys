@@ -90,9 +90,9 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-5">
+              <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Add More Job(s)
+                  Add Job / Stock Count / Service Notice
                 </label>
                 <MultiSelect
                   v-model="form.vend_id"
@@ -111,18 +111,43 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-1 flex space-x-2">
+              <!-- One machine dropdown, three things it can open. A machine already
+                   on the job can still be counted or repaired — only a second
+                   top-up job for it is refused. -->
+              <div class="sm:col-span-6 flex flex-wrap gap-2">
                 <Button
-                type="button"
-                @click="addOpsJobItem()"
-                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!form.vend_id && !permissions.includes('update operations')"
+                  v-if="permissions.includes('create operations')"
+                  type="button"
+                  @click="addOpsJobItem()"
+                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                  :class="[!canOpenNewJob ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="!canOpenNewJob"
+                  :title="form.vend_id && form.vend_id.in_job ? 'This machine is already on this job' : ''"
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                  <span>
-                    Add
-                  </span>
+                  <span>Open New Job</span>
+                </Button>
+                <Button
+                  v-if="permissions.includes('create stock-checks')"
+                  type="button"
+                  @click="showStockCheckModal = true"
+                  class="bg-cyan-600 hover:bg-cyan-700 text-white flex space-x-1"
+                  :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="!form.vend_id"
+                >
+                  <ClipboardDocumentListIcon class="w-4 h-4"></ClipboardDocumentListIcon>
+                  <span>Open Stock Count</span>
+                </Button>
+                <Button
+                  v-if="permissions.includes('create service-notices')"
+                  type="button"
+                  @click="showServiceNoticeModal = true"
+                  class="bg-amber-500 hover:bg-amber-600 text-white flex space-x-1"
+                  :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="!form.vend_id"
+                >
+                  <WrenchScrewdriverIcon class="w-4 h-4"></WrenchScrewdriverIcon>
+                  <span>Open Service Notice</span>
                 </Button>
               </div>
 
@@ -230,6 +255,12 @@
                       {{ (opsJob.opsJobItems ? opsJob.opsJobItems.length : 0) + (opsJob.opsJobTasks ? opsJob.opsJobTasks.length : 0) }}
                     </span>
                     Job(s)
+                  </span>
+                  <span class="text-gray-500" v-if="opsJob.stockChecks && opsJob.stockChecks.length">
+                    <span class="text-cyan-800">{{ opsJob.stockChecks.length }}</span> Stock Count(s)
+                  </span>
+                  <span class="text-gray-500" v-if="opsJob.serviceNotices && opsJob.serviceNotices.length">
+                    <span class="text-amber-800">{{ opsJob.serviceNotices.length }}</span> Service Notice(s)
                   </span>
                   <span class="text-gray-500">
                     Total of
@@ -485,6 +516,13 @@
                             </template>
                           </td>
                         </tr>
+                        <!-- ── Service Notice / Stock Count rows ───────────── -->
+                        <StopRow
+                          v-else-if="isStopRow(row)"
+                          :row="row"
+                          :rowIndex="rowIndex"
+                          :canUpdate="permissions.includes(row.stop_type === 'service_notice' ? 'update service-notices' : 'update stock-checks')"
+                        />
                         <!-- ── Regular item rows ───────────────────────────── -->
                         <tr v-else :class="rowIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
@@ -1021,6 +1059,24 @@
     </Modal>
   </Teleport>
 
+  <!-- ── Stock Count / Service Notice create modals ──────── -->
+  <Teleport to="body">
+    <CreateStockCheckModal
+      :open="showStockCheckModal"
+      :opsJobId="opsJob.id"
+      :vend="form.vend_id || null"
+      @close="showStockCheckModal = false"
+      @created="onStopCreated('Stock Count', $event)"
+    />
+    <CreateServiceNoticeModal
+      :open="showServiceNoticeModal"
+      :opsJobId="opsJob.id"
+      :vend="form.vend_id || null"
+      @close="showServiceNoticeModal = false"
+      @created="onStopCreated('Service Notice', $event)"
+    />
+  </Teleport>
+
   <!-- ── Task Create / Edit Modal ─────────────────────────── -->
   <Teleport to="body">
     <Modal :open="showTaskModal" @modalClose="closeTaskModal">
@@ -1240,6 +1296,10 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
 import BatchChangeDriver from '@/Pages/OpsJob/BatchChangeDriver.vue';
+import CreateServiceNoticeModal from '@/Pages/OpsJob/Stops/CreateServiceNoticeModal.vue';
+import CreateStockCheckModal from '@/Pages/OpsJob/Stops/CreateStockCheckModal.vue';
+import StopRow from '@/Pages/OpsJob/Stops/StopRow.vue';
+import { isStopRow } from '@/Pages/OpsJob/Stops/stopTypes';
 import Modal from '@/Components/Modal.vue';
 import Channel from '@/Pages/OpsJob/Channel.vue';
 import ChangeDriver from '@/Pages/OpsJob/ChangeDriver.vue';
@@ -1249,7 +1309,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, LinkIcon, MapIcon, MapPinIcon, PaperClipIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, TrashIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, ClipboardDocumentListIcon, CurrencyDollarIcon, LinkIcon, MapIcon, MapPinIcon, PaperClipIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, TrashIcon, UserGroupIcon, WrenchScrewdriverIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, computed, onMounted, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -1293,6 +1353,8 @@ const selectedItemIds = ref([])
 const selectedTaskIds = ref([])
 const showBatchChangeDriverModal = ref(false)
 const showTaskModal = ref(false)
+const showStockCheckModal = ref(false)
+const showServiceNoticeModal = ref(false)
 const showTaskStatusModal = ref(false)
 const editingTask = ref(null)
 const statusTask = ref(null)
@@ -1324,7 +1386,8 @@ onMounted(() => {
   unbindedVendOptions.value = props.unbindedVendOptions.data.map(vend => {
     return {
       id: vend.id,
-      full_name: vend.cust_full_name,
+      full_name: vend.cust_full_name + (vend.in_job ? '  · in job' : ''),
+      in_job: !!vend.in_job,
     }
   })
   userOptions.value = [
@@ -1374,11 +1437,18 @@ function rebuildMergedRows() {
     item._key = 'item_' + item.id
     return item
   })
-  const tasks = (opsJob.value.opsJobTasks || []).map(task => {
+  // Service notices + stock counts ride with the tasks: rows of their own that
+  // carry none of the item columns. `stop_type` (from the server) tells them apart.
+  const stops = [...(opsJob.value.stockChecks || []), ...(opsJob.value.serviceNotices || [])].map(stop => {
+    stop._isTask = false
+    stop._key = stop.stop_type + '_' + stop.id
+    return stop
+  })
+  const tasks = [...(opsJob.value.opsJobTasks || []).map(task => {
     task._isTask = true
     task._key = 'task_' + task.id
     return task
-  })
+  }), ...stops]
   // Every other column (postcode, amounts, zone …) is sorted by the server in
   // OpsJobController::edit(). Re-sorting by sequence here would throw that
   // order away, so keep the server order for items and park the tasks — which
@@ -1417,8 +1487,9 @@ function rebuildMergedRows() {
     if (seqA !== null && seqA !== seqB) {
       return desc ? seqB - seqA : seqA - seqB
     }
-    // Same sequence: items before tasks, otherwise keep the incoming order.
-    if (a._isTask !== b._isTask) return a._isTask ? 1 : -1
+    // Same sequence: items first, then the other row kinds, otherwise keep the incoming order.
+    const isItem = (row) => !row._isTask && !isStopRow(row)
+    if (isItem(a) !== isItem(b)) return isItem(a) ? -1 : 1
     return 0
   })
 }
@@ -1439,7 +1510,20 @@ function getDefaultForm() {
   }
 }
 
+// A second top-up job for a machine already on this job is refused by the
+// server; say so up front instead of failing after the click.
+const canOpenNewJob = computed(() => !!form.value.vend_id && !form.value.vend_id.in_job)
+
+function onStopCreated(label, created) {
+  showStockCheckModal.value = false
+  showServiceNoticeModal.value = false
+  form.value.vend_id = ''
+  toast.success(label + ' ' + (created.display_code || '') + ' opened', { timeout: 3000 })
+  statusUpdated()
+}
+
 function addOpsJobItem() {
+  if (!canOpenNewJob.value) return
   form.value
     .transform((data) => ({
       ...data,
@@ -1766,7 +1850,7 @@ function onRenumberItemsClicked() {
   form.value.clearErrors()
   // Build the unified ordered list in current display sequence
   const mergedOrder = mergedRows.value.map(row => ({
-    type: row._isTask ? 'task' : 'item',
+    type: row._isTask ? 'task' : (row.stop_type || 'item'),
     id: row.id,
   }))
   form.value

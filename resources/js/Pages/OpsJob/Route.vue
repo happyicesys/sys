@@ -406,40 +406,13 @@ let markers = []; // Array to store map markers
 let renderers = []; // Array to store all DirectionsRenderer instances
 
 onMounted(() => {
-  // Merge tasks into opsJobItems as synthetic entries so all existing
-  // map / routing functions work without modification.
-  // Tasks carry their own lat/lng (geocoded at creation) and we build
-  // a compatible customer.deliveryAddress structure.
-  if (Array.isArray(props.opsJob.data?.opsJobTasks)) {
-    const taskItems = props.opsJob.data.opsJobTasks
-      .filter(task => task.latitude && task.longitude)
-      .map(task => ({
-        id: task.id,
-        _isTask: true,
-        sequence: task.sequence,
-        delivery_postcode: task.postcode,
-        remarks: null,
-        status: 1, // treat as pending so renumber / routing picks them up
-        vend: { code: '[task] ' + task.task_name },
-        customer: {
-          id: null,
-          name: task.task_name,
-          ops_note: task.ops_note || null,
-          deliveryAddress: {
-            id: 'task_' + task.id,
-            latitude: task.latitude,
-            longitude: task.longitude,
-            full_address: task.address,
-            postcode: task.postcode,
-            map_url: null,
-          },
-        },
-      }))
-    opsJob.value.opsJobItems = [
-      ...(opsJob.value.opsJobItems || []),
-      ...taskItems,
-    ]
-  }
+  // Tasks, service notices and stock counts are merged into opsJobItems as
+  // synthetic entries (see syntheticStops) so all existing map / routing
+  // functions work without modification.
+  opsJob.value.opsJobItems = [
+    ...(opsJob.value.opsJobItems || []),
+    ...syntheticStops(),
+  ]
 
   originAddressOptions.value = [
     ...(Array.isArray(props.originAddresses?.data) ? props.originAddresses.data.map(address => ({
@@ -504,7 +477,7 @@ const mergedOrder = opsJob.value.opsJobItems
   .filter(item => item.id != null && item.generated_sequence != null)
   .sort((a, b) => a.generated_sequence - b.generated_sequence)
   .map(item => ({
-    type: item._isTask ? 'task' : 'item',
+    type: stopTypeOf(item),
     id: item.id,
     generated_sequence: item.generated_sequence,
   }))
@@ -539,30 +512,70 @@ axios.post('/ops-jobs/' + opsJob.value.id + '/sequence', {
 // tasks merged in onMounted — re-add any task missing from the array (same
 // shape and lat/lng filter as the onMounted merge) so the Claude plan and the
 // append-missing pass always cover the whole job.
+// Every non-item row of the job, shaped like an ops job item so the map, the
+// list and the sequencing code treat it as one more stop. `_isTask` keeps these
+// out of the item-only paths (machine-code lookup, item buttons); `_stopType`
+// is what the server's OpsJobStopRegistry expects back. Stops without
+// coordinates cannot be routed and are left out, as tasks always were.
+function syntheticStops() {
+  const data = props.opsJob.data || {};
+  const entry = (stopType, id, sequence, label, name, note, address) => ({
+    id,
+    _isTask: true,
+    _stopType: stopType,
+    sequence,
+    delivery_postcode: address.postcode,
+    remarks: null,
+    status: 1, // treat as pending so renumber / routing picks them up
+    vend: { code: label },
+    customer: {
+      id: null,
+      name,
+      ops_note: note || null,
+      deliveryAddress: {
+        id: stopType + '_' + id,
+        latitude: address.latitude,
+        longitude: address.longitude,
+        full_address: address.full_address,
+        postcode: address.postcode,
+        map_url: null,
+      },
+    },
+  });
+
+  const tasks = (Array.isArray(data.opsJobTasks) ? data.opsJobTasks : [])
+    .filter(task => task.latitude && task.longitude)
+    .map(task => entry('task', task.id, task.sequence, '[task] ' + task.task_name, task.task_name, task.ops_note, {
+      latitude: task.latitude, longitude: task.longitude, full_address: task.address, postcode: task.postcode,
+    }));
+
+  const machineStops = [
+    ...(Array.isArray(data.stockChecks) ? data.stockChecks : []).map(stop => ['[count] ', stop]),
+    ...(Array.isArray(data.serviceNotices) ? data.serviceNotices : []).map(stop => ['[service] ', stop]),
+  ]
+    .filter(([, stop]) => stop.status === 1 && stop.address?.latitude && stop.address?.longitude)
+    .map(([prefix, stop]) => entry(stop.stop_type, stop.id, stop.sequence, prefix + (stop.vend_code ?? ''), stop.customer_name, stop.display_code + (stop.remarks ? ' · ' + stop.remarks : ''), stop.address));
+
+  return [...tasks, ...machineStops];
+}
+
+function stopTypeOf(stop) {
+  return stop._stopType || (stop._isTask ? 'task' : 'item');
+}
+
 function getClaudeJobStops() {
   const stops = (opsJob.value.opsJobItems || []).filter(stop => stop.id != null);
-  if (Array.isArray(props.opsJob.data?.opsJobTasks)) {
-    const presentTaskIds = new Set(stops.filter(s => s._isTask).map(s => Number(s.id)));
-    props.opsJob.data.opsJobTasks
-      .filter(task => task.latitude && task.longitude && !presentTaskIds.has(Number(task.id)))
-      .forEach(task => stops.push({
-        id: task.id,
-        _isTask: true,
-        sequence: task.sequence,
-        delivery_postcode: task.postcode,
-        vend: { code: '[task] ' + task.task_name },
-        customer: {
-          name: task.task_name,
-          deliveryAddress: { latitude: task.latitude, longitude: task.longitude },
-        },
-      }));
-  }
+  // Keyed on type:id — a task and a service notice may share an id.
+  const present = new Set(stops.filter(s => s._isTask).map(s => stopTypeOf(s) + ':' + Number(s.id)));
+  syntheticStops()
+    .filter(stop => !present.has(stopTypeOf(stop) + ':' + Number(stop.id)))
+    .forEach(stop => stops.push(stop));
   return stops;
 }
 
 function buildClaudePrompt() {
   const stopLines = getClaudeJobStops().map(stop => {
-    const type = stop._isTask ? 'task' : 'item';
+    const type = stopTypeOf(stop);
     const address = stop.customer?.deliveryAddress;
     return '- ' + type + ' id=' + stop.id
       + ' | ' + (stop.vend?.code ?? '')
@@ -614,7 +627,7 @@ function applyClaudeJson() {
   }
 
   const jobStops = getClaudeJobStops();
-  const stopKey = stop => (stop._isTask ? 'task' : 'item') + ':' + stop.id;
+  const stopKey = stop => stopTypeOf(stop) + ':' + stop.id;
   const byKey = new Map(jobStops.map(stop => [stopKey(stop), stop]));
   const byCode = new Map(jobStops.filter(stop => !stop._isTask && stop.vend?.code).map(stop => [String(stop.vend.code), stop]));
 
@@ -626,7 +639,7 @@ function applyClaudeJson() {
     // Item and task ids overlap, so a mis-cased/unknown type must NOT silently
     // fall back to 'item' — it could match a different stop. Reject it instead.
     const type = String(entry.type ?? 'item').toLowerCase();
-    if (type !== 'item' && type !== 'task') {
+    if (!['item', 'task', 'service_notice', 'stock_check'].includes(type)) {
       unmatched.push(JSON.stringify(entry));
       return;
     }
@@ -640,7 +653,7 @@ function applyClaudeJson() {
     }
     if (seen.has(stopKey(stop))) return; // duplicate in the JSON — first occurrence wins
     seen.add(stopKey(stop));
-    mergedOrder.push({ type: stop._isTask ? 'task' : 'item', id: stop.id });
+    mergedOrder.push({ type: stopTypeOf(stop), id: stop.id });
   });
 
   if (!mergedOrder.length) {
@@ -651,7 +664,7 @@ function applyClaudeJson() {
   // Every real stop gets a fresh sequence: stops missing from the JSON are
   // appended in their current order, so the overwrite never leaves stale numbers.
   const missing = jobStops.filter(stop => !seen.has(stopKey(stop)));
-  missing.forEach(stop => mergedOrder.push({ type: stop._isTask ? 'task' : 'item', id: stop.id }));
+  missing.forEach(stop => mergedOrder.push({ type: stopTypeOf(stop), id: stop.id }));
 
   const lines = ['Overwrite the current sequence with ' + mergedOrder.length + ' stops from the Claude JSON?'];
   if (missing.length) {
@@ -700,7 +713,7 @@ function onRenumberItemsClicked() {
   const mergedOrder = opsJob.value.opsJobItems
     .filter(item => !item.isOrigin && !item.isDestination) // exclude temporary origin / destination markers
     .map(item => ({
-      type: item._isTask ? 'task' : 'item',
+      type: stopTypeOf(item),
       id: item.id,
     }))
 
@@ -852,7 +865,7 @@ function addMarkers() {
 
           const infoWindowContent = isTask
             ? `<div>
-                <span style="font-size:11px;color:#000000;font-weight:bold;">[task]</span><br>
+                <span style="font-size:11px;color:#000000;font-weight:bold;">[${stopTypeOf(jobItem).replace('_', ' ')}]</span><br>
                 <span style="font-weight:600;">${jobItem.customer?.name ?? ''}</span><br>
                 <p>${jobItem.customer.deliveryAddress.full_address || jobItem.customer.deliveryAddress.postcode}</p>
                 <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" style="color:#2563eb;font-weight:500;text-decoration:underline;">View on Google Maps</a>

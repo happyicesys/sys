@@ -241,14 +241,28 @@ class StockCheckService
 
         if (collect($results)->contains(fn (ChannelSyncResult $r) => $r->applied)) {
             $check->update(['synced_at' => now(), 'synced_by' => $by->id, 'updated_by' => $by->id]);
-            // Dashboards read the denormalised channel JSON on the vend row.
-            SaveVendChannelsJson::dispatch($check->vend_id)->onQueue('default');
+            $this->refreshChannelSnapshot($check->vend_id);
         }
 
         return $results;
     }
 
     // --------------------------------------------------------------- internals
+
+    /**
+     * Dashboards read a denormalised channel JSON on the vend row; ask for it to
+     * be rebuilt. Best effort: the quantities are already committed, so a queue
+     * that cannot be reached (seen in a preview with no Redis) must not turn a
+     * successful sync into an error — the next machine report rebuilds it anyway.
+     */
+    private function refreshChannelSnapshot(int $vendId): void
+    {
+        try {
+            SaveVendChannelsJson::dispatch($vendId)->onQueue('default');
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
 
     /** @return Collection<int, VendChannel> */
     private function drawFor(Vend $vend, bool $isRandom, ?int $sampleSize, array $productIds): Collection
