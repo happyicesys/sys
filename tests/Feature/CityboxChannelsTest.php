@@ -326,6 +326,37 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame([101, 102, 201, 501], VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->pluck('code')->map(fn ($c) => (int) $c)->all());
     }
 
+    public function test_a_sku_removed_from_their_planogram_retires_its_channel_and_comes_back_when_re_added(): void
+    {
+        // Prod 2026-09-19, C5001: a template switch cut their Pre-Stock Setup to one SKU;
+        // the other 60 channels stayed active with their product cleared → "Unmapped SKU".
+        $this->seedPar();
+        app(CityboxOpenapiSync::class)->pull($this->vend);
+        $this->assertSame(3, VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->count());
+
+        $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->pull($this->vend);
+
+        $active = VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->get();
+        $this->assertSame([101], $active->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $this->assertSame(5, (int) $active->first()->capacity);
+
+        $this->seedPar();
+        app(CityboxOpenapiSync::class)->pull($this->vend);
+        $this->assertSame(3, VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->count());
+    }
+
+    public function test_a_vending_frame_that_omits_a_slot_leaves_it_active(): void
+    {
+        // Boards report every slot; the chiller rule must not reach vending machines.
+        $vending = Vend::create(['code' => 9501, 'is_active' => 1, 'operator_id' => 1]);
+        $slot = fn (int $code) => ['channel_code' => $code, 'qty' => 1, 'capacity' => 5, 'amount' => 100, 'error_code' => 0];
+        \App\Jobs\Vend\SyncVendChannels::dispatchSync(['channels' => [$slot(11), $slot(12)]], $vending);
+        \App\Jobs\Vend\SyncVendChannels::dispatchSync(['channels' => [$slot(11)]], $vending);
+
+        $this->assertSame(2, VendChannel::where('vend_id', $vending->id)->where('is_active', true)->count());
+    }
+
     public function test_pull_refreshes_planogram_immediately_bypassing_the_hourly_cache(): void
     {
         $this->seedPar();

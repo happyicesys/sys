@@ -15,6 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class SyncVendChannels implements ShouldQueue
 {
@@ -141,6 +142,7 @@ class SyncVendChannels implements ShouldQueue
                     SyncVendChannelErrorLog::dispatch($vend, $channelCode, $channel['error_code']);
                 }
             }
+            $this->retireChillerChannelsMissingFrom($channels, $prevVendChannels);
             $productMappingService->syncChannelsByVend($vend);
             SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
             $deliveryProductMappingService->syncVendChannels(null, $vend->id);
@@ -251,6 +253,30 @@ class SyncVendChannels implements ShouldQueue
     }
 
     // get vend channel status by custom logic
+    /**
+     * A vending board reports every slot on every frame, so a channel absent from
+     * one is simply unchanged. A Smart Chiller's frame is built from CityBox's
+     * whole Pre-Stock Setup (ChannelFrameAdapter; StockPollService never sends an
+     * empty one), so a code missing from it is a SKU they removed. Left active, it
+     * kept its old capacity and lost its product to the mapping sync — prod
+     * 2026-09-19, C5001: a template switch at 11:12 left 60 "Unmapped SKU" ghosts
+     * on the overview, the Ops Dashboard and ops jobs. Deactivate them instead; a
+     * code that comes back is reactivated by the loop above.
+     */
+    private function retireChillerChannelsMissingFrom(array $channels, $prevVendChannels): void
+    {
+        if (! $this->vend->isSmartChiller() || $channels === []) {
+            return;
+        }
+        $reported = array_map(fn ($c) => (int) $c['channel_code'], $channels);
+        $gone = $prevVendChannels->filter(fn (VendChannel $c) => $c->is_active && ! in_array((int) $c->code, $reported, true));
+        if ($gone->isEmpty()) {
+            return;
+        }
+        VendChannel::whereIn('id', $gone->pluck('id'))->update(['is_active' => false]);
+        Log::info('Chiller channels retired — no longer in the CityBox planogram', ['vend_id' => $this->vend->id, 'codes' => $gone->pluck('code')->values()->all()]);
+    }
+
     private function getVendChannelStatus($channel)
     {
         // A vending machine's board reports capacity, so capacity 0 there means "no such slot". A
