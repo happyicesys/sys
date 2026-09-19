@@ -650,6 +650,42 @@ Regression coverage: `tests/Feature/CityboxChillerGuardsTest.php`,
 `tests/Feature/CityboxDeviceRegistryTest.php`, `tests/Unit/CityboxChillerStatusTest.php`.
 Field-by-field reasoning: `CHILLER_SETTINGS_AUDIT_2026-09-02.md`.
 
+## Ops job stops: four kinds of row, one registry
+
+An ops job (a driver-day) carries four row types: `ops_job_items` (machine
+top-up), `ops_job_tasks` (non-machine stop), `service_notices` (repair) and
+`stock_checks` (count). The last two are 2026-09-19 (plans:
+`SERVICE_NOTICE_PLAN_2026-09-19.md`, `STOCK_CHECK_PLAN_2026-09-19.md`).
+
+- **`App\Support\OpsJobStopRegistry` is the only writer of a stop's place in the
+  visiting order.** Renumber / sequence / the Route page send `{type, id}`; add
+  the next row type to `TYPES` there (and to `RemoveEmptyOpsJob`, which must
+  treat a job holding ANY stop as non-empty — every stop cascade-deletes with
+  its job). Never grow another `if type === …` at a call site.
+- **Never put a repair or a count on `ops_job_items`.** That table feeds stock-in,
+  freeze, tally, cms sync, the pick list and ops performance.
+- **"Stock Count" in the UI is `stock_checks` in code.** `stock_counts` /
+  `stock_count_items` / "Daily Stock Count" are the nightly machine-reported
+  valuation snapshot — unrelated; the two never read or write each other.
+- **A stop's machine need not share the job's operator** — operator-1 jobs carry
+  sibling operators' machines (~16% of items, prod 2026-09). The rule is
+  `ManagesOpsJobStops::vendVisibleToViewer()`; the tenancy boundary of a stop is
+  its JOB's operator (`ScopesOpsJobToViewer`), on every route.
+- **Stock Count sync is per machine kind** (`App\Services\StockCheck\Sync\*`,
+  bound in `AppServiceProvider`). It applies the variance, never the counted
+  figure. mark1 cannot set a VMC's qty, and a CityBox chiller is refused — read
+  the class docblocks before changing either. A new machine kind that owns its
+  stock differently is one more `StockCheckSyncTarget`.
+- A channel the system shows as empty is never drawn (Brian: a spot check cannot
+  validate a sold-out channel) — `StockCheckSampler::eligible`.
+- `Eloquent\Collection::only()` / `keys()` speak MODEL ids. The sampler draws by
+  position and calls `toBase()` first; a random draw over real query results
+  came back empty without it (`StockCheckSamplerTest`).
+
+Regression coverage: `tests/Feature/ServiceNoticeTest.php`,
+`tests/Feature/StockCheckTest.php`, `tests/Feature/OpsJobStopsTest.php`,
+`tests/Unit/StockCheckSamplerTest.php`.
+
 ---
 
 # Laravel Boost guidelines

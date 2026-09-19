@@ -1,8 +1,28 @@
 # Service Notice in Ops Jobs — plan (2026-09-19)
 
-> **Status: PLAN ONLY. Nothing built.** Awaiting Brian's decisions in §9.
-> When work starts, update this header; when it ships, move the durable rules
-> into `mark1/CLAUDE.md` and mark this doc DONE.
+> **Status: BUILT 2026-09-19 on branch `feature/ops-job-stops` (worktree
+> `mark1-wt-ops-stops`), commits `5bc7fd3c76` + `5c72720cfa`. NOT merged, NOT
+> pushed, NOT deployed. F1–F9 are done; F10–F13 (phase 2) are not started.**
+> Full suite 1104 → 1148 passed, no regressions. Verified in a browser against
+> a seeded preview DB. To ship: merge, build assets from a clean tree at HEAD,
+> push, then on prod `php artisan migrate` and
+> `php artisan db:seed --class=RolePermissionSyncSeeder`.
+>
+> Decisions taken (Brian, 2026-09-19: "both … best practices, OOP, validate
+> before and after") — §9 items 1–6 were built on the recommended answers:
+> own tables; nothing synced to cms; a machine may carry a job AND a notice the
+> same day; a notice always sits inside an ops job; picker and operator_3pl get
+> no access; no PDF.
+>
+> Differences from this plan as built:
+> - The "machine must belong to the job's operator" idea was DROPPED after
+>   checking prod: ~16% of operator-1 job items sit on a sibling operator's
+>   machine. The rule is the dropdown's own — the machine must be visible to the
+>   viewer (`ManagesOpsJobStops::vendVisibleToViewer`).
+> - `RemoveEmptyOpsJob` deleted any job without machine ITEMS nightly, which
+>   would have cascade-deleted a notice-only job (and already did that to
+>   task-only jobs). Fixed: "empty" now means no stop of any kind.
+> - Batch Assign Driver does not move a notice to another driver's job yet.
 
 ## 1. What was asked
 

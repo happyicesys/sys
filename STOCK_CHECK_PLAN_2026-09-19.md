@@ -1,8 +1,37 @@
 # Stock Count job (spot check 盘点) in Ops Jobs — plan (2026-09-19)
 
-> **Status: PLAN ONLY. Nothing built.** Replaces an earlier same-day proposal
-> (full blind count as a stock action) that misread the ask. Sibling of
-> `SERVICE_NOTICE_PLAN_2026-09-19.md`; independent of it.
+> **Status: BUILT 2026-09-19 on branch `feature/ops-job-stops` (worktree
+> `mark1-wt-ops-stops`), commits `5bc7fd3c76` + `5c72720cfa`. NOT merged, NOT
+> pushed, NOT deployed.** C1–C7 are done; phase 2 is not started. Same ship
+> steps as `SERVICE_NOTICE_PLAN_2026-09-19.md`.
+>
+> Brian's answers (2026-09-19) and how each was built:
+> - *"a checkbox when check is random, redraw by supervisor and above"* →
+>   `is_random` checkbox reveals "How many channels"; `redraw stock-checks` is
+>   held by supervisor-and-above only (so are create / sync / delete / export).
+>   Manual add/remove of a channel (§C2) was NOT built — re-draw covers it.
+> - *"spot check can't validate what we have sold out … system showing 1 left,
+>   driver found nothing, set 0"* → a channel the system shows as EMPTY is never
+>   drawn (no toggle — §C2's "Skip empty channels" became a fixed rule in
+>   `StockCheckSampler::eligible`); the Real Qty dropdown runs 0…capacity.
+> - *"a button to sync with the spot checked result"* → **Sync**, §C5 reversed.
+>   It applies the VARIANCE to `vend_channels.qty` (not the counted figure —
+>   sales may have happened since), per machine kind:
+>   - vending machine / smart freezer → `SystemQtySyncTarget`. mark1 has NO
+>     frame that sets a VMC's channel qty, and the machine's next CHANNEL report
+>     overwrites `vend_channels.qty`, so for a vending machine the correction
+>     holds only if the machine is corrected on site too. The page says so
+>     before the person confirms. A freezer sends no CHANNEL frame — it sticks.
+>   - CityBox chiller → `CityboxSyncTarget` REFUSES: their poll overwrites us in
+>     minutes, and their stocktake-submit overwrites device stock with unknown
+>     behaviour for products left out of a partial payload.
+>   Each channel is validated before (still exists, same product, row-locked)
+>   and after (read back == expected, else rollback); before/after qty kept on
+>   the row. A synced count can no longer be reopened or deleted.
+> - *"driver should see the variance"* → yes, in pieces and money, on submit.
+> - The standalone "Stock Count Variance" report (§C6) was built as the
+>   **Stock Counts** list page + Excel export (one row per counted channel);
+>   rollups by driver / site / product are not built.
 
 ## 1. The ask (Brian, 2026-09-19)
 
