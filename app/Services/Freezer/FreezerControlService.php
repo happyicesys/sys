@@ -257,8 +257,11 @@ class FreezerControlService
             return false;
         }
         $path = 'freezer-photos/'.$vend->id.'/'.$cmdId.'-cam'.max(0, $cameraId).'.jpg';
-        Storage::put($path, file_get_contents($tmpPath), 'private');
+        $jpeg = file_get_contents($tmpPath);
+        Storage::put($path, $jpeg, 'private');
         $command->update(['attachment_path' => $path, 'attachment_type' => FreezerControlCommand::ATTACHMENT_PHOTO]);
+        // The panel draws tiles from the small copy; making it now spares the first viewer the wait.
+        app(FreezerPhotoThumbnail::class)->generate($command, $jpeg);
 
         return true;
     }

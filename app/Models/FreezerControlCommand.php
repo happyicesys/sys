@@ -38,7 +38,7 @@ class FreezerControlCommand extends Model
 
     protected $fillable = [
         'vend_id', 'cmd_id', 'op', 'args', 'status', 'response_msg', 'response_log', 'log_scope', 'log_path', 'log_lines',
-        'attachment_path', 'attachment_type',
+        'attachment_path', 'attachment_type', 'attachment_thumb_path',
         'source', 'requested_by', 'requested_by_name', 'ip', 'expires_at', 'responded_at',
     ];
 

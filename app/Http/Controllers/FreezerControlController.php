@@ -6,6 +6,7 @@ use App\Models\FreezerControlCommand;
 use App\Models\FreezerSetpointSchedule;
 use App\Models\Vend;
 use App\Services\Freezer\FreezerControlService;
+use App\Services\Freezer\FreezerPhotoThumbnail;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,9 @@ class FreezerControlController extends Controller
      * shots simply has no history to show, which is the truth rather than an expensive full scan.
      */
     private const PHOTO_SCAN = 120;
+
+    /** A stored still never changes, so a viewer may keep it; it is private to the operator. */
+    private const PHOTO_CACHE_CONTROL = 'private, max-age=31536000, immutable';
 
     /** A raw SDK call can ask the host anything its plugin answers to; superadmin only. */
     public const SDK_RAW_PERMISSION = 'update freezer-sdk-raw';
@@ -160,6 +164,8 @@ class FreezerControlController extends Controller
                 'id' => $c->id,
                 'camera_id' => (int) ($c->args['cameraId'] ?? 0),
                 'url' => route('vends.freezer-controls.attachment', [$vend->id, $c->id]),
+                // Tiles and the history strip draw from this one: ~8 KB against 35-140 KB.
+                'thumb_url' => route('vends.freezer-controls.attachment', [$vend->id, $c->id, 'thumb' => 1]),
                 'taken_at' => ($c->responded_at ?? $c->created_at)?->toIso8601String(),
                 'by' => $c->requested_by_name,
             ])->values()->all();
@@ -262,13 +268,25 @@ class FreezerControlController extends Controller
     }
 
     /** A `photo` command's still, streamed from the private disk. */
-    public function attachment(Vend $vend, FreezerControlCommand $command)
+    public function attachment(Request $request, Vend $vend, FreezerControlCommand $command)
     {
         abort_unless($command->vend_id === $vend->id && $command->attachment_path, 404);
         abort_unless(Storage::exists($command->attachment_path), 404);
+
+        // `?thumb=1` is the tile-sized copy, made on first ask for photos older than it. A stored
+        // photo never changes, so either file may be held by the browser for good.
+        if ($request->boolean('thumb')) {
+            $thumb = app(FreezerPhotoThumbnail::class)->pathFor($command);
+            if ($thumb !== null) {
+                return Storage::response($thumb, 'camera-'.$command->id.'-thumb.webp', [
+                    'Content-Type' => 'image/webp',
+                    'Cache-Control' => self::PHOTO_CACHE_CONTROL,
+                ]);
+            }
+        }
         $name = 'freezer-'.$vend->code.'-'.$command->created_at?->format('Ymd-His').'.jpg';
 
-        return Storage::response($command->attachment_path, $name, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private, max-age=3600']);
+        return Storage::response($command->attachment_path, $name, ['Content-Type' => 'image/jpeg', 'Cache-Control' => self::PHOTO_CACHE_CONTROL]);
     }
 
     /**

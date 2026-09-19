@@ -47,7 +47,7 @@
               :class="photo.id === selectedId ? 'border-sky-600' : 'border-transparent hover:border-gray-300'"
               @click="selectedId = photo.id"
             >
-              <img :src="photo.url" :alt="viewName(cameraId)" class="h-16 w-28 object-cover" />
+              <img :src="photo.thumb_url || photo.url" :alt="viewName(cameraId)" class="h-16 w-28 object-cover" loading="lazy" />
               <span class="block bg-gray-50 px-1 py-0.5 text-[11px] text-gray-600">{{ formatTime(photo.taken_at) }}</span>
             </button>
           </div>

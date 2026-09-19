@@ -219,7 +219,7 @@
                       class="block w-full overflow-hidden rounded-md border border-gray-200 hover:border-sky-500 focus:outline-none"
                       @click="openPhoto(tile.photo)"
                     >
-                      <img :src="tile.photo.url" :alt="tile.label" class="h-16 w-28 object-cover" loading="lazy" />
+                      <img :src="tile.photo.thumb_url || tile.photo.url" :alt="tile.label" class="h-16 w-28 object-cover" loading="lazy" />
                     </button>
                     <div v-else class="flex h-16 w-28 items-center justify-center rounded-md border border-dashed border-gray-300 text-[11px] text-gray-400">
                       No photo yet
