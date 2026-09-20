@@ -1,12 +1,11 @@
 # Service Notice in Ops Jobs — plan (2026-09-19)
 
-> **Status: BUILT 2026-09-19 on branch `feature/ops-job-stops` (worktree
-> `mark1-wt-ops-stops`), commits `5bc7fd3c76` + `5c72720cfa`. NOT merged, NOT
-> pushed, NOT deployed. F1–F9 are done; F10–F13 (phase 2) are not started.**
-> Full suite 1104 → 1148 passed, no regressions. Verified in a browser against
-> a seeded preview DB. To ship: merge, build assets from a clean tree at HEAD,
-> push, then on prod `php artisan migrate` and
-> `php artisan db:seed --class=RolePermissionSyncSeeder`.
+> **Status: SHIPPED to main 2026-09-20 (push = deploy).** Commits: `2cec10b9f6`
+> migrations (pushed first, on their own — the deploy serves code before it
+> migrates), `12f90b3f6f` backend, `5ee93d7002` frontend, plus the asset rebuild.
+> F1–F9 are done; F10–F13 (phase 2) are not started. Full suite 1104 → 1148
+> passed, no regressions. Prod needs `db:seed --class=RolePermissionSyncSeeder`
+> after the deploy or nobody holds the new permissions.
 >
 > Decisions taken (Brian, 2026-09-19: "both … best practices, OOP, validate
 > before and after") — §9 items 1–6 were built on the recommended answers:

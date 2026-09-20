@@ -1,9 +1,8 @@
 # Stock Count job (spot check 盘点) in Ops Jobs — plan (2026-09-19)
 
-> **Status: BUILT 2026-09-19 on branch `feature/ops-job-stops` (worktree
-> `mark1-wt-ops-stops`), commits `5bc7fd3c76` + `5c72720cfa`. NOT merged, NOT
-> pushed, NOT deployed.** C1–C7 are done; phase 2 is not started. Same ship
-> steps as `SERVICE_NOTICE_PLAN_2026-09-19.md`.
+> **Status: SHIPPED to main 2026-09-20 (push = deploy)** with
+> `SERVICE_NOTICE_PLAN_2026-09-19.md` — same commits, same ship notes there.
+> C1–C7 are done; phase 2 is not started.
 >
 > Brian's answers (2026-09-19) and how each was built:
 > - *"a checkbox when check is random, redraw by supervisor and above"* →
