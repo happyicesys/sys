@@ -43,6 +43,17 @@ final class VendCode
         return ($prefix ?? '').($code ?? '');
     }
 
+    /**
+     * The label as a SQL expression, for exports and reports that select the
+     * machine ID straight off a join instead of hydrating a Vend:
+     * `DB::raw(VendCode::sqlLabel().' AS vend_code')`. An unprefixed machine
+     * yields exactly its code, so existing columns keep their values.
+     */
+    public static function sqlLabel(string $table = 'vends'): string
+    {
+        return "CONCAT(COALESCE({$table}.code_prefix, ''), {$table}.code)";
+    }
+
     public function toLabel(): string
     {
         return self::label($this->prefix, $this->number);

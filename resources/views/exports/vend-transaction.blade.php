@@ -34,7 +34,7 @@
             {{ $vendTransaction->transaction_datetime }}
           </td>
           <td>
-            {{ $vendTransaction->vend->code }}
+            {{ $vendTransaction->vend?->codeLabel() }}
           </td>
           <td>
             {{$vendTransaction->customer && $vendTransaction->customer->person_id ? $vendTransaction->customer->virtual_customer_prefix . '-' .$vendTransaction->customer->virtual_customer_code : ''}}

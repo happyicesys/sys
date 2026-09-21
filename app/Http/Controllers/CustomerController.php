@@ -38,6 +38,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use App\Support\VendCode;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class CustomerController extends Controller
@@ -6539,7 +6540,7 @@ class CustomerController extends Controller
                 'customers.operator_id',
                 'customers.zone_id',
                 'operators.code as operator_code',
-                'vends.code as vend_code',
+                DB::raw(VendCode::sqlLabel().' as vend_code'), // "C6001" for a CityBox chiller
                 'zones.name as zone_name',
                 'vc.total_full_load_amount',
                 DB::raw('

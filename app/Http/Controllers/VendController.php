@@ -4744,7 +4744,7 @@ class VendController extends Controller
             ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->select([
                 'vend_transactions.*',
-                'vends.code AS vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'), // "C6001" for a CityBox chiller
                 'vends.name AS vend_name',
                 'vend_prefixes.name AS vend_prefix_name',
                 'customers.id AS customer_id',
@@ -4920,7 +4920,7 @@ class VendController extends Controller
                     $data[] = [
                         'order_id' => $log->order_id,
                         'transaction_datetime' => $log->approved_at ? $log->approved_at->toDateTimeString() : '',
-                        'machine_id' => $log->vend->code ?? $log->vend_code ?? '',
+                        'machine_id' => $log->vend?->codeLabel() ?: ($log->vend_code ?? ''),
                         'machine_prefix' => '',
                         'customer_id' => '',
                         'customer_code' => '',
@@ -6026,7 +6026,7 @@ class VendController extends Controller
                 'vend_channels.amount',
                 'vend_channels.capacity',
                 'vend_channels.qty',
-                'vends.code AS vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'), // "C6001" for a CityBox chiller
                 'vends.name AS vend_name',
             )
             ->where('capacity', '>', 0)

@@ -63,7 +63,7 @@ trait AppendsUnreportedGatewayCsvRows
             : null;
 
         PaymentGatewayLog::query()
-            ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
+            ->with(['vend:id,code,code_prefix', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->when($userVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $userVendIds))
             // "Transaction Access From". These rows are gateway money with no
@@ -83,7 +83,7 @@ trait AppendsUnreportedGatewayCsvRows
                     $this->putGatewayRow($stream, [
                         $orderIdCell,                                                    // Order ID
                         $log->approved_at ? $log->approved_at->toDateTimeString() : '',  // Transaction Datetime
-                        $log->vend->code ?? $log->vend_code ?? '',                       // Machine ID
+                        $log->vend?->codeLabel() ?: ($log->vend_code ?? ''),                       // Machine ID
                         '',                                                              // Machine Prefix
                         '',                                                              // Customer ID
                         '',                                                              // Customer Code

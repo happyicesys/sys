@@ -4,7 +4,6 @@ namespace App\Exports;
 
 use App\Models\Operator;
 use App\Models\OpsJob;
-use App\Models\Product;
 use App\Models\ProductMovement;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ProductMovementTrackingExport implements FromCollection, WithHeadings, WithMapping, WithColumnWidths, WithStyles
+class ProductMovementTrackingExport implements FromCollection, WithColumnWidths, WithHeadings, WithMapping, WithStyles
 {
     protected $request;
 
@@ -36,7 +35,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             'date_to' => $request->date_to ?: Carbon::today()->toDateString(),
         ]);
 
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $operators = \App\Support\OperatorScope::defaultFilterIds();
             } else {
@@ -71,7 +70,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 users.name as by_user,
                 product_movements.created_at as created_at,
                 ops_jobs.date as job_delivery_date,
-                vends.code as machine_id,
+                CONCAT(COALESCE(vends.code_prefix, ''), vends.code) as machine_id,
                 'ProductMovement' as source_type
             ")
             ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
@@ -97,7 +96,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                     $search = array_map('trim', explode(',', $request->vend_code));
                     $q->whereIn('vends.code', $search);
                 } else {
-                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
                 }
             });
 
@@ -114,7 +113,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 users.name as by_user,
                 COALESCE(ops_job_items.picked_at, ops_job_items.last_picked_at) as created_at,
                 ops_jobs.date as job_delivery_date,
-                vends.code as machine_id,
+                CONCAT(COALESCE(vends.code_prefix, ''), vends.code) as machine_id,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
@@ -149,7 +148,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                     $search = array_map('trim', explode(',', $request->vend_code));
                     $q->whereIn('vends.code', $search);
                 } else {
-                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
                 }
             })
             // Exclude records after cutoff
@@ -168,7 +167,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 users.name as by_user,
                 ops_job_items.undo_picked_at as created_at,
                 ops_jobs.date as job_delivery_date,
-                vends.code as machine_id,
+                CONCAT(COALESCE(vends.code_prefix, ''), vends.code) as machine_id,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
@@ -193,7 +192,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                     $search = array_map('trim', explode(',', $request->vend_code));
                     $q->whereIn('vends.code', $search);
                 } else {
-                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
                 }
             })
             // Exclude records after cutoff
@@ -233,7 +232,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             $row->qty,
             $row->by_user,
             $row->machine_id,
-            $row->remarks ? '#' . $row->remarks : '',
+            $row->remarks ? '#'.$row->remarks : '',
             $row->job_delivery_date ? Carbon::parse($row->job_delivery_date)->toDateString() : '',
         ];
     }

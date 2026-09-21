@@ -124,6 +124,43 @@ class VendCodePrefixTest extends TestCase
         $this->assertSame([$other->id], $ids('2031'));
     }
 
+    // ── exports print the label ────────────────────────────────────────────
+
+    public function test_the_sql_label_reads_c6001_for_a_chiller_and_the_bare_number_otherwise(): void
+    {
+        $chiller = $this->chiller('E1', 6001);
+        $vending = Vend::create(['code' => 2031, 'is_active' => 1]);
+
+        $labels = Vend::query()->whereIn('id', [$chiller->id, $vending->id])->orderBy('id')
+            ->selectRaw(VendCode::sqlLabel().' AS label')->pluck('label')->all();
+
+        $this->assertSame(['C6001', '2031'], array_map('strval', $labels));
+    }
+
+    public function test_the_channel_export_prints_the_machine_id_ops_pro_uses(): void
+    {
+        // Finance and ops compare these files against OPS Pro by machine name.
+        $operator = Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
+        $user = User::factory()->create(['operator_id' => $operator->id]);
+        $chiller = $this->chiller('E1', 6001);
+        // The export lists bound machines under the viewer's operator.
+        $site = \App\Models\Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => $operator->id, 'status_id' => \App\Models\Customer::STATUS_ACTIVE]);
+        $chiller->forceFill(['customer_id' => $site->id, 'operator_id' => $operator->id])->save();
+        \App\Models\VendChannel::create(['vend_id' => $chiller->id, 'code' => 101, 'qty' => 1, 'capacity' => 5, 'is_active' => true]);
+
+        $response = $this->actingAs($user)->get('/vends/channels/excel');
+        $response->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'channels').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        try {
+            $rows = (new \Rap2hpoutre\FastExcel\FastExcel)->import($path);
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertSame('C6001', (string) $rows->first()['Machine ID']);
+    }
+
     // ── a new mark1 number never takes a chiller's ─────────────────────────
 
     public function test_machine_create_refuses_a_number_a_chiller_holds(): void
