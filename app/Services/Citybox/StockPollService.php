@@ -197,6 +197,25 @@ class StockPollService
     }
 
     /**
+     * Rebuild the vend's channels from its CURRENT mapping plus their live stock,
+     * ignoring the submit-pending guard. Used by the ops-job mapping swap: the item
+     * is already Stocked-In (so a submit is pending) but the channels must follow
+     * the new mapping right now — new codes appear, dropped ones retire — before
+     * SubmitCityboxCount sends the counts. Best-effort; the scheduled poll does the
+     * same within minutes.
+     */
+    public function rebuildChannels(Vend $vend): void
+    {
+        try {
+            $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
+            $this->applyStockOnly($vend, $lines);
+            $this->pushChannels($vend, $lines, null, force: true);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Citybox channel rebuild failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Re-read CityBox's own Pre-Stock Setup (Pull / Open Door) and cache it. It no
      * longer decides our channels — it is the recognition check: a SKU our mapping
      * carries that their machine does not know cannot be recognised by their AI.

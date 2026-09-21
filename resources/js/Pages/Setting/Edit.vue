@@ -828,6 +828,25 @@
                 </div>
             </div>
 
+            <!-- Recognition check (Brian, 2026-09-21): our mapping is the planogram, but their AI
+                 only recognises SKUs loaded on the machine in OPS Pro. Anything we map that their
+                 Pre-Stock Setup lacks is listed here, and the Stock In push refuses it. -->
+            <div class="sm:col-span-6" v-if="isChiller && chillerUnrecognisable.length">
+              <label class="flex justify-start text-sm font-medium text-gray-700">Not loaded in CityBox</label>
+              <div class="mt-1 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+                <div class="font-semibold">
+                  {{ chillerUnrecognisable.length }} mapped channel{{ chillerUnrecognisable.length === 1 ? '' : 's' }}
+                  carry a product this machine does not have in CityBox.
+                </div>
+                <div class="mt-1">
+                  Channel{{ chillerUnrecognisable.length === 1 ? '' : 's' }}
+                  <b>{{ chillerUnrecognisable.map(c => c.code).join(', ') }}</b> —
+                  add the product to this machine's Pre-Stock Setup in OPS Pro, or their AI cannot
+                  recognise it when a customer takes one. Stock In refuses to push until then.
+                </div>
+              </div>
+            </div>
+
             <!-- CityBox status layer: THEIR view of the device (ops status, online, heartbeat), from the
                  last poll on this row — no API call. Sits beside mark1's own Status; neither writes
                  the other (mark1's Status also carries factory/disposed/sold, which their API has no
@@ -1818,6 +1837,7 @@ const props = defineProps({
     versionOptions: [Array, Object],
     // ChillerStatus::toArray() — null for anything but a Smart Chiller.
     chillerStatus: Object,
+    chillerUnrecognisable: { type: Array, default: () => [] },
   })
 
 // One question, asked once: is this a CityBox Smart Chiller? Every

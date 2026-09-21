@@ -115,11 +115,12 @@ class Vend extends Model
     }
 
     /**
-     * Ops-job stock actions this machine kind cannot perform. A CityBox chiller:
-     *  - implement_new_mapping — its planogram is CityBox's (mark1 mirrors it) and
-     *    the completion path pushes an APK channel frame it cannot receive;
-     *  - melted_stock — the melted-ice-cream discard flow; a chiller sells drinks.
-     * Return-all-stock and onsite adjustment remain valid (they are counts).
+     * Ops-job stock actions this machine kind cannot perform. A CityBox chiller
+     * cannot do melted_stock (the melted-ice-cream discard flow; a chiller sells
+     * drinks). implement_new_mapping became legal on 2026-09-21, when the chiller
+     * planogram became ours: the completion path advances the mapping and re-pulls
+     * the channels instead of pushing an APK frame (VendJobService already skips
+     * chillers there). Return-all-stock and onsite adjustment remain valid.
      * One list, read by the item-level refusal, the job-level bulk skip and the
      * Stock Action menu — extend here, not at the call sites.
      *
@@ -127,7 +128,7 @@ class Vend extends Model
      */
     public function disallowedStockActions(): array
     {
-        return $this->isSmartChiller() ? ['implement_new_mapping', 'melted_stock'] : [];
+        return $this->isSmartChiller() ? ['melted_stock'] : [];
     }
 
     public function allowsStockAction(?string $type): bool

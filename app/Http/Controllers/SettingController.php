@@ -476,6 +476,12 @@ class SettingController extends Controller
             // CityBox-side status layer (their ops status / heartbeat / online),
             // read from the last poll on the row — no API call. Null for other kinds.
             'chillerStatus' => $vend->chillerStatus()?->toArray(),
+            // SKUs this chiller's mapping carries that CityBox's own Pre-Stock Setup
+            // does not — their AI cannot recognise those, so ops add them in OPS Pro
+            // (Brian, 2026-09-21). Read from the cached config; no API call here.
+            'chillerUnrecognisable' => $vend->isSmartChiller()
+                ? app(\App\Services\Citybox\StockPollService::class)->unrecognisableSlots($vend)
+                : [],
             // Card Terminal COMPANY (Nayax / Nets / Nets-Auresys / PAX / MLS / HID)
             // — populates the "Card Terminal Company" dropdown on the vend edit form.
             // Renamed from "Card Terminal" 2026-09-05, when the terminal ITSELF

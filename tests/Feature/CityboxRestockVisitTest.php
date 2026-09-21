@@ -165,6 +165,38 @@ class CityboxRestockVisitTest extends TestCase
         }
     }
 
+    /**
+     * Mapping changeover, chiller flavour (2026-09-21). Ops stage an upcoming mapping
+     * and the driver stocks in: the vend advances to it and the channels follow —
+     * new codes appear, dropped ones retire — with no APK frame anywhere (a chiller
+     * has no APK). Before this, implement_new_mapping was refused on a chiller.
+     */
+    public function test_stocking_in_a_mapping_swap_advances_the_chiller_and_rebuilds_its_channels(): void
+    {
+        Permission::findOrCreate('update operations', 'web');
+        $this->driver->givePermissionTo('update operations');
+        $this->gw->seedPar('E1', [
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
+        ]);
+        // The layout ops prepared: 101 keeps Suntory, 102 becomes Lemon, 103 is new.
+        $upcoming = \Tests\Support\Citybox\ChillerMapping::bind($this->vend, [101 => [90338, 5], 102 => [90339, 6]], 'Layout B');
+        $this->vend->forceFill(['product_mapping_id' => $this->vend->getOriginal('product_mapping_id'), 'upcoming_product_mapping_id' => $upcoming->id])->save();
+        $this->vend->refresh();
+        $this->item->update(['stock_action_type' => 'implement_new_mapping', 'status' => OpsJob::STATUS_PICKED]);
+
+        $this->actingAs($this->driver)
+            ->post('/ops-jobs/items/'.$this->item->id.'/confirm', ['channels' => []])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($upcoming->id, $this->vend->fresh()->product_mapping_id);
+        $this->assertNull($this->vend->fresh()->upcoming_product_mapping_id);
+        $channels = VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->orderBy('code')->get();
+        $this->assertSame([101, 102], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $this->assertSame(90339, (int) \App\Models\Product::find($channels->firstWhere('code', 102)->product_id)->code);
+        Queue::assertNotPushed(\App\Jobs\PublishMqtt::class); // no APK frame: a chiller has no APK
+    }
+
     public function test_observer_marks_pending_and_queues_the_delayed_submit_only_for_chillers(): void
     {
         Queue::fake();

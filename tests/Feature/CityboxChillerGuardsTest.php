@@ -29,12 +29,15 @@ class CityboxChillerGuardsTest extends TestCase
 
     private User $user;
 
+    private FakeChillerGateway $gw;
+
     protected function setUp(): void
     {
         parent::setUp();
         Queue::fake();
         config(['citybox.openapi.enabled' => true, 'citybox.openapi.app_id' => 'A', 'citybox.openapi.secret' => 'S']);
-        $this->app->instance(ChillerGateway::class, new FakeChillerGateway);
+        $this->gw = new FakeChillerGateway;
+        $this->app->instance(ChillerGateway::class, $this->gw);
         // + update machine-settings: /vends/{id}/update is gated since 2026-09-15 (audit M2-03).
         foreach (['read product-mappings', 'update operations', 'admin-access operations', 'update machine-settings'] as $p) {
             Permission::findOrCreate($p, 'web');
@@ -137,6 +140,45 @@ class CityboxChillerGuardsTest extends TestCase
             );
     }
 
+    /**
+     * Recognition check on the two screens ops act from: a SKU our mapping carries
+     * that the machine does not have in CityBox can be loaded by the driver but
+     * never recognised by their AI, so both pages name the channels.
+     */
+    public function test_settings_and_ops_job_pages_flag_channels_the_machine_does_not_carry(): void
+    {
+        foreach (['read machine-settings', 'read operations'] as $perm) {
+            Permission::findOrCreate($perm, 'web');
+        }
+        $this->user->givePermissionTo(['read machine-settings', 'read operations']);
+        // editItem renders dates in the viewer's operator timezone, and the viewer
+        // ceiling keys on it: the job, the vend and the viewer share one operator.
+        $operator = \App\Models\Operator::create(['code' => 'FLAG', 'name' => 'Flag Co', 'country_id' => 1]);
+        $this->user->forceFill(['operator_id' => $operator->id])->save();
+        $customer = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => $operator->id, 'status_id' => Customer::STATUS_ACTIVE]);
+        $vend = $this->chiller(['customer_id' => $customer->id, 'operator_id' => $operator->id]);
+        $this->gw->seedDevice('E1');
+        // Their machine carries 90338 only; our mapping also puts 90339 on 102.
+        $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12']]);
+        \Tests\Support\Citybox\ChillerMapping::bind($vend, [101 => [90338, 5], 102 => [90339, 5]]);
+        $vend->refresh();
+        app(\App\Services\Citybox\StockPollService::class)->refreshTheirConfig($vend);
+
+        $this->get('/settings/vend/'.$vend->id.'/update')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Setting/Edit')
+                ->where('chillerUnrecognisable.0.code', 102)
+                ->where('chillerUnrecognisable.0.citybox_product_id', 90339));
+
+        $job = OpsJob::create(['code' => 900104, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $this->user->id, 'operator_id' => $operator->id]);
+        $item = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PICKED]);
+
+        $this->get('/ops-jobs/items/'.$item->id.'/edit')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('OpsJob/EditItem')
+                ->where('cityboxUnrecognisable.0.code', 102));
+    }
+
     // ── 2. Chiller mapping is OURS to edit (2026-09-21) ────────────────────
 
     public function test_chiller_mapping_accepts_human_edits(): void
@@ -216,17 +258,19 @@ class CityboxChillerGuardsTest extends TestCase
 
     // ── 3. Ops job: no "implement new mapping" on a chiller ────────────────
 
-    public function test_item_level_implement_new_mapping_is_refused_for_a_chiller(): void
+    public function test_a_chiller_can_now_take_an_implement_new_mapping_action(): void
     {
+        // Refused until 2026-09-21, when the planogram became ours: the completion path
+        // advances the mapping and re-pulls the channels instead of pushing an APK frame.
         $customer = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => 1, 'status_id' => Customer::STATUS_ACTIVE]);
         $vend = $this->chiller(['customer_id' => $customer->id, 'product_mapping_id' => $this->mirror()->id]);
         $job = OpsJob::create(['code' => 900100, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $this->user->id, 'operator_id' => 1]);
         $item = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PENDING]);
 
         $this->post('/ops-jobs/items/'.$item->id.'/update/stock-action', ['stock_action_type' => 'implement_new_mapping'])
-            ->assertSessionHasErrors('stock_action_type');
+            ->assertSessionHasNoErrors();
 
-        $this->assertNull($item->fresh()->stock_action_type);
+        $this->assertSame('implement_new_mapping', $item->fresh()->stock_action_type);
     }
 
     public function test_melted_stock_is_refused_for_a_chiller_and_hidden_from_its_menu(): void
@@ -246,7 +290,7 @@ class CityboxChillerGuardsTest extends TestCase
         $this->assertSame('onsite_adjustment', $item->fresh()->stock_action_type);
 
         // The rule the menu reads, flat on the item resource.
-        $this->assertSame(['implement_new_mapping', 'melted_stock'], $vend->disallowedStockActions());
+        $this->assertSame(['melted_stock'], $vend->disallowedStockActions());
         $this->assertSame([], Vend::create(['code' => 9002, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1, 'operator_id' => 1])->disallowedStockActions());
     }
 
@@ -266,7 +310,7 @@ class CityboxChillerGuardsTest extends TestCase
         $this->assertSame('melted_stock', $vmItem->fresh()->stock_action_type);
     }
 
-    public function test_job_level_bulk_action_skips_the_chiller_item_instead_of_pushing_a_frame(): void
+    public function test_job_level_bulk_mapping_action_now_reaches_the_chiller_item(): void
     {
         $customer = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => 1, 'status_id' => Customer::STATUS_ACTIVE]);
         $vend = $this->chiller(['customer_id' => $customer->id, 'product_mapping_id' => $this->mirror()->id]);
@@ -276,11 +320,7 @@ class CityboxChillerGuardsTest extends TestCase
         $this->post('/ops-jobs/'.$job->id.'/update/stock-action', ['stock_action_type' => 'implement_new_mapping'])
             ->assertSessionHasNoErrors();
 
-        $fresh = $item->fresh();
-        $this->assertSame(0, $fresh->opsJobItemChannels()->where('is_upcoming_product', true)->count());
-        // The flag itself must not land on the chiller item: completion keys on it to
-        // run the old-stock auto-return and the APK channel-frame push.
-        $this->assertNull($fresh->stock_action_type);
+        $this->assertSame('implement_new_mapping', $item->fresh()->stock_action_type);
         $this->assertSame('implement_new_mapping', $job->fresh()->stock_action_type);
     }
 }

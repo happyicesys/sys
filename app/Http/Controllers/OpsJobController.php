@@ -864,7 +864,18 @@ class OpsJobController extends Controller
                 // Auto push product info to machine if implement_new_mapping
                 if ($opsJobItem->stock_action_type === 'implement_new_mapping') {
                     $vend = $opsJobItem->vend;
-                    if ($vend) {
+                    // The swap above wrote product_mapping_id straight to the row; this
+                    // relation may still hold the old one, and the chiller's channels are
+                    // derived FROM it.
+                    $vend?->refresh();
+                    if ($vend && $vend->isSmartChiller()) {
+                        // A chiller has no APK to push a frame to: its channels are derived
+                        // from the (now advanced) mapping plus CityBox's live stock, so they are
+                        // rebuilt here — new codes appear, dropped ones retire — before
+                        // SubmitCityboxCount sends the counts a few seconds later. The rebuild
+                        // bypasses the submit-pending guard, which this very stock-in just set.
+                        app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend);
+                    } elseif ($vend) {
                         $this->productMappingService->syncChannelsByVend($vend);
                         \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
 
@@ -1763,6 +1774,11 @@ class OpsJobController extends Controller
 
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),
+            // Channels whose SKU this chiller does not carry in CityBox: the driver can
+            // load them, but their AI will not recognise them when a customer takes one.
+            'cityboxUnrecognisable' => $isCityboxChiller && $opsJobItem->vend
+                ? app(\App\Services\Citybox\StockPollService::class)->unrecognisableSlots($opsJobItem->vend)
+                : [],
             'referencePriceType' => $isCityboxChiller
                 ? null
                 : (SellingPrice::TYPE_MAPPINGS[$referencePriceType] ?? ('RP'.$referencePriceType)),

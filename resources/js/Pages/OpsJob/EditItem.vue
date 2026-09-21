@@ -27,6 +27,12 @@
             ({{ opsJobItem.customer.id + 20000 }})
             {{ opsJobItem.customer.name }}
           </span> -->
+          <div v-if="cityboxUnrecognisable.length" class="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-900">
+            <span class="font-semibold">Channel{{ cityboxUnrecognisable.length === 1 ? '' : 's' }}
+            {{ cityboxUnrecognisable.map(c => c.code).join(', ') }}</span>
+            hold a product this chiller does not carry in CityBox — their AI cannot recognise it, and
+            Stock In will refuse to push. Ask ops to add it in OPS Pro first.
+          </div>
           <div class="flex space-x-1">
             <div
               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
@@ -1745,6 +1751,9 @@ const props = defineProps({
   // for that type - see OpsJobController::editItem.
   referencePriceType: { type: String, default: null },
   referencePrices: { type: Object, default: () => ({}) },
+  // Chiller channels whose SKU is not loaded on the machine in CityBox: the driver
+  // can fill them, but their AI will not recognise them (Brian, 2026-09-21).
+  cityboxUnrecognisable: { type: Array, default: () => [] },
 })
 const channels = ref([])
 
