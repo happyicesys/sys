@@ -55,6 +55,33 @@ class UserLogTest extends TestCase
         ]);
     }
 
+    /**
+     * Prod 2026-09-21: binding a machine to an APK setting logged nothing — and threw a
+     * NOT NULL error into the log — because the pivot MODEL had no key after insert
+     * (Pivot switches `incrementing` off even when the table has an id). Removals were
+     * audited, additions never were.
+     */
+    public function test_binding_a_machine_to_an_apk_setting_is_audited_both_ways(): void
+    {
+        $this->actingWebUser();
+        $apkSetting = \App\Models\ApkSetting::create(['name' => 'Default kiosk']);
+        $vend = \App\Models\Vend::create(['code' => 9901, 'is_active' => 1]);
+
+        $apkSetting->vends()->sync([$vend->id]);
+        $created = DB::table('user_logs')->where('auditable_type', \App\Models\ApkSettingVend::class)->where('event', 'created')->first();
+        $this->assertNotNull($created, 'adding a machine must leave an audit row');
+        $this->assertNotNull($created->auditable_id);
+        $this->assertSame($vend->id, json_decode($created->changes, true)['vend_id']);
+
+        // Removal through sync() rebuilds the pivot from its foreign keys — no id of its own —
+        // so it is filed under the APK setting as an edit of that record.
+        $apkSetting->vends()->sync([]);
+        $removed = DB::table('user_logs')->where('auditable_type', \App\Models\ApkSetting::class)
+            ->where('auditable_id', $apkSetting->id)->where('event', 'updated')->latest('id')->first();
+        $this->assertNotNull($removed, 'removing a machine must leave an audit row');
+        $this->assertSame(['apk_setting_vend.vend_id' => [$vend->id, null]], json_decode($removed->changes, true));
+    }
+
     public function test_no_op_update_writes_no_row(): void
     {
         $this->actingWebUser();

@@ -4,9 +4,11 @@ namespace App\Services;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -140,12 +142,36 @@ class UserLogger
      */
     private static function insert(string $event, Model $model, string $class, ?Authenticatable $user, array $changes): void
     {
+        $key = $model->getKey();
+
+        // A pivot row removed through sync()/detach() is rebuilt from its two foreign
+        // keys only, so it has no id of its own to file under. File it under the PARENT
+        // instead, as an edit of that record — "apk_setting_vend.vend_id: 1198 → null" on
+        // the APK setting — rather than lose it (prod 2026-09-21: the APK Settings form
+        // audited neither additions nor removals).
+        if ($key === null && $model instanceof Pivot && $model->pivotParent?->getKey() !== null) {
+            $related = $model->getRelatedKey();
+            $value = $model->getAttribute($related);
+            $changes = [$model->getTable().'.'.$related => $event === 'deleted' ? [$value, null] : [null, $value]];
+            $event = 'updated';
+            $class = get_class($model->pivotParent);
+            $key = $model->pivotParent->getKey();
+        }
+
+        // user_logs.auditable_id is NOT NULL: say which class, instead of failing an
+        // insert and reporting a SQL error.
+        if ($key === null) {
+            Log::warning('UserLogger: '.$class." has no key after '{$event}' — audit row skipped");
+
+            return;
+        }
+
         DB::table('user_logs')->insert([
             'user_id' => $user?->getKey(),
             'user_name' => $user?->name,
             'event' => $event,
             'auditable_type' => $class,
-            'auditable_id' => $model->getKey(),
+            'auditable_id' => $key,
             'changes' => $changes === [] ? null : json_encode($changes),
             'source' => 'web',
             'ip' => request()->ip(),
