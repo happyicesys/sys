@@ -77,6 +77,25 @@
 						>
 						</MultiSelect>
 					</div> -->
+          <!-- Machine Type (2026-09-21) — vending planograms vs the two China
+               projects (Smart Freezer, Smart Chiller/CityBox), which share this
+               list. Options come from the server (Vend::MACHINE_TYPE_MAPPINGS). -->
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Type
+						</label>
+						<MultiSelect
+							v-model="filters.machineType"
+							:options="machineTypeOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Status
@@ -1061,6 +1080,7 @@ const props = defineProps({
   productMappingOptions: Object,
   unbindedVends: Object,
   vendPrefixOptions: Object,
+  machineTypeOptions: Object,
   totalBindedVends: Number,
 })
 
@@ -1072,6 +1092,7 @@ const filters = ref({
   vend_code: '',
   site: '',
   vendStatus: '',
+  machineType: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -1103,6 +1124,7 @@ const permissions = usePage().props.auth.permissions
 const operatorCountry = usePage().props.auth.operatorCountry
 const vendPrefixOptions = ref([])
 const vendStatusOptions = ref([])
+const machineTypeOptions = ref([])
 
 // ---------------------------------------------------------------------------
 // Avg Mthly Sales (per binded machine)
@@ -1539,6 +1561,13 @@ onMounted(() => {
 			{id: 'disposed', value: 'Disposed'},
       {id: 'sold', value: 'Sold'},
 	]
+  // 'all' first and selected by default — the server treats it as the skip
+  // sentinel, so the page opens showing every kind of mapping as before.
+  machineTypeOptions.value = [
+    { id: 'all', value: 'All' },
+    ...Object.entries(props.machineTypeOptions || {}).map(([id, name]) => ({ id: id, value: name })),
+  ]
+  filters.value.machineType = machineTypeOptions.value[0]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.vendStatus = vendStatusOptions.value[2]
@@ -1736,6 +1765,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_active: filters.value.is_active.id,
       vendStatus: filters.value.vendStatus.id,
+      machineType: filters.value.machineType.id,
       numberPerPage: filters.value.numberPerPage.id,
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
   }, {

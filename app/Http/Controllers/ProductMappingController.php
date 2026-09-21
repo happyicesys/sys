@@ -77,6 +77,9 @@ class ProductMappingController extends Controller
             'is_active' => $request->is_active ? $request->is_active : true,
             'vendStatus' => $request->vendStatus ? $request->vendStatus : 'active',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 5,
+            // Machine Type filter (2026-09-21) — 'all' is the skip sentinel, so a
+            // bare /product-mappings keeps listing every kind of mapping.
+            'machineType' => $request->machineType ? $request->machineType : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : true,
             // DEPRECATED sort keys — map stale/bookmarked URLs back to `name` so the
             // orderBy below never references a column/alias that no longer exists
@@ -150,6 +153,16 @@ class ProductMappingController extends Controller
             })
             ->when($request->is_active, function ($query, $search) {
                 $query->where('product_mappings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            })
+            // Machine Type — separates ordinary vending planograms from the two
+            // China projects, whose mappings now share this list: Smart Freezer
+            // (ours, is_smart) and Smart Chiller (CityBox layers 101-599).
+            // product_mappings.machine_type is NOT NULL with default
+            // 'vending_machine' and is indexed, so plain equality is enough —
+            // no legacy NULL fallback, unlike ProductMapping::isSmartChiller()
+            // which stays defensive because it is also called on unsaved models.
+            ->when($request->machineType !== 'all', function ($query) use ($request) {
+                $query->where('product_mappings.machine_type', $request->machineType);
             });
 
         $totalBindedVends = (clone $query)
@@ -394,6 +407,10 @@ class ProductMappingController extends Controller
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
+            // Feeds the Machine Type filter dropdown. Served from the same const the
+            // Machine Settings pages use (SettingController) so the three taxonomies
+            // can never drift apart.
+            'machineTypeOptions' => Vend::MACHINE_TYPE_MAPPINGS,
         ]);
     }
 
