@@ -612,11 +612,22 @@ rather than adding a new `if (citybox)` somewhere else:
   exclusion on `isChiller`. `SettingController::edit` still loads every option list for a
   chiller on purpose: hidden pickers keep resolving and posting the stored ids,
   so an empty list would null hidden columns on save.
-- **A chiller's ProductMapping is a read-only mirror.** `ChillerPlanogram`
-  overwrites it every poll; `ProductMapping::isCityboxMirror()` /
-  `assertEditable()` refuse every human write path, and the ops-job
-  `implement_new_mapping` action is refused/skipped for chiller items (it
-  would push an APK channel frame). Keep the mapping — ops jobs read it.
+- **A chiller's ProductMapping is OURS** (2026-09-21, reversing the 2026-08-19
+  mirror). The vend's mapping decides which channels exist and what sits on
+  them (`ChillerChannelMap::forVend`), the SKU decides capacity
+  (`products.chiller_slot_qty`, the freezer's `freezer_slot_qty` precedent),
+  and CityBox supplies only qty and price — per PRODUCT, so a SKU on two codes
+  is split on the way in (`allocate`) and summed on the way out (`sumBySku`).
+  Codes are typed by ops, 101–599, first digit = layer; the dropdown offers
+  only SKUs linked to CityBox's catalogue. `ChillerPlanogram` no longer writes
+  anything: it reads THEIR Pre-Stock Setup for the recognition check —
+  `StockPollService::unrecognisableSlots()` lists SKUs we map that their
+  machine does not carry, which their AI cannot recognise, and the restock
+  push refuses rather than silently skipping them. Their par is display-only:
+  it is not writable through the OpenAPI and caps nothing (a push of 10 against
+  par 5 was accepted, 2026-09-19). The ops-job `implement_new_mapping` action
+  is still refused/skipped for chiller items (it would push an APK frame).
+  Regression coverage: `tests/Feature/CityboxChannelsTest.php`.
 - **Its machine ID is OPS Pro's, stored as `vends.code_prefix` + `vends.code`**
   (2026-09-19, Brian: "do not recreate another ID"). Their machine name
   "C6003" → prefix `C`, code `6003`; label via `Vend::codeLabel()` / VendResource

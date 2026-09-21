@@ -283,7 +283,9 @@ class SyncVendChannels implements ShouldQueue
         // Smart Freezer's capacity comes from the SKU's measured par (products.freezer_slot_qty),
         // which is blank until someone counts it — the slot still exists and still sells, so it
         // stays active and shows its par as "-" (2026-09-16).
-        if ($this->vend->isSmartFreezer()) {
+        // A Smart Chiller is the same story since 2026-09-21: capacity is the SKU's
+        // chiller_slot_qty, blank until someone counts it, and the channel still sells.
+        if ($this->vend->isSmartFreezer() || $this->vend->isSmartChiller()) {
             return $this->isCodeInRange((int) $channel['channel_code']);
         }
 

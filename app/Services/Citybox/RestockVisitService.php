@@ -41,6 +41,7 @@ class RestockVisitService
     public function __construct(
         private ChillerGateway $gateway,
         private StockPollService $stock,
+        private ChillerChannelMap $channelMap,
     ) {}
 
     /**
@@ -163,24 +164,39 @@ class RestockVisitService
             return false;
         }
 
-        $codes = $this->stock->refreshPlanogram($vend); // citybox_product_id => [code, par, layer]
-        $byCode = [];
-        foreach ($codes as $cid => $c) {
-            $byCode[$c['code']] = (int) $cid;
+        // Channels are ours (2026-09-21); their API takes one count per PRODUCT, so a
+        // SKU on two codes is summed. A code with no slot (mapping changed mid-visit)
+        // is skipped, but a SKU their machine does not carry is reported: the driver
+        // can load it, their AI cannot recognise it.
+        $slots = $this->channelMap->forVend($vend);
+        if ($slots === []) {
+            $this->markSubmit($item, 'failed', 'This chiller has no product mapping — bind one before stocking in.');
+
+            return false;
         }
 
-        $counts = [];
+        $qtyByCode = [];
         foreach ($item->opsJobItemChannels as $ch) {
-            $cid = $byCode[(int) $ch->vend_channel_code] ?? null;
-            if ($cid === null) {
-                continue; // channel not in the current planogram — nothing to tell CityBox
+            $code = (int) $ch->vend_channel_code;
+            if (! isset($slots[$code])) {
+                continue;
             }
-            $counts[$cid] = $mode === 'revert'
+            $qtyByCode[$code] = $mode === 'revert'
                 ? max(0, (int) $ch->actual_before_qty)
                 : max(0, (int) $ch->actual_before_qty + (int) $ch->actual_qty);
         }
+        $counts = \App\Services\Citybox\ChillerChannelMap::sumBySku($slots, $qtyByCode);
         if ($counts === []) {
-            $this->markSubmit($item, 'failed', 'No chiller channels on this item map to the CityBox planogram.');
+            $this->markSubmit($item, 'failed', 'No chiller channels on this item match the machine\'s mapping.');
+
+            return false;
+        }
+
+        $unrecognisable = $this->stock->unrecognisableSlots($vend, fresh: true);
+        $pushable = array_filter($unrecognisable, fn ($m) => isset($qtyByCode[$m['code']]) && $qtyByCode[$m['code']] > 0);
+        if ($pushable !== []) {
+            $codesList = implode(', ', array_column($pushable, 'code'));
+            $this->markSubmit($item, 'failed', "Channel(s) {$codesList} hold a product this machine does not carry in CityBox — add it in OPS Pro (Pre-Stock Setup), then press Submit again.");
 
             return false;
         }
@@ -188,7 +204,7 @@ class RestockVisitService
         if ($mode === 'submit') {
             // Before Refill = CityBox's last minute-poll before the Stock In click,
             // captured before our submit overwrites it (Brian, 2026-09-03).
-            $this->captureBefore($item, $vend, $codes);
+            $this->captureBefore($item, $vend, $slots);
         }
 
         try {
@@ -212,7 +228,7 @@ class RestockVisitService
         // After Refill = one fresh pull now that CityBox has accepted the count — so
         // we can see whether their system reflects what we submitted. Also mirrored
         // onto the vend and pushed as the A frame (vend_channels qty).
-        $this->captureAfter($item, $vend, $codes);
+        $this->captureAfter($item, $vend, $slots);
         Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts)]);
 
         return true;
@@ -225,7 +241,7 @@ class RestockVisitService
      * vend_channel_records row (created here, linked by vend_channel_record_id)
      * so the ops page reads it like a VMC B frame, without the ±30 min matching.
      */
-    private function captureBefore(OpsJobItem $item, Vend $vend, array $codes): void
+    private function captureBefore(OpsJobItem $item, Vend $vend, array $slots): void
     {
         try {
             $at = $item->completed_at ?? now();
@@ -235,7 +251,7 @@ class RestockVisitService
             if (! $poll) {
                 return;
             }
-            $channels = $this->snapshotToChannels($poll->snapshot_json ?? [], $codes);
+            $channels = $this->snapshotToChannels($poll->snapshot_json ?? [], $slots);
             $record = $this->itemRecord($item, $vend);
             $record->fill([
                 'before_data_json' => ['channels' => $channels, 'label' => 'B', 'source' => 'citybox_poll', 'poll_id' => $poll->id],
@@ -249,17 +265,20 @@ class RestockVisitService
     }
 
     /** After Refill: fresh pull post-submit onto the item's record + vmc_after_qty; also the A frame. */
-    private function captureAfter(OpsJobItem $item, Vend $vend, array $codes): void
+    private function captureAfter(OpsJobItem $item, Vend $vend, array $slots): void
     {
         try {
             $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
             $this->stock->applyStockOnly($vend, $lines);
             $this->stock->pushChannels($vend, $lines, 'A', force: true);
 
-            $byProduct = $lines->keyBy(fn ($l) => (int) $l->cityboxProductId);
+            $qtyByCode = \App\Services\Citybox\ChillerChannelMap::allocate(
+                $slots,
+                $lines->mapWithKeys(fn ($l) => [(int) $l->cityboxProductId => (int) $l->quantity])->all(),
+            );
             $channels = [];
-            foreach ($codes as $cid => $c) {
-                $channels[] = ['channel_code' => (int) $c['code'], 'qty' => (int) ($byProduct->get((int) $cid)?->quantity ?? 0), 'capacity' => (int) $c['par']];
+            foreach ($slots as $code => $slot) {
+                $channels[] = ['channel_code' => $slot->code, 'qty' => $qtyByCode[$slot->code] ?? 0, 'capacity' => $slot->capacity];
             }
             usort($channels, fn ($a, $b) => $a['channel_code'] <=> $b['channel_code']);
             $record = $this->itemRecord($item, $vend);
@@ -299,12 +318,15 @@ class RestockVisitService
     }
 
     /** @return array<int,array{channel_code:int,qty:int,capacity:int}> */
-    private function snapshotToChannels(array $snapshot, array $codes): array
+    private function snapshotToChannels(array $snapshot, array $slots): array
     {
+        $qtyByCode = \App\Services\Citybox\ChillerChannelMap::allocate(
+            $slots,
+            collect($slots)->mapWithKeys(fn ($slot) => [$slot->cityboxProductId => (int) ($snapshot['p'.$slot->cityboxProductId]['quantity'] ?? 0)])->all(),
+        );
         $channels = [];
-        foreach ($codes as $cid => $c) {
-            $line = $snapshot['p'.$cid] ?? null;
-            $channels[] = ['channel_code' => (int) $c['code'], 'qty' => (int) ($line['quantity'] ?? 0), 'capacity' => (int) $c['par']];
+        foreach ($slots as $slot) {
+            $channels[] = ['channel_code' => $slot->code, 'qty' => $qtyByCode[$slot->code] ?? 0, 'capacity' => $slot->capacity];
         }
         usort($channels, fn ($a, $b) => $a['channel_code'] <=> $b['channel_code']);
 
@@ -326,7 +348,6 @@ class RestockVisitService
     private function pushFrame(Vend $vend, string $label): void
     {
         try {
-            $this->stock->refreshPlanogram($vend);
             $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
             $this->stock->applyStockOnly($vend, $lines);
             $this->stock->pushChannels($vend, $lines, $label, force: true);

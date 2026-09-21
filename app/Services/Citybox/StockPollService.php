@@ -35,6 +35,7 @@ class StockPollService
         private MovementClassifier $classifier,
         private ChillerPlanogram $planogram,
         private ChannelFrameAdapter $adapter,
+        private ChillerChannelMap $channelMap,
     ) {}
 
     // Planogram code map is re-derived hourly / on Pull / on Open Door, not
@@ -180,64 +181,84 @@ class StockPollService
 
             return;
         }
-        $codes = $this->planogramCodes($vend);
-        // A line the cached planogram does not know (Brian, 2026-08-20: a SKU
-        // added in their portal mid-hour) would be silently dropped from the
-        // frame until the 1 h cache expired. The portal changed ⇒ the mirror is
-        // stale ⇒ re-mirror now. noteSeenOnDevice already ran, so the new
-        // SKU's mark1 product exists before the mirror links to it. On failure
-        // keep the cached map — the known SKUs still land.
-        if ($lines->contains(fn (\App\Services\Citybox\DTO\ChillerStockLine $l) => ! isset($codes[$l->cityboxProductId]))) {
-            try {
-                $codes = $this->refreshPlanogram($vend);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Citybox planogram refresh for unknown SKU failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
-            }
+        // The channels are OURS (Brian, 2026-09-21): the vend's mapping decides which
+        // codes exist and what sits on them, and the live call only fills in qty and
+        // price. A SKU they report that we do not carry gets no channel — the overview
+        // lists it as off-planogram instead.
+        $slots = $this->channelMap->forVend($vend);
+        if ($slots === []) {
+            return; // no mapping bound yet — nothing to map onto
         }
-        if ($codes === []) {
-            return; // no planogram synced yet — nothing to map onto
-        }
-        $frame = $this->adapter->toFrame($lines, $codes, $label);
+        $frame = $this->adapter->toFrame($lines, $slots, $label);
         if ($frame->isEmpty()) {
             return;
         }
         \App\Jobs\Vend\SyncVendChannels::dispatch($frame->toArray(), $vend)->onQueue('high');
     }
 
-    /** Force a fresh planogram sync (Pull / Open Door) and return its codes. */
-    public function refreshPlanogram(Vend $vend): array
+    /**
+     * Re-read CityBox's own Pre-Stock Setup (Pull / Open Door) and cache it. It no
+     * longer decides our channels — it is the recognition check: a SKU our mapping
+     * carries that their machine does not know cannot be recognised by their AI.
+     *
+     * @return array<int,array{par:int,layer:int|null,price:int,active:int,name:string}>
+     */
+    public function refreshTheirConfig(Vend $vend): array
     {
-        $codes = $this->planogram->sync($vend);
-        \Illuminate\Support\Facades\Cache::put($this->planogramKey($vend), $codes, self::PLANOGRAM_TTL);
+        $config = $this->planogram->theirConfig($vend);
+        \Illuminate\Support\Facades\Cache::put($this->planogramKey($vend), $config, self::PLANOGRAM_TTL);
 
-        return $codes;
+        return $config;
     }
 
     /**
-     * The last mirrored par config, WITHOUT calling CityBox: keys are the
-     * citybox_product_ids their Pre-Stock Setup carries. Empty when nothing has
-     * been mirrored inside the TTL, which callers must read as "unknown", never
-     * as "their config is empty". Populated by refreshPlanogram / planogramCodes.
+     * The last read of their config, WITHOUT calling CityBox. Empty means "not
+     * read inside the TTL" — callers must treat that as unknown, never as "their
+     * machine carries nothing".
      *
-     * @return array<int,array{code:int,par:int,layer:int}>
+     * @return array<int,array{par:int,layer:int|null,price:int,active:int,name:string}>
      */
-    public function cachedPlanogramCodes(Vend $vend): array
+    public function cachedTheirConfig(Vend $vend): array
     {
         return \Illuminate\Support\Facades\Cache::get($this->planogramKey($vend), []);
     }
 
-    /** @return array<int,array{code:int,par:int,layer:int}> */
-    private function planogramCodes(Vend $vend): array
+    /** Their config, read through the cache. */
+    public function theirConfig(Vend $vend): array
     {
         return \Illuminate\Support\Facades\Cache::remember($this->planogramKey($vend), self::PLANOGRAM_TTL, function () use ($vend) {
             try {
-                return $this->planogram->sync($vend);
+                return $this->planogram->theirConfig($vend);
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Citybox planogram sync failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+                \Illuminate\Support\Facades\Log::warning('Citybox pre-stock config read failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
 
                 return [];
             }
         });
+    }
+
+    /**
+     * SKUs our mapping puts on this machine that CityBox's Pre-Stock Setup does
+     * not carry — their AI cannot recognise those, so ops must add them in OPS
+     * Pro before the driver loads them (Brian, 2026-09-21).
+     *
+     * @return array<int,array{code:int,product_id:int,citybox_product_id:int}>
+     */
+    public function unrecognisableSlots(Vend $vend, bool $fresh = false): array
+    {
+        $config = $fresh ? $this->refreshTheirConfig($vend) : $this->theirConfig($vend);
+        if ($config === []) {
+            return []; // unknown, not "everything is missing"
+        }
+
+        $missing = [];
+        foreach ($this->channelMap->forVend($vend) as $slot) {
+            if (! isset($config[$slot->cityboxProductId])) {
+                $missing[] = ['code' => $slot->code, 'product_id' => $slot->productId, 'citybox_product_id' => $slot->cityboxProductId];
+            }
+        }
+
+        return $missing;
     }
 
     private function planogramKey(Vend $vend): string

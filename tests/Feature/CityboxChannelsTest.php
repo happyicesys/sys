@@ -5,20 +5,32 @@ namespace Tests\Feature;
 use App\Contracts\Citybox\ChillerGateway;
 use App\Models\CityboxProduct;
 use App\Models\Product;
-use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
+use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Services\Citybox\ChannelFrameAdapter;
-use App\Services\Citybox\ChillerPlanogram;
+use App\Services\Citybox\ChillerChannelMap;
 use App\Services\Citybox\CityboxOpenapiSync;
+use App\Services\Citybox\DTO\ChillerSlot;
 use App\Services\Citybox\DTO\ChillerStockLine;
+use App\Services\Citybox\StockPollService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\Citybox\ChillerMapping;
 use Tests\Support\Citybox\FakeChillerGateway;
 use Tests\TestCase;
 
+/**
+ * A chiller's channels since 2026-09-21: OUR mapping decides the codes and the
+ * products, the SKU decides capacity (products.chiller_slot_qty), and CityBox
+ * supplies only quantity and price — per product, which is why a SKU on two
+ * codes is split on the way in and summed on the way out.
+ *
+ * Before this, the channels mirrored CityBox's Pre-Stock Setup, so a template
+ * switch in their portal emptied a machine here (prod C5001, 2026-09-19).
+ */
 class CityboxChannelsTest extends TestCase
 {
     use RefreshDatabase;
@@ -31,10 +43,8 @@ class CityboxChannelsTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
-        // SyncVendChannels itself runs inline (queue=sync) so real vend_channels
-        // rows appear; its CHILD jobs (error-log / json snapshot) take a Redis
-        // unique-lock even on the sync driver, so those two are faked. Same
-        // constraint the vending fleet's own job has always had in tests.
+        // SyncVendChannels runs inline (queue=sync) so real vend_channels rows appear;
+        // its child jobs take a Redis unique-lock even on the sync driver, so they are faked.
         Queue::fake([\App\Jobs\Vend\SyncVendChannelErrorLog::class, \App\Jobs\Vend\SaveVendChannelsJson::class]);
         config(['citybox.openapi.enabled' => true, 'citybox.openapi.app_id' => 'A', 'citybox.openapi.secret' => 'S']);
         $this->gw = new FakeChillerGateway;
@@ -43,7 +53,7 @@ class CityboxChannelsTest extends TestCase
         $this->gw->seedDevice('E1');
     }
 
-    /** #1's real planogram: 3 SKUs on layer 1, par 5 each. */
+    /** Their Pre-Stock Setup: 3 SKUs on layer 1, par 5 each. */
     private function seedPar(): void
     {
         $this->gw->seedPar('E1', [
@@ -53,512 +63,281 @@ class CityboxChannelsTest extends TestCase
         ]);
     }
 
-    // ── code assignment (pure) ─────────────────────────────────────────────
-
-    public function test_codes_are_layer_times_ten_plus_position_by_citybox_id_and_idempotent(): void
+    /** Our layout: one code per SKU, capacities 4 / 6 / 2. */
+    private function bindMapping(): void
     {
-        $lines = collect([
-            ChillerStockLine::fromApi(['product_id' => '90340', 'name' => 'c', 'quantity' => '5', 'layer' => '1']),
-            ChillerStockLine::fromApi(['product_id' => '90338', 'name' => 'a', 'quantity' => '5', 'layer' => '1']),
-            ChillerStockLine::fromApi(['product_id' => '89925', 'name' => 'coke', 'quantity' => '4', 'layer' => '3']),
+        ChillerMapping::bind($this->vend, [
+            101 => [90338, 4],
+            102 => [90339, 6],
+            203 => [90340, 2],
         ]);
-
-        $codes = ChillerPlanogram::assignCodes($lines);
-
-        $this->assertSame(101, $codes[90338]['code']); // lowest id first
-        $this->assertSame(102, $codes[90340]['code']);
-        $this->assertSame(301, $codes[89925]['code']);
-        $this->assertSame(4, $codes[89925]['par']);
-        $again = ChillerPlanogram::assignCodes($lines->reverse()->values());
-        ksort($codes);
-        ksort($again);
-        $this->assertSame($codes, $again); // order-independent (same codes; key order is irrelevant)
     }
 
-    // ── mirror mapping ─────────────────────────────────────────────────────
-
-    public function test_planogram_sync_creates_a_read_only_mirror_mapping_bound_to_the_vend(): void
+    private function channels(): \Illuminate\Support\Collection
     {
-        $product = Product::create(['code' => 'KSF-P', 'name' => 'KSF Peach']);
-        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Peach', 'product_id' => $product->id, 'first_seen_at' => now()]);
-        $this->seedPar();
-
-        $codes = app(ChillerPlanogram::class)->sync($this->vend);
-        $this->vend->refresh();
-
-        $mapping = ProductMapping::withoutGlobalScopes()->find($this->vend->product_mapping_id);
-        $this->assertNotNull($mapping);
-        $this->assertSame('smart_chiller', $mapping->machine_type);
-        // product_mapping_items.product_id is NOT NULL (prod schema): only the
-        // MAPPED SKU has an item; the two unmapped ones get channel codes (and
-        // therefore vend_channels rows via the frame) but no mapping item yet.
-        $this->assertSame(1, $mapping->productMappingItems()->count());
-        $item = $mapping->productMappingItems()->where('channel_code', (string) $codes[90340]['code'])->first();
-        $this->assertSame($product->id, $item->product_id);
-        $this->assertEqualsWithDelta(0.10, (float) $item->server_amount, 0.001); // accessor gives dollars
-        $this->assertCount(3, $codes); // all three still have codes
-        $this->assertSame(3, $mapping->basket_layout_json[0]['positions']); // layer 1 has 3 positions
-        $this->assertSame(0, $mapping->basket_layout_json[4]['positions']); // layer 5 empty
+        return VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->orderBy('code')->get();
     }
 
-    public function test_par_only_new_sku_gets_its_product_and_mapping_item_in_the_same_sync(): void
+    // ── the map itself (pure) ──────────────────────────────────────────────
+
+    public function test_slots_come_from_the_mapping_with_capacity_from_the_sku(): void
     {
-        // SKU first, stock second (Brian, 2026-08-20): a product added to the
-        // par config BEFORE it has any stock must not wait for the hourly
-        // catalog run — the planogram sync itself registers it.
-        \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
-        (new \Database\Seeders\CityboxOperatorSeeder)->run();
-        $this->gw->seedPar('E1', [['id' => 90998, 'name' => 'Configured First', 'qty' => 4, 'layer' => 3, 'price' => '0.30']]);
+        $this->bindMapping();
 
-        $codes = app(ChillerPlanogram::class)->sync($this->vend);
+        $slots = app(ChillerChannelMap::class)->forVend($this->vend->fresh());
 
-        $row = CityboxProduct::where('citybox_product_id', 90998)->first();
-        $this->assertNotNull($row, 'par sync must register the SKU');
-        $this->assertNotNull($row->product_id, 'and create + link its mark1 product');
-        $mapping = ProductMapping::withoutGlobalScopes()->find($this->vend->fresh()->product_mapping_id);
-        $item = $mapping->productMappingItems()->where('channel_code', (string) $codes[90998]['code'])->first();
-        $this->assertNotNull($item, 'mapping item must exist in the SAME pass, not the next one');
-        $this->assertSame($row->product_id, $item->product_id);
-        $this->assertSame(301, $codes[90998]['code']); // layer 3, position 1
+        $this->assertSame([101, 102, 203], array_keys($slots));
+        $this->assertSame(90338, $slots[101]->cityboxProductId);
+        $this->assertSame(4, $slots[101]->capacity);
+        $this->assertSame(2, $slots[203]->capacity);
+        $this->assertSame(2, $slots[203]->layer());
     }
 
-    public function test_resync_overwrites_local_edits_and_removes_delisted_rows(): void
+    public function test_a_product_with_no_citybox_link_gets_no_slot(): void
     {
-        foreach ([90340 => 'Peach', 90338 => 'Suntory', 90339 => 'Lemon'] as $cid => $n) {
-            $p = Product::create(['code' => "P{$cid}", 'name' => $n]);
-            CityboxProduct::create(['citybox_product_id' => $cid, 'name' => $n, 'product_id' => $p->id, 'first_seen_at' => now()]);
-        }
-        $this->seedPar();
-        app(ChillerPlanogram::class)->sync($this->vend);
-        $mapping = ProductMapping::withoutGlobalScopes()->find($this->vend->fresh()->product_mapping_id);
-        // A "local edit": someone adds a rogue item and changes a price.
-        ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => '501', 'product_id' => Product::first()->id, 'server_amount' => 9.99]);
-        $mapping->productMappingItems()->where('channel_code', '101')->update(['server_amount' => 99900]);
+        $this->bindMapping();
+        $ours = Product::create(['code' => 'VM-1', 'name' => 'Our own', 'is_active' => true, 'is_inventory' => true]);
+        ProductMappingItem::create(['product_mapping_id' => $this->vend->fresh()->product_mapping_id, 'channel_code' => '104', 'product_id' => $ours->id]);
 
-        // Their portal drops one product
-        $this->gw->seedPar('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10']]);
-        app(ChillerPlanogram::class)->sync($this->vend);
-
-        $items = $mapping->fresh()->productMappingItems;
-        $this->assertSame(1, $items->count());           // rogue 51 + delisted rows gone
-        $this->assertSame('101', $items->first()->channel_code); // sole remaining product → position 1
-        $this->assertEqualsWithDelta(0.10, (float) $items->first()->server_amount, 0.001); // price restored from their side
+        $this->assertArrayNotHasKey(104, app(ChillerChannelMap::class)->forVend($this->vend->fresh()));
     }
 
-    // ── frame adapter (pure) ───────────────────────────────────────────────
-
-    public function test_adapter_builds_channel_rows_with_par_as_capacity(): void
+    public function test_one_sku_on_two_codes_splits_its_quantity_by_capacity(): void
     {
-        $stock = collect([ChillerStockLine::fromApi(['product_id' => '90340', 'name' => 'x', 'quantity' => '1', 'layer' => '1', 'price' => '0.10', 'active_price' => '0.08'])]);
-        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 101, 'par' => 5, 'layer' => 1]], 'B');
-
-        $this->assertSame([['channel_code' => 101, 'qty' => 1, 'capacity' => 5, 'amount' => 8, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
-        $this->assertSame('B', $frame->toArray()['label']);
-    }
-
-    public function test_adapter_ignores_products_not_in_planogram_but_keeps_every_planogram_channel(): void
-    {
-        $stock = collect([ChillerStockLine::fromApi(['product_id' => '77777', 'name' => 'stranger', 'quantity' => '3', 'layer' => '1'])]);
-        $frame = (new ChannelFrameAdapter)->toFrame($stock, [90340 => ['code' => 101, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 10]]);
-
-        // The stranger gets no channel; the planogram product does, at qty 0 with the par price.
-        $this->assertSame([['channel_code' => 101, 'qty' => 0, 'capacity' => 5, 'amount' => 10, 'amount2' => 10, 'error_code' => 0]], $frame->channels);
-    }
-
-    public function test_adapter_builds_a_channel_for_every_planogram_product_even_when_live_stock_omits_it(): void
-    {
-        // Prod 2026-09-03 (unit 10002): shipping_product lists 7 SKUs, device_product only
-        // ever the 3 drinks — the never-stocked snacks must still become channels.
-        $codes = [
-            90340 => ['code' => 101, 'par' => 5, 'layer' => 1, 'price' => 10, 'active' => 8],
-            90330 => ['code' => 201, 'par' => 4, 'layer' => 2, 'price' => 150, 'active' => 150],
-            90328 => ['code' => 401, 'par' => 7, 'layer' => 4, 'price' => 120, 'active' => 120],
+        $slots = [
+            101 => new ChillerSlot(101, 90338, 1, 5),
+            103 => new ChillerSlot(103, 90338, 1, 5),
+            201 => new ChillerSlot(201, 90339, 2, 0), // capacity not measured
         ];
-        $stock = collect([ChillerStockLine::fromApi(['product_id' => '90340', 'name' => 'Peach', 'quantity' => '1', 'layer' => '1', 'price' => '0.10', 'active_price' => '0.09'])]);
 
-        $frame = (new ChannelFrameAdapter)->toFrame($stock, $codes);
-
-        $this->assertSame([101, 201, 401], array_column($frame->channels, 'channel_code'));
-        $this->assertSame([1, 0, 0], array_column($frame->channels, 'qty'));
-        $this->assertSame([5, 4, 7], array_column($frame->channels, 'capacity'));
-        $this->assertSame([9, 150, 120], array_column($frame->channels, 'amount'));   // live price wins where present
-        $this->assertSame([10, 150, 120], array_column($frame->channels, 'amount2'));
+        $this->assertSame([101 => 5, 103 => 2, 201 => 9], ChillerChannelMap::allocate($slots, [90338 => 7, 90339 => 9]));
+        $this->assertSame([101 => 5, 103 => 5, 201 => 0], ChillerChannelMap::allocate($slots, [90338 => 10]));
+        $this->assertSame([101 => 0, 103 => 0, 201 => 0], ChillerChannelMap::allocate($slots, []));
+        // …and back out again: their API takes one count per product.
+        $this->assertSame([90338 => 9, 90339 => 4], ChillerChannelMap::sumBySku($slots, [101 => 5, 103 => 4, 201 => 4]));
     }
 
-    public function test_adapter_tolerates_a_cached_code_map_without_prices(): void
+    public function test_adapter_builds_one_channel_per_slot_with_live_qty_and_price(): void
     {
-        // Planogram maps cached before 2026-09-03 carry no price keys for up to an hour.
-        $frame = (new ChannelFrameAdapter)->toFrame(collect(), [90340 => ['code' => 101, 'par' => 5, 'layer' => 1]]);
-        $this->assertSame([['channel_code' => 101, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'amount2' => 0, 'error_code' => 0]], $frame->channels);
+        $slots = [101 => new ChillerSlot(101, 90338, 1, 4), 102 => new ChillerSlot(102, 90339, 2, 6)];
+        $stock = collect([ChillerStockLine::fromApi(['product_id' => 90338, 'name' => 'S', 'quantity' => 3, 'price' => '1.20', 'layer' => 1])]);
+
+        $frame = app(ChannelFrameAdapter::class)->toFrame($stock, $slots, 'A')->toArray();
+
+        $this->assertSame('A', $frame['label']);
+        $this->assertSame([101, 102], array_column($frame['channels'], 'channel_code'));
+        $this->assertSame([3, 0], array_column($frame['channels'], 'qty'), 'a SKU the live call omits sits at 0, it does not vanish');
+        $this->assertSame([4, 6], array_column($frame['channels'], 'capacity'), 'capacity is ours, never their par');
+        $this->assertSame(120, $frame['channels'][0]['amount']);
     }
 
-    // ── end to end: poll → real vend_channels rows ─────────────────────────
+    // ── the poll ───────────────────────────────────────────────────────────
 
-    public function test_poll_creates_vend_channels_with_qty_capacity_amount_and_product(): void
+    public function test_poll_writes_channels_from_our_mapping(): void
     {
-        $product = Product::create(['code' => 'KSF-P', 'name' => 'KSF Peach']);
-        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Peach', 'product_id' => $product->id, 'first_seen_at' => now()]);
         $this->seedPar();
+        $this->bindMapping();
         $this->gw->seedStock('E1', [
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 3, 'layer' => 1, 'price' => '0.12'],
             ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
-            ['id' => 90339, 'name' => 'Lemon', 'qty' => 0, 'layer' => 1, 'price' => '0.11'],
-        ]);
-
-        app(CityboxOpenapiSync::class)->syncAll(); // jobs run sync in tests
-
-        $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
-        $this->assertCount(3, $channels);
-        $peach = $channels->firstWhere('code', 103); // 90340 is the highest id → position 3
-        $this->assertSame(1, $peach->qty);
-        $this->assertSame(5, $peach->capacity);
-        $this->assertSame(10, $peach->amount);
-        $this->assertSame($product->id, $peach->product_id); // stamped by syncChannelsByVend from the mirror
-        $this->assertTrue((bool) $peach->is_active);
-        $this->assertNull($channels->firstWhere('code', 101)->product_id); // unmapped SKU: channel exists, no product
-    }
-
-    public function test_second_poll_updates_qty_in_place_no_duplicate_channels(): void
-    {
-        $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1]]);
-        app(CityboxOpenapiSync::class)->syncAll();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 2, 'layer' => 1]]);
-        app(CityboxOpenapiSync::class)->syncAll();
-
-        // One channel per planogram product (3), no duplicates across polls; the
-        // product the live call reports carries its qty, the other two sit at 0.
-        $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
-        $this->assertSame(3, $channels->count());
-        $this->assertSame(2, $channels->firstWhere('code', 103)->qty); // 90340 = highest id → position 3
-        $this->assertSame(0, $channels->firstWhere('code', 101)->qty);
-        $this->assertSame(5, $channels->firstWhere('code', 101)->capacity);
-    }
-
-    public function test_sku_added_mid_hour_gets_product_channel_and_qty_on_the_next_poll(): void
-    {
-        // Brian, 2026-08-20: a SKU added in their portal between hourly catalog
-        // runs must not wait for the 1 h planogram cache — the 3-min poll sees
-        // an unknown line, re-mirrors the planogram, and the frame includes it.
-        \App\Models\Operator::create(['code' => 'HIPL', 'name' => 'HI SG', 'country_id' => 1]);
-        (new \Database\Seeders\CityboxOperatorSeeder)->run();
-        $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1]]);
-        app(CityboxOpenapiSync::class)->syncAll(); // planogram now cached for 1 h
-
-        // They add a brand-new SKU (never in our catalog) to the device.
-        $this->gw->seedPar('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
-            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
-            ['id' => 90999, 'name' => 'Brand New Tea', 'qty' => 6, 'layer' => 2, 'price' => '0.20'],
-        ]);
-        $this->gw->seedStock('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1],
-            ['id' => 90999, 'name' => 'Brand New Tea', 'qty' => 6, 'layer' => 2, 'price' => '0.20'],
-        ]);
-        app(CityboxOpenapiSync::class)->syncAll(); // still within the cache TTL
-
-        $ch = VendChannel::where('vend_id', $this->vend->id)->where('code', 201)->first();
-        $this->assertNotNull($ch, 'new SKU must get a channel on the very next poll');
-        $this->assertSame(6, $ch->qty);
-        $this->assertSame(6, $ch->capacity);
-        // And its mark1 product exists + is linked (created by the same poll).
-        $row = \App\Models\CityboxProduct::where('citybox_product_id', 90999)->first();
-        $this->assertNotNull($row->product_id);
-        $this->assertSame($row->product_id, $ch->product_id);
-    }
-
-    public function test_poll_creates_channels_for_snacks_the_live_call_never_reports(): void
-    {
-        $this->gw->seedPar('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
-            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
-            ['id' => 90330, 'name' => 'Daliyuan bread', 'qty' => 4, 'layer' => 2, 'price' => '1.50'],
-            ['id' => 90332, 'name' => 'KSF cup noodle', 'qty' => 5, 'layer' => 3, 'price' => '2.00'],
-            ['id' => 90328, 'name' => 'Want Want crackers', 'qty' => 7, 'layer' => 4, 'price' => '1.20'],
-            ['id' => 90347, 'name' => 'Cheese bread', 'qty' => 3, 'layer' => 5, 'price' => '1.80'],
-        ]);
-        $this->gw->seedStock('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
-            ['id' => 90339, 'name' => 'Lemon', 'qty' => 0, 'layer' => 1, 'price' => '0.11'],
         ]);
 
         app(CityboxOpenapiSync::class)->syncAll();
 
-        $channels = VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->get();
-        $this->assertSame([101, 102, 103, 201, 301, 401, 501], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
-        $bread = $channels->firstWhere('code', 201);
-        $this->assertSame(0, $bread->qty);
-        $this->assertSame(4, $bread->capacity);
-        $this->assertSame(150, $bread->amount); // priced from the par config
-        $this->assertSame(15, $channels->sum('capacity') - 19); // drinks 15 + snacks 19 = 34, as OpsPro shows
+        $channels = $this->channels();
+        $this->assertSame([101, 102, 203], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $this->assertSame([3, 0, 1], $channels->pluck('qty')->map(fn ($q) => (int) $q)->all());
+        $this->assertSame([4, 6, 2], $channels->pluck('capacity')->map(fn ($c) => (int) $c)->all());
+        $this->assertNotNull($channels->firstWhere('code', 101)->product_id);
     }
 
-    public function test_three_digit_code_migration_remaps_existing_chiller_rows_only(): void
+    public function test_their_template_switch_no_longer_empties_our_planogram(): void
     {
-        // A chiller provisioned under the 2-digit scheme, plus a vending machine that must not move.
-        $mapping = ProductMapping::create(['name' => 'CityBox E1 (mirror)', 'machine_type' => Vend::MACHINE_TYPE_SMART_CHILLER, 'is_active' => true, 'operator_id' => 1]);
-        $this->vend->forceFill(['product_mapping_id' => $mapping->id])->save();
-        $product = Product::create(['code' => 'X', 'name' => 'X']);
-        foreach ([11, 12, 21, 51] as $code) {
-            VendChannel::create(['vend_id' => $this->vend->id, 'code' => $code, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'is_active' => 1]);
-            ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => (string) $code, 'product_id' => $product->id, 'sequence' => $code]);
-        }
-        $vm = Vend::create(['code' => 9501, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1, 'operator_id' => 1]);
-        VendChannel::create(['vend_id' => $vm->id, 'code' => 11, 'qty' => 0, 'capacity' => 5, 'amount' => 0, 'is_active' => 1]);
-        $job = \App\Models\OpsJob::create(['code' => 900200, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => 1, 'operator_id' => 1]);
-        $item = \App\Models\OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $this->vend->id, 'customer_id' => 1, 'status' => 1]);
-        $vc = VendChannel::where('vend_id', $this->vend->id)->where('code', 12)->first();
-        \App\Models\OpsJobItemChannel::create(['ops_job_id' => $job->id, 'ops_job_item_id' => $item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => 12, 'vend_code' => $this->vend->code, 'product_id' => $product->id, 'qty' => 0, 'capacity' => 5, 'picked_qty' => 0]);
-
-        (require database_path('migrations/2026_09_03_100000_citybox_channel_codes_to_three_digits.php'))->up();
-
-        $this->assertSame([101, 102, 201, 501], VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->pluck('code')->map(fn ($c) => (int) $c)->all());
-        $this->assertSame(['101', '102', '201', '501'], $mapping->productMappingItems()->orderBy('sequence')->pluck('channel_code')->all());
-        $this->assertSame(102, (int) \App\Models\OpsJobItemChannel::where('ops_job_item_id', $item->id)->value('vend_channel_code'));
-        $this->assertSame(11, (int) VendChannel::where('vend_id', $vm->id)->value('code')); // vending machine untouched
-
-        // Idempotent: a second run has nothing in 10–69 left to move.
-        (require database_path('migrations/2026_09_03_100000_citybox_channel_codes_to_three_digits.php'))->up();
-        $this->assertSame([101, 102, 201, 501], VendChannel::where('vend_id', $this->vend->id)->orderBy('code')->pluck('code')->map(fn ($c) => (int) $c)->all());
-    }
-
-    public function test_a_sku_removed_from_their_planogram_retires_its_channel_and_comes_back_when_re_added(): void
-    {
-        // Prod 2026-09-19, C5001: a template switch cut their Pre-Stock Setup to one SKU;
-        // the other 60 channels stayed active with their product cleared → "Unmapped SKU".
+        // Prod 2026-09-19, C5001: their template dropped to one SKU and the mirror
+        // followed, leaving 60 channels with no product. Ours does not move.
         $this->seedPar();
-        app(CityboxOpenapiSync::class)->pull($this->vend);
-        $this->assertSame(3, VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->count());
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 2, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $this->assertCount(3, $this->channels());
 
         $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12']]);
-        app(CityboxOpenapiSync::class)->pull($this->vend);
+        app(CityboxOpenapiSync::class)->pull($this->vend->fresh());
 
-        $active = VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->get();
-        $this->assertSame([101], $active->pluck('code')->map(fn ($c) => (int) $c)->all());
-        $this->assertSame(5, (int) $active->first()->capacity);
-
-        $this->seedPar();
-        app(CityboxOpenapiSync::class)->pull($this->vend);
-        $this->assertSame(3, VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->count());
+        $this->assertSame([101, 102, 203], $this->channels()->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $this->assertSame(0, VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->whereNull('product_id')->count());
+        $this->assertSame(3, ProductMappingItem::where('product_mapping_id', $this->vend->fresh()->product_mapping_id)->count());
     }
 
-    public function test_a_vending_frame_that_omits_a_slot_leaves_it_active(): void
-    {
-        // Boards report every slot; the chiller rule must not reach vending machines.
-        $vending = Vend::create(['code' => 9501, 'is_active' => 1, 'operator_id' => 1]);
-        $slot = fn (int $code) => ['channel_code' => $code, 'qty' => 1, 'capacity' => 5, 'amount' => 100, 'error_code' => 0];
-        \App\Jobs\Vend\SyncVendChannels::dispatchSync(['channels' => [$slot(11), $slot(12)]], $vending);
-        \App\Jobs\Vend\SyncVendChannels::dispatchSync(['channels' => [$slot(11)]], $vending);
-
-        $this->assertSame(2, VendChannel::where('vend_id', $vending->id)->where('is_active', true)->count());
-    }
-
-    public function test_pull_refreshes_planogram_immediately_bypassing_the_hourly_cache(): void
+    public function test_their_par_change_does_not_touch_our_capacity(): void
     {
         $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1]]);
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12']]);
         app(CityboxOpenapiSync::class)->syncAll();
-        // Their portal raises Peach's par 5→8 (same 3 SKUs, so codes are stable:
-        // Peach = highest id = position 3 = code 13). A plain poll keeps the
-        // hourly-cached 5; Pull must re-mirror and see 8.
-        $this->gw->seedPar('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 8, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
-            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
-        ]);
-        app(CityboxOpenapiSync::class)->syncAll();
-        $this->assertSame(5, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->capacity);
 
-        app(CityboxOpenapiSync::class)->pull($this->vend);
-        $this->assertSame(8, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->capacity);
+        $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 99, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->pull($this->vend->fresh());
+
+        $this->assertSame(4, (int) $this->channels()->firstWhere('code', 101)->capacity);
     }
 
-    public function test_opening_the_overview_pulls_citybox_live_before_answering(): void
+    public function test_a_channel_dropped_from_our_mapping_is_retired(): void
     {
         $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10']]);
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12']]);
         app(CityboxOpenapiSync::class)->syncAll();
-        $user = \App\Models\User::factory()->create();
 
-        // Their side changes AFTER our last poll: qty moves and a price is repriced.
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 9, 'layer' => 1, 'price' => '2.50']]);
+        ProductMappingItem::where('product_mapping_id', $this->vend->fresh()->product_mapping_id)
+            ->where('channel_code', '102')->delete();
+        app(CityboxOpenapiSync::class)->pull($this->vend->fresh());
 
-        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
-
-        // No extra poll ran — opening the popup did the pull itself.
-        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103);
-        $this->assertSame(9, $peach['qty'], 'overview must show the LIVE qty, not the last poll');
-        $this->assertSame(250, $peach['amount_cents']);
-        $this->assertTrue($r['refreshed']);
-        $this->assertSame(9, VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->qty);
+        $this->assertSame([101, 203], $this->channels()->pluck('code')->map(fn ($c) => (int) $c)->all());
+        $this->assertFalse((bool) VendChannel::where('vend_id', $this->vend->id)->where('code', 102)->first()->is_active);
     }
 
-    public function test_overview_still_renders_the_last_sync_when_the_live_pull_fails(): void
+    public function test_a_chiller_with_no_mapping_gets_no_channels_but_still_polls(): void
     {
         $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 6, 'layer' => 1, 'price' => '0.10']]);
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 4, 'layer' => 1, 'price' => '0.12']]);
+
         app(CityboxOpenapiSync::class)->syncAll();
-        $user = \App\Models\User::factory()->create();
 
-        // Their fleet call stops knowing the device (offline / API blip): refreshOne throws.
-        unset($this->gw->devices['E1']);
-
-        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
-
-        $this->assertFalse($r['refreshed']);
-        $this->assertStringContainsString('E1', $r['refresh_error']);
-        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103);
-        $this->assertSame(6, $peach['qty']); // last synced numbers, still rendered
+        $this->assertCount(0, $this->channels());
+        $this->assertDatabaseCount('citybox_inventory_polls', 1);
     }
 
-    public function test_planogram_endpoint_returns_five_layers_layer_one_first_with_channels_and_totals(): void
+    // ── recognition check against THEIR config ─────────────────────────────
+
+    public function test_a_sku_their_machine_does_not_carry_is_reported(): void
     {
-        $product = Product::create(['code' => 'KSF-P', 'name' => 'KSF Peach']);
-        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Peach', 'product_id' => $product->id, 'img_url' => 'https://cdn/p.png', 'first_seen_at' => now()]);
+        // Their AI only recognises what that machine's Pre-Stock Setup carries.
+        $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12']]);
+        $this->bindMapping(); // 90339 and 90340 are NOT in their config
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        $missing = app(StockPollService::class)->unrecognisableSlots($this->vend->fresh(), fresh: true);
+
+        $this->assertSame([102, 203], array_column($missing, 'code'));
+        $this->assertSame([90339, 90340], array_column($missing, 'citybox_product_id'));
+    }
+
+    public function test_nothing_is_reported_when_their_config_is_unknown(): void
+    {
+        $this->bindMapping();
+
+        $this->assertSame([], app(StockPollService::class)->unrecognisableSlots($this->vend->fresh()));
+    }
+
+    // ── the overview endpoint ──────────────────────────────────────────────
+
+    public function test_planogram_endpoint_returns_five_layers_with_channels_and_totals(): void
+    {
         $this->seedPar();
+        $this->bindMapping();
         $this->gw->seedStock('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12'],
             ['id' => 90339, 'name' => 'Lemon', 'qty' => 0, 'layer' => 1, 'price' => '0.11'],
         ]);
         app(CityboxOpenapiSync::class)->syncAll();
-        $user = \App\Models\User::factory()->create();
 
-        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
-
-        $this->assertCount(5, $r['layers']);
-        $this->assertSame(1, $r['layers'][0]['layer']); // layer 1 first (Brian, 2026-09-10)
-        $this->assertSame(5, $r['layers'][4]['layer']);
-        $this->assertCount(3, $r['layers'][0]['channels']);
-        $this->assertSame([1, 15], [$r['total_qty'], $r['total_capacity']]);
-        $this->assertSame(2, $r['unmapped_count']);
-        $this->assertTrue($r['refreshed']);
-        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103);
-        $this->assertSame('KSF Peach', $peach['product']['name']);
-        $this->assertSame('https://cdn/p.png', $peach['thumbnail']);
-        $this->assertTrue($peach['mapped']);
-        $this->assertTrue($peach['product']['is_active']);
-    }
-
-    /**
-     * A SKU CityBox disabled keeps its channel and its stock — the popup greys
-     * it out (Brian, 2026-09-05). Dropping it would hide a shelf that is still
-     * physically loaded, which is exactly what ops must not be shown.
-     */
-    public function test_planogram_keeps_a_deactivated_product_and_flags_it_for_greying(): void
-    {
-        $product = Product::create(['code' => 'KSF-P', 'name' => 'KSF Peach']);
-        CityboxProduct::create(['citybox_product_id' => 90340, 'name' => 'Peach', 'product_id' => $product->id, 'first_seen_at' => now()]);
-        $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 4, 'layer' => 1, 'price' => '0.10']]);
-        app(CityboxOpenapiSync::class)->syncAll();
-        $product->forceFill(['is_active' => false])->save();
-
-        $r = $this->actingAs(\App\Models\User::factory()->create())
+        $r = $this->actingAs(User::factory()->create())
             ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
 
-        $peach = collect($r['layers'][0]['channels'])->firstWhere('code', 103); // layer 1 is first
-        $this->assertNotNull($peach, 'the channel must survive its product being deactivated');
-        $this->assertFalse($peach['product']['is_active']);
-        $this->assertSame(4, $peach['qty']);
+        $this->assertCount(5, $r['layers']);
+        $this->assertSame(1, $r['layers'][0]['layer']);
+        $this->assertCount(2, $r['layers'][0]['channels']); // 101, 102
+        $this->assertCount(1, $r['layers'][1]['channels']); // 203
+        $this->assertSame([1, 12], [$r['total_qty'], $r['total_capacity']]);
+        $this->assertSame(0, $r['unmapped_count']);
+        $this->assertTrue($r['refreshed']);
     }
 
-    /**
-     * Their live stock can report a SKU their Pre-Stock Setup does not carry —
-     * C6005, 2026-09-12: five units sat on an off-sale duplicate SKU. It gets no
-     * channel and no par, so the cabinet totals cannot see it; the overview
-     * lists it separately (greyed) instead of dropping stock that is physically
-     * in the box and still sells.
-     */
-    public function test_planogram_lists_stock_with_no_channel_as_off_planogram_without_touching_the_totals(): void
+    public function test_planogram_keeps_a_deactivated_product_and_flags_it_for_greying(): void
     {
-        $product = Product::create(['code' => '90332', 'name' => 'KSF Cup Noodle', 'is_active' => false]);
-        CityboxProduct::create(['citybox_product_id' => 90332, 'name' => 'Cup Noodle', 'product_id' => $product->id, 'img_url' => 'https://cdn/n.png', 'first_seen_at' => now()]);
-        $this->seedPar(); // 3 SKUs on layer 1, par 5 each — 90332 is NOT one of them
+        $this->seedPar();
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 4, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        Product::where('code', '90338')->first()->forceFill(['is_active' => false])->save();
+
+        $r = $this->actingAs(User::factory()->create())
+            ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+
+        $suntory = collect($r['layers'][0]['channels'])->firstWhere('code', 101);
+        $this->assertNotNull($suntory, 'the channel must survive its product being deactivated');
+        $this->assertFalse($suntory['product']['is_active']);
+        $this->assertSame(4, $suntory['qty']);
+    }
+
+    public function test_stock_we_do_not_map_is_listed_as_off_planogram(): void
+    {
+        $noodle = Product::create(['code' => '90332', 'name' => 'KSF Cup Noodle', 'is_active' => false]);
+        CityboxProduct::create(['citybox_product_id' => 90332, 'name' => 'Cup Noodle', 'product_id' => $noodle->id, 'img_url' => 'https://cdn/n.png', 'first_seen_at' => now()]);
+        $this->seedPar();
+        $this->bindMapping();
         $this->gw->seedStock('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
-            ['id' => 90339, 'name' => 'Lemon', 'qty' => 0, 'layer' => 1, 'price' => '0.11'],
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12'],
             ['id' => 90332, 'name' => 'Cup Noodle', 'qty' => 5, 'layer' => 1, 'price' => '0.23'],
-            // Also channel-less, but empty: a stale catalog leftover, not hidden stock.
+            // Channel-less but empty: a leftover, not hidden stock.
             ['id' => 90328, 'name' => 'Snow Crackers', 'qty' => 0, 'layer' => 1, 'price' => '1.80'],
         ]);
         app(CityboxOpenapiSync::class)->syncAll();
 
-        $r = $this->actingAs(\App\Models\User::factory()->create())
+        $r = $this->actingAs(User::factory()->create())
             ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
 
-        $this->assertCount(3, $r['layers'][0]['channels'], 'their par config still defines the channels');
-        $this->assertSame([1, 15], [$r['total_qty'], $r['total_capacity']], 'cabinet totals stay par truth');
-
-        $this->assertCount(1, $r['off_planogram'], 'the empty channel-less SKU is not listed');
+        $this->assertCount(1, $r['off_planogram']);
         $this->assertSame(5, $r['off_planogram_qty']);
         $off = $r['off_planogram'][0];
         $this->assertSame(90332, $off['citybox_product_id']);
-        $this->assertSame(5, $off['qty']);
-        $this->assertSame(1, $off['layer']);
-        $this->assertSame(23, $off['amount_cents']);
-        $this->assertSame('https://cdn/90332.png', $off['thumbnail']);
-        $this->assertTrue($off['mapped']);
         $this->assertSame('KSF Cup Noodle', $off['product']['name']);
-        $this->assertFalse($off['product']['is_active']);
+        $this->assertSame(1, $r['total_qty'], 'off-planogram stock stays out of the cabinet totals');
     }
 
-    /** Every stocked SKU is in their par config: nothing to grey in. */
-    public function test_planogram_reports_no_off_planogram_when_every_sku_has_a_channel(): void
+    public function test_planogram_reports_the_unrecognisable_slots(): void
     {
-        $this->seedPar();
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 2, 'layer' => 1, 'price' => '0.10']]);
+        $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12']]);
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12']]);
         app(CityboxOpenapiSync::class)->syncAll();
 
-        $r = $this->actingAs(\App\Models\User::factory()->create())
+        $r = $this->actingAs(User::factory()->create())
             ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
 
-        $this->assertSame([], $r['off_planogram']);
-        $this->assertSame(0, $r['off_planogram_qty']);
+        $this->assertSame([102, 203], array_column($r['unrecognisable'], 'code'));
     }
 
-    /**
-     * With no mirrored par config to compare against (cache gone AND the live
-     * pull failed) every SKU would look off-planogram. Claim nothing instead.
-     */
-    public function test_off_planogram_is_empty_when_the_par_config_is_unknown(): void
+    public function test_overview_pulls_live_before_answering_and_survives_a_failed_pull(): void
     {
         $this->seedPar();
-        $this->gw->seedStock('E1', [
-            ['id' => 90340, 'name' => 'Peach', 'qty' => 2, 'layer' => 1, 'price' => '0.10'],
-            ['id' => 90332, 'name' => 'Cup Noodle', 'qty' => 5, 'layer' => 1, 'price' => '0.23'],
-        ]);
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 2, 'layer' => 1, 'price' => '0.12']]);
         app(CityboxOpenapiSync::class)->syncAll();
+        $user = User::factory()->create();
 
-        Cache::flush();                  // TTL gone
-        unset($this->gw->devices['E1']); // and the live refresh fails
+        // Their side moves after our last poll.
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 9, 'layer' => 1, 'price' => '2.50']]);
+        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
+        $suntory = collect($r['layers'][0]['channels'])->firstWhere('code', 101);
+        $this->assertSame(9, $suntory['qty'], 'the overview shows the LIVE qty, not the last poll');
+        $this->assertSame(250, $suntory['amount_cents']);
+        $this->assertTrue($r['refreshed']);
 
-        $r = $this->actingAs(\App\Models\User::factory()->create())
-            ->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
-
+        // Their fleet call stops knowing the device: the last sync still renders.
+        unset($this->gw->devices['E1']);
+        $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
         $this->assertFalse($r['refreshed']);
-        $this->assertSame([], $r['off_planogram']);
+        $this->assertSame(9, collect($r['layers'][0]['channels'])->firstWhere('code', 101)['qty']);
     }
 
-    public function test_planogram_endpoint_is_403_for_non_chiller(): void
+    public function test_planogram_endpoint_is_403_for_a_non_chiller(): void
     {
-        $vm = Vend::create(['code' => 9501, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1]);
-        $this->actingAs(\App\Models\User::factory()->create())->getJson("/vends/{$vm->id}/citybox-planogram")->assertForbidden();
-    }
+        $vending = Vend::create(['code' => 9501, 'is_active' => 1, 'operator_id' => 1]);
 
-    public function test_no_planogram_means_no_channel_push_but_poll_still_recorded(): void
-    {
-        Queue::fake(); // fake everything here: we only assert nothing was pushed
-        // par endpoint returns nothing → codes [] → no frame
-        $this->gw->seedStock('E1', [['id' => 90340, 'name' => 'Peach', 'qty' => 3, 'layer' => 1]]);
-        app(CityboxOpenapiSync::class)->syncAll();
-
-        Queue::assertNotPushed(\App\Jobs\Vend\SyncVendChannels::class);
-        $this->assertSame(1, \App\Models\CityboxInventoryPoll::count());
+        $this->actingAs(User::factory()->create())
+            ->getJson("/vends/{$vending->id}/citybox-planogram")->assertForbidden();
     }
 }

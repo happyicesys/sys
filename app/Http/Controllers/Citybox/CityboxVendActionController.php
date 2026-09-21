@@ -56,7 +56,7 @@ class CityboxVendActionController extends Controller
      * chiller, a disabled integration or an API blip still renders the last
      * synced planogram, with `refreshed:false` so the caption can say so.
      */
-    public function planogram(int $id, CityboxOpenapiSync $sync, \App\Services\Citybox\StockPollService $poll): \Illuminate\Http\JsonResponse
+    public function planogram(int $id, CityboxOpenapiSync $sync, \App\Services\Citybox\StockPollService $poll, \App\Services\Citybox\ChillerChannelMap $channelMap): \Illuminate\Http\JsonResponse
     {
         $vend = $this->chillerOr403($id);
 
@@ -113,12 +113,14 @@ class CityboxVendActionController extends Controller
         // instead of hidden. This is also why the cabinet total can read lower
         // than the device total CityBox itself reports.
         //
-        // Their par config is the discriminator. When nothing is cached (TTL
-        // gone AND the live pull failed) we claim nothing rather than invent
-        // phantom rows out of every SKU.
-        $parIds = $poll->cachedPlanogramCodes($vend);
+        // OUR mapping is the discriminator since 2026-09-21: a SKU we do not carry
+        // has no channel here, whatever their portal says.
+        $parIds = [];
+        foreach ($channelMap->forVend($vend) as $slot) {
+            $parIds[$slot->cityboxProductId] = true;
+        }
         $offPlanogram = [];
-        if ($parIds !== []) {
+        if (true) {
             $snapshot = is_array($status['stock'] ?? null) ? $status['stock'] : [];
             // Only SKUs actually HOLDING stock. A channel-less SKU at 0 says
             // nothing to ops — the whole point of the list is stock the cabinet
@@ -167,6 +169,9 @@ class CityboxVendActionController extends Controller
             'total_capacity' => $channels->sum('capacity'),
             'unmapped_count' => $channels->whereNull('product_id')->count(),
             // Channel totals above stay CityBox's par truth; these ride alongside.
+            // SKUs our mapping puts on this machine that CityBox's own Pre-Stock Setup
+            // does not carry — their AI cannot recognise those, so ops add them in OPS Pro.
+            'unrecognisable' => $poll->unrecognisableSlots($vend),
             'off_planogram' => $offPlanogram,
             'off_planogram_qty' => array_sum(array_column($offPlanogram, 'qty')),
         ]);

@@ -65,7 +65,10 @@ class CityboxRestockVisitTest extends TestCase
             ['id' => 90340, 'name' => 'Peach', 'qty' => 1, 'layer' => 1, 'price' => '0.10'],
             ['id' => 90338, 'name' => 'Suntory', 'qty' => 0, 'layer' => 1, 'price' => '0.12'],
         ]);
-        // Bring channels into existence via a poll (codes: 90338→101, 90340→102)
+        // Our mapping decides the channels now (2026-09-21): 90338 → 101, 90340 → 102.
+        \Tests\Support\Citybox\ChillerMapping::bind($this->vend, [101 => [90338, 5], 102 => [90340, 5]]);
+        $this->vend->refresh();
+        // Bring channels into existence via a poll
         app(CityboxOpenapiSync::class)->syncAll();
         foreach (VendChannel::where('vend_id', $this->vend->id)->get() as $vc) {
             OpsJobItemChannel::create(['ops_job_id' => $this->job->id, 'ops_job_item_id' => $this->item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => $vc->code, 'vend_code' => $this->vend->code, 'product_id' => $vc->product_id ?? 1, 'qty' => $vc->qty, 'capacity' => $vc->capacity, 'picked_qty' => 0]);
