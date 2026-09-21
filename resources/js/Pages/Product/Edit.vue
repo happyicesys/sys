@@ -389,6 +389,40 @@
                 </p>
               </div>
 
+              <!--
+                CityBox chiller par (Brian, 2026-09-21). Same rule as the freezer: capacity belongs to
+                the SKU, and a chiller channel takes it when a mapping puts the product on a code — a
+                product on two codes is two facings and gets it twice. CityBox's own par is not
+                writable through their API and caps nothing, so ours is the planning number.
+              -->
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Smart Chiller (CityBox)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="sm:col-span-3" v-if="form.id">
+                <FormInput
+                  v-model="form.chiller_slot_qty"
+                  inputType="number"
+                  :minValue="1"
+                  :maxValue="999"
+                  placeholderStr="e.g. 5"
+                  :error="form.errors.chiller_slot_qty"
+                  :disabled="!permissions.includes('update products')"
+                >
+                  Pieces per chiller channel
+                </FormInput>
+                <p class="mt-1 text-xs text-gray-500">
+                  How many of this product fit in ONE chiller channel. Used as the channel capacity on every
+                  Smart Chiller mapping that carries it; leave blank until it has been counted.
+                </p>
+              </div>
+
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -758,6 +792,7 @@ function getDefaultForm() {
     measurement_count: '',
     measurement_value: '',
     freezer_slot_qty: '',
+    chiller_slot_qty: '',
     measurement_unit: '',
     nutri_grade: '',
     operator_id: '',

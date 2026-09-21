@@ -75,6 +75,8 @@ class Product extends Model
         'measurement_value',
         // Pieces of this SKU per smart-freezer slot (FreezerChannelSync writes it onto the channel).
         'freezer_slot_qty',
+        // Pieces of this SKU per CityBox chiller channel (the chiller planogram writes it onto the channel).
+        'chiller_slot_qty',
         'name',
         'nutri_grade',
         'operator_id',

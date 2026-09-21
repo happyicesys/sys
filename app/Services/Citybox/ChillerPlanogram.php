@@ -112,19 +112,23 @@ class ChillerPlanogram
      */
     /**
      * Chiller channel code = <layer><position, two digits>: 101…199, 201…299 … 599.
+     * Five layers, because every delivered unit has five (DeviceType::layerCount());
+     * ops type these codes themselves since 2026-09-21, so 101–599 is also the
+     * validation range on the mapping form (was 6 layers / 699 while the codes were
+     * assigned automatically from their config).
      * Three digits (Brian, 2026-09-03) because a layer of small snacks can hold
      * more than nine SKUs and the vending scheme's <layer><position> two-digit
      * code stopped at 9. The first digit is still the layer, which is what the
      * index rows and the planogram view group by. Vending machines keep 10–69;
      * SyncVendChannels accepts this range only for smart_chiller vends.
      */
-    public const MAX_LAYERS = 6;
+    public const MAX_LAYERS = 5;
 
     public const POSITIONS_PER_LAYER = 99;
 
     public const CODE_MIN = 101;
 
-    public const CODE_MAX = 699;
+    public const CODE_MAX = 599;
 
     public static function channelCode(int $layer, int $position): int
     {

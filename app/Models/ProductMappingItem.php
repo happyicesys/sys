@@ -38,18 +38,6 @@ class ProductMappingItem extends Model
         return $this->belongsTo(ProductMapping::class);
     }
 
-    /**
-     * Refuse a human edit to this item when its mapping is a CityBox mirror.
-     * Looks the mapping up unscoped: the operator global scope must not turn
-     * "another operator's mirror" into "no mapping" and let the guard lapse.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    public function assertMappingEditable(string $field = 'channel_code'): void
-    {
-        ProductMapping::withoutGlobalScopes()->find($this->product_mapping_id)?->assertEditable($field);
-    }
-
     public function sellingPrice()
     {
         return $this->belongsTo(SellingPrice::class);

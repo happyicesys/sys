@@ -808,9 +808,30 @@ class ProductMappingController extends Controller
      *
      * @throws ValidationException when $channelCode already exists on another item.
      */
+    /**
+     * A chiller channel code is <layer><position, 2 digits>: 101…599 (Brian,
+     * 2026-09-21 — five layers on every delivered unit). Ops type it themselves
+     * now that the mapping is ours, so the range is enforced here as well as in
+     * the form. Vending and freezer codes keep their own rules.
+     *
+     * @throws ValidationException
+     */
+    private function assertValidChannelCode(ProductMapping $mapping, string $channelCode, string $field = 'channel_code'): void
+    {
+        if (! $mapping->isSmartChiller()) {
+            return;
+        }
+        $code = (int) $channelCode;
+        if ((string) $code !== trim($channelCode) || ! \App\Services\Citybox\ChillerPlanogram::isChillerCode($code)) {
+            throw ValidationException::withMessages([
+                $field => "Channel {$channelCode} is not a chiller channel — use 101–599, where the first digit is the layer (101 = layer 1, slot 1).",
+            ]);
+        }
+    }
+
     private function assertUniqueChannelCode(ProductMapping $mapping, string $channelCode, $ignoreItemId = null): void
     {
-        if (! $mapping->is_smart) {
+        if (! $mapping->is_smart && ! $mapping->isSmartChiller()) {
             return;
         }
 
@@ -843,7 +864,6 @@ class ProductMappingController extends Controller
 
     public function createItem(Request $request, $productMappingId)
     {
-        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('channel_code');
         $validated = $request->validate([
             'channel_code' => ['required'],
             'product_id' => ['required', 'exists:products,id'],
@@ -853,6 +873,7 @@ class ProductMappingController extends Controller
         $response = DB::transaction(function () use ($validated, $productMappingId) {
             $mapping = ProductMapping::find($productMappingId);
             if ($mapping) {
+                $this->assertValidChannelCode($mapping, (string) $validated['channel_code']);
                 $this->assertUniqueChannelCode($mapping, (string) $validated['channel_code']);
             }
 
@@ -890,7 +911,6 @@ class ProductMappingController extends Controller
     public function deleteItem($productMappingItemID)
     {
         $item = ProductMappingItem::findOrFail($productMappingItemID);
-        $item->assertMappingEditable('channel_code');
         $productMappingId = $item->product_mapping_id;
         $item->delete();
 
@@ -973,6 +993,13 @@ class ProductMappingController extends Controller
                             $q->orWhere('is_parent_sku', true);
                         }
                     })
+                    // A chiller can only sell what CityBox's catalogue carries — anything
+                    // else could never be pushed to them or recognised by their AI, so it
+                    // never reaches the dropdown (Brian, 2026-09-21).
+                    ->when($productMapping->isSmartChiller(), fn ($q) => $q->whereIn(
+                        'id',
+                        \App\Models\CityboxProduct::whereNotNull('product_id')->where('is_delisted', false)->select('product_id')
+                    ))
                     ->orderBy('code')
                     ->get()
             ),
@@ -990,7 +1017,6 @@ class ProductMappingController extends Controller
 
     public function update(Request $request, $productMappingId)
     {
-        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('name');
         $request->merge(['name' => trim((string) $request->name)]);
         $request->validate([
             'name' => ['required', $this->uniqueNameRule((int) $productMappingId)],
@@ -1033,14 +1059,17 @@ class ProductMappingController extends Controller
         if ($request->productMappingItems) {
             // Smart freezers: one product per physical slot. Block a bulk save
             // that carries the same channel_code twice before we wipe + recreate.
-            if ($productMapping->is_smart) {
+            if ($productMapping->is_smart || $productMapping->isSmartChiller()) {
                 $dupes = $this->duplicateChannelCodes(
                     collect($request->productMappingItems)->pluck('channel_code')
                 );
                 if (! empty($dupes)) {
                     throw ValidationException::withMessages([
-                        'productMappingItems' => 'Duplicate channel(s) '.implode(', ', $dupes).' — each smart-freezer slot can hold only one product.',
+                        'productMappingItems' => 'Duplicate channel(s) '.implode(', ', $dupes).' — each slot can hold only one product.',
                     ]);
+                }
+                foreach ($request->productMappingItems as $row) {
+                    $this->assertValidChannelCode($productMapping, (string) $row['channel_code'], 'productMappingItems');
                 }
             }
 
@@ -1090,11 +1119,11 @@ class ProductMappingController extends Controller
     public function updateItem(Request $request, $productMappingItemID)
     {
         $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
-        $productMappingItem->assertMappingEditable('channel_code');
 
         // Same one-product-per-slot rule as create — a channel_code edit must not
         // collide with another item in a smart planogram (this row excepted).
         if ($request->filled('channel_code') && $productMappingItem->productMapping) {
+            $this->assertValidChannelCode($productMappingItem->productMapping, (string) $request->channel_code);
             $this->assertUniqueChannelCode(
                 $productMappingItem->productMapping,
                 (string) $request->channel_code,
@@ -1123,7 +1152,6 @@ class ProductMappingController extends Controller
      */
     public function reorderBasket(Request $request, $productMappingId)
     {
-        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('basket');
         $validated = $request->validate([
             'basket' => ['required', 'integer', 'min:1', 'max:6'],
             'product_ids' => ['required', 'array'],
@@ -1168,7 +1196,6 @@ class ProductMappingController extends Controller
 
     public function updateItemSequence(Request $request, ProductMappingItem $item)
     {
-        $item->assertMappingEditable('sequence');
         $data = $request->validate([
             'sequence' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -1221,7 +1248,6 @@ class ProductMappingController extends Controller
 
     public function delete($productMappingId)
     {
-        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('delete');
         $productMapping = ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId);
 
         if (! $productMapping->operator_id) {
@@ -1308,7 +1334,6 @@ class ProductMappingController extends Controller
 
     public function bindVends(Request $request, $productMappingId)
     {
-        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId)->assertEditable('vends');
         $productMapping = ProductMapping::findOrFail($productMappingId);
 
         $requestedVendIds = collect($request->productMappingVends)->pluck('id')->toArray();
@@ -1406,7 +1431,6 @@ class ProductMappingController extends Controller
 
     public function toggleActivateDeactivate($productMappingID)
     {
-        ProductMapping::withoutGlobalScopes()->findOrFail($productMappingID)->assertEditable('is_active');
         $productMapping = ProductMapping::findOrFail($productMappingID);
         $productMapping->is_active = ! $productMapping->is_active;
         $productMapping->save();

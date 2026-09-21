@@ -64,29 +64,14 @@ class ProductMapping extends Model
      * country, so app TZ == operator TZ).
      */
     /**
-     * A CityBox mirror: created and overwritten by ChillerPlanogram on every
-     * sync from their Pre-Stock Setup. Never hand-created — machine_type is
-     * the marker, so every write path can ask ONE question.
+     * A CityBox chiller planogram. Editable in mark1 like any other mapping
+     * since 2026-09-21 (mark1 owns the layout; their Pre-Stock Setup is only
+     * the AI's recognition list) — this asks the one question the chiller
+     * rules key on: 3-digit channel codes 101–599, CityBox SKUs only.
      */
-    public function isCityboxMirror(): bool
+    public function isSmartChiller(): bool
     {
         return ($this->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) === Vend::MACHINE_TYPE_SMART_CHILLER;
-    }
-
-    /**
-     * Refuse any human edit to a mirror. An edit would not be "wrong" so much
-     * as silently reverted by the next poll (≤1 min), which is worse than a
-     * refusal. Thrown as a ValidationException so Inertia forms show it inline.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    public function assertEditable(string $field = 'product_mapping'): void
-    {
-        if ($this->isCityboxMirror()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                $field => 'This mapping is a read-only mirror of the CityBox Pre-Stock Setup. Change it in the CityBox portal, then press Pull on the machine.',
-            ]);
-        }
     }
 
     public function isUpcomingMappingEffective($asOf = null): bool

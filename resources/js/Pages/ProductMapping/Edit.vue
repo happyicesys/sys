@@ -41,12 +41,14 @@
       </div>
     </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 overflow-visible">
-      <!-- CityBox mirror: ChillerPlanogram rewrites every row on each poll, so nothing here is
-           editable — the server refuses writes too (ProductMapping::assertEditable). -->
-      <div v-if="isCityboxMirror" class="mt-4 rounded-md bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-900">
-        <span class="font-semibold">Read-only mirror of a CityBox chiller's Pre-Stock Setup.</span>
-        Channels, products and prices are pulled from the CityBox portal and overwritten on every sync.
-        To change them, edit the machine in the CityBox portal, then press <b>Pull from CityBox</b> on the machine's settings page.
+      <!-- mark1 owns a chiller's planogram since 2026-09-21; CityBox's Pre-Stock Setup is only
+           the list their AI recognises, so a product mapped here must also exist on the machine
+           over there (the machine's settings page flags any that do not). -->
+      <div v-if="isSmartChiller" class="mt-4 rounded-md bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-900">
+        <span class="font-semibold">Smart Chiller planogram.</span>
+        Channel codes run <b>101–599</b> — the first digit is the layer (101 = layer 1, slot 1). Only
+        products in CityBox's catalogue can be selected, and each product must also be loaded on that
+        machine in the CityBox portal, or their AI cannot recognise it.
       </div>
       <div class="mt-6 flex flex-col overflow-visible">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 overflow-visible">
@@ -220,7 +222,7 @@
                   </div>
                 </div>
 
-                <div class="sm:col-span-1" v-if="form.id && !form.is_smart && !isCityboxMirror">
+                <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
                   <Button
                     type="button"
                     @click.prevent="bindProductMappingItem()"
@@ -341,7 +343,6 @@
                               </td> -->
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
-                                  v-if="!isCityboxMirror"
                                   class="bg-red-400 hover:bg-red-500 text-white"
                                   @click="unbindProductMappingItem(productMappingItem)"
                                 >
@@ -412,7 +413,7 @@
                       </span>
                     </Button>
 
-                    <Button type="button" v-if="form.id && !isCityboxMirror" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+                    <Button type="button" v-if="form.id" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                       <div>
                         <span class="flex flex-col space-y-1" v-if="form.is_active">
                           <span class="flex space-x-1 items-center">
@@ -447,7 +448,7 @@
                       </Button>
                     </Link>
 
-                    <Button v-if="!isCityboxMirror" type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                    <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
                         Save
@@ -501,9 +502,8 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
-// A CityBox chiller's mirror mapping (ProductMappingResource.is_citybox_mirror):
-// every write control on this page is hidden for it; the server refuses writes too.
-const isCityboxMirror = computed(() => !!(props.productMapping && props.productMapping.data && props.productMapping.data.is_citybox_mirror))
+// A CityBox chiller planogram: 3-digit codes 101-599, CityBox SKUs only.
+const isSmartChiller = computed(() => props.productMapping?.data?.machine_type === 'smart_chiller')
 
 const form = ref(
   useForm(getDefaultForm())

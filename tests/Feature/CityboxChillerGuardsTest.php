@@ -52,6 +52,17 @@ class CityboxChillerGuardsTest extends TestCase
         ]);
     }
 
+    /** A mark1 product linked to a CityBox SKU — the only kind a chiller mapping may carry. */
+    private function cityboxProduct(string $code, string $name): Product
+    {
+        $product = Product::create(['code' => $code, 'name' => $name, 'is_active' => true, 'is_inventory' => true]);
+        \App\Models\CityboxProduct::create([
+            'citybox_product_id' => (int) $code, 'product_id' => $product->id, 'name' => $name, 'is_delisted' => false,
+        ]);
+
+        return $product;
+    }
+
     private function chiller(array $attrs = []): Vend
     {
         return Vend::create(array_merge([
@@ -126,27 +137,72 @@ class CityboxChillerGuardsTest extends TestCase
             );
     }
 
-    // ── 2. Mirror mapping is read-only ─────────────────────────────────────
+    // ── 2. Chiller mapping is OURS to edit (2026-09-21) ────────────────────
 
-    public function test_mirror_mapping_refuses_every_human_write(): void
+    public function test_chiller_mapping_accepts_human_edits(): void
     {
-        $mirror = $this->mirror();
-        $product = Product::create(['code' => 'CB-1', 'name' => 'Peach']);
-        $item = ProductMappingItem::create(['product_mapping_id' => $mirror->id, 'channel_code' => '101', 'product_id' => $product->id]);
+        // Until 2026-09-21 every write here was refused: the mapping was a read-only
+        // mirror of their Pre-Stock Setup. mark1 owns the planogram now.
+        $mapping = $this->mirror();
+        $product = $this->cityboxProduct('90338', 'Peach');
+        $item = ProductMappingItem::create(['product_mapping_id' => $mapping->id, 'channel_code' => '101', 'product_id' => $product->id]);
 
-        $this->post('/product-mappings/'.$mirror->id.'/items/create', ['channel_code' => '102', 'product_id' => $product->id])
-            ->assertSessionHasErrors('channel_code');
-        $this->post('/product-mappings/items/'.$item->id.'/update', ['product_id' => $product->id])
-            ->assertSessionHasErrors('channel_code');
-        $this->post('/product-mappings/'.$mirror->id.'/update', ['name' => 'Renamed'])
-            ->assertSessionHasErrors('name');
+        $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '102', 'product_id' => $product->id])
+            ->assertSessionHasNoErrors();
+        $this->post('/product-mappings/items/'.$item->id.'/update', ['channel_code' => '103', 'product_id' => $product->id])
+            ->assertSessionHasNoErrors();
+        $this->post('/product-mappings/'.$mapping->id.'/update', ['name' => 'Office chiller A'])
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(1, ProductMappingItem::where('product_mapping_id', $mirror->id)->count());
-        $this->assertSame('CityBox E1 (mirror)', $mirror->fresh()->name);
-        $this->assertTrue($mirror->isCityboxMirror());
+        $this->assertSame(2, ProductMappingItem::where('product_mapping_id', $mapping->id)->count());
+        $this->assertSame('Office chiller A', $mapping->fresh()->name);
+        // The same product on two codes is two facings, not a duplicate.
+        $this->assertSame([103, 102], ProductMappingItem::where('product_mapping_id', $mapping->id)->pluck('channel_code')->map(fn ($c) => (int) $c)->all());
     }
 
-    public function test_ordinary_mapping_is_unaffected_by_the_mirror_guard(): void
+    public function test_chiller_channel_codes_are_limited_to_101_599(): void
+    {
+        $mapping = $this->mirror();
+        $product = $this->cityboxProduct('90338', 'Peach');
+
+        foreach (['11', '100', '600', '699', '0', 'abc'] as $bad) {
+            $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => $bad, 'product_id' => $product->id])
+                ->assertSessionHasErrors('channel_code');
+        }
+        foreach (['101', '599'] as $good) {
+            $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => $good, 'product_id' => $product->id])
+                ->assertSessionHasNoErrors();
+        }
+        $this->assertSame(2, ProductMappingItem::where('product_mapping_id', $mapping->id)->count());
+    }
+
+    public function test_one_product_per_chiller_channel(): void
+    {
+        $mapping = $this->mirror();
+        $a = $this->cityboxProduct('90338', 'Peach');
+        $b = $this->cityboxProduct('90339', 'Lemon');
+
+        $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '101', 'product_id' => $a->id])
+            ->assertSessionHasNoErrors();
+        $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '101', 'product_id' => $b->id])
+            ->assertSessionHasErrors('channel_code');
+    }
+
+    public function test_only_citybox_catalogue_products_are_offered_on_a_chiller_mapping(): void
+    {
+        $mapping = $this->mirror();
+        $cb = $this->cityboxProduct('90338', 'Peach');
+        $ownProduct = Product::create(['code' => 'VM-9', 'name' => 'Our own drink', 'is_active' => true, 'is_inventory' => true]);
+
+        $this->get('/product-mappings/'.$mapping->id.'/edit')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('products.data', fn ($products) => collect($products)->pluck('id')->contains($cb->id)
+                    && ! collect($products)->pluck('id')->contains($ownProduct->id))
+            );
+    }
+
+    public function test_ordinary_mapping_is_unaffected_by_the_chiller_rules(): void
     {
         $mapping = ProductMapping::create(['name' => 'VM Menu A', 'is_active' => true, 'operator_id' => 1]);
         $product = Product::create(['code' => 'VM-1', 'name' => 'Cola']);
@@ -154,7 +210,7 @@ class CityboxChillerGuardsTest extends TestCase
         $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '11', 'product_id' => $product->id])
             ->assertSessionHasNoErrors();
 
-        $this->assertFalse($mapping->isCityboxMirror());
+        $this->assertFalse($mapping->isSmartChiller());
         $this->assertSame(1, ProductMappingItem::where('product_mapping_id', $mapping->id)->count());
     }
 

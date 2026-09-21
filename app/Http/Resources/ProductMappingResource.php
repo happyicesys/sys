@@ -50,7 +50,6 @@ class ProductMappingResource extends JsonResource
             'machine_type' => $this->machine_type ?: 'vending_machine',
             // Read-only mirror of a CityBox chiller's Pre-Stock Setup (ChillerPlanogram
             // rewrites it every poll). Edit.vue hides every write control on this.
-            'is_citybox_mirror' => $this->isCityboxMirror(),
             'basket_layout_json' => $this->basket_layout_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,
