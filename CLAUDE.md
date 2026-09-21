@@ -623,7 +623,17 @@ rather than adding a new `if (citybox)` somewhere else:
   anything: it reads THEIR Pre-Stock Setup for the recognition check —
   `StockPollService::unrecognisableSlots()` lists SKUs we map that their
   machine does not carry, which their AI cannot recognise, and the restock
-  push refuses rather than silently skipping them. Their par is display-only:
+  push WITHHOLDS those SKUs, sends the rest, and ends `failed` with the channel
+  numbers (an unreadable config withholds nothing — unknown is not missing).
+  Three more rules of that push, each a bug found in the 2026-09-21 audit:
+  a SKU that LEFT the planogram on an `implement_new_mapping` swap is pushed
+  as 0 (else CityBox keeps counting stock the driver removed); a facing the
+  item has no row for keeps its current qty in the per-SKU sum; and a channel
+  the live call omits (sold out) keeps its price from their config / the
+  catalogue's last price — amount 0 zeroes stock value and refill amounts.
+  An unbound or emptied mapping retires every channel; rebinding on
+  Setting/Edit (current AND upcoming pickers are live for chillers) rebuilds
+  them at once via `StockPollService::rebuildChannels`. Their par is display-only:
   it is not writable through the OpenAPI and caps nothing (a push of 10 against
   par 5 was accepted, 2026-09-19). The ops-job `implement_new_mapping` action
   is still refused/skipped for chiller items (it would push an APK frame).

@@ -185,18 +185,64 @@ class RestockVisitService
                 ? max(0, (int) $ch->actual_before_qty)
                 : max(0, (int) $ch->actual_before_qty + (int) $ch->actual_qty);
         }
-        $counts = \App\Services\Citybox\ChillerChannelMap::sumBySku($slots, $qtyByCode);
-        if ($counts === []) {
-            $this->markSubmit($item, 'failed', 'No chiller channels on this item match the machine\'s mapping.');
-
-            return false;
+        // A SKU on two codes is ONE number to CityBox. If this item carries only some of
+        // those codes (a facing added after the job was cut), the others keep what they
+        // hold now — otherwise the push would silently erase their stock.
+        $pushedSkus = [];
+        foreach (array_keys($qtyByCode) as $code) {
+            $pushedSkus[$slots[$code]->cityboxProductId] = true;
+        }
+        $siblings = array_filter($slots, fn ($slot) => ! isset($qtyByCode[$slot->code]) && isset($pushedSkus[$slot->cityboxProductId]));
+        if ($siblings !== []) {
+            $held = \App\Models\VendChannel::where('vend_id', $vend->id)->whereIn('code', array_keys($siblings))->pluck('qty', 'code');
+            foreach ($siblings as $slot) {
+                $qtyByCode[$slot->code] = max(0, (int) ($held[$slot->code] ?? 0));
+            }
         }
 
-        $unrecognisable = $this->stock->unrecognisableSlots($vend, fresh: true);
-        $pushable = array_filter($unrecognisable, fn ($m) => isset($qtyByCode[$m['code']]) && $qtyByCode[$m['code']] > 0);
-        if ($pushable !== []) {
-            $codesList = implode(', ', array_column($pushable, 'code'));
-            $this->markSubmit($item, 'failed', "Channel(s) {$codesList} hold a product this machine does not carry in CityBox — add it in OPS Pro (Pre-Stock Setup), then press Submit again.");
+        $counts = \App\Services\Citybox\ChillerChannelMap::sumBySku($slots, $qtyByCode);
+
+        // Recognition check. A SKU their machine does not carry is LEFT OUT of the push
+        // (what their API does with an unknown product is unproven) and reported; the
+        // rest still goes, so one missing SKU never leaves the whole cabinet stale at
+        // CityBox. If their config cannot be read, nothing is withheld — unknown is not
+        // "missing", and an API blip must not strand the item in 'pending'.
+        try {
+            $unrecognisable = $this->stock->unrecognisableSlots($vend, fresh: true);
+            $theirConfig = $this->stock->cachedTheirConfig($vend);
+        } catch (\Throwable $e) {
+            Log::warning('Citybox recognition check skipped — their config could not be read', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+            $unrecognisable = [];
+            $theirConfig = [];
+        }
+        $withheld = array_values(array_filter($unrecognisable, fn ($m) => ($qtyByCode[$m['code']] ?? 0) > 0));
+        foreach ($withheld as $m) {
+            unset($counts[$m['citybox_product_id']]);
+        }
+
+        // Mapping swap: a SKU that LEFT the planogram was taken out by the driver
+        // (enforceMappingSwapReturns returns it all), but no new slot speaks for it, so
+        // CityBox would go on believing it is in the cabinet. Tell them zero — only for
+        // SKUs their machine config actually carries.
+        if ($mode === 'submit' && $item->stock_action_type === 'implement_new_mapping' && $theirConfig !== []) {
+            $inNewLayout = array_flip(array_map(fn ($slot) => $slot->productId, $slots));
+            $leaving = $item->opsJobItemChannels->pluck('product_id')->filter()->unique()
+                ->reject(fn ($productId) => isset($inNewLayout[(int) $productId]))->all();
+            if ($leaving !== []) {
+                $ids = \App\Models\CityboxProduct::whereIn('product_id', $leaving)->where('is_delisted', false)->pluck('citybox_product_id');
+                foreach ($ids as $cityboxId) {
+                    if (isset($theirConfig[(int) $cityboxId]) && ! isset($counts[(int) $cityboxId])) {
+                        $counts[(int) $cityboxId] = 0;
+                    }
+                }
+            }
+        }
+
+        $withheldMessage = $withheld === [] ? null
+            : 'Channel(s) '.implode(', ', array_column($withheld, 'code')).' hold a product this machine does not carry in CityBox — add it in OPS Pro (Pre-Stock Setup), then press Submit again. The other channels were pushed.';
+
+        if ($counts === []) {
+            $this->markSubmit($item, 'failed', $withheldMessage ?? 'No chiller channels on this item match the machine\'s mapping.');
 
             return false;
         }
@@ -224,14 +270,14 @@ class RestockVisitService
             return true;
         }
 
-        $this->markSubmit($item, 'ok', null);
+        $this->markSubmit($item, $withheldMessage === null ? 'ok' : 'failed', $withheldMessage);
         // After Refill = one fresh pull now that CityBox has accepted the count — so
         // we can see whether their system reflects what we submitted. Also mirrored
         // onto the vend and pushed as the A frame (vend_channels qty).
         $this->captureAfter($item, $vend, $slots);
-        Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts)]);
+        Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts), 'withheld_codes' => array_column($withheld, 'code')]);
 
-        return true;
+        return $withheldMessage === null;
     }
 
     /**

@@ -244,6 +244,19 @@ class CityboxChillerGuardsTest extends TestCase
             );
     }
 
+    public function test_a_product_outside_citybox_catalogue_is_refused_on_a_chiller_mapping(): void
+    {
+        // The dropdown never offers one; this is the same line held for a hand-made request,
+        // where the product would otherwise save and silently get no channel.
+        $mapping = $this->mirror();
+        $ours = Product::create(['code' => 'VM-9', 'name' => 'Our own drink', 'is_active' => true, 'is_inventory' => true]);
+
+        $this->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '101', 'product_id' => $ours->id])
+            ->assertSessionHasErrors('product_id');
+
+        $this->assertSame(0, ProductMappingItem::where('product_mapping_id', $mapping->id)->count());
+    }
+
     public function test_ordinary_mapping_is_unaffected_by_the_chiller_rules(): void
     {
         $mapping = ProductMapping::create(['name' => 'VM Menu A', 'is_active' => true, 'operator_id' => 1]);

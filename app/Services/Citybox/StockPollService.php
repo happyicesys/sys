@@ -187,13 +187,44 @@ class StockPollService
         // lists it as off-planogram instead.
         $slots = $this->channelMap->forVend($vend);
         if ($slots === []) {
-            return; // no mapping bound yet — nothing to map onto
+            // No planogram (nothing bound, or a mapping emptied out): an empty frame is
+            // never dispatched, so the retire rule in SyncVendChannels would never see
+            // it — channels from the old layout would stay active with stale products.
+            \App\Models\VendChannel::where('vend_id', $vend->id)->where('is_active', true)->update(['is_active' => false]);
+
+            return;
         }
-        $frame = $this->adapter->toFrame($lines, $slots, $label);
+        $frame = $this->adapter->toFrame($lines, $slots, $label, $this->fallbackPrices($vend, $slots));
         if ($frame->isEmpty()) {
             return;
         }
         \App\Jobs\Vend\SyncVendChannels::dispatch($frame->toArray(), $vend)->onQueue('high');
+    }
+
+    /**
+     * Prices for slots the live call does not mention (it omits anything the
+     * machine holds none of): their Pre-Stock Setup's price when we have read it,
+     * else the last price the catalogue saw for the SKU. CityBox owns price.
+     *
+     * @param  array<int,\App\Services\Citybox\DTO\ChillerSlot>  $slots
+     * @return array<int,array{price:int,active:int}>
+     */
+    private function fallbackPrices(Vend $vend, array $slots): array
+    {
+        $ids = array_values(array_unique(array_map(fn ($slot) => $slot->cityboxProductId, $slots)));
+        $out = [];
+        foreach (\App\Models\CityboxProduct::whereIn('citybox_product_id', $ids)->pluck('last_price_cents', 'citybox_product_id') as $id => $cents) {
+            if ($cents !== null) {
+                $out[(int) $id] = ['price' => (int) $cents, 'active' => (int) $cents];
+            }
+        }
+        foreach ($this->theirConfig($vend) as $id => $row) {
+            if (in_array((int) $id, $ids, true) && ($row['price'] || $row['active'])) {
+                $out[(int) $id] = ['price' => (int) $row['price'], 'active' => (int) ($row['active'] ?: $row['price'])];
+            }
+        }
+
+        return $out;
     }
 
     /**

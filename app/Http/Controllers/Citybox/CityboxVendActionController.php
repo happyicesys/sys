@@ -120,40 +120,38 @@ class CityboxVendActionController extends Controller
             $parIds[$slot->cityboxProductId] = true;
         }
         $offPlanogram = [];
-        if (true) {
-            $snapshot = is_array($status['stock'] ?? null) ? $status['stock'] : [];
-            // Only SKUs actually HOLDING stock. A channel-less SKU at 0 says
-            // nothing to ops — the whole point of the list is stock the cabinet
-            // totals cannot see — and C6005 carries four such empty leftovers.
-            $offRows = array_values(array_filter(
-                $snapshot,
-                fn ($r) => is_array($r)
-                    && (int) ($r['quantity'] ?? 0) > 0
-                    && ! isset($parIds[(int) ($r['product_id'] ?? 0)])
-            ));
-            $offCatalog = \App\Models\CityboxProduct::whereIn('citybox_product_id', array_map(fn ($r) => (int) ($r['product_id'] ?? 0), $offRows))
-                ->with('product:id,code,name,is_active')->get()->keyBy('citybox_product_id');
+        $snapshot = is_array($status['stock'] ?? null) ? $status['stock'] : [];
+        // Only SKUs actually HOLDING stock. A channel-less SKU at 0 says
+        // nothing to ops — the whole point of the list is stock the cabinet
+        // totals cannot see — and C6005 carries four such empty leftovers.
+        $offRows = array_values(array_filter(
+            $snapshot,
+            fn ($r) => is_array($r)
+                && (int) ($r['quantity'] ?? 0) > 0
+                && ! isset($parIds[(int) ($r['product_id'] ?? 0)])
+        ));
+        $offCatalog = \App\Models\CityboxProduct::whereIn('citybox_product_id', array_map(fn ($r) => (int) ($r['product_id'] ?? 0), $offRows))
+            ->with('product:id,code,name,is_active')->get()->keyBy('citybox_product_id');
 
-            foreach ($offRows as $r) {
-                $cbId = (int) ($r['product_id'] ?? 0);
-                $cb = $offCatalog->get($cbId);
-                $layer = isset($r['layer']) && is_numeric($r['layer']) ? (int) $r['layer'] : null;
-                $offPlanogram[] = [
-                    'citybox_product_id' => $cbId,
-                    'layer' => $layer,
-                    'qty' => (int) ($r['quantity'] ?? 0),
-                    'amount_cents' => (int) ($r['active_price'] ?? $r['price'] ?? 0),
-                    'citybox_name' => $r['name'] ?? $cb?->name,
-                    'thumbnail' => $r['thumbnail'] ?? $cb?->img_url,
-                    'product' => $cb?->product ? [
-                        'id' => $cb->product->id, 'code' => $cb->product->code, 'name' => $cb->product->name,
-                        'is_active' => (bool) $cb->product->is_active,
-                    ] : null,
-                    'mapped' => $cb?->product_id !== null,
-                ];
-            }
-            usort($offPlanogram, fn ($a, $b) => [$a['layer'] ?? 99, $a['citybox_product_id']] <=> [$b['layer'] ?? 99, $b['citybox_product_id']]);
+        foreach ($offRows as $r) {
+            $cbId = (int) ($r['product_id'] ?? 0);
+            $cb = $offCatalog->get($cbId);
+            $layer = isset($r['layer']) && is_numeric($r['layer']) ? (int) $r['layer'] : null;
+            $offPlanogram[] = [
+                'citybox_product_id' => $cbId,
+                'layer' => $layer,
+                'qty' => (int) ($r['quantity'] ?? 0),
+                'amount_cents' => (int) ($r['active_price'] ?? $r['price'] ?? 0),
+                'citybox_name' => $r['name'] ?? $cb?->name,
+                'thumbnail' => $r['thumbnail'] ?? $cb?->img_url,
+                'product' => $cb?->product ? [
+                    'id' => $cb->product->id, 'code' => $cb->product->code, 'name' => $cb->product->name,
+                    'is_active' => (bool) $cb->product->is_active,
+                ] : null,
+                'mapped' => $cb?->product_id !== null,
+            ];
         }
+        usort($offPlanogram, fn ($a, $b) => [$a['layer'] ?? 99, $a['citybox_product_id']] <=> [$b['layer'] ?? 99, $b['citybox_product_id']]);
 
         return response()->json([
             'vend' => ['id' => $vend->id, 'code' => $vend->code, 'code_label' => $vend->codeLabel(), 'equipment_id' => $vend->citybox_equipment_id],

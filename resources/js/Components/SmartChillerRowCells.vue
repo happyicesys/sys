@@ -62,7 +62,7 @@
             </span>
           </li>
         </ul>
-        <span v-else class="text-xs text-gray-500">No planogram yet — Pull to re-mirror.</span>
+        <span v-else class="text-xs text-gray-500">No planogram — bind a product mapping in this machine's settings.</span>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
           <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
           <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
@@ -216,7 +216,7 @@
             </span>
           </li>
         </ul>
-        <span v-else class="text-xs text-gray-500">No planogram yet — Pull to re-mirror.</span>
+        <span v-else class="text-xs text-gray-500">No planogram — bind a product mapping in this machine's settings.</span>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
           <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
           <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>

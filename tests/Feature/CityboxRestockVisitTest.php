@@ -195,6 +195,65 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertSame([101, 102], $channels->pluck('code')->map(fn ($c) => (int) $c)->all());
         $this->assertSame(90339, (int) \App\Models\Product::find($channels->firstWhere('code', 102)->product_id)->code);
         Queue::assertNotPushed(\App\Jobs\PublishMqtt::class); // no APK frame: a chiller has no APK
+
+        // Peach (90340) left the planogram: the driver took it out, and no new slot speaks
+        // for it — CityBox must be told zero or it keeps counting stock that is gone.
+        $this->gw->seedPar('E1', [
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10'],
+        ]);
+        app(RestockVisitService::class)->openDoor($this->item->fresh(), $this->driver);
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+        $rows = collect(end($this->gw->submits)['rows'])->keyBy('product_id');
+        $this->assertSame(0, $rows[90340]['reality_stock']);
+    }
+
+    // ── audit 2026-09-21: the push against OUR mapping ─────────────────────
+
+    public function test_a_sku_their_machine_does_not_carry_is_withheld_and_the_rest_still_goes(): void
+    {
+        // Their machine carries Suntory only; Peach (102) is mapped by us but not loaded there.
+        $this->gw->seedPar('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12']]);
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->stockIn([101 => 5, 102 => 4]);
+
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $rows = collect($this->gw->submits[0]['rows'])->keyBy('product_id');
+        $this->assertSame([90338], $rows->keys()->all(), 'the unrecognisable SKU is left out, the rest is pushed');
+        $item = $this->item->fresh();
+        $this->assertSame('failed', $item->citybox_submit_status);
+        $this->assertStringContainsString('102', $item->citybox_submit_error);
+        $this->assertStringContainsString('OPS Pro', $item->citybox_submit_error);
+    }
+
+    public function test_an_unreadable_config_never_blocks_the_push(): void
+    {
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->stockIn([101 => 5, 102 => 4]);
+        $this->gw->failRestockConfig = true; // API blip on shipping_product
+
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $this->assertCount(2, $this->gw->submits[0]['rows']);
+        $this->assertSame('ok', $this->item->fresh()->citybox_submit_status);
+    }
+
+    public function test_a_facing_this_item_does_not_carry_keeps_its_stock_in_the_sum(): void
+    {
+        // Suntory gets a second facing (103) AFTER the job was cut: the item has no row for it.
+        \App\Models\ProductMappingItem::create(['product_mapping_id' => $this->vend->product_mapping_id, 'channel_code' => '103', 'product_id' => \App\Models\Product::where('code', '90338')->value('id')]);
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 8, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->syncAll(); // 101 holds 5, 103 holds 3
+        app(RestockVisitService::class)->openDoor($this->item, $this->driver);
+        $this->item->opsJobItemChannels()->where('vend_channel_code', 101)->update(['qty' => 5]);
+        $this->stockIn([101 => 0, 102 => 0]);
+
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $rows = collect($this->gw->submits[0]['rows'])->keyBy('product_id');
+        $this->assertSame(8, $rows[90338]['reality_stock'], '101 (5) + the facing the item never saw (3)');
     }
 
     public function test_observer_marks_pending_and_queues_the_delayed_submit_only_for_chillers(): void

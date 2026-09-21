@@ -21,8 +21,11 @@ use Illuminate\Support\Collection;
  *              (ChillerChannelMap::allocate); 0 when the live call omits it
  *   capacity = the SKU's chiller_slot_qty (ours — their par is not writable
  *              and caps nothing)
- *   amount   = live effective price, else 0 (CityBox still owns price)
- *   amount2  = live list price, else 0
+ *   amount   = live effective price, else their config's / the catalogue's last
+ *              price — the live call omits sold-out products, and a sold-out
+ *              channel priced 0 zeroes stock value and refill amounts
+ *              (prod 2026-09-21: every channel on C6003)
+ *   amount2  = live list price, same fallback
  *   error_code = 0 (chillers have no per-channel motor faults)
  * A SKU in the cabinet that our mapping does not carry gets no channel; the
  * overview lists it as off-planogram.
@@ -32,8 +35,11 @@ class ChannelFrameAdapter
     /**
      * @param  Collection<int,ChillerStockLine>  $stock
      * @param  array<int,ChillerSlot>  $slots
+     * @param  array<int,array{price:int,active:int}>  $fallbackPrices  by CityBox product id, cents —
+     *                                                                  their live call OMITS a product the machine holds none of, and a
+     *                                                                  sold-out channel must keep its price (stock value, refill amounts)
      */
-    public function toFrame(Collection $stock, array $slots, ?string $label = null): ChannelFrame
+    public function toFrame(Collection $stock, array $slots, ?string $label = null, array $fallbackPrices = []): ChannelFrame
     {
         $live = $stock->keyBy(fn (ChillerStockLine $l) => (int) $l->cityboxProductId);
         $qtyByCode = ChillerChannelMap::allocate(
@@ -49,8 +55,8 @@ class ChannelFrameAdapter
                 'channel_code' => $slot->code,
                 'qty' => $qtyByCode[$slot->code] ?? 0,
                 'capacity' => $slot->capacity,
-                'amount' => $line?->effectivePriceCents() ?? 0,
-                'amount2' => $line?->priceCents ?? 0,
+                'amount' => $line?->effectivePriceCents() ?? ($fallbackPrices[$slot->cityboxProductId]['active'] ?? 0),
+                'amount2' => $line?->priceCents ?? ($fallbackPrices[$slot->cityboxProductId]['price'] ?? 0),
                 'error_code' => 0,
             ];
         }

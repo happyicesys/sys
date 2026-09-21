@@ -208,6 +208,36 @@ class CityboxChannelsTest extends TestCase
         $this->assertDatabaseCount('citybox_inventory_polls', 1);
     }
 
+    public function test_a_sold_out_channel_keeps_its_price(): void
+    {
+        // Their live call omits a product the machine holds none of. Prod 2026-09-21: every
+        // channel on C6003 read S$0.00, zeroing stock value and refill amounts.
+        $this->seedPar();
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 2, 'layer' => 1, 'price' => '0.12']]);
+
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        $channels = $this->channels();
+        $this->assertSame(12, (int) $channels->firstWhere('code', 101)->amount, 'in stock: the live price');
+        $this->assertSame(11, (int) $channels->firstWhere('code', 102)->amount, 'sold out: their config price');
+        $this->assertSame(10, (int) $channels->firstWhere('code', 203)->amount);
+    }
+
+    public function test_emptying_the_mapping_retires_every_channel(): void
+    {
+        $this->seedPar();
+        $this->bindMapping();
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 2, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $this->assertCount(3, $this->channels());
+
+        $this->vend->forceFill(['product_mapping_id' => null])->save();
+        app(CityboxOpenapiSync::class)->pull($this->vend->fresh());
+
+        $this->assertCount(0, $this->channels(), 'no planogram means no channels, not the old layout');
+    }
+
     // ── recognition check against THEIR config ─────────────────────────────
 
     public function test_a_sku_their_machine_does_not_carry_is_reported(): void

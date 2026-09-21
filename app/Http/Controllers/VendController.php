@@ -5743,6 +5743,12 @@ class VendController extends Controller
         // No-op for Citybox chillers (gated in the service).
         if ($isProductMappingChanged) {
             $this->vendJobService->syncChannelSlotListToVend($vend);
+            // A chiller has no terminal to nudge: its channels are DERIVED from the
+            // mapping plus CityBox's live stock, so rebuild them now instead of
+            // leaving the old layout on screen until the next poll (2026-09-21).
+            if ($vend->isSmartChiller() && $vend->citybox_equipment_id) {
+                app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend->fresh());
+            }
         }
 
         if ($request->operator_id != $vend->operator_id) {

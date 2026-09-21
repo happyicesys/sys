@@ -829,6 +829,26 @@ class ProductMappingController extends Controller
         }
     }
 
+    /**
+     * A chiller channel can only carry a SKU CityBox's catalogue knows — the form's
+     * dropdown already offers nothing else; this holds the same line for a bulk save
+     * or a hand-made request, where an unlinked product would silently get no channel.
+     *
+     * @throws ValidationException
+     */
+    private function assertCityboxProduct(ProductMapping $mapping, $productId, string $field = 'product_id'): void
+    {
+        if (! $mapping->isSmartChiller() || ! $productId) {
+            return;
+        }
+        $linked = \App\Models\CityboxProduct::where('product_id', $productId)->where('is_delisted', false)->exists();
+        if (! $linked) {
+            throw ValidationException::withMessages([
+                $field => 'That product is not in CityBox\'s catalogue, so a chiller cannot sell it.',
+            ]);
+        }
+    }
+
     private function assertUniqueChannelCode(ProductMapping $mapping, string $channelCode, $ignoreItemId = null): void
     {
         if (! $mapping->is_smart && ! $mapping->isSmartChiller()) {
@@ -874,6 +894,7 @@ class ProductMappingController extends Controller
             $mapping = ProductMapping::find($productMappingId);
             if ($mapping) {
                 $this->assertValidChannelCode($mapping, (string) $validated['channel_code']);
+                $this->assertCityboxProduct($mapping, $validated['product_id']);
                 $this->assertUniqueChannelCode($mapping, (string) $validated['channel_code']);
             }
 
@@ -1070,6 +1091,7 @@ class ProductMappingController extends Controller
                 }
                 foreach ($request->productMappingItems as $row) {
                     $this->assertValidChannelCode($productMapping, (string) $row['channel_code'], 'productMappingItems');
+                    $this->assertCityboxProduct($productMapping, $row['product']['id'] ?? null, 'productMappingItems');
                 }
             }
 
@@ -1129,6 +1151,10 @@ class ProductMappingController extends Controller
                 (string) $request->channel_code,
                 $productMappingItem->id
             );
+        }
+
+        if ($request->filled('product_id') && $productMappingItem->productMapping) {
+            $this->assertCityboxProduct($productMappingItem->productMapping, $request->product_id);
         }
 
         $productMappingItem->fill($request->all());

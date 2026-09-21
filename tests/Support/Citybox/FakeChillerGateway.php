@@ -121,8 +121,15 @@ class FakeChillerGateway implements ChillerGateway
         return collect($this->stock[$deviceId] ?? [])->map(fn ($g) => ChillerStockLine::fromApi($g));
     }
 
+    /** Simulate an API blip on shipping_product. */
+    public bool $failRestockConfig = false;
+
     public function restockConfig(string $deviceId): Collection
     {
+        if ($this->failRestockConfig) {
+            throw new \App\Exceptions\CityboxApiException('Citybox openapi api/Openapi/shipping_product unreachable');
+        }
+
         return collect($this->par[$deviceId] ?? [])->map(fn ($g) => ChillerStockLine::fromApi($g));
     }
 

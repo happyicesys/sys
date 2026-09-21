@@ -902,19 +902,10 @@
                     </span>
                   </div>
                 </label>
-                <!-- Chiller: ChillerPlanogram creates this mapping and re-points the vend at it on
-                     every sync. Re-binding by hand breaks the mirror, so it is display-only here. -->
-                <template v-if="isChiller">
-                  <input
-                    type="text"
-                    :value="form.product_mapping_id ? form.product_mapping_id.name : (vend.product_mapping_name || 'Created on first sync')"
-                    disabled
-                    class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 text-gray-700 shadow-sm sm:text-sm"
-                  />
-                  <p class="mt-1 text-xs text-blue-600">Read-only mirror of the CityBox Pre-Stock Setup. Change it in the CityBox portal, then press Pull.</p>
-                </template>
+                <!-- A chiller's planogram is ours since 2026-09-21: it is bound here like any other
+                     machine's (the option list already offers Smart Chiller mappings only), and one
+                     mapping can serve several chillers. -->
                 <MultiSelect
-                  v-else
                   v-model="form.product_mapping_id"
                   :options="filteredProductMappingOptions"
                   trackBy="id"
@@ -933,7 +924,7 @@
                   {{ form.errors.product_mapping_id }}
                 </div>
             </div>
-            <div v-if="!isChiller" class="sm:col-span-3">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (upcoming)
