@@ -175,10 +175,18 @@ class RestockVisitService
             return false;
         }
 
+        // On a mapping swap a changed slot has TWO rows for one code: the old product going
+        // out (stock-in = -qty) and the new one coming in (is_upcoming_product). The slot now
+        // belongs to the new product, so its row must win whatever order they load in —
+        // otherwise the new SKU could be pushed as the old row's zero.
         $qtyByCode = [];
-        foreach ($item->opsJobItemChannels as $ch) {
+        foreach ($item->opsJobItemChannels->sortBy(fn ($ch) => (int) (bool) $ch->is_upcoming_product) as $ch) {
             $code = (int) $ch->vend_channel_code;
             if (! isset($slots[$code])) {
+                continue;
+            }
+            // A row for a product the slot no longer holds says nothing about this SKU.
+            if ((int) $ch->product_id !== $slots[$code]->productId) {
                 continue;
             }
             $qtyByCode[$code] = $mode === 'revert'

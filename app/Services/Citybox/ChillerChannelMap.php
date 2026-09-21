@@ -30,12 +30,23 @@ class ChillerChannelMap
      */
     public function forVend(Vend $vend): array
     {
-        if (! $vend->product_mapping_id) {
+        return $this->forMapping($vend->product_mapping_id);
+    }
+
+    /**
+     * The slots a mapping WOULD give a chiller — the vend's current one, or an
+     * upcoming one being checked before a changeover.
+     *
+     * @return array<int,ChillerSlot> keyed by channel code
+     */
+    public function forMapping(?int $productMappingId): array
+    {
+        if (! $productMappingId) {
             return [];
         }
 
         $items = ProductMappingItem::withoutGlobalScopes()
-            ->where('product_mapping_id', $vend->product_mapping_id)
+            ->where('product_mapping_id', $productMappingId)
             ->whereNotNull('product_id')
             ->with('product:id,chiller_slot_qty')
             ->get(['id', 'product_mapping_id', 'channel_code', 'product_id']);

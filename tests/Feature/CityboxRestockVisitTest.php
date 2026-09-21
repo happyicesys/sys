@@ -209,6 +209,62 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertSame(0, $rows[90340]['reality_stock']);
     }
 
+    /**
+     * The whole changeover through the real endpoints (second audit, 2026-09-21). The
+     * staging step used to return early for a chiller, so the pick list never saw the new
+     * products; a brand-new slot had no row to key; and a swapped slot's two rows raced.
+     */
+    public function test_a_chiller_changeover_stages_picks_and_pushes_the_new_layout(): void
+    {
+        Permission::findOrCreate('update operations', 'web');
+        $this->driver->givePermissionTo('update operations');
+        $this->gw->seedPar('E1', [
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 5, 'layer' => 1, 'price' => '0.12'],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 5, 'layer' => 1, 'price' => '0.11'],
+            ['id' => 90340, 'name' => 'Peach', 'qty' => 5, 'layer' => 1, 'price' => '0.10'],
+            ['id' => 90341, 'name' => 'Milk tea', 'qty' => 5, 'layer' => 1, 'price' => '0.13'],
+        ]);
+        $currentId = $this->vend->product_mapping_id;
+        // New layout: 101 keeps Suntory, 102 Peach → Lemon, 103 is a brand-new slot.
+        $upcoming = \Tests\Support\Citybox\ChillerMapping::bind($this->vend, [101 => [90338, 5], 102 => [90339, 6], 103 => [90341, 4]], 'Layout B');
+        $this->vend->forceFill(['product_mapping_id' => $currentId, 'upcoming_product_mapping_id' => $upcoming->id])->save();
+        $this->item->update(['status' => OpsJob::STATUS_PENDING]);
+
+        $this->actingAs($this->driver)
+            ->post('/ops-jobs/items/'.$this->item->id.'/update/stock-action', ['stock_action_type' => 'implement_new_mapping'])
+            ->assertSessionHasNoErrors();
+
+        $staged = $this->item->opsJobItemChannels()->where('is_upcoming_product', true)->get()->keyBy('vend_channel_code');
+        $this->assertSame([102, 103], $staged->keys()->map(fn ($c) => (int) $c)->sort()->values()->all(), 'changed slot AND brand-new slot are staged');
+        $this->assertSame(6, (int) $staged[102]->capacity, 'a chiller channel takes the NEW SKU\'s capacity');
+        $this->assertFalse((bool) VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->is_active, 'the new slot waits for the swap');
+
+        // The driver swaps: Peach out of 102, Lemon in; Milk tea into the new 103; Suntory topped up.
+        app(RestockVisitService::class)->openDoor($this->item->fresh(), $this->driver);
+        Queue::fake([SubmitCityboxCount::class, \App\Jobs\Vend\SyncVendChannelErrorLog::class, \App\Jobs\Vend\SaveVendChannelsJson::class]);
+        $this->item->update(['status' => OpsJob::STATUS_PICKED]);
+        $payload = [];
+        foreach ($this->item->opsJobItemChannels()->get() as $ch) {
+            $code = (int) $ch->vend_channel_code;
+            $refill = $ch->is_upcoming_product ? [102 => 6, 103 => 4][$code] : [101 => 5, 102 => -1][$code];
+            $payload[] = ['id' => $ch->id, 'qty' => (int) $ch->qty, 'refill' => $refill, 'capacity' => (int) $ch->capacity];
+        }
+        $this->actingAs($this->driver)
+            ->post('/ops-jobs/items/'.$this->item->id.'/confirm', ['channels' => $payload])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($upcoming->id, $this->vend->fresh()->product_mapping_id);
+        $this->assertSame([101, 102, 103], VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->orderBy('code')->pluck('code')->map(fn ($c) => (int) $c)->all());
+
+        (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
+
+        $rows = collect(end($this->gw->submits)['rows'])->keyBy('product_id')->map(fn ($r) => $r['reality_stock'])->all();
+        $this->assertSame(5, $rows[90338], 'Suntory: 0 + 5');
+        $this->assertSame(6, $rows[90339], 'Lemon: the NEW row for 102 wins over Peach\'s outgoing one');
+        $this->assertSame(4, $rows[90341], 'Milk tea: the brand-new slot is pushed');
+        $this->assertSame(0, $rows[90340], 'Peach left the planogram — told zero');
+    }
+
     // ── audit 2026-09-21: the push against OUR mapping ─────────────────────
 
     public function test_a_sku_their_machine_does_not_carry_is_withheld_and_the_rest_still_goes(): void

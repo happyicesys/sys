@@ -847,6 +847,16 @@
               </div>
             </div>
 
+            <div class="sm:col-span-6" v-if="isChiller && chillerUnrecognisableUpcoming.length">
+              <label class="flex justify-start text-sm font-medium text-gray-700">Upcoming mapping — not loaded in CityBox yet</label>
+              <div class="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                Channel{{ chillerUnrecognisableUpcoming.length === 1 ? '' : 's' }}
+                <b>{{ chillerUnrecognisableUpcoming.map(c => c.code).join(', ') }}</b> of the upcoming mapping carry a
+                product this machine does not have in CityBox. Add it to the machine's Pre-Stock Setup in OPS Pro
+                <b>before</b> the changeover job, or Stock In will withhold those channels.
+              </div>
+            </div>
+
             <!-- CityBox status layer: THEIR view of the device (ops status, online, heartbeat), from the
                  last poll on this row — no API call. Sits beside mark1's own Status; neither writes
                  the other (mark1's Status also carries factory/disposed/sold, which their API has no
@@ -1829,6 +1839,7 @@ const props = defineProps({
     // ChillerStatus::toArray() — null for anything but a Smart Chiller.
     chillerStatus: Object,
     chillerUnrecognisable: { type: Array, default: () => [] },
+    chillerUnrecognisableUpcoming: { type: Array, default: () => [] },
   })
 
 // One question, asked once: is this a CityBox Smart Chiller? Every

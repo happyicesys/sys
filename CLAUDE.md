@@ -631,6 +631,12 @@ rather than adding a new `if (citybox)` somewhere else:
   item has no row for keeps its current qty in the per-SKU sum; and a channel
   the live call omits (sold out) keeps its price from their config / the
   catalogue's last price — amount 0 zeroes stock value and refill amounts.
+  Staging a swap (`applyNewMappingToItem`) works for chillers too, with one
+  extra: a BRAND-NEW code gets an inactive `vend_channels` row up front, because
+  the item row needs one to hang on (a vending slot is physical and always
+  exists). A swapped slot has two item rows for one code — the push takes the
+  row whose product the slot now holds. Setting/Edit also flags the UPCOMING
+  mapping's unloaded SKUs, so OPS Pro is fixed before the changeover job.
   An unbound or emptied mapping retires every channel; rebinding on
   Setting/Edit (current AND upcoming pickers are live for chillers) rebuilds
   them at once via `StockPollService::rebuildChannels`. Their par is display-only:

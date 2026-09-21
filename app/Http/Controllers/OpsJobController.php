@@ -2686,16 +2686,6 @@ class OpsJobController extends Controller
         if (! $vend) {
             return;
         }
-        // Defensive: callers already skip/refuse chiller items (see
-        // updateJobStockAction / assertStockActionAllowedForMachine). A Smart
-        // Chiller's planogram is CityBox's — nothing to stage, and completion
-        // would push an APK channel frame the machine cannot receive.
-        if ($vend->isSmartChiller()) {
-            $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
-
-            return;
-        }
-
         $currentMapping = $vend->productMapping;
         // Prefer the vend's OWN manually-set upcoming mapping, falling back to the
         // current mapping's preset upcoming. This mirrors the promotion logic
@@ -2742,24 +2732,7 @@ class OpsJobController extends Controller
                         'saved_picked_qty' => -$ojic->qty,
                     ]);
 
-                    // Default "To Pick Qty" for the upcoming product, subject to the
-                    // same rules the live (unfrozen) row uses on the frontend:
-                    //   * product unavailable (disabled)        -> 0
-                    //   * daily product limit below the default -> the limit
-                    //     (machine qty for a NEW product is 0, so cap = limit itself)
-                    //   * is_ignore_limit on the item            -> limit not applied
-                    $defaultPickedQty = self::UPCOMING_DEFAULT_PICKED_QTY;
-                    $uProduct = $uItem->product;
-                    if ($uProduct && ! $uProduct->is_available) {
-                        $defaultPickedQty = 0;
-                    } elseif (! $opsJobItem->is_ignore_limit && $uProduct) {
-                        $limit = ProductLimit::where('product_id', $uProduct->id)
-                            ->whereDate('date', $opsJobItem->opsJob->date)
-                            ->value('qty');
-                        if ($limit !== null) {
-                            $defaultPickedQty = min($defaultPickedQty, max(0, (int) $limit));
-                        }
-                    }
+                    $defaultPickedQty = $this->upcomingDefaultPickedQty($opsJobItem, $uItem->product);
 
                     // 2. Create New Ojic for Upcoming Product
                     $opsJobItem->opsJobItemChannels()->create([
@@ -2769,7 +2742,8 @@ class OpsJobController extends Controller
                         'vend_channel_code' => $ojic->vend_channel_code,
                         'vend_code' => $ojic->vend_code,
                         'product_id' => $uItem->product_id,
-                        'capacity' => $ojic->capacity,
+                        // A vending slot's capacity is the slot's; a chiller channel's is the SKU's.
+                        'capacity' => $vend->isSmartChiller() ? (int) ($uItem->product?->chiller_slot_qty ?? 0) : $ojic->capacity,
                         'qty' => 0, // NEW product, machine is empty for it
                         'picked_qty' => $defaultPickedQty, // default chosen 'To Pick Qty' (limit/disabled-aware)
                         'saved_picked_qty' => $defaultPickedQty,
@@ -2777,6 +2751,39 @@ class OpsJobController extends Controller
                         'amount' => $ojic->amount, // Copy price
                     ]);
                 }
+            }
+        }
+
+        // A CHILLER's slots are ours to add (2026-09-21): an upcoming code the current
+        // layout does not have at all. A vending machine's slots are physical, so this
+        // never arises there and the loop above is enough. The item row needs a channel
+        // to hang on, so an inactive one is created now; the post-swap rebuild activates
+        // it. Without this the driver had nowhere to key what was loaded into the new
+        // slot, and CityBox was never told about it.
+        if ($vend->isSmartChiller()) {
+            foreach ($upcomingItems as $uItem) {
+                if ($currentItems->where('channel_code', $uItem->channel_code)->isNotEmpty()) {
+                    continue;
+                }
+                $channel = \App\Models\VendChannel::firstOrCreate(
+                    ['vend_id' => $vend->id, 'code' => (int) $uItem->channel_code],
+                    ['qty' => 0, 'capacity' => (int) ($uItem->product?->chiller_slot_qty ?? 0), 'amount' => 0, 'is_active' => false],
+                );
+                $defaultPickedQty = $this->upcomingDefaultPickedQty($opsJobItem, $uItem->product);
+                $opsJobItem->opsJobItemChannels()->create([
+                    'ops_job_id' => $opsJobItem->ops_job_id,
+                    'ops_job_item_id' => $opsJobItem->id,
+                    'vend_channel_id' => $channel->id,
+                    'vend_channel_code' => (int) $uItem->channel_code,
+                    'vend_code' => $vend->code,
+                    'product_id' => $uItem->product_id,
+                    'capacity' => (int) ($uItem->product?->chiller_slot_qty ?? 0),
+                    'qty' => 0,
+                    'picked_qty' => $defaultPickedQty,
+                    'saved_picked_qty' => $defaultPickedQty,
+                    'is_upcoming_product' => true,
+                    'amount' => 0,
+                ]);
             }
         }
 
@@ -2800,6 +2807,32 @@ class OpsJobController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * Default "To Pick Qty" for a product arriving on a mapping swap, under the same
+     * rules the live (unfrozen) row uses on the frontend:
+     *   * product unavailable (disabled)        -> 0
+     *   * daily product limit below the default -> the limit
+     *     (machine qty for a NEW product is 0, so cap = limit itself)
+     *   * is_ignore_limit on the item            -> limit not applied
+     */
+    private function upcomingDefaultPickedQty($opsJobItem, $product): int
+    {
+        $defaultPickedQty = self::UPCOMING_DEFAULT_PICKED_QTY;
+        if ($product && ! $product->is_available) {
+            return 0;
+        }
+        if (! $opsJobItem->is_ignore_limit && $product) {
+            $limit = ProductLimit::where('product_id', $product->id)
+                ->whereDate('date', $opsJobItem->opsJob->date)
+                ->value('qty');
+            if ($limit !== null) {
+                $defaultPickedQty = min($defaultPickedQty, max(0, (int) $limit));
+            }
+        }
+
+        return $defaultPickedQty;
     }
 
     /**

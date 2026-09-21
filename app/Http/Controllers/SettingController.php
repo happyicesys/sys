@@ -482,6 +482,11 @@ class SettingController extends Controller
             'chillerUnrecognisable' => $vend->isSmartChiller()
                 ? app(\App\Services\Citybox\StockPollService::class)->unrecognisableSlots($vend)
                 : [],
+            // Same check for the UPCOMING mapping: the time to load a SKU in OPS Pro is
+            // before the changeover job, not after the driver has swapped the shelf.
+            'chillerUnrecognisableUpcoming' => $vend->isSmartChiller() && $vend->upcoming_product_mapping_id
+                ? app(\App\Services\Citybox\StockPollService::class)->unrecognisableSlots($vend, false, (int) $vend->upcoming_product_mapping_id)
+                : [],
             // Card Terminal COMPANY (Nayax / Nets / Nets-Auresys / PAX / MLS / HID)
             // — populates the "Card Terminal Company" dropdown on the vend edit form.
             // Renamed from "Card Terminal" 2026-09-05, when the terminal ITSELF

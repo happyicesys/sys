@@ -294,15 +294,19 @@ class StockPollService
      *
      * @return array<int,array{code:int,product_id:int,citybox_product_id:int}>
      */
-    public function unrecognisableSlots(Vend $vend, bool $fresh = false): array
+    public function unrecognisableSlots(Vend $vend, bool $fresh = false, ?int $productMappingId = null): array
     {
         $config = $fresh ? $this->refreshTheirConfig($vend) : $this->theirConfig($vend);
         if ($config === []) {
             return []; // unknown, not "everything is missing"
         }
 
+        // $productMappingId: check a mapping the vend is not on YET (its upcoming one), so
+        // ops can load the SKUs in OPS Pro before the driver swaps, not after.
+        $slots = $productMappingId ? $this->channelMap->forMapping($productMappingId) : $this->channelMap->forVend($vend);
+
         $missing = [];
-        foreach ($this->channelMap->forVend($vend) as $slot) {
+        foreach ($slots as $slot) {
             if (! isset($config[$slot->cityboxProductId])) {
                 $missing[] = ['code' => $slot->code, 'product_id' => $slot->productId, 'citybox_product_id' => $slot->cityboxProductId];
             }

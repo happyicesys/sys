@@ -164,11 +164,18 @@ class CityboxChillerGuardsTest extends TestCase
         $vend->refresh();
         app(\App\Services\Citybox\StockPollService::class)->refreshTheirConfig($vend);
 
+        // The upcoming layout is checked too, so ops load the SKU BEFORE the changeover job.
+        $currentId = $vend->product_mapping_id;
+        $upcoming = \Tests\Support\Citybox\ChillerMapping::bind($vend, [101 => [90338, 5], 205 => [90341, 5]], 'Layout B');
+        $vend->forceFill(['product_mapping_id' => $currentId, 'upcoming_product_mapping_id' => $upcoming->id])->save();
+
         $this->get('/settings/vend/'.$vend->id.'/update')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('Setting/Edit')
                 ->where('chillerUnrecognisable.0.code', 102)
-                ->where('chillerUnrecognisable.0.citybox_product_id', 90339));
+                ->where('chillerUnrecognisable.0.citybox_product_id', 90339)
+                ->where('chillerUnrecognisableUpcoming.0.code', 205)
+                ->where('chillerUnrecognisableUpcoming.0.citybox_product_id', 90341));
 
         $job = OpsJob::create(['code' => 900104, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $this->user->id, 'operator_id' => $operator->id]);
         $item = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PICKED]);

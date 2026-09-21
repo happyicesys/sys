@@ -73,7 +73,7 @@
                   <input type="radio" value="smart_chiller" v-model="form.machine_type" class="mt-1" />
                   <span class="flex flex-col">
                     <span class="text-sm font-semibold text-gray-900">Smart Chiller</span>
-                    <span class="text-xs text-gray-500">Citybox JV chillers. Classic editor for now; only bindable to Smart Chiller machines.</span>
+                    <span class="text-xs text-gray-500">CityBox chillers. Channels 101–599 (first digit = layer), CityBox products only; bindable to Smart Chiller machines and shareable between them.</span>
                   </span>
                 </label>
               </div>
