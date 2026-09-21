@@ -658,6 +658,15 @@ rather than adding a new `if (citybox)` somewhere else:
   `whereLabels` so "C6003" matches; and machine create keeps refusing any number
   a prefixed vend holds, so a new vending machine can never collide.
   Regression coverage: `tests/Feature/VendCodePrefixTest.php`, `tests/Unit/VendCodeTest.php`.
+- **A chiller is imported with NO site** (2026-09-21, "Site — Primary: Sys"). The
+  Create page's CityBox branch imports the machine; the Site is created in mark1
+  like any other and bound with the ordinary Site picker on Setting/Edit
+  (`CustomerController::update`, `is_existing`). `ProvisionChillerVendRequest`
+  PROHIBITS `new_customer`: creating a site from the device name is how the fleet
+  got sites called "Singapore5". Picking an existing site at import stays as a
+  shortcut. An unbound chiller cannot join an ops job (`ops_job_items.customer_id`
+  is NOT NULL) — intended. Manual create (`SettingController::store`) never makes
+  a chiller. Regression coverage: `tests/Feature/CityboxProvisioningTest.php`.
 - **Their status is a separate layer, not our Status.** `ChillerStatus`
   (`Vend::chillerStatus()`) is their ops status / online / heartbeat, built
   from the last poll on the row and shown read-only. mark1's Status

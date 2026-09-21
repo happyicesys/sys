@@ -49,7 +49,6 @@ class CityboxProvisioningController extends Controller
             'machine_id_error' => $p['machine_id_error'],
             'state' => $p['state'],
             'product_count' => $p['product_count'],
-            'existing_customer' => $p['existing_customer'] ? ['id' => $p['existing_customer']->id, 'name' => $p['existing_customer']->name, 'code' => $p['existing_customer']->code] : null,
         ]);
     }
 
@@ -61,17 +60,17 @@ class CityboxProvisioningController extends Controller
         }
 
         try {
-            $vend = $svc->provision($device, $request->only(['name', 'begin_date', 'customer_id', 'new_customer']), $request->user());
+            $vend = $svc->provision($device, $request->only(['name', 'begin_date', 'customer_id']), $request->user());
         } catch (CityboxApiException $e) {
             return redirect()->back()->withErrors(['equipment_id' => $e->getMessage()])->withInput();
         }
 
-        $customerName = $vend->customer?->name ?? '—';
+        $label = $vend->codeLabel();
+        $message = $vend->customer
+            ? sprintf('Smart Chiller %s imported from %s and bound to "%s". First stock sync in ≤3 min, or press Pull.', $label, $device->equipmentId, $vend->customer->name)
+            : sprintf('Smart Chiller %s imported from %s with no site. Create the site in ConnectVend, then bind it in the Site section below — it cannot join an ops job until then.', $label, $device->equipmentId);
 
-        return redirect()->route('settings.edit', [$vend->id])->with('success', sprintf(
-            'Smart Chiller %s created and linked to %s. Bound to "%s" — this chiller can now be added to ops jobs. First stock sync in ≤3 min, or press Pull.',
-            $vend->codeLabel(), $device->equipmentId, $customerName,
-        ));
+        return redirect()->route('settings.edit', [$vend->id])->with('success', $message);
     }
 
     /** Sites under the Citybox operator, for the "bind to another existing site" picker. */

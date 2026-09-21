@@ -73,8 +73,9 @@
             <!-- Smart Chiller (CityBox) -->
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-else>
               <div class="sm:col-span-6 rounded-md bg-indigo-50 p-3 text-xs text-indigo-800">
-                Pick one of the CityBox devices not yet in ConnectVend. Identity, model, online status and the CityBox name are filled automatically;
-                the machine ID is taken from the OPS Pro machine name (e.g. <b>C6003</b>) — rename it there if it is wrong. You must bind it to a site (customer) — the CityBox device name is offered as the site name.
+                Pick one of the CityBox devices not yet in ConnectVend. Identity, model and online status are filled automatically;
+                the machine ID is taken from the OPS Pro machine name (e.g. <b>C6003</b>) — rename it there if it is wrong.
+                The machine is imported <b>without a site</b>: create the site in ConnectVend as usual, then bind it in Machine Settings.
               </div>
               <div class="sm:col-span-4">
                 <label class="flex justify-start text-sm font-medium text-gray-700">CityBox device</label>
@@ -117,21 +118,19 @@
                 </div>
               </div>
 
-              <!-- Customer (site) — required -->
+              <!-- Site — optional (Brian, 2026-09-19: "Site — Primary: Sys"). A machine arrives with no
+                   site; one is never made from the CityBox device name any more, which is how the
+                   fleet got sites called "Singapore5". An existing site can be picked as a shortcut. -->
               <div class="sm:col-span-6 border-t pt-3">
-                <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">Site (customer) <span class="text-red-500 ml-1">*</span></label>
+                <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">Site</label>
                 <div class="flex flex-col sm:flex-row sm:space-x-6 space-y-1 sm:space-y-0 mb-2">
-                  <label class="inline-flex items-center space-x-2 cursor-pointer" v-if="cb.preview && cb.preview.existing_customer">
-                    <input type="radio" value="existing" v-model="cb.customerMode" class="text-indigo-600" />
-                    <span class="text-sm">Bind to existing <b>{{ cb.preview.existing_customer.name }}</b> ({{ cb.preview.existing_customer.code }}) — same name as the CityBox device</span>
+                  <label class="inline-flex items-center space-x-2 cursor-pointer">
+                    <input type="radio" value="none" v-model="cb.customerMode" class="text-indigo-600" />
+                    <span class="text-sm">Import without a site — bind one later in Machine Settings</span>
                   </label>
                   <label class="inline-flex items-center space-x-2 cursor-pointer">
                     <input type="radio" value="pick" v-model="cb.customerMode" class="text-indigo-600" />
-                    <span class="text-sm">Bind to another existing site</span>
-                  </label>
-                  <label class="inline-flex items-center space-x-2 cursor-pointer">
-                    <input type="radio" value="new" v-model="cb.customerMode" class="text-indigo-600" />
-                    <span class="text-sm">Create site from this device</span>
+                    <span class="text-sm">Bind to an existing site now</span>
                   </label>
                 </div>
                 <div v-if="cb.customerMode === 'pick'" class="sm:w-1/2">
@@ -141,15 +140,7 @@
                     <option v-for="c in cb.customerResults" :key="c.id" :value="c.id">{{ c.name }} ({{ c.code }})</option>
                   </select>
                 </div>
-                <div v-if="cb.customerMode === 'new'" class="grid grid-cols-1 sm:grid-cols-6 gap-3">
-                  <div class="sm:col-span-3">
-                    <label class="text-xs text-gray-600">Site name</label>
-                    <input v-model="form.new_customer.name" type="text" class="w-full rounded-md border-gray-300 text-sm" />
-                    <p class="text-xs text-gray-500 mt-1">Prefilled from the CityBox device name — rename devices in the CityBox portal to real sites first.</p>
-                  </div>
-                </div>
                 <div class="text-sm text-red-600" v-if="form.errors.customer_id">{{ form.errors.customer_id }}</div>
-                <div class="text-sm text-red-600" v-if="form.errors['new_customer.name']">{{ form.errors['new_customer.name'] }}</div>
               </div>
             </div>
             <div class="sm:col-span-6">
@@ -232,7 +223,7 @@ const props = defineProps({
     disabled: id === 'smart_chiller' && !cityboxEnabled,
   })))
   const cb = reactive({ devices: [], loaded: false, loading: false, error: null, device: null, equipment_id: null, preview: null,
-                        customerMode: 'new', customerQuery: '', customerResults: [], searchTimer: null })
+                        customerMode: 'none', customerQuery: '', customerResults: [], searchTimer: null })
 
   // MultiSelect searches on `label`, so everything ops might type — serial, CityBox
   // name, model, online state — has to live in that one string.
@@ -255,7 +246,6 @@ function getDefaultForm() {
     equipment_id: null,
     name: null,
     customer_id: null,
-    new_customer: { name: '' },
   }
 }
 
@@ -287,7 +277,7 @@ async function onDevicePicked() {
   cb.preview = null
   // Reset the site step for the new device: a customer chosen for the previous device must
   // never ride along if this device's preview fails or has no same-name site.
-  cb.customerMode = 'new'
+  cb.customerMode = 'none'
   form.value.customer_id = null
   if (!cb.equipment_id) return
   const requested = cb.equipment_id
@@ -298,16 +288,11 @@ async function onDevicePicked() {
     // A slower response for a device the user has since moved off must not win.
     if (cb.equipment_id !== requested) return
     cb.preview = data
-    // Default the customer step to the safest choice: bind to a same-name site if one exists.
-    cb.customerMode = data.existing_customer ? 'existing' : 'new'
-    if (data.existing_customer) form.value.customer_id = data.existing_customer.id
   } catch (e) { /* preview is best-effort */ }
 }
 
-watch(() => cb.customerMode, (m) => {
-  if (m === 'existing' && cb.preview?.existing_customer) { form.value.customer_id = cb.preview.existing_customer.id }
-  else if (m === 'pick') { form.value.customer_id = null }
-  else if (m === 'new') { form.value.customer_id = null }
+watch(() => cb.customerMode, () => {
+  form.value.customer_id = null
 })
 
 function searchCustomers() {
@@ -336,8 +321,7 @@ function submit() {
         equipment_id: data.equipment_id,
         name: data.name,
         begin_date: data.begin_date,
-        customer_id: cb.customerMode === 'new' ? null : data.customer_id,
-        new_customer: cb.customerMode === 'new' ? data.new_customer : null,
+        customer_id: cb.customerMode === 'pick' ? data.customer_id : null,
       }))
       .post('/citybox/vends', { preserveState: true })
     return

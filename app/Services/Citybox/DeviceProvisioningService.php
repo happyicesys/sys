@@ -13,26 +13,25 @@ use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Services\Citybox\DTO\ChillerDevice;
 use App\Services\HistoryService;
-use App\Services\RunningNumberService;
 use App\Support\VendCode;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Creates a Smart Chiller vend from a CityBox device (design §8c).
+ * Imports a Smart Chiller from a CityBox device (design §8c).
  *
- * What is automatic: everything their API supplies (identity, type→model,
- * online/heartbeats, their name → the CUSTOMER name), the dedicated Citybox
- * operator, the machine ID (their OPS Pro name → code_prefix + code), the binding
- * record. What is human: the four things their API cannot supply — which
- * customer (existing by normalised-name match, or a new one), address,
- * contact, contract — captured by the Create page and passed in as $site.
+ * Automatic: everything their API supplies — identity, type→model, online /
+ * heartbeats, and the machine ID (their OPS Pro name → code_prefix + code) — plus
+ * the dedicated Citybox operator. NOT here: the Site. "Site — Primary: Sys"
+ * (Brian, 2026-09-19): a machine arrives with no site, the Site is created in
+ * mark1 like any other and bound on Machine Settings. An existing site may be
+ * passed as a shortcut; one is never created from the device, which is how the
+ * fleet got sites called "Singapore5".
  *
  * Duplicate-proof by three layers: the unique index on
  * vends.citybox_equipment_id, the Form Request rule, and unlinkedDevices()
- * never OFFERING a linked id. Customer never auto-created without a human
- * choosing "create" — and then only once, at this moment.
+ * never OFFERING a linked id.
  */
 class DeviceProvisioningService
 {
@@ -41,7 +40,6 @@ class DeviceProvisioningService
         private DeviceSyncService $deviceSync,
         private CityboxDeviceRegistry $registry,
         private HistoryService $history,
-        private RunningNumberService $runningNumbers,
     ) {}
 
     /**
@@ -101,39 +99,14 @@ class DeviceProvisioningService
             'machine_id_error' => $machineIdError,
             'state' => $state,
             'product_count' => $productCount,
-            'existing_customer' => $device ? $this->matchCustomerByName($device->name) : null,
         ];
     }
 
     /**
-     * Existing customer whose name equals theirs after normalisation (trim,
-     * case-fold, collapse whitespace) under the Citybox operator — so a second
-     * chiller at the same site joins that customer instead of "Singapore8 (2)".
-     */
-    public function matchCustomerByName(string $name): ?Customer
-    {
-        $norm = self::normaliseName($name);
-        if ($norm === '') {
-            return null;
-        }
-
-        return Customer::withoutGlobalScopes()
-            ->where('operator_id', $this->operator()->id)
-            ->get(['id', 'name', 'code'])
-            ->first(fn (Customer $c) => self::normaliseName((string) $c->name) === $norm);
-    }
-
-    public static function normaliseName(string $s): string
-    {
-        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $s)));
-    }
-
-    /**
-     * Create the vend (+ customer if requested) and bind, atomically.
+     * Create the vend and, when a site was picked, bind it — atomically.
      *
-     * @param  array{customer_id?:int|null, new_customer?:array|null, begin_date?:string|null, name?:string|null}  $site
-     *                                                                                                                    customer_id  bind to this existing customer, OR
-     *                                                                                                                    new_customer ['name','address'=>[...]?, ...] create one (name defaults to their device name)
+     * @param  array{customer_id?:int|null, begin_date?:string|null, name?:string|null}  $site
+     *                                                                                          customer_id  bind to this EXISTING site; omit to import unbound
      */
     public function provision(ChillerDevice $device, array $site, User $by): Vend
     {
@@ -164,12 +137,9 @@ class DeviceProvisioningService
             // Status/online/heartbeats/CityBox name → the same writer the poller uses.
             $this->deviceSync->applyStatus($vend, $device);
 
-            $customer = null;
-            if (! empty($site['customer_id'])) {
-                $customer = Customer::withoutGlobalScopes()->findOrFail((int) $site['customer_id']);
-            } elseif (! empty($site['new_customer'])) {
-                $customer = $this->createCustomer($device, $site['new_customer'], $operator);
-            }
+            $customer = ! empty($site['customer_id'])
+                ? Customer::withoutGlobalScopes()->findOrFail((int) $site['customer_id'])
+                : null;
 
             if ($customer) {
                 $vend->forceFill(['customer_id' => $customer->id, 'binded_at' => now()])->save();
@@ -180,25 +150,6 @@ class DeviceProvisioningService
 
             return $vend->refresh();
         });
-    }
-
-    private function createCustomer(ChillerDevice $device, array $attrs, Operator $operator): Customer
-    {
-        $name = trim((string) ($attrs['name'] ?? '')) ?: $device->name;
-        $customer = Customer::create([
-            'name' => $name,
-            'code' => $this->runningNumbers->getCustomerRunningCode($operator->id),
-            'operator_id' => $operator->id,
-            'begin_date' => $attrs['begin_date'] ?? now()->toDateString(),
-            'status_id' => Customer::STATUS_ACTIVE,
-            'active_date' => now()->toDateString(),
-        ] + array_intersect_key($attrs, array_flip(['person_id', 'location_type_id', 'customer_type_id'])));
-
-        if (! empty($attrs['address']) && is_array($attrs['address'])) {
-            $customer->deliveryAddress()->updateOrCreate(['type' => Customer::ADDRESS_TYPE_DELIVERY], $attrs['address']);
-        }
-
-        return $customer;
     }
 
     public function operator(): Operator

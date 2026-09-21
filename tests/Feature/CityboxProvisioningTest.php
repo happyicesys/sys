@@ -70,13 +70,16 @@ class CityboxProvisioningTest extends TestCase
 
     // ── provision ──────────────────────────────────────────────────────────
 
-    public function test_provision_with_new_customer_forces_operator_takes_ops_pro_machine_id_binds_and_logs_binding(): void
+    public function test_provision_imports_the_machine_with_no_site(): void
     {
+        // "Site — Primary: Sys" (Brian, 2026-09-19): a machine arrives with no site. Until then
+        // importing REQUIRED one and offered to create it from the device name — the fleet's
+        // "Singapore5" sites.
         $this->gw->seedDevice('ICB26F9FUPE7', 'C6002', 'visual-2', online: 1);
         $svc = app(DeviceProvisioningService::class);
         $device = $svc->device('ICB26F9FUPE7');
 
-        $vend = $svc->provision($device, ['new_customer' => ['name' => 'Raffles Place L1']], $this->user);
+        $vend = $svc->provision($device, [], $this->user);
 
         $this->assertSame($this->op()->id, $vend->operator_id);
         $this->assertSame('smart_chiller', $vend->machine_type);
@@ -88,11 +91,10 @@ class CityboxProvisioningTest extends TestCase
         $this->assertSame(VendModel::where('name', 'CityBox F5 (visual-2)')->value('id'), $vend->vend_model_id);
         $this->assertTrue((bool) $vend->is_online);
         $this->assertSame('C6002', $vend->citybox_status_json['name']);
-        $customer = $vend->customer;
-        $this->assertSame('Raffles Place L1', $customer->name);
-        $this->assertSame($this->op()->id, $customer->operator_id);
-        $this->assertNotNull($vend->binded_at);
-        $this->assertSame(1, CustomerVendBinding::where('vend_id', $vend->id)->where('customer_id', $customer->id)->where('is_binding', true)->count());
+        $this->assertNull($vend->customer_id);
+        $this->assertNull($vend->binded_at);
+        $this->assertSame(0, Customer::count(), 'no site is ever invented from a device');
+        $this->assertSame(0, CustomerVendBinding::where('vend_id', $vend->id)->count());
     }
 
     public function test_provision_may_share_the_number_with_an_old_unprefixed_vend(): void
@@ -104,7 +106,7 @@ class CityboxProvisioningTest extends TestCase
         $this->gw->seedDevice('E1', 'C6001');
         $svc = app(DeviceProvisioningService::class);
 
-        $vend = $svc->provision($svc->device('E1'), ['new_customer' => ['name' => 'Site 1']], $this->user);
+        $vend = $svc->provision($svc->device('E1'), [], $this->user);
 
         $this->assertSame('C6001', $vend->codeLabel());
         $this->assertSame(2, Vend::withoutGlobalScopes()->where('code', 6001)->count());
@@ -114,10 +116,10 @@ class CityboxProvisioningTest extends TestCase
     {
         $this->gw->seedDevice('E1', 'C6001')->seedDevice('E2', 'C6001 HI Office');
         $svc = app(DeviceProvisioningService::class);
-        $svc->provision($svc->device('E1'), ['new_customer' => ['name' => 'Site 1']], $this->user);
+        $svc->provision($svc->device('E1'), [], $this->user);
 
         try {
-            $svc->provision($svc->device('E2'), ['new_customer' => ['name' => 'Site 2']], $this->user);
+            $svc->provision($svc->device('E2'), [], $this->user);
             $this->fail('expected a duplicate machine ID to be refused');
         } catch (CityboxApiException $e) {
             $this->assertStringContainsString('C6001 is already used', $e->getMessage());
@@ -135,7 +137,7 @@ class CityboxProvisioningTest extends TestCase
         $this->assertStringContainsString('has no machine ID', $svc->preview('E1')['machine_id_error']);
 
         $this->expectException(CityboxApiException::class);
-        $svc->provision($svc->device('E1'), ['new_customer' => ['name' => 'Site 1']], $this->user);
+        $svc->provision($svc->device('E1'), [], $this->user);
     }
 
     public function test_provision_binds_to_existing_customer_by_id(): void
@@ -147,28 +149,19 @@ class CityboxProvisioningTest extends TestCase
         $vend = $svc->provision($svc->device('E1'), ['customer_id' => $existing->id], $this->user);
 
         $this->assertSame($existing->id, $vend->customer_id);
+        $this->assertNotNull($vend->binded_at);
+        $this->assertSame(1, CustomerVendBinding::where('vend_id', $vend->id)->where('customer_id', $existing->id)->where('is_binding', true)->count());
         $this->assertSame(1, Customer::count()); // no new customer invented
-    }
-
-    public function test_name_match_is_normalised_and_scoped_to_citybox_operator(): void
-    {
-        Customer::create(['name' => '  singapore8 ', 'code' => 10001, 'operator_id' => $this->op()->id, 'status_id' => Customer::STATUS_ACTIVE]);
-        Customer::create(['name' => 'Singapore8', 'code' => 10002, 'operator_id' => 999, 'status_id' => Customer::STATUS_ACTIVE]); // other operator: ignored
-
-        $hit = app(DeviceProvisioningService::class)->matchCustomerByName('Singapore8');
-
-        $this->assertNotNull($hit);
-        $this->assertSame(10001, (int) $hit->code);
     }
 
     public function test_provision_refuses_a_second_link_to_the_same_device(): void
     {
         $this->gw->seedDevice('E1', 'C6001');
         $svc = app(DeviceProvisioningService::class);
-        $svc->provision($svc->device('E1'), ['new_customer' => ['name' => 'A']], $this->user);
+        $svc->provision($svc->device('E1'), [], $this->user);
 
         $this->expectException(CityboxApiException::class);
-        $svc->provision($svc->device('E1'), ['new_customer' => ['name' => 'B']], $this->user);
+        $svc->provision($svc->device('E1'), [], $this->user);
     }
 
     public function test_provision_is_atomic_when_customer_creation_fails(): void
@@ -246,20 +239,49 @@ class CityboxProvisioningTest extends TestCase
 
     // ── HTTP ───────────────────────────────────────────────────────────────
 
-    public function test_store_requires_a_customer_choice_and_unique_equipment(): void
+    public function test_store_imports_without_a_site_and_refuses_to_make_one_from_the_device(): void
     {
-        $this->gw->seedDevice('E1', 'C5001');
+        $this->gw->seedDevice('E1', 'C5001')->seedDevice('E2', 'C5002');
         app(DeviceProvisioningService::class)->devices(fresh: true);
 
-        $this->post('/citybox/vends', ['equipment_id' => 'E1'])->assertSessionHasErrors('customer_id');
+        // An old client still posting a site-from-device is refused, not obeyed.
+        $this->post('/citybox/vends', ['equipment_id' => 'E1', 'new_customer' => ['name' => 'Singapore1']])
+            ->assertSessionHasErrors('new_customer');
+        $this->assertSame(0, Vend::withoutGlobalScopes()->where('citybox_equipment_id', 'E1')->count());
 
-        $this->post('/citybox/vends', ['equipment_id' => 'E1', 'new_customer' => ['name' => 'Site A']])
-            ->assertRedirect()->assertSessionHas('success');
+        $this->post('/citybox/vends', ['equipment_id' => 'E1'])
+            ->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, 'with no site'));
         $vend = Vend::withoutGlobalScopes()->where('citybox_equipment_id', 'E1')->firstOrFail();
-        $this->assertSame('Site A', $vend->customer->name);
+        $this->assertNull($vend->customer_id);
+        $this->assertSame(0, Customer::count());
 
-        $this->post('/citybox/vends', ['equipment_id' => 'E1', 'new_customer' => ['name' => 'Site B']])
-            ->assertSessionHasErrors('equipment_id');
+        // The shortcut: bind to a site that already exists.
+        $site = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => $this->op()->id, 'status_id' => Customer::STATUS_ACTIVE]);
+        $this->post('/citybox/vends', ['equipment_id' => 'E2', 'customer_id' => $site->id])
+            ->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, 'Bosch 30F'));
+
+        $this->post('/citybox/vends', ['equipment_id' => 'E1'])->assertSessionHasErrors('equipment_id');
+    }
+
+    public function test_an_imported_chiller_is_bound_to_a_site_from_machine_settings(): void
+    {
+        // The second half of "Site — Primary: Sys": the site is made in mark1 like any
+        // other, then bound with the same Site picker every unbound machine uses.
+        foreach (['update vend-settings', 'update customers', 'update machine-settings'] as $perm) {
+            Permission::findOrCreate($perm, 'web');
+        }
+        $this->user->givePermissionTo(['update vend-settings', 'update customers', 'update machine-settings']);
+        $this->gw->seedDevice('E1', 'C5001');
+        $svc = app(DeviceProvisioningService::class);
+        $vend = $svc->provision($svc->device('E1'), [], $this->user);
+        $site = Customer::create(['name' => 'Bosch 30F', 'code' => 10001, 'operator_id' => $this->op()->id, 'status_id' => Customer::STATUS_ACTIVE]);
+
+        // Setting/Edit posts the unbound machine's id plus the picked site; no site is loaded yet.
+        $this->post('/customers/0/update', ['id' => $vend->id, 'is_existing' => 1, 'customer_id' => $site->id, 'customer' => []])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($site->id, $vend->fresh()->customer_id);
+        $this->assertSame(1, CustomerVendBinding::where('vend_id', $vend->id)->where('customer_id', $site->id)->where('is_binding', true)->count());
     }
 
     public function test_devices_endpoint_reports_disabled_cleanly(): void

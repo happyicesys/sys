@@ -6,10 +6,15 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Create a Smart Chiller vend from a CityBox device. Exactly ONE of
- * customer_id / new_customer must be given (binding is structurally required
- * — ops_job_items.customer_id is NOT NULL). The equipment id must not already
- * be linked (unique index is the real guard; this is the friendly error).
+ * Import a Smart Chiller from a CityBox device. The Site is OPTIONAL and never
+ * made here (Brian, 2026-09-19: "Site — Primary: Sys"): a machine arrives with
+ * no site, the Site is created in mark1 like any other, and bound on Machine
+ * Settings. Importing used to require a site and offered to create one from the
+ * device name, which is how the fleet got sites called "Singapore5". An existing
+ * site may still be picked here as a shortcut. An unbound chiller cannot join an
+ * ops job (ops_job_items.customer_id is NOT NULL) — the intended state until
+ * someone binds it. The equipment id must not already be linked (the unique
+ * index is the real guard; this is the friendly error).
  */
 class ProvisionChillerVendRequest extends FormRequest
 {
@@ -24,12 +29,9 @@ class ProvisionChillerVendRequest extends FormRequest
             'equipment_id' => ['required', 'string', 'max:64', Rule::unique('vends', 'citybox_equipment_id')],
             'name' => ['nullable', 'string', 'max:255'],
             'begin_date' => ['nullable', 'date'],
-            'customer_id' => ['nullable', 'integer', 'exists:customers,id', 'required_without:new_customer'],
-            'new_customer' => ['nullable', 'array', 'required_without:customer_id', 'prohibits:customer_id'],
-            'new_customer.name' => ['required_with:new_customer', 'string', 'max:255'],
-            'new_customer.address' => ['nullable', 'array'],
-            'new_customer.person_id' => ['nullable', 'integer'],
-            'new_customer.location_type_id' => ['nullable', 'integer'],
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            // Sites are never created from a device any more — refuse an old client that still tries.
+            'new_customer' => ['prohibited'],
         ];
     }
 
@@ -37,7 +39,7 @@ class ProvisionChillerVendRequest extends FormRequest
     {
         return [
             'equipment_id.unique' => 'This CityBox device is already linked to a vend.',
-            'customer_id.required_without' => 'Pick an existing site or create a new one — a chiller must be bound to a customer to appear in ops jobs.',
+            'new_customer.prohibited' => 'Sites are created in ConnectVend, not from the CityBox device — import the machine, then bind a site in Machine Settings.',
         ];
     }
 }
