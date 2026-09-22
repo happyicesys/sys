@@ -6,10 +6,12 @@ one row per SKU, C6002's fifteen layer-1 fruit SKUs (the stale rows in
 Brian's 2026-09-22 recording) were rebuilt by the minute poll and the old
 rows retired; no failed jobs. Freezers (50001, 50002, 2013) resync on their
 next mapping Save — 2013 still carries 8 product-less legacy rows until then.
-Rules as shipped: `CLAUDE.md` "SKU-stocked machines". Open: Phase 3 (sales
-resolve by `goods_id`; freezer suffix codes wait on the APK, §7.5), Phase 4
-UI beyond the chiller table's Default/Reality columns (freezer grid
-override, ops-job rows show `vend_channel_label`).
+Rules as shipped: `CLAUDE.md` "SKU-stocked machines". cd9c451b19 (2026-09-23): chiller
+table types codes in place (debounced natural re-sort, duplicate / whole-split
+guard blocks Save), no Display Sequence on chillers; freezer grid cells carry
+Default + Reality capacity (saved per cell, rows re-synced). Open: Phase 3
+(sales resolve by `goods_id`; freezer suffix codes wait on the APK, §7.5),
+ops-job rows showing `vend_channel_label`.
 §4 keeps the original questions for the record.**
 
 All file:line references are to mark1 HEAD `99b96c6364` (2026-09-21). The
