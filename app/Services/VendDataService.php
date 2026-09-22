@@ -381,6 +381,52 @@ class VendDataService
                             ]);
                         }
                         break;
+                    case 'UIHEALTH':
+                        // The APK's own UI watchdog (mark1-apk 306+): the main looper
+                        // stalled, the draw pipeline stopped producing frames, or the
+                        // hourly page round-trip failed.
+                        //
+                        // This is the ONLY frame that says anything about the screen.
+                        // Every other liveness signal we have — VENDER, ACBSTATUS, the
+                        // P polls — is relayed off the serial link by ThreadForBrd and
+                        // keeps arriving unbroken on a machine whose UI is completely
+                        // dead (machine 2844, 2026-09-21). Treat a gap in those as
+                        // "the machine is not reporting", never as "the screen is fine".
+                        //
+                        // The payload itself (stack frames, stage, elapsed ms) is kept
+                        // verbatim in vend_data by the default branch below — that is
+                        // the diagnostic; these counters are only the "which machines"
+                        // index over it.
+                        $uiMetric = match ((string) ($processedInput['event'] ?? '')) {
+                            'looper_stall' => 'ui_looper_stall',
+                            'no_frames' => 'ui_no_frames',
+                            'probe_fail' => 'ui_probe_fail',
+                            'probe_pass' => 'ui_probe_pass',
+                            // looper_recovered pairs with a stall already counted, and
+                            // probe_abort means a customer walked up mid-probe — it is
+                            // not a measurement. Both are stored, neither is counted.
+                            default => null,
+                        };
+                        if ($uiMetric !== null) {
+                            // Inline like the PWRON counter: one atomic statement, and a
+                            // queue hop per frame buys nothing. Guarded so a transient DB
+                            // error on a diagnostic counter can never break ingest.
+                            try {
+                                IncrementVendDailyStat::dispatchSync(
+                                    $vend->id,
+                                    $vend->code,
+                                    $uiMetric,
+                                    Carbon::now()->toDateString()
+                                );
+                            } catch (\Throwable $e) {
+                                \Log::warning('IncrementVendDailyStat inline failed (UIHEALTH)', [
+                                    'vend_id' => $vend->id,
+                                    'metric' => $uiMetric,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                        break;
                     case 'REFILL':
                         break;
                     case 'REQQR':

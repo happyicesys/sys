@@ -13,7 +13,11 @@ use Illuminate\Database\Eloquent\Model;
  * to avoid lost increments under concurrency.
  *
  * Known metrics:
- *   - 'pwron'  : VendDataService receives Type=PWRON from a machine
+ *   - 'pwron'            : VendDataService receives Type=PWRON from a machine
+ *   - 'ui_looper_stall'  : the APK's main looper stopped answering (frozen screen)
+ *   - 'ui_no_frames'     : looper alive but nothing drawn — dead draw pipeline
+ *   - 'ui_probe_fail'    : the hourly page round-trip did not complete
+ *   - 'ui_probe_pass'    : it did — the denominator the three above are read against
  *
  * Reserved for future hardware/stat metrics — add new strings without a
  * schema migration.
