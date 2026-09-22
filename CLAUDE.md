@@ -1,5 +1,41 @@
 # mark1 — working notes
 
+## Push is a deploy: run the pre-push guard
+
+`git push` on `main` deploys. The repo carries its own guard in `.githooks/`,
+but **`core.hooksPath` is config, and config is never cloned** — a fresh clone
+runs no hook at all and fails open. After any clone, once:
+
+```
+git config core.hooksPath .githooks
+```
+
+Worktrees inherit it from the shared `.git/config`, but the hook file itself is
+resolved from *that worktree's* checkout — a worktree parked on a commit from
+before the hook existed silently has none. Keep worktrees current.
+
+`.githooks/pre-push` blocks five things, each one an incident that already
+happened here. Override with `git push --no-verify` when you genuinely mean it:
+
+1. **Stale checkout** — >20 tracked files in HEAD are missing from disk. That is
+   the *mixed* `git reset` signature: HEAD and the index move, the files do not,
+   so the tree sits at an old commit while `git status` reads as mass deletion
+   (2026-09-22: 379 files).
+2. **`public/build` not fully committed** — any untracked or modified asset.
+   `git commit <path>` does not pick up untracked files; that took prod down on
+   2026-09-18. Always `git add -A public/build`.
+3. **Broken manifest** — `manifest.json` naming files that do not exist, i.e. a
+   half-finished `npm run build`. The site would 404 its own bundle.
+4. **Frontend source without its bundle** — a `resources/js|css` change pushed
+   with no `public/build` change. Production serves the committed bundle, so
+   users would get stale JS.
+5. **Advisory only**: uncommitted work outside `public/build`, since another
+   session may share this checkout.
+
+Config this repo also sets: `pull.ff only` (no surprise merge commits — decide
+rebase or merge deliberately), `fetch.prune` , `merge.conflictStyle zdiff3`,
+`rerere.enabled`.
+
 ## Roles and permissions: one file, always
 
 `database/seeders/RolePermissionSyncSeeder.php` is the **single source of truth**.

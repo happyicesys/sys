@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+# mark1 pre-push guard.  push = deploy, so every check here is about not
+# shipping a half-built or half-restored tree to production.
+#
+# Bypass deliberately with:  git push --no-verify
+#
+# Installed via:  git config core.hooksPath .githooks   (covers every worktree)
+
+set -uo pipefail
+
+RED=$'\033[31m'; YEL=$'\033[33m'; GRN=$'\033[32m'; OFF=$'\033[0m'
+fail=0
+say()  { printf '%s\n' "$*" >&2; }
+bad()  { say "${RED}✗ $*${OFF}"; fail=1; }
+warn() { say "${YEL}! $*${OFF}"; }
+ok()   { say "${GRN}✓ $*${OFF}"; }
+
+ZERO='0000000000000000000000000000000000000000'
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+# ── 1. stale-checkout detector ────────────────────────────────────────────
+# A *mixed* `git reset` moves HEAD and the index but leaves the files alone,
+# so the tree silently sits at an old commit while HEAD claims otherwise.
+# Signature: many tracked files that HEAD has are simply absent from disk.
+# (2026-09-22: 379 such files, mistaken for someone deleting half the app.)
+missing=$(git diff --diff-filter=D --name-only HEAD -- . 2>/dev/null | wc -l | tr -d ' ')
+if [ "${missing:-0}" -gt 20 ]; then
+  bad "working tree looks STALE: $missing tracked files are in HEAD but missing from disk."
+  say "   That is the mixed-reset signature (HEAD moved, files did not)."
+  say "   Check 'git reflog' for consecutive 'reset: moving to' entries, then:"
+  say "     git diff HEAD > /tmp/snapshot.patch   # keep a copy first"
+  say "     git reset --hard HEAD"
+fi
+
+# ── 2. public/build must be fully committed ───────────────────────────────
+# 2026-09-18: 'git commit <path>' skipped untracked assets and took prod down.
+untracked=$(git ls-files --others --exclude-standard -- public/build | wc -l | tr -d ' ')
+modified=$(git diff --name-only HEAD -- public/build | wc -l | tr -d ' ')
+if [ "${untracked:-0}" -gt 0 ] || [ "${modified:-0}" -gt 0 ]; then
+  bad "public/build is not fully committed: $untracked untracked, $modified modified."
+  say "   'git commit <path>' does NOT pick up untracked files. Use:"
+  say "     git add -A public/build && git commit"
+fi
+
+# ── 3. built assets must be internally consistent ─────────────────────────
+# A partial or interrupted 'npm run build' leaves manifest.json pointing at
+# files that were never written — the site then 404s its own bundle.
+if [ -f public/build/manifest.json ]; then
+  gone=$(python3 - <<'PY' 2>/dev/null
+import json, os
+try:
+    m = json.load(open('public/build/manifest.json'))
+except Exception:
+    print('PARSE'); raise SystemExit
+n = 0
+for v in m.values():
+    if not os.path.exists('public/build/' + v.get('file', '')):
+        n += 1
+    for c in v.get('css', []):
+        if not os.path.exists('public/build/' + c):
+            n += 1
+print(n)
+PY
+)
+  if [ "$gone" = "PARSE" ]; then
+    bad "public/build/manifest.json is not valid JSON — the build did not finish."
+  elif [ "${gone:-0}" -gt 0 ]; then
+    bad "manifest.json references $gone file(s) that do not exist — incomplete build."
+    say "   Re-run:  npm run build && git add -A public/build"
+  fi
+fi
+
+# ── 4. frontend source and built assets must ship together ────────────────
+# Deploying a .vue change without its rebuilt bundle serves stale JS to users.
+while read -r _localref localsha _remoteref remotesha; do
+  [ -z "${localsha:-}" ] && continue
+  [ "$localsha" = "$ZERO" ] && continue          # branch deletion
+
+  if [ "$remotesha" = "$ZERO" ]; then
+    range=$(git rev-list --max-count=50 "$localsha" --not --remotes | tail -1)
+    [ -n "$range" ] && range="$range^..$localsha" || continue
+  else
+    range="$remotesha..$localsha"
+  fi
+
+  changed=$(git diff --name-only "$range" 2>/dev/null) || continue
+  src=$(printf '%s\n' "$changed" | grep -cE '^(resources/(js|css)/|tailwind\.config\.js|vite\.config\.js)')
+  built=$(printf '%s\n' "$changed" | grep -c '^public/build/')
+
+  if [ "${src:-0}" -gt 0 ] && [ "${built:-0}" -eq 0 ]; then
+    bad "this push changes $src frontend source file(s) but no built assets."
+    say "   Production serves the committed bundle, so it would run stale JS."
+    say "   Build from a CLEAN tree at HEAD, then:"
+    say "     npm run build && git add -A public/build && git commit"
+  fi
+done
+
+# ── 5. advisory: anything else uncommitted ────────────────────────────────
+other=$(git status --porcelain -- . ':(exclude)public/build' | wc -l | tr -d ' ')
+if [ "${other:-0}" -gt 0 ]; then
+  warn "$other uncommitted change(s) outside public/build are NOT in this push."
+  say "   (Fine if deliberate — another session may be working in this checkout.)"
+fi
+
+if [ "$fail" -ne 0 ]; then
+  say ""
+  say "${RED}push blocked.${OFF}  Override with: git push --no-verify"
+  exit 1
+fi
+
+ok "pre-push checks passed"
+exit 0
