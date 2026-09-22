@@ -10,17 +10,17 @@
           {{ productMapping.data.name }}
         </span>
         <!--
-          Mapping type badge. The same ProductMapping table powers both planograms;
-          this chip surfaces which editor mode the page is in. is_smart is set at
-          create-time (Form.vue radio) and read-only here to keep channel_code
-          formats consistent with what's already bound.
+          Mapping type badge. The same ProductMapping table powers all three
+          planograms; this chip surfaces which editor mode the page is in.
+          machine_type is set at create-time (Form.vue radio) and read-only here
+          to keep channel_code formats consistent with what's already bound.
         -->
         <span
           v-if="productMapping.data && productMapping.data.id"
           class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold w-fit"
-          :class="productMapping.data.is_smart ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-800'"
+          :class="machineTypeBadge.class"
         >
-          {{ productMapping.data.is_smart ? 'Smart Freezer' : 'Vending Machine' }}
+          {{ machineTypeBadge.label }}
         </span>
         <!--
           Convert the mapping type. Vending→Smart seeds the basket grid from the
@@ -504,6 +504,18 @@ const emit = defineEmits(['modalClose'])
 
 // A CityBox chiller planogram: 3-digit codes 101-599, CityBox SKUs only.
 const isSmartChiller = computed(() => props.productMapping?.data?.machine_type === 'smart_chiller')
+
+// Header chip. Keyed off machine_type, NOT is_smart — is_smart is true only for
+// smart_freezer, so a chiller used to fall through to the "Vending Machine"
+// label (Brian, 2026-09-22). Labels match Vend::MACHINE_TYPE_MAPPINGS.
+const MACHINE_TYPE_BADGES = {
+  smart_freezer: { label: 'Smart Freezer', class: 'bg-indigo-600 text-white' },
+  smart_chiller: { label: 'Smart Chiller', class: 'bg-emerald-600 text-white' },
+  vending_machine: { label: 'Vending Machine', class: 'bg-slate-200 text-slate-800' },
+}
+const machineTypeBadge = computed(
+  () => MACHINE_TYPE_BADGES[props.productMapping?.data?.machine_type] ?? MACHINE_TYPE_BADGES.vending_machine
+)
 
 const form = ref(
   useForm(getDefaultForm())
