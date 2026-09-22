@@ -510,7 +510,7 @@ const isSmartChiller = computed(() => props.productMapping?.data?.machine_type =
 // label (Brian, 2026-09-22). Labels match Vend::MACHINE_TYPE_MAPPINGS.
 const MACHINE_TYPE_BADGES = {
   smart_freezer: { label: 'Smart Freezer', class: 'bg-indigo-600 text-white' },
-  smart_chiller: { label: 'Smart Chiller', class: 'bg-emerald-600 text-white' },
+  smart_chiller: { label: 'Smart Chiller (CityBox)', class: 'bg-emerald-600 text-white' },
   vending_machine: { label: 'Vending Machine', class: 'bg-slate-200 text-slate-800' },
 }
 const machineTypeBadge = computed(

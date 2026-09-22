@@ -92,7 +92,7 @@ class Vend extends Model
     const MACHINE_TYPE_MAPPINGS = [
         self::MACHINE_TYPE_VENDING_MACHINE => 'Vending Machine',
         self::MACHINE_TYPE_SMART_FREEZER => 'Smart Freezer',
-        self::MACHINE_TYPE_SMART_CHILLER => 'Smart Chiller',
+        self::MACHINE_TYPE_SMART_CHILLER => 'Smart Chiller (CityBox)',
     ];
 
     /**
