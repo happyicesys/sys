@@ -225,12 +225,21 @@ const props = defineProps({
   const cb = reactive({ devices: [], loaded: false, loading: false, error: null, device: null, equipment_id: null, preview: null,
                         customerMode: 'none', customerQuery: '', customerResults: [], searchTimer: null })
 
-  // MultiSelect searches on `label`, so everything ops might type — serial, CityBox
-  // name, model, online state — has to live in that one string.
+  // The machine ID (vend code) this device would import as, first in the option:
+  // ops know the fleet by C-code, not by serial. A device whose OPS Pro name
+  // carries no ID — or one another vend already holds — says so here instead of
+  // only in the preview card after it has been picked.
+  function machineIdTag(d) {
+    if (! d.machine_id) return 'no machine ID'
+    return d.machine_id_error ? `${d.machine_id} (in use)` : d.machine_id
+  }
+
+  // MultiSelect searches on `label`, so everything ops might type — machine ID,
+  // serial, CityBox name, model, online state — has to live in that one string.
   const deviceOptions = computed(() => cb.devices.map(d => ({
     ...d,
     id: d.equipment_id,
-    label: `${d.equipment_id} · ${d.name} · ${d.type} · ${d.online ? 'online' : ('offline' + (d.offline_since ? ' since ' + d.offline_since : ''))}`,
+    label: `${machineIdTag(d)} · ${d.equipment_id} · ${d.name} · ${d.type} · ${d.online ? 'online' : ('offline' + (d.offline_since ? ' since ' + d.offline_since : ''))}`,
   })))
 
 onMounted(() => {
@@ -281,8 +290,6 @@ async function onDevicePicked() {
   form.value.customer_id = null
   if (!cb.equipment_id) return
   const requested = cb.equipment_id
-  const d = cb.devices.find(x => x.equipment_id === requested)
-  form.value.new_customer.name = d ? d.name : ''
   try {
     const { data } = await axios.get(`/citybox/devices/${requested}/preview`)
     // A slower response for a device the user has since moved off must not win.

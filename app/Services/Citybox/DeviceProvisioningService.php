@@ -50,7 +50,11 @@ class DeviceProvisioningService
      * Includes a "linked to vend X" annotation for the rest so the UI can
      * explain why an id is missing.
      *
-     * @return array{unlinked: Collection<int,ChillerDevice>, linked: array<string,int>}
+     * Carries the machine ID each device WOULD import as (`machine_ids`), so the
+     * dropdown can name the C-code ops know the fleet by instead of making them
+     * pick a serial and read the preview card to find out.
+     *
+     * @return array{unlinked: Collection<int,ChillerDevice>, machine_ids: array<string,array{label:?string,error:?string}>, linked: array<string,int>}
      */
     public function devices(bool $fresh = false): array
     {
@@ -60,8 +64,43 @@ class DeviceProvisioningService
 
         return [
             'unlinked' => $unlinked->values(),
+            'machine_ids' => $this->machineIds($unlinked),
             'linked' => $linked,
         ];
+    }
+
+    /**
+     * The machine ID each device would import as, keyed by equipment id — the same
+     * rule machineIdFor() enforces at provision time, resolved for a whole list in
+     * ONE query rather than a query per device. A device that cannot be imported
+     * (placeholder name, or an ID another vend already holds) carries the reason.
+     *
+     * @param  Collection<int,ChillerDevice>  $devices
+     * @return array<string,array{label:?string,error:?string}>
+     */
+    public function machineIds(Collection $devices): array
+    {
+        $codes = $devices->mapWithKeys(fn (ChillerDevice $d) => [$d->equipmentId => VendCode::fromExternalName($d->name)]);
+
+        $labels = $codes->filter()->map(fn (VendCode $c) => $c->toLabel())->unique()->values()->all();
+        $holders = [];
+        if ($labels !== []) {
+            foreach (Vend::withoutGlobalScopes()->where(fn ($q) => VendCode::whereLabels($q, $labels))->get(['id', 'code', 'code_prefix']) as $vend) {
+                $holders[VendCode::label($vend->code_prefix, $vend->code)] = $vend->id;
+            }
+        }
+
+        return $codes->map(function (?VendCode $code) use ($holders) {
+            if (! $code) {
+                return ['label' => null, 'error' => 'no machine ID in the OPS Pro name (expected like C6003)'];
+            }
+            $label = $code->toLabel();
+
+            return [
+                'label' => $label,
+                'error' => isset($holders[$label]) ? "machine ID {$label} is already used by vend #{$holders[$label]}" : null,
+            ];
+        })->all();
     }
 
     /** One device by id from the registry (refreshed if stale), or null. */

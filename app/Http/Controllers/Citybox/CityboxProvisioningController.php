@@ -33,7 +33,7 @@ class CityboxProvisioningController extends Controller
 
         return response()->json([
             'enabled' => true,
-            'unlinked' => $r['unlinked']->map(fn (ChillerDevice $d) => $this->deviceRow($d))->values(),
+            'unlinked' => $r['unlinked']->map(fn (ChillerDevice $d) => $this->deviceRow($d, $r['machine_ids'][$d->equipmentId] ?? null))->values(),
             'linked' => $r['linked'],
         ]);
     }
@@ -44,7 +44,7 @@ class CityboxProvisioningController extends Controller
         $p = $svc->preview($equipmentId);
 
         return response()->json([
-            'device' => $p['device'] ? $this->deviceRow($p['device']) : null,
+            'device' => $p['device'] ? $this->deviceRow($p['device'], ['label' => $p['machine_id'], 'error' => $p['machine_id_error']]) : null,
             'machine_id' => $p['machine_id'],
             'machine_id_error' => $p['machine_id_error'],
             'state' => $p['state'],
@@ -85,11 +85,18 @@ class CityboxProvisioningController extends Controller
         return response()->json($rows->map(fn ($c) => ['id' => $c->id, 'code' => $c->code, 'name' => $c->name]));
     }
 
-    private function deviceRow(ChillerDevice $d): array
+    /**
+     * @param  array{label:?string,error:?string}|null  $machineId  the ID this device would
+     *                                                              import as (DeviceProvisioningService::machineIds), so the picker can show the
+     *                                                              C-code and why an option cannot be imported.
+     */
+    private function deviceRow(ChillerDevice $d, ?array $machineId = null): array
     {
         return [
             'equipment_id' => $d->equipmentId,
             'name' => $d->name,
+            'machine_id' => $machineId['label'] ?? null,
+            'machine_id_error' => $machineId['error'] ?? null,
             'type' => $d->type->value,
             'model' => $d->type->modelName(),
             'online' => $d->online,

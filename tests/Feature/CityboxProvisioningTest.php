@@ -68,6 +68,28 @@ class CityboxProvisioningTest extends TestCase
         $this->assertArrayHasKey('E1', $r['linked']);
     }
 
+    public function test_devices_carry_the_machine_id_each_one_would_import_as(): void
+    {
+        // The picker names the C-code ops know the fleet by, and says which devices
+        // cannot be imported, before anything is selected (Brian, 2026-09-22).
+        $this->gw->seedDevice('E1', 'C6003')->seedDevice('E2', 'Singapore8')->seedDevice('E3', 'C6004 HI Office');
+        $held = Vend::withoutGlobalScopes()->create(['code' => 6004, 'code_prefix' => 'C', 'is_active' => 1]);
+
+        $ids = app(DeviceProvisioningService::class)->devices(fresh: true)['machine_ids'];
+
+        $this->assertSame(['label' => 'C6003', 'error' => null], $ids['E1']);
+        $this->assertNull($ids['E2']['label']);
+        $this->assertStringContainsString('no machine ID', $ids['E2']['error']);
+        $this->assertSame('C6004', $ids['E3']['label']);
+        $this->assertStringContainsString("used by vend #{$held->id}", $ids['E3']['error']);
+
+        // …and on the wire, per row, the same way the preview card gets it.
+        $this->getJson('/citybox/devices')->assertOk()
+            ->assertJsonPath('unlinked.0.machine_id', 'C6003')
+            ->assertJsonPath('unlinked.0.machine_id_error', null)
+            ->assertJsonPath('unlinked.2.machine_id', null);
+    }
+
     // ── provision ──────────────────────────────────────────────────────────
 
     public function test_provision_imports_the_machine_with_no_site(): void
