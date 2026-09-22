@@ -115,6 +115,19 @@ class Vend extends Model
     }
 
     /**
+     * Stock kept per SKU, not per slot (Brian, 2026-09-22): the Smart Freezer and
+     * the Smart Chiller. Their vend_channels rows are identified by product_id;
+     * the channel code (+ one-letter suffix) is only where the driver puts the
+     * SKU, relabelled from the mapping on every sync. A vending machine's rows
+     * stay identified by the board's slot code. Gate every "which row is this?"
+     * decision on THIS, never on "not a vending machine" at the call site.
+     */
+    public function isSkuStocked(): bool
+    {
+        return $this->isSmartFreezer() || $this->isSmartChiller();
+    }
+
+    /**
      * Ops-job stock actions this machine kind cannot perform. A CityBox chiller
      * cannot do melted_stock (the melted-ice-cream discard flow; a chiller sells
      * drinks). implement_new_mapping became legal on 2026-09-21, when the chiller
@@ -794,8 +807,10 @@ class Vend extends Model
      * does not exist, and 20 machines carry such rows today. A Smart Freezer's capacity is the SKU's
      * measured par (`products.freezer_slot_qty`) and is simply blank until someone counts it — the
      * slot still exists and still sells, so it must not vanish from the dashboard for want of a
-     * number (2026-09-16). Expressed in SQL rather than on `$this` because eager loading resolves
-     * this relation on an empty model, where a machine_type check would read as "vending machine".
+     * number (2026-09-16). A Smart Chiller is the same since 2026-09-22 (capacity = the SKU's
+     * chiller_slot_qty, blank until counted). Expressed in SQL rather than on `$this` because
+     * eager loading resolves this relation on an empty model, where a machine_type check would
+     * read as "vending machine".
      */
     public function vendChannels()
     {
@@ -807,7 +822,7 @@ class Vend extends Model
                         $sub->selectRaw('1')
                             ->from('vends')
                             ->whereColumn('vends.id', 'vend_channels.vend_id')
-                            ->where('vends.machine_type', self::MACHINE_TYPE_SMART_FREEZER);
+                            ->whereIn('vends.machine_type', [self::MACHINE_TYPE_SMART_FREEZER, self::MACHINE_TYPE_SMART_CHILLER]);
                     });
             })
             ->orderBy('code');

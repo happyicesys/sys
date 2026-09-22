@@ -18,6 +18,8 @@ class VendChannelResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'suffix' => $this->suffix,
+            'label' => $this->label,
             'discount_group' => $this->discount_group,
             'error_rate_json' => $this->error_rate_json,
             'qty' => $this->qty,

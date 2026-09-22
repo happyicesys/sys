@@ -17,6 +17,7 @@ use App\Models\VendPrefix;
 use App\Services\ProductMappingService;
 use App\Services\SmartFreezerCatalogPush;
 use App\Services\VendJobService;
+use App\Support\ChannelCode;
 use App\Support\SiteSearch;
 use DB;
 use Illuminate\Http\Request;
@@ -245,9 +246,7 @@ class ProductMappingController extends Controller
                         'attachments',
                         'operator',
                         'productMappingItemsNormalSequence' => function ($q) {
-                            $q->orderByRaw("CASE WHEN channel_code REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC")
-                                ->orderByRaw('CAST(channel_code AS UNSIGNED) ASC')
-                                ->orderBy('channel_code', 'asc');
+                            $q->orderByRaw(ChannelCode::SQL_ORDER);
                         },
                         'productMappingItemsNormalSequence.product:id,code,name,is_active',
                         'productMappingItemsNormalSequence.product.thumbnail',
@@ -827,21 +826,34 @@ class ProductMappingController extends Controller
      */
     /**
      * A chiller channel code is <layer><position, 2 digits>: 101…599 (Brian,
-     * 2026-09-21 — five layers on every delivered unit). Ops type it themselves
-     * now that the mapping is ours, so the range is enforced here as well as in
-     * the form. Vending and freezer codes keep their own rules.
+     * 2026-09-21 — five layers on every delivered unit), optionally with one
+     * letter (101A, 101B — Brian, 2026-09-22) when a position carries several
+     * SKUs. Ops type it themselves now that the mapping is ours, so the range is
+     * enforced here as well as in the form.
+     *
+     * A Smart Freezer keeps whole numbers: its APK sends the slot as an int on
+     * REQQR / TRADE and DROPS a cart line whose code is not plain digits
+     * (MqttPaymentClient.slotIds), so a suffixed freezer code would issue QRs
+     * with no slot. Lift this once a freezer APK carries the product id there.
+     * Vending codes keep their own rules (the board's).
      *
      * @throws ValidationException
      */
     private function assertValidChannelCode(ProductMapping $mapping, string $channelCode, string $field = 'channel_code'): void
     {
-        if (! $mapping->isSmartChiller()) {
+        $parsed = ChannelCode::parse($channelCode);
+        if ($mapping->isSmartChiller()) {
+            if (! $parsed || ! \App\Services\Citybox\ChillerPlanogram::isChillerCode($parsed['code'])) {
+                throw ValidationException::withMessages([
+                    $field => "Channel {$channelCode} is not a chiller channel — use 101–599 (first digit = layer), optionally with one letter when a position holds several SKUs (101A, 101B).",
+                ]);
+            }
+
             return;
         }
-        $code = (int) $channelCode;
-        if ((string) $code !== trim($channelCode) || ! \App\Services\Citybox\ChillerPlanogram::isChillerCode($code)) {
+        if ($mapping->is_smart && $parsed && $parsed['suffix'] !== null) {
             throw ValidationException::withMessages([
-                $field => "Channel {$channelCode} is not a chiller channel — use 101–599, where the first digit is the layer (101 = layer 1, slot 1).",
+                $field => "Channel {$channelCode}: a Smart Freezer slot is a whole number (its APK sends the slot as a number) — lettered positions are not supported on freezers yet.",
             ]);
         }
     }
@@ -872,14 +884,55 @@ class ProductMappingController extends Controller
             return;
         }
 
-        $exists = ProductMappingItem::where('product_mapping_id', $mapping->id)
-            ->where('channel_code', $channelCode)
-            ->when($ignoreItemId, fn ($q) => $q->where('id', '!=', $ignoreItemId))
-            ->exists();
+        $channelCode = ChannelCode::normalize($channelCode);
+        $others = ProductMappingItem::where('product_mapping_id', $mapping->id)
+            ->when($ignoreItemId, fn ($q) => $q->where('id', '!=', $ignoreItemId));
 
-        if ($exists) {
+        if ((clone $others)->where('channel_code', $channelCode)->exists()) {
             throw ValidationException::withMessages([
                 'channel_code' => "Channel {$channelCode} is already used in this planogram. Each slot can hold only one product.",
+            ]);
+        }
+
+        // A position is either whole ("101") or split into letters ("101A", "101B"),
+        // never both: the plain code and the lettered ones would name the same shelf.
+        $parsed = ChannelCode::parse($channelCode);
+        if ($parsed) {
+            $clash = $parsed['suffix'] === null
+                ? (clone $others)->where('channel_code', 'REGEXP', '^'.$parsed['code'].'[A-Za-z]$')->value('channel_code')
+                : (clone $others)->where('channel_code', (string) $parsed['code'])->value('channel_code');
+            if ($clash !== null) {
+                throw ValidationException::withMessages([
+                    'channel_code' => "Channel {$channelCode} clashes with {$clash}: a position is either one whole slot or split into lettered slots, not both.",
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Bulk-save form of the whole-or-split rule in assertUniqueChannelCode: "101"
+     * and "101A" cannot both be in one planogram.
+     *
+     * @throws ValidationException
+     */
+    private function assertNoSplitPositionClash(array $rows): void
+    {
+        $plain = [];
+        $split = [];
+        foreach ($rows as $row) {
+            $parsed = ChannelCode::parse($row['channel_code'] ?? null);
+            if (! $parsed) {
+                continue;
+            }
+            if ($parsed['suffix'] === null) {
+                $plain[$parsed['code']] = ChannelCode::normalize($row['channel_code']);
+            } else {
+                $split[$parsed['code']] = ChannelCode::normalize($row['channel_code']);
+            }
+        }
+        foreach (array_intersect_key($plain, $split) as $code => $label) {
+            throw ValidationException::withMessages([
+                'productMappingItems' => "Channel {$label} clashes with {$split[$code]}: a position is either one whole slot or split into lettered slots, not both.",
             ]);
         }
     }
@@ -892,7 +945,7 @@ class ProductMappingController extends Controller
     private function duplicateChannelCodes($codes): array
     {
         return collect($codes)
-            ->map(fn ($c) => (string) $c)
+            ->map(fn ($c) => ChannelCode::normalize($c))
             ->duplicates()
             ->unique()
             ->values()
@@ -905,7 +958,9 @@ class ProductMappingController extends Controller
             'channel_code' => ['required'],
             'product_id' => ['required', 'exists:products,id'],
             'sequence' => ['nullable', 'integer', 'min:1'],
+            'capacity_override' => ['nullable', 'integer', 'min:0', 'max:999'],
         ]);
+        $validated['channel_code'] = ChannelCode::normalize($validated['channel_code']);
 
         $response = DB::transaction(function () use ($validated, $productMappingId) {
             $mapping = ProductMapping::find($productMappingId);
@@ -925,6 +980,7 @@ class ProductMappingController extends Controller
             $item->product_mapping_id = $productMappingId;
             $item->channel_code = $validated['channel_code'];
             $item->product_id = $validated['product_id'];
+            $item->capacity_override = $validated['capacity_override'] ?? null;
             $item->sequence = null; // set after clearing others
             $item->save();
 
@@ -987,10 +1043,8 @@ class ProductMappingController extends Controller
                         ->orderBy('sequence', $dir)
                         ->orderByRaw('CAST(channel_code AS UNSIGNED), channel_code');
                 } elseif ($sortKey === 'channel_code') {
-                    // try numeric sort, fall back to lexical; keep a stable tiebreaker
-                    $q->orderByRaw("CASE WHEN channel_code REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC")
-                        ->orderByRaw("CAST(channel_code AS UNSIGNED) $dir")
-                        ->orderBy('channel_code', $dir);
+                    // number first, then the one-letter suffix: 101 < 101A < 102 (ChannelCode)
+                    $q->orderByRaw("CAST(channel_code AS UNSIGNED) $dir, channel_code $dir");
                 }
                 // else: leave DB default order
             },
@@ -1110,15 +1164,18 @@ class ProductMappingController extends Controller
                     $this->assertValidChannelCode($productMapping, (string) $row['channel_code'], 'productMappingItems');
                     $this->assertCityboxProduct($productMapping, $row['product']['id'] ?? null, 'productMappingItems');
                 }
+                $this->assertNoSplitPositionClash($request->productMappingItems);
             }
 
             $productMapping->productMappingItems()->delete();
             foreach ($request->productMappingItems as $productMappingItem) {
+                $override = $productMappingItem['capacity_override'] ?? null;
                 $productMapping->productMappingItems()->create([
-                    'channel_code' => $productMappingItem['channel_code'],
+                    'channel_code' => ChannelCode::normalize($productMappingItem['channel_code']),
                     'product_id' => $productMappingItem['product']['id'],
                     'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
                     'sequence' => $productMappingItem['sequence'],
+                    'capacity_override' => ($override === null || $override === '') ? null : max(0, min(999, (int) $override)),
                 ]);
             }
         }
@@ -1158,6 +1215,10 @@ class ProductMappingController extends Controller
     public function updateItem(Request $request, $productMappingItemID)
     {
         $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
+        $request->validate(['capacity_override' => ['nullable', 'integer', 'min:0', 'max:999']]);
+        if ($request->filled('channel_code')) {
+            $request->merge(['channel_code' => ChannelCode::normalize($request->channel_code)]);
+        }
 
         // Same one-product-per-slot rule as create — a channel_code edit must not
         // collide with another item in a smart planogram (this row excepted).

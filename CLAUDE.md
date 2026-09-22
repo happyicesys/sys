@@ -649,37 +649,33 @@ rather than adding a new `if (citybox)` somewhere else:
   chiller on purpose: hidden pickers keep resolving and posting the stored ids,
   so an empty list would null hidden columns on save.
 - **A chiller's ProductMapping is OURS** (2026-09-21, reversing the 2026-08-19
-  mirror). The vend's mapping decides which channels exist and what sits on
-  them (`ChillerChannelMap::forVend`), the SKU decides capacity
-  (`products.chiller_slot_qty`, the freezer's `freezer_slot_qty` precedent),
-  and CityBox supplies only qty and price — per PRODUCT, so a SKU on two codes
-  is split on the way in (`allocate`) and summed on the way out (`sumBySku`).
-  Codes are typed by ops, 101–599, first digit = layer; the dropdown offers
-  only SKUs linked to CityBox's catalogue. `ChillerPlanogram` no longer writes
-  anything: it reads THEIR Pre-Stock Setup for the recognition check —
+  mirror) **and its stock is keyed by SKU** (2026-09-22 — see "SKU-stocked
+  machines" below). The vend's mapping decides which products exist and where
+  they sit (`ChillerChannelMap::forVend`, keyed by product id), the mapping
+  item's override or the SKU's `products.chiller_slot_qty` decides capacity,
+  and CityBox supplies only qty and price — per PRODUCT, the same unit as a
+  row, so nothing is split or summed any more. Codes are typed by ops, 101–599,
+  first digit = layer, optionally with one letter (101A / 101B) when a position
+  holds several SKUs; the dropdown offers only SKUs linked to CityBox's
+  catalogue. `ChillerPlanogram` no longer writes anything: it reads THEIR
+  Pre-Stock Setup for the recognition check —
   `StockPollService::unrecognisableSlots()` lists SKUs we map that their
   machine does not carry, which their AI cannot recognise, and the restock
   push WITHHOLDS those SKUs, sends the rest, and ends `failed` with the channel
-  numbers (an unreadable config withholds nothing — unknown is not missing).
-  Three more rules of that push, each a bug found in the 2026-09-21 audit:
-  a SKU that LEFT the planogram on an `implement_new_mapping` swap is pushed
-  as 0 (else CityBox keeps counting stock the driver removed); a facing the
-  item has no row for keeps its current qty in the per-SKU sum; and a channel
-  the live call omits (sold out) keeps its price from their config / the
-  catalogue's last price — amount 0 zeroes stock value and refill amounts.
-  Staging a swap (`applyNewMappingToItem`) works for chillers too, with one
-  extra: a BRAND-NEW code gets an inactive `vend_channels` row up front, because
-  the item row needs one to hang on (a vending slot is physical and always
-  exists). A swapped slot has two item rows for one code — the push takes the
-  row whose product the slot now holds. Setting/Edit also flags the UPCOMING
-  mapping's unloaded SKUs, so OPS Pro is fixed before the changeover job.
-  An unbound or emptied mapping retires every channel; rebinding on
-  Setting/Edit (current AND upcoming pickers are live for chillers) rebuilds
-  them at once via `StockPollService::rebuildChannels`. Their par is display-only:
-  it is not writable through the OpenAPI and caps nothing (a push of 10 against
-  par 5 was accepted, 2026-09-19). The ops-job `implement_new_mapping` action
-  is still refused/skipped for chiller items (it would push an APK frame).
-  Regression coverage: `tests/Feature/CityboxChannelsTest.php`.
+  labels (an unreadable config withholds nothing — unknown is not missing).
+  Two more rules of that push: a SKU that LEFT the planogram on an
+  `implement_new_mapping` swap is pushed as 0 (else CityBox keeps counting
+  stock the driver removed); and a SKU the live call omits (sold out) keeps its
+  price from their config / the catalogue's last price — amount 0 zeroes stock
+  value and refill amounts. Setting/Edit also flags the UPCOMING mapping's
+  unloaded SKUs, so OPS Pro is fixed before the changeover job. An unbound or
+  emptied mapping retires every row; rebinding on Setting/Edit (current AND
+  upcoming pickers are live for chillers) and a mapping Save rebuild them at
+  once via `StockPollService::rebuildChannels`. Their par is display-only: it
+  is not writable through the OpenAPI and caps nothing (a push of 10 against
+  par 5 was accepted, 2026-09-19).
+  Regression coverage: `tests/Feature/CityboxChannelsTest.php`,
+  `tests/Feature/CityboxRestockVisitTest.php`.
 - **Its machine ID is OPS Pro's, stored as `vends.code_prefix` + `vends.code`**
   (2026-09-19, Brian: "do not recreate another ID"). Their machine name
   "C6003" → prefix `C`, code `6003`; label via `Vend::codeLabel()` / VendResource
@@ -721,6 +717,59 @@ the latest complete listing). Read it; never write it from a controller.
 Regression coverage: `tests/Feature/CityboxChillerGuardsTest.php`,
 `tests/Feature/CityboxDeviceRegistryTest.php`, `tests/Unit/CityboxChillerStatusTest.php`.
 Field-by-field reasoning: `CHILLER_SETTINGS_AUDIT_2026-09-02.md`.
+
+## SKU-stocked machines: the row is the product, the code is a label
+
+Smart Freezer and Smart Chiller stock is keyed by SKU (Brian, 2026-09-22;
+plan: `SKU_STOCK_PLAN_2026-09-22.md`). CityBox's API has no channel at all
+and a freezer basket is a placement hint, so on those two machine kinds a
+`vend_channels` row is identified by `(vend_id, product_id)`; `code` + the
+one-letter `suffix` ("101A") is only where the driver puts the SKU, relabelled
+from the mapping on every sync. A vending machine's rows stay identified by the
+board's slot code. `Vend::isSkuStocked()` is the ONE question — gate on it,
+never on "not a vending machine" at the call site.
+
+- **Storage.** `vend_channels.code` stays `int` (layer/basket grouping, range
+  checks, the 50–59 claw exclusion all compare numbers); the letter lives in
+  `suffix CHAR(1) NULL`, and the unique index is `(vend_id, code, suffix_key)`
+  where `suffix_key` is a stored generated `COALESCE(suffix, '')` — a NULL in
+  a composite unique would have let the 2026-08-26 vending duplicates back in.
+  `product_mapping_items.channel_code` (varchar) is what ops type;
+  `App\Support\ChannelCode` parses / labels / orders it (101 < 101A < 102, SQL
+  `CAST(channel_code AS UNSIGNED), channel_code`). `ops_job_item_channels.vend_channel_code`
+  is not widened: the label is read through `vendChannel` (`vend_channel_label`).
+- **One planogram reader.** `App\Services\Stock\SkuPlanogram::forMapping()`
+  gives one `SkuSlot` per product (primary label = its lowest code, `labels` =
+  all of them, capacity = the SUM of its items' effective capacity —
+  `product_mapping_items.capacity_override` ("Reality" on ProductMapping →
+  Edit) else the product's `freezer_slot_qty` / `chiller_slot_qty`). A SKU
+  listed on two codes "never happens" but is not forbidden; it is one row.
+- **Writers.** `FreezerChannelSync` (qty carried by product — our ledger) and
+  `ChannelFrameAdapter` (qty from `device_product` per SKU) build a frame with
+  `product_id` + `suffix` per entry; `SyncVendChannels` upserts by product,
+  relabels the position (`releaseClaimedLabels()` parks a row whose label
+  another SKU is taking on a negative, id-unique code first, so a swap never
+  trips the index), and retires rows whose PRODUCT left the frame — qty kept,
+  so a SKU that returns gets its ledger back. `ProductMappingService::syncChannelsByVend`
+  returns early for these machines: nulling `product_id` by code would destroy
+  the identity.
+- **Changeover diffs product sets** (`OpsJobController::applyNewMappingBySku`,
+  `enforceMappingSwapReturns`): a SKU in both mappings stages nothing and is
+  never auto-returned, whatever code it moved to; a leaving SKU is cleared off
+  and returned; an arriving SKU gets one `is_upcoming_product` row hung on its
+  (reused or new, inactive, position-less) channel row. The post-swap sync
+  (`rebuildChannels` / `FreezerChannelSync`) assigns the real codes.
+- **Suffix codes are chiller-only for now.** The freezer APK sends the slot as
+  an int and DROPS a cart line whose code is not plain digits from the REQQR
+  slot list (`MqttPaymentClient.slotIds`), so a lettered freezer code would
+  issue QRs with no slot; `assertValidChannelCode` refuses it until a freezer
+  APK carries the product id there. Sales still resolve the channel from the
+  frame's `SId` (Phase 3 of the plan resolves SKU-stocked sales by `goods_id`).
+- A position is either whole ("101") or split ("101A", "101B"), never both in
+  one mapping (`assertUniqueChannelCode`, `assertNoSplitPositionClash`).
+
+Regression coverage: `tests/Feature/SkuStockIdentityTest.php`,
+`tests/Unit/ChannelCodeTest.php`, `tests/Feature/FreezerChannelSyncTest.php`.
 
 ## Ops job stops: four kinds of row, one registry
 

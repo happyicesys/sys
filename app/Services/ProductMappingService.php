@@ -26,6 +26,14 @@ class ProductMappingService
 
                     continue;
                 }
+                // A chiller's rows are derived from the mapping plus CityBox's live stock; the
+                // generic loop below would null every product_id until the next poll. Rebuild
+                // from a fresh pull instead (best-effort, logged; the 3-min poll does the same).
+                if ($vend->isSmartChiller()) {
+                    app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend);
+
+                    continue;
+                }
 
                 if ($vend->vendChannels()->exists()) {
                     $vend->vendChannels()->update(['product_id' => null]);
@@ -109,6 +117,13 @@ class ProductMappingService
 
     public function syncChannelsByVend(Vend $vend)
     {
+        // A SKU-stocked machine's rows carry their product as identity, written by
+        // FreezerChannelSync / ChannelFrameAdapter through SyncVendChannels. Nulling
+        // and re-assigning product_id by code here would destroy that identity
+        // (and two SKUs may share one code).
+        if ($vend->isSkuStocked()) {
+            return;
+        }
         $productMapping = $vend->productMapping;
         if ($productMapping) {
             $vendChannels = $vend->vendChannels()->where('is_active', true)->get();

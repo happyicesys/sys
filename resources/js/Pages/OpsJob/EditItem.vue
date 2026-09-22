@@ -1867,6 +1867,17 @@ function loadingData() {
       if (opsJobItemChannel.is_upcoming_product) return false;
       if (opsJobItem.value.stock_action_type !== 'implement_new_mapping') return false;
 
+      // A SKU-stocked machine (Smart Freezer / Smart Chiller, 2026-09-22) swaps by
+      // PRODUCT, not by slot: a SKU the upcoming mapping still carries — on any code —
+      // stays, so its row is a plain refill even though its code may change.
+      const skuVend = opsJobItem.value.vend;
+      if (skuVend && ['smart_freezer', 'smart_chiller'].includes(skuVend.machine_type)) {
+        const skuMapping = skuVend.upcomingProductMapping || skuVend.productMapping?.upcomingProductMapping;
+        if (!skuMapping) return false;
+        const skuItems = skuMapping.productMappingItems || [];
+        return !skuItems.some(i => i.product_id == opsJobItemChannel.product_id);
+      }
+
       // 1. Is there an upcoming row for this slot in the DB snapshot?
       const upcomingRow = allChannels.find(u => u.is_upcoming_product && u.vend_channel_code == opsJobItemChannel.vend_channel_code);
 

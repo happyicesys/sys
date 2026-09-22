@@ -275,6 +275,15 @@
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 SubCategory
                               </th>
+                              <!-- Capacity per SKU (Brian, 2026-09-22): Default = the product's
+                                   chiller_slot_qty (Product → Edit); Reality = this mapping's override,
+                                   saved with the page's Save. Blank = use the default. -->
+                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="From Product → Edit → Smart Chiller">
+                                Capacity<br><span class="font-normal text-xs text-gray-500">Default</span>
+                              </th>
+                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="Override for this mapping only; blank uses the default">
+                                Capacity<br><span class="font-normal text-xs text-gray-500">Reality</span>
+                              </th>
                               <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Server Price ({{ operatorCountry.currency_symbol }}) <br>
                                 <MultiSelect
@@ -335,6 +344,19 @@
                                 <span v-if="productMappingItem.product.category">
                                   {{ productMappingItem.product.category.name }}
                                 </span>
+                              </td>
+                              <td v-if="isSmartChiller" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-700 sm:pl-6 text-center">
+                                {{ productMappingItem.product && productMappingItem.product.chiller_slot_qty ? productMappingItem.product.chiller_slot_qty : '-' }}
+                              </td>
+                              <td v-if="isSmartChiller" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 text-center">
+                                <input
+                                  type="number" min="0" max="999" step="1"
+                                  v-model.number="productMappingItem.capacity_override"
+                                  :placeholder="productMappingItem.product && productMappingItem.product.chiller_slot_qty ? String(productMappingItem.product.chiller_slot_qty) : '-'"
+                                  class="w-20 rounded-md border-gray-300 text-center text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  :class="productMappingItem.capacity_override !== null && productMappingItem.capacity_override !== '' && productMappingItem.capacity_override !== undefined ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
+                                  title="Save the page to apply"
+                                />
                               </td>
                               <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <span v-if="form.selling_price_type && productMappingItem.product && productMappingItem.product.sellingPrices">

@@ -15,6 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SyncVendChannels implements ShouldQueue
@@ -48,101 +49,144 @@ class SyncVendChannels implements ShouldQueue
 
         if (isset($input) and isset($input['channels'])) {
             $channels = $input['channels'];
-            $prevVendChannels = VendChannel::where('vend_id', $vend->id)->get()->keyBy('code');
+            // A SKU-stocked machine (freezer, chiller — Vend::isSkuStocked) identifies a
+            // row by PRODUCT; the code + suffix is a position label the frame relabels.
+            // A vending machine identifies a row by the board's slot code.
+            $skuStocked = $vend->isSkuStocked();
+            $allRows = VendChannel::where('vend_id', $vend->id)->get();
+            $prevVendChannels = $skuStocked
+                ? $allRows->whereNotNull('product_id')->keyBy(fn ($row) => (int) $row->product_id)
+                : $allRows->keyBy('code');
             $errorRates = $this->getChannelErrorRatesArray($vend->id);
 
-            foreach ($channels as $channel) {
-                // Normalize once: boards have sent non-canonical code strings
-                // ("017", padded) that miss the int-keyed lookup while MySQL
-                // coerces them to the same int on insert — which is how the
-                // vend 4753 duplicate-channel-17 row was born (2026-08-03).
-                $channelCode = (int) $channel['channel_code'];
-                $prevVendChannel = $prevVendChannels->get($channelCode);
-
-                $data = [
-                    'amount' => $channel['amount'],
-                    'amount2' => isset($channel['amount2']) ? $channel['amount2'] : 0,
-                    'capacity' => $channel['capacity'],
-                    'discount_group' => isset($channel['discount_group']) ? $channel['discount_group'] : null,
-                    'is_active' => $this->getVendChannelStatus($channel),
-                    'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
-                    'qty' => $channel['qty'],
-                    'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
-                ];
-
-                $stockEvent = null;
-
-                // Check condition and add qty_sold_at only if the condition meets
-                if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
-                    $occurredAt = Carbon::now();
-                    $data['qty_sold_at'] = $occurredAt;
-                    $data['qty_restocked_at'] = null;
-                    $stockEvent = [
-                        'event_type' => VendChannelStockEvent::TYPE_SOLD_OUT,
-                        'qty_before' => $prevVendChannel->qty,
-                        'qty_after' => $channel['qty'],
-                        'occurred_at' => $occurredAt,
-                        'product_id' => $prevVendChannel->product_id,
-                    ];
-                }
-
-                if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
-                    $occurredAt = Carbon::now();
-                    $data['qty_restocked_at'] = $occurredAt;
-                    $data['qty_sold_at'] = null;
-                    $stockEvent = [
-                        'event_type' => VendChannelStockEvent::TYPE_RESTOCKED,
-                        'qty_before' => $prevVendChannel->qty,
-                        'qty_after' => $channel['qty'],
-                        'occurred_at' => $occurredAt,
-                        'product_id' => $prevVendChannel->product_id,
-                    ];
-                }
-
-                // Fold error-rate + availability duration into the single write
-                // below (was updateOrCreate followed by a second update()).
-                // For an existing channel the id is already known from the
-                // preloaded row; a brand-new channel has no history so its
-                // error-rate resolves to zeros regardless of id.
-                if ($data['is_active']) {
-                    $data['error_rate_json'] = $this->calculateChannelErrorRateJson($prevVendChannel->id ?? 0, $errorRates);
-                }
-
-                $soldAt = array_key_exists('qty_sold_at', $data) ? $data['qty_sold_at'] : ($prevVendChannel->qty_sold_at ?? null);
-                $restockedAt = array_key_exists('qty_restocked_at', $data) ? $data['qty_restocked_at'] : ($prevVendChannel->qty_restocked_at ?? null);
-                if ($soldAt && $restockedAt) {
-                    $data['qty_not_available_duration'] = Carbon::parse($soldAt)->diffForHumans(Carbon::parse($restockedAt), true);
-                } else {
-                    $data['qty_not_available_duration'] = null;
-                }
-
-                // Single write per channel; reuse the preloaded row instead of
-                // updateOrCreate's extra SELECT round-trip. The miss path does
-                // pay for that SELECT, via updateOrCreate: vend_channels
-                // carries a unique (vend_id, code) index, and updateOrCreate
-                // goes through firstOrCreate → createOrFirst, which catches the
-                // unique violation and re-reads the winner. So losing a race
-                // against a concurrent report degrades into an update of the
-                // winner's row, never a duplicate and never an exception.
-                if ($prevVendChannel) {
-                    $prevVendChannel->update($data);
-                    $vendChannel = $prevVendChannel;
-                } else {
-                    $vendChannel = VendChannel::updateOrCreate([
-                        'vend_id' => $vend->id,
-                        'code' => $channelCode,
-                    ], $data);
-                }
-
-                if ($stockEvent) {
-                    $this->recordStockEvent($vendChannel, $stockEvent);
-                }
-
-                if ($data['is_active']) {
-                    SyncVendChannelErrorLog::dispatch($vend, $channelCode, $channel['error_code']);
-                }
+            // SKU-stocked: the label release + relabel loop + retire must land as one
+            // unit, or a failure mid-way leaves rows parked on negative codes — and a
+            // queue worker reuses its connection, so an open transaction must never
+            // leak into the next job.
+            if ($skuStocked) {
+                DB::beginTransaction();
             }
-            $this->retireChillerChannelsMissingFrom($channels, $prevVendChannels);
+            try {
+                if ($skuStocked) {
+                    $this->releaseClaimedLabels($allRows, $channels);
+                }
+                foreach ($channels as $channel) {
+                    // Normalize once: boards have sent non-canonical code strings
+                    // ("017", padded) that miss the int-keyed lookup while MySQL
+                    // coerces them to the same int on insert — which is how the
+                    // vend 4753 duplicate-channel-17 row was born (2026-08-03).
+                    $channelCode = (int) $channel['channel_code'];
+                    $productId = isset($channel['product_id']) ? (int) $channel['product_id'] : null;
+                    if ($skuStocked && ! $productId) {
+                        continue; // no SKU, no row — an entry without identity cannot be stored
+                    }
+                    $prevVendChannel = $skuStocked ? $prevVendChannels->get($productId) : $prevVendChannels->get($channelCode);
+
+                    $data = [
+                        'amount' => $channel['amount'],
+                        'amount2' => isset($channel['amount2']) ? $channel['amount2'] : 0,
+                        'capacity' => $channel['capacity'],
+                        'discount_group' => isset($channel['discount_group']) ? $channel['discount_group'] : null,
+                        'is_active' => $this->getVendChannelStatus($channel),
+                        'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
+                        'qty' => $channel['qty'],
+                        'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
+                    ];
+                    if ($skuStocked) {
+                        // Identity + position label. The label is relabelled on every frame so a
+                        // SKU that moved between mappings keeps its row (and qty) and only its
+                        // code changes; releaseClaimedLabels() has already freed the target.
+                        $data['product_id'] = $productId;
+                        $data['code'] = $channelCode;
+                        $data['suffix'] = isset($channel['suffix']) && $channel['suffix'] !== '' ? strtoupper((string) $channel['suffix']) : null;
+                    }
+
+                    $stockEvent = null;
+
+                    // Check condition and add qty_sold_at only if the condition meets
+                    if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
+                        $occurredAt = Carbon::now();
+                        $data['qty_sold_at'] = $occurredAt;
+                        $data['qty_restocked_at'] = null;
+                        $stockEvent = [
+                            'event_type' => VendChannelStockEvent::TYPE_SOLD_OUT,
+                            'qty_before' => $prevVendChannel->qty,
+                            'qty_after' => $channel['qty'],
+                            'occurred_at' => $occurredAt,
+                            'product_id' => $prevVendChannel->product_id,
+                        ];
+                    }
+
+                    if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
+                        $occurredAt = Carbon::now();
+                        $data['qty_restocked_at'] = $occurredAt;
+                        $data['qty_sold_at'] = null;
+                        $stockEvent = [
+                            'event_type' => VendChannelStockEvent::TYPE_RESTOCKED,
+                            'qty_before' => $prevVendChannel->qty,
+                            'qty_after' => $channel['qty'],
+                            'occurred_at' => $occurredAt,
+                            'product_id' => $prevVendChannel->product_id,
+                        ];
+                    }
+
+                    // Fold error-rate + availability duration into the single write
+                    // below (was updateOrCreate followed by a second update()).
+                    // For an existing channel the id is already known from the
+                    // preloaded row; a brand-new channel has no history so its
+                    // error-rate resolves to zeros regardless of id.
+                    if ($data['is_active']) {
+                        $data['error_rate_json'] = $this->calculateChannelErrorRateJson($prevVendChannel->id ?? 0, $errorRates);
+                    }
+
+                    $soldAt = array_key_exists('qty_sold_at', $data) ? $data['qty_sold_at'] : ($prevVendChannel->qty_sold_at ?? null);
+                    $restockedAt = array_key_exists('qty_restocked_at', $data) ? $data['qty_restocked_at'] : ($prevVendChannel->qty_restocked_at ?? null);
+                    if ($soldAt && $restockedAt) {
+                        $data['qty_not_available_duration'] = Carbon::parse($soldAt)->diffForHumans(Carbon::parse($restockedAt), true);
+                    } else {
+                        $data['qty_not_available_duration'] = null;
+                    }
+
+                    // Single write per channel; reuse the preloaded row instead of
+                    // updateOrCreate's extra SELECT round-trip. The miss path does
+                    // pay for that SELECT, via updateOrCreate: vend_channels
+                    // carries a unique (vend_id, code) index, and updateOrCreate
+                    // goes through firstOrCreate → createOrFirst, which catches the
+                    // unique violation and re-reads the winner. So losing a race
+                    // against a concurrent report degrades into an update of the
+                    // winner's row, never a duplicate and never an exception.
+                    if ($prevVendChannel) {
+                        $prevVendChannel->update($data);
+                        $vendChannel = $prevVendChannel;
+                    } elseif ($skuStocked) {
+                        $vendChannel = VendChannel::create(['vend_id' => $vend->id] + $data);
+                    } else {
+                        $vendChannel = VendChannel::updateOrCreate([
+                            'vend_id' => $vend->id,
+                            'code' => $channelCode,
+                        ], $data);
+                    }
+
+                    if ($stockEvent) {
+                        $this->recordStockEvent($vendChannel, $stockEvent);
+                    }
+
+                    // A SKU-stocked machine has no motor faults (its frames always say 0), and
+                    // the error-log job keys on the bare code, which a suffix makes ambiguous.
+                    if ($data['is_active'] && ! $skuStocked) {
+                        SyncVendChannelErrorLog::dispatch($vend, $channelCode, $channel['error_code']);
+                    }
+                }
+                if ($skuStocked) {
+                    $this->retireSkuRowsMissingFrom($channels, $allRows);
+                    DB::commit();
+                }
+            } catch (\Throwable $e) {
+                if ($skuStocked) {
+                    DB::rollBack();
+                }
+                throw $e;
+            }
             $productMappingService->syncChannelsByVend($vend);
             SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
             $deliveryProductMappingService->syncVendChannels(null, $vend->id);
@@ -252,29 +296,79 @@ class SyncVendChannels implements ShouldQueue
         $this->syncVendChannelRecordVMCAfterQty($vendChannelRecord);
     }
 
-    // get vend channel status by custom logic
     /**
      * A vending board reports every slot on every frame, so a channel absent from
-     * one is simply unchanged. A Smart Chiller's frame is built from CityBox's
-     * whole Pre-Stock Setup (ChannelFrameAdapter; StockPollService never sends an
-     * empty one), so a code missing from it is a SKU they removed. Left active, it
+     * one is simply unchanged. A SKU-stocked machine's frame is built from its
+     * whole planogram (ChannelFrameAdapter / FreezerChannelSync never send an
+     * empty one), so a SKU missing from it has left the mapping. Left active, it
      * kept its old capacity and lost its product to the mapping sync — prod
-     * 2026-09-19, C5001: a template switch at 11:12 left 60 "Unmapped SKU" ghosts
-     * on the overview, the Ops Dashboard and ops jobs. Deactivate them instead; a
-     * code that comes back is reactivated by the loop above.
+     * 2026-09-19, C5001: 60 "Unmapped SKU" ghosts on the overview, the Ops
+     * Dashboard and ops jobs. Deactivate them instead (the qty stays on the row,
+     * so a SKU that comes back is reactivated with its ledger by the loop above).
+     * Rows with no product at all on such a machine are legacy and retire too.
+     *
+     * @param  \Illuminate\Support\Collection<int,VendChannel>  $allRows
      */
-    private function retireChillerChannelsMissingFrom(array $channels, $prevVendChannels): void
+    private function retireSkuRowsMissingFrom(array $channels, $allRows): void
     {
-        if (! $this->vend->isSmartChiller() || $channels === []) {
+        if ($channels === []) {
             return;
         }
-        $reported = array_map(fn ($c) => (int) $c['channel_code'], $channels);
-        $gone = $prevVendChannels->filter(fn (VendChannel $c) => $c->is_active && ! in_array((int) $c->code, $reported, true));
+        $reported = [];
+        foreach ($channels as $c) {
+            if (! empty($c['product_id'])) {
+                $reported[(int) $c['product_id']] = true;
+            }
+        }
+        $gone = $allRows->filter(fn (VendChannel $c) => $c->is_active && ! isset($reported[(int) $c->product_id]));
         if ($gone->isEmpty()) {
             return;
         }
         VendChannel::whereIn('id', $gone->pluck('id'))->update(['is_active' => false]);
-        Log::info('Chiller channels retired — no longer in the CityBox planogram', ['vend_id' => $this->vend->id, 'codes' => $gone->pluck('code')->values()->all()]);
+        Log::info('SKU rows retired — no longer in the planogram', ['vend_id' => $this->vend->id, 'labels' => $gone->map(fn ($c) => $c->label)->values()->all()]);
+    }
+
+    /**
+     * Free every position label the frame gives to a DIFFERENT product than the row
+     * holding it now, so the relabel in the loop never trips the unique
+     * (vend_id, code, suffix_key) index — two SKUs swapping codes, a retired SKU's
+     * old label handed to a new one, a legacy row with no product squatting on a
+     * code. A released row gets a negative, id-unique code (no position) until the
+     * loop or a later frame gives it a real one. Must run inside the transaction
+     * the loop commits.
+     *
+     * @param  \Illuminate\Support\Collection<int,VendChannel>  $allRows
+     */
+    private function releaseClaimedLabels($allRows, array $channels): void
+    {
+        $claims = [];
+        foreach ($channels as $c) {
+            if (empty($c['product_id'])) {
+                continue;
+            }
+            $suffix = isset($c['suffix']) && $c['suffix'] !== '' ? strtoupper((string) $c['suffix']) : null;
+            $claims[\App\Support\ChannelCode::label((int) $c['channel_code'], $suffix)] = (int) $c['product_id'];
+        }
+        foreach ($allRows as $row) {
+            $owner = $claims[$row->label] ?? null;
+            if ($owner !== null && $owner !== (int) $row->product_id) {
+                $row->forceFill(['code' => -$row->id, 'suffix' => null])->saveQuietly();
+            }
+        }
+    }
+
+    /**
+     * Which frame entry describes an ops-job channel row: by product on a
+     * SKU-stocked machine (the frame carries product_id and two SKUs may share
+     * one code), by slot code on a vending machine.
+     */
+    private function frameEntryMatchesOpsRow(array $channel, $opsJobItemChannel): bool
+    {
+        if (! empty($channel['product_id'])) {
+            return (int) $channel['product_id'] === (int) $opsJobItemChannel->product_id;
+        }
+
+        return isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code;
     }
 
     private function getVendChannelStatus($channel)
@@ -285,7 +379,7 @@ class SyncVendChannels implements ShouldQueue
         // stays active and shows its par as "-" (2026-09-16).
         // A Smart Chiller is the same story since 2026-09-21: capacity is the SKU's
         // chiller_slot_qty, blank until someone counts it, and the channel still sells.
-        if ($this->vend->isSmartFreezer() || $this->vend->isSmartChiller()) {
+        if ($this->vend->isSkuStocked()) {
             return $this->isCodeInRange((int) $channel['channel_code']);
         }
 
@@ -321,7 +415,7 @@ class SyncVendChannels implements ShouldQueue
                 $channels = $vendChannelRecord->before_data_json['channels'] ?? [];
 
                 foreach ($channels as $channel) {
-                    if (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code) {
+                    if ($this->frameEntryMatchesOpsRow($channel, $opsJobItemChannel)) {
                         $opsJobItemChannel->update([
                             'vmc_before_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
                         ]);
@@ -339,7 +433,7 @@ class SyncVendChannels implements ShouldQueue
                 $channels = $vendChannelRecord->after_data_json['channels'] ?? [];
 
                 foreach ($channels as $channel) {
-                    if (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code) {
+                    if ($this->frameEntryMatchesOpsRow($channel, $opsJobItemChannel)) {
                         $opsJobItemChannel->update([
                             'vmc_after_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
                         ]);

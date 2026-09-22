@@ -3279,7 +3279,7 @@ class VendController extends Controller
                 return $a->sequence <=> $b->sequence;
             }
 
-            return (int) $a->channel_code <=> (int) $b->channel_code;
+            return \App\Support\ChannelCode::compare($a->channel_code, $b->channel_code);
         })->values();
 
         // Smart-freezer terminals cache thumbnails hard (metered 4G), keyed by URL. For smart mappings

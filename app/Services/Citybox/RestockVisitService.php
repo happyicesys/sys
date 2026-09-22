@@ -164,10 +164,10 @@ class RestockVisitService
             return false;
         }
 
-        // Channels are ours (2026-09-21); their API takes one count per PRODUCT, so a
-        // SKU on two codes is summed. A code with no slot (mapping changed mid-visit)
-        // is skipped, but a SKU their machine does not carry is reported: the driver
-        // can load it, their AI cannot recognise it.
+        // Channels are ours (2026-09-21) and keyed by SKU (2026-09-22), which is the unit
+        // their API takes: one count per PRODUCT. A row for a product the mapping no
+        // longer carries (it left on a swap) says nothing to push; a SKU their machine
+        // does not carry is reported: the driver can load it, their AI cannot recognise it.
         $slots = $this->channelMap->forVend($vend);
         if ($slots === []) {
             $this->markSubmit($item, 'failed', 'This chiller has no product mapping — bind one before stocking in.');
@@ -175,40 +175,23 @@ class RestockVisitService
             return false;
         }
 
-        // On a mapping swap a changed slot has TWO rows for one code: the old product going
-        // out (stock-in = -qty) and the new one coming in (is_upcoming_product). The slot now
-        // belongs to the new product, so its row must win whatever order they load in —
-        // otherwise the new SKU could be pushed as the old row's zero.
-        $qtyByCode = [];
+        // On a mapping swap the incoming product's row (is_upcoming_product) must win over
+        // any stale row for the same SKU whatever order they load in.
+        $qtyByProduct = [];
         foreach ($item->opsJobItemChannels->sortBy(fn ($ch) => (int) (bool) $ch->is_upcoming_product) as $ch) {
-            $code = (int) $ch->vend_channel_code;
-            if (! isset($slots[$code])) {
+            $productId = (int) $ch->product_id;
+            if (! isset($slots[$productId])) {
                 continue;
             }
-            // A row for a product the slot no longer holds says nothing about this SKU.
-            if ((int) $ch->product_id !== $slots[$code]->productId) {
-                continue;
-            }
-            $qtyByCode[$code] = $mode === 'revert'
+            $qtyByProduct[$productId] = $mode === 'revert'
                 ? max(0, (int) $ch->actual_before_qty)
                 : max(0, (int) $ch->actual_before_qty + (int) $ch->actual_qty);
         }
-        // A SKU on two codes is ONE number to CityBox. If this item carries only some of
-        // those codes (a facing added after the job was cut), the others keep what they
-        // hold now — otherwise the push would silently erase their stock.
-        $pushedSkus = [];
-        foreach (array_keys($qtyByCode) as $code) {
-            $pushedSkus[$slots[$code]->cityboxProductId] = true;
-        }
-        $siblings = array_filter($slots, fn ($slot) => ! isset($qtyByCode[$slot->code]) && isset($pushedSkus[$slot->cityboxProductId]));
-        if ($siblings !== []) {
-            $held = \App\Models\VendChannel::where('vend_id', $vend->id)->whereIn('code', array_keys($siblings))->pluck('qty', 'code');
-            foreach ($siblings as $slot) {
-                $qtyByCode[$slot->code] = max(0, (int) ($held[$slot->code] ?? 0));
-            }
-        }
 
-        $counts = \App\Services\Citybox\ChillerChannelMap::sumBySku($slots, $qtyByCode);
+        $counts = [];
+        foreach ($qtyByProduct as $productId => $qty) {
+            $counts[$slots[$productId]->cityboxProductId] = $qty;
+        }
 
         // Recognition check. A SKU their machine does not carry is LEFT OUT of the push
         // (what their API does with an unknown product is unproven) and reported; the
@@ -223,7 +206,7 @@ class RestockVisitService
             $unrecognisable = [];
             $theirConfig = [];
         }
-        $withheld = array_values(array_filter($unrecognisable, fn ($m) => ($qtyByCode[$m['code']] ?? 0) > 0));
+        $withheld = array_values(array_filter($unrecognisable, fn ($m) => ($qtyByProduct[$m['product_id']] ?? 0) > 0));
         foreach ($withheld as $m) {
             unset($counts[$m['citybox_product_id']]);
         }
@@ -247,7 +230,7 @@ class RestockVisitService
         }
 
         $withheldMessage = $withheld === [] ? null
-            : 'Channel(s) '.implode(', ', array_column($withheld, 'code')).' hold a product this machine does not carry in CityBox — add it in OPS Pro (Pre-Stock Setup), then press Submit again. The other channels were pushed.';
+            : 'Channel(s) '.implode(', ', array_column($withheld, 'label')).' hold a product this machine does not carry in CityBox — add it in OPS Pro (Pre-Stock Setup), then press Submit again. The other channels were pushed.';
 
         if ($counts === []) {
             $this->markSubmit($item, 'failed', $withheldMessage ?? 'No chiller channels on this item match the machine\'s mapping.');
@@ -283,7 +266,7 @@ class RestockVisitService
         // we can see whether their system reflects what we submitted. Also mirrored
         // onto the vend and pushed as the A frame (vend_channels qty).
         $this->captureAfter($item, $vend, $slots);
-        Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts), 'withheld_codes' => array_column($withheld, 'code')]);
+        Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts), 'withheld_codes' => array_column($withheld, 'label')]);
 
         return $withheldMessage === null;
     }
@@ -326,15 +309,8 @@ class RestockVisitService
             $this->stock->applyStockOnly($vend, $lines);
             $this->stock->pushChannels($vend, $lines, 'A', force: true);
 
-            $qtyByCode = \App\Services\Citybox\ChillerChannelMap::allocate(
-                $slots,
-                $lines->mapWithKeys(fn ($l) => [(int) $l->cityboxProductId => (int) $l->quantity])->all(),
-            );
-            $channels = [];
-            foreach ($slots as $code => $slot) {
-                $channels[] = ['channel_code' => $slot->code, 'qty' => $qtyByCode[$slot->code] ?? 0, 'capacity' => $slot->capacity];
-            }
-            usort($channels, fn ($a, $b) => $a['channel_code'] <=> $b['channel_code']);
+            $live = $lines->mapWithKeys(fn ($l) => [(int) $l->cityboxProductId => (int) $l->quantity])->all();
+            $channels = $this->slotsToChannels($slots, fn ($slot) => (int) ($live[$slot->cityboxProductId] ?? 0));
             $record = $this->itemRecord($item, $vend);
             $record->fill([
                 'after_data_json' => ['channels' => $channels, 'label' => 'A', 'source' => 'citybox_pull'],
@@ -371,27 +347,36 @@ class RestockVisitService
         return $record;
     }
 
-    /** @return array<int,array{channel_code:int,qty:int,capacity:int}> */
+    /** @return array<int,array{channel_code:int,suffix:?string,product_id:int,qty:int,capacity:int}> */
     private function snapshotToChannels(array $snapshot, array $slots): array
     {
-        $qtyByCode = \App\Services\Citybox\ChillerChannelMap::allocate(
-            $slots,
-            collect($slots)->mapWithKeys(fn ($slot) => [$slot->cityboxProductId => (int) ($snapshot['p'.$slot->cityboxProductId]['quantity'] ?? 0)])->all(),
-        );
+        return $this->slotsToChannels($slots, fn ($slot) => (int) ($snapshot['p'.$slot->cityboxProductId]['quantity'] ?? 0));
+    }
+
+    /**
+     * One entry per SKU, in position order — the shape the B/A records and
+     * writeVmcQty read. Qty is the SKU's own number (their API is per product).
+     *
+     * @param  array<int,\App\Services\Citybox\DTO\ChillerSlot>  $slots
+     * @param  callable(\App\Services\Citybox\DTO\ChillerSlot):int  $qtyOf
+     * @return array<int,array{channel_code:int,suffix:?string,product_id:int,qty:int,capacity:int}>
+     */
+    private function slotsToChannels(array $slots, callable $qtyOf): array
+    {
         $channels = [];
         foreach ($slots as $slot) {
-            $channels[] = ['channel_code' => $slot->code, 'qty' => $qtyByCode[$slot->code] ?? 0, 'capacity' => $slot->capacity];
+            $channels[] = ['channel_code' => $slot->code, 'suffix' => $slot->suffix, 'product_id' => $slot->productId, 'qty' => max(0, $qtyOf($slot)), 'capacity' => $slot->capacity];
         }
-        usort($channels, fn ($a, $b) => $a['channel_code'] <=> $b['channel_code']);
+        usort($channels, fn ($a, $b) => [$a['channel_code'], $a['suffix'] ?? ''] <=> [$b['channel_code'], $b['suffix'] ?? '']);
 
         return $channels;
     }
 
     private function writeVmcQty(OpsJobItem $item, array $channels, string $column): void
     {
-        $byCode = collect($channels)->keyBy('channel_code');
+        $byProduct = collect($channels)->keyBy('product_id');
         foreach ($item->opsJobItemChannels as $ch) {
-            $line = $byCode->get((int) $ch->vend_channel_code);
+            $line = $byProduct->get((int) $ch->product_id);
             if ($line !== null) {
                 $ch->forceFill([$column => $line['qty']])->saveQuietly();
             }

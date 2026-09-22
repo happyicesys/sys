@@ -237,7 +237,9 @@ class CityboxRestockVisitTest extends TestCase
         $staged = $this->item->opsJobItemChannels()->where('is_upcoming_product', true)->get()->keyBy('vend_channel_code');
         $this->assertSame([102, 103], $staged->keys()->map(fn ($c) => (int) $c)->sort()->values()->all(), 'changed slot AND brand-new slot are staged');
         $this->assertSame(6, (int) $staged[102]->capacity, 'a chiller channel takes the NEW SKU\'s capacity');
-        $this->assertFalse((bool) VendChannel::where('vend_id', $this->vend->id)->where('code', 103)->first()->is_active, 'the new slot waits for the swap');
+        $milkTea = VendChannel::where('vend_id', $this->vend->id)->where('product_id', \App\Models\Product::where('code', '90341')->value('id'))->first();
+        $this->assertFalse((bool) $milkTea->is_active, 'the new SKU waits for the swap');
+        $this->assertLessThan(0, (int) $milkTea->code, 'and holds no position yet — 103 is not taken, but 102 (Lemon) still belongs to Peach');
 
         // The driver swaps: Peach out of 102, Lemon in; Milk tea into the new 103; Suntory topped up.
         app(RestockVisitService::class)->openDoor($this->item->fresh(), $this->driver);
@@ -296,20 +298,24 @@ class CityboxRestockVisitTest extends TestCase
         $this->assertSame('ok', $this->item->fresh()->citybox_submit_status);
     }
 
-    public function test_a_facing_this_item_does_not_carry_keeps_its_stock_in_the_sum(): void
+    public function test_a_second_facing_is_the_same_row_and_the_same_count(): void
     {
-        // Suntory gets a second facing (103) AFTER the job was cut: the item has no row for it.
+        // Suntory gets a second facing (103) AFTER the job was cut. Since 2026-09-22 a SKU is
+        // ONE row whatever its codes, so the item's single row speaks for the whole SKU.
         \App\Models\ProductMappingItem::create(['product_mapping_id' => $this->vend->product_mapping_id, 'channel_code' => '103', 'product_id' => \App\Models\Product::where('code', '90338')->value('id')]);
         $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 8, 'layer' => 1, 'price' => '0.12']]);
-        app(CityboxOpenapiSync::class)->syncAll(); // 101 holds 5, 103 holds 3
+        app(CityboxOpenapiSync::class)->syncAll();
+        $suntory = VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->where('code', 101)->get();
+        $this->assertCount(1, $suntory);
+        $this->assertSame([8, 10], [(int) $suntory[0]->qty, (int) $suntory[0]->capacity], 'whole live qty, summed capacity');
         app(RestockVisitService::class)->openDoor($this->item, $this->driver);
-        $this->item->opsJobItemChannels()->where('vend_channel_code', 101)->update(['qty' => 5]);
-        $this->stockIn([101 => 0, 102 => 0]);
+        $this->item->opsJobItemChannels()->where('vend_channel_code', 101)->update(['qty' => 8]);
+        $this->stockIn([101 => 2, 102 => 0]);
 
         (new SubmitCityboxCount($this->item->id))->handle(app(RestockVisitService::class));
 
         $rows = collect($this->gw->submits[0]['rows'])->keyBy('product_id');
-        $this->assertSame(8, $rows[90338]['reality_stock'], '101 (5) + the facing the item never saw (3)');
+        $this->assertSame(10, $rows[90338]['reality_stock'], '8 in the cabinet + 2 loaded, one number for the SKU');
     }
 
     public function test_observer_marks_pending_and_queues_the_delayed_submit_only_for_chillers(): void

@@ -143,7 +143,9 @@ class VendChannelDuplicateGuardTest extends TestCase
         // the duration. The DDL implicitly commits RefreshDatabase's wrapping
         // transaction, so everything this test writes is cleaned up — and the
         // index restored — in the finally block.
-        Schema::table('vend_channels', fn (Blueprint $table) => $table->dropUnique(['vend_id', 'code']));
+        // Since 2026-09-22 the index also carries the generated suffix_key (SKU-stocked
+        // machines split a position into 101A / 101B); vending rows still collide on the code.
+        Schema::table('vend_channels', fn (Blueprint $table) => $table->dropUnique('vend_channels_vend_id_code_suffix_unique'));
 
         $vend = null;
 
@@ -213,7 +215,7 @@ class VendChannelDuplicateGuardTest extends TestCase
                 DB::table('vend_channels')->where('vend_id', $vend->id)->delete();
                 DB::table('vends')->where('id', $vend->id)->delete();
             }
-            Schema::table('vend_channels', fn (Blueprint $table) => $table->unique(['vend_id', 'code']));
+            Schema::table('vend_channels', fn (Blueprint $table) => $table->unique(['vend_id', 'code', 'suffix_key'], 'vend_channels_vend_id_code_suffix_unique'));
         }
     }
 }

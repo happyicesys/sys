@@ -181,10 +181,10 @@ class StockPollService
 
             return;
         }
-        // The channels are OURS (Brian, 2026-09-21): the vend's mapping decides which
-        // codes exist and what sits on them, and the live call only fills in qty and
-        // price. A SKU they report that we do not carry gets no channel — the overview
-        // lists it as off-planogram instead.
+        // The channels are OURS (Brian, 2026-09-21) and keyed by SKU (2026-09-22): the
+        // vend's mapping decides which products exist and where they sit, and the live
+        // call only fills in qty and price. A SKU they report that we do not carry gets
+        // no row — the overview lists it as off-planogram instead.
         $slots = $this->channelMap->forVend($vend);
         if ($slots === []) {
             // No planogram (nothing bound, or a mapping emptied out): an empty frame is
@@ -292,7 +292,7 @@ class StockPollService
      * not carry — their AI cannot recognise those, so ops must add them in OPS
      * Pro before the driver loads them (Brian, 2026-09-21).
      *
-     * @return array<int,array{code:int,product_id:int,citybox_product_id:int}>
+     * @return array<int,array{code:int,label:string,product_id:int,citybox_product_id:int}>
      */
     public function unrecognisableSlots(Vend $vend, bool $fresh = false, ?int $productMappingId = null): array
     {
@@ -308,7 +308,7 @@ class StockPollService
         $missing = [];
         foreach ($slots as $slot) {
             if (! isset($config[$slot->cityboxProductId])) {
-                $missing[] = ['code' => $slot->code, 'product_id' => $slot->productId, 'citybox_product_id' => $slot->cityboxProductId];
+                $missing[] = ['code' => $slot->code, 'label' => $slot->label(), 'product_id' => $slot->productId, 'citybox_product_id' => $slot->cityboxProductId];
             }
         }
 

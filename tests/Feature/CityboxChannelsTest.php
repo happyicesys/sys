@@ -25,8 +25,8 @@ use Tests\TestCase;
 /**
  * A chiller's channels since 2026-09-21: OUR mapping decides the codes and the
  * products, the SKU decides capacity (products.chiller_slot_qty), and CityBox
- * supplies only quantity and price — per product, which is why a SKU on two
- * codes is split on the way in and summed on the way out.
+ * supplies only quantity and price — per product, which since 2026-09-22 is
+ * also the unit of a row (one vend_channels row per SKU; the code is a label).
  *
  * Before this, the channels mirrored CityBox's Pre-Stock Setup, so a template
  * switch in their portal emptied a machine here (prod C5001, 2026-09-19).
@@ -86,11 +86,12 @@ class CityboxChannelsTest extends TestCase
 
         $slots = app(ChillerChannelMap::class)->forVend($this->vend->fresh());
 
-        $this->assertSame([101, 102, 203], array_keys($slots));
-        $this->assertSame(90338, $slots[101]->cityboxProductId);
-        $this->assertSame(4, $slots[101]->capacity);
-        $this->assertSame(2, $slots[203]->capacity);
-        $this->assertSame(2, $slots[203]->layer());
+        $this->assertSame([101, 102, 203], array_map(fn ($s) => $s->code, array_values($slots)));
+        $this->assertSame(array_keys($slots), array_map(fn ($s) => $s->productId, array_values($slots)), 'keyed by product');
+        $suntory = ChillerChannelMap::byCityboxId($slots, 90338);
+        $this->assertSame([101, 4], [$suntory->code, $suntory->capacity]);
+        $peach = ChillerChannelMap::byCityboxId($slots, 90340);
+        $this->assertSame([2, 2], [$peach->capacity, $peach->layer()]);
     }
 
     public function test_a_product_with_no_citybox_link_gets_no_slot(): void
@@ -99,33 +100,35 @@ class CityboxChannelsTest extends TestCase
         $ours = Product::create(['code' => 'VM-1', 'name' => 'Our own', 'is_active' => true, 'is_inventory' => true]);
         ProductMappingItem::create(['product_mapping_id' => $this->vend->fresh()->product_mapping_id, 'channel_code' => '104', 'product_id' => $ours->id]);
 
-        $this->assertArrayNotHasKey(104, app(ChillerChannelMap::class)->forVend($this->vend->fresh()));
+        $this->assertNull(collect(app(ChillerChannelMap::class)->forVend($this->vend->fresh()))->firstWhere('code', 104));
     }
 
-    public function test_one_sku_on_two_codes_splits_its_quantity_by_capacity(): void
+    public function test_one_sku_on_two_codes_is_one_slot_with_the_summed_capacity(): void
+    {
+        ChillerMapping::bind($this->vend, [101 => [90338, 5], 103 => [90338, 5], 201 => [90339, 0]]);
+
+        $slots = app(ChillerChannelMap::class)->forVend($this->vend->fresh());
+
+        $this->assertCount(2, $slots, 'two SKUs, two slots — a facing is not a second identity');
+        $suntory = ChillerChannelMap::byCityboxId($slots, 90338);
+        $this->assertSame([101, ['101', '103'], 10], [$suntory->code, $suntory->labels, $suntory->capacity]);
+        $this->assertSame(0, ChillerChannelMap::byCityboxId($slots, 90339)->capacity, 'unmeasured stays 0');
+    }
+
+    public function test_adapter_builds_one_channel_per_sku_with_live_qty_and_price(): void
     {
         $slots = [
-            101 => new ChillerSlot(101, 90338, 1, 5),
-            103 => new ChillerSlot(103, 90338, 1, 5),
-            201 => new ChillerSlot(201, 90339, 2, 0), // capacity not measured
+            1 => new ChillerSlot(code: 101, suffix: null, cityboxProductId: 90338, productId: 1, capacity: 4),
+            2 => new ChillerSlot(code: 101, suffix: 'B', cityboxProductId: 90339, productId: 2, capacity: 6),
         ];
-
-        $this->assertSame([101 => 5, 103 => 2, 201 => 9], ChillerChannelMap::allocate($slots, [90338 => 7, 90339 => 9]));
-        $this->assertSame([101 => 5, 103 => 5, 201 => 0], ChillerChannelMap::allocate($slots, [90338 => 10]));
-        $this->assertSame([101 => 0, 103 => 0, 201 => 0], ChillerChannelMap::allocate($slots, []));
-        // …and back out again: their API takes one count per product.
-        $this->assertSame([90338 => 9, 90339 => 4], ChillerChannelMap::sumBySku($slots, [101 => 5, 103 => 4, 201 => 4]));
-    }
-
-    public function test_adapter_builds_one_channel_per_slot_with_live_qty_and_price(): void
-    {
-        $slots = [101 => new ChillerSlot(101, 90338, 1, 4), 102 => new ChillerSlot(102, 90339, 2, 6)];
         $stock = collect([ChillerStockLine::fromApi(['product_id' => 90338, 'name' => 'S', 'quantity' => 3, 'price' => '1.20', 'layer' => 1])]);
 
         $frame = app(ChannelFrameAdapter::class)->toFrame($stock, $slots, 'A')->toArray();
 
         $this->assertSame('A', $frame['label']);
-        $this->assertSame([101, 102], array_column($frame['channels'], 'channel_code'));
+        $this->assertSame([101, 101], array_column($frame['channels'], 'channel_code'));
+        $this->assertSame([null, 'B'], array_column($frame['channels'], 'suffix'));
+        $this->assertSame([1, 2], array_column($frame['channels'], 'product_id'), 'the row is the SKU');
         $this->assertSame([3, 0], array_column($frame['channels'], 'qty'), 'a SKU the live call omits sits at 0, it does not vanish');
         $this->assertSame([4, 6], array_column($frame['channels'], 'capacity'), 'capacity is ours, never their par');
         $this->assertSame(120, $frame['channels'][0]['amount']);

@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
- * A Smart Freezer sends no CHANNEL frame, so mark1 writes its channels from the planogram. The qty
- * is our own ledger (ops-job topup in, sale out) and must survive every re-sync.
+ * A Smart Freezer sends no CHANNEL frame, so mark1 writes its channels from the planogram — one
+ * entry per SKU since 2026-09-22 (the row is the product; the code is its position). The qty is our
+ * own ledger (ops-job topup in, sale out) and must survive every re-sync.
  */
 class FreezerChannelSyncTest extends TestCase
 {
@@ -59,33 +60,39 @@ class FreezerChannelSyncTest extends TestCase
         return collect($frame['channels'])->keyBy('channel_code')->all();
     }
 
-    public function test_it_pushes_one_channel_per_planogram_slot_at_the_sites_price(): void
+    public function test_it_pushes_one_entry_per_sku_at_the_sites_price(): void
     {
         Queue::fake();
         $vend = $this->freezer();
 
-        $this->assertSame(2, app(FreezerChannelSync::class)->sync($vend));
+        // The fixture puts ONE product on 11 and 21: one SKU, one entry, labelled by its first code.
+        $this->assertSame(1, app(FreezerChannelSync::class)->sync($vend));
 
         $channels = $this->pushedFrame();
-        $this->assertSame([11, 21], array_keys($channels));
+        $this->assertSame([11], array_keys($channels));
+        $this->assertSame(Product::where('code', 'U-01')->value('id'), $channels[11]['product_id'], 'the row is the SKU');
         $this->assertSame(300, $channels[11]['amount'], 'RP2 = the Site tier, in cents');
-        $this->assertSame(0, $channels[11]['qty'], 'a new slot starts empty');
-        $this->assertSame(24, $channels[11]['capacity'], "the SKU's own measured par");
+        $this->assertSame(0, $channels[11]['qty'], 'a new SKU starts empty');
+        $this->assertSame(48, $channels[11]['capacity'], "the SKU's own measured par, once per code it sits on");
     }
 
-    public function test_it_keeps_our_ledger_and_retires_a_slot_that_left_the_planogram(): void
+    public function test_it_keeps_our_ledger_and_retires_a_sku_that_left_the_planogram(): void
     {
-        Queue::fake();
+        Queue::fake([SyncVendChannels::class => false, \App\Jobs\Vend\SyncVendChannelErrorLog::class, \App\Jobs\Vend\SaveVendChannelsJson::class]);
         $vend = $this->freezer();
-        VendChannel::forceCreate(['vend_id' => $vend->id, 'code' => 11, 'qty' => 7, 'capacity' => 12, 'amount' => 300, 'is_active' => 1]);
-        VendChannel::forceCreate(['vend_id' => $vend->id, 'code' => 61, 'qty' => 3, 'capacity' => 12, 'amount' => 200, 'is_active' => 1]);
+        $product = Product::where('code', 'U-01')->first();
+        $other = Product::create(['code' => 'U-02', 'name' => 'Old flavour', 'freezer_slot_qty' => 12]);
+        VendChannel::forceCreate(['vend_id' => $vend->id, 'code' => 11, 'product_id' => $product->id, 'qty' => 7, 'capacity' => 12, 'amount' => 300, 'is_active' => 1]);
+        VendChannel::forceCreate(['vend_id' => $vend->id, 'code' => 61, 'product_id' => $other->id, 'qty' => 3, 'capacity' => 12, 'amount' => 200, 'is_active' => 1]);
 
         app(FreezerChannelSync::class)->sync($vend);
 
-        $channels = $this->pushedFrame();
-        $this->assertSame(7, $channels[11]['qty'], 'topup ledger is never reset by a re-sync');
-        $this->assertSame(24, $channels[11]['capacity'], 'the par follows the product, not the stale row');
-        $this->assertSame(0, $channels[61]['capacity'], 'a slot off the planogram is retired, not left sold out');
+        $kept = VendChannel::where('vend_id', $vend->id)->where('product_id', $product->id)->first();
+        $this->assertSame(7, (int) $kept->qty, 'topup ledger is never reset by a re-sync');
+        $this->assertSame(48, (int) $kept->capacity, 'the par follows the product, not the stale row');
+        $gone = VendChannel::where('vend_id', $vend->id)->where('product_id', $other->id)->first();
+        $this->assertFalse((bool) $gone->is_active, 'a SKU off the planogram is retired, not left sold out');
+        $this->assertSame(3, (int) $gone->qty, 'with its qty kept for the return');
     }
 
     public function test_an_unmeasured_product_leaves_the_par_blank_rather_than_inventing_one(): void

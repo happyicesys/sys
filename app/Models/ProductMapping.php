@@ -116,7 +116,9 @@ class ProductMapping extends Model
 
     public function productMappingItems()
     {
-        return $this->hasMany(ProductMappingItem::class)->orderBy('channel_code', 'asc');
+        // Number first, then the one-letter suffix (ChannelCode): a plain
+        // orderBy on the varchar put "9" after "10" and "101A" after "1010".
+        return $this->hasMany(ProductMappingItem::class)->orderByRaw(\App\Support\ChannelCode::SQL_ORDER);
     }
 
     public function productMappingItemsNormalSequence()
@@ -129,7 +131,7 @@ class ProductMapping extends Model
         return $this->hasMany(ProductMappingItem::class)
             ->orderByRaw('sequence IS NULL')
             ->orderBy('sequence')
-            ->orderBy('channel_code');
+            ->orderByRaw(\App\Support\ChannelCode::SQL_ORDER);
     }
 
     public function operator()

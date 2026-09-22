@@ -37,6 +37,8 @@ class OpsJobItemChannelResource extends JsonResource
             'vendChannel' => VendChannelResource::make($this->whenLoaded('vendChannel')),
             'vend_channel_id' => $this->vend_channel_id,
             'vend_channel_code' => $this->vend_channel_code,
+            // Position as people read it ("101A"); the int column cannot carry the suffix.
+            'vend_channel_label' => $this->relationLoaded('vendChannel') && $this->vendChannel ? $this->vendChannel->label : (string) $this->vend_channel_code,
             'vend_code' => $this->vend_code,
             'vmc_before_qty' => $this->vmc_before_qty,
             'vmc_after_qty' => $this->vmc_after_qty,

@@ -35,6 +35,7 @@ class VendChannel extends Model
         'amount2',
         'capacity',
         'code',
+        'suffix',
         'discount_group',
         'error_rate_json',
         'is_active',
@@ -145,6 +146,17 @@ class VendChannel extends Model
     }
 
     // attributes
+    /**
+     * The position as people read it: code + one-letter suffix ("101A"). Only
+     * SKU-stocked machines carry a suffix (Vend::isSkuStocked); a vending row
+     * reads as its plain code. Safe before the 2026-09-22 migration has run:
+     * a missing attribute is null.
+     */
+    public function getLabelAttribute(): string
+    {
+        return \App\Support\ChannelCode::label((int) $this->code, $this->attributes['suffix'] ?? null);
+    }
+
     public function getServerAmountAttribute()
     {
         if (!$this->vend_id || !$this->product_id) {

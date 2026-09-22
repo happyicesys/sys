@@ -143,6 +143,8 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
                     'amount' => $channel->amount / 100,
                     'amount2' => $channel->amount2 / 100,
                     'code' => $channel->code,
+                    'suffix' => $channel->suffix,
+                    'label' => $channel->label,
                     'discount_group' => $channel->discount_group,
                     'error_rate_json' => $channel->error_rate_json,
                     'sku_code' => $channel->sku_code,

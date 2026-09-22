@@ -1,9 +1,12 @@
 # SKU-keyed stock for Smart Freezer and Smart Chiller — scan + plan (2026-09-22)
 
-**Status: PLAN ONLY. Nothing implemented. Brian answered Phase 0 on
-2026-09-22 (see §7); §4 keeps the original questions for the record. Two
-items still open: §7.5 (freezer suffix codes need an APK change) and the
-`capacity_override` column name.**
+**Status: Phases 1 + 2 BUILT 2026-09-22 (identity + sync, suffix codes,
+capacity override, changeover by SKU set) — see the "SKU-stocked machines"
+section of `CLAUDE.md` for the rules as shipped. Open: Phase 3 (sales resolve
+by `goods_id`; freezer suffix codes wait on the APK, §7.5), Phase 4 UI beyond
+the chiller table's Default/Reality columns (freezer grid override, ops-job
+rows show `vend_channel_label`), Phase 5 one-off resync of the 14 machines.
+§4 keeps the original questions for the record.**
 
 All file:line references are to mark1 HEAD `99b96c6364` (2026-09-21). The
 working tree on Brian's Mac was 461 files behind HEAD when this was written —

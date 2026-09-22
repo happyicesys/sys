@@ -842,7 +842,7 @@ class OpsJobController extends Controller
                 // done inconsistently -> old stock silently never returned, CMS
                 // inventory never credited). Runs BEFORE the mapping is advanced.
                 if ($opsJobItem->stock_action_type === 'implement_new_mapping' && ! $swapVetoed) {
-                    $this->enforceMappingSwapReturns($opsJobItem);
+                    $this->enforceMappingSwapReturns($opsJobItem, $targetMappingId);
                 }
 
                 if ($hasMappingChange && $vend) {
@@ -875,6 +875,11 @@ class OpsJobController extends Controller
                         // SubmitCityboxCount sends the counts a few seconds later. The rebuild
                         // bypasses the submit-pending guard, which this very stock-in just set.
                         app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend);
+                    } elseif ($vend && $vend->isSmartFreezer()) {
+                        // One row per SKU, qty carried by product: the freezer's rows are
+                        // rewritten from the (now advanced) mapping, then the APK re-pulls.
+                        app(\App\Services\Freezer\FreezerChannelSync::class)->sync($vend);
+                        $this->vendJobService->syncChannelSlotListToVend($vend);
                     } elseif ($vend) {
                         $this->productMappingService->syncChannelsByVend($vend);
                         \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
@@ -2714,6 +2719,15 @@ class OpsJobController extends Controller
 
         $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
 
+        // A SKU-stocked machine (freezer, chiller) diffs by PRODUCT, not by slot (Brian,
+        // 2026-09-22): a SKU that merely moves to another code is the same stock and
+        // stages nothing. The per-code loop below is the vending machine's.
+        if ($vend->isSkuStocked()) {
+            $this->applyNewMappingBySku($opsJobItem, $vend, $currentItems, $upcomingMapping);
+
+            return;
+        }
+
         foreach ($upcomingItems as $uItem) {
             $cItem = $currentItems->where('channel_code', $uItem->channel_code)->first();
 
@@ -2754,39 +2768,6 @@ class OpsJobController extends Controller
             }
         }
 
-        // A CHILLER's slots are ours to add (2026-09-21): an upcoming code the current
-        // layout does not have at all. A vending machine's slots are physical, so this
-        // never arises there and the loop above is enough. The item row needs a channel
-        // to hang on, so an inactive one is created now; the post-swap rebuild activates
-        // it. Without this the driver had nowhere to key what was loaded into the new
-        // slot, and CityBox was never told about it.
-        if ($vend->isSmartChiller()) {
-            foreach ($upcomingItems as $uItem) {
-                if ($currentItems->where('channel_code', $uItem->channel_code)->isNotEmpty()) {
-                    continue;
-                }
-                $channel = \App\Models\VendChannel::firstOrCreate(
-                    ['vend_id' => $vend->id, 'code' => (int) $uItem->channel_code],
-                    ['qty' => 0, 'capacity' => (int) ($uItem->product?->chiller_slot_qty ?? 0), 'amount' => 0, 'is_active' => false],
-                );
-                $defaultPickedQty = $this->upcomingDefaultPickedQty($opsJobItem, $uItem->product);
-                $opsJobItem->opsJobItemChannels()->create([
-                    'ops_job_id' => $opsJobItem->ops_job_id,
-                    'ops_job_item_id' => $opsJobItem->id,
-                    'vend_channel_id' => $channel->id,
-                    'vend_channel_code' => (int) $uItem->channel_code,
-                    'vend_code' => $vend->code,
-                    'product_id' => $uItem->product_id,
-                    'capacity' => (int) ($uItem->product?->chiller_slot_qty ?? 0),
-                    'qty' => 0,
-                    'picked_qty' => $defaultPickedQty,
-                    'saved_picked_qty' => $defaultPickedQty,
-                    'is_upcoming_product' => true,
-                    'amount' => 0,
-                ]);
-            }
-        }
-
         // Handle removed channels (cleared off without any upcoming mapping)
         foreach ($currentItems as $cItem) {
             $uItem = $upcomingItems->where('channel_code', $cItem->channel_code)->first();
@@ -2806,6 +2787,70 @@ class OpsJobController extends Controller
                     ]);
                 }
             }
+        }
+    }
+
+    /**
+     * Stage an "implement new mapping" swap on a SKU-stocked machine by comparing the
+     * two mappings' PRODUCT sets (Brian, 2026-09-22):
+     *   - a SKU in both (whether or not its code moved): nothing to stage — its row and
+     *     qty ride along, the post-swap sync only relabels the position;
+     *   - a SKU only in the current mapping: cleared off (pick = -qty), and returned to
+     *     the warehouse on completion by enforceMappingSwapReturns();
+     *   - a SKU only in the upcoming mapping: one is_upcoming_product row at qty 0, hung
+     *     on the SKU's vend_channels row — reused if a retired one exists, else created
+     *     inactive with no position (a negative code) so it cannot collide with a live
+     *     label; the post-swap sync gives it its real code and activates it.
+     */
+    private function applyNewMappingBySku($opsJobItem, Vend $vend, $currentItems, ProductMapping $upcomingMapping): void
+    {
+        $upcoming = app(\App\Services\Stock\SkuPlanogram::class)->forMapping($upcomingMapping->id, (string) $vend->machine_type);
+        $currentProducts = $currentItems->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->flip()->all();
+
+        foreach ($opsJobItem->opsJobItemChannels()->where('is_upcoming_product', false)->get() as $ojic) {
+            if (! isset($upcoming[(int) $ojic->product_id])) {
+                $ojic->update(['picked_qty' => -$ojic->qty, 'saved_picked_qty' => -$ojic->qty]);
+            }
+        }
+
+        $prices = [];
+        if ($vend->isSmartFreezer() && ($type = $vend->serverPriceType())) {
+            $prices = \App\Models\SellingPrice::whereIn('product_id', array_keys($upcoming))->where('type', $type)
+                ->get()->mapWithKeys(fn ($p) => [(int) $p->product_id => (int) $p->getRawOriginal('amount')])->all();
+        }
+
+        foreach ($upcoming as $productId => $slot) {
+            if (isset($currentProducts[$productId])) {
+                continue;
+            }
+            $channel = \App\Models\VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)->orderBy('id')->first();
+            if (! $channel) {
+                $channel = DB::transaction(function () use ($vend, $productId, $slot) {
+                    $row = \App\Models\VendChannel::create([
+                        'vend_id' => $vend->id, 'product_id' => $productId, 'code' => 0, 'suffix' => null,
+                        'qty' => 0, 'capacity' => $slot->capacity, 'amount' => 0, 'is_active' => false,
+                    ]);
+                    $row->forceFill(['code' => -$row->id])->saveQuietly();
+
+                    return $row;
+                });
+            }
+            $product = \App\Models\Product::find($productId);
+            $defaultPickedQty = $this->upcomingDefaultPickedQty($opsJobItem, $product);
+            $opsJobItem->opsJobItemChannels()->create([
+                'ops_job_id' => $opsJobItem->ops_job_id,
+                'ops_job_item_id' => $opsJobItem->id,
+                'vend_channel_id' => $channel->id,
+                'vend_channel_code' => $slot->code,
+                'vend_code' => $vend->code,
+                'product_id' => $productId,
+                'capacity' => $slot->capacity,
+                'qty' => 0,
+                'picked_qty' => $defaultPickedQty,
+                'saved_picked_qty' => $defaultPickedQty,
+                'is_upcoming_product' => true,
+                'amount' => $prices[$productId] ?? 0,
+            ]);
         }
     }
 
@@ -2853,9 +2898,26 @@ class OpsJobController extends Controller
      *    so manual / partial returns are preserved.
      *  - Idempotent: an already-negative actual_qty is left untouched on re-save.
      */
-    private function enforceMappingSwapReturns($opsJobItem)
+    private function enforceMappingSwapReturns($opsJobItem, ?int $targetMappingId = null)
     {
         $channels = $opsJobItem->opsJobItemChannels()->get();
+
+        // SKU-stocked (Brian, 2026-09-22): a SKU the new mapping still carries — on
+        // whatever code — stays in the machine; only a SKU that LEFT is returned.
+        $vend = $opsJobItem->vend;
+        if ($vend && $vend->isSkuStocked()) {
+            $keep = $targetMappingId
+                ? app(\App\Services\Stock\SkuPlanogram::class)->forMapping($targetMappingId, (string) $vend->machine_type)
+                : [];
+            foreach ($channels as $ojic) {
+                if ($ojic->is_upcoming_product || isset($keep[(int) $ojic->product_id]) || $ojic->actual_qty < 0) {
+                    continue;
+                }
+                $ojic->update(['actual_before_qty' => $ojic->qty, 'actual_qty' => -$ojic->qty]);
+            }
+
+            return;
+        }
 
         $upcomingByCode = $channels
             ->where('is_upcoming_product', true)

@@ -107,14 +107,14 @@
                 </div>
 
                 <div v-if="layer.channels.length" class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  <div v-for="ch in layer.channels" :key="ch.code || 'off-' + ch.citybox_product_id"
+                  <div v-for="ch in layer.channels" :key="ch.label || ch.code || 'off-' + ch.citybox_product_id"
                     class="relative rounded-lg border-2 p-2 flex flex-col min-w-0"
                     :class="[
                       disabled(ch) ? 'bg-gray-50 border-gray-200 border-dashed' :
                         (ch.qty === 0 ? 'bg-white border-red-400' : (ch.qty <= 2 ? 'bg-white border-amber-300' : 'bg-white border-gray-200')),
                     ]"
-                    :title="ch.off_plan ? `CityBox SKU ${ch.citybox_product_id} — on this shelf, not in CityBox's restock config` : (disabled(ch) ? `Channel ${ch.code} — disabled in CityBox` : `Channel ${ch.code}`)">
-                    <span class="absolute top-1 left-1 rounded bg-gray-800/80 text-white text-[10px] font-semibold px-1 leading-4">{{ ch.off_plan ? '#—' : '#' + ch.code }}</span>
+                    :title="ch.off_plan ? `CityBox SKU ${ch.citybox_product_id} — on this shelf, not in CityBox's restock config` : (disabled(ch) ? `Channel ${ch.label || ch.code} — disabled in CityBox` : `Channel ${ch.label || ch.code}`)">
+                    <span class="absolute top-1 left-1 rounded bg-gray-800/80 text-white text-[10px] font-semibold px-1 leading-4">{{ ch.off_plan ? '#—' : '#' + (ch.label || ch.code) }}</span>
                     <span v-if="disabled(ch)" class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">OFF</span>
                     <span v-else-if="ch.qty === 0" class="absolute top-1 right-1 rounded bg-red-600 text-white text-[10px] font-bold px-1 leading-4">OUT</span>
                     <span v-else-if="ch.qty <= 2" class="absolute top-1 right-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1 leading-4">LOW</span>

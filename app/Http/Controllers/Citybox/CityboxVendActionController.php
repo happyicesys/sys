@@ -73,7 +73,7 @@ class CityboxVendActionController extends Controller
         $status = $vend->citybox_status_json ?? [];
 
         // Channel rows are the truth for qty/capacity/amount/product; layer = hundreds digit of the code (101…699).
-        $channels = $vend->vendChannels()->where('is_active', true)->with('product:id,code,name,is_active')->orderBy('code')->get();
+        $channels = $vend->vendChannels()->where('is_active', true)->with('product:id,code,name,is_active')->orderBy('code')->orderBy('suffix')->get();
         // CityBox name/thumbnail per channel: match by product via the catalog, else by the snapshot's layer/order.
         $catalog = \App\Models\CityboxProduct::whereIn('product_id', $channels->pluck('product_id')->filter())->get()->keyBy('product_id');
 
@@ -89,6 +89,8 @@ class CityboxVendActionController extends Controller
             $cb = $ch->product_id ? $catalog->get($ch->product_id) : null;
             $layers[$layer]['channels'][] = [
                 'code' => (int) $ch->code,
+                'suffix' => $ch->suffix,
+                'label' => $ch->label,
                 'qty' => (int) $ch->qty,
                 'capacity' => (int) $ch->capacity,
                 'amount_cents' => (int) $ch->amount,

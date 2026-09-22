@@ -8,7 +8,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Merges duplicate vend_channels rows — rows sharing one (vend_id, code) pair.
+ * Merges duplicate vend_channels rows — rows sharing one (vend_id, code, suffix)
+ * position (suffix_key is the generated NOT NULL form of the one-letter suffix
+ * SKU-stocked machines use; '' for every vending row).
  *
  * Duplicates were born from races and malformed channel codes in the channel
  * report path before the unique (vend_id, code) index existed (worked example:
@@ -40,6 +42,7 @@ class VendChannelDuplicateResolver
         'amount2',
         'is_active',
         'product_id',
+        'suffix',
         'sku_code',
         'discount_group',
         'error_rate_json',
@@ -53,15 +56,32 @@ class VendChannelDuplicateResolver
     private ?array $referencingTables = null;
 
     /**
+     * The position columns a duplicate is judged on. `suffix_key` arrived on
+     * 2026-09-22; the 2026-08-26 unique-index migration runs this resolver
+     * BEFORE that, so on the older schema a position is (vend_id, code) alone.
+     *
+     * @return list<string>
+     */
+    private function positionColumns(): array
+    {
+        static $columns = null;
+
+        return $columns ??= \Illuminate\Support\Facades\Schema::hasColumn('vend_channels', 'suffix_key')
+            ? ['vend_id', 'code', 'suffix_key']
+            : ['vend_id', 'code'];
+    }
+
+    /**
      * Every duplicate group, as raw rows grouped by "vend_id:code".
      *
      * @return Collection<string, Collection<int, object>>
      */
     public function duplicateGroups(): Collection
     {
+        $position = $this->positionColumns();
         $pairs = DB::table('vend_channels')
-            ->select('vend_id', 'code')
-            ->groupBy('vend_id', 'code')
+            ->select($position)
+            ->groupBy($position)
             ->havingRaw('COUNT(*) > 1')
             ->get();
 
@@ -70,16 +90,18 @@ class VendChannelDuplicateResolver
         }
 
         return DB::table('vend_channels')
-            ->where(function ($query) use ($pairs) {
+            ->where(function ($query) use ($pairs, $position) {
                 foreach ($pairs as $pair) {
-                    $query->orWhere(function ($q) use ($pair) {
-                        $q->where('vend_id', $pair->vend_id)->where('code', $pair->code);
+                    $query->orWhere(function ($q) use ($pair, $position) {
+                        foreach ($position as $column) {
+                            $q->where($column, $pair->{$column});
+                        }
                     });
                 }
             })
             ->orderBy('id')
             ->get()
-            ->groupBy(fn ($row) => $row->vend_id.':'.$row->code);
+            ->groupBy(fn ($row) => implode(':', array_map(fn ($c) => $row->{$c}, $position)));
     }
 
     /**
@@ -141,7 +163,7 @@ class VendChannelDuplicateResolver
                     ->where('id', $survivor->id)
                     ->update(Arr::only((array) $donor, self::STATE_COLUMNS) + [
                         'updated_at' => Carbon::now(),
-                    ]);
+                    ]); // Arr::only skips `suffix` on a schema that has no such column
 
                 DB::table('vend_channels')->whereIn('id', $loserIds)->delete();
             });
