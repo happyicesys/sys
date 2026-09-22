@@ -19,7 +19,13 @@
         <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-tooltip="'Open this machine\'s settings'">{{ vendCodeLabel(vend) }}</Link>
         <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">Smart Chiller · CityBox</span>
         <span class="text-[10px] text-gray-500 font-mono leading-none">{{ vend.citybox_equipment_id }}</span>
-        <span v-if="status.name" class="text-xs text-gray-800">{{ status.name }}</span>
+        <!-- Their OPS Pro name is meant to BE our machine ID (vends.code_prefix +
+             code), so showing it every row just reads as the ID twice. Render it
+             ONLY when it disagrees with ours — that mismatch is a real defect
+             (a chiller ops call it C6002 while mark1 calls it 10004) and this is
+             the only screen it surfaces on. -->
+        <span v-if="nameMismatch" class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-amber-100 text-amber-800 border-amber-300 leading-none"
+          v-tooltip="'CityBox OPS Pro calls this machine ' + status.name + ' — it should match mark1\'s machine ID. Rename it in OPS Pro, or fix the prefix/code in this machine\'s settings.'">OPS Pro: {{ status.name }}</span>
         <span class="flex flex-col space-y-0.5" v-if="mappingName">
           <a v-if="mappingId" :href="'/product-mappings/' + mappingId + '/edit'" target="_blank" :title="mappingName" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2 min-w-0 break-all">{{ mappingName }}</a>
           <span v-else :title="mappingName" class="text-xs text-gray-800 min-w-0 break-all">{{ mappingName }}</span>
@@ -173,7 +179,8 @@
         <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">{{ vendCodeLabel(vend) }}</Link>
         <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">Smart Chiller · CityBox</span>
         <span class="text-[10px] text-gray-500 font-mono leading-none">{{ vend.citybox_equipment_id }}</span>
-        <span v-if="status.name" class="text-xs text-gray-800">{{ status.name }}</span>
+        <span v-if="nameMismatch" class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-amber-100 text-amber-800 border-amber-300 leading-none"
+          :title="'CityBox OPS Pro calls this machine ' + status.name + ' — it should match mark1\'s machine ID.'">OPS Pro: {{ status.name }}</span>
         <span class="flex flex-col space-y-0.5" v-if="mappingName">
           <a v-if="mappingId" :href="'/product-mappings/' + mappingId + '/edit'" target="_blank" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2">{{ mappingName }}</a>
           <span v-else class="text-xs text-gray-800">{{ mappingName }}</span>
@@ -352,6 +359,15 @@ const status = computed(() => {
     syncedAt,
     isStale: age === null || age > STALE_AFTER_MS,
   }
+})
+
+// Their name vs ours, compared loosely: case and non-alphanumerics do not make a
+// mismatch worth flagging ("SGC5001" == "sgc-5001"), a different identifier does.
+const nameMismatch = computed(() => {
+  const theirs = status.value.name
+  if (!theirs) return false
+  const norm = (v) => String(v).replace(/[^a-z0-9]/gi, '').toUpperCase()
+  return norm(theirs) !== norm(vendCodeLabel(props.vend))
 })
 
 const machine = computed(() => {
