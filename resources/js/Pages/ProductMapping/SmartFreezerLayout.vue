@@ -173,6 +173,27 @@
                 <span class="text-sm text-gray-900 truncate" :title="cell.item.product && cell.item.product.name">
                   {{ cell.item.product && cell.item.product.name }}
                 </span>
+                <!-- Capacity per SKU (Brian, 2026-09-23): Default = the product's
+                     freezer_slot_qty (Product → Edit → Smart Freezer); Reality = this
+                     mapping's override, saved on its own as soon as it is typed. -->
+                <div class="mt-1 flex items-center gap-2 text-[11px] text-gray-600">
+                  <span :title="'Default from Product → Edit → Smart Freezer'">
+                    Cap. {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '-' }}
+                  </span>
+                  <label class="flex items-center gap-1" title="Reality: override for this mapping only; blank uses the default">
+                    Reality
+                    <input
+                      type="number" min="0" max="999" step="1"
+                      :value="cell.item.capacity_override ?? ''"
+                      @input="onCapacityInput(cell.item, $event.target.value)"
+                      @mousedown.stop
+                      @dragstart.stop.prevent
+                      draggable="false"
+                      class="w-14 rounded border-gray-300 text-center text-[11px] py-0.5"
+                      :class="cell.item.capacity_override !== null && cell.item.capacity_override !== undefined && cell.item.capacity_override !== '' ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -521,6 +542,31 @@ function onBind(cell) {
 function onUnbind(cell) {
   if (!cell.item) return
   deleteItem(cell.item)
+}
+
+// Reality capacity: one item update per cell, debounced so typing "24" is one
+// request, not two. The server re-syncs the bound freezers' rows on its own.
+const capacityTimers = {}
+function onCapacityInput(item, value) {
+  const raw = String(value ?? '').trim()
+  const v = raw === '' ? null : Math.max(0, Math.min(999, parseInt(raw, 10) || 0))
+  item.capacity_override = v
+  if (capacityTimers[item.id]) clearTimeout(capacityTimers[item.id])
+  capacityTimers[item.id] = setTimeout(() => {
+    delete capacityTimers[item.id]
+    router.post(`/product-mappings/items/${item.id}/update`, { capacity_override: v }, {
+      preserveScroll: true,
+      preserveState: true,
+      replace: true,
+      onSuccess: () => {
+        toast.success(`Capacity for ${item.channel_code} saved`, { timeout: 2000 })
+        emit('items-changed')
+      },
+      onError: (errors) => {
+        toast.error((errors && errors.capacity_override) || `Failed to save capacity for ${item.channel_code}`, { timeout: 3500 })
+      },
+    })
+  }, 800)
 }
 
 function deleteItem(item) {

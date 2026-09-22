@@ -62,6 +62,20 @@ class ProductMappingController extends Controller
      * is redis, so a worker can publish before an open transaction commits and the
      * device would re-pull the OLD menu.
      */
+    /**
+     * A freezer's vend_channels rows are written from its planogram
+     * (FreezerChannelSync), so an item edited in the basket grid — a Reality
+     * capacity typed on a cell — reaches the rows now, not at the next page
+     * Save. Freezer mappings only: a chiller's rows come from its minute poll.
+     */
+    private function resyncFreezerChannels($productMappingId): void
+    {
+        $mapping = ProductMapping::find($productMappingId);
+        if ($mapping && $mapping->is_smart && ! $mapping->isSmartChiller()) {
+            $this->productMappingService->syncChannels($mapping->id);
+        }
+    }
+
     private function nudgeSmartFreezers($productMappingId): void
     {
         $mapping = ProductMapping::find($productMappingId);
@@ -1238,6 +1252,7 @@ class ProductMappingController extends Controller
         $productMappingItem->fill($request->all());
         $productMappingItem->save();
 
+        $this->resyncFreezerChannels($productMappingItem->product_mapping_id);
         $this->nudgeSmartFreezers($productMappingItem->product_mapping_id);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);

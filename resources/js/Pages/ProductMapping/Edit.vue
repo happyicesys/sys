@@ -191,7 +191,7 @@
                   />
                 </div>
 
-                <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
+                <div class="sm:col-span-1" v-if="form.id && !form.is_smart && !isSmartChiller">
                   <label class="flex justify-start text-sm font-medium text-gray-700">Display Sequence</label>
                   <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
                     <option v-for="n in productMappingItems.length + 1" :key="n" :value="n">{{ n }}</option>
@@ -247,7 +247,9 @@
                               <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 #
                               </th> -->
+                              <!-- A chiller has no APK menu, so a display sequence means nothing there (Brian, 2026-09-23). -->
                               <TableHeadSort
+                                v-if="!isSmartChiller"
                                 modelName="sequence"
                                 :sortKey="form.sortKey"
                                 :sortBy="form.sortBy"
@@ -313,14 +315,31 @@
                             <tr
                                 :class="(productMappingItem.product && productMappingItem.product.is_parent_sku) ? '!bg-indigo-50 border-t-2 border-indigo-200' : (idx % 2 === 0 ? undefined : 'bg-gray-50')"
                               >
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center" :class="[(productMappingItem.product && productMappingItem.product.is_parent_sku) ? 'border-l-4 border-indigo-400' : '']">
+                              <td v-if="!isSmartChiller" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center" :class="[(productMappingItem.product && productMappingItem.product.is_parent_sku) ? 'border-l-4 border-indigo-400' : '']">
                                 <select v-model="productMappingItem.sequence" @change="onSequenceChanged(productMappingItem)">
                                   <option :value="null"></option>
                                   <option v-for="n in productMappingItems.length" :key="n" :value="n">{{ n }}</option>
                                 </select>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                                {{ productMappingItem.channel_code }}
+                                <!-- Chiller: the code is typed in place ("101a" reads as 101A), the table
+                                     re-sorts 5 s after the last keystroke, and a duplicate or a whole/split
+                                     clash (101 with 101A) is flagged here and blocks Save. Applied on Save. -->
+                                <template v-if="isSmartChiller">
+                                  <input
+                                    type="text" maxlength="4"
+                                    :value="productMappingItem.channel_code"
+                                    @input="onChannelCodeInput(productMappingItem, $event.target.value)"
+                                    @blur="onChannelCodeBlur(productMappingItem)"
+                                    class="w-20 rounded-md text-center text-sm font-semibold focus:ring-indigo-500"
+                                    :class="channelCodeProblems[productMappingItem.channel_code] ? 'border-red-500 bg-red-50 text-red-700 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'"
+                                    title="Save the page to apply"
+                                  />
+                                  <div v-if="channelCodeProblems[productMappingItem.channel_code]" class="mt-1 text-xs text-red-600 whitespace-normal max-w-[9rem] mx-auto">
+                                    {{ channelCodeProblems[productMappingItem.channel_code] }}
+                                  </div>
+                                </template>
+                                <template v-else>{{ productMappingItem.channel_code }}</template>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 <div class="flex justify-center">
@@ -556,6 +575,65 @@ function openImagePreview(child) {
 }
 const toast = useToast()
 
+// ── Chiller channel codes: inline edit, natural order, duplicate guard ──────
+// Mirrors App\Support\ChannelCode: <number><one optional letter>, ordered number
+// then letter (101 < 101A < 101B < 102). Only the chiller table uses these.
+function parseChannelCode(raw) {
+  const m = /^\s*(\d+)\s*([A-Za-z])?\s*$/.exec(String(raw ?? ''))
+  return m ? { code: Number(m[1]), suffix: m[2] ? m[2].toUpperCase() : '' } : null
+}
+function normalizeChannelCode(raw) {
+  const p = parseChannelCode(raw)
+  return p ? `${p.code}${p.suffix}` : String(raw ?? '').trim().toUpperCase()
+}
+function compareChannelCode(a, b) {
+  const pa = parseChannelCode(a), pb = parseChannelCode(b)
+  if (pa && pb) return pa.code - pb.code || pa.suffix.localeCompare(pb.suffix)
+  if (pa || pb) return pa ? -1 : 1
+  return String(a).localeCompare(String(b))
+}
+let resortTimer = null
+function onChannelCodeInput(item, value) {
+  // Uppercase as they type so "101a" is 101A everywhere at once; keep the raw
+  // text otherwise so a half-typed code is not mangled under the cursor.
+  item.channel_code = String(value ?? '').toUpperCase()
+  if (resortTimer) clearTimeout(resortTimer)
+  resortTimer = setTimeout(resortChannelCodes, 5000)
+}
+function onChannelCodeBlur(item) {
+  item.channel_code = normalizeChannelCode(item.channel_code)
+}
+function resortChannelCodes() {
+  resortTimer = null
+  productMappingItems.value = [...productMappingItems.value].sort((a, b) => compareChannelCode(a.channel_code, b.channel_code))
+}
+// code → message, for every code that is a duplicate or clashes whole/split ("101" with "101A").
+const channelCodeProblems = computed(() => {
+  if (!isSmartChiller.value) return {}
+  const byCode = {}
+  const plain = {}, split = {}
+  for (const item of productMappingItems.value) {
+    const code = normalizeChannelCode(item.channel_code)
+    byCode[code] = (byCode[code] || 0) + 1
+    const p = parseChannelCode(code)
+    if (!p) continue
+    ;(p.suffix ? split : plain)[p.code] = (p.suffix ? split : plain)[p.code] || []
+    ;(p.suffix ? split : plain)[p.code].push(code)
+  }
+  const problems = {}
+  for (const [code, n] of Object.entries(byCode)) {
+    if (n > 1) problems[code] = `Duplicate: ${code} is used ${n} times`
+  }
+  for (const num of Object.keys(plain)) {
+    if (split[num]) {
+      for (const code of [...plain[num], ...split[num]]) {
+        problems[code] = problems[code] || `${plain[num][0]} and ${split[num].join(', ')} name the same position`
+      }
+    }
+  }
+  return problems
+})
+
 onMounted(() => {
 
   priceTypeOptions.value = [
@@ -703,6 +781,16 @@ function convertMappingType() {
 
 function submit() {
   form.value.clearErrors()
+  // Chiller: refuse the save client-side on a duplicate or whole/split clash — the
+  // server refuses too, but the row-level flags are what tell the operator which one.
+  const problems = Object.values(channelCodeProblems.value)
+  if (problems.length) {
+    toast.error(problems[0] + '. Fix the highlighted channel code(s) before saving.', { timeout: 8000 })
+    return
+  }
+  if (isSmartChiller.value) {
+    for (const item of productMappingItems.value) item.channel_code = normalizeChannelCode(item.channel_code)
+  }
   form.value
     .transform((data) => ({
       ...data,
@@ -735,6 +823,10 @@ function submit() {
           ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
           : []
         emit('modalClose')
+      },
+      onError: (errors) => {
+        const first = errors.productMappingItems || errors.channel_code || Object.values(errors)[0]
+        if (first) toast.error(String(first), { timeout: 8000 })
       },
       preserveState: true,
       replace: true,
