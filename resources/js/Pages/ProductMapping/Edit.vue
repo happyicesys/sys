@@ -873,6 +873,9 @@ function submit() {
         if (first) toast.error(String(first), { timeout: 8000 })
       },
       preserveState: true,
+      // Keep the operator where they were: the redirect-back re-renders the same
+      // page, and without this the long channel table jumped back to the top.
+      preserveScroll: true,
       replace: true,
     })
 }

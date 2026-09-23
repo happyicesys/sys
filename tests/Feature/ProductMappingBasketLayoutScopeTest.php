@@ -68,7 +68,9 @@ class ProductMappingBasketLayoutScopeTest extends TestCase
                 'basket_layout_json' => self::MIRROR_LAYOUT,
             ])
             ->assertSessionHasNoErrors()
-            ->assertRedirect('/product-mappings/'.$mapping->id.'/edit');
+            ->assertRedirect('/product-mappings/'.$mapping->id.'/edit')
+            // Every save confirms itself; a silent redirect-back read as "nothing happened".
+            ->assertSessionHas('success', 'Product mapping saved.');
 
         $mapping->refresh();
         $this->assertSame('C6002 planogram', $mapping->name);

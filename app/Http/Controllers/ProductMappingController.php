@@ -1257,9 +1257,10 @@ class ProductMappingController extends Controller
 
         $redirect = redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
 
-        // No bound smart freezers (the vending case) => stay silent, exactly as before.
+        // No bound smart freezers (vending, chiller): plain confirmation. A silent
+        // redirect-back looked like nothing happened (Brian, 2026-09-23).
         if ($targets === 0) {
-            return $redirect;
+            return $redirect->with('success', 'Product mapping saved.');
         }
 
         // Some or all nudges could not even be queued: say so, and name the fallback.
