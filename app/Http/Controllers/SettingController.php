@@ -421,11 +421,8 @@ class SettingController extends Controller
         $upcomingProductMappingOptions = ProductMapping::withoutGlobalScopes()
             ->with(['upcomingProductMapping'])
             ->where(function ($query) use ($vend) {
-                $query->where(function ($normalQ) {
-                    $normalQ->where(function ($opQ) {
-                        $opQ->where('operator_id', auth()->user()->operator_id)
-                            ->orWhereNull('operator_id');
-                    });
+                $query->where(function ($normalQ) use ($vend) {
+                    $this->mappingVisibleToViewer($normalQ, $vend);
                     $normalQ->where('is_active', 1);
                 });
                 if ($vend && $vend->product_mapping_id) {
@@ -585,11 +582,8 @@ class SettingController extends Controller
                         // DEPRECATED (2026-07): the prefix→mapping gate was removed —
                         // ALL active mappings (own operator + global) are selectable,
                         // ordered by name; the vend prefix no longer restricts this list.
-                        $query->where(function ($normalQ) {
-                            $normalQ->where(function ($opQ) {
-                                $opQ->where('operator_id', auth()->user()->operator_id)
-                                    ->orWhereNull('operator_id');
-                            });
+                        $query->where(function ($normalQ) use ($vend) {
+                            $this->mappingVisibleToViewer($normalQ, $vend);
                             $normalQ->where('is_active', 1);
                         });
                         // Always include the vend's currently assigned mappings regardless of
@@ -813,6 +807,41 @@ class SettingController extends Controller
      * @param  \Illuminate\Support\Collection<int, ProductMapping>  $options
      * @return array{active_channels: int, covered: array<int, int>}
      */
+    /**
+     * Which mappings a viewer may PICK for this machine — the operator half of
+     * both Setting/Edit dropdowns.
+     *
+     * Both builders call withoutGlobalScopes(), and must: the vend's own
+     * assigned mapping has to survive whatever its operator or active flag is.
+     * But they then hand-rolled "own operator or global", which is STRICTER
+     * than OperatorProductMappingScope — that scope drops the operator filter
+     * entirely for HIPL (operator 1). So an HIPL user editing a CityBox chiller
+     * saw only the machine's own mapping plus "citybox-sample", while the
+     * Product Mapping index listed every chiller planogram (Brian, 2026-09-23:
+     * C6001/C6002 planograms belong to operator 47 "CB", the machines' own
+     * operator, not to the person looking at them).
+     *
+     * The MACHINE's operator is included too. You are editing that machine, so
+     * its operator's mappings apply to it — and a viewer who could not see the
+     * machine would not have reached this page.
+     */
+    private function mappingVisibleToViewer($query, ?Vend $vend): void
+    {
+        $viewerOperatorId = auth()->user()->operator_id;
+
+        // HIPL sees every operator's mappings, exactly as the global scope allows.
+        if ((int) $viewerOperatorId === 1) {
+            return;
+        }
+
+        $query->where(function ($opQ) use ($viewerOperatorId, $vend) {
+            $opQ->where('operator_id', $viewerOperatorId)->orWhereNull('operator_id');
+            if ($vend && $vend->operator_id) {
+                $opQ->orWhere('operator_id', $vend->operator_id);
+            }
+        });
+    }
+
     private function mappingChannelCoverage($vend, $options): array
     {
         $empty = ['active_channels' => 0, 'covered' => []];
