@@ -269,6 +269,16 @@ class RestockVisitService
         $this->captureAfter($item, $vend, $slots);
         Log::info('Citybox stock submitted', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts), 'withheld_codes' => array_column($withheld, 'label')]);
 
+        // Catch-up: a mapping switched from the back office may have left SKUs whose
+        // zero CityBox refused at the time (stale session, API blip). This visit has a
+        // live session, so settle them now. Forced past the submit-pending guard —
+        // this IS that submit, and it has just succeeded.
+        try {
+            app(DepartedSkuSync::class)->sync($vend, force: true);
+        } catch (\Throwable $e) {
+            Log::warning('Citybox departed-SKU catch-up failed after a stock submit', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
+        }
+
         return $withheldMessage === null;
     }
 

@@ -124,6 +124,9 @@ class FakeChillerGateway implements ChillerGateway
     /** Simulate an API blip on shipping_product. */
     public bool $failRestockConfig = false;
 
+    /** Set to a message to make submitCount throw, as CityBox does on a stale session. */
+    public ?string $failSubmit = null;
+
     public function restockConfig(string $deviceId): Collection
     {
         if ($this->failRestockConfig) {
@@ -158,6 +161,11 @@ class FakeChillerGateway implements ChillerGateway
     public function submitCount(RestockSession $session, StockCount $count): void
     {
         $this->submits[] = ['device' => $session->deviceId, 'msgId' => $session->msgId, 'rows' => $count->toApiRows()];
+        // Their side refuses some writes (a stale msg_id, an API blip). Tests that
+        // exercise the deferral path set this.
+        if ($this->failSubmit !== null) {
+            throw new CityboxApiException($this->failSubmit);
+        }
         // Mirror their behaviour: the submitted numbers become the live stock.
         foreach ($count->realityStockByProductId as $pid => $qty) {
             foreach ($this->stock[$session->deviceId] ?? [] as $i => $row) {

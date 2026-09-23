@@ -31,6 +31,12 @@ class ProductMappingService
                 // from a fresh pull instead (best-effort, logged; the 3-min poll does the same).
                 if ($vend->isSmartChiller()) {
                     app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend);
+                    // The rebuild retires the SKUs this mapping dropped, keeping their qty.
+                    // Tell CityBox they are gone now, reusing the machine's last door-open
+                    // session — otherwise their count stays wrong until a driver visits
+                    // (Brian, 2026-09-23). Never fatal: a refusal leaves the retired rows
+                    // untouched and the next Stock In carries them.
+                    app(\App\Services\Citybox\DepartedSkuSync::class)->sync($vend);
 
                     continue;
                 }

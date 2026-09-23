@@ -326,7 +326,7 @@ class StockPollService
      * write a false low stock + a spurious movement. Bounded to 2 h so a
      * permanently failed submit can't freeze channels forever.
      */
-    protected function submitPendingFor(Vend $vend): bool
+    public function submitPendingFor(Vend $vend): bool
     {
         return \App\Models\OpsJobItem::where('vend_id', $vend->id)
             ->whereIn('citybox_submit_status', ['pending', 'failed', 'reverting'])
