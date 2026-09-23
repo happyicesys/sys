@@ -359,13 +359,20 @@ class SyncVendChannels implements ShouldQueue
 
     /**
      * Which frame entry describes an ops-job channel row: by product on a
-     * SKU-stocked machine (the frame carries product_id and two SKUs may share
-     * one code), by slot code on a vending machine.
+     * SKU-stocked machine (the frame carries OUR product_id and two SKUs may
+     * share one code), by slot code on a vending machine.
+     *
+     * Gate on Vend::isSkuStocked, never on "the frame has a product_id" — a
+     * vending board's B/A frame also carries product_id, but it is the VMC's own
+     * slot index (1, 2, 21 …), not a products.id. Keying on it silently matched
+     * nothing and left After Refill blank for every item completed before its A
+     * frame landed (prod, 2026-09-23).
      */
     private function frameEntryMatchesOpsRow(array $channel, $opsJobItemChannel): bool
     {
-        if (! empty($channel['product_id'])) {
-            return (int) $channel['product_id'] === (int) $opsJobItemChannel->product_id;
+        if ($this->vend->isSkuStocked()) {
+            return ! empty($channel['product_id'])
+                && (int) $channel['product_id'] === (int) $opsJobItemChannel->product_id;
         }
 
         return isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code;
