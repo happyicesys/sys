@@ -589,7 +589,7 @@
                             {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingVend.vend.code }} <br>
+                            {{ vendCodeLabel(deliveryProductMappingVend.vend) }} <br>
                             ({{ deliveryProductMappingVend.platform_ref_id }})
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
@@ -740,6 +740,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon,
 import { ref, onMounted, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     bundleSalesOptions: [Array, Object],

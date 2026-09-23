@@ -7,7 +7,7 @@
             Delivery Product Mapping Vend
           </span>
           <span v-if="deliveryProductMappingVend.vend.code">
-            ID# {{ deliveryProductMappingVend.vend.code }}
+            ID# {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
           </span>
           <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer_code">
             ({{ deliveryProductMappingVend.vend.customer_code ? deliveryProductMappingVend.vend.customer_code : null }})
@@ -176,6 +176,7 @@ import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   deliveryProductMappingVendModel: Object,

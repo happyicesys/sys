@@ -318,7 +318,7 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       <span class="flex flex-col">
                         <span class="text-gray-700 text-md pr-2" v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend">
-                          {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.code }}
+                          {{ deliveryPlatformOrder.deliveryProductMappingVend ? vendCodeLabel(deliveryPlatformOrder.deliveryProductMappingVend.vend) : '' }}
                         </span>
                         <span v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id">
                             <span v-if="permissions.includes('admin-access vends')">
@@ -482,6 +482,7 @@ import SingleSortItem from '@/Components/SingleSortItem.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   cmsEndpoint: String,

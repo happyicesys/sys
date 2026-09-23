@@ -159,16 +159,16 @@
                               {{ deliveryProductMappingVendIndex + 1 }}.
                             </span>
                             <span v-if="deliveryProductMappingVend.vend.customer && deliveryProductMappingVend.vend.customer.person_id">
-                              {{ deliveryProductMappingVend.vend.code }} <br>
+                              {{ vendCodeLabel(deliveryProductMappingVend.vend) }} <br>
                               ({{ deliveryProductMappingVend.vend.customer.id + 20000 }})
                               <!-- ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -  -->
                               {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>
                             <span v-else-if="deliveryProductMappingVend.vend.customer && !deliveryProductMappingVend.vend.customer.person_id">
-                              {{ deliveryProductMappingVend.vend.code }} - {{ deliveryProductMappingVend.vend.customer.name }}
+                              {{ vendCodeLabel(deliveryProductMappingVend.vend) }} - {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>
                             <span v-else>
-                              {{ deliveryProductMappingVend.vend.code }}
+                              {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
                             </span>
                           </li>
                         </ul>
@@ -234,6 +234,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   deliveryProductMappings: Object,

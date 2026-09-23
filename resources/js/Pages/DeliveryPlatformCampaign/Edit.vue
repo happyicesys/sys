@@ -484,7 +484,7 @@
                                   {{ deliveryProductMappingVendIndex + 1 }}
                                 </TableData>
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-left">
-                                  {{ deliveryProductMappingVend.vend.code }}
+                                  {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
                                   <br>
                                   <span v-if="deliveryProductMappingVend.vend.vendPrefix">
                                     {{ deliveryProductMappingVend.vend.vendPrefix.name }}
@@ -567,6 +567,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon,
 import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     deliveryPlatformCampaign: Object,
