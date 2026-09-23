@@ -765,8 +765,10 @@ never on "not a vending machine" at the call site.
   issue QRs with no slot; `assertValidChannelCode` refuses it until a freezer
   APK carries the product id there. Sales still resolve the channel from the
   frame's `SId` (Phase 3 of the plan resolves SKU-stocked sales by `goods_id`).
-- A position is either whole ("101") or split ("101A", "101B"), never both in
-  one mapping (`assertUniqueChannelCode`, `assertNoSplitPositionClash`).
+- Only an EXACT repeat of a code is refused (`assertUniqueChannelCode`, and the
+  red cell + blocked Save in the editor). "102" and "102A" may coexist (Brian,
+  2026-09-23): they are distinct rows under the unique index, distinct labels
+  everywhere, and they sort 102 before 102A.
 
 Regression coverage: `tests/Feature/SkuStockIdentityTest.php`,
 `tests/Unit/ChannelCodeTest.php`, `tests/Feature/FreezerChannelSyncTest.php`.

@@ -267,9 +267,10 @@ letter postfix; the mapping editor orders them number → suffix.
 
 Format: `^(\d+)([A-Z])?$`; chiller number 101–599, freezer number 11–69 (the
 basket/division pair). Plain `101` and `101A` on the same number in one
-mapping: **disallow** (validation), so a number is either whole or split.
-Existing data is all-numeric (0 non-numeric codes in `product_mapping_items`
-today), so nothing to backfill.
+mapping: **allowed** (Brian, 2026-09-23, overruling the disallow I proposed
+here — they are distinct rows, distinct labels, and sort predictably). Only an
+exact repeat is refused. Existing data is all-numeric (0 non-numeric codes in
+`product_mapping_items` today), so nothing to backfill.
 
 Storage — `product_mapping_items.channel_code` is already `varchar(255)`,
 nothing to change. `vend_channels.code` is `int NOT NULL` under the unique

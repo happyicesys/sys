@@ -607,29 +607,19 @@ function resortChannelCodes() {
   resortTimer = null
   productMappingItems.value = [...productMappingItems.value].sort((a, b) => compareChannelCode(a.channel_code, b.channel_code))
 }
-// code → message, for every code that is a duplicate or clashes whole/split ("101" with "101A").
+// code → message, for every code used more than once. "102" and "102A" are
+// different positions and may coexist (Brian, 2026-09-23); only an exact repeat
+// is a problem, because two SKUs would then share one label.
 const channelCodeProblems = computed(() => {
   if (!isSmartChiller.value) return {}
   const byCode = {}
-  const plain = {}, split = {}
   for (const item of productMappingItems.value) {
     const code = normalizeChannelCode(item.channel_code)
     byCode[code] = (byCode[code] || 0) + 1
-    const p = parseChannelCode(code)
-    if (!p) continue
-    ;(p.suffix ? split : plain)[p.code] = (p.suffix ? split : plain)[p.code] || []
-    ;(p.suffix ? split : plain)[p.code].push(code)
   }
   const problems = {}
   for (const [code, n] of Object.entries(byCode)) {
     if (n > 1) problems[code] = `Duplicate: ${code} is used ${n} times`
-  }
-  for (const num of Object.keys(plain)) {
-    if (split[num]) {
-      for (const code of [...plain[num], ...split[num]]) {
-        problems[code] = problems[code] || `${plain[num][0]} and ${split[num].join(', ')} name the same position`
-      }
-    }
   }
   return problems
 })

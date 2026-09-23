@@ -194,10 +194,18 @@ class SkuStockIdentityTest extends TestCase
         $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => ' 102a', 'product_id' => $lemon->id])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('product_mapping_items', ['product_mapping_id' => $mapping->id, 'channel_code' => '102A']);
 
-        $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => '102', 'product_id' => $lemon->id])
-            ->assertSessionHasErrors('channel_code'); // 102 vs 102A: whole or split, not both
-        $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => '101B', 'product_id' => $lemon->id])
-            ->assertSessionHasErrors('channel_code'); // 101 is a whole position already
+        // 102 and 102A are DIFFERENT positions and may coexist (Brian, 2026-09-23).
+        $peach = ChillerMapping::product(90340, 4);
+        $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => '102', 'product_id' => $peach->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(
+            ['101', '102', '102A'],
+            ProductMappingItem::where('product_mapping_id', $mapping->id)->pluck('channel_code')->sort()->values()->all()
+        );
+
+        // An EXACT repeat still is refused: two SKUs cannot share one label.
+        $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => '102a', 'product_id' => $peach->id])
+            ->assertSessionHasErrors('channel_code');
         $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => '601', 'product_id' => $lemon->id])
             ->assertSessionHasErrors('channel_code'); // out of range
 

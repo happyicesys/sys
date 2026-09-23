@@ -908,47 +908,12 @@ class ProductMappingController extends Controller
             ]);
         }
 
-        // A position is either whole ("101") or split into letters ("101A", "101B"),
-        // never both: the plain code and the lettered ones would name the same shelf.
-        $parsed = ChannelCode::parse($channelCode);
-        if ($parsed) {
-            $clash = $parsed['suffix'] === null
-                ? (clone $others)->where('channel_code', 'REGEXP', '^'.$parsed['code'].'[A-Za-z]$')->value('channel_code')
-                : (clone $others)->where('channel_code', (string) $parsed['code'])->value('channel_code');
-            if ($clash !== null) {
-                throw ValidationException::withMessages([
-                    'channel_code' => "Channel {$channelCode} clashes with {$clash}: a position is either one whole slot or split into lettered slots, not both.",
-                ]);
-            }
-        }
-    }
-
-    /**
-     * Bulk-save form of the whole-or-split rule in assertUniqueChannelCode: "101"
-     * and "101A" cannot both be in one planogram.
-     *
-     * @throws ValidationException
-     */
-    private function assertNoSplitPositionClash(array $rows): void
-    {
-        $plain = [];
-        $split = [];
-        foreach ($rows as $row) {
-            $parsed = ChannelCode::parse($row['channel_code'] ?? null);
-            if (! $parsed) {
-                continue;
-            }
-            if ($parsed['suffix'] === null) {
-                $plain[$parsed['code']] = ChannelCode::normalize($row['channel_code']);
-            } else {
-                $split[$parsed['code']] = ChannelCode::normalize($row['channel_code']);
-            }
-        }
-        foreach (array_intersect_key($plain, $split) as $code => $label) {
-            throw ValidationException::withMessages([
-                'productMappingItems' => "Channel {$label} clashes with {$split[$code]}: a position is either one whole slot or split into lettered slots, not both.",
-            ]);
-        }
+        // "102" and "102A" ARE allowed to coexist (Brian, 2026-09-23, reversing the
+        // whole-or-split rule I had proposed). They are distinct positions in storage
+        // (vend_channels keys on vend_id + code + suffix_key), distinct labels on
+        // every screen, and they sort predictably (102 before 102A). Only an EXACT
+        // repeat is refused above — that one would put two SKUs on one label and
+        // collide on the unique index.
     }
 
     /**
@@ -1178,7 +1143,6 @@ class ProductMappingController extends Controller
                     $this->assertValidChannelCode($productMapping, (string) $row['channel_code'], 'productMappingItems');
                     $this->assertCityboxProduct($productMapping, $row['product']['id'] ?? null, 'productMappingItems');
                 }
-                $this->assertNoSplitPositionClash($request->productMappingItems);
             }
 
             $productMapping->productMappingItems()->delete();
