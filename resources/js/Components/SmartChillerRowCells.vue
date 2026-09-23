@@ -61,7 +61,7 @@
                    with no par to fill against (Brian, 2026-09-12). -->
               <span v-if="ch.off_plan" class="text-gray-400" :title="offTitle(ch)">{{ ch.id }}, —, {{ ch.qty }}/—</span>
               <template v-else>
-                <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }}</span>,
+                <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.label }}</span>,
                 <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
                 <span :class="[active ? (ch.qty <= 2 && ch.qty > 0 ? 'text-blue-700' : (ch.qty == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
               </template>
@@ -216,7 +216,7 @@
               <!-- Off-planogram: same layer as any other SKU, greyed, no par. -->
               <span v-if="ch.off_plan" class="text-gray-400" :title="offTitle(ch)">{{ ch.id }}, —, {{ ch.qty }}/—</span>
               <template v-else>
-                <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.code }},</span>
+                <span :class="[active ? 'text-black' : 'text-gray-600']">#{{ ch.label }},</span>
                 <span :class="[active ? 'text-blue-600' : 'text-gray-500']">{{ ch.capacity - ch.qty }},</span>
                 <span :class="[active ? (ch.qty <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">{{ ch.qty }}/{{ ch.capacity }}</span>
               </template>
@@ -397,8 +397,11 @@ const channels = computed(() => {
   const list = Array.isArray(props.vend.vendChannelsJson) ? props.vend.vendChannelsJson : []
   return list
     .filter(c => c && c.is_active !== 0 && c.is_active !== false)
-    .map(c => ({ code: c.code, qty: Number(c.qty ?? 0), capacity: Number(c.capacity ?? 0), amount: Number(c.amount ?? 0), product: c.product || null }))
-    .sort((a, b) => Number(a.code) - Number(b.code))
+    // label = code + one-letter suffix ("101A"): a SKU-stocked chiller can split
+    // one position between SKUs (Brian, 2026-09-22), so the code alone would
+    // print two rows as the same "#101". Order is number, then letter.
+    .map(c => ({ code: c.code, suffix: c.suffix || '', label: c.label || (String(c.code) + (c.suffix || '')), qty: Number(c.qty ?? 0), capacity: Number(c.capacity ?? 0), amount: Number(c.amount ?? 0), product: c.product || null }))
+    .sort((a, b) => Number(a.code) - Number(b.code) || a.suffix.localeCompare(b.suffix))
 })
 
 /**
@@ -431,13 +434,13 @@ const offPlanogramQty = computed(() => offPlanogram.value.reduce((n, r) => n + r
 // row that happens to be greyed and to have no par — the layer separator treats
 // it like any other (Brian, 2026-09-12).
 const rows = computed(() => [
-  ...channels.value.map(c => ({ ...c, key: 'ch-' + c.code, layer: Number(String(c.code)[0]) })),
+  ...channels.value.map(c => ({ ...c, key: 'ch-' + c.label, layer: Number(String(c.code)[0]) })),
   ...offPlanogram.value.map(r => ({ ...r, key: 'off-' + r.id, off_plan: true })),
   // Channels first inside a layer (by code), then its channel-less stock by SKU
   // id — never compare a code with a missing one, that yields NaN.
 ].sort((a, b) => (a.layer - b.layer)
   || ((a.off_plan ? 1 : 0) - (b.off_plan ? 1 : 0))
-  || (a.off_plan ? a.id - b.id : Number(a.code) - Number(b.code))))
+  || (a.off_plan ? a.id - b.id : (Number(a.code) - Number(b.code) || a.suffix.localeCompare(b.suffix)))))
 
 function offTitle(r) {
   return 'CityBox SKU ' + r.id + (r.name ? ' — ' + r.name : '')

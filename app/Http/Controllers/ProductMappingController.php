@@ -667,6 +667,42 @@ class ProductMappingController extends Controller
      * and getVendMenu branch on; machine_type is the taxonomy (VM / freezer / chiller). Whichever
      * field the caller sent, derive the other so the two can never drift.
      */
+    /**
+     * The basket grid is validated only when the mapping is, or is about to
+     * become, a Smart Freezer. Every other mapping ignores the field: the Edit
+     * form echoes basket_layout_json back whatever the machine type, and ten
+     * chiller mappings still carried the retired CityBox mirror's
+     * [{layer, positions}] shape (2026-09-23), so the freezer rules rejected
+     * every Save on them with "basket_layout_json.0.basket is required".
+     *
+     * @return array<string,array<int,string>>
+     */
+    private function basketLayoutRules(ProductMapping $productMapping, Request $request): array
+    {
+        if (! $this->willBeSmartFreezer($productMapping, $request)) {
+            return ['basket_layout_json' => ['nullable']];
+        }
+
+        return [
+            'basket_layout_json' => ['nullable', 'array'],
+            'basket_layout_json.*.basket' => ['required_with:basket_layout_json', 'integer', 'min:1'],
+            'basket_layout_json.*.divisions' => ['required_with:basket_layout_json', 'integer', 'min:0', 'max:26'],
+        ];
+    }
+
+    /** What syncMachineType() will leave is_smart at, read before anything is filled. */
+    private function willBeSmartFreezer(ProductMapping $productMapping, Request $request): bool
+    {
+        if ($request->filled('machine_type')) {
+            return $request->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER;
+        }
+        if ($request->has('is_smart')) {
+            return $request->boolean('is_smart');
+        }
+
+        return (bool) $productMapping->is_smart;
+    }
+
     private function syncMachineType(ProductMapping $productMapping, Request $request): void
     {
         if ($request->filled('machine_type')) {
@@ -1113,6 +1149,7 @@ class ProductMappingController extends Controller
     public function update(Request $request, $productMappingId)
     {
         $request->merge(['name' => trim((string) $request->name)]);
+        $productMapping = ProductMapping::findOrFail($productMappingId);
         $request->validate([
             'name' => ['required', $this->uniqueNameRule((int) $productMappingId)],
             'upcoming_product_mapping_id' => [
@@ -1125,19 +1162,23 @@ class ProductMappingController extends Controller
             // per-basket division shape sent by the SmartFreezerLayout grid.
             'is_smart' => ['nullable', 'boolean'],
             'machine_type' => ['nullable', 'in:vending_machine,smart_freezer,smart_chiller'],
-            'basket_layout_json' => ['nullable', 'array'],
-            'basket_layout_json.*.basket' => ['required_with:basket_layout_json', 'integer', 'min:1'],
-            'basket_layout_json.*.divisions' => ['required_with:basket_layout_json', 'integer', 'min:0', 'max:26'],
+            ...$this->basketLayoutRules($productMapping, $request),
         ], [
             'upcoming_product_mapping_id.not_in' => 'Upcoming product mapping cannot be the same as the current product mapping.',
         ]);
         // $request->merge([
         //     'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
         // ]);
-        $productMapping = ProductMapping::findOrFail($productMappingId);
         $productMapping->fill($request->all());
         $this->syncMachineType($productMapping, $request);
         $this->assertMachineTypeChangeAllowed($productMapping);
+
+        // Only a Smart Freezer has a basket grid. A chiller's planogram is the
+        // channel codes ops type (layer + position), and a vending mapping has
+        // no layout at all — so nothing but a freezer keeps this column.
+        if (! $productMapping->is_smart) {
+            $productMapping->basket_layout_json = null;
+        }
 
         // Normalise empty string → null so the relationship is truly cleared
         // (the frontend sends '' when the user picks "--- Clear ---")

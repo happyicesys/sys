@@ -313,7 +313,12 @@
                                 :key="productMappingItem.id ?? productMappingItem.channel_code ?? idx"
                               >
                             <tr
-                                :class="(productMappingItem.product && productMappingItem.product.is_parent_sku) ? '!bg-indigo-50 border-t-2 border-indigo-200' : (idx % 2 === 0 ? undefined : 'bg-gray-50')"
+                                :class="[
+                                  (productMappingItem.product && productMappingItem.product.is_parent_sku) ? '!bg-indigo-50 border-t-2 border-indigo-200' : (idx % 2 === 0 ? undefined : 'bg-gray-50'),
+                                  // Chiller: a bold rule where the layer changes (301 → 401), so the
+                                  // table reads shelf by shelf like the cabinet does.
+                                  startsNewLayer(idx) ? 'border-t-4 border-gray-700' : '',
+                                ]"
                               >
                               <td v-if="!isSmartChiller" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center" :class="[(productMappingItem.product && productMappingItem.product.is_parent_sku) ? 'border-l-4 border-indigo-400' : '']">
                                 <select v-model="productMappingItem.sequence" @change="onSequenceChanged(productMappingItem)">
@@ -593,6 +598,19 @@ function compareChannelCode(a, b) {
   if (pa && pb) return pa.code - pb.code || pa.suffix.localeCompare(pb.suffix)
   if (pa || pb) return pa ? -1 : 1
   return String(a).localeCompare(String(b))
+}
+// Layer = the hundreds digit of a chiller code (101–599 → 1–5); null when the
+// code does not parse or the mapping is not a chiller.
+function layerOf(item) {
+  if (!isSmartChiller.value) return null
+  const p = parseChannelCode(item.channel_code)
+  return p ? Math.floor(p.code / 100) : null
+}
+function startsNewLayer(idx) {
+  if (idx === 0 || !isSmartChiller.value) return false
+  const here = layerOf(productMappingItems.value[idx])
+  const prev = layerOf(productMappingItems.value[idx - 1])
+  return here !== null && prev !== null && here !== prev
 }
 let resortTimer = null
 function onChannelCodeInput(item, value) {
