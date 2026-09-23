@@ -2913,7 +2913,8 @@ class VendController extends Controller
                 ->map(function ($vendOption) {
                     return [
                         'id' => $vendOption->id,
-                        'code' => $vendOption->codeLabel(),
+                        // Plain DB rows, not Vend models — build the label from the columns.
+                        'code' => VendCode::label($vendOption->code_prefix, $vendOption->code),
                         'customer_name' => $vendOption->customer_name,
                         'customer_ref_id' => $vendOption->customer_ref_id,
                         'virtual_customer_prefix' => $vendOption->virtual_customer_prefix,
