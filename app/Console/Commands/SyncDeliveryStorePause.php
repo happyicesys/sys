@@ -33,6 +33,14 @@ use Illuminate\Console\Command;
  * merchant directly in Grab's portal and an auto-resume here would silently
  * undo that. Resuming stays a deliberate act in the mark1 UI.
  *
+ * THE MERCHANT, NOT THE ROW. pauseStore() takes a Grab merchant ID, and a
+ * merchant is REUSED across vends when a listing moves machine - 4-C7CDNZDXKEBJPE
+ * has a stale paused row on vend 2658 and a LIVE one on vend 2873, and
+ * 4-C7CCRTEJJYUJR6 has run 2629 -> 2734 -> 2114 -> 2401. Pausing on the stale
+ * row would take the live machine off Grab for 24 hours. So any merchant holding
+ * an active mapping row anywhere is skipped, however many paused rows it also
+ * has: mark1's intent for a merchant is the union of its rows, not one of them.
+ *
  * Dry run by default; pass --apply to send.
  */
 class SyncDeliveryStorePause extends Command
@@ -70,6 +78,23 @@ class SyncDeliveryStorePause extends Command
 
         $mappingVends = $query->orderBy('id')->get();
 
+        // Merchants that are live on SOME vend. Built from the same platform and
+        // operator type, with no end_date/paused filter - one active row anywhere
+        // means the merchant is selling and must never be paused from here.
+        $liveMerchantIds = DeliveryProductMappingVend::query()
+            ->withoutGlobalScopes()
+            ->where('is_active', true)
+            ->whereHas('deliveryProductMapping.deliveryPlatformOperator', function ($q) {
+                $q->where('type', $this->option('type'))
+                    ->whereHas('deliveryPlatform', fn ($p) => $p->where('slug', 'grab'));
+            })
+            ->with('deliveryPlatformRefNumber')
+            ->get()
+            ->map(fn ($mv) => $mv->deliveryPlatformRefNumber?->ref_number ?? $mv->platform_ref_id)
+            ->filter()
+            ->unique()
+            ->flip();
+
         if ($mappingVends->isEmpty()) {
             $this->info('No paused Grab mappings in scope.');
 
@@ -82,6 +107,7 @@ class SyncDeliveryStorePause extends Command
         $rows = [];
         $sent = 0;
         $failed = 0;
+        $skipped = 0;
 
         foreach ($mappingVends as $mappingVend) {
             $merchantId = $mappingVend->deliveryPlatformRefNumber?->ref_number
@@ -89,6 +115,13 @@ class SyncDeliveryStorePause extends Command
 
             if (! $merchantId) {
                 $rows[] = [$mappingVend->id, $mappingVend->vend_code, '-', 'skipped: no merchant id'];
+
+                continue;
+            }
+
+            if ($liveMerchantIds->has($merchantId)) {
+                $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'SKIPPED: merchant is live on another vend'];
+                $skipped++;
 
                 continue;
             }
@@ -120,13 +153,17 @@ class SyncDeliveryStorePause extends Command
         $this->table(['mapping_vend', 'vend_code', 'merchant_id', 'result'], $rows);
 
         if ($apply) {
-            $this->line("paused: {$sent}   failed: {$failed}");
+            $this->line("paused: {$sent}   failed: {$failed}   skipped: {$skipped}");
 
             if ($failed > 0) {
                 $this->warn('Failures are logged as "Grab pauseStore failed" with the HTTP code.');
             }
         } else {
             $this->warn('Nothing was sent. Re-run with --apply.');
+        }
+
+        if ($skipped > 0) {
+            $this->warn("{$skipped} row(s) skipped: their merchant still sells on another vend.");
         }
 
         return self::SUCCESS;
