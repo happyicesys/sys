@@ -133,9 +133,10 @@ class SyncDeliveryStorePause extends Command
             }
 
             try {
-                // pauseStore() returns the response payload on success and null on
-                // failure, having already logged the status code. A merchant Grab
-                // no longer knows about fails here, which is expected noise.
+                // pauseStore() returns the whole Grab response on success (a
+                // successful pause has an EMPTY body, so the payload alone would be
+                // null) and null on failure, having already logged the status code.
+                // A merchant Grab no longer knows about fails here, expected noise.
                 $result = $deliveryPlatformService->pauseStore($mappingVend, true);
                 $ok = $result !== null;
             } catch (\Throwable $e) {
