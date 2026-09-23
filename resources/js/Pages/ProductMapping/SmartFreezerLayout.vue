@@ -184,13 +184,15 @@
                     Reality
                     <input
                       type="number" min="0" max="999" step="1"
-                      :value="cell.item.capacity_override ?? ''"
+                      :value="realityShown(cell.item)"
                       @input="onCapacityInput(cell.item, $event.target.value)"
+                      @blur="onCapacityBlur(cell.item)"
                       @mousedown.stop
                       @dragstart.stop.prevent
                       draggable="false"
+                      placeholder="-"
                       class="w-14 rounded border-gray-300 text-center text-[11px] py-0.5"
-                      :class="cell.item.capacity_override !== null && cell.item.capacity_override !== undefined && cell.item.capacity_override !== '' ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
+                      :class="isCapacityOverridden(cell.item) ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
                     />
                   </label>
                 </div>
@@ -544,12 +546,35 @@ function onUnbind(cell) {
   deleteItem(cell.item)
 }
 
-// Reality capacity: one item update per cell, debounced so typing "24" is one
-// request, not two. The server re-syncs the bound freezers' rows on its own.
+// Reality capacity: the box SHOWS the product's default (Brian, 2026-09-23) and
+// only STORES a value that differs from it, so a later change on Product → Edit
+// still reaches the machines. A per-cell draft keeps the field from being
+// rewritten under the cursor; on blur it settles to the canonical value. One
+// item update per cell, debounced so typing "24" is one request, not two — the
+// server re-syncs the bound freezers' rows on its own.
 const capacityTimers = {}
+const realityDraft = reactive({})
+function defaultCapacityOf(item) {
+  const v = item && item.product ? item.product.freezer_slot_qty : null
+  return v === null || v === undefined || v === '' ? null : Number(v)
+}
+function isCapacityOverridden(item) {
+  return item.capacity_override !== null && item.capacity_override !== undefined && item.capacity_override !== ''
+}
+function realityShown(item) {
+  if (item.id in realityDraft) return realityDraft[item.id]
+  if (isCapacityOverridden(item)) return String(item.capacity_override)
+  const d = defaultCapacityOf(item)
+  return d === null ? '' : String(d)
+}
+function onCapacityBlur(item) {
+  delete realityDraft[item.id]
+}
 function onCapacityInput(item, value) {
+  realityDraft[item.id] = String(value ?? '')
   const raw = String(value ?? '').trim()
-  const v = raw === '' ? null : Math.max(0, Math.min(999, parseInt(raw, 10) || 0))
+  let v = raw === '' ? null : Math.max(0, Math.min(999, parseInt(raw, 10) || 0))
+  if (v !== null && v === defaultCapacityOf(item)) v = null
   item.capacity_override = v
   if (capacityTimers[item.id]) clearTimeout(capacityTimers[item.id])
   capacityTimers[item.id] = setTimeout(() => {

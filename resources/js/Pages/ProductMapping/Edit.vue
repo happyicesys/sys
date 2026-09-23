@@ -370,11 +370,13 @@
                               <td v-if="isSmartChiller" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 text-center">
                                 <input
                                   type="number" min="0" max="999" step="1"
-                                  v-model.number="productMappingItem.capacity_override"
-                                  :placeholder="productMappingItem.product && productMappingItem.product.chiller_slot_qty ? String(productMappingItem.product.chiller_slot_qty) : '-'"
+                                  :value="realityShown(productMappingItem, idx)"
+                                  @input="onRealityInput(productMappingItem, idx, $event.target.value)"
+                                  @blur="onRealityBlur(productMappingItem, idx)"
+                                  placeholder="-"
                                   class="w-20 rounded-md border-gray-300 text-center text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  :class="productMappingItem.capacity_override !== null && productMappingItem.capacity_override !== '' && productMappingItem.capacity_override !== undefined ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
-                                  title="Save the page to apply"
+                                  :class="isCapacityOverridden(productMappingItem) ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
+                                  title="Pre-filled with the product's default; type a different number to override. Save the page to apply."
                                 />
                               </td>
                               <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
@@ -623,6 +625,40 @@ const channelCodeProblems = computed(() => {
   }
   return problems
 })
+
+// ── Reality capacity ───────────────────────────────────────────────────────
+// The box SHOWS the product's default (Brian, 2026-09-23) so ops read the number
+// that is actually in force, not a blank. It is only STORED when it differs from
+// that default — otherwise a later change on Product → Edit would never reach a
+// mapping again. Typing goes through a per-row draft so the field is never
+// rewritten under the cursor; on blur it settles back to the canonical value.
+const realityDraft = ref({})
+function realityKey(item, idx) { return item.id ?? ('row' + idx) }
+function defaultCapacityOf(item) {
+  const v = item && item.product ? item.product.chiller_slot_qty : null
+  return v === null || v === undefined || v === '' ? null : Number(v)
+}
+function isCapacityOverridden(item) {
+  return item.capacity_override !== null && item.capacity_override !== undefined && item.capacity_override !== ''
+}
+function realityShown(item, idx) {
+  const k = realityKey(item, idx)
+  if (k in realityDraft.value) return realityDraft.value[k]
+  if (isCapacityOverridden(item)) return String(item.capacity_override)
+  const d = defaultCapacityOf(item)
+  return d === null ? '' : String(d)
+}
+function onRealityInput(item, idx, raw) {
+  const text = String(raw ?? '')
+  realityDraft.value[realityKey(item, idx)] = text
+  const trimmed = text.trim()
+  if (trimmed === '') { item.capacity_override = null; return }
+  const v = Math.max(0, Math.min(999, parseInt(trimmed, 10) || 0))
+  item.capacity_override = v === defaultCapacityOf(item) ? null : v
+}
+function onRealityBlur(item, idx) {
+  delete realityDraft.value[realityKey(item, idx)]
+}
 
 onMounted(() => {
 

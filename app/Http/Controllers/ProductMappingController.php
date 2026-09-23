@@ -68,6 +68,28 @@ class ProductMappingController extends Controller
      * capacity typed on a cell — reaches the rows now, not at the next page
      * Save. Freezer mappings only: a chiller's rows come from its minute poll.
      */
+    /**
+     * The Reality box is PRE-FILLED with the product's default so ops can see the
+     * effective number (Brian, 2026-09-23). An override that merely repeats that
+     * default is therefore stored as NULL — otherwise every item would freeze
+     * today's default and a later change on Product → Edit would stop reaching
+     * the machines. Typing a different number still overrides, as before.
+     */
+    private function normalizeCapacityOverride(ProductMapping $mapping, $productId, $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $override = max(0, min(999, (int) $value));
+        $default = ProductMappingItem::productDefaultCapacity(
+            \App\Models\Product::withoutGlobalScopes()->find($productId),
+            $mapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE
+        );
+
+        return $override === $default ? null : $override;
+    }
+
     private function resyncFreezerChannels($productMappingId): void
     {
         $mapping = ProductMapping::find($productMappingId);
@@ -959,7 +981,9 @@ class ProductMappingController extends Controller
             $item->product_mapping_id = $productMappingId;
             $item->channel_code = $validated['channel_code'];
             $item->product_id = $validated['product_id'];
-            $item->capacity_override = $validated['capacity_override'] ?? null;
+            $item->capacity_override = $mapping
+                ? $this->normalizeCapacityOverride($mapping, $validated['product_id'], $validated['capacity_override'] ?? null)
+                : null;
             $item->sequence = null; // set after clearing others
             $item->save();
 
@@ -1147,13 +1171,16 @@ class ProductMappingController extends Controller
 
             $productMapping->productMappingItems()->delete();
             foreach ($request->productMappingItems as $productMappingItem) {
-                $override = $productMappingItem['capacity_override'] ?? null;
                 $productMapping->productMappingItems()->create([
                     'channel_code' => ChannelCode::normalize($productMappingItem['channel_code']),
                     'product_id' => $productMappingItem['product']['id'],
                     'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
                     'sequence' => $productMappingItem['sequence'],
-                    'capacity_override' => ($override === null || $override === '') ? null : max(0, min(999, (int) $override)),
+                    'capacity_override' => $this->normalizeCapacityOverride(
+                        $productMapping,
+                        $productMappingItem['product']['id'],
+                        $productMappingItem['capacity_override'] ?? null
+                    ),
                 ]);
             }
         }
@@ -1194,6 +1221,13 @@ class ProductMappingController extends Controller
     {
         $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
         $request->validate(['capacity_override' => ['nullable', 'integer', 'min:0', 'max:999']]);
+        if ($request->has('capacity_override') && $productMappingItem->productMapping) {
+            $request->merge(['capacity_override' => $this->normalizeCapacityOverride(
+                $productMappingItem->productMapping,
+                $request->input('product_id', $productMappingItem->product_id),
+                $request->capacity_override
+            )]);
+        }
         if ($request->filled('channel_code')) {
             $request->merge(['channel_code' => ChannelCode::normalize($request->channel_code)]);
         }

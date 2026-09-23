@@ -32,8 +32,21 @@ class ProductMappingItem extends Model
         if ($this->capacity_override !== null) {
             return (int) $this->capacity_override;
         }
-        $product = $this->relationLoaded('product') ? $this->product : $this->product()->first(['id', 'freezer_slot_qty', 'chiller_slot_qty']);
 
+        return self::productDefaultCapacity(
+            $this->relationLoaded('product') ? $this->product : $this->product()->first(['id', 'freezer_slot_qty', 'chiller_slot_qty']),
+            $machineType
+        );
+    }
+
+    /**
+     * The SKU's own default capacity for this kind of machine — the "Default"
+     * column on ProductMapping → Edit, set on Product → Edit. 0 = unmeasured,
+     * which the dashboards read as "-". One definition, shared by the effective
+     * capacity above and by the controller's override normalisation.
+     */
+    public static function productDefaultCapacity(?Product $product, string $machineType): int
+    {
         return (int) match ($machineType) {
             Vend::MACHINE_TYPE_SMART_CHILLER => $product?->chiller_slot_qty,
             Vend::MACHINE_TYPE_SMART_FREEZER => $product?->freezer_slot_qty,

@@ -214,6 +214,34 @@ class SkuStockIdentityTest extends TestCase
             ->assertSessionHasErrors('channel_code'); // the freezer APK sends the slot as an int
     }
 
+    public function test_a_reality_capacity_equal_to_the_products_default_is_not_stored_as_an_override(): void
+    {
+        // The Reality box is pre-filled with the default, so an untouched row posts that
+        // number back. Storing it would freeze today's default (Brian, 2026-09-23).
+        [$vend] = $this->chiller();
+        $mapping = ChillerMapping::bind($vend, [101 => [90338, 5]]);
+        $lemon = ChillerMapping::product(90339, 6);
+        $user = User::factory()->create();
+        $user->givePermissionTo(Permission::findOrCreate('read product-mappings', 'web'));
+
+        $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", [
+            'channel_code' => '102', 'product_id' => $lemon->id, 'capacity_override' => 6,
+        ])->assertSessionHasNoErrors();
+        $item = ProductMappingItem::where('product_mapping_id', $mapping->id)->where('channel_code', '102')->first();
+        $this->assertNull($item->capacity_override, '6 IS the default — nothing to override');
+        $this->assertSame(6, $item->effectiveCapacity(Vend::MACHINE_TYPE_SMART_CHILLER));
+
+        // Raising the product's own default still reaches the mapping.
+        $lemon->forceFill(['chiller_slot_qty' => 9])->save();
+        $this->assertSame(9, $item->fresh()->effectiveCapacity(Vend::MACHINE_TYPE_SMART_CHILLER));
+
+        // A different number is a real override and is kept.
+        $this->actingAs($user)->post("/product-mappings/items/{$item->id}/update", ['capacity_override' => 4])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(4, (int) $item->fresh()->capacity_override);
+        $this->assertSame(4, $item->fresh()->effectiveCapacity(Vend::MACHINE_TYPE_SMART_CHILLER));
+    }
+
     // ── changeover by SKU set ──────────────────────────────────────────────
 
     public function test_a_freezer_changeover_stages_only_arriving_skus_and_returns_only_leaving_ones(): void
