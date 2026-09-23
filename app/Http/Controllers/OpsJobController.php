@@ -33,6 +33,7 @@ use App\Services\OpsJobService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
 use App\Services\VendJobService;
+use App\Support\OpsJobFrameQty;
 use App\Support\OpsJobStopRegistry;
 use App\Support\SiteSearch;
 use App\Support\VendCode;
@@ -970,37 +971,10 @@ class OpsJobController extends Controller
                         'vend_channel_record_id' => $vendChannelRecord->id,
                     ]);
 
-                    if ($vendChannelRecord->before_data_json || $vendChannelRecord->after_data_json) {
-                        $opsJobItem->opsJobItemChannels->each(function ($opsJobItemChannel) use ($vendChannelRecord) {
-                            if ($vendChannelRecord->before_data_json) {
-                                $channels = $vendChannelRecord->before_data_json['channels'] ?? [];
-
-                                foreach ($channels as $channel) {
-                                    if (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code) {
-                                        $opsJobItemChannel->update([
-                                            'vmc_before_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
-                                        ]);
-                                        break; // Exit the loop once the matching channel is found
-                                    }
-                                }
-                            }
-
-                            if ($vendChannelRecord->after_data_json) {
-                                if ($vendChannelRecord->after_data_json) {
-                                    $channels = $vendChannelRecord->after_data_json['channels'] ?? [];
-
-                                    foreach ($channels as $channel) {
-                                        if (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code) {
-                                            $opsJobItemChannel->update([
-                                                'vmc_after_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
-                                            ]);
-                                            break; // Exit the loop once the matching channel is found
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
+                    // Whichever frames have landed by now; the other arrives later
+                    // and SyncVendChannels fills its column through the same rule.
+                    OpsJobFrameQty::apply($opsJobItem, $vendChannelRecord->before_data_json, 'vmc_before_qty');
+                    OpsJobFrameQty::apply($opsJobItem, $vendChannelRecord->after_data_json, 'vmc_after_qty');
                 }
 
                 break;

@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\OpsJobItem;
-use App\Models\Vend;
+use App\Support\OpsJobFrameQty;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -50,7 +50,7 @@ class RepairOpsJobItemVmcQty extends Command
 
         $query = OpsJobItem::query()
             ->whereNotNull('vend_channel_record_id')
-            ->with(['vendChannelRecord', 'opsJobItemChannels']);
+            ->with(['vendChannelRecord', 'opsJobItemChannels', 'vend']);
 
         if ($itemId = $this->option('item')) {
             $query->where('id', $itemId);
@@ -75,40 +75,13 @@ class RepairOpsJobItemVmcQty extends Command
                     continue;
                 }
 
-                $vend = Vend::find($item->vend_id);
+                // Count first: a dry run reports exactly what --apply would write.
+                $itemBefore = $this->fillable($item, $record->before_data_json, 'vmc_before_qty');
+                $itemAfter = $this->fillable($item, $record->after_data_json, 'vmc_after_qty');
 
-                if (! $vend) {
-                    continue;
-                }
-
-                $skuStocked = $vend->isSkuStocked();
-                $itemBefore = 0;
-                $itemAfter = 0;
-
-                foreach ($item->opsJobItemChannels as $opsJobItemChannel) {
-                    $updates = [];
-
-                    if ($opsJobItemChannel->vmc_before_qty === null) {
-                        $qty = $this->qtyFromFrame($record->before_data_json, $opsJobItemChannel, $skuStocked);
-
-                        if ($qty !== null) {
-                            $updates['vmc_before_qty'] = $qty;
-                            $itemBefore++;
-                        }
-                    }
-
-                    if ($opsJobItemChannel->vmc_after_qty === null) {
-                        $qty = $this->qtyFromFrame($record->after_data_json, $opsJobItemChannel, $skuStocked);
-
-                        if ($qty !== null) {
-                            $updates['vmc_after_qty'] = $qty;
-                            $itemAfter++;
-                        }
-                    }
-
-                    if ($updates && $apply) {
-                        $opsJobItemChannel->update($updates);
-                    }
+                if ($apply) {
+                    OpsJobFrameQty::apply($item, $record->before_data_json, 'vmc_before_qty', onlyWhenNull: true);
+                    OpsJobFrameQty::apply($item, $record->after_data_json, 'vmc_after_qty', onlyWhenNull: true);
                 }
 
                 if ($itemBefore || $itemAfter) {
@@ -143,22 +116,22 @@ class RepairOpsJobItemVmcQty extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * The qty this ops row's frame entry carries, or null when the frame has no
-     * entry for it. Same rule as SyncVendChannels::frameEntryMatchesOpsRow.
-     */
-    private function qtyFromFrame($frame, $opsJobItemChannel, bool $skuStocked): ?int
+    /** How many of an item's rows this frame could still fill. */
+    private function fillable(OpsJobItem $item, ?array $frame, string $column): int
     {
-        foreach ($frame['channels'] ?? [] as $channel) {
-            $matches = $skuStocked
-                ? (! empty($channel['product_id']) && (int) $channel['product_id'] === (int) $opsJobItemChannel->product_id)
-                : (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code);
+        if (! $frame) {
+            return 0;
+        }
 
-            if ($matches) {
-                return isset($channel['qty']) ? (int) $channel['qty'] : null;
+        $skuStocked = OpsJobFrameQty::isSkuStocked($item);
+        $count = 0;
+
+        foreach ($item->opsJobItemChannels as $opsRow) {
+            if ($opsRow->{$column} === null && OpsJobFrameQty::qtyFor($frame, $opsRow, $skuStocked) !== null) {
+                $count++;
             }
         }
 
-        return null;
+        return $count;
     }
 }

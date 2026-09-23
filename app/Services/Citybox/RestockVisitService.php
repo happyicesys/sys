@@ -14,6 +14,7 @@ use App\Models\Vend;
 use App\Models\VendChannelRecord;
 use App\Services\Citybox\DTO\RestockSession;
 use App\Services\Citybox\DTO\StockCount;
+use App\Support\OpsJobFrameQty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -372,13 +373,20 @@ class RestockVisitService
         return $channels;
     }
 
+    /**
+     * Match through OpsJobFrameQty — the one rule the completion and A-frame
+     * paths use — but write QUIETLY: the observer must not re-fire mid-visit.
+     * A chiller is SKU-stocked, so this resolves by product, as it always did.
+     */
     private function writeVmcQty(OpsJobItem $item, array $channels, string $column): void
     {
-        $byProduct = collect($channels)->keyBy('product_id');
+        $frame = ['channels' => $channels];
+
         foreach ($item->opsJobItemChannels as $ch) {
-            $line = $byProduct->get((int) $ch->product_id);
-            if ($line !== null) {
-                $ch->forceFill([$column => $line['qty']])->saveQuietly();
+            $qty = OpsJobFrameQty::qtyFor($frame, $ch, skuStocked: true);
+
+            if ($qty !== null) {
+                $ch->forceFill([$column => $qty])->saveQuietly();
             }
         }
     }

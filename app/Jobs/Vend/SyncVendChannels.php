@@ -9,6 +9,7 @@ use App\Models\VendChannelStockEvent;
 use App\Services\DeliveryProductMappingService;
 use App\Services\ProductMappingService;
 use App\Support\DispenseVerdict;
+use App\Support\OpsJobFrameQty;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -357,27 +358,6 @@ class SyncVendChannels implements ShouldQueue
         }
     }
 
-    /**
-     * Which frame entry describes an ops-job channel row: by product on a
-     * SKU-stocked machine (the frame carries OUR product_id and two SKUs may
-     * share one code), by slot code on a vending machine.
-     *
-     * Gate on Vend::isSkuStocked, never on "the frame has a product_id" — a
-     * vending board's B/A frame also carries product_id, but it is the VMC's own
-     * slot index (1, 2, 21 …), not a products.id. Keying on it silently matched
-     * nothing and left After Refill blank for every item completed before its A
-     * frame landed (prod, 2026-09-23).
-     */
-    private function frameEntryMatchesOpsRow(array $channel, $opsJobItemChannel): bool
-    {
-        if ($this->vend->isSkuStocked()) {
-            return ! empty($channel['product_id'])
-                && (int) $channel['product_id'] === (int) $opsJobItemChannel->product_id;
-        }
-
-        return isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code;
-    }
-
     private function getVendChannelStatus($channel)
     {
         // A vending machine's board reports capacity, so capacity 0 there means "no such slot". A
@@ -417,37 +397,26 @@ class SyncVendChannels implements ShouldQueue
 
     private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)
     {
-        if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
-            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function ($opsJobItemChannel) use ($vendChannelRecord) {
-                $channels = $vendChannelRecord->before_data_json['channels'] ?? [];
-
-                foreach ($channels as $channel) {
-                    if ($this->frameEntryMatchesOpsRow($channel, $opsJobItemChannel)) {
-                        $opsJobItemChannel->update([
-                            'vmc_before_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
-                        ]);
-                        break; // Exit the loop once the matching channel is found
-                    }
-                }
-            });
-        }
+        $this->syncVendChannelRecordVMCQty($vendChannelRecord, $vendChannelRecord->before_data_json, 'vmc_before_qty');
     }
 
     private function syncVendChannelRecordVMCAfterQty(VendChannelRecord $vendChannelRecord)
     {
-        if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
-            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function ($opsJobItemChannel) use ($vendChannelRecord) {
-                $channels = $vendChannelRecord->after_data_json['channels'] ?? [];
+        $this->syncVendChannelRecordVMCQty($vendChannelRecord, $vendChannelRecord->after_data_json, 'vmc_after_qty');
+    }
 
-                foreach ($channels as $channel) {
-                    if ($this->frameEntryMatchesOpsRow($channel, $opsJobItemChannel)) {
-                        $opsJobItemChannel->update([
-                            'vmc_after_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
-                        ]);
-                        break; // Exit the loop once the matching channel is found
-                    }
-                }
-            });
+    /**
+     * Carry a frame's qty onto the ops-job rows, when this record belongs to an
+     * item. The completion path in OpsJobController fills whichever frames have
+     * landed by then; this fills the one that arrives afterwards. Both go
+     * through OpsJobFrameQty so they cannot drift apart again.
+     */
+    private function syncVendChannelRecordVMCQty(VendChannelRecord $vendChannelRecord, ?array $frame, string $column): void
+    {
+        $item = $vendChannelRecord->opsJobItem;
+
+        if ($item && $item->opsJobItemChannels()->exists()) {
+            OpsJobFrameQty::apply($item, $frame, $column, skuStocked: $this->vend->isSkuStocked());
         }
     }
 
