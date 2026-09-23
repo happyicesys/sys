@@ -565,6 +565,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const STATUS_UNAVAILABLE_TODAY = 'UNAVAILABLETODAY';
     const STATUS_HIDE = 'HIDE';
 
+    // Grab caps a store pause at 24 hours - it is a temporary stop, never a
+    // delisting. A terminated site needs its menu hidden, not a pause.
+    const PAUSE_DURATION_MAX = '24h';
+
     const STATUS_MAPPING = [
         1 => 'AVAILABLE',
         0 => 'UNAVAILABLE',
@@ -862,7 +866,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     }
 
     // Pause store
-    public function pauseStore($merchantID, $isPause = true, $duration = '24h')
+    public function pauseStore($merchantID, $isPause = true, $duration = self::PAUSE_DURATION_MAX)
     {
         $this->verifyOauthAccessToken();
 
@@ -874,8 +878,6 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ]);
 
         return $this->getResponse($response, 'pauseOrder');
-
-        throw new \Exception('Pause Order Failed: ' . $response->body());
     }
 
     // create campaign

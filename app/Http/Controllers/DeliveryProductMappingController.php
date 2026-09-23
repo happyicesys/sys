@@ -484,6 +484,9 @@ class DeliveryProductMappingController extends Controller
         }
         if ($deliveryProductMappingVend->is_active) {
             $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
+            // Resuming is the same Grab call with isPause=false. Re-syncing the menu
+            // on its own leaves the store paused on their side.
+            $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend, false);
         } else {
             $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
         }

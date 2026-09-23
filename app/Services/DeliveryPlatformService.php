@@ -26,6 +26,7 @@ use App\Services\DeliveryPlatformOperatorService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class DeliveryPlatformService
 {
@@ -61,7 +62,28 @@ class DeliveryPlatformService
       ->first();
 
     if (!$deliveryProductMappingVend) {
-      throw new \Exception('No Vending Machine found for this Platform Ref ID.');
+      // A paused or unmapped vend is a business state, not a fault. A 5xx reads to
+      // Grab as "server broke, retry", so one order burns 15 retries and dies
+      // silently; a 4xx rejects it once and surfaces it.
+      $isPaused = DeliveryProductMappingVend::query()
+        ->when($platformRefId, function ($query) use ($platformRefId) {
+          $query->where('platform_ref_id', $platformRefId);
+        })
+        ->where('vend_code', $vendCode)
+        ->exists();
+
+      Log::warning('Delivery order rejected: no active vend mapping', [
+        'platform_ref_id' => $platformRefId,
+        'vend_code' => $vendCode,
+        'is_paused' => $isPaused,
+      ]);
+
+      abort(response([
+        'error_code' => 404,
+        'error_message' => $isPaused
+          ? 'Vending Machine is paused for this Platform Ref ID.'
+          : 'No Vending Machine found for this Platform Ref ID.',
+      ], 404));
     }
 
     $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
@@ -609,23 +631,35 @@ class DeliveryPlatformService
     }
   }
 
-  public function pauseStore(DeliveryProductMappingVend $deliveryProductMappingVend)
+  public function pauseStore(DeliveryProductMappingVend $deliveryProductMappingVend, bool $isPause = true)
   {
     $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
 
     switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $response = $this->model->pauseStore([
-          'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
-          true,
-          '24h'
-        ]);
+        $merchantId = $this->merchantIdFromMappingVend($deliveryProductMappingVend);
+
+        // Three positional arguments, not one array: wrapping them sent merchantID
+        // as a nested object and Grab rejected every call, silently.
+        $response = $this->model->pauseStore($merchantId, $isPause, Grab::PAUSE_DURATION_MAX);
+
         if ($response['success']) {
           return $response['data'];
         }
+
+        Log::error('Grab pauseStore failed', [
+          'delivery_product_mapping_vend_id' => $deliveryProductMappingVend->id,
+          'merchant_id' => $merchantId,
+          'is_pause' => $isPause,
+          'code' => $response['code'] ?? null,
+          'message' => $response['message'] ?? null,
+          'data' => $response['data'] ?? null,
+        ]);
         break;
     }
+
+    return null;
   }
 
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
