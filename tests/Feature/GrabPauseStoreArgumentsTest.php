@@ -114,6 +114,21 @@ class GrabPauseStoreArgumentsTest extends TestCase
         });
     }
 
+    public function test_an_empty_success_body_is_not_reported_as_failure(): void
+    {
+        // Grab answers a successful pause with an empty body. pauseStore used to
+        // return $response['data'] - null - so 4754's first real pause on
+        // 2026-09-23 succeeded and was reported as FAILED.
+        Http::fake([
+            '*/partner/v1/merchant/pause' => Http::response('', 200),
+        ]);
+
+        $result = app(DeliveryPlatformService::class)->pauseStore($this->makeMappingVend());
+
+        $this->assertNotNull($result, 'A 200 with an empty body must not read as failure');
+        $this->assertTrue($result['success']);
+    }
+
     public function test_a_rejected_pause_is_logged_rather_than_swallowed(): void
     {
         $this->fakeGrab(400);

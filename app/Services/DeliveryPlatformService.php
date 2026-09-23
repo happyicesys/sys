@@ -644,8 +644,12 @@ class DeliveryPlatformService
         // as a nested object and Grab rejected every call, silently.
         $response = $this->model->pauseStore($merchantId, $isPause, Grab::PAUSE_DURATION_MAX);
 
+        // Return the whole response, not $response['data']: Grab answers a
+        // successful pause with an EMPTY body, so data is null on success and a
+        // caller testing the return for null reads a real pause as a failure.
+        // It did exactly that on 4754's first live pause (2026-09-23).
         if ($response['success']) {
-          return $response['data'];
+          return $response;
         }
 
         Log::error('Grab pauseStore failed', [
