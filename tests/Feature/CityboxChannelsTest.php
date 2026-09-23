@@ -185,6 +185,35 @@ class CityboxChannelsTest extends TestCase
         $this->assertSame(4, (int) $this->channels()->firstWhere('code', 101)->capacity);
     }
 
+    public function test_adding_or_removing_an_item_rebuilds_the_chiller_channels_at_once(): void
+    {
+        // Until 2026-09-23 only a mapping Save rebuilt a chiller's rows; the Add row
+        // and the delete button left the dashboard waiting for the next poll.
+        $this->seedPar();
+        $mapping = ChillerMapping::bind($this->vend, [101 => [90338, 4]]);
+        // Linked before the first poll: the catalogue sync registers every SKU it
+        // sees, and a row it created first would carry no link to $peach.
+        $peach = ChillerMapping::product(90340, 2);
+        $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 1, 'layer' => 1, 'price' => '0.12']]);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $this->assertSame([101], $this->channels()->pluck('code')->map(fn ($c) => (int) $c)->all());
+
+        foreach (['read product-mappings', 'update machine-settings'] as $p) {
+            \Spatie\Permission\Models\Permission::findOrCreate($p, 'web');
+        }
+        $user = User::factory()->create();
+        $user->givePermissionTo(['read product-mappings', 'update machine-settings']);
+
+        $this->actingAs($user)
+            ->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '304', 'product_id' => $peach->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame([101, 304], $this->channels()->pluck('code')->map(fn ($c) => (int) $c)->all(), 'The new code is live before any poll');
+
+        $item = ProductMappingItem::where('product_mapping_id', $mapping->id)->where('channel_code', '304')->firstOrFail();
+        $this->actingAs($user)->delete('/product-mappings/items/'.$item->id)->assertSessionHasNoErrors();
+        $this->assertSame([101], $this->channels()->pluck('code')->map(fn ($c) => (int) $c)->all(), 'The dropped code is retired at once');
+    }
+
     public function test_a_channel_dropped_from_our_mapping_is_retired(): void
     {
         $this->seedPar();

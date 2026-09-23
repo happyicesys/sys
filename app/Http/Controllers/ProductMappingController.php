@@ -98,6 +98,22 @@ class ProductMappingController extends Controller
         }
     }
 
+    /**
+     * A chiller's rows are rebuilt from its mapping plus CityBox's live stock
+     * (syncChannels → StockPollService::rebuildChannels). Only Save did that;
+     * the item endpoints commit at once, so a code added on the Add row reached
+     * the Operation Dashboard with the next 3-minute poll at best — and not at
+     * all while a stock submit was pending (C6002's 501–504, 2026-09-23). Best
+     * effort after commit, one live call per bound vend; the poll stays the net.
+     */
+    private function resyncChillerChannels($productMappingId): void
+    {
+        $mapping = ProductMapping::find($productMappingId);
+        if ($mapping && $mapping->isSmartChiller()) {
+            $this->productMappingService->syncChannels($mapping->id);
+        }
+    }
+
     private function nudgeSmartFreezers($productMappingId): void
     {
         $mapping = ProductMapping::find($productMappingId);
@@ -1036,6 +1052,7 @@ class ProductMappingController extends Controller
             return redirect()->back();
         });
 
+        $this->resyncChillerChannels($productMappingId); // after commit — see helper docblock
         $this->nudgeSmartFreezers($productMappingId); // after commit — see helper docblock
 
         return $response;
@@ -1047,6 +1064,7 @@ class ProductMappingController extends Controller
         $productMappingId = $item->product_mapping_id;
         $item->delete();
 
+        $this->resyncChillerChannels($productMappingId);
         $this->nudgeSmartFreezers($productMappingId);
 
         return redirect()->back();
@@ -1292,6 +1310,7 @@ class ProductMappingController extends Controller
         $productMappingItem->save();
 
         $this->resyncFreezerChannels($productMappingItem->product_mapping_id);
+        $this->resyncChillerChannels($productMappingItem->product_mapping_id);
         $this->nudgeSmartFreezers($productMappingItem->product_mapping_id);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);
