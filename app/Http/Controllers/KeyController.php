@@ -3,10 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\KeyResource;
-use App\Http\Resources\VendResource;
 use App\Models\Key;
 use App\Models\Vend;
-use Carbon\Carbon;
+use App\Support\VendCode;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -24,27 +23,23 @@ class KeyController extends Controller
             'keys' => KeyResource::collection(
                 Key::query()
                     ->with('vends')
-                    ->when($request->name, function($query, $search) {
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->vend_codes, function($query, $search) {
-                        if(strpos($search, ',') !== false) {
-                            $search = explode(',', $search);
-                            $query->whereHas('vend', function($query) use ($search) {
-                                $query->whereIn('code', $search);
-                            });
-                        }else {
-                            $query->whereHas('vend', function($query) use ($search) {
-                                $query->where('code', 'LIKE', "%{$search}%");
-                            });
-                        }
+                    ->when($request->vend_codes, function ($query, $search) {
+                        // Machine IDs carry a prefix for CityBox chillers ("C6002"), so the
+                        // search runs through VendCode — it keeps the old comma-list and
+                        // LIKE behaviour for plain numbers and adds prefixed terms.
+                        $query->whereHas('vend', function ($query) use ($search) {
+                            VendCode::whereSearch($query, (string) $search, contains: true);
+                        });
                     })
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function ($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
-            )
+            ),
         ]);
     }
 
@@ -56,7 +51,7 @@ class KeyController extends Controller
 
         $key = Key::create($request->all());
 
-        if($request->vend_id) {
+        if ($request->vend_id) {
             $vend = Vend::findOrFail($request->vend_id);
             $vend->update([
                 'key_id' => $key->id,
@@ -75,7 +70,7 @@ class KeyController extends Controller
         $model = Key::findOrFail($id);
         $model->update($request->all());
 
-        if($request->vend_id) {
+        if ($request->vend_id) {
             $vend = Vend::findOrFail($request->vend_id);
             $vend->update([
                 'key_id' => $key->id,

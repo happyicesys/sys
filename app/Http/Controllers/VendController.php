@@ -2340,7 +2340,7 @@ class VendController extends Controller
                 'customer_vend_bindings.customer_id',
                 'customer_vend_bindings.vend_id',
                 'customer_vend_bindings.created_at',
-                'vends.code AS vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 DB::raw('COALESCE(bind_prefixes.name, vend_current_prefixes.name) AS vend_prefix_name')
             )
             ->get()
@@ -2910,7 +2910,7 @@ class VendController extends Controller
                 ->map(function ($vendOption) {
                     return [
                         'id' => $vendOption->id,
-                        'code' => $vendOption->code,
+                        'code' => $vendOption->codeLabel(),
                         'customer_name' => $vendOption->customer_name,
                         'customer_ref_id' => $vendOption->customer_ref_id,
                         'virtual_customer_prefix' => $vendOption->virtual_customer_prefix,
@@ -2982,7 +2982,7 @@ class VendController extends Controller
             ->where('vend_temps.created_at', '>=', $startDate)
             ->where('vend_temps.created_at', '<=', $endDate)
             ->select(
-                'vends.code AS vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 'vend_temps.created_at',
                 'type',
                 'value',
@@ -3902,7 +3902,7 @@ class VendController extends Controller
                     // Needed by the per-page card-terminal lookup below (which
                     // binding was on this machine on the day of the sale).
                     'vend_transactions.vend_id',
-                    'vends.code AS vend_code',
+                    DB::raw(VendCode::sqlLabel().' AS vend_code'),
                     'vend_prefixes.name AS vend_prefix_name',
                     'customers.code AS customer_code',
                     'customers.name AS customer_name',
@@ -4910,7 +4910,7 @@ class VendController extends Controller
         PaymentGatewayLog::query()
             ->when($excelAllowedProductIds !== null, fn ($q) => $q->whereRaw('1 = 0'))
             ->when($excelViewerVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $excelViewerVendIds))
-            ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
+            ->with(['vend:id,code,code_prefix', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->orderBy('payment_gateway_logs.approved_at')
             ->chunk(500, function ($logs) use (&$data) {

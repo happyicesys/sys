@@ -2,18 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\DeliveryProductMappingResource;
-use App\Http\Resources\DeliveryProductMappingBulkResource;
-use App\Http\Resources\DeliveryProductMappingItemResource;
-use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformRefNumberResource;
+use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\OperatorResource;
-use App\Http\Resources\ProductResource;
-use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductMappingItemResource;
+use App\Http\Resources\ProductMappingResource;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendResource;
-use App\Models\DeliveryPlatform;
-use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryProductMapping;
@@ -29,6 +24,7 @@ use App\Models\Vend;
 use App\Services\DeliveryPlatformCampaignService;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
+use App\Support\VendCode;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -38,15 +34,16 @@ use Inertia\Inertia;
 class DeliveryProductMappingController extends Controller
 {
     protected $deliveryPlatformCampaignService;
+
     protected $deliveryPlatformService;
+
     protected $deliveryProductMappingService;
 
     public function __construct(
         DeliveryPlatformCampaignService $deliveryPlatformCampaignService,
         DeliveryPlatformService $deliveryPlatformService,
         DeliveryProductMappingService $deliveryProductMappingService
-    )
-    {
+    ) {
         $this->deliveryPlatformService = $deliveryPlatformService;
         $this->deliveryPlatformCampaignService = $deliveryPlatformCampaignService;
         $this->deliveryProductMappingService = $deliveryProductMappingService;
@@ -64,7 +61,7 @@ class DeliveryProductMappingController extends Controller
                     ->with([
                         'deliveryPlatformOperator.deliveryPlatform',
                         'operator:id,name',
-                        'deliveryProductMappingVends' => function($query) {
+                        'deliveryProductMappingVends' => function ($query) {
                             // whereHas('vend') inherits Vend's OperatorVendFilterScope, so
                             // the "Binded Vending Machines" column lists only machines the
                             // viewer may see. Without it, a mapping surfaced by the bind arm
@@ -74,12 +71,12 @@ class DeliveryProductMappingController extends Controller
                             // rendering blank rows. Unrestricted viewers are unaffected.
                             $query->whereNull('end_date')->whereHas('vend');
                         },
-                        'deliveryProductMappingVends.vend:id,code,name,customer_id',
+                        'deliveryProductMappingVends.vend:id,code,code_prefix,name,customer_id',
                         'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code,person_id',
                     ])
                     ->filterIndex($request)
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -138,7 +135,7 @@ class DeliveryProductMappingController extends Controller
     public function create(Request $request)
     {
         return Inertia::render('DeliveryPlatform/Create', [
-            'categoryApiOptions' => Inertia::lazy(fn() =>[
+            'categoryApiOptions' => Inertia::lazy(fn () => [
                 $this->deliveryPlatformService->getCategories(DeliveryPlatformOperator::find($request->delivery_platform_operator_id)),
             ]),
             'operatorOptions' => OperatorResource::collection(
@@ -147,15 +144,15 @@ class DeliveryProductMappingController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
-            'productMappingItems' => Inertia::lazy(fn() => [
+            'productMappingItems' => Inertia::lazy(fn () => [
                 ProductMappingItemResource::collection(
                     ProductMappingItem::query()
                         ->with('product.thumbnail')
                         ->where('product_mapping_id', $request->product_mapping_id)
                         ->get()
-                )
+                ),
             ]),
-            'productMappingOptions' => Inertia::lazy(fn() =>[
+            'productMappingOptions' => Inertia::lazy(fn () => [
                 ProductMappingResource::collection(
                     ProductMapping::query()
                         ->where('operator_id', $request->operator_id)
@@ -164,12 +161,12 @@ class DeliveryProductMappingController extends Controller
             ]),
             'productOptions' => ProductResource::collection(
                 Product::with([
-                    'thumbnail'
+                    'thumbnail',
                 ])
-                ->where('is_inventory', true)
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get()
+                    ->where('is_inventory', true)
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get()
             ),
             'type' => $request->id ? 'edit' : 'create',
         ]);
@@ -179,8 +176,8 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
         $deliveryProductMapping->deliveryProductMappingItems()->delete();
-        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            foreach ($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
                 $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
             }
             $deliveryProductMapping->deliveryProductMappingVends()->delete();
@@ -204,13 +201,13 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
         $deliveryProductMapping = $deliveryProductMappingItem->deliveryProductMapping;
 
-        if($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
+        if ($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
             $deliveryProductMappingItem->deliveryProductMappingVendChannels()->delete();
         }
 
         $deliveryProductMappingItem->delete();
 
-        if(! $deliveryProductMapping->deliveryProductMappingItems()->exists()) {
+        if (! $deliveryProductMapping->deliveryProductMappingItems()->exists()) {
             $deliveryProductMapping->update([
                 'is_active' => false,
             ]);
@@ -238,10 +235,10 @@ class DeliveryProductMappingController extends Controller
             'total_qty' => $request->total_qty,
         ]);
 
-        if(isset($request->bundleSalesItems)) {
-            foreach($request->bundleSalesItems as $bundleSalesItem) {
+        if (isset($request->bundleSalesItems)) {
+            foreach ($request->bundleSalesItems as $bundleSalesItem) {
                 $deliveryProductMappingBulk->deliveryProductMappingBulkItems()->create([
-                    'delivery_product_mapping_item_id' => $bundleSalesItem['id']
+                    'delivery_product_mapping_item_id' => $bundleSalesItem['id'],
                 ]);
             }
         }
@@ -270,7 +267,7 @@ class DeliveryProductMappingController extends Controller
             ->where('delivery_product_mapping_id', $deliveryProductMappingId)
             ->where('channel_code', $request->channel_code)
             ->exists();
-        if($hasChannelCode) {
+        if ($hasChannelCode) {
             return;
         }
 
@@ -286,12 +283,11 @@ class DeliveryProductMappingController extends Controller
         // dd($deliveryProductMappingItem()->with('deliveryProductMapping')->first()->toArray(), $deliveryProductMappingItem->deliveryProductMapping);
 
         DeliveryProductMapping::findOrFail($deliveryProductMappingId)->update([
-            'delivery_product_mapping_items_json' =>
-                DeliveryProductMapping::findOrFail($deliveryProductMappingId)
+            'delivery_product_mapping_items_json' => DeliveryProductMapping::findOrFail($deliveryProductMappingId)
                 ->deliveryProductMappingItems()
                 ->with([
                     'product:id,code,name',
-                    'product.thumbnail'
+                    'product.thumbnail',
                 ])
                 ->select(
                     'id',
@@ -316,13 +312,13 @@ class DeliveryProductMappingController extends Controller
                 'deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
                 'deliveryProductMappingItems.product:id,code,name',
                 'deliveryProductMappingItems.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
-                'deliveryProductMappingVends' => function($query) {
+                'deliveryProductMappingVends' => function ($query) {
                     // Same viewer boundary as index() - see the comment there.
                     $query->whereNull('end_date')
                         ->whereHas('vend')
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
-                'deliveryProductMappingVends.vend:id,code,name,customer_id',
+                'deliveryProductMappingVends.vend:id,code,code_prefix,name,customer_id',
                 'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 // 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
                 // 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
@@ -344,8 +340,8 @@ class DeliveryProductMappingController extends Controller
             )
             ->findOrFail($id);
 
-            // dd($deliveryProductMapping->toArray());
-            // dd($this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping));
+        // dd($deliveryProductMapping->toArray());
+        // dd($this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping));
 
         return Inertia::render('DeliveryPlatform/Edit', [
             'bundleSalesOptions' => $this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping),
@@ -361,43 +357,42 @@ class DeliveryProductMappingController extends Controller
             ),
             'productOptions' => ProductResource::collection(
                 Product::with([
-                    'thumbnail'
+                    'thumbnail',
                 ])
-                ->where('is_inventory', true)
-                ->where('is_active', true)
+                    ->where('is_inventory', true)
+                    ->where('is_active', true)
                 // ->whereNotIn('id', function($query) use ($deliveryProductMapping) {
                 //     $query->select('product_id')
                 //         ->from('delivery_product_mapping_items')
                 //         ->where('delivery_product_mapping_id', $deliveryProductMapping->id);
                 // })
-                ->orderBy('code')
-                ->get()
+                    ->orderBy('code')
+                    ->get()
             ),
             'type' => 'edit',
-            'unbindedVendOptions' =>
-                VendResource::collection(
+            'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
                     'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
-                ->whereIn('customer_id', function($query) use ($deliveryProductMapping) {
-                    $query->select('id')
-                        ->from('customers')
-                        ->where('operator_id', $deliveryProductMapping->operator_id)
-                        ->where('is_active', true);
-                })
-                ->whereNotIn('id', function($query) use ($deliveryProductMapping) {
-                    $query->select('vend_id')
-                        ->from('delivery_product_mapping_vend')
-                        ->where('delivery_product_mapping_id', $deliveryProductMapping->id)
-                        ->where('is_active', true);
-                })
-                ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
-                    $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
-                })
-                ->where('is_testing', false)
-                ->orderBy('vends.code')
-                ->select('id', 'code', 'name', 'customer_id')
-                ->get()
+                    ->whereIn('customer_id', function ($query) use ($deliveryProductMapping) {
+                        $query->select('id')
+                            ->from('customers')
+                            ->where('operator_id', $deliveryProductMapping->operator_id)
+                            ->where('is_active', true);
+                    })
+                    ->whereNotIn('id', function ($query) use ($deliveryProductMapping) {
+                        $query->select('vend_id')
+                            ->from('delivery_product_mapping_vend')
+                            ->where('delivery_product_mapping_id', $deliveryProductMapping->id)
+                            ->where('is_active', true);
+                    })
+                    ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function ($query, $search) use ($request) {
+                        VendCode::whereSearch($query, (string) $request->vend_code);
+                    })
+                    ->where('is_testing', false)
+                    ->orderBy('vends.code')
+                    ->select('id', 'code', 'code_prefix', 'name', 'customer_id')
+                    ->get()
             ),
         ]);
     }
@@ -407,8 +402,8 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
 
-        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            foreach ($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
                 $deliveryProductMappingVend->update([
                     'is_active' => false,
                 ]);
@@ -429,8 +424,8 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
 
-        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            foreach ($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
                 $deliveryProductMappingVend->update([
                     'is_active' => false,
                 ]);
@@ -462,14 +457,14 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMappingItem->update([
             'is_active' => ! $deliveryProductMappingItem->is_active,
         ]);
-        if($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
+        if ($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
             $deliveryProductMappingItem->deliveryProductMappingVendChannels()->update([
                 'is_active' => $deliveryProductMappingItem->is_active,
             ]);
         }
 
         // if($deliveryProductMappingItem->is_active) {
-            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingItem->deliveryProductMapping->id);
+        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingItem->deliveryProductMapping->id);
         // }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
@@ -482,14 +477,14 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMappingVend->update([
             'is_active' => ! $deliveryProductMappingVend->is_active,
         ]);
-        if($deliveryProductMappingVend->deliveryProductMappingVendChannels()->exists()) {
+        if ($deliveryProductMappingVend->deliveryProductMappingVendChannels()->exists()) {
             $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
                 'is_active' => $deliveryProductMappingVend->is_active,
             ]);
         }
-        if($deliveryProductMappingVend->is_active) {
+        if ($deliveryProductMappingVend->is_active) {
             $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
-        }else {
+        } else {
             $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
         }
 
@@ -529,7 +524,7 @@ class DeliveryProductMappingController extends Controller
             'product_mapping_id' => $request->product_mapping_id,
         ]);
 
-        foreach($request->productMappingItems as $productMappingItem) {
+        foreach ($request->productMappingItems as $productMappingItem) {
             $deliveryProductMapping->deliveryProductMappingItems()->create([
                 'amount' => $productMappingItem['delivery_platform_amount'],
                 'channel_code' => $productMappingItem['channel_code'],
@@ -570,16 +565,16 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMappingVend->end_date = Carbon::now();
         $deliveryProductMappingVend->save();
 
-        if($deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->exists()) {
-            foreach($deliveryProductMappingVend->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
-                if($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
+        if ($deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->exists()) {
+            foreach ($deliveryProductMappingVend->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
+                if ($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
                     $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
                     $deliveryPlatformCampaignItemVend->update([
                         'datetime_to' => Carbon::now(),
                         'is_active' => false,
                         'submission_response_json' => $response,
                     ]);
-                }else {
+                } else {
                     $deliveryPlatformCampaignItemVend->delete();
                 }
             }
@@ -599,17 +594,16 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping->update($request->all());
 
         $deliveryProductMapping->update([
-            'delivery_product_mapping_items_json' =>
-                $deliveryProductMapping->deliveryProductMappingItems()->with([
-                    'product.thumbnail',
-                    'deliveryProductMapping' => function($query) {
-                        $query->select('id', 'name', 'operator_id');
-                    }])->get(),
+            'delivery_product_mapping_items_json' => $deliveryProductMapping->deliveryProductMappingItems()->with([
+                'product.thumbnail',
+                'deliveryProductMapping' => function ($query) {
+                    $query->select('id', 'name', 'operator_id');
+                }])->get(),
         ]);
 
         // update reserved percent and qty for all delivery product mapping vend channels
-        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            $deliveryProductMapping->deliveryProductMappingVends->each(function($deliveryProductMappingVend) use ($deliveryProductMapping) {
+        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            $deliveryProductMapping->deliveryProductMappingVends->each(function ($deliveryProductMappingVend) use ($deliveryProductMapping) {
                 $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
                     'reserved_percent' => $deliveryProductMapping->reserved_percent,
                     'reserved_qty' => $deliveryProductMapping->reserved_qty,
@@ -624,7 +618,7 @@ class DeliveryProductMappingController extends Controller
     public function updateDeliveryProductMappingItem(Request $request, $id)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
-        if($deliveryProductMappingItem->amount != $request->amount or $deliveryProductMappingItem->sub_category_json != $request->sub_category_json) {
+        if ($deliveryProductMappingItem->amount != $request->amount or $deliveryProductMappingItem->sub_category_json != $request->sub_category_json) {
             $deliveryProductMappingItem->update([
                 'amount' => $request->amount,
                 'sub_category_json' => $request->sub_category_json,

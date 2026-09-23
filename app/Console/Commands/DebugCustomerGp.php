@@ -40,11 +40,12 @@ class DebugCustomerGp extends Command
 
         $customer = Customer::query()
             ->withoutGlobalScopes()
-            ->with(['vends:id,customer_id,code,begin_date,created_at', 'operator:id,code,name'])
+            ->with(['vends:id,customer_id,code,code_prefix,begin_date,created_at', 'operator:id,code,name'])
             ->find($internalId);
 
-        if (!$customer) {
+        if (! $customer) {
             $this->error("Customer ref_id={$refId} (internal id={$internalId}) not found.");
+
             return self::FAILURE;
         }
 
@@ -60,13 +61,13 @@ class DebugCustomerGp extends Command
             ['Internal id', $customer->id],
             ['Ref id (UI)', $refId],
             ['Name', $customer->name],
-            ['Operator', $customer->operator?->code . ' / ' . $customer->operator?->name],
+            ['Operator', $customer->operator?->code.' / '.$customer->operator?->name],
             ['Begin date', $customer->begin_date?->toDateString()],
             ['Termination date', $customer->termination_date?->toDateString()],
             ['Contract type', $customer->contract_commission_type ?? '(none)'],
             ['Vends bound (lifetime)', $customer->vends->count()],
             ['Vend codes', $customer->vends->pluck('code')->implode(', ')],
-            ['Window', $from->toDateString() . ' → ' . $to->toDateString()],
+            ['Window', $from->toDateString().' → '.$to->toDateString()],
         ]);
 
         $this->section('customer_period_summaries rows in window');
@@ -201,6 +202,6 @@ class DebugCustomerGp extends Command
     private function section(string $title): void
     {
         $this->newLine();
-        $this->line('━━━ ' . $title . ' ━━━');
+        $this->line('━━━ '.$title.' ━━━');
     }
 }

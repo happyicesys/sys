@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\ProductMovement;
+use App\Support\VendCode;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -92,12 +93,7 @@ class ProductMovementTrackingExport implements FromCollection, WithColumnWidths,
                 $q->whereDate('product_movements.created_at', '<=', $request->date_to);
             })
             ->when($request->vend_code, function ($q) use ($request) {
-                if (strpos($request->vend_code, ',') !== false) {
-                    $search = array_map('trim', explode(',', $request->vend_code));
-                    $q->whereIn('vends.code', $search);
-                } else {
-                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
-                }
+                VendCode::whereSearch($q, (string) $request->vend_code, contains: true);
             });
 
         // Outgoing Query
@@ -144,12 +140,7 @@ class ProductMovementTrackingExport implements FromCollection, WithColumnWidths,
                 $q->whereDate(DB::raw('COALESCE(ops_job_items.picked_at, ops_job_items.last_picked_at)'), '<=', $request->date_to);
             })
             ->when($request->vend_code, function ($q) use ($request) {
-                if (strpos($request->vend_code, ',') !== false) {
-                    $search = array_map('trim', explode(',', $request->vend_code));
-                    $q->whereIn('vends.code', $search);
-                } else {
-                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
-                }
+                VendCode::whereSearch($q, (string) $request->vend_code, contains: true);
             })
             // Exclude records after cutoff
             ->where(DB::raw('COALESCE(ops_job_items.picked_at, ops_job_items.last_picked_at)'), '<', '2026-01-15 19:30:00');
@@ -188,12 +179,7 @@ class ProductMovementTrackingExport implements FromCollection, WithColumnWidths,
                 $q->whereDate('ops_job_items.undo_picked_at', '<=', $request->date_to);
             })
             ->when($request->vend_code, function ($q) use ($request) {
-                if (strpos($request->vend_code, ',') !== false) {
-                    $search = array_map('trim', explode(',', $request->vend_code));
-                    $q->whereIn('vends.code', $search);
-                } else {
-                    $q->where('vends.code', 'LIKE', '%'.$request->vend_code.'%');
-                }
+                VendCode::whereSearch($q, (string) $request->vend_code, contains: true);
             })
             // Exclude records after cutoff
             ->where('ops_job_items.undo_picked_at', '<', '2026-01-15 19:30:00');

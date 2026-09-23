@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Models\Vend;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\Traits\HasFilter;
 use DateTimeZone;
 use DB;
@@ -76,7 +77,7 @@ class OperatorController extends Controller
                         'address:id,postcode',
                         // 'deliveryPlatformOperators.deliveryPlatform',
                         'country:id,name,code,currency_name,currency_symbol',
-                        'vends:id,code,customer_id,is_active',
+                        'vends:id,code,code_prefix,customer_id,is_active',
                         'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
                     ])
                     ->when($status === 'active', function ($query) {
@@ -200,9 +201,9 @@ class OperatorController extends Controller
                             }
                         })
                         ->when($request->vend_code, function ($query, $search) {
-                            $query->where('code', 'LIKE', '%'.$search.'%');
+                            VendCode::whereSearch($query, (string) $search, contains: true);
                         });
-                    $query->select('id', 'code', 'name', 'customer_id', 'operator_id');
+                    $query->select('id', 'code', 'code_prefix', 'name', 'customer_id', 'operator_id');
                 },
                 'vends.customer' => function ($query) use ($request) {
                     $query
@@ -254,8 +255,8 @@ class OperatorController extends Controller
                     ->get()
             ),
             'deliveryPlatformOperatorTypes' => [
-            DeliveryPlatformOperator::TYPE_SANDBOX,
-            DeliveryPlatformOperator::TYPE_PRODUCTION,
+                DeliveryPlatformOperator::TYPE_SANDBOX,
+                DeliveryPlatformOperator::TYPE_PRODUCTION,
             ],
             'emailUserOptions' => UserResource::collection(
                 User::query()

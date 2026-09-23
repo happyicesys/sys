@@ -190,22 +190,29 @@ class VendResource extends JsonResource
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'frequency_per_week_status' => isset($this->frequency_per_week_status) ? $this->frequency_per_week_status : null,
             'frequency_per_week_status_name' => isset($this->frequency_per_week_status) ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
+            // The machine ID in a dropdown label is the LABEL — "(C6002) …", not
+            // "(6002) …" (Brian, 2026-09-23). Unprefixed machines are unchanged,
+            // since VendCode::label of a null prefix is exactly the code.
+            // OpsJobController's unbindedVendOptions rebuilds cust_full_name
+            // by hand and must stay byte-identical to the branch below.
             'full_name' => $this->when($this->relationLoaded('customer'), function () {
+                $label = VendCode::label(isset($this->code_prefix) ? $this->code_prefix : null, $this->code);
                 if ($this->customer && $this->customer->person_id) {
-                    return '('.$this->code.') '.$this->customer->virtual_customer_code.' - '.$this->customer->name;
+                    return '('.$label.') '.$this->customer->virtual_customer_code.' - '.$this->customer->name;
                 } elseif ($this->customer && ! $this->customer->person_id) {
-                    return '('.$this->code.') '.$this->customer->id + 20000 .' - '.$this->customer->name;
+                    return '('.$label.') '.$this->customer->id + 20000 .' - '.$this->customer->name;
                 } else {
-                    return $this->code;
+                    return $label;
                 }
             }),
             'cust_full_name' => $this->when($this->relationLoaded('customer'), function () {
+                $label = VendCode::label(isset($this->code_prefix) ? $this->code_prefix : null, $this->code);
                 if ($this->customer && $this->customer->person_id) {
-                    return '('.$this->code.')  - '.$this->customer->virtual_customer_code.' - '.$this->customer->name;
+                    return '('.$label.')  - '.$this->customer->virtual_customer_code.' - '.$this->customer->name;
                 } elseif ($this->customer && ! $this->customer->person_id) {
-                    return '('.$this->code.') '.$this->customer->code.' - '.$this->customer->name;
+                    return '('.$label.') '.$this->customer->code.' - '.$this->customer->name;
                 } else {
-                    return '('.$this->code.')'.' - '.$this->label_name;
+                    return '('.$label.')'.' - '.$this->label_name;
                 }
             }),
             'key' => KeyResource::make($this->whenLoaded('key')),

@@ -137,6 +137,48 @@ class VendCodePrefixTest extends TestCase
         $this->assertSame(['C6001', '2031'], array_map('strval', $labels));
     }
 
+    // ── the machine ID people READ is the label, everywhere ───────────────
+
+    public function test_a_dropdown_label_names_the_chiller_c6001_not_6001(): void
+    {
+        // VendResource::full_name / cust_full_name is the canonical machine-picker
+        // label, feeding eight controllers' vendOptions (Brian, 2026-09-23).
+        $customer = \App\Models\Customer::create([
+            'name' => 'Raffles L1', 'code' => 'RL1', 'operator_id' => 1,
+            'status_id' => \App\Models\Customer::STATUS_ACTIVE,
+        ]);
+        $chiller = $this->chiller('E1', 6001);
+        $chiller->forceFill(['customer_id' => $customer->id])->save();
+        $vending = Vend::create(['code' => 2031, 'is_active' => 1, 'customer_id' => $customer->id]);
+
+        $label = fn (Vend $v) => \App\Http\Resources\VendResource::make(
+            Vend::withoutGlobalScopes()->with('customer')->find($v->id)
+        )->resolve()['cust_full_name'];
+
+        $this->assertStringContainsString('(C6001)', $label($chiller));
+        $this->assertStringNotContainsString('(6001)', $label($chiller));
+        $this->assertStringContainsString('(2031)', $label($vending), 'an unprefixed machine is unchanged');
+    }
+
+    public function test_the_card_terminal_list_shows_the_prefixed_machine_id(): void
+    {
+        $chiller = $this->chiller('E1', 6001);
+        $unit = \App\Models\CardTerminalUnit::create(['terminal_id' => 'T-1', 'card_terminal_id' => 1]);
+        \App\Models\CardTerminalBinding::create([
+            'card_terminal_unit_id' => $unit->id, 'terminal_id' => 'T-1', 'provider' => 'nets',
+            'vend_id' => $chiller->id, 'bound_from' => now()->subDay()->toDateString(),
+        ]);
+
+        $user = User::factory()->create();
+        $user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate('read card-terminals', 'web'));
+
+        $this->actingAs($user)->get('/card-terminal-units')->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('cardTerminalUnits.data.0.current_vend_code', 'C6001')
+                ->where('cardTerminalUnits.data.0.binding_history.0.vend_code', 'C6001')
+            );
+    }
+
     public function test_the_channel_export_prints_the_machine_id_ops_pro_uses(): void
     {
         // Finance and ops compare these files against OPS Pro by machine name.

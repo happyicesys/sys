@@ -10,6 +10,7 @@ use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Support\ProductAccess;
 use App\Support\TransactionAccess;
+use App\Support\VendCode;
 use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -212,7 +213,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 ->select([
                     'vend_transactions.*',
-                    'vends.code AS vend_code',
+                    DB::raw(VendCode::sqlLabel().' AS vend_code'),
                     'vends.name AS vend_name',
                     'vend_prefixes.name AS vend_prefix_name',
                     'customers.id AS customer_id',

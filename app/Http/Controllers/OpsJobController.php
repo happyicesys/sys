@@ -1577,7 +1577,7 @@ class OpsJobController extends Controller
         // the SAME eager-loaded fields (customer:id,name) and the SAME branch logic
         // as VendResource so the rendered label is byte-identical to before.
         $unbindedVendOptions = Vend::query()
-            ->select(['id', 'customer_id', 'operator_id', 'code'])
+            ->select(['id', 'customer_id', 'operator_id', 'code', 'code_prefix'])
             ->with(['customer:id,name'])
             ->whereNotNull('customer_id')
             // Every bound machine, including those already on this job: the same
@@ -1586,12 +1586,13 @@ class OpsJobController extends Controller
             // `in_job` lets the page refuse only a second top-up job for it.
             ->get()
             ->map(function ($vend) use ($vendIdsInJob) {
+                $codeLabel = $vend->codeLabel();
                 if ($vend->customer && $vend->customer->person_id) {
-                    $label = '('.$vend->code.')  - '.$vend->customer->virtual_customer_code.' - '.$vend->customer->name;
+                    $label = '('.$codeLabel.')  - '.$vend->customer->virtual_customer_code.' - '.$vend->customer->name;
                 } elseif ($vend->customer && ! $vend->customer->person_id) {
-                    $label = '('.$vend->code.') '.$vend->customer->code.' - '.$vend->customer->name;
+                    $label = '('.$codeLabel.') '.$vend->customer->code.' - '.$vend->customer->name;
                 } else {
-                    $label = '('.$vend->code.')'.' - '.$vend->label_name;
+                    $label = '('.$codeLabel.')'.' - '.$vend->label_name;
                 }
 
                 return [

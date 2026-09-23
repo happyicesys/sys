@@ -19,7 +19,7 @@ class CardTerminalBindingResource extends JsonResource
             'provider' => $this->provider,
             'terminal_id' => $this->terminal_id,
             'vend_id' => $this->vend_id,
-            'vend_code' => $this->vend?->code,
+            'vend_code' => $this->vend?->codeLabel(),
             'vend_name' => $this->vend?->name,
             'customer_name' => $this->vend?->customer?->name,
             'bound_from' => $this->bound_from?->format('Y-m-d'),

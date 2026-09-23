@@ -66,7 +66,7 @@ class SimcardResource extends JsonResource
             // here so every row does not ship the same Site twice.
             'vends' => $this->whenLoaded('vends', fn () => $this->vends->map->withoutRelations()),
             'vend_code' => $this->whenLoaded('vends', function () {
-                return $this->vends->pluck('code')->implode(', ');
+                return $this->vends->map->codeLabel()->implode(', ');
             }),
 
         ];

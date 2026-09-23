@@ -108,7 +108,7 @@ class CardTerminalUnitTest extends TestCase
                 ->component('CardTerminalUnit/Index')
                 ->where('cardTerminalUnits.data.0.terminal_id', '23005589')
                 ->where('cardTerminalUnits.data.0.card_terminal_name', 'Nets')
-                ->where('cardTerminalUnits.data.0.current_vend_code', $vend->code)
+                ->where('cardTerminalUnits.data.0.current_vend_code', $vend->codeLabel())
                 ->where('cardTerminalUnits.data.1.terminal_id', '99999999')
                 ->where('cardTerminalUnits.data.1.current_vend_code', null)
             );
@@ -282,7 +282,7 @@ class CardTerminalUnitTest extends TestCase
             ->get('/card-terminal-units')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('cardTerminalUnits.data.0.current_vend_code', $vend->code)
+                ->where('cardTerminalUnits.data.0.current_vend_code', $vend->codeLabel())
                 // The displayed Site ID, not the raw customers.id.
                 ->where('cardTerminalUnits.data.0.current_site_ref_id', $vend->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT)
                 ->where('cardTerminalUnits.data.0.current_site_name', 'Site 7055')
@@ -967,12 +967,12 @@ class CardTerminalUnitTest extends TestCase
             ->get('/card-terminal-units')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('cardTerminalUnits.data.0.current_vend_code', $second->code)
+                ->where('cardTerminalUnits.data.0.current_vend_code', $second->codeLabel())
                 ->where('cardTerminalUnits.data.0.bound_by', $user->name)
                 ->whereNot('cardTerminalUnits.data.0.bound_at', null)
                 ->count('cardTerminalUnits.data.0.binding_history', 2)
-                ->where('cardTerminalUnits.data.0.binding_history.0.vend_code', $second->code)
-                ->where('cardTerminalUnits.data.0.binding_history.1.vend_code', $first->code)
+                ->where('cardTerminalUnits.data.0.binding_history.0.vend_code', $second->codeLabel())
+                ->where('cardTerminalUnits.data.0.binding_history.1.vend_code', $first->codeLabel())
                 ->where('cardTerminalUnits.data.0.binding_history.1.bound_by', 'sys')
             );
     }

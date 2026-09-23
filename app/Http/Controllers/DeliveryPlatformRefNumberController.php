@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Resources\DeliveryPlatformRefNumberResource;
 use App\Http\Resources\OperatorResource;
 use App\Models\DeliveryPlatformRefNumber;
-use App\Models\Operator;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\Operator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -19,7 +19,7 @@ class DeliveryPlatformRefNumberController extends Controller
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
         // Default status filter to 'true' (Yes = Active)
-        if (!$request->has('is_active')) {
+        if (! $request->has('is_active')) {
             $request->merge(['is_active' => 'true']);
         }
 
@@ -37,7 +37,7 @@ class DeliveryPlatformRefNumberController extends Controller
                             ->whereColumn('delivery_product_mapping_vend.delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
                             ->whereNull('end_date')
                             ->latest('id')
-                            ->limit(1)
+                            ->limit(1),
                     ])
                     ->when($request->ref_number, function ($query, $search) {
                         $query->where('ref_number', 'LIKE', "%{$search}%");
@@ -59,12 +59,12 @@ class DeliveryPlatformRefNumberController extends Controller
                         }
                     })
                     ->when($request->operators, function ($query, $search) {
-                        if (!in_array('all', $search)) {
+                        if (! in_array('all', $search)) {
                             $query->whereIn('operator_id', $search);
                         }
                     })
                     ->when($request->vend_prefixes, function ($query, $search) {
-                        if (!in_array('all', $search)) {
+                        if (! in_array('all', $search)) {
                             $query->whereHas('currentDeliveryProductMappingVend.vend', function ($q) use ($search) {
                                 $q->whereIn('vend_prefix_id', $search);
                             });
@@ -129,7 +129,7 @@ class DeliveryPlatformRefNumberController extends Controller
             'operator',
             'deliveryProductMappingVends' => function ($query) {
                 $query->with([
-                    'vend:id,code,name,customer_id',
+                    'vend:id,code,code_prefix,name,customer_id',
                     'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                     'deliveryProductMapping:id,name',
                 ])->orderByDesc('created_at');
@@ -150,7 +150,7 @@ class DeliveryPlatformRefNumberController extends Controller
 
         $validated = $request->validate([
             'operator_id' => ['required', 'exists:operators,id'],
-            'ref_number' => ['required', 'string', 'max:255', 'unique:delivery_platform_ref_numbers,ref_number,' . $refNumber->id],
+            'ref_number' => ['required', 'string', 'max:255', 'unique:delivery_platform_ref_numbers,ref_number,'.$refNumber->id],
             'remarks' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['required', 'in:true,false'],
         ]);

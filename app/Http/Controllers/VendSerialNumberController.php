@@ -11,17 +11,17 @@ use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendStickerResource;
-use App\Http\Resources\VendResource;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\ProductMapping;
+use App\Models\Vend;
 use App\Models\VendConfig;
 use App\Models\VendContract;
-use App\Models\VendPrefix;
-use App\Models\VendSticker;
-use App\Models\VendSerialNumber;
-use App\Models\Vend;
 use App\Models\VendModel;
+use App\Models\VendPrefix;
+use App\Models\VendSerialNumber;
+use App\Models\VendSticker;
+use App\Support\VendCode;
 use App\Traits\ExportOptimizationTrait;
 use Carbon\Carbon;
 use DB;
@@ -32,6 +32,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 class VendSerialNumberController extends Controller
 {
     use ExportOptimizationTrait;
+
     public function index(Request $request)
     {
         $request->merge([
@@ -107,7 +108,7 @@ class VendSerialNumberController extends Controller
                     'Prefix' => $vendSerialNumber->vend_prefix_name,
                     'Product Mapping' => $vendSerialNumber->product_mapping_name,
                     'Contract' => $vendSerialNumber->vend_contract_name,
-                    'Customer Name' => $vendSerialNumber->customer_virtual_code . ' (' . $vendSerialNumber->vend_prefix_name . ') ' . $vendSerialNumber->customer_name,
+                    'Customer Name' => $vendSerialNumber->customer_virtual_code.' ('.$vendSerialNumber->vend_prefix_name.') '.$vendSerialNumber->customer_name,
                     'Postcode' => $vendSerialNumber->postcode,
                     'Operator' => $vendSerialNumber->operator_name,
                     'Location Type' => $vendSerialNumber->location_type_name,
@@ -130,7 +131,7 @@ class VendSerialNumberController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'code' => 'required|unique:vend_serial_numbers,code,' . $id,
+            'code' => 'required|unique:vend_serial_numbers,code,'.$id,
         ]);
 
         $model = VendSerialNumber::findOrFail($id);
@@ -174,7 +175,7 @@ class VendSerialNumberController extends Controller
                 'operators.name as operator_name',
                 'vend_serial_numbers.*',
                 'vends.id as vend_id',
-                'vends.code as vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 'vends.begin_date as vend_begin_date',
                 DB::raw('
                     CASE
@@ -208,6 +209,4 @@ class VendSerialNumberController extends Controller
                 'product_mappings.name as product_mapping_name'
             );
     }
-
-
 }

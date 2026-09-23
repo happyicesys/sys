@@ -115,7 +115,7 @@ class UserController extends Controller
                     'operator',
                     'phoneCountry',
                     'roles',
-                    'vends:id,code,name',
+                    'vends:id,code,code_prefix,name',
                     'vends.customer:id,code,name',
                 ])
                     ->selectRaw('users.*')
@@ -224,7 +224,7 @@ class UserController extends Controller
         $user = User::with([
             'phoneCountry',
             'roles',
-            'vends:id,code,name,customer_id',
+            'vends:id,code,code_prefix,name,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             // withoutGlobalScope: Product carries ProductAccessProductScope and
             // global scopes DO apply to eager loads. Without this, an admin who is
@@ -272,7 +272,7 @@ class UserController extends Controller
                         $query->where('is_active', true);
                     })
                     ->orderBy('code')
-                    ->select('id', 'code', 'name', 'customer_id')
+                    ->select('id', 'code', 'code_prefix', 'name', 'customer_id')
                     ->get()
             ),
             // Deliberately withoutGlobalScope(ProductAccessProductScope): an
@@ -298,7 +298,7 @@ class UserController extends Controller
             // 'unbindedCustomers' => fn () =>
             //     CustomerResource::collection(
             //         Customer::with([
-            //             'vend:id,code,name'
+            //             'vend:id,code,code_prefix,name'
             //         ])
             //         ->where('operator_id', $user->operator_id)
             //         ->whereHas('vend', function($query) use ($user) {

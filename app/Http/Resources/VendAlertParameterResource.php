@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\VendCode;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,7 +21,7 @@ class VendAlertParameterResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'code' => $this->code,
+            'code' => VendCode::label(isset($this->code_prefix) ? $this->code_prefix : null, $this->code),
             'name' => $this->name,
             'display_name' => $machineName,
             'operator' => $operator ? [

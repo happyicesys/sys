@@ -185,10 +185,9 @@ class DashboardController extends Controller
             $codesArr = strpos($request->codes, ',') !== false
                 ? array_map('trim', explode(',', $request->codes))
                 : [$request->codes];
-            $resolvedVendIds = \DB::table('vends')
-                ->whereIn('code', $codesArr)
-                ->pluck('id')
-                ->toArray();
+            $resolvedVendIdsQuery = \DB::table('vends');
+            VendCode::whereLabels($resolvedVendIdsQuery, $codesArr);
+            $resolvedVendIds = $resolvedVendIdsQuery->pluck('id')->toArray();
             $request->merge(['_resolved_vend_ids' => $resolvedVendIds]);
         }
 

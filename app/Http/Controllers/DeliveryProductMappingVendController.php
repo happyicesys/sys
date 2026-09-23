@@ -2,21 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformRefNumberResource;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
 use App\Http\Resources\OperatorResource;
-use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryPlatformOperator;
-use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformOrder;
+use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryProductMapping;
+use App\Models\DeliveryProductMappingVend;
 use App\Models\Operator;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DeliveryProductMappingVendController extends Controller
@@ -36,7 +35,7 @@ class DeliveryProductMappingVendController extends Controller
             'sortBy' => $request->sortBy ? $request->sortBy : true,
             'sortKey' => $request->sortKey ? $request->sortKey : 'platform_ref_id',
         ]);
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => \App\Support\OperatorScope::defaultFilterIds(),
@@ -48,7 +47,7 @@ class DeliveryProductMappingVendController extends Controller
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
             ->with([
-                'vend:id,code,name,customer_id',
+                'vend:id,code,code_prefix,name,customer_id',
                 'vend.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
                 'deliveryProductMapping:id,operator_id',
                 'deliveryProductMappingVendChannels:id,delivery_product_mapping_vend_id,delivery_product_mapping_item_id,vend_channel_id,vend_channel_code,amount,qty,reserved_percent,reserved_qty,is_active',
@@ -68,7 +67,7 @@ class DeliveryProductMappingVendController extends Controller
                         ->when($request->date_to, function ($query, $search) {
                             $query->where('order_created_at', '<=', $search);
                         });
-                }
+                },
             ], 'subtotal_amount')
             ->withSum([
                 'deliveryPlatformOrders' => function ($query) use ($request) {
@@ -80,7 +79,7 @@ class DeliveryProductMappingVendController extends Controller
                         ->when($request->date_to, function ($query, $search) {
                             $query->where('order_created_at', '<=', $search);
                         });
-                }
+                },
             ], 'promo_amount')
             ->withCount([
                 'deliveryPlatformOrders' => function ($query) use ($request) {
@@ -92,7 +91,7 @@ class DeliveryProductMappingVendController extends Controller
                         ->when($request->date_to, function ($query, $search) {
                             $query->where('order_created_at', '<=', $search);
                         });
-                }
+                },
             ])
             ->filterIndex($request)
             ->when($request->sortKey, function ($query, $search) use ($request) {

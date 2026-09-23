@@ -42,7 +42,7 @@ class CardTerminalUnitResource extends JsonResource
             // that machine's Setting/Edit page (/settings/vend/{id}/update),
             // which is where its terminal binding is actually changed.
             'current_vend_id' => $binding?->vend?->id,
-            'current_vend_code' => $binding?->vend?->code,
+            'current_vend_code' => $binding?->vend?->codeLabel(),
             'current_vend_name' => $binding?->vend?->name,
             // The SITE under that machine, shown as "<ref id> - <name>".
             // ref_id is customers.id + RUNNING_NUMBER_INIT — the number the

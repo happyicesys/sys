@@ -13,12 +13,13 @@ use App\Models\VendSmartAlert;
 use App\Models\VendTemp;
 use App\Models\VendTempMetric;
 use App\Models\VendTransaction;
+use App\Support\VendCode;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class MachineHealthDashboardService
 {
@@ -28,7 +29,7 @@ class MachineHealthDashboardService
     {
         $filters = $this->hydrateFilters($request);
 
-        if (!$this->shouldCache($filters)) {
+        if (! $this->shouldCache($filters)) {
             return $this->buildDashboardPayload($filters);
         }
 
@@ -114,7 +115,7 @@ class MachineHealthDashboardService
         // base, recomputation is the cheaper mistake.
         $normalized['viewer_user_id'] = auth()->id();
 
-        return 'machine-health:' . md5(json_encode($normalized));
+        return 'machine-health:'.md5(json_encode($normalized));
     }
 
     private function normalizeForCache(array $value): array
@@ -197,10 +198,11 @@ class MachineHealthDashboardService
 
             if ($event->event_type === VendChannelStockEvent::TYPE_SOLD_OUT) {
                 $pendingSoldOut[$channelId] = $event;
+
                 continue;
             }
 
-            if ($event->event_type !== VendChannelStockEvent::TYPE_RESTOCKED || !isset($pendingSoldOut[$channelId])) {
+            if ($event->event_type !== VendChannelStockEvent::TYPE_RESTOCKED || ! isset($pendingSoldOut[$channelId])) {
                 continue;
             }
 
@@ -222,7 +224,7 @@ class MachineHealthDashboardService
             $stockoutAt = $durationRecord['stockout_at'];
             if ($stockoutAt instanceof Carbon) {
                 $weekStart = $stockoutAt->copy()->startOfWeek()->toDateString();
-                if (!isset($trendBuckets[$weekStart])) {
+                if (! isset($trendBuckets[$weekStart])) {
                     $trendBuckets[$weekStart] = ['hours' => 0.0, 'count' => 0];
                 }
 
@@ -349,7 +351,7 @@ class MachineHealthDashboardService
         }
 
         $list[] = $duration;
-        usort($list, fn($a, $b) => $b['duration_minutes'] <=> $a['duration_minutes']);
+        usort($list, fn ($a, $b) => $b['duration_minutes'] <=> $a['duration_minutes']);
         if (count($list) > $limit) {
             $list = array_slice($list, 0, $limit);
         }
@@ -363,15 +365,15 @@ class MachineHealthDashboardService
 
         foreach ($durationLists as $durations) {
             foreach ($durations as $duration) {
-                if (!empty($duration['vend_id'])) {
+                if (! empty($duration['vend_id'])) {
                     $vendIds[$duration['vend_id']] = true;
                 }
 
-                if (!empty($duration['vend_channel_id'])) {
+                if (! empty($duration['vend_channel_id'])) {
                     $channelIds[$duration['vend_channel_id']] = true;
                 }
 
-                if (!empty($duration['product_id'])) {
+                if (! empty($duration['product_id'])) {
                     $productIds[$duration['product_id']] = true;
                 }
             }
@@ -380,7 +382,7 @@ class MachineHealthDashboardService
         $vendCollection = empty($vendIds)
             ? collect()
             : Vend::query()
-                ->select('id', 'code', 'name', 'customer_id', 'operator_id', 'vend_prefix_id', 'card_terminal_id')
+                ->select('id', 'code', 'code_prefix', 'name', 'customer_id', 'operator_id', 'vend_prefix_id', 'card_terminal_id')
                 ->with([
                     'cardTerminal:id,name',
                     'customer:id,name',
@@ -431,7 +433,7 @@ class MachineHealthDashboardService
                 $channel = $channels->get($duration['vend_channel_id']);
                 $product = $duration['product_id'] ? $products->get($duration['product_id']) : null;
 
-                if (!$product && $channel) {
+                if (! $product && $channel) {
                     $product = $channel->relationLoaded('product') ? $channel->product : null;
                 }
 
@@ -493,6 +495,7 @@ class MachineHealthDashboardService
                     'rows' => [],
                     'codes' => $definition['codes'],
                 ];
+
                 continue;
             }
 
@@ -506,7 +509,7 @@ class MachineHealthDashboardService
                 ->whereNotNull('vend_channel_error_logs.vend_transaction_id')
                 ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                 ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
-                ->when(!$filters['show_all_errors'], function ($q) {
+                ->when(! $filters['show_all_errors'], function ($q) {
                     $q->where('vend_channel_error_logs.is_error_cleared', false);
                 })
                 ->where('vends.is_testing', false);
@@ -523,7 +526,7 @@ class MachineHealthDashboardService
 
             $selects = [
                 'vends.id as vend_id',
-                'vends.code as vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 'vends.name as vend_name',
                 'customers.name as customer_name',
                 'operators.name as operator_name',
@@ -546,7 +549,7 @@ class MachineHealthDashboardService
             $vendIds = $rows->pluck('vend_id')->all();
             $detailedEvents = [];
 
-            if (!empty($vendIds)) {
+            if (! empty($vendIds)) {
                 $detailedEvents = VendChannelErrorLog::query()
                     ->join('vend_channels', 'vend_channel_error_logs.vend_channel_id', '=', 'vend_channels.id')
                     ->join('vend_channel_errors', 'vend_channel_error_logs.vend_channel_error_id', '=', 'vend_channel_errors.id')
@@ -556,7 +559,7 @@ class MachineHealthDashboardService
                     ->whereNotNull('vend_channel_error_logs.vend_transaction_id')
                     ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                     ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
-                    ->when(!$filters['show_all_errors'], function ($q) {
+                    ->when(! $filters['show_all_errors'], function ($q) {
                         $q->where('vend_channel_error_logs.is_error_cleared', false);
                     })
                     ->select([
@@ -580,7 +583,7 @@ class MachineHealthDashboardService
                     $perCode = collect($definition['codes'])->map(function ($code) use ($row) {
                         return [
                             'code' => $code,
-                            'count' => (int) ($row->{'code_' . $code . '_count'} ?? 0),
+                            'count' => (int) ($row->{'code_'.$code.'_count'} ?? 0),
                         ];
                     })->values()->all();
 
@@ -706,11 +709,11 @@ class MachineHealthDashboardService
                 VendSmartAlert::TYPE_COMP_FAN_OFF,
                 VendSmartAlert::TYPE_TEMPS_ABOVE_0,
                 VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,
-                VendSmartAlert::TYPE_NOT_REACH_MINUS_18
+                VendSmartAlert::TYPE_NOT_REACH_MINUS_18,
             ]),
             'preventive_maintenance_smart' => $this->getSmartAlerts($filters, [
                 VendSmartAlert::TYPE_LOWEST_24H_ABOVE,
-                VendSmartAlert::TYPE_LOWEST_72H_ABOVE
+                VendSmartAlert::TYPE_LOWEST_72H_ABOVE,
             ]),
             'worst_minima' => [
                 'window_days' => $longWindow,
@@ -764,9 +767,10 @@ class MachineHealthDashboardService
 
         return [
             'window_days' => $window,
-            'rows' => $rows->map(function ($row) use ($scale, $startA, $endA, $startB, $endB) {
+            'rows' => $rows->map(function ($row) use ($scale) {
                 $minA = $row->min_a / $scale;
                 $minB = $row->min_b / $scale;
+
                 return array_merge($this->baseVendInfo($row), [
                     'first_day' => 'Prev Period',
                     'latest_day' => 'Curr Period',
@@ -774,7 +778,7 @@ class MachineHealthDashboardService
                     'latest_min_temp' => $minA,
                     'delta' => $minA - $minB,
                 ]);
-            })->all()
+            })->all(),
         ];
     }
 
@@ -887,7 +891,7 @@ class MachineHealthDashboardService
         $allVendIds = $allModels->pluck('id')->unique()->values()->all();
 
         $l30dSales = [];
-        if (!empty($allVendIds)) {
+        if (! empty($allVendIds)) {
             $l30dStart = Carbon::now()->subDays(30);
             // Pin idx_vtrans_optimal_sales (vend_id, transaction_datetime, amount).
             // This is a covering index for "SUM(amount) GROUP BY vend_id" over a
@@ -1023,23 +1027,23 @@ class MachineHealthDashboardService
             $query->where("{$table}.operator_id", $viewerOperatorId);
         }
 
-        if (!empty($filters['vend_prefix_ids'])) {
+        if (! empty($filters['vend_prefix_ids'])) {
             $query->whereIn("{$table}.vend_prefix_id", $filters['vend_prefix_ids']);
         }
 
-        if (!empty($filters['operator_ids'])) {
+        if (! empty($filters['operator_ids'])) {
             $query->whereIn("{$table}.operator_id", $filters['operator_ids']);
         }
 
-        if (!empty($filters['customer_ids'])) {
+        if (! empty($filters['customer_ids'])) {
             $query->whereIn("{$table}.customer_id", $filters['customer_ids']);
         }
 
-        if (!empty($filters['machine_codes'])) {
+        if (! empty($filters['machine_codes'])) {
             $query->whereIn("{$table}.code", $filters['machine_codes']);
         }
 
-        if (!empty($filters['channel_sku']) && $query instanceof EloquentBuilder && $query->getModel() instanceof Vend) {
+        if (! empty($filters['channel_sku']) && $query instanceof EloquentBuilder && $query->getModel() instanceof Vend) {
             $sku = $filters['channel_sku'];
             $query->whereHas('vendChannels', function ($q) use ($sku) {
                 $q->where('sku_code', $sku)
@@ -1078,6 +1082,7 @@ class MachineHealthDashboardService
     {
         $query = Vend::query()->where('is_testing', false);
         $this->applyVendFilters($query, $filters);
+
         return $query;
     }
 
@@ -1086,7 +1091,7 @@ class MachineHealthDashboardService
         $limit = $filters['machine_limit'];
         $alertsQuery = VendSmartAlert::query()
             ->with([
-                'vend:id,code,name,operator_id,vend_prefix_id,customer_id,temp,parameter_json',
+                'vend:id,code,code_prefix,name,operator_id,vend_prefix_id,customer_id,temp,parameter_json',
                 'vend.customer:id,name',
                 'vend.operator:id,name',
                 'vend.vendPrefix:id,name',
@@ -1133,7 +1138,7 @@ class MachineHealthDashboardService
                             VendSmartAlert::TYPE_LOWEST_72H_ABOVE,
                             VendSmartAlert::TYPE_NOT_REACH_MINUS_18,
                             VendSmartAlert::TYPE_RISING_T1,
-                            VendSmartAlert::TYPE_RISING_T2
+                            VendSmartAlert::TYPE_RISING_T2,
                         ])
                     ) {
                         $duration = $duration / 60;
@@ -1183,12 +1188,12 @@ class MachineHealthDashboardService
 
     private function normalizeIdArray($input): array
     {
-        return array_values(array_filter(array_map('intval', $this->normalizeArray($input)), fn($value) => $value > 0));
+        return array_values(array_filter(array_map('intval', $this->normalizeArray($input)), fn ($value) => $value > 0));
     }
 
     private function normalizeStringArray($input): array
     {
-        return array_values(array_filter(array_map(static fn($value) => trim((string) $value), $this->normalizeArray($input)), fn($value) => $value !== ''));
+        return array_values(array_filter(array_map(static fn ($value) => trim((string) $value), $this->normalizeArray($input)), fn ($value) => $value !== ''));
     }
 
     private function normalizeArray($input): array

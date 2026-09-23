@@ -525,7 +525,7 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'contract_notice_period' => $c->contract_notice_period,
                     'vend' => $c->relationLoaded('vend') && $c->vend ? [
                         'id' => $c->vend->id,
-                        'code' => $c->vend->code,
+                        'code' => $c->vend->codeLabel(),
                         // Lets the Summary hide the RP badge on CityBox chiller sites.
                         'machine_type' => $c->vend->machine_type ?: 'vending_machine',
                         'prefix' => $c->vend->relationLoaded('vendPrefix') && $c->vend->vendPrefix
@@ -537,12 +537,12 @@ class CustomerPeriodSummaryResource extends JsonResource
                     // Vend ID column on the Summary page.
                     'vends' => $c->relationLoaded('vends')
                         ? $c->vends
-                            ->sortBy(fn ($v) => (string) $v->code, SORT_NATURAL | SORT_FLAG_CASE)
+                            ->sortBy(fn ($v) => $v->codeLabel(), SORT_NATURAL | SORT_FLAG_CASE)
                             ->values()
                             ->map(function ($v) {
                                 return [
                                     'id' => $v->id,
-                                    'code' => $v->code,
+                                    'code' => $v->codeLabel(),
                                     'prefix' => $v->relationLoaded('vendPrefix') && $v->vendPrefix
                                         ? $v->vendPrefix->name
                                         : null,

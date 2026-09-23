@@ -42,6 +42,7 @@ use App\Support\DispenseVerdict;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
 use App\Support\TransactionAccess;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use App\Traits\HasMonthOption;
@@ -510,7 +511,7 @@ class ReportController extends Controller
                 $q->whereIn('customer_id', $request->input('customer_ids'));
             }
             if ($request->filled('machine_codes')) {
-                $q->whereIn('code', $request->input('machine_codes'));
+                VendCode::whereLabels($q, (array) $request->input('machine_codes'));
             }
         });
 
@@ -1813,15 +1814,7 @@ class ReportController extends Controller
 
         // ----- Machine ID (codes) -----
         if ($request->filled('codes')) {
-            $codes = $request->codes;
-            if (strpos($codes, ',') !== false) {
-                $codeList = array_filter(array_map('trim', explode(',', $codes)));
-                if (! empty($codeList)) {
-                    $sub->whereIn('vends.code', $codeList);
-                }
-            } else {
-                $sub->where('vends.code', 'LIKE', "{$codes}%");
-            }
+            VendCode::whereSearch($sub, (string) $request->codes);
         }
 
         // ----- Customer (free-text) -----
@@ -2895,14 +2888,7 @@ class ReportController extends Controller
                 $query->whereIn('category_groups.id', $search);
             })
             ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $codes = array_filter(array_map('trim', explode(',', $search)));
-                    if (! empty($codes)) {
-                        $query->whereIn('vends.code', $codes);
-                    }
-                } else {
-                    $query->where('vends.code', 'LIKE', "{$search}%");
-                }
+                VendCode::whereSearch($query, (string) $search);
             })
             ->when($request->customer_code, function ($query, $search) {
                 $query->where('customers.code', 'LIKE', "%{$search}%");
@@ -3290,7 +3276,7 @@ class ReportController extends Controller
                 DB::raw('MONTH(vend_snapshots.created_at) - 1 AS month_number'),
                 DB::raw('YEAR(vend_snapshots.created_at) AS year_number'),
                 'product_mappings.name AS product_mapping_name',
-                'vends.code AS vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 'vends.name AS vend_name',
                 'vend_snapshots.created_at AS created_at',
                 'vend_snapshots.parameter_json',

@@ -7,6 +7,7 @@ use App\Http\Resources\VendAlertParameterResource;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendAlertSetting;
+use App\Support\VendCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -38,10 +39,10 @@ class VendAlertParameterController extends Controller
             ])
             ->select('vends.*')
             ->when($filters['code'], function ($query, $code) {
-                $query->where('vends.code', 'like', '%' . $code . '%');
+                VendCode::whereSearch($query, (string) $code, contains: true);
             })
             ->when($filters['name'], function ($query, $name) {
-                $query->where('vends.name', 'like', '%' . $name . '%');
+                $query->where('vends.name', 'like', '%'.$name.'%');
             })
             ->when($filters['operators'], function ($query) use ($filters) {
                 if ($filters['operators'] === 'all') {
@@ -53,7 +54,7 @@ class VendAlertParameterController extends Controller
                     fn ($id) => $id !== 'all' && $id !== null && $id !== ''
                 );
 
-                if (!empty($operatorIds)) {
+                if (! empty($operatorIds)) {
                     $query->whereIn('vends.operator_id', $operatorIds);
                 }
             })
@@ -110,10 +111,11 @@ class VendAlertParameterController extends Controller
                         $setting->delete();
                         $affected++;
                     }
+
                     continue;
                 }
 
-                if (!$setting->exists || $setting->isDirty(array_keys($fieldsToUpdate))) {
+                if (! $setting->exists || $setting->isDirty(array_keys($fieldsToUpdate))) {
                     $setting->save();
                     $affected++;
                 }

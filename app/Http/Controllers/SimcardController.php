@@ -57,7 +57,7 @@ class SimcardController extends Controller
                         // when the machine's HTTP heartbeat goes quiet for 15 min,
                         // and a null last_updated_at means it never checked in at
                         // all (reads 'N/A', not 'Offline').
-                        'vends:id,simcard_id,code,customer_id,apk_version_code,apk_ver_json,'
+                        'vends:id,simcard_id,code,code_prefix,customer_id,apk_version_code,apk_ver_json,'
                             .'is_online,last_updated_at,'
                             .'internet_source,internet_provider,internet_network,'
                             .'internet_signal,internet_signal_max',
@@ -70,7 +70,7 @@ class SimcardController extends Controller
             ),
             'telcos' => TelcoResource::collection(Telco::orderBy('name')->get()),
             'usageStatusOptions' => self::USAGE_STATUSES,
-            'vends' => Vend::with(['vendPrefix', 'customer'])->select('id', 'code', 'simcard_id', 'name', 'vend_prefix_id', 'customer_id')->orderBy('code')->get(),
+            'vends' => Vend::with(['vendPrefix', 'customer'])->select('id', 'code', 'code_prefix', 'simcard_id', 'name', 'vend_prefix_id', 'customer_id')->orderBy('code')->get(),
         ]);
     }
 

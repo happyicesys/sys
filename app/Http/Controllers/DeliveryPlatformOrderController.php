@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DeliveryPlatformOrderExport;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformOrderResource;
 use App\Http\Resources\DeliveryPlatformRefNumberResource;
 use App\Http\Resources\OperatorResource;
-use App\Exports\DeliveryPlatformOrderExport;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
-use App\Models\DeliveryPlatformOrderItem;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\Operator;
 use App\Services\DeliveryPlatformService;
@@ -29,9 +28,8 @@ class DeliveryPlatformOrderController extends Controller
 
     public function __construct(DeliveryPlatformService $deliveryPlatformService)
     {
-        $this->deliveryPlatformService = new DeliveryPlatformService();
+        $this->deliveryPlatformService = new DeliveryPlatformService;
     }
-
 
     public function index(Request $request)
     {
@@ -47,7 +45,7 @@ class DeliveryPlatformOrderController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
 
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => \App\Support\OperatorScope::defaultFilterIds(),
@@ -97,7 +95,7 @@ class DeliveryPlatformOrderController extends Controller
                         'id' => $index,
                         'name' => $status,
                     ];
-                })
+                }),
             ],
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -119,7 +117,7 @@ class DeliveryPlatformOrderController extends Controller
                 'deliveryPlatform:id,name,country_id,slug',
                 'deliveryPlatformOrderItems',
                 'deliveryProductMappingVend.deliveryProductMapping:id,name',
-                'deliveryProductMappingVend.vend:id,code,name',
+                'deliveryProductMappingVend.vend:id,code,code_prefix,name',
                 'deliveryProductMappingVend.vend.customer:id,code,name',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
@@ -153,7 +151,7 @@ class DeliveryPlatformOrderController extends Controller
         })
             ->get();
 
-        return Excel::download(new DeliveryPlatformOrderExport($query), 'Delivery_Platform_Order_' . Carbon::now()->toDateTimeString() . '.xlsx');
+        return Excel::download(new DeliveryPlatformOrderExport($query), 'Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx');
         // return (new FastExcel($this->yieldOneByOne($query->get())))->download('Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx', function ($orderItem) {
         //     return [
         //         'Platform Order ID' => $orderItem->deliveryPlatformOrder->order_id,
@@ -200,7 +198,7 @@ class DeliveryPlatformOrderController extends Controller
                 'deliveryPlatform:id,name,country_id,slug',
                 'deliveryPlatformOrderItems',
                 'deliveryProductMappingVend.deliveryProductMapping:id,name',
-                'deliveryProductMappingVend.vend:id,code,name,customer_id,vend_prefix_id',
+                'deliveryProductMappingVend.vend:id,code,code_prefix,name,customer_id,vend_prefix_id',
                 'deliveryProductMappingVend.vend.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
                 'deliveryProductMappingVend.vend.vendPrefix',
                 'deliveryProductMappingVend.deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
@@ -216,6 +214,7 @@ class DeliveryPlatformOrderController extends Controller
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             });
+
         // dd($query->get()->toArray());
         return $query;
     }

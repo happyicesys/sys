@@ -29,6 +29,7 @@ use App\Services\TagBindingService;
 use App\Services\VendPricingSourceService;
 use App\Support\DispenseVerdict;
 use App\Support\SiteSearch;
+use App\Support\VendCode;
 use App\Traits\ExportOptimizationTrait;
 use App\Traits\HasFilter;
 use App\Traits\SearchAddress;
@@ -38,7 +39,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use App\Support\VendCode;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class CustomerController extends Controller
@@ -162,7 +162,7 @@ class CustomerController extends Controller
                 'operators.name as operator_name',
                 'product_mappings.name AS product_mapping_name',
                 'vc.total_full_load_amount',
-                'vends.code as vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 'zones.name as zone_name',
                 DB::raw('
                     (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.vend_records_thirty_days_amount_average")) *30 /100)/
@@ -456,11 +456,11 @@ class CustomerController extends Controller
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
-            'customer.vend:id,customer_id,code,vend_prefix_id,machine_type',
+            'customer.vend:id,customer_id,code,code_prefix,vend_prefix_id,machine_type',
             'customer.vend.vendPrefix:id,name',
             // All vends bound to the customer — used to expand the "+N more"
             // hint into a line-broken list (ascending) in the Vend ID column.
-            'customer.vends:id,customer_id,code,vend_prefix_id',
+            'customer.vends:id,customer_id,code,code_prefix,vend_prefix_id',
             'customer.vends.vendPrefix:id,name',
             // Delivery-platform bindings on the customer's vends — used to
             // render small platform badges (e.g. green "Grab" pill) next to
@@ -3220,7 +3220,7 @@ class CustomerController extends Controller
             ->where('b.customer_id', $id)
             ->orderByDesc('b.created_at')
             ->get([
-                'v.code as vend_code',
+                DB::raw(VendCode::sqlLabel('v').' AS vend_code'),
                 'vp.name as vend_prefix',
                 'b.is_binding',
                 'b.created_at',
@@ -3830,7 +3830,7 @@ class CustomerController extends Controller
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
-            'customer.vend:id,customer_id,code,vend_prefix_id,machine_type',
+            'customer.vend:id,customer_id,code,code_prefix,vend_prefix_id,machine_type',
             'customer.vend.vendPrefix:id,name',
             // Drives the Company + Contact Person + Contact Phone columns (morphOne).
             // `company` = the Edit form's "Bill From" billing-company field.
@@ -4945,7 +4945,7 @@ class CustomerController extends Controller
             'operatorOptions' => $optionsService->operators(),
             'bankOptions' => $optionsService->banks(),
             'vendOptions' => Vend::query()
-                ->select('id', 'code', 'customer_id')
+                ->select('id', 'code', 'code_prefix', 'customer_id')
                 ->where('customer_id', null)
                 ->orderBy('code')
                 ->get(),
@@ -5513,7 +5513,7 @@ class CustomerController extends Controller
                 'category',
                 'category.categoryGroup',
                 'contact',
-                'customerVendBindings.vend:id,code,customer_id',
+                'customerVendBindings.vend:id,code,code_prefix,customer_id',
                 'customerVendBindings.vendPrefix',
                 // Who bound/unbound the machine — rendered next to the
                 // timestamp in the "Machine Binding History" list.
@@ -5526,7 +5526,7 @@ class CustomerController extends Controller
                 // Eager-load tag relation so the multiselect on Customer/Edit
                 // can preselect bound tags by name + id.
                 'tagBindings.tag',
-                'vend:id,code,customer_id,product_mapping_id',
+                'vend:id,code,code_prefix,customer_id,product_mapping_id',
                 'vend.productMapping.attachments' => function ($query) use ($type) {
                     // $query->when($type, function ($query, $type) {
                     //     $query->where('type', $type);
@@ -5603,7 +5603,7 @@ class CustomerController extends Controller
             'bankOptions' => $optionsService->banks(),
             'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'vendOptions' => Vend::query()
-                ->select('id', 'code', 'customer_id')
+                ->select('id', 'code', 'code_prefix', 'customer_id')
                 ->where('customer_id', null)
                 ->orderBy('code')
                 ->get(),
@@ -5719,7 +5719,7 @@ class CustomerController extends Controller
         $customers = Customer::query()
             ->with([
                 'contact',
-                'vend:id,code,customer_id',
+                'vend:id,code,code_prefix,customer_id',
                 'deliveryAddress',
             ])
             ->whereIn('id', $input->pluck('customer_id'))
@@ -5737,7 +5737,7 @@ class CustomerController extends Controller
         $customers = Customer::query()
             ->with([
                 'operator:id,name',
-                'vend:id,code,customer_id',
+                'vend:id,code,code_prefix,customer_id',
             ])
             ->has('vend')
             ->where(function ($query) use ($search) {

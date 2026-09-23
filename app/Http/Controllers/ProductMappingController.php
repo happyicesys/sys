@@ -292,7 +292,7 @@ class ProductMappingController extends Controller
                             // eager-loaded on vends.customer below), NOT this vend column.
                             // vend_transaction_totals_json is kept selected for any other
                             // consumer of VendResource but is no longer the L30d source.
-                            $query->select('id', 'code', 'name', 'product_mapping_id', 'upcoming_product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
+                            $query->select('id', 'code', 'code_prefix', 'name', 'product_mapping_id', 'upcoming_product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
 
                             if ($request->vendStatus and $request->vendStatus !== 'all') {
                                 switch ($request->vendStatus) {
@@ -554,7 +554,7 @@ class ProductMappingController extends Controller
 
                 return [
                     'id' => $vend->id,
-                    'code' => $vend->code,
+                    'code' => $vend->codeLabel(),
                     'is_active' => (bool) $vend->is_active,
                     'vend_prefix_name' => $vend->vendPrefix?->name,
                     'customer_id' => $vend->customer?->id,
@@ -1066,7 +1066,7 @@ class ProductMappingController extends Controller
             'productMappingItemsNormalSequence.product.blindChildren.childProduct.thumbnail',
             'upcomingProductMappings',
             'upcomingProductMapping',
-            'vends:id,code,name,product_mapping_id,customer_id,vend_prefix_id,binded_at,updated_at',
+            'vends:id,code,code_prefix,name,product_mapping_id,customer_id,vend_prefix_id,binded_at,updated_at',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
             'vends.vendPrefix:id,name',
         ])->findOrFail($id);

@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DeliveryPlatformCampaign;
-use App\Models\DeliveryPlatformCampaignItem;
-use App\Models\DeliveryPlatformOperator;
-use App\Models\DeliveryProductMapping;
-use App\Models\DeliveryProductMappingVend;
-use App\Models\DeliveryPlatformCampaignItemVend;
-use App\Models\Operator;
 use App\Http\Resources\DeliveryPlatformCampaignResource;
-use App\Http\Resources\DeliveryPlatformCampaignItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
 use App\Http\Resources\OperatorResource;
+use App\Models\DeliveryPlatformCampaign;
+use App\Models\DeliveryPlatformCampaignItem;
+use App\Models\DeliveryPlatformCampaignItemVend;
+use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryProductMapping;
+use App\Models\DeliveryProductMappingVend;
+use App\Models\Operator;
 use App\Services\DeliveryPlatformCampaignService;
 use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
@@ -28,11 +27,12 @@ class DeliveryPlatformCampaignController extends Controller
     use GetUserTimezone;
 
     protected $deliveryPlatformCampaignService;
+
     protected $deliveryPlatformService;
 
     public function __construct(DeliveryPlatformCampaignService $deliveryPlatformCampaignService, DeliveryPlatformService $deliveryPlatformService)
     {
-        $this->deliveryPlatformService = new DeliveryPlatformService();
+        $this->deliveryPlatformService = new DeliveryPlatformService;
         $this->deliveryPlatformCampaignService = $deliveryPlatformCampaignService;
     }
 
@@ -85,10 +85,9 @@ class DeliveryPlatformCampaignController extends Controller
                     })
                     ->get()
             ),
-            'deliveryProductMappingOptions' =>
-                DeliveryProductMappingResource::collection(
-                    DeliveryProductMapping::all()
-                ),
+            'deliveryProductMappingOptions' => DeliveryProductMappingResource::collection(
+                DeliveryProductMapping::all()
+            ),
         ]);
     }
 
@@ -132,7 +131,7 @@ class DeliveryPlatformCampaignController extends Controller
                     $query->whereNull('end_date')
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
-                'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name,customer_id,vend_prefix_id',
+                'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,code_prefix,name,customer_id,vend_prefix_id',
                 'deliveryProductMapping.deliveryProductMappingVends.vend.vendPrefix:id,name',
                 'deliveryProductMapping.deliveryProductMappingVends.vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
@@ -150,7 +149,7 @@ class DeliveryPlatformCampaignController extends Controller
                 },
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
-                'vend:id,code,name,customer_id,vend_prefix_id',
+                'vend:id,code,code_prefix,name,customer_id,vend_prefix_id',
                 'vend.vendPrefix:id,name',
                 'vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
@@ -162,7 +161,6 @@ class DeliveryPlatformCampaignController extends Controller
             ->whereNull('end_date')
             ->where('is_active', true)
             ->get();
-
 
         return Inertia::render('DeliveryPlatformCampaign/Edit', [
             'deliveryPlatformCampaignItemOptions' => $this->deliveryPlatformCampaignService->getItemOptions($deliveryPlatformCampaign),
@@ -216,7 +214,7 @@ class DeliveryPlatformCampaignController extends Controller
             })
             ->first();
 
-        if (!$existedDeliveryPlatformCampaignItemVend) {
+        if (! $existedDeliveryPlatformCampaignItemVend) {
             DeliveryPlatformCampaignItemVend::create([
                 'datetime_from' => $request->datetime_from,
                 'datetime_to' => $request->datetime_to,
@@ -268,7 +266,7 @@ class DeliveryPlatformCampaignController extends Controller
                     })
                     ->first();
 
-                if (!$existedDeliveryPlatformCampaignItemVend) {
+                if (! $existedDeliveryPlatformCampaignItemVend) {
                     DeliveryPlatformCampaignItemVend::create([
                         'datetime_from' => $request->datetime_from,
                         'datetime_to' => $request->datetime_to,
@@ -313,7 +311,7 @@ class DeliveryPlatformCampaignController extends Controller
     {
         $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($delPlaCamItemVendID);
 
-        //grab delete campaign
+        // grab delete campaign
         if ($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
             $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
             $deliveryPlatformCampaignItemVend->update([
@@ -332,9 +330,9 @@ class DeliveryPlatformCampaignController extends Controller
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
 
-        $results       = $this->deliveryPlatformCampaignService->syncCampaigns($deliveryPlatformCampaign);
+        $results = $this->deliveryPlatformCampaignService->syncCampaigns($deliveryPlatformCampaign);
         $submittedCount = count($results['submitted']);
-        $failedCount    = count($results['failed']);
+        $failedCount = count($results['failed']);
 
         // Nothing was pending (all already submitted or inactive)
         if ($submittedCount === 0 && $failedCount === 0) {
@@ -346,7 +344,7 @@ class DeliveryPlatformCampaignController extends Controller
         // At least one failure
         if ($failedCount > 0) {
             $failureDetails = collect($results['failed'])
-                ->map(fn($f) => "[{$f['vend_code']}]: {$f['error']}")
+                ->map(fn ($f) => "[{$f['vend_code']}]: {$f['error']}")
                 ->implode(' | ');
 
             $message = $submittedCount > 0

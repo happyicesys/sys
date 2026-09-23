@@ -8,13 +8,14 @@ use App\Models\OpsMachineDailySnapshot;
 use App\Models\Vend;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\OpsMachineDailySnapshotBuilder;
+use App\Support\SiteSearch;
+use App\Support\VendCode;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use App\Support\SiteSearch;
 
 /**
  * Operations > Ops Performance — Phase 1 only (Key KPI + Machines' Status &
@@ -77,7 +78,7 @@ class OpsPerformanceController extends Controller
     public function export(Request $request)
     {
         $data = $this->buildData($request);
-        $name = 'Ops_Performance_' . $data['anchorDate'] . '_' . now()->format('Ymd_His') . '.xlsx';
+        $name = 'Ops_Performance_'.$data['anchorDate'].'_'.now()->format('Ymd_His').'.xlsx';
 
         return (new \App\Exports\OpsPerformanceExport($data))->download($name);
     }
@@ -226,7 +227,10 @@ class OpsPerformanceController extends Controller
         if (empty($list)) {
             return [];
         }
-        $ids = DB::table('vends')->whereIn('code', $list)->pluck('id')->all();
+        $query = DB::table('vends');
+        VendCode::whereLabels($query, $list);
+        $ids = $query->pluck('id')->all();
+
         return empty($ids) ? [-1] : $ids;
     }
 
@@ -239,6 +243,7 @@ class OpsPerformanceController extends Controller
         $ids = SiteSearch::for($search)
             ->applyTo(DB::table('customers'))
             ->pluck('id')->all();
+
         return empty($ids) ? [-1] : $ids;
     }
 
@@ -289,10 +294,10 @@ class OpsPerformanceController extends Controller
     /**
      * Resolve the Site (customer) status filter.
      *
-     * @return array{0: int[], 1: (int|string)[]}  [statusIds applied, selection echoed to UI]
-     *   - Missing/empty selection  -> default to Active + Removed.
-     *   - Explicit 'all'           -> no constraint (every site).
-     *   - Specific status ids      -> those statuses.
+     * @return array{0: int[], 1: (int|string)[]} [statusIds applied, selection echoed to UI]
+     *                                            - Missing/empty selection  -> default to Active + Removed.
+     *                                            - Explicit 'all'           -> no constraint (every site).
+     *                                            - Specific status ids      -> those statuses.
      */
     private function resolveSiteStatuses($raw): array
     {
@@ -387,6 +392,7 @@ class OpsPerformanceController extends Controller
         foreach ($rows as $r) {
             $out[Carbon::parse($r->txn_date)->toDateString()] = $r;
         }
+
         return $out;
     }
 
@@ -403,6 +409,7 @@ class OpsPerformanceController extends Controller
         foreach ($rows as $r) {
             $out[Carbon::parse($r->snapshot_date)->toDateString()] = (int) $r->c;
         }
+
         return $out;
     }
 
@@ -415,6 +422,7 @@ class OpsPerformanceController extends Controller
             return 0;
         }
         ksort($activeByDate);
+
         return (int) end($activeByDate);
     }
 
@@ -452,7 +460,8 @@ class OpsPerformanceController extends Controller
         }
 
         $pct = $activeTotal > 0 ? (int) round($count / $activeTotal * 100) : 0;
-        return $count . ' (' . $pct . '%)';
+
+        return $count.' ('.$pct.'%)';
     }
 
     /**
@@ -519,7 +528,7 @@ class OpsPerformanceController extends Controller
             // mirrors VendController's CustomerIndex "% of VM, Avg Daily Sales
             // L30D >= Avg/Day" card, so the two readings agree.
             $cVsOverall = 0;
-            if (!empty($l30Values)) {
+            if (! empty($l30Values)) {
                 $baseline = array_sum($l30Values) / count($l30Values);
                 foreach ($l30Values as $v) {
                     if ($v >= $baseline) {
@@ -529,8 +538,8 @@ class OpsPerformanceController extends Controller
             }
             $act = (int) ($activeByDate[$d] ?? $activeTotal);
             $pct = fn (int $c) => $act > 0 ? (int) round($c / $act * 100) : 0;
-            $out['l30d_vs_lastmth'][$d] = $cVsLastMth . ' (' . $pct($cVsLastMth) . '%)';
-            $out['l30d_avg_vs_overall'][$d] = $cVsOverall . ' (' . $pct($cVsOverall) . '%)';
+            $out['l30d_vs_lastmth'][$d] = $cVsLastMth.' ('.$pct($cVsLastMth).'%)';
+            $out['l30d_avg_vs_overall'][$d] = $cVsOverall.' ('.$pct($cVsOverall).'%)';
         }
 
         return $out;
@@ -545,6 +554,7 @@ class OpsPerformanceController extends Controller
                 $sum += $amt;
             }
         }
+
         return $sum;
     }
 
@@ -586,6 +596,7 @@ class OpsPerformanceController extends Controller
     {
         if (empty($statuses)) {
             $query->where('is_active', 1);
+
             return;
         }
         $query->where(function ($w) use ($statuses) {
@@ -605,6 +616,7 @@ class OpsPerformanceController extends Controller
     {
         if (empty($statuses)) {
             $query->where('vends.is_active', 1);
+
             return;
         }
         $query->where(function ($w) use ($statuses) {
@@ -703,6 +715,7 @@ class OpsPerformanceController extends Controller
         if ($sortDesc) {
             usort($rows, fn ($a, $b) => $b['count'] <=> $a['count']);
         }
+
         return $rows;
     }
 
@@ -735,6 +748,7 @@ class OpsPerformanceController extends Controller
                 'label' => $i === 0 ? 'Yesterday' : $d->format('D'),
             ];
         }
+
         return $cols;
     }
 
@@ -746,12 +760,13 @@ class OpsPerformanceController extends Controller
             $monthStart = $anchor->copy()->startOfMonth()->subMonthsNoOverflow($i);
             $monthEnd = $i === 0 ? $anchor->copy() : $monthStart->copy()->endOfMonth();
             $cols[] = [
-                'key' => $i === 0 ? 'this_mth' : 'l' . $i . 'm',
+                'key' => $i === 0 ? 'this_mth' : 'l'.$i.'m',
                 'label' => $label,
                 'start' => $monthStart->toDateString(),
                 'end' => $monthEnd->toDateString(),
             ];
         }
+
         return $cols;
     }
 
@@ -870,6 +885,7 @@ class OpsPerformanceController extends Controller
             if (array_key_exists($date, $this->stockInByDate)) {
                 return $this->stockInByDate[$date];
             }
+
             return $date === $anchorKey ? $this->anchorStockInCents : null;
         };
         $windowAvg = function (array $dates) use ($stockFor): ?int {
@@ -882,6 +898,7 @@ class OpsPerformanceController extends Controller
                     $sum += $v;
                 }
             }
+
             return $hasAny ? (int) round($sum / count($dates)) : null;
         };
 
@@ -1027,7 +1044,7 @@ class OpsPerformanceController extends Controller
      * it); other days are absent and render as "–". Machine-status is intentionally
      * NOT applied here (this is a financial figure, not a component count).
      *
-     * @return array<string,int>  snapshot_date => stock-in cents
+     * @return array<string,int> snapshot_date => stock-in cents
      */
     private function snapshotStockInByDate(array $f, Carbon $rangeStart, Carbon $anchor): array
     {
@@ -1122,11 +1139,13 @@ class OpsPerformanceController extends Controller
                 return $active[$date] ?? null;
             case 'ratio':
                 $r = $fin[$date] ?? null;
+
                 return $r ? $this->marginPct((int) $r->gross_profit_cents, (int) $r->revenue_cents) : null;
             case 'per_vm':
                 return $this->aggregate($fin, $active, $this->trailingDates($date, 30), $id, $agg, false);
             default: // sum
                 $r = $fin[$date] ?? null;
+
                 return $r ? (int) $r->{$id} : null;
         }
     }
@@ -1144,16 +1163,19 @@ class OpsPerformanceController extends Controller
                 if (empty($vals)) {
                     return null;
                 }
+
                 return $isAverage ? (int) round(array_sum($vals) / count($vals)) : (int) end($vals);
 
             case 'ratio':
                 $gp = $this->sumFin($fin, $dates, 'gross_profit_cents');
                 $rev = $this->sumFin($fin, $dates, 'revenue_cents');
+
                 return $rev === null ? null : $this->marginPct((int) $gp, (int) $rev);
 
             case 'per_vm':
                 $gp = $this->sumFin($fin, $dates, 'gross_profit_cents');
                 $act = $this->latestActive($active, $dates);
+
                 return ($gp === null || ! $act) ? null : (int) round($gp / $act);
 
             default: // sum
@@ -1166,6 +1188,7 @@ class OpsPerformanceController extends Controller
                 if (empty($vals)) {
                     return null;
                 }
+
                 return $isAverage ? (int) round(array_sum($vals) / count($vals)) : array_sum($vals);
         }
     }
@@ -1180,6 +1203,7 @@ class OpsPerformanceController extends Controller
                 $sum += (int) $fin[$d]->{$field};
             }
         }
+
         return $found ? $sum : null;
     }
 
@@ -1191,6 +1215,7 @@ class OpsPerformanceController extends Controller
                 $val = $active[$d];
             }
         }
+
         return (int) $val;
     }
 
@@ -1208,12 +1233,14 @@ class OpsPerformanceController extends Controller
         foreach (CarbonPeriod::create(Carbon::parse($start), Carbon::parse($end)) as $d) {
             $out[] = $d->toDateString();
         }
+
         return $out;
     }
 
     private function trailingDates(string $endDate, int $days): array
     {
         $end = Carbon::parse($endDate);
+
         return $this->datesBetween($end->copy()->subDays($days - 1)->toDateString(), $end->toDateString());
     }
 

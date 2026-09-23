@@ -1198,7 +1198,7 @@ class VendTransactionService
         $vendTransaction = VendTransaction::with([
             'customer:id,name',
             'paymentMethod:id,name',
-            'vend:id,code,vend_prefix_id',
+            'vend:id,code,code_prefix,vend_prefix_id',
             'vend.vendPrefix:id,name',
             'vendTransactionItems.product:id,name',
             'vendTransactionItems.product.thumbnail',

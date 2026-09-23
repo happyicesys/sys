@@ -9,6 +9,7 @@ use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Support\VendCode;
 use App\Traits\ExportOptimizationTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -62,7 +63,7 @@ class CardTerminalUnitController extends Controller
                 // same reason the vend is.
                 'bindings' => fn ($q) => $q->effectiveOn($today)
                     ->with(['vend' => fn ($qq) => $qq->withoutGlobalScopes()
-                        ->select('id', 'code', 'name', 'customer_id')
+                        ->select('id', 'code', 'code_prefix', 'name', 'customer_id')
                         ->with(['customer' => fn ($c) => $c->withoutGlobalScopes()->select('id', 'name')])]),
             ]);
 
@@ -109,7 +110,7 @@ class CardTerminalUnitController extends Controller
                 'creator:id,name',
                 // Fleet-wide like the rest of this page: a terminal's history
                 // may run through machines of another operator.
-                'vend' => fn ($q) => $q->withoutGlobalScopes()->select('id', 'code'),
+                'vend' => fn ($q) => $q->withoutGlobalScopes()->select('id', 'code', 'code_prefix'),
             ])
             ->orderByDesc('id')
             ->get()
@@ -119,7 +120,7 @@ class CardTerminalUnitController extends Controller
             $unit->setAttribute('binding_history', ($byTerminal[$unit->terminal_id] ?? collect())
                 ->take(3)
                 ->map(fn (CardTerminalBinding $row) => [
-                    'vend_code' => $row->vend?->code,
+                    'vend_code' => $row->vend?->codeLabel(),
                     'bound_from' => $row->bound_from?->format('Y-m-d'),
                     'bound_until' => $row->bound_until?->format('Y-m-d'),
                     'bound_at' => $row->created_at?->toIso8601String(),
@@ -314,7 +315,7 @@ class CardTerminalUnitController extends Controller
                 'card_terminal_bindings.terminal_id',
                 'card_terminal_bindings.bound_from',
                 'card_terminal_bindings.created_at AS bound_at',
-                'vends.code AS vend_code',
+                DB::raw(VendCode::sqlLabel().' AS vend_code'),
                 'customers.id AS customer_id',
                 'customers.name AS customer_name',
             ])

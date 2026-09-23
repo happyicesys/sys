@@ -2,8 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\OpsJob;
-use App\Events\VendChannelSaved;
+use App\Support\VendCode;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -67,7 +66,7 @@ class VendChannel extends Model
     {
         return \App\Support\ProductAccess::applyToColumn(
             $query,
-            $this->getTable() . '.product_id',
+            $this->getTable().'.product_id',
             func_num_args() > 1 ? $ids : \App\Support\ProductAccess::current()
         );
     }
@@ -159,7 +158,7 @@ class VendChannel extends Model
 
     public function getServerAmountAttribute()
     {
-        if (!$this->vend_id || !$this->product_id) {
+        if (! $this->vend_id || ! $this->product_id) {
             return null;
         }
 
@@ -183,7 +182,6 @@ class VendChannel extends Model
             ->value('amount');
     }
 
-
     // scopes
     public function scopeFilterIndex($query, $request)
     {
@@ -196,13 +194,10 @@ class VendChannel extends Model
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
         return $query->when($request->codes, function ($query, $search) {
-            if (strpos($search, ',') !== false) {
-                $search = explode(',', $search);
-            } else {
-                $search = [$search];
-            }
+            // Machine IDs carry a prefix on CityBox chillers ("C6002"), so a typed
+            // term goes through VendCode rather than matching the bare number.
             $query->whereHas('vend', function ($query) use ($search) {
-                $query->whereIn('vends.code', $search);
+                VendCode::whereSearch($query, (string) $search, contains: true);
             });
         })
             ->when($request->channel_codes, function ($query, $search) {
@@ -246,11 +241,11 @@ class VendChannel extends Model
                 $query->whereHas('vend', function ($query) use ($search) {
                     if ($search == '0') {
                         $query->where('is_fan_enabled', true)->where('parameter_json->fan', 0);
-                    } else if ($search == '>0') {
+                    } elseif ($search == '>0') {
                         $query->where('is_fan_enabled', true)->where('parameter_json->fan', '>', 0);
-                    } else if ($search == 'N/A') {
+                    } elseif ($search == 'N/A') {
                         $query->where('is_fan_enabled', false);
-                    } else if ($search == '--') {
+                    } elseif ($search == '--') {
                         $query->where('is_fan_enabled', true)->where(function ($q) {
                             $q->whereNull('parameter_json->fan');
                         });
@@ -334,11 +329,11 @@ class VendChannel extends Model
             ->when($sortKey, function ($query, $search) use ($sortBy) {
                 $query->whereHas('vend', function ($query) use ($search, $sortBy) {
                     if (strpos($search, '->')) {
-                        $inputSearch = explode("->", $search);
+                        $inputSearch = explode('->', $search);
                         // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                         $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                         $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
-                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                             ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     } else {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');

@@ -458,9 +458,9 @@
                               <span>
                                 {{ vendIndex + 1 }}.
                               </span>
-                              <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
+                              <a :href="'/vends/customers?codes=' + vendCodeLabel(vend)" target="_blank" class="text-blue-700">
                                 <span>
-                                  {{ vend.code }}
+                                  {{ vendCodeLabel(vend) }}
                                 </span>
                               </a>
 
@@ -975,8 +975,8 @@
                 <tr v-for="(vend, index) in upcomingVends" :key="vend.id">
                   <td class="px-2 py-2 align-top text-xs text-gray-500">{{ index + 1 }}.</td>
                   <td class="px-2 py-2 align-top text-xs whitespace-nowrap">
-                    <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
-                      {{ vend.code }}
+                    <a :href="'/vends/customers?codes=' + vendCodeLabel(vend)" target="_blank" class="text-blue-700">
+                      {{ vendCodeLabel(vend) }}
                     </a>
                     <span class="text-gray-500" v-if="vend.vend_prefix_name">
                       ({{ vend.vend_prefix_name }})
@@ -1072,6 +1072,7 @@ import { ref, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import moment from 'moment';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   cmsEndpoint: String,
@@ -1806,7 +1807,7 @@ function sortedVends(productMapping) {
   // comparison IS chronological comparison. Machines with no binded date sink
   // to the bottom in either direction; ties fall through to code order so the
   // list is deterministic.
-  const byCode = (a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
+  const byCode = (a, b) => vendCodeLabel(a).localeCompare(vendCodeLabel(b), undefined, { numeric: true })
   return [...productMapping.vends].sort((a, b) => {
     if (key === 'binded_at') {
       if (!a.binded_at && !b.binded_at) return byCode(a, b)
