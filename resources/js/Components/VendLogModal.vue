@@ -78,6 +78,7 @@ import { computed, ref, watch } from 'vue'
 import moment from 'moment'
 import Modal from '@/Components/Modal.vue'
 import Button from '@/Components/Button.vue'
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   open: {
@@ -104,7 +105,7 @@ const loading = ref(false)
 const currentPage = ref(1)
 
 const vendId = computed(() => props.vend?.id ?? props.vend?.vend_id ?? null)
-const vendCode = computed(() => props.vend?.code ?? props.vend?.vend_code ?? '')
+const vendCode = computed(() => vendCodeLabel(props.vend) || props.vend?.vend_code || '')
 const vendName = computed(() => {
   if (props.vend?.name) {
     return props.vend.name

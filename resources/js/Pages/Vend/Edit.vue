@@ -4,7 +4,7 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Advance Control for Machine ID#
-        {{ vend.code }}
+        {{ vendCodeLabel(vend) }}
       </h2>
     </template>
 
@@ -46,7 +46,7 @@
                 <input
                   type="text"
                   class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value="vend ? vend.code : ''"
+                  :value="vend ? vendCodeLabel(vend) : ''"
                   disabled
                 />
               </div>
@@ -716,6 +716,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
 import { fromPairs } from 'lodash';
+import { vendCodeLabel } from '@/utils/vendCode';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({

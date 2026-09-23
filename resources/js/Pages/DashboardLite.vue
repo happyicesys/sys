@@ -439,7 +439,7 @@
                                                     <td class="px-3 py-1 text-sm text-gray-600 align-top">
                                                         <div class="max-w-[220px] break-words">
                                                             <span class="block font-medium text-gray-700">
-                                                                {{ [vend.vend?.code, vend.vend?.name].filter(Boolean).join(' - ') }}
+                                                                {{ [vendCodeLabel(vend.vend), vend.vend?.name].filter(Boolean).join(' - ') }}
                                                             </span>
                                                             <span class="block text-xs text-gray-500" v-if="vend.vend?.vendPrefix?.name">
                                                                 {{ vend.vend.vendPrefix.name }}
@@ -525,7 +525,7 @@
                                                     <td class="px-3 py-1 text-sm text-gray-600 align-top">
                                                         <div class="max-w-[220px] break-words">
                                                             <span class="block font-medium text-gray-700">
-                                                                {{ [vend.vend?.code, vend.vend?.name].filter(Boolean).join(' - ') }}
+                                                                {{ [vendCodeLabel(vend.vend), vend.vend?.name].filter(Boolean).join(' - ') }}
                                                             </span>
                                                             <span class="block text-xs text-gray-500" v-if="vend.vend?.vendPrefix?.name">
                                                                 {{ vend.vend.vendPrefix.name }}
@@ -594,6 +594,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
     import { Head, Link, router, usePage } from '@inertiajs/vue3';
     import { hiplDefaultOperators } from '@/constants/defaultOperators';
     import moment from 'moment';
+    import { vendCodeLabel } from '@/utils/vendCode';
 
     const props = defineProps({
         productRestricted: Boolean,

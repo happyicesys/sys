@@ -163,7 +163,7 @@
                               </span>
                               <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
                                 <span>
-                                  {{ vend.code }}
+                                  {{ vendCodeLabel(vend) }}
                                 </span>
                               </a>
 
@@ -261,6 +261,7 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     apkSettings: Object,
@@ -337,7 +338,7 @@ function onDeleteClicked(apkSetting) {
 }
 
 function onUnbindVendClicked(vend) {
-  const approval = confirm('Are you sure to unbind mapping for ' + vend.code + '?');
+  const approval = confirm('Are you sure to unbind mapping for ' + vendCodeLabel(vend) + '?');
   if (!approval) {
       return;
   }

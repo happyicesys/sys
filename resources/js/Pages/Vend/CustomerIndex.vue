@@ -1403,7 +1403,7 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
 						<div class="flex flex-col space-y-2 items-center">
 							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" v-tooltip="'Open this machine\'s settings'">
-							{{ vend.code }}
+							{{ vendCodeLabel(vend) }}
 							</Link>
 							<div
 								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
@@ -1421,10 +1421,10 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1 max-w-[150px]">
 							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')" v-tooltip="'Open this machine\'s settings'">
-								{{ vend.code }}
+								{{ vendCodeLabel(vend) }}
 							</Link>
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
-								{{ vend.code }}
+								{{ vendCodeLabel(vend) }}
 							</span>
 							<div
 								class="text-left"
@@ -3330,7 +3330,7 @@ v-if="showMapMarkerModal"
 			<div>
 				<h3 class="text-base font-semibold text-gray-800">
 					Coin Float History
-					<span class="text-gray-500 font-normal">— Machine {{ coinFloatVend?.code }}</span>
+					<span class="text-gray-500 font-normal">— Machine {{ vendCodeLabel(coinFloatVend) }}</span>
 				</h3>
 				<p class="text-xs text-gray-500">Latest 20 changes shown · last 14 days · {{ operatorCountry.currency_symbol }}</p>
 			</div>
@@ -3476,6 +3476,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
 	import { telcoBadgeStyle } from '@/constants/telcoColors';
 	import { freezerHealthBadges } from '@/support/freezerHealth';
+	import { vendCodeLabel } from '@/utils/vendCode';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
@@ -5029,7 +5030,7 @@ function exportCoinFloatCsv() {
 	const rows = coinFloatLogs.value.map((row) => {
 		const acceptor = row.coin_stat == 3 ? 'Active' : (row.coin_stat == 1 ? 'Inactive' : 'NA')
 		return [
-			coinFloatVend.value?.code ?? '',
+			vendCodeLabel(coinFloatVend.value),
 			formatCoinFloatTime(row.created_at),
 			coinFloatDisplay(row.coin_cnt),
 			row.delta === null || row.delta === undefined ? '' : coinFloatDelta(row.delta),
@@ -5047,7 +5048,7 @@ function exportCoinFloatCsv() {
 	const url = URL.createObjectURL(blob)
 	const link = document.createElement('a')
 	link.href = url
-	link.download = `coin-float-${coinFloatVend.value?.code ?? 'machine'}-14d.csv`
+	link.download = `coin-float-${vendCodeLabel(coinFloatVend.value) || 'machine'}-14d.csv`
 	document.body.appendChild(link)
 	link.click()
 	document.body.removeChild(link)

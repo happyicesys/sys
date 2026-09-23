@@ -194,7 +194,7 @@
                               <td class="whitespace-pre-line py-2 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <div class="flex flex-col space-y-2 max-w-24">
                                   <Link :href="'/vends/customers?codes=' + opsJobItem.vend?.code" class="text-blue-700">
-                                    <span> {{ opsJobItem.vend?.code }} </span>
+                                    <span> {{ vendCodeLabel(opsJobItem.vend) }} </span>
                                   </Link>
                                   <div>
                                     <Link :href="'/ops-jobs/items/' + opsJobItem.id + '/edit'">
@@ -291,6 +291,7 @@ import { ArrowUturnLeftIcon, ArrowRightCircleIcon, BarsArrowDownIcon } from '@he
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const filters = ref({
   sortKey: '',
@@ -329,8 +330,8 @@ onMounted(() => {
     })) : []),
     ...(Array.isArray(props.opsJob.data?.opsJobItems) ? props.opsJob.data.opsJobItems.map(jobItem => ({
         id: jobItem.customer.deliveryAddress.id,
-        name: jobItem.vend.code,
-        full_address: (jobItem.vend.code ? '(' + jobItem.vend.code + ' - ' + jobItem.customer.name + ') ' : '') + jobItem.customer.deliveryAddress.full_address,
+        name: vendCodeLabel(jobItem.vend),
+        full_address: (jobItem.vend.code ? '(' + vendCodeLabel(jobItem.vend) + ' - ' + jobItem.customer.name + ') ' : '') + jobItem.customer.deliveryAddress.full_address,
         latitude: jobItem.customer.deliveryAddress.latitude,
         longitude: jobItem.customer.deliveryAddress.longitude,
         is_ops_job_item: true,
@@ -557,7 +558,7 @@ function addMarkers() {
             position,
             map,
             label: {
-              text: String(jobItem.vend.code), // Using custom sequence
+              text: vendCodeLabel(jobItem.vend), // Using custom sequence
               color: "#000000",
               fontSize: "14px",
               fontWeight: "bold",
@@ -566,7 +567,7 @@ function addMarkers() {
 
           const infoWindow = new google.maps.InfoWindow({
             content: `<div>
-              <span class="font-bold">${jobItem.vend ? jobItem.vend.code : ''}</span><br>
+              <span class="font-bold">${vendCodeLabel(jobItem.vend)}</span><br>
               <span class="font-medium">${jobItem.customer?.name}</span><br>
               <p>${jobItem.customer.deliveryAddress.full_address ? jobItem.customer.deliveryAddress.full_address : jobItem.customer.deliveryAddress.postcode}</p>
               <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
@@ -925,7 +926,7 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
 
       const infoWindow = new google.maps.InfoWindow({
         content: `<div>
-          <span class="font-bold">${waypoint.vend ? waypoint.vend.code : ''}</span><br>
+          <span class="font-bold">${vendCodeLabel(waypoint.vend)}</span><br>
           <span class="font-medium">${waypoint.customer.name}</span><br>
           <p>${waypoint.customer.deliveryAddress.full_address}</p>
           <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
@@ -965,7 +966,7 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
 
       const infoWindow = new google.maps.InfoWindow({
         content: `<div>
-          <span class="font-bold">${opsJobItem.vend ? opsJobItem.vend.code : ''}</span><br>
+          <span class="font-bold">${vendCodeLabel(opsJobItem.vend)}</span><br>
           <span class="font-medium">${opsJobItem.customer.name}</span><br>
           <p>${opsJobItem.customer.deliveryAddress.full_address}</p>
           <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>

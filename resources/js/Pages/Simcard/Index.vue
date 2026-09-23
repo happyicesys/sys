@@ -342,6 +342,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/Simcard/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
@@ -370,7 +371,7 @@ function reportedLink(simcard) {
 function machineCodes(simcard) {
   return (simcard.vends || [])
     .filter((vend) => vend.code)
-    .map((vend) => ({ id: vend.id, code: vend.code }));
+    .map((vend) => ({ id: vend.id, code: vendCodeLabel(vend) }));
 }
 
 // Online/Offline per bound machine, for the top line of the Signal Strength

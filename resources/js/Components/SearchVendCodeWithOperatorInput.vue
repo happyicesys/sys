@@ -18,7 +18,7 @@
         <ComboboxOption v-for="option in options"  as="template">
           <li class="relative cursor-default select-none py-2 pl-3 pr-9 hover:bg-gray-100" @click="selected(option)">
             <span class="block truncate">
-              {{ option.code }}
+              {{ vendCodeLabel(option) }}
               <span v-if="option.operator">
                 - ({{ option.operator.name }})
               </span>
@@ -44,6 +44,7 @@ import {
   ComboboxOption,
   ComboboxOptions,
 } from '@headlessui/vue'
+import { vendCodeLabel } from '@/utils/vendCode';
 
 defineProps({
   modelValue: [String, Number],

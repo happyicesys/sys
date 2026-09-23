@@ -32,7 +32,7 @@
                   <span v-for="(vend, vendIndex) in vends" class="flex flex-col space-y-1">
                     <span>
                       <span class="text-blue-700">
-                        {{ vend.code }}
+                        {{ vendCodeLabel(vend) }}
                       </span>
                       -
                       <span v-if="vend.person_id">
@@ -135,6 +135,7 @@ import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { vendCodeLabel } from '@/utils/vendCode';
 const props = defineProps({
   pickLists: Object,
   showModal: Boolean,

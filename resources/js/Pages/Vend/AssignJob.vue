@@ -19,7 +19,7 @@
             <span v-for="(vend, vendIndex) in vends" class="flex flex-col space-y-1">
               <span>
                 <span class="text-blue-700">
-                  {{ vend.code }}
+                  {{ vendCodeLabel(vend) }}
                 </span>
                 -
                 <span v-if="vend.person_id">
@@ -86,6 +86,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { onMounted, ref } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 const props = defineProps({
   driverOptions: [Array, Object],
   vends: Object,

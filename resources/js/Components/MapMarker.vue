@@ -33,6 +33,7 @@ import { ref, onMounted } from 'vue';
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import { MapPinIcon } from '@heroicons/vue/20/solid';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   customers: Array,  // Array of customer objects
@@ -149,7 +150,7 @@ const addMarkers = () => {
 
         const infoWindow = new google.maps.InfoWindow({
           content: `<div>
-            <span class="font-bold">${customer.vend ? customer.vend.code : ''}</span><br>
+            <span class="font-bold">${vendCodeLabel(customer.vend)}</span><br>
             <span class="font-medium">${customer.name}</span><br>
             <p>${customer.deliveryAddress.full_address ? customer.deliveryAddress.full_address : customer.deliveryAddress.postcode}</p>
             <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>

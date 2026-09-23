@@ -567,6 +567,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
@@ -801,7 +802,7 @@ onMounted(() => {
 
   vendOptions.value = props.vendOptions.map(vend => ({
     id: vend.id,
-    full_name: vend.code,
+    full_name: vendCodeLabel(vend),
   }))
 
   // Arm the status-change watcher only AFTER hydration has flushed, so the

@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\CustomerGroup;
+use App\Support\SiteSearch;
+use App\Support\VendCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use App\Support\SiteSearch;
 
 /**
  * Operations > Site Grouping — object-oriented management of Site clusters.
@@ -221,12 +222,12 @@ class SiteGroupingController extends Controller
             ->orderBy('customer_id')
             ->orderByDesc('begin_date')
             ->orderByDesc('created_at')
-            ->get(['customer_id', 'code']);
+            ->get(['customer_id', 'code', 'code_prefix']);
 
         $map = [];
         foreach ($rows as $r) {
             if (! isset($map[$r->customer_id])) {
-                $map[$r->customer_id] = $r->code;
+                $map[$r->customer_id] = VendCode::label($r->code_prefix, $r->code);
             }
         }
 

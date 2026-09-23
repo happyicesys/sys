@@ -4,7 +4,7 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Editing Machine Parameters
-        {{ vend.code }}
+        {{ vendCodeLabel(vend) }}
       </h2>
     </template>
 
@@ -22,7 +22,7 @@
                 <input
                   type="text"
                   class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value="vend.code"
+                  :value="vendCodeLabel(vend)"
                   disabled
                 />
               </div>
@@ -551,6 +551,7 @@ import { CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
+import { vendCodeLabel } from '@/utils/vendCode';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({

@@ -127,7 +127,7 @@
                         {{ modemUnit.modemType?.name }}
                       </TableData>
                       <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
-                        {{ modemUnit.vend?.code }}
+                        {{ vendCodeLabel(modemUnit.vend) }}
                       </TableData>
                       <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1 items-center">
@@ -213,6 +213,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/ModemUnit/Form.vue';
 import Paginator from '@/Components/Paginator.vue';

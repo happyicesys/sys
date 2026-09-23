@@ -430,6 +430,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode'
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
@@ -485,7 +486,7 @@ onMounted(() => {
   typeOptions.value = props.typeOptions
   vendOptions.value = props.vendOptions.data?.map((vend) => ({
     id: vend.id,
-    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+    full_name: `${vendCodeLabel(vend)} - ${vend.customer?.name || ''}`,
   }))
 
   form.value = useForm(getDefaultForm())
@@ -551,7 +552,7 @@ function onOperatorChanged() {
       vendOptions.value = []
       vendOptions.value = page.props.vendOptions.data?.map((vend) => ({
         id: vend.id,
-        full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+        full_name: `${vendCodeLabel(vend)} - ${vend.customer?.name || ''}`,
       }))
     }
   })

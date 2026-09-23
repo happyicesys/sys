@@ -266,7 +266,7 @@
                               <td class="whitespace-pre-line py-2 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <div class="flex flex-col space-y-2 max-w-24">
                                   <Link :href="'/vends/customers?codes=' + opsJobItem.vend?.code" class="text-blue-700">
-                                    <span> {{ opsJobItem.vend?.code }} </span>
+                                    <span> {{ vendCodeLabel(opsJobItem.vend) }} </span>
                                   </Link>
                                   <div>
                                     <Link :href="'/ops-jobs/items/' + opsJobItem.id + '/edit'">
@@ -363,6 +363,7 @@ import { ArrowUturnLeftIcon, ArrowRightCircleIcon, BarsArrowDownIcon } from '@he
 import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const filters = ref({
   sortKey: '',
@@ -427,8 +428,8 @@ onMounted(() => {
       .filter(jobItem => jobItem.customer?.deliveryAddress?.latitude && jobItem.customer?.deliveryAddress?.longitude)
       .map(jobItem => ({
         id: jobItem.customer.deliveryAddress.id,
-        name: jobItem.vend?.code || jobItem.customer.name,
-        full_address: (jobItem.vend?.code ? '(' + jobItem.vend.code + ' - ' + jobItem.customer.name + ') ' : '(' + jobItem.customer.name + ') ') + jobItem.customer.deliveryAddress.full_address,
+        name: vendCodeLabel(jobItem.vend) || jobItem.customer.name,
+        full_address: (jobItem.vend?.code ? '(' + vendCodeLabel(jobItem.vend) + ' - ' + jobItem.customer.name + ') ' : '(' + jobItem.customer.name + ') ') + jobItem.customer.deliveryAddress.full_address,
         latitude: jobItem.customer.deliveryAddress.latitude,
         longitude: jobItem.customer.deliveryAddress.longitude,
         is_ops_job_item: true,
@@ -578,7 +579,7 @@ function buildClaudePrompt() {
     const type = stopTypeOf(stop);
     const address = stop.customer?.deliveryAddress;
     return '- ' + type + ' id=' + stop.id
-      + ' | ' + (stop.vend?.code ?? '')
+      + ' | ' + vendCodeLabel(stop.vend)
       + ' | ' + (stop.customer?.name ?? '')
       + ' | postcode ' + (stop.delivery_postcode ?? address?.postcode ?? '?')
       + ' | lat ' + (address?.latitude ?? '?')
@@ -629,7 +630,16 @@ function applyClaudeJson() {
   const jobStops = getClaudeJobStops();
   const stopKey = stop => stopTypeOf(stop) + ':' + stop.id;
   const byKey = new Map(jobStops.map(stop => [stopKey(stop), stop]));
-  const byCode = new Map(jobStops.filter(stop => !stop._isTask && stop.vend?.code).map(stop => [String(stop.vend.code), stop]));
+  // The prompt shows the PREFIXED label since 2026-09-23, so a reply may echo
+  // either spelling ("C6003" or "6003"). Register both; the label wins when a
+  // bare number is ambiguous between a vending machine and a chiller.
+  const byCode = new Map();
+  jobStops.filter(stop => !stop._isTask && stop.vend?.code).forEach(stop => {
+    const label = vendCodeLabel(stop.vend);
+    if (label) byCode.set(label, stop);
+    const bare = String(stop.vend.code);
+    if (!byCode.has(bare)) byCode.set(bare, stop);
+  });
 
   const seen = new Set();
   const mergedOrder = [];
@@ -856,7 +866,7 @@ function addMarkers() {
             position,
             map,
             label: {
-              text: String(jobItem.vend.code),
+              text: vendCodeLabel(jobItem.vend),
               color: "#000000",
               fontSize: "14px",
               fontWeight: "bold",
@@ -871,7 +881,7 @@ function addMarkers() {
                 <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" style="color:#2563eb;font-weight:500;text-decoration:underline;">View on Google Maps</a>
               </div>`
             : `<div>
-                <span style="font-weight:bold;">${jobItem.vend ? jobItem.vend.code : ''}</span><br>
+                <span style="font-weight:bold;">${vendCodeLabel(jobItem.vend)}</span><br>
                 <span style="font-weight:500;">${jobItem.customer?.name ?? ''}</span><br>
                 <p>${jobItem.customer.deliveryAddress.full_address ? jobItem.customer.deliveryAddress.full_address : jobItem.customer.deliveryAddress.postcode}</p>
                 <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" style="color:#2563eb;font-weight:500;text-decoration:underline;">View on Google Maps</a>
@@ -1312,7 +1322,7 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
 
       const infoWindow = new google.maps.InfoWindow({
         content: `<div>
-          <span class="font-bold">${waypoint.vend ? waypoint.vend.code : ''}</span><br>
+          <span class="font-bold">${vendCodeLabel(waypoint.vend)}</span><br>
           <span class="font-medium">${waypoint.customer.name}</span><br>
           <p>${waypoint.customer.deliveryAddress.full_address}</p>
           <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
@@ -1352,7 +1362,7 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
 
       const infoWindow = new google.maps.InfoWindow({
         content: `<div>
-          <span class="font-bold">${opsJobItem.vend ? opsJobItem.vend.code : ''}</span><br>
+          <span class="font-bold">${vendCodeLabel(opsJobItem.vend)}</span><br>
           <span class="font-medium">${opsJobItem.customer.name}</span><br>
           <p>${opsJobItem.customer.deliveryAddress.full_address}</p>
           <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>

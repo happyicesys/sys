@@ -1369,7 +1369,7 @@
                       <input
                         type="text"
                         class="shadow-sm focus:ring-indigo-300 focus:border-indigo-300 block w-full text-sm border-gray-200 rounded-md bg-gray-100 hover:cursor-pointer text-blue-600 hover:text-blue-700"
-                        :value="customer.vend.code"
+                        :value="vendCodeLabel(customer.vend)"
                         readonly
                       />
                     </a>
@@ -1652,7 +1652,7 @@
                                 <span v-if="customerVendBinding.vend_prefix">
                                   {{ customerVendBinding.vend_prefix.name }} -
                                 </span>
-                                 {{ customerVendBinding?.vend.code }}
+                                 {{ vendCodeLabel(customerVendBinding?.vend) }}
                               </span>
                               <span class="text-sm text-gray-500">
                                 {{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}
@@ -1739,6 +1739,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode';
 import AttachmentList from '@/Components/AttachmentList.vue';
 import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
@@ -2537,7 +2538,7 @@ onMounted(() => {
 
   vendOptions.value = props.vendOptions.map(vend => ({
     id: vend.id,
-    full_name: vend.code,
+    full_name: vendCodeLabel(vend),
   }));
 
   customerVendBindings.value = props.customer ? props.customer.customer_vend_bindings : [];

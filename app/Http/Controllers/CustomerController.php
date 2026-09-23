@@ -3330,7 +3330,7 @@ class CustomerController extends Controller
             : \App\Models\Vend::query()
                 ->with(['vendPrefix:id,name', 'vendModel:id,name'])
                 ->whereIn('id', $allVids)
-                ->get(['id', 'code', 'vend_prefix_id', 'vend_model_id'])
+                ->get(['id', 'code', 'code_prefix', 'vend_prefix_id', 'vend_model_id'])
                 ->keyBy('id');
 
         // Walk in period order so the FIRST machine of a month isn't "New".
@@ -3348,7 +3348,7 @@ class CustomerController extends Controller
             $row->machine_vend = $mv
                 ? [
                     'id' => $vid,
-                    'code' => $mv->code,
+                    'code' => $mv->codeLabel(),
                     'prefix' => optional($mv->vendPrefix)->name,
                     'model' => optional($mv->vendModel)->name,
                 ]

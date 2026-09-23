@@ -504,7 +504,7 @@
                         <div class="flex flex-col space-y-2 items-center">
                           <Link :href="'/settings/vend/' + vend.id + '/update'">
                             <span class="text-blue-600">
-                              {{ vend.code }}
+                              {{ vendCodeLabel(vend) }}
                             </span>
                           </Link>
                           <div
@@ -941,6 +941,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from "vue-toastification";
 import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     cashlessTerminalOptions: Object,

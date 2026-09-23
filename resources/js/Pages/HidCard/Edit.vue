@@ -101,6 +101,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
+import { vendCodeLabel } from '@/utils/vendCode'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { ref, onMounted } from 'vue'
 import FormInput from '@/Components/FormInput.vue'
@@ -142,7 +143,7 @@ onMounted(() => {
 
   vendOptions.value = (props.vendOptions?.data || []).map((vend) => ({
     id: vend.id,
-    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+    full_name: `${vendCodeLabel(vend)} - ${vend.customer?.name || ''}`,
   }))
 
   form.value = hidCard.value ? useForm(
@@ -168,7 +169,7 @@ function onOperatorChanged() {
     onSuccess: (page) => {
       vendOptions.value = (page.props.vendOptions?.data || []).map((vend) => ({
         id: vend.id,
-        full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+        full_name: `${vendCodeLabel(vend)} - ${vend.customer?.name || ''}`,
       }))
     },
   })

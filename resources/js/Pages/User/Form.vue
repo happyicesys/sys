@@ -176,7 +176,7 @@
                           {{ vendIndex + 1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ vend.code }}
+                          {{ vendCodeLabel(vend) }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                           <span v-if="vend && vend.customer">
@@ -238,6 +238,7 @@
 
 <script setup>
 import Button from '@/Components/Button.vue';
+import { vendCodeLabel } from '@/utils/vendCode';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'

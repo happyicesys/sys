@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-
-use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CategoryResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
@@ -16,13 +15,10 @@ use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\Product;
-use App\Models\Vend;
 use App\Models\VendChannelError;
-use App\Models\VendTemp;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use App\Traits\HasWeightage;
-use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -43,7 +39,7 @@ class VendCriteriaBindingController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'code';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
 
         $vends = DB::table('vends')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -56,6 +52,7 @@ class VendCriteriaBindingController extends Controller
                 'customers.operator_id',
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 'vends.name',
                 'vends.apk_ver_json',
                 'vends.serial_num',

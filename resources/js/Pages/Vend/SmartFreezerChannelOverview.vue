@@ -17,7 +17,7 @@
           <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold px-2.5 py-1">
             Smart Freezer
           </span>
-          <span v-if="vend.code" class="font-semibold">ID# {{ vend.code }}</span>
+          <span v-if="vend.code" class="font-semibold">ID# {{ vendCodeLabel(vend) }}</span>
           <span v-if="vend.customer_code" class="text-gray-600 text-sm">
             ({{ vend.customer_code }}) {{ vend.customer_name }}
           </span>
@@ -100,6 +100,7 @@ import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
 import Modal from '@/Components/Modal.vue'
 import SmartFreezerPlanogramGrid from '@/Components/SmartFreezerPlanogramGrid.vue'
+import { vendCodeLabel } from '@/utils/vendCode'
 
 const props = defineProps({
   vend: Object,

@@ -15,6 +15,7 @@ use App\Services\CardSettlement\CardSettlementSyncService;
 use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\ParserRegistry;
 use App\Services\UserLogger;
+use App\Support\VendCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -165,7 +166,8 @@ class CardSettlementController extends Controller
         $rows = collect($page->items());
         $vendCodes = Vend::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('vend_id')->filter()->unique())
-            ->pluck('code', 'id');
+            ->selectRaw('id, '.VendCode::sqlLabel().' AS label')
+            ->pluck('label', 'id');
         $txns = VendTransaction::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('matched_vend_transaction_id')->filter())
             ->get(['id', 'transaction_datetime', 'amount', 'is_refunded', 'auto_refund_source', 'card_settlement_synced_at'])
@@ -364,7 +366,8 @@ class CardSettlementController extends Controller
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $lines->pluck('vend_id')->filter()->unique())
-            ->pluck('code', 'id');
+            ->selectRaw('id, '.VendCode::sqlLabel().' AS label')
+            ->pluck('label', 'id');
 
         return $lines
             ->groupBy('terminal_id')

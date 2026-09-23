@@ -473,7 +473,7 @@
                     <div class="flex flex-col space-y-2">
                       <Link v-if="customer.vend && customer.vend.id" :href="'/settings/vend/' + customer.vend.id + '/update'" >
                         <span class="text-blue-600">
-                          {{ customer.vend.code }}
+                          {{ vendCodeLabel(customer.vend) }}
                         </span>
                       </Link>
                       <span v-if="customer.vend && customer.vend.vendPrefix">
@@ -809,6 +809,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/Customer/Form.vue';
 import MapMarker from '@/Components/MapMarker.vue';

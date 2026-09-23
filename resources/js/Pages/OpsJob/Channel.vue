@@ -12,7 +12,7 @@
           <span>
             Machine ID#
             <span class="text-blue-800">
-              {{ vend.code }}
+              {{ vendCodeLabel(vend) }}
             </span>
           </span>
           <span v-if="vend.customer" class="text-gray-700">
@@ -850,6 +850,7 @@ import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { computed, onMounted, ref } from 'vue';
 import { router, usePage, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   opsJobItem: Object,

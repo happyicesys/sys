@@ -7,7 +7,7 @@
             Editing
           </span>
           <span v-if="vend">
-            {{ vend.code }}
+            {{ vendCodeLabel(vend) }}
           </span>
         </div>
       </template>
@@ -237,6 +237,7 @@ import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon,
 import { router, useForm } from '@inertiajs/vue3';
 import moment from 'moment';
 import { ref, onMounted } from 'vue'
+import { vendCodeLabel } from '@/utils/vendCode';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({

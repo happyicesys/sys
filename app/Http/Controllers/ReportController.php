@@ -1701,7 +1701,7 @@ class ReportController extends Controller
                 case 'vends':
                     $transactionsQuery
                         ->selectRaw('gm.vend_id as id')
-                        ->selectRaw('MAX(vends.code) as code')
+                        ->selectRaw('MAX('.VendCode::sqlLabel().') as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(current_vend_prefixes.name, \'\'),") - ", IFNULL(customers.name, \'\')) ELSE vends.name END) as name')
                         ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
                         ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
@@ -1753,7 +1753,7 @@ class ReportController extends Controller
                     $transactionsQuery
                         ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
                         ->selectRaw('vr.vend_id as id')
-                        ->selectRaw('MAX(vends.code) as code')
+                        ->selectRaw('MAX('.VendCode::sqlLabel().') as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(current_vend_prefixes.name, \'\'),") - ", IFNULL(customers.name, \'\')) ELSE vends.name END) as name')
                         ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
                         ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
@@ -2543,8 +2543,8 @@ class ReportController extends Controller
         $query = $baseQuery
             ->selectRaw('gm.vend_id as id')
             ->selectRaw('MAX(vends.name) as name')
-            ->selectRaw('MAX(vends.code) as code')
-            ->selectRaw('MAX(CASE WHEN customers.person_id THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(customers.virtual_customer_prefix, \'\'),")") ELSE vends.code END) as customer_code')
+            ->selectRaw('MAX('.VendCode::sqlLabel().') as code')
+            ->selectRaw('MAX(CASE WHEN customers.person_id THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(customers.virtual_customer_prefix, \'\'),")") ELSE '.VendCode::sqlLabel().' END) as customer_code')
             ->selectRaw('MAX(customers.name) as customer_name')
             ->selectRaw($monthDiffExpression.' as month_diff')
             ->selectRaw('SUM(gm.sale_count) as count')

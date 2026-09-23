@@ -617,7 +617,7 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
                           <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
-                          {{ vend.code }}
+                          {{ vendCodeLabel(vend) }}
                           </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
@@ -660,7 +660,7 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
-                          {{ vend.code }}
+                          {{ vendCodeLabel(vend) }}
                           </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -1400,6 +1400,7 @@ import { router, Link, Head, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 import axios from 'axios';
 import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   categories: Object,

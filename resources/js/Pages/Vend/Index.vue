@@ -737,7 +737,7 @@
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <div class="flex flex-col space-y-1">
               <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">
-                {{ vend.code }}
+                {{ vendCodeLabel(vend) }}
               </Link>
               <div
                 class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
@@ -1528,6 +1528,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
   import { ref, computed, onMounted } from 'vue';
   import { router, Link, Head, usePage } from '@inertiajs/vue3';
   import { hiplDefaultOperators } from '@/constants/defaultOperators';
+  import { vendCodeLabel } from '@/utils/vendCode';
   import moment from 'moment';
   import axios from 'axios';
   import { useToast } from "vue-toastification";

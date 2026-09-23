@@ -7,7 +7,7 @@
             Channel Overview
           </span>
           <span v-if="vend.code">
-            ID# {{ vend.code }}
+            ID# {{ vendCodeLabel(vend) }}
           </span>
           <span v-if="vend.customer_code">
             ({{ vend.customer_code ? vend.customer_code : null }})
@@ -269,6 +269,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import ErrorList from '@/Pages/Vend/ErrorList.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   productOptions: Object,

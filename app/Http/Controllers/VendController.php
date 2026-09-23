@@ -2893,7 +2893,10 @@ class VendController extends Controller
                 ];
             });
 
-        $vendOptions = Cache::remember('vend_options_temp_index', 3600, function () {
+        // _v2: the label carries the CityBox prefix from 2026-09-23. A new key
+        // rather than a flush, so the deploy does not serve the old bare codes
+        // for up to an hour from the warm entry.
+        $vendOptions = Cache::remember('vend_options_temp_index_v2', 3600, function () {
             return DB::table('vends')
                 ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
                 ->select(

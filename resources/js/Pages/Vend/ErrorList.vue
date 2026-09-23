@@ -7,7 +7,7 @@
             Error List
           </span>
           <span>
-            Vend# {{ vend.code }}
+            Vend# {{ vendCodeLabel(vend) }}
           </span>
           <span>
             Channel# {{ channel.code }}
@@ -65,6 +65,7 @@
 import Modal from '@/Components/Modal.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   channel: Object,

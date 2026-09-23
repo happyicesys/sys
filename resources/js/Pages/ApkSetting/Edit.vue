@@ -1217,7 +1217,7 @@
                           {{ vendIndex + 1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ vend.code }}
+                          {{ vendCodeLabel(vend) }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                           <span v-if="vend && vend.customer">
@@ -1410,6 +1410,7 @@ import { ref, onMounted, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import axios from 'axios';
+import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     apkSetting: Object,
@@ -2048,11 +2049,11 @@ function setVendPricingSource(vend, on) {
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => {
-      toast.success('Machine ' + vend.code + ': ' + (on ? "now follows the Site's pricing" : 'now uses machine price'))
+      toast.success('Machine ' + vendCodeLabel(vend) + ': ' + (on ? "now follows the Site's pricing" : 'now uses machine price'))
     },
     onError: () => {
       vend.is_using_server_price = previous
-      toast.error('Could not update pricing source for machine ' + vend.code)
+      toast.error('Could not update pricing source for machine ' + vendCodeLabel(vend))
     },
     onFinish: () => {
       pricingSourceSaving.value[vend.id] = false

@@ -543,6 +543,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import { vendCodeLabel } from '@/utils/vendCode'
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
@@ -596,7 +597,7 @@ onMounted(() => {
   voucherItems.value = props.voucher?.data.voucherItems
   vendOptions.value = props.vendOptions.data?.map((vend) => ({
     id: vend.id,
-    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+    full_name: `${vendCodeLabel(vend)} - ${vend.customer?.name || ''}`,
   }))
 
 

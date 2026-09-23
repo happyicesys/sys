@@ -97,6 +97,7 @@
 
 <script setup>
 import Button from '@/Components/Button.vue';
+import { vendCodeLabel } from '@/utils/vendCode'
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -126,7 +127,7 @@ const toast = useToast()
 onMounted(() => {
   vendOptions.value = props.vendOptions.data?.map((vend) => ({
     id: vend.id,
-    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+    full_name: `${vendCodeLabel(vend)} - ${vend.customer?.name || ''}`,
   }))
 
   form.value = props.hidCard ? useForm({
