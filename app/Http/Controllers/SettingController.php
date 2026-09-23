@@ -40,9 +40,11 @@ use App\Models\ModemType;
 use App\Models\ModemUnit;
 use App\Models\Operator;
 use App\Models\ProductMapping;
+use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Simcard;
 use App\Models\Vend;
+use App\Models\VendChannel;
 use App\Models\VendConfig;
 use App\Models\VendContract;
 use App\Models\VendModel;
@@ -612,6 +614,10 @@ class SettingController extends Controller
             'upcomingProductMappingOptions' => ProductMappingResource::collection(
                 $upcomingProductMappingOptions
             ),
+            // How many of THIS machine's live slots each mapping on offer actually
+            // covers — feeds the "covers 0 of N slots" warning on both pickers.
+            // See mappingChannelCoverage() for why it is vending-machine only.
+            'mappingChannelCoverage' => $this->mappingChannelCoverage($vend, $upcomingProductMappingOptions),
             'vend' => $vend,
             'stickerOptions' => VendStickerResource::collection(
                 VendSticker::orderBy('name')->get()
@@ -783,5 +789,68 @@ class SettingController extends Controller
         $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
         PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+    }
+
+    /**
+     * For each mapping on offer, how many of this machine's ACTIVE slots it holds
+     * a product for. Drives the Setting/Edit warning that a mapping covers none
+     * of them — the gap that let machine 2487 run six days on a planogram from a
+     * different machine family, silently booking sales with no product and no
+     * COGS (UNATTRIBUTED_SALES_AUDIT_2026-09-23.md).
+     *
+     * VENDING MACHINES ONLY, and that is the point, not an oversight: a vending
+     * board reports its own vend_channels, so mapping and machine can disagree.
+     * A Smart Freezer's channels are CREATED from its mapping (FreezerChannelSync)
+     * and a Smart Chiller's likewise since mark1 took the planogram over
+     * (ChillerChannelMap) — there coverage is tautological and a warning would be
+     * pure noise. An empty map simply means "no warning possible", which is also
+     * the answer for a machine whose board has not reported a slot yet.
+     *
+     * One grouped query over the option ids, so this does not grow with the
+     * catalogue. Deliberately counts only — never ships the items themselves, or
+     * this page's payload regresses to the 18.6 MB it used to be.
+     *
+     * @param  \Illuminate\Support\Collection<int, ProductMapping>  $options
+     * @return array{active_channels: int, covered: array<int, int>}
+     */
+    private function mappingChannelCoverage($vend, $options): array
+    {
+        $empty = ['active_channels' => 0, 'covered' => []];
+
+        if (! $vend || ! $vend->id || ($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) !== Vend::MACHINE_TYPE_VENDING_MACHINE) {
+            return $empty;
+        }
+
+        $channelCodes = VendChannel::withoutGlobalScopes()
+            ->where('vend_id', $vend->id)
+            ->where('is_active', true)
+            ->pluck('code')
+            ->map(fn ($code) => (string) $code)
+            ->unique()
+            ->values();
+
+        $mappingIds = $options->pluck('id')->all();
+
+        if ($channelCodes->isEmpty() || empty($mappingIds)) {
+            return $empty;
+        }
+
+        $covered = ProductMappingItem::query()
+            ->whereIn('product_mapping_id', $mappingIds)
+            ->whereIn('channel_code', $channelCodes->all())
+            ->groupBy('product_mapping_id')
+            ->selectRaw('product_mapping_id, COUNT(DISTINCT channel_code) AS covered')
+            ->pluck('covered', 'product_mapping_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+
+        return [
+            'active_channels' => $channelCodes->count(),
+            // Mappings absent from the group-by cover nothing; state that
+            // explicitly so the Vue never has to read a missing key as zero.
+            'covered' => collect($mappingIds)
+                ->mapWithKeys(fn ($id) => [$id => $covered[$id] ?? 0])
+                ->all(),
+        ];
     }
 }

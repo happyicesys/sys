@@ -926,6 +926,15 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <!-- Stays visible for as long as the mismatch does, not just at the
+                     moment of choosing — 2487's wrong mapping sat here for six days and
+                     the page gave no hint on any of the visits in between. -->
+                <div v-if="currentMappingCoversNothing" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                  <span class="font-semibold">Covers 0 of {{ activeChannelCount }} active slot(s).</span>
+                  This mapping holds no product for any slot this machine reports, which usually
+                  means it belongs to a different machine model. Sales will record no product and
+                  no cost, so gross profit will read as 100%.
+                </div>
                 <FieldAudit :entry="fieldAudit.product_mapping_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
                   {{ form.errors.vend_prefix_id }}
@@ -959,6 +968,15 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <!-- Stays visible for as long as the mismatch does, not just at the
+                     moment of choosing — 2487's wrong mapping sat here for six days and
+                     the page gave no hint on any of the visits in between. -->
+                <div v-if="upcomingMappingCoversNothing" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                  <span class="font-semibold">Covers 0 of {{ activeChannelCount }} active slot(s).</span>
+                  This mapping holds no product for any slot this machine reports, which usually
+                  means it belongs to a different machine model. Sales will record no product and
+                  no cost, so gross profit will read as 100%.
+                </div>
                 <FieldAudit :entry="fieldAudit.upcoming_product_mapping_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
                   {{ form.errors.upcoming_product_mapping_id }}
@@ -1827,6 +1845,7 @@ const props = defineProps({
     simcardOptions: Object,
     type: String,
     upcomingProductMappingOptions: Object,
+    mappingChannelCoverage: Object,
     vend: Object,
     selectedProductMapping: Object,
     vendConfigOptions: Object,
@@ -1954,6 +1973,77 @@ const filteredUpcomingProductMappingOptions = computed(() => {
   const selectedId = form.value && form.value.upcoming_product_mapping_id ? form.value.upcoming_product_mapping_id.id : null
   return upcomingProductMappingOptions.value.filter(o => mappingOptionMatchesMachineType(o, selectedId))
 })
+
+// ---------------------------------------------------------------------------
+// "This mapping covers none of this machine's slots"
+// ---------------------------------------------------------------------------
+// Machine 2487 ran six days on a planogram from a different machine family
+// (channels 31-38/61-66 against its real 11-19/40-49 — zero overlap). Nothing
+// refused it and nothing said a word, while every sale was booked with no
+// product and no COGS. See UNATTRIBUTED_SALES_AUDIT_2026-09-23.md.
+//
+// The server sends a covered-slot count per offered mapping, vending machines
+// only (a freezer's and a chiller's channels are CREATED from the mapping, so
+// coverage there is tautological) — an empty payload therefore means "cannot
+// judge", and every helper below answers false rather than warning blindly.
+const activeChannelCount = computed(() => props.mappingChannelCoverage?.active_channels || 0)
+
+function coveredSlots(mappingId) {
+  const covered = props.mappingChannelCoverage?.covered
+  if (!covered || mappingId == null) return null
+  const n = covered[mappingId]
+  return n === undefined ? null : n
+}
+
+// A real mapping (not the N/A placeholder) that holds nothing for any live slot.
+function coversNothing(selection) {
+  if (!selection || !selection.id || selection.name === 'N/A') return false
+  if (!activeChannelCount.value) return false
+  return coveredSlots(selection.id) === 0
+}
+
+const currentMappingCoversNothing = computed(() => coversNothing(form.value?.product_mapping_id))
+const upcomingMappingCoversNothing = computed(() => coversNothing(form.value?.upcoming_product_mapping_id))
+
+// Ask once, at the moment of choosing — the banner below keeps saying it
+// afterwards, so declining is the only thing that needs handling here.
+// `reverting` guards the watcher against its own rollback write, and
+// `prompted` against asking twice for the same mapping: saving redirects back
+// and rebuilds the form, which moves this ref again without the user touching
+// anything.
+let reverting = false
+const prompted = {}
+
+function confirmMappingChoice(field, label) {
+  return (selection, previous) => {
+    if (reverting) {
+      reverting = false
+      return
+    }
+    // Only judge an actual user switch; the form's first build has no previous.
+    if (previous === undefined) return
+    const newId = selection?.id ?? null
+    const oldId = previous?.id ?? null
+    if (newId === oldId || !coversNothing(selection)) return
+    if (prompted[field] === newId) return
+    prompted[field] = newId
+
+    const ok = window.confirm(
+      `"${selection.name}" covers 0 of this machine's ${activeChannelCount.value} active slot(s).\n\n` +
+      'That usually means it belongs to a different machine model. If you save it, ' +
+      'sales will still take money but will be recorded with no product and no cost, ' +
+      `so gross profit will read as 100%.\n\nSet it as the ${label} mapping anyway?`
+    )
+
+    if (!ok) {
+      reverting = true
+      form.value[field] = previous
+    }
+  }
+}
+
+watch(() => form.value?.product_mapping_id, confirmMappingChoice('product_mapping_id', 'current'))
+watch(() => form.value?.upcoming_product_mapping_id, confirmMappingChoice('upcoming_product_mapping_id', 'upcoming'))
 
 // When the user actively switches machine type, drop selections that no longer match so the
 // server guard is never hit by accident. First assignment (form build on load) has no previous
