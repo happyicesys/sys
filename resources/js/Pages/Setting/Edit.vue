@@ -1138,19 +1138,12 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6">
-              <span class="flex space-x-1">
-                <Button
-                  type="button"
-                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update machine-settings')"
-                  @click.prevent="saveVend(vend.id)"
-                >
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                  <span>
-                    Save {{ machineKindLabel }}
-                  </span>
-                </Button>
+            <!-- Save / Replace Mapping — floating footer (same pattern as
+                 Customer/Edit) so the machine save stays reachable on this
+                 very long form. The Site section below keeps its own inline
+                 Save Site / Unbind buttons: they act on the site, not the vend. -->
+            <FloatingActionBar>
+              <template #left>
                 <Button
                   type="button"
                   class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1"
@@ -1162,8 +1155,25 @@
                     Replace Current Product Mapping
                   </span>
                 </Button>
-              </span>
-            </div>
+              </template>
+              <Link :href="'/settings'">
+                <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
+                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                  <span> Back </span>
+                </Button>
+              </Link>
+              <Button
+                type="button"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                v-if="permissions.includes('update machine-settings')"
+                @click.prevent="saveVend(vend.id)"
+              >
+                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                <span>
+                  Save {{ machineKindLabel }}
+                </span>
+              </Button>
+            </FloatingActionBar>
             </div>
             <div>
 
@@ -1808,6 +1818,7 @@
 import AttachmentList from '@/Components/AttachmentList.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import FloatingActionBar from '@/Components/FloatingActionBar.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 
 import FormInput from '@/Components/FormInput.vue';

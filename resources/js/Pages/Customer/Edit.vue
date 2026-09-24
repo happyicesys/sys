@@ -7,7 +7,7 @@
       </h2>
     </template>
 
-    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 pb-20">
+    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
@@ -1577,56 +1577,46 @@
 
                   <!-- Save and Delete Buttons — floating footer so they stay
                        reachable without scrolling to the bottom of the long
-                       Edit form. Fixed to the viewport bottom; the form wrapper
-                       carries extra bottom padding so nothing hides behind it.
+                       Edit form. FloatingActionBar measures the content column
+                       (sidebar collapsed or expanded) and pads <main> itself.
                        (Create.vue keeps the inline bar — short form, no need.) -->
-                  <!-- left offset matches the sidebar width (Authenticated.vue:
-                       md:w-1/6, xl:w-2/12, 2xl:w-1/12 min-w-48) so the floating
-                       footer aligns with the content column and never sits under
-                       the side nav. Full-width below md, where the nav is hidden. -->
-                  <div class="fixed bottom-0 right-0 left-0 md:left-[16.6667%] 2xl:left-[max(8.3333%,12rem)] z-40 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-2px_8px_rgba(0,0,0,0.08)] px-3 py-2 sm:px-6">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                      <!-- Left: CMS / destructive actions -->
-                      <span class="flex flex-row gap-2">
-                        <Button
-                          type="button"
-                          class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
-                          v-if="permissions.includes('update customers') && customer.person_id"
-                          @click.prevent="disconnectCMSCustomer(customer.id)"
-                        >
-                          <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
-                          <span> Disconnect from CMS </span>
-                        </Button>
-                        <Button
-                          type="button"
-                          class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                          v-if="!customer.vend && permissions.includes('update customers')"
-                          @click.prevent="deleteCustomer(customer.id)"
-                        >
-                          <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                          <span> Delete Site </span>
-                        </Button>
-                      </span>
-                      <!-- Right: primary actions (Back, then Save Site) -->
-                      <span class="flex flex-row gap-2">
-                        <Link :href="'/customers'">
-                          <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
-                            <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                            <span> Back </span>
-                          </Button>
-                        </Link>
-                        <Button
-                          type="button"
-                          class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                          v-if="permissions.includes('update customers')"
-                          @click.prevent="saveCustomer(form.id)"
-                        >
-                          <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                          <span> Save Site </span>
-                        </Button>
-                      </span>
-                    </div>
-                  </div>
+                  <FloatingActionBar>
+                    <template #left>
+                      <Button
+                        type="button"
+                        class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
+                        v-if="permissions.includes('update customers') && customer.person_id"
+                        @click.prevent="disconnectCMSCustomer(customer.id)"
+                      >
+                        <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
+                        <span> Disconnect from CMS </span>
+                      </Button>
+                      <Button
+                        type="button"
+                        class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                        v-if="!customer.vend && permissions.includes('update customers')"
+                        @click.prevent="deleteCustomer(customer.id)"
+                      >
+                        <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                        <span> Delete Site </span>
+                      </Button>
+                    </template>
+                    <Link :href="'/customers'">
+                      <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
+                        <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                        <span> Back </span>
+                      </Button>
+                    </Link>
+                    <Button
+                      type="button"
+                      class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                      v-if="permissions.includes('update customers')"
+                      @click.prevent="saveCustomer(form.id)"
+                    >
+                      <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                      <span> Save Site </span>
+                    </Button>
+                  </FloatingActionBar>
 
                   <div class="relative pt-2 m-5">
                     <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -1743,6 +1733,7 @@ import { vendCodeLabel } from '@/utils/vendCode';
 import AttachmentList from '@/Components/AttachmentList.vue';
 import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
+import FloatingActionBar from '@/Components/FloatingActionBar.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
