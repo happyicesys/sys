@@ -124,7 +124,7 @@ class CardTerminalBindingService
 
         if ($current && (int) $current->vend_id === (int) $vend->id) {
             if ($current->bound_from === null || $current->bound_from->toDateString() <= $date) {
-                return ['moved' => false, 'note' => 'already on '.$vend->code];
+                return ['moved' => false, 'note' => 'already on '.$vend->codeLabel()];
             }
 
             return $this->widenBackTo($current, $unit, $vend, $date);
@@ -150,7 +150,7 @@ class CardTerminalBindingService
             'moved' => true,
             'note' => $displaced->isEmpty()
                 ? 'from '.$date
-                : 'from '.$date.', closed '.$displaced->implode(', ').' on '.$vend->code,
+                : 'from '.$date.', closed '.$displaced->implode(', ').' on '.$vend->codeLabel(),
         ];
     }
 
@@ -187,7 +187,7 @@ class CardTerminalBindingService
             ->orderBy('id')
             ->get();
 
-        $refusal = ['moved' => false, 'note' => 'on '.$vend->code.' only from '.$from.', and an earlier binding covers '.$date];
+        $refusal = ['moved' => false, 'note' => 'on '.$vend->codeLabel().' only from '.$from.', and an earlier binding covers '.$date];
 
         // A different terminal on the target machine during the gap — a real
         // conflict, not a stale row of this terminal's own history.
@@ -212,7 +212,7 @@ class CardTerminalBindingService
             $current->update(['bound_from' => $date]);
         });
 
-        $note = 'back-dated on '.$vend->code.' to '.$date;
+        $note = 'back-dated on '.$vend->codeLabel().' to '.$date;
         if ($previous) {
             // Same fleet-wide lookup as the controller: the old machine may
             // belong to another operator, and the note must still name it.

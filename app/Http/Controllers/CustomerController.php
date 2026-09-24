@@ -4265,7 +4265,7 @@ class CustomerController extends Controller
                     'Contract Attachment' => $hasContract ? 'Yes' : 'No',
                     'Address' => $fullAddress,
                     'Period Report (YYMM)' => $row->year_month ? \Carbon\Carbon::parse($row->year_month)->format('ym') : null,
-                    'Machine ID' => $vend?->code,
+                    'Machine ID' => $vend?->codeLabel(),
                     // relationLoaded() returns false in cursor() context (see the
                     // Location Type / audit-column comments below), so read through
                     // optional() directly — customer.vend.vendPrefix IS eager-loaded.

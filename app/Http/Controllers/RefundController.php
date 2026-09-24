@@ -340,7 +340,7 @@ class RefundController extends Controller
 
         $vends = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('vend_id')->filter()->unique())
-            ->get(['id', 'customer_id', 'vend_prefix_id'])->keyBy('id');
+            ->get(['id', 'code', 'code_prefix', 'customer_id', 'vend_prefix_id'])->keyBy('id');
         $siteNames = \App\Models\Customer::withoutGlobalScopes()
             ->whereIn('id', $vends->pluck('customer_id')->filter()->unique())
             ->pluck('name', 'id');
@@ -418,6 +418,8 @@ class RefundController extends Controller
                 $payNowDup[$t->id] ?? false,
                 [
                     'machine_rf_24h' => $selfCheck['rf24h'][$t->id] ?? null,
+                    // Machine ID as people see it (C6002); refund_tickets.vend_code stores the bare number.
+                    'machine_label' => $t->vend_id ? $vends->get($t->vend_id)?->codeLabel() : null,
                     // Machine's own VendPrefix name — fallback for manual / unmatched
                     // tickets that have no transaction prefix (used in toRow).
                     'machine_prefix_name' => ($t->vend_id && $vends->get($t->vend_id))
@@ -1351,7 +1353,7 @@ class RefundController extends Controller
         return [
             'id' => $t->id,
             'reference' => $t->reference,
-            'vend_code' => $t->vend_code,
+            'vend_code' => $self['machine_label'] ?? $t->vend_code,
             // VendPrefix (mapping) name shown beside the machine ID on the same row.
             // Matched tickets use the prefix frozen on their transaction; manual /
             // unmatched tickets fall back to the machine's own prefix (resolved in
@@ -1592,12 +1594,15 @@ class RefundController extends Controller
         $txnMachine = $txn->vend?->code;
         if ($txnMachine !== null && $t->vend_code !== null) {
             $ok = (string) $txnMachine === (string) $t->vend_code;
+            // Labels for the message only — the comparison stays on the bare number.
+            $txnLabel = $txn->vend->codeLabel();
+            $ticketLabel = $t->vend?->codeLabel() ?? $t->vend_code;
             $checks[] = [
                 'key' => 'machine', 'ok' => $ok, 'soft' => false,
                 'label' => $ok ? 'Machine matches' : 'Machine mismatch',
                 'detail' => $ok
-                    ? "Machine {$t->vend_code} matches the transaction."
-                    : "The customer's machine is {$t->vend_code} but this transaction is on machine {$txnMachine}. The Order ID likely belongs to a different machine.",
+                    ? "Machine {$ticketLabel} matches the transaction."
+                    : "The customer's machine is {$ticketLabel} but this transaction is on machine {$txnLabel}. The Order ID likely belongs to a different machine.",
             ];
         }
 
@@ -1738,6 +1743,7 @@ class RefundController extends Controller
         // Machine's own VendPrefix name, so a manual / unmatched ticket still shows
         // the prefix beside the machine ID on the Show page (matched tickets use the
         // transaction's prefix inside toRow).
+        $selfRow['machine_label'] = $siteVend?->codeLabel();
         $selfRow['machine_prefix_name'] = $siteVend && $siteVend->vend_prefix_id
             ? optional(\App\Models\VendPrefix::withoutGlobalScopes()->find($siteVend->vend_prefix_id))->name
             : null;

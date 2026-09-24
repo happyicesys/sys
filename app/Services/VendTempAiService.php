@@ -17,7 +17,7 @@ class VendTempAiService
         $driver = config('services.ai.driver', 'openai');
         $config = config("services.{$driver}");
 
-        return !empty(data_get($config, 'api_key'))
+        return ! empty(data_get($config, 'api_key'))
             && (bool) data_get($config, 'vend_temp.enabled', false);
     }
 
@@ -26,7 +26,7 @@ class VendTempAiService
      */
     public function analyze(Vend $vend, array $snapshot = [], ?VendTemp $latestTemp = null): ?array
     {
-        if (!$this->isEnabled()) {
+        if (! $this->isEnabled()) {
             return null;
         }
 
@@ -55,7 +55,7 @@ class VendTempAiService
         $payload = [
             'vend' => [
                 'id' => $vend->id,
-                'code' => $vend->code,
+                'code' => $vend->codeLabel(),
                 'name' => $vend->name ?? null,
             ],
             'snapshot' => $this->formatSnapshot($snapshot, $latestTemp),
@@ -64,22 +64,22 @@ class VendTempAiService
             'generated_at' => now()->toIso8601String(),
         ];
 
-        $prompt = "You are an expert monitoring freezer vending machines. Respond with compact JSON (no markdown formatting): {\"status\":\"ok|watch|alert\",\"likely_event\":\"normal_cycle|door_open|compressor_issue|sensor_fault|unknown\",\"message\":\"<=120 chars explanation\"}. Use only the data provided: " . json_encode($payload);
+        $prompt = 'You are an expert monitoring freezer vending machines. Respond with compact JSON (no markdown formatting): {"status":"ok|watch|alert","likely_event":"normal_cycle|door_open|compressor_issue|sensor_fault|unknown","message":"<=120 chars explanation"}. Use only the data provided: '.json_encode($payload);
 
         $response = Http::post("{$baseUrl}/{$model}:generateContent?key={$apiKey}", [
             'contents' => [
                 [
                     'parts' => [
-                        ['text' => $prompt]
-                    ]
-                ]
+                        ['text' => $prompt],
+                    ],
+                ],
             ],
             'generationConfig' => [
-                'responseMimeType' => 'application/json'
-            ]
+                'responseMimeType' => 'application/json',
+            ],
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::warning('Vend temperature Google AI request failed', [
                 'vend_id' => $vend->id,
                 'status' => $response->status(),
@@ -91,7 +91,7 @@ class VendTempAiService
 
         $content = data_get($response->json(), 'candidates.0.content.parts.0.text');
 
-        if (!$content) {
+        if (! $content) {
             return null;
         }
 
@@ -135,7 +135,7 @@ class VendTempAiService
         $payload = [
             'vend' => [
                 'id' => $vend->id,
-                'code' => $vend->code,
+                'code' => $vend->codeLabel(),
                 'name' => $vend->name ?? null,
             ],
             'snapshot' => $this->formatSnapshot($snapshot, $latestTemp),
@@ -161,7 +161,7 @@ class VendTempAiService
             ],
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::warning('Vend temperature OpenAI request failed', [
                 'vend_id' => $vend->id,
                 'status' => $response->status(),
@@ -173,7 +173,7 @@ class VendTempAiService
 
         $content = data_get($response->json(), 'choices.0.message.content');
 
-        if (!$content) {
+        if (! $content) {
             return null;
         }
 

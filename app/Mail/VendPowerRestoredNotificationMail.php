@@ -13,10 +13,15 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
     use Queueable; // avoid SerializesModels to prevent model rehydrate issues
 
     public $baseUrl;
+
     public $now;
+
     public int $vendId;
+
     public int $thresholdMinutes;
+
     public $vend; // populated in build()
+
     public $vendPrefixName;
 
     /**
@@ -48,8 +53,9 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
         $vend = Vend::withoutGlobalScopes()->with('vendPrefix', 'customer')->findOrFail($this->vendId);
         $this->vend = $vend;
         $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
+
         return $this
-        ->subject('ID: '.$vend->code.' Machine Offline Alert >= '.$this->thresholdMinutes.' mins ('.$this->now->format('y-m-d').') - Recovered')
+            ->subject('ID: '.$vend->codeLabel().' Machine Offline Alert >= '.$this->thresholdMinutes.' mins ('.$this->now->format('y-m-d').') - Recovered')
             ->view('emails.power-restored-alert');
     }
 }

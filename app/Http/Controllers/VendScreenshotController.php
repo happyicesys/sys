@@ -96,7 +96,7 @@ class VendScreenshotController extends Controller
         Cache::forget($this->key('meta', $vend));
         Cache::put($this->key('pending', $vend), Carbon::now()->timestamp, self::TOKEN_TTL_SECONDS);
 
-        PublishMqtt::dispatch('CM' . $vend->code, $this->screenshotFrame($vend, $token))->onQueue('high');
+        PublishMqtt::dispatch('CM'.$vend->code, $this->screenshotFrame($vend, $token))->onQueue('high');
 
         // Audit. The screen can show a customer's QR payment or member details, so
         // every capture is attributable to a named human.
@@ -127,7 +127,7 @@ class VendScreenshotController extends Controller
                 'captured_at' => $meta['captured_at'] ?? null,
                 'bytes' => $meta['bytes'] ?? null,
                 // Cache-buster so the browser refetches after a new capture.
-                'image_url' => route('vends.screenshot.image', ['vend' => $vend->id]) . '?v=' . ($meta['stamp'] ?? 0),
+                'image_url' => route('vends.screenshot.image', ['vend' => $vend->id]).'?v='.($meta['stamp'] ?? 0),
             ]);
         }
 
@@ -164,7 +164,7 @@ class VendScreenshotController extends Controller
             'Content-Length' => strlen($bytes),
             // Never let this sit in a shared proxy or the browser's disk cache.
             'Cache-Control' => 'no-store, private, max-age=0',
-            'Content-Disposition' => 'inline; filename="vend-' . $vend->code . '-screen.jpg"',
+            'Content-Disposition' => 'inline; filename="vend-'.$vend->codeLabel().'-screen.jpg"',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
@@ -247,7 +247,6 @@ class VendScreenshotController extends Controller
 
     /* ---------------------------------------------------------------- helpers */
 
-
     /**
      * Same frame envelope as ApkReleaseController::otaCheckFrame — fid, length,
      * base64 body, md5 signed with the machine's private key.
@@ -263,7 +262,7 @@ class VendScreenshotController extends Controller
             'token' => $token,
             // Where to send it. Carried in the frame so the endpoint can move
             // without shipping a new APK.
-            'url' => url('/api/v1/vends/' . $vend->code . '/screenshot'),
+            'url' => url('/api/v1/vends/'.$vend->code.'/screenshot'),
             // Longest edge after downscale, and JPEG quality. 1080x1920 PNG is
             // ~90 KB; 540x960 JPEG q60 is ~25-40 KB, which matters on cellular.
             'maxEdge' => 960,
@@ -271,13 +270,13 @@ class VendScreenshotController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend->private_key ?: config('vend.private_key', '123456789110138A');
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        return $fid . ',' . $contentLength . ',' . $content . ',' . $md5;
+        return $fid.','.$contentLength.','.$content.','.$md5;
     }
 
     private function key(string $kind, Vend $vend): string
     {
-        return 'vend_screenshot_' . $kind . '_' . $vend->id;
+        return 'vend_screenshot_'.$kind.'_'.$vend->id;
     }
 }

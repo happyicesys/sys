@@ -13,11 +13,17 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
     use Queueable; // avoid SerializesModels to prevent model rehydrate issues
 
     public $baseUrl;
+
     public $now;
+
     public int $vendId;
+
     public int $thresholdMinutes;
+
     public ?string $label = null;
+
     public $vend; // populated in build()
+
     public $vendPrefixName;
 
     /**
@@ -52,10 +58,10 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
         $this->vend = $vend;
         $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
 
-        $subject = 'ID: ' . $vend->code . ' Machine Offline Alert >= ' . $this->thresholdMinutes . ' mins (' . $this->now->format('y-m-d') . ')';
+        $subject = 'ID: '.$vend->codeLabel().' Machine Offline Alert >= '.$this->thresholdMinutes.' mins ('.$this->now->format('y-m-d').')';
 
         if ($this->label) {
-            $subject = $vend->code . ': (1) Alert on Lost of Connectivity or Electricity (' . $this->label . ')';
+            $subject = $vend->codeLabel().': (1) Alert on Lost of Connectivity or Electricity ('.$this->label.')';
         }
 
         return $this

@@ -537,7 +537,7 @@ class CardSettlementController extends Controller
             // finance data. The bulk button never does that unattended — the
             // Settings page is still there for a human who means it.
             if ($suspect['would_break_synced'] > 0) {
-                $skipped[] = "{$terminalId}: would break {$suspect['would_break_synced']} already-synced line(s) — move it by hand from machine {$vend->code}'s Settings page";
+                $skipped[] = "{$terminalId}: would break {$suspect['would_break_synced']} already-synced line(s) — move it by hand from machine {$vend->codeLabel()}'s Settings page";
 
                 continue;
             }
@@ -558,7 +558,7 @@ class CardSettlementController extends Controller
                 'card_terminal_unit_id' => [$before, $unit->terminal_id],
             ]);
 
-            $moved[] = "{$terminalId} → {$vend->code} ({$result['note']})";
+            $moved[] = "{$terminalId} → {$vend->codeLabel()} ({$result['note']})";
         }
 
         if ($moved) {
@@ -635,7 +635,7 @@ class CardSettlementController extends Controller
             UserLogger::recordChanges($vend, [
                 'card_terminal_unit_id' => [$before, $unit->terminal_id],
             ]);
-            $bound[] = "{$terminalId} → {$vend->code} ({$result['note']})";
+            $bound[] = "{$terminalId} → {$vend->codeLabel()} ({$result['note']})";
         }
 
         if ($bound) {
@@ -892,7 +892,8 @@ class CardSettlementController extends Controller
 
         $vendCodes = Vend::withoutGlobalScopes()
             ->whereIn('id', $report->rows()->saleLines()->whereNotNull('vend_id')->distinct()->pluck('vend_id'))
-            ->pluck('code', 'id');
+            ->get(['id', 'code', 'code_prefix'])
+            ->mapWithKeys(fn ($v) => [$v->id => $v->codeLabel()]);
 
         $filename = pathinfo($report->original_filename, PATHINFO_FILENAME).'_readable-time.csv';
 

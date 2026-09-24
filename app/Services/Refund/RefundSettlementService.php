@@ -26,6 +26,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 class RefundSettlementService
 {
     protected RefundTicketService $tickets;
+
     protected RefundEmailService $email;
 
     public function __construct(RefundTicketService $tickets, RefundEmailService $email)
@@ -63,14 +64,14 @@ class RefundSettlementService
             // whole push with a clear message rather than silently dropping them.
             $zeroAmount = $tickets->filter(fn (RefundTicket $t) => (int) $t->payout_amount_cents <= 0);
             if ($zeroAmount->isNotEmpty()) {
-                throw new \RuntimeException('Cannot send to settlement — ' . $zeroAmount->count() . ' selected refund(s) have a $0.00 refund amount (' . $zeroAmount->pluck('reference')->implode(', ') . '). Set a Final Refund Amount greater than $0 first.');
+                throw new \RuntimeException('Cannot send to settlement — '.$zeroAmount->count().' selected refund(s) have a $0.00 refund amount ('.$zeroAmount->pluck('reference')->implode(', ').'). Set a Final Refund Amount greater than $0 first.');
             }
 
             $pushed = 0;
             $refs = [];
 
             foreach ($tickets->groupBy('operator_id') as $operatorId => $group) {
-                if (!$operatorId) {
+                if (! $operatorId) {
                     // Without an operator we cannot resolve a payout account — skip.
                     continue;
                 }
@@ -88,8 +89,8 @@ class RefundSettlementService
                         'status' => RefundTicket::STATUS_SCHEDULED,
                         'scheduled_at' => now(),
                     ]);
-                    $this->tickets->log($ticket, 'scheduled', $from, RefundTicket::STATUS_SCHEDULED, 'Pushed to settlement ' . $settlement->reference, $actorLabel ?? 'Admin', $userId);
-                    $this->settlementLog($settlement, 'entry_added', 'Added ' . $ticket->reference . ' (' . $ticket->refund_method . ')', $userId, $actorLabel, ['ticket_id' => $ticket->id, 'reference' => $ticket->reference]);
+                    $this->tickets->log($ticket, 'scheduled', $from, RefundTicket::STATUS_SCHEDULED, 'Pushed to settlement '.$settlement->reference, $actorLabel ?? 'Admin', $userId);
+                    $this->settlementLog($settlement, 'entry_added', 'Added '.$ticket->reference.' ('.$ticket->refund_method.')', $userId, $actorLabel, ['ticket_id' => $ticket->id, 'reference' => $ticket->reference]);
                     $pushed++;
                     $refs[$settlement->reference] = true;
                 }
@@ -166,8 +167,8 @@ class RefundSettlementService
             $template = BankTemplateRegistry::make('cimb');
             $content = $template->generate($tickets, ['originating_account' => $account, 'batch' => $settlement]);
 
-            $filename = $settlement->reference . '-cimb.' . $template->fileExtension();
-            $path = 'refund-payouts/' . $filename;
+            $filename = $settlement->reference.'-cimb.'.$template->fileExtension();
+            $path = 'refund-payouts/'.$filename;
             Storage::disk('local')->put($path, $content);
 
             $total = (int) $tickets->sum('payout_amount_cents');
@@ -188,7 +189,7 @@ class RefundSettlementService
                 'exported_at' => now(),
                 'csv_path' => $path,
             ]);
-            $this->settlementLog($settlement, 'exported_cimb', 'Exported CIMB file ' . $filename . ' (' . $tickets->count() . ' PayNow, $' . number_format($total / 100, 2) . ')', $userId, $actorLabel, ['file' => $path, 'count' => $tickets->count()]);
+            $this->settlementLog($settlement, 'exported_cimb', 'Exported CIMB file '.$filename.' ('.$tickets->count().' PayNow, $'.number_format($total / 100, 2).')', $userId, $actorLabel, ['file' => $path, 'count' => $tickets->count()]);
 
             return ['filename' => $filename, 'content' => $content, 'path' => $path];
         });
@@ -208,18 +209,24 @@ class RefundSettlementService
             throw new \RuntimeException('No PayPal tickets to export in this settlement.');
         }
 
+        // Machine ID as people see it (C6002); refund_tickets.vend_code stores the bare number.
+        $machineLabels = \App\Models\Vend::withoutGlobalScopes()
+            ->whereIn('id', $tickets->pluck('vend_id')->filter()->unique())
+            ->get(['id', 'code', 'code_prefix'])
+            ->mapWithKeys(fn ($v) => [$v->id => $v->codeLabel()]);
+
         $rows = $tickets->map(fn (RefundTicket $t) => [
             'Reference' => $t->reference,
             'PayPal Email' => $t->payout_destination,
             'Amount (SGD)' => number_format($t->payout_amount_cents / 100, 2, '.', ''),
             'Operator' => optional(Operator::withoutGlobalScopes()->find($t->operator_id))->name,
-            'Machine' => $t->vend_code,
+            'Machine' => $machineLabels[$t->vend_id] ?? $t->vend_code,
             'Contact Email' => $t->contact_email,
             'Submitted' => optional($t->created_at)->toDateString(),
         ])->values();
 
-        $filename = $settlement->reference . '-paypal.xlsx';
-        $rel = 'refund-payouts/' . $filename;
+        $filename = $settlement->reference.'-paypal.xlsx';
+        $rel = 'refund-payouts/'.$filename;
         Storage::disk('local')->makeDirectory('refund-payouts');
         $abs = Storage::disk('local')->path($rel);
         (new FastExcel(collect($rows)))->export($abs);
@@ -237,7 +244,7 @@ class RefundSettlementService
                 'exported_at' => now(),
             ]);
             $settlement->update(['exported_by' => $userId, 'exported_at' => now()]);
-            $this->settlementLog($settlement, 'exported_xlsx', 'Exported PayPal worklist ' . $filename . ' (' . $tickets->count() . ')', $userId, $actorLabel, ['file' => $rel, 'count' => $tickets->count()]);
+            $this->settlementLog($settlement, 'exported_xlsx', 'Exported PayPal worklist '.$filename.' ('.$tickets->count().')', $userId, $actorLabel, ['file' => $rel, 'count' => $tickets->count()]);
 
             return ['filename' => $filename, 'path' => $rel];
         });
@@ -285,8 +292,8 @@ class RefundSettlementService
                     'paid_at' => $paidAt,
                     'completed_at' => now(),
                 ]);
-                $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund done via settlement ' . $settlement->reference, $actorLabel ?? 'Admin', $userId);
-                $this->settlementLog($settlement, 'marked_done', 'Marked ' . $ticket->reference . ' done', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
+                $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund done via settlement '.$settlement->reference, $actorLabel ?? 'Admin', $userId);
+                $this->settlementLog($settlement, 'marked_done', 'Marked '.$ticket->reference.' done', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
             }
 
             $this->recount($settlement);
@@ -342,8 +349,8 @@ class RefundSettlementService
             foreach ($tickets as $ticket) {
                 $from = $ticket->status;
                 $ticket->update(['status' => RefundTicket::STATUS_INSUFFICIENT_INFO]);
-                $this->tickets->log($ticket, 'insufficient_info', $from, $ticket->status, 'Flagged insufficient info (handle manually) in settlement ' . $settlement->reference, $actorLabel ?? 'Admin', $userId);
-                $this->settlementLog($settlement, 'insufficient_info', 'Flagged ' . $ticket->reference . ' as insufficient info', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
+                $this->tickets->log($ticket, 'insufficient_info', $from, $ticket->status, 'Flagged insufficient info (handle manually) in settlement '.$settlement->reference, $actorLabel ?? 'Admin', $userId);
+                $this->settlementLog($settlement, 'insufficient_info', 'Flagged '.$ticket->reference.' as insufficient info', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
             }
 
             // Kept as a member, so the settlement count/total stay unchanged.
@@ -362,7 +369,7 @@ class RefundSettlementService
     {
         $this->assertSettlement($settlement);
         if ($settlement->status !== RefundPayoutBatch::STATUS_OPEN) {
-            throw new \RuntimeException('Tickets can only be removed while the settlement is Open (this one is ' . $settlement->status . ').');
+            throw new \RuntimeException('Tickets can only be removed while the settlement is Open (this one is '.$settlement->status.').');
         }
         if ((int) $ticket->payout_batch_id !== (int) $settlement->id) {
             throw new \RuntimeException('That ticket is not in this settlement.');
@@ -378,8 +385,8 @@ class RefundSettlementService
                 'payout_batch_id' => null,
                 'scheduled_at' => null,
             ]);
-            $this->tickets->log($ticket, 'returned_to_pool', $from, $ticket->status, 'Returned to pool from settlement ' . $settlement->reference, $actorLabel ?? 'Admin', $userId);
-            $this->settlementLog($settlement, 'entry_removed', 'Returned ' . $ticket->reference . ' to pool', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
+            $this->tickets->log($ticket, 'returned_to_pool', $from, $ticket->status, 'Returned to pool from settlement '.$settlement->reference, $actorLabel ?? 'Admin', $userId);
+            $this->settlementLog($settlement, 'entry_removed', 'Returned '.$ticket->reference.' to pool', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
             $this->recount($settlement);
         });
     }
@@ -410,7 +417,7 @@ class RefundSettlementService
     protected function headFor(int $operatorId): array
     {
         $operator = Operator::withoutGlobalScopes()->find($operatorId);
-        if (!$operator) {
+        if (! $operator) {
             throw new \RuntimeException("Operator #{$operatorId} not found for settlement grouping.");
         }
         if ($operator->payout_group_id) {
@@ -419,7 +426,8 @@ class RefundSettlementService
                 return ['payout_group_id' => $group->id, 'operator_id' => null, 'code' => $group->code];
             }
         }
-        return ['payout_group_id' => null, 'operator_id' => $operator->id, 'code' => $operator->code ?? ('OP' . $operator->id)];
+
+        return ['payout_group_id' => null, 'operator_id' => $operator->id, 'code' => $operator->code ?? ('OP'.$operator->id)];
     }
 
     protected function openSettlementFor(array $head, ?int $userId, ?string $actorLabel): RefundPayoutBatch
@@ -446,7 +454,7 @@ class RefundSettlementService
         // code + sequence) and insert with it directly. Avoids the transient
         // 'PENDING' placeholder, which — because reference is UNIQUE — could clash
         // if two settlements were mid-open at the same moment.
-        $reference = 'RST-' . now()->format('ymd') . '-' . strtoupper((string) $head['code']) . '-' . str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
+        $reference = 'RST-'.now()->format('ymd').'-'.strtoupper((string) $head['code']).'-'.str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
 
         $settlement = RefundPayoutBatch::create([
             'reference' => $reference,
@@ -493,16 +501,17 @@ class RefundSettlementService
             $group = PayoutGroup::find($settlement->payout_group_id);
             $no = trim((string) ($group?->bank_account_no ?? ''));
             $name = trim((string) ($group?->bank_account_name ?? ''));
-            $label = $group?->name ?? ('payout group #' . $settlement->payout_group_id);
+            $label = $group?->name ?? ('payout group #'.$settlement->payout_group_id);
         } else {
             $op = Operator::withoutGlobalScopes()->find($settlement->operator_id);
             $no = trim((string) ($op?->bank_account_no ?? ''));
             $name = trim((string) ($op?->bank_account_name ?: ($op?->name ?? '')));
-            $label = $op?->name ?? ('operator #' . $settlement->operator_id);
+            $label = $op?->name ?? ('operator #'.$settlement->operator_id);
         }
         if ($no === '') {
             throw new \RuntimeException("No originating CIMB account set for {$label}. Set the bank account on its payout group (or the operator) before exporting.");
         }
+
         return ['no' => $no, 'name' => $name];
     }
 

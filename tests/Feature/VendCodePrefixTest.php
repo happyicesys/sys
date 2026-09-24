@@ -228,6 +228,39 @@ class VendCodePrefixTest extends TestCase
 
     // ── a new mark1 number never takes a chiller's ─────────────────────────
 
+    // ── the 2026-09-24 leftover sweep: emails, refund rows, drill-downs ────
+
+    public function test_alert_emails_put_the_prefixed_machine_id_in_the_subject_and_body(): void
+    {
+        $chiller = $this->chiller('E1', 6001);
+
+        $offline = (new \App\Mail\VendOfflineNotificationMail($chiller->id, 30))->build();
+        $this->assertStringContainsString('ID: C6001 Machine Offline', $offline->subject);
+        $this->assertStringContainsString('#ID: C6001', $offline->render());
+
+        $restored = (new \App\Mail\VendPowerRestoredNotificationMail($chiller->id, 30))->build();
+        $this->assertStringContainsString('ID: C6001 Machine Offline', $restored->subject);
+        $this->assertStringContainsString('#ID: C6001', $restored->render());
+    }
+
+    public function test_a_refund_row_shows_the_prefixed_machine_id_but_stores_the_bare_number(): void
+    {
+        $chiller = $this->chiller('E1', 6001);
+        $t = \App\Models\RefundTicket::create([
+            'reference' => 'RF-C6001', 'vend_id' => $chiller->id, 'vend_code' => '6001',
+            'status' => \App\Models\RefundTicket::STATUS_SUBMITTED, 'is_manual' => true,
+            'claimed_amount_cents' => 0, 'entered_amount_cents' => 430,
+        ]);
+
+        $controller = app(\App\Http\Controllers\RefundController::class);
+        $method = (new \ReflectionClass($controller))->getMethod('buildRows');
+        $method->setAccessible(true);
+        $row = $method->invoke($controller, collect([$t]))[$t->id];
+
+        $this->assertSame('C6001', $row['vend_code']);
+        $this->assertSame('6001', $t->fresh()->vend_code, 'refund_tickets.vend_code stays the bare number');
+    }
+
     public function test_machine_create_refuses_a_number_a_chiller_holds(): void
     {
         $mine = Operator::create(['code' => 'MINE', 'name' => 'Mine', 'country_id' => 1]);

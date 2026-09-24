@@ -28,6 +28,7 @@ use App\Services\TagBindingService;
 use App\Services\VendChannelService;
 use App\Services\VendTransactionSalesAggregator;
 use App\Services\VendTransactionService;
+use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -340,9 +341,9 @@ class ProductController extends Controller
         $rows = $this->deployedVendChannelQuery($productIds)
             ->join('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-            ->groupBy('vends.id', 'vends.code', 'customers.id', 'customers.name', 'zones.name')
+            ->groupBy('vends.id', 'vends.code', 'vends.code_prefix', 'customers.id', 'customers.name', 'zones.name')
             ->havingRaw('COALESCE(SUM(vend_channels.qty), 0) <= 2')
-            ->selectRaw('vends.id as vend_id, vends.code as vend_code,
+            ->selectRaw('vends.id as vend_id, vends.code as vend_code, vends.code_prefix,
                 customers.id as customer_id, customers.name as customer_name,
                 zones.name as zone_name,
                 COALESCE(SUM(vend_channels.qty), 0) as total_qty,
@@ -362,7 +363,7 @@ class ProductController extends Controller
 
                 return [
                     'vend_id' => $r->vend_id,
-                    'vend_code' => $r->vend_code,
+                    'vend_code' => VendCode::label($r->code_prefix, $r->vend_code),
                     'site_ref_id' => $r->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT,
                     'site_name' => $r->customer_name,
                     'zone_name' => $r->zone_name,

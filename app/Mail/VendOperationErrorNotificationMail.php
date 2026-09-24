@@ -5,8 +5,6 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
@@ -14,11 +12,17 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
     use Queueable; // avoid SerializesModels to prevent model rehydrate issues
 
     public $baseUrl;
+
     public $now;
+
     public int $vendId;
+
     public string $alertType;
+
     public string $label;
+
     public $vend; // populated in build()
+
     public $vendPrefixName;
 
     /**
@@ -69,7 +73,7 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
                 $title = 'Operation Error / Critical Parts Failure';
         }
 
-        $subject = $vend->code . ': ' . $title . ' (' . $this->label . ')';
+        $subject = $vend->codeLabel().': '.$title.' ('.$this->label.')';
 
         return $this
             ->subject($subject)

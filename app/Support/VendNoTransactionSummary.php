@@ -25,7 +25,7 @@ class VendNoTransactionSummary
         ];
 
         $typeDetails = collect($typeTimestamps)->map(function ($timestamp, $label) use ($now, $thresholdHours) {
-            if (!$timestamp) {
+            if (! $timestamp) {
                 return null;
             }
 
@@ -47,7 +47,7 @@ class VendNoTransactionSummary
         $triggeredDetails = $typeDetails->filter(fn ($detail) => $detail['triggered']);
 
         $transactionDetail = $typeDetails->firstWhere('label', 'Transaction');
-        if ($transactionDetail && !$transactionDetail['triggered']) {
+        if ($transactionDetail && ! $transactionDetail['triggered']) {
             return null;
         }
 
@@ -61,6 +61,7 @@ class VendNoTransactionSummary
         return [
             'id' => $vend->id,
             'code' => $vend->code,
+            'code_label' => $vend->codeLabel(),
             'name' => $vend->name,
             'operator_id' => $vend->operator_id,
             'vend_prefix_name' => $vend->vendPrefix?->name,

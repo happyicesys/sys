@@ -140,6 +140,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue'
+import { vendCodeLabel } from '@/utils/vendCode'
 import FormInput from '@/Components/FormInput.vue'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
@@ -199,7 +200,7 @@ function buildBindingHistory(vendBindings) {
   const entries = []
 
   vendBindings.forEach((binding) => {
-    const machineCode = binding.vend?.code
+    const machineCode = vendCodeLabel(binding.vend)
     const customerName = binding.vend?.customer?.name
     const contextParts = []
     if (machineCode) {

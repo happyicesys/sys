@@ -258,7 +258,7 @@ class FreezerControlController extends Controller
         if ($q !== '') {
             $text = implode("\n", array_values(array_filter(explode("\n", $text), fn ($l) => mb_stripos($l, $q) !== false)));
         }
-        $name = 'freezer-'.$vend->code.'-'.$command->created_at?->format('Ymd-His').'.log';
+        $name = 'freezer-'.$vend->codeLabel().'-'.$command->created_at?->format('Ymd-His').'.log';
         $headers = ['Content-Type' => 'text/plain; charset=utf-8'];
         if ($request->boolean('download')) {
             $headers['Content-Disposition'] = 'attachment; filename="'.$name.'"';
@@ -284,7 +284,7 @@ class FreezerControlController extends Controller
                 ]);
             }
         }
-        $name = 'freezer-'.$vend->code.'-'.$command->created_at?->format('Ymd-His').'.jpg';
+        $name = 'freezer-'.$vend->codeLabel().'-'.$command->created_at?->format('Ymd-His').'.jpg';
 
         return Storage::response($command->attachment_path, $name, ['Content-Type' => 'image/jpeg', 'Cache-Control' => self::PHOTO_CACHE_CONTROL]);
     }

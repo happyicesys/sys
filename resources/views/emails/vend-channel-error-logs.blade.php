@@ -48,6 +48,7 @@
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
                                 @php
                                     $vendCode = $vend->code ?? null;
+                                    $vendLabel = $vend?->codeLabel() ?: null;
                                     $customerIndexUrl = null;
 
                                     if (!empty($vendCode) && !empty($baseUrl ?? null)) {
@@ -57,10 +58,10 @@
                                 <div style="font-weight: 600;">
                                     @if ($customerIndexUrl)
                                         <a href="{{ $customerIndexUrl }}" style="color: #1d4ed8; text-decoration: none; font-weight: 600;">
-                                            {{ $vendCode }}
+                                            {{ $vendLabel }}
                                         </a>
                                     @else
-                                        {{ $vendCode ?? '—' }}
+                                        {{ $vendLabel ?? '—' }}
                                     @endif
                                 </div>
                                 @if (!empty($vend?->name))

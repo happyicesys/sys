@@ -54,7 +54,7 @@
                             @endphp
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
                                 <div style="font-weight: 600;">
-                                    {{ $item['code'] ?? '-' }}
+                                    {{ $item['code_label'] ?? $item['code'] ?? '-' }}
                                     {{-- @if (!empty($item['vend_prefix_name']))
                                         <span style="font-size: 12px; color: #64748b;">({{ $item['vend_prefix_name'] }})</span>
                                     @endif --}}

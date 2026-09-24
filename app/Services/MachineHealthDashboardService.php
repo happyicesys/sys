@@ -441,7 +441,7 @@ class MachineHealthDashboardService
 
                 return [
                     'vend_id' => $duration['vend_id'],
-                    'vend_code' => $vend?->code,
+                    'vend_code' => $vend?->codeLabel(),
                     'vend_name' => $vend?->name,
                     'customer_name' => $vend?->customer?->name,
                     'operator_name' => $vend?->operator?->name,
@@ -1062,7 +1062,7 @@ class MachineHealthDashboardService
     {
         return [
             'vend_id' => $vend?->id,
-            'vend_code' => $vend?->code,
+            'vend_code' => $vend?->codeLabel(),
             'vend_name' => $vend?->name,
             'customer_name' => $vend?->customer?->name,
             'operator_name' => $vend?->operator?->name,
@@ -1162,7 +1162,7 @@ class MachineHealthDashboardService
 
                 return [
                     'vend_id' => $vend?->id,
-                    'vend_code' => $vend?->code,
+                    'vend_code' => $vend?->codeLabel(),
                     'vend_name' => $vend?->name,
                     'customer_name' => $vend?->customer?->name,
                     'operator_name' => $vend?->operator?->name,

@@ -15,7 +15,7 @@
             {{ $vendTempIndex + 1 }}
           </td>
           <td>
-            {{ $vendTemp->vend->code }}
+            {{ $vendTemp->vend?->codeLabel() }}
           </td>
           <td>
             {{ $vendTemp->created_at }}

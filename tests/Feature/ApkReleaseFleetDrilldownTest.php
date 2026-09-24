@@ -74,7 +74,7 @@ class ApkReleaseFleetDrilldownTest extends TestCase
             ->assertJsonCount(1, 'machines');
 
         $res->assertJsonPath('machines.0.id', $on305->id)
-            ->assertJsonPath('machines.0.code', 2046)
+            ->assertJsonPath('machines.0.code', '2046') // codeLabel(): "C6001" for a chiller, so always a string
             ->assertJsonPath('machines.0.site_ref', '15653 (BEC2)')
             ->assertJsonPath('machines.0.site_name', 'Carissa Park Condo')
             ->assertJsonPath('machines.0.is_active', true);
@@ -108,7 +108,7 @@ class ApkReleaseFleetDrilldownTest extends TestCase
 
         $this->getJson('/apk-releases/fleet-machines?channel=vending&version_code=305')
             ->assertOk()
-            ->assertJsonPath('machines.0.code', 2031)
+            ->assertJsonPath('machines.0.code', '2031')
             ->assertJsonPath('machines.0.site_ref', null)
             ->assertJsonPath('machines.0.site_name', null);
     }

@@ -78,9 +78,9 @@ class ProductLowStockVendsTest extends TestCase
             ->assertOk();
 
         $vends = collect($response->json('vends'));
-        $this->assertSame([9001, 9002], $vends->pluck('vend_code')->sort()->values()->all());
+        $this->assertSame(['9001', '9002'], $vends->pluck('vend_code')->sort()->values()->all());  // vend_code is the label ("C6001" for a chiller), so a string
 
-        $alpha = $vends->firstWhere('vend_code', 9001);
+        $alpha = $vends->firstWhere('vend_code', '9001');
         $this->assertSame(2, $alpha['qty']);
         $this->assertSame('Alpha Condo', $alpha['site_name']);
         $this->assertSame('HC A', $alpha['zone_name']);
@@ -89,7 +89,7 @@ class ProductLowStockVendsTest extends TestCase
             $alpha['site_ref_id']
         );
 
-        $bravo = $vends->firstWhere('vend_code', 9002);
+        $bravo = $vends->firstWhere('vend_code', '9002');
         $this->assertSame(0, $bravo['qty']);
         $this->assertNull($bravo['zone_name']);
     }
@@ -119,11 +119,11 @@ class ProductLowStockVendsTest extends TestCase
             ->assertOk()
             ->json('vends'));
 
-        $refilledRow = $vends->firstWhere('vend_code', 9201);
+        $refilledRow = $vends->firstWhere('vend_code', '9201');
         $this->assertSame(now()->subDays(5)->toDateString(), $refilledRow['last_job_date']);
         $this->assertSame(5, $refilledRow['last_job_days_ago']);
 
-        $pendingRow = $vends->firstWhere('vend_code', 9202);
+        $pendingRow = $vends->firstWhere('vend_code', '9202');
         $this->assertNull($pendingRow['last_job_date']);
         $this->assertNull($pendingRow['last_job_days_ago']);
     }
@@ -147,7 +147,7 @@ class ProductLowStockVendsTest extends TestCase
             ->assertOk()
             ->json('vends');
 
-        $this->assertSame([9101], collect($vends)->pluck('vend_code')->all());
+        $this->assertSame(['9101'], collect($vends)->pluck('vend_code')->all());
     }
 
     // ---------------------------------------------------------------- fixtures

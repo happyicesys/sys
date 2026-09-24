@@ -118,7 +118,7 @@ class RefundSettlementController extends Controller
         // Site names for the member machines (scopes off — admin context).
         $vends = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $tickets->pluck('vend_id')->filter()->unique())
-            ->get(['id', 'customer_id'])->keyBy('id');
+            ->get(['id', 'code', 'code_prefix', 'customer_id'])->keyBy('id');
         $siteNames = \App\Models\Customer::withoutGlobalScopes()
             ->whereIn('id', $vends->pluck('customer_id')->filter()->unique())
             ->pluck('name', 'id');
@@ -145,7 +145,7 @@ class RefundSettlementController extends Controller
             return [
                 'id' => $t->id,
                 'reference' => $t->reference,
-                'vend_code' => $t->vend_code,
+                'vend_code' => ($t->vend_id ? $vends->get($t->vend_id)?->codeLabel() : null) ?? $t->vend_code,
                 'site_name' => $site,
                 'amount' => number_format($t->payout_amount_cents / 100, 2),
                 'payout_destination' => $t->payout_destination,

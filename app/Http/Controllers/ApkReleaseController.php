@@ -286,7 +286,7 @@ class ApkReleaseController extends Controller
         }
 
         $query = $this->fleetQuery($channel)
-            ->select(['id', 'code', 'customer_id', 'apk_version_code', 'apk_checked_in_at', 'is_active', 'is_disposed'])
+            ->select(['id', 'code', 'code_prefix', 'customer_id', 'apk_version_code', 'apk_checked_in_at', 'is_active', 'is_disposed'])
             ->with('customer:id,code,name');
 
         $wantsUnknown
@@ -301,7 +301,7 @@ class ApkReleaseController extends Controller
         $machines = $query->orderBy('code')->limit(self::FLEET_DRILLDOWN_LIMIT)->get()
             ->map(fn ($v) => [
                 'id' => $v->id,
-                'code' => $v->code,
+                'code' => $v->codeLabel(),
                 'site_ref' => $v->customer?->code,
                 'site_name' => $v->customer?->name,
                 'apk_checked_in_at' => optional($v->apk_checked_in_at)->toDateTimeString(),

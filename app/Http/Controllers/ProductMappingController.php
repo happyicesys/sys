@@ -755,7 +755,7 @@ class ProductMappingController extends Controller
             ->where('is_sold', false)
             ->whereRaw("coalesce(machine_type, 'vending_machine') != ?", [$newType])
             ->orderBy('code')
-            ->get(['id', 'code', 'machine_type']);
+            ->get(['id', 'code', 'code_prefix', 'machine_type']);
 
         if ($mismatched->isNotEmpty()) {
             throw ValidationException::withMessages([
@@ -763,7 +763,7 @@ class ProductMappingController extends Controller
                     'Cannot change this mapping to %s — %d machine(s) of another kind are still on it (%s%s). Move them to a matching mapping, or change their Machine Type first.',
                     Vend::MACHINE_TYPE_MAPPINGS[$newType] ?? $newType,
                     $mismatched->count(),
-                    $mismatched->take(5)->pluck('code')->implode(', '),
+                    $mismatched->take(5)->map->codeLabel()->implode(', '),
                     $mismatched->count() > 5 ? ', …' : ''
                 ),
             ]);
@@ -1547,14 +1547,14 @@ class ProductMappingController extends Controller
                 ->whereIn('id', $vendsToAddIds)
                 ->whereRaw("coalesce(machine_type, 'vending_machine') != ?", [$mappingType])
                 ->orderBy('code')
-                ->get(['id', 'code', 'machine_type']);
+                ->get(['id', 'code', 'code_prefix', 'machine_type']);
             if ($mismatched->isNotEmpty()) {
                 throw ValidationException::withMessages([
                     'productMappingVends' => sprintf(
                         'This is a %s mapping — %d selected machine(s) are another kind (%s%s). Change their Machine Type first, or bind them to a matching mapping.',
                         Vend::MACHINE_TYPE_MAPPINGS[$mappingType] ?? $mappingType,
                         $mismatched->count(),
-                        $mismatched->take(5)->pluck('code')->implode(', '),
+                        $mismatched->take(5)->map->codeLabel()->implode(', '),
                         $mismatched->count() > 5 ? ', …' : ''
                     ),
                 ]);

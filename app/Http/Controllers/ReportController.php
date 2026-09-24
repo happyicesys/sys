@@ -589,7 +589,7 @@ class ReportController extends Controller
                 $res = [
                     'id' => $log->id,
                     'occurred_at' => $log->context['triggered_at'] ?? $log->occurred_at->toIso8601String(),
-                    'vend_code' => $log->vend->code,
+                    'vend_code' => $log->vend->codeLabel(),
                     'vend_name' => $log->vend->name,
                     'vend_prefix_name' => $log->vend->vendPrefix ? $log->vend->vendPrefix->name : '',
                     'customer_name' => $log->vend->customer ? $log->vend->customer->name : '',

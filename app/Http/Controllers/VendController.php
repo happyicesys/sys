@@ -4969,7 +4969,7 @@ class VendController extends Controller
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'Machine ID' => $vendTransaction->vend->code,
+                'Machine ID' => $vendTransaction->vend?->codeLabel(),
                 'Customer ID' => $vendTransaction->customer ? $vendTransaction->customer->id + 20000 : '',
                 'Customer Name' => $vendTransaction->customer_id ? $vendTransaction->customer->name : '',
                 'Channel' => $vendTransaction->vend_channel_code,

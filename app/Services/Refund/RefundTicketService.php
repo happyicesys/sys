@@ -337,15 +337,16 @@ class RefundTicketService
             // Most obvious admin error: the Order ID DOES exist, just on a
             // different machine. Stop right here with an explicit message rather
             // than a vague "not found", so a wrong Order ID is caught immediately.
+            $ticketMachine = optional(\App\Models\Vend::withoutGlobalScopes()->find($ticket->vend_id))->codeLabel() ?? $ticket->vend_code;
             $otherTxn = VendTransaction::withoutGlobalScopes()->where('order_id', $orderId)->first();
             $otherLog = $otherTxn ? null : PaymentGatewayLog::query()->where('order_id', $orderId)->first();
             if ($otherTxn || $otherLog) {
                 $otherMachine = $otherTxn
-                    ? (optional(\App\Models\Vend::withoutGlobalScopes()->find($otherTxn->vend_id))->code ?? $otherTxn->vend_id)
+                    ? (optional(\App\Models\Vend::withoutGlobalScopes()->find($otherTxn->vend_id))->codeLabel() ?? $otherTxn->vend_id)
                     : $otherLog->vend_code;
-                throw new \RuntimeException("Order ID {$orderId} belongs to machine {$otherMachine}, not this claim's machine {$ticket->vend_code}. Please double-check the Order ID.");
+                throw new \RuntimeException("Order ID {$orderId} belongs to machine {$otherMachine}, not this claim's machine {$ticketMachine}. Please double-check the Order ID.");
             }
-            throw new \RuntimeException("No transaction with Order ID '{$orderId}' found for machine {$ticket->vend_code}.");
+            throw new \RuntimeException("No transaction with Order ID '{$orderId}' found for machine {$ticketMachine}.");
         }
 
         // Rebuild items + validation exactly like create() does for a matched source.

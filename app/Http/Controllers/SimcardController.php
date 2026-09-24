@@ -100,7 +100,7 @@ class SimcardController extends Controller
                 return [
                     '#' => $row,
                     'Simcard Number' => $simcard->code,
-                    'Machine ID' => $this->exportLines($simcard, fn ($vend) => $vend->code),
+                    'Machine ID' => $this->exportLines($simcard, fn ($vend) => $vend->codeLabel()),
                     'Site' => $this->exportLines($simcard, fn ($vend) => $vend->customer
                         ? ($vend->customer->id + \App\Models\Customer::RUNNING_NUMBER_INIT).' '.$vend->customer->name
                         : null),
