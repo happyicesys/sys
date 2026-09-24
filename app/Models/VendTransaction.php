@@ -544,6 +544,53 @@ class VendTransaction extends Model
     }
 
     /**
+     * "Settle Sync?" filter — mirrors the Settle Sync tick on the Sales
+     * Transactions grid, so the filter and the column always agree:
+     *   - card terminal (payment_methods.payment_gateway_id NULL, code > 0):
+     *     ticked once card_settlement_synced_at is stamped by a report Sync;
+     *   - gateway (payment_gateway_id NOT NULL): ticked when the linked
+     *     payment_gateway_log is approved (2) or approved-then-refunded (98).
+     * Cash has no rail to confirm it (the cell is blank), so it matches
+     * neither Yes nor No.
+     *
+     * Subqueries, not joins: the payment_methods set is tiny and the gateway
+     * log check is a PK lookup, and the index query must not grow joins.
+     *
+     * $search values: 'all' | 'true' | 'false'.
+     */
+    public function scopeApplySettleSyncFilter($query, $search)
+    {
+        if ($search !== 'true' && $search !== 'false') {
+            return $query;
+        }
+
+        $synced = $search === 'true';
+
+        $cardMethodIds = fn ($sub) => $sub->select('id')->from('payment_methods')
+            ->whereNull('payment_gateway_id')
+            ->where('code', '>', 0);
+        $gatewayMethodIds = fn ($sub) => $sub->select('id')->from('payment_methods')
+            ->whereNotNull('payment_gateway_id');
+        $gatewayApproved = fn ($sub) => $sub->select(DB::raw(1))->from('payment_gateway_logs')
+            ->whereColumn('payment_gateway_logs.id', 'vend_transactions.payment_gateway_log_id')
+            ->whereIn('payment_gateway_logs.status', [PaymentGatewayLog::STATUS_APPROVE, PaymentGatewayLog::STATUS_REFUND]);
+
+        return $query->where(function ($q) use ($synced, $cardMethodIds, $gatewayMethodIds, $gatewayApproved) {
+            $q->where(function ($card) use ($synced, $cardMethodIds) {
+                $card->whereIn('vend_transactions.payment_method_id', $cardMethodIds);
+                $synced
+                    ? $card->whereNotNull('vend_transactions.card_settlement_synced_at')
+                    : $card->whereNull('vend_transactions.card_settlement_synced_at');
+            })->orWhere(function ($gateway) use ($synced, $gatewayMethodIds, $gatewayApproved) {
+                $gateway->whereIn('vend_transactions.payment_method_id', $gatewayMethodIds);
+                $synced
+                    ? $gateway->whereExists($gatewayApproved)
+                    : $gateway->whereNotExists($gatewayApproved);
+            });
+        });
+    }
+
+    /**
      * Apply a "Payment Method" filter selection to a query over vend_transactions.
      *
      * Shared by the Transactions page (scopeFilterTransactionIndex) and the Refund
@@ -733,6 +780,9 @@ class VendTransaction extends Model
             })
             ->when($request->is_refunded, function ($query, $search) {
                 $query->applyRefundedFilter($search);
+            })
+            ->when($request->settle_sync, function ($query, $search) {
+                $query->applySettleSyncFilter($search);
             })
             ->when($request->refund_request, function ($query, $search) {
                 $query->where('vend_transactions.refund_request_reference', 'LIKE', "%{$search}%");

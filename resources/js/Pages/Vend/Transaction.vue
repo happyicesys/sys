@@ -247,6 +247,22 @@
                 </MultiSelect>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Settle Sync?
+                </label>
+                <MultiSelect
+                    v-model="filters.settle_sync"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <SearchInput placeholderStr="Refund Request" v-model="filters.refund_request" @keyup.enter="onSearchFilterUpdated()">
                     Refund Request
                 </SearchInput>
@@ -1423,6 +1439,7 @@ onMounted(() => {
     filters.value.is_multiple = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
     filters.value.is_refunded = refundedOptions.value[0]
+    filters.value.settle_sync = booleanOptions.value[0]
     filters.value.tag = tagOptions.value[0];
 
     // Hydrate the filter panel from the query string so a deep link (e.g. the
@@ -1465,6 +1482,7 @@ const filters = ref({
     is_multiple: '',
     is_payment_received: '',
     is_refunded: '',
+    settle_sync: '',
     refund_request: '',
     is_voucher: '',
     paymentMethods: [],
@@ -1578,6 +1596,7 @@ function onExportCsvClicked() {
             is_payment_received: filters.value.is_payment_received.id,
             payment_status: filters.value.payment_status ? filters.value.payment_status.id : 'all',
             is_refunded: filters.value.is_refunded.id,
+            settle_sync: filters.value.settle_sync.id,
             is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map(pm => pm.id),
             numberPerPage: filters.value.numberPerPage.id,
@@ -1729,6 +1748,7 @@ function onExportExcelClicked() {
             is_payment_received: filters.value.is_payment_received.id,
             payment_status: filters.value.payment_status ? filters.value.payment_status.id : 'all',
             is_refunded: filters.value.is_refunded.id,
+            settle_sync: filters.value.settle_sync.id,
             is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
             numberPerPage: filters.value.numberPerPage.id,
@@ -1762,6 +1782,7 @@ function onSearchFilterUpdated() {
         is_payment_received: filters.value.is_payment_received.id,
         payment_status: filters.value.payment_status ? filters.value.payment_status.id : 'all',
         is_refunded: filters.value.is_refunded.id,
+        settle_sync: filters.value.settle_sync.id,
         is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
         paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
         numberPerPage: filters.value.numberPerPage.id,
