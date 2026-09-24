@@ -204,15 +204,19 @@ class LateTradePairer
         if ($arrivedLag < -$early || $arrivedLag > $maxLag) {
             return false;
         }
-        // Late DELIVERY is what this tier forgives, not a late SALE: a board
-        // whose clock is sane must still put the sale near the tap (drift is
-        // minutes — 2116 runs 611 s slow). Only a clock that is not worth
-        // reading (2001, 2069) leaves arrival order as the sole evidence.
+        // Late DELIVERY is what this tier forgives, not a late SALE. A board
+        // whose clock is sane must put the sale inside the normal window of
+        // the tap (the 2502 burst: +28 s, several same-amount rivals); a
+        // drifting sane clock is tier A's job. Only a clock not worth reading
+        // (2001, 2069, "14:06:112") leaves arrival order as the evidence.
+        // Prod dry run 2026-09-24: 2760's 12:50:41 line — a second charge,
+        // its sale claimed by another line — was otherwise paired with a sale
+        // its own clock put 23 min later; 2864's with one 10 min later.
         $board = self::boardAt($sale);
         if ($board && self::boardIsBelievable($sale, $board)) {
-            $wide = max((int) config('card_settlement.match_wide_window_seconds', 1800), (int) config('card_settlement.match_late_slack_seconds', 300));
+            $boardLag = $board->getTimestamp() - $lineAt->getTimestamp();
 
-            return abs($board->getTimestamp() - $lineAt->getTimestamp()) <= $wide;
+            return $boardLag >= -$early && $boardLag <= (int) config('card_settlement.match_late_slack_seconds', 300);
         }
 
         return true;

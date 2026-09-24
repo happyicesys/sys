@@ -608,8 +608,10 @@ Both directions of "the report and the machine disagree" are handled at Sync
   the raw TIME is read from the JSON because the 30-day guard booked those
   frames at arrival). **B. Sequence:** the TRADE reached us within
   `match_late_max_lag_seconds` (3 h) of the tap, and a sane board clock still
-  puts the sale inside the wide window of it — late delivery is forgiven, a
-  late sale is not; per machine+amount, equal counts pair in order, otherwise
+  puts the sale inside the NORMAL window of it (only a broken clock — 2001,
+  "14:06:112" — leaves arrival order as the evidence) — late delivery is
+  forgiven, a late sale is not (prod dry run: 2760's second charge would
+  otherwise have taken a sale its clock put 23 min later); per machine+amount, equal counts pair in order, otherwise
   only unique-both-ways pairings, ties stay queries. Failed TRADEs pair too.
   Notes: "Matched on the machine's learned clock" / "Matched late (same
   machine, amount, order)"; sequence and wide matches never serve as clock

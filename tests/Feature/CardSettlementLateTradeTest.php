@@ -166,6 +166,32 @@ class CardSettlementLateTradeTest extends TestCase
         }
     }
 
+    public function test_a_sale_whose_sane_clock_puts_it_well_after_the_tap_is_not_that_taps_sale(): void
+    {
+        // 2760, 2026-09-12 (prod dry run): the 12:50:41 line is a second
+        // charge; the only unclaimed $2.50 sale's own clock reads 13:13:27.
+        // Arrival order must not pair them — late delivery, not a late sale.
+        $report = $this->report(CardSettlementReport::STATUS_SYNCED);
+        $this->line($report, '2026-09-12', '12:50:41', 250, ['status' => CardSettlementRow::STATUS_UNMATCHED, 'vend_id' => $this->vend->id, 'resolution_note' => CardSettlementRow::NOTE_NO_SALE_IN_WINDOW]);
+        app(CardSettlementOrphanSales::class)->createForReport($report);
+        $this->sale('2026-09-12 13:13:27', '2026-09-12 13:18:39', '2026-09-12 13:13:27', 250);
+
+        $plan = app(CardSettlementOrphanRepair::class)->plan(Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
+
+        $this->assertCount(1, $plan);
+        $this->assertNull($plan[0]['sale'], 'the orphan stays: a genuine second charge');
+
+        // A garbage clock ("14:06:112", 2624 on 09-03) arriving in a burst 6½
+        // min after the tap is still paired by arrival.
+        $burst = $this->sale('2026-09-03 16:28:21', '2026-09-03 16:28:21', '2026-08-03 14:06:112', 300);
+        $report2 = $this->report();
+        $line2 = $this->line($report2, '2026-09-03', '16:21:44', 300);
+
+        app(CardSettlementMatcher::class)->match($report2);
+
+        $this->assertSame($burst->id, $line2->fresh()->matched_vend_transaction_id);
+    }
+
     public function test_a_failed_trade_pairs_too(): void
     {
         $failed = $this->sale('2026-09-23 11:30:00', '2026-09-23 11:30:00', '2001-01-08 06:00:00');
