@@ -36,6 +36,12 @@ class CardSettlementRow extends Model
     /** resolution_note on a line the repair command re-pointed from an orphan to the real sale. */
     const NOTE_REPAIRED_FROM_ORPHAN = 'Repaired: orphan replaced by the machine\'s sale';
 
+    /** resolution_note on a line paired through the machine's learned board-clock offset (LateTradePairer tier A). */
+    const NOTE_MATCHED_CLOCK_OFFSET = 'Matched on the machine\'s learned clock';
+
+    /** resolution_note on a line paired late by machine + amount + order (LateTradePairer tier B). */
+    const NOTE_MATCHED_LATE_SEQUENCE = 'Matched late (same machine, amount, order)';
+
     const STATUS_LABELS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_MATCHED => 'Matched',

@@ -121,6 +121,13 @@ class Kernel extends ConsoleKernel
         // anything a missed nightly run skipped. Both run after the nightly rollups
         // settle; heals dispatch to the low queue so they don't compete with
         // realtime work.
+        // NA orphans whose TRADE turned up late are replaced by it (same pairing
+        // as upload / Rematch), just before the dirty days they touch rebuild.
+        if (($orphanDays = (int) config('card_settlement.repair_orphans_nightly_days', 45)) > 0) {
+            $schedule->command('card-settlement:repair-orphans --apply --from='.now()->subDays($orphanDays)->toDateString())
+                ->dailyAt('01:40')->withoutOverlapping()
+                ->appendOutputTo(storage_path('logs/card-settlement-orphans.log'));
+        }
         // Days a late TRADE / orphan row landed on (DirtyDayRegistry) are rebuilt
         // unconditionally first; the amount-drift passes below stay the safety net.
         $schedule->command('reconcile:sales-rollups --dirty')->dailyAt('02:00')->withoutOverlapping()

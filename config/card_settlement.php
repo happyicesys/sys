@@ -50,6 +50,34 @@ return [
     'match_wide_window_seconds' => 1800,
 
     /*
+     * Leftover pass (LateTradePairer, Brian 2026-09-24) — for lines still
+     * unmatched after the windows above, and for NA orphans awaiting their
+     * TRADE. Two tiers, both same machine + same cents:
+     *
+     * A. Learned clock: the machine's board clock offset (board TIME − NETS
+     *    time) is learned from its own matched sales within
+     *    `match_clock_offset_reference_days` of the line. A sale whose board
+     *    time sits within `match_clock_offset_tolerance_seconds` of a learned
+     *    offset is that line's sale — however wrong the clock (2300 on
+     *    2026-09-23: board reset to 2001, offset −811,226,089 s, stable ±3 s).
+     *
+     * B. Sequence: the TRADE reached us between the tap and
+     *    `match_late_max_lag_seconds` after it (poor signal, outbox flushed
+     *    later). Same-amount lines and sales pair in time order when their
+     *    counts agree; otherwise only pairings unique both ways.
+     */
+    'match_clock_offset_tolerance_seconds' => 60,
+    'match_clock_offset_reference_days' => 3,
+    'match_late_max_lag_seconds' => 10800,
+
+    /*
+     * Nightly `card-settlement:repair-orphans --apply` over this many days back,
+     * so an NA orphan whose TRADE turned up late is replaced by it overnight.
+     * 0 turns the schedule off.
+     */
+    'repair_orphans_nightly_days' => 45,
+
+    /*
      * Card Terminal Companies (lower-cased `card_terminals.name`) whose sales
      * the NETS MerchantConnect file only PARTLY carries (Nets-Auresys: 40–60 %
      * coverage, 2026-09-08). For their terminals "no line" proves nothing: the

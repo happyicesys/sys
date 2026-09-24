@@ -598,7 +598,37 @@ Both directions of "the report and the machine disagree" are handled at Sync
   and re-runs the refund reconciler; the line keeps the note
   "Repaired: orphan replaced by the machine's sale".
 
-Regression coverage: `tests/Feature/CardSettlementOrphanSalesTest.php`,
+- **The leftover pass — when no window can reach the TRADE** (Brian,
+  2026-09-24; `App\Services\CardSettlement\LateTradePairer`). Same machine,
+  same cents, then two tiers. **A. Learned clock:** the machine's board-clock
+  offset (raw frame `TIME` − NETS time) is learned from its own matched
+  sales within `match_clock_offset_reference_days`; a sale within
+  `match_clock_offset_tolerance_seconds` of a learned offset is the line's
+  sale (2300 on 2026-09-23: board reset to 2001, offset −811,226,089 s, ±3 s;
+  the raw TIME is read from the JSON because the 30-day guard booked those
+  frames at arrival). **B. Sequence:** the TRADE reached us within
+  `match_late_max_lag_seconds` (3 h) of the tap, and a sane board clock still
+  puts the sale inside the wide window of it — late delivery is forgiven, a
+  late sale is not; per machine+amount, equal counts pair in order, otherwise
+  only unique-both-ways pairings, ties stay queries. Failed TRADEs pair too.
+  Notes: "Matched on the machine's learned clock" / "Matched late (same
+  machine, amount, order)"; sequence and wide matches never serve as clock
+  references. It runs in ONE logic on upload and **Rematch** (`CardSettlementMatcher::assignLate`,
+  before the wrong-machine check), on Rematch over the report's own NA orphans
+  (`MatchCardSettlementReport::repairOrphans`), in `repair-orphans`, and
+  nightly at 01:40 (`repair_orphans_nightly_days`, 45; 0 = off) ahead of the
+  02:00 dirty-day rebuild. Live TRADE adoption at ingest still uses the
+  normal window only — a later arrival is fixed that night.
+- **"Found on machine X" needs evidence that outweighs the binding.** A
+  same-amount sale on another machine inside six minutes is flagged as a
+  binding query only when that machine fits at least as many of the
+  terminal's lines that day as the bound machine matched (real TRADEs only);
+  otherwise the line is `No matching sale in window` and becomes an NA orphan
+  at Sync. Measured 2026-09-24: 44 of 51 such flags were coincidences
+  (23104091: 67 matched at home vs 2 grazes).
+
+Regression coverage: `tests/Feature/CardSettlementLateTradeTest.php`,
+`tests/Feature/CardSettlementOrphanSalesTest.php`,
 `tests/Feature/CardSettlementStateAndVoidTickTest.php`,
 `tests/Feature/CardSettlementWideMatchTest.php`,
 `tests/Feature/CardSettlementDualAnchorMatchTest.php`,

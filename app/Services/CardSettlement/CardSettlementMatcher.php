@@ -81,6 +81,10 @@ class CardSettlementMatcher
     {
         return array_merge(self::CANDIDATE_COLUMNS, [
             DB::raw("IF(vend_transactions.received_at IS NULL, JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.TIME')), NULL) AS frame_time_raw"),
+            // The board's stamp for EVERY row, however wrong: a frame the
+            // 30-day guard rejected is booked at arrival, so its board time
+            // lives only here — LateTradePairer learns the clock from it.
+            DB::raw("JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.TIME')) AS frame_time_json"),
         ]);
     }
 
@@ -96,6 +100,9 @@ class CardSettlementMatcher
             ->get();
 
         if ($rows->isEmpty()) {
+            // Nothing unresolved — still leave MATCHING, or the Rematch button
+            // refuses forever ("Matching is already running").
+            $report->forceFill(['matched_at' => now(), 'status' => CardSettlementReport::STATUS_REVIEW])->save();
             $report->refreshCounts();
 
             return;
@@ -421,6 +428,10 @@ class CardSettlementMatcher
         // but never when two lines or two sales could fit — those stay queries.
         $noSaleOnBoundVend = $this->assignWide($noSaleOnBoundVend, $candidatesByVend, $claimedTxns);
 
+        // Leftover pass (2026-09-24): the machine's learned board clock, then
+        // late arrival in order — the TRADE that no window can reach.
+        $noSaleOnBoundVend = $this->assignLate($noSaleOnBoundVend, $candidatesByVend, $claimedTxns);
+
         if (! empty($noSaleOnBoundVend)) {
             $this->flagSalesOnOtherMachines(collect($noSaleOnBoundVend), $earlySlack, $lateSlack);
         }
@@ -475,6 +486,44 @@ class CardSettlementMatcher
                     'resolution_note' => CardSettlementRow::NOTE_MATCHED_WIDE,
                 ]);
                 $claimedTxns[$txnId] = true;
+            } catch (QueryException) {
+                $remaining[] = $row; // claimed by another report meanwhile
+            }
+        }
+
+        return $remaining;
+    }
+
+    /**
+     * @param  CardSettlementRow[]  $rows  full-time rows no window could pair
+     * @param  array<int, true>  $claimedTxns  sales claimed in this run (updated in place)
+     * @return CardSettlementRow[] rows still unmatched
+     */
+    protected function assignLate(array $rows, Collection $candidatesByVend, array &$claimedTxns): array
+    {
+        if (empty($rows)) {
+            return $rows;
+        }
+
+        $pairs = app(LateTradePairer::class)->pair(collect($rows), $candidatesByVend, $claimedTxns);
+
+        $remaining = [];
+        foreach ($rows as $row) {
+            $pair = $pairs[$row->id] ?? null;
+            if (! $pair) {
+                $remaining[] = $row;
+
+                continue;
+            }
+            try {
+                $row->update([
+                    'status' => CardSettlementRow::STATUS_MATCHED,
+                    'matched_vend_transaction_id' => $pair['sale']->id,
+                    'match_time_delta' => $pair['delta'],
+                    'candidates_json' => null,
+                    'resolution_note' => $pair['note'],
+                ]);
+                $claimedTxns[$pair['sale']->id] = true;
             } catch (QueryException) {
                 $remaining[] = $row; // claimed by another report meanwhile
             }
@@ -627,6 +676,9 @@ class CardSettlementMatcher
             ->whereIn('id', $fleet->pluck('vend_id')->unique())
             ->pluck('code', 'id');
 
+        $hitsByRow = [];
+        $otherVendOf = [];
+        $otherVotes = []; // "terminal|date|vend" → lines of that terminal-day fitting that machine
         foreach ($rows as $row) {
             $hits = [];
             foreach ($fleet as $sale) {
@@ -638,8 +690,31 @@ class CardSettlementMatcher
                     $hits[] = ['row' => $row, 'candidate' => $sale, 'delta' => $delta];
                 }
             }
-
+            $hitsByRow[$row->id] = $hits;
             $vendsHit = collect($hits)->pluck('candidate.vend_id')->unique();
+            if ($vendsHit->count() === 1) {
+                $otherVendOf[$row->id] = $vendsHit->first();
+                $key = $row->terminal_id.'|'.$row->transaction_date->toDateString().'|'.$vendsHit->first();
+                $otherVotes[$key] = ($otherVotes[$key] ?? 0) + 1;
+            }
+        }
+
+        // The evidence has to outweigh the binding (Brian, 2026-09-24): a
+        // common price graze some machine inside six minutes all day long, so
+        // one "hit" elsewhere against 67 sales matched on the bound machine
+        // that same day is a coincidence, not a move — that line is an NA
+        // orphan. Only when the other machine fits at least as many of the
+        // terminal's lines that day as the bound machine matched is it
+        // flagged for a binding fix (2787/2696, 2026-09-05: 0 vs 1).
+        $boundMatches = $this->boundMatchesPerTerminalDay(collect($rows)->filter(fn ($r) => isset($otherVendOf[$r->id])));
+
+        foreach ($rows as $row) {
+            $hits = $hitsByRow[$row->id];
+            $otherVend = $otherVendOf[$row->id] ?? null;
+            $dayKey = $row->terminal_id.'|'.$row->transaction_date->toDateString();
+            $isMove = $otherVend !== null
+                && ($otherVotes[$dayKey.'|'.$otherVend] ?? 0) >= ($boundMatches[$dayKey] ?? 0);
+            $vendsHit = collect($isMove ? [$otherVend] : []);
             if ($vendsHit->count() === 1) {
                 $code = $vendCodes->get($vendsHit->first()) ?? ('#'.$vendsHit->first());
                 $row->update([
@@ -663,6 +738,36 @@ class CardSettlementMatcher
                 'resolution_note' => CardSettlementRow::NOTE_NO_SALE_IN_WINDOW,
             ]);
         }
+    }
+
+    /**
+     * Lines each terminal-day matched to a real sale (a TRADE, not an orphan)
+     * on the machine the terminal is bound to — the evidence FOR the binding.
+     *
+     * @param  Collection<int, CardSettlementRow>  $rows
+     * @return array<string, int> "terminal|Y-m-d" → count
+     */
+    protected function boundMatchesPerTerminalDay(Collection $rows): array
+    {
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        return CardSettlementRow::query()
+            ->join('vend_transactions as vt', 'vt.id', '=', 'card_settlement_rows.matched_vend_transaction_id')
+            ->whereIn('card_settlement_rows.terminal_id', $rows->pluck('terminal_id')->unique()->values())
+            ->whereIn('card_settlement_rows.transaction_date', $rows->map(fn ($r) => $r->transaction_date->toDateString())->unique()->values())
+            ->where('card_settlement_rows.status', CardSettlementRow::STATUS_MATCHED)
+            ->where('vt.is_found_in_transaction', true)
+            ->whereColumn('vt.vend_id', 'card_settlement_rows.vend_id')
+            ->groupBy('card_settlement_rows.terminal_id', 'card_settlement_rows.transaction_date')
+            ->get([
+                'card_settlement_rows.terminal_id',
+                'card_settlement_rows.transaction_date',
+                DB::raw('COUNT(*) AS n'),
+            ])
+            ->mapWithKeys(fn ($r) => [$r->terminal_id.'|'.Carbon::parse($r->transaction_date)->toDateString() => (int) $r->n])
+            ->all();
     }
 
     /**

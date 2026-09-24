@@ -96,17 +96,20 @@ class CardSettlementWideMatchTest extends TestCase
 
     public function test_the_wide_pass_never_guesses_between_two_lines_or_two_sales(): void
     {
-        // Two lines, two same-amount sales, all outside the normal window: ambiguous → both stay queries.
-        $this->txn('2026-08-29 22:42:00');
-        $this->txn('2026-08-29 22:50:00');
+        // Two lines, two same-amount sales, all outside the normal window: the
+        // wide pass will not choose — but the leftover pass (LateTradePairer,
+        // 2026-09-24) pairs equal counts in ORDER, never crossing.
+        $first = $this->txn('2026-08-29 22:42:00');
+        $second = $this->txn('2026-08-29 22:50:00');
         $report = $this->report();
         $a = $this->row($report, '22:30:58');
         $b = $this->row($report, '22:31:30');
 
         app(CardSettlementMatcher::class)->match($report);
 
-        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $a->fresh()->status);
-        $this->assertSame(CardSettlementRow::STATUS_UNMATCHED, $b->fresh()->status);
+        $this->assertSame($first->id, $a->fresh()->matched_vend_transaction_id);
+        $this->assertSame($second->id, $b->fresh()->matched_vend_transaction_id);
+        $this->assertSame(CardSettlementRow::NOTE_MATCHED_LATE_SEQUENCE, $a->fresh()->resolution_note);
 
         // One line, two sales that both fit the wide window: still a query.
         $report2 = $this->report();

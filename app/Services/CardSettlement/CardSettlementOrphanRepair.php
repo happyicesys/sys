@@ -47,6 +47,7 @@ class CardSettlementOrphanRepair
     public function __construct(
         protected CardSettlementMatcher $matcher,
         protected DirtyDayRegistry $dirtyDays,
+        protected LateTradePairer $pairer,
     ) {}
 
     /**
@@ -55,7 +56,7 @@ class CardSettlementOrphanRepair
      *
      * @return Collection<int, array{orphan:VendTransaction,row:CardSettlementRow,sale:?object,delta:?int,anchor:?string,reason:?string}>
      */
-    public function plan(CarbonInterface $from, CarbonInterface $until, ?int $vendId = null): Collection
+    public function plan(CarbonInterface $from, CarbonInterface $until, ?int $vendId = null, ?int $reportId = null): Collection
     {
         $orphans = VendTransaction::query()
             ->withoutGlobalScopes()
@@ -63,6 +64,8 @@ class CardSettlementOrphanRepair
             ->where('is_found_in_transaction', false)
             ->whereBetween('transaction_datetime', [$from, $until])
             ->when($vendId, fn ($q) => $q->where('vend_id', $vendId))
+            ->when($reportId, fn ($q) => $q->whereIn('card_settlement_row_id', CardSettlementRow::query()
+                ->select('id')->where('card_settlement_report_id', $reportId)))
             ->orderBy('vend_id')
             ->orderBy('transaction_datetime')
             ->get();
@@ -138,6 +141,27 @@ class CardSettlementOrphanRepair
             $takenSales[$pair['sale']->id] = true;
             unset($entry);
         }
+        // What no window reaches: the machine's learned clock, then late
+        // arrival in order (LateTradePairer) — 2300's 2001-dated board, a
+        // TRADE flushed an hour after the tap.
+        $open = collect($plan)->filter(fn ($e) => $e['sale'] === null && $e['row'] && in_array($e['reason'], [null, 'no sale fits on either anchor'], true));
+        if ($open->isNotEmpty()) {
+            $lines = $open->map(function ($e) {
+                $line = $e['row'];
+                $line->vend_id = $e['orphan']->vend_id;
+
+                return $line;
+            })->values();
+            foreach ($this->pairer->pair($lines, $candidatesByVend, $takenSales) as $pair) {
+                $orphanId = (int) $pair['row']->matched_vend_transaction_id;
+                $plan[$orphanId]['sale'] = $pair['sale'];
+                $plan[$orphanId]['delta'] = $pair['delta'];
+                $plan[$orphanId]['anchor'] = $pair['tier'];
+                $plan[$orphanId]['reason'] = null;
+                $takenSales[$pair['sale']->id] = true;
+            }
+        }
+
         foreach ($plan as &$entry) {
             if ($entry['sale'] === null && $entry['reason'] === null) {
                 $entry['reason'] = 'every fitting sale was taken by another orphan';

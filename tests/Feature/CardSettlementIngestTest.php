@@ -68,7 +68,7 @@ class CardSettlementIngestTest extends TestCase
     {
         $report = $this->uploadedReport();
 
-        (new MatchCardSettlementReport($report->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+        app()->call([new MatchCardSettlementReport($report->id), 'handle']);
 
         $report->refresh();
         $this->assertSame('H06228', $report->merchant_account);
@@ -109,7 +109,7 @@ class CardSettlementIngestTest extends TestCase
             'type' => 'card-settlement-report',
         ]);
 
-        (new MatchCardSettlementReport($report->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+        app()->call([new MatchCardSettlementReport($report->id), 'handle']);
 
         $this->assertSame(1, $report->fresh()->partial_time_rows);
         $row = $report->rows()->where('txn_type', 'Purchase')->first();
@@ -120,10 +120,10 @@ class CardSettlementIngestTest extends TestCase
     public function test_reingesting_the_same_lines_marks_them_duplicate()
     {
         $first = $this->uploadedReport();
-        (new MatchCardSettlementReport($first->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+        app()->call([new MatchCardSettlementReport($first->id), 'handle']);
 
         $second = $this->uploadedReport();
-        (new MatchCardSettlementReport($second->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+        app()->call([new MatchCardSettlementReport($second->id), 'handle']);
 
         $this->assertSame(
             2,
@@ -142,7 +142,7 @@ class CardSettlementIngestTest extends TestCase
     public function test_an_excel_resave_of_an_already_ingested_day_is_still_duplicate()
     {
         $first = $this->uploadedReport();
-        (new MatchCardSettlementReport($first->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+        app()->call([new MatchCardSettlementReport($first->id), 'handle']);
 
         $excel = str_replace(
             ['2026-08-29,22:30:58.000,', '2026-08-30,08:45:33.000,'],
@@ -151,7 +151,7 @@ class CardSettlementIngestTest extends TestCase
         );
 
         $second = $this->uploadedReport($excel);
-        (new MatchCardSettlementReport($second->id))->handle(app(\App\Services\CardSettlement\CardSettlementMatcher::class));
+        app()->call([new MatchCardSettlementReport($second->id), 'handle']);
 
         $this->assertSame(2, $second->fresh()->partial_time_rows);
         $this->assertSame(2, $second->rows()->where('status', CardSettlementRow::STATUS_DUPLICATE)->count());

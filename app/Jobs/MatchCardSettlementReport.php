@@ -5,12 +5,15 @@ namespace App\Jobs;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Services\CardSettlement\CardSettlementMatcher;
+use App\Services\CardSettlement\CardSettlementOrphanRepair;
+use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use App\Services\CardSettlement\ParserRegistry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -19,6 +22,12 @@ use Throwable;
  * against vend_transactions. Re-dispatching on an already-ingested report
  * (the "Rematch" button — e.g. after adding a missing terminal binding) skips
  * ingestion and only re-runs the matcher over unresolved rows.
+ *
+ * A Rematch also reaches this report's lines that Sync already turned into NA
+ * orphans (CS-<row>): the matcher never re-reads a MATCHED line, so the orphan
+ * repair runs the same pairing over them — any whose TRADE has turned up
+ * since is replaced by it and its day re-reconciled. One matching logic for
+ * upload, Rematch and the nightly repair.
  */
 class MatchCardSettlementReport implements ShouldQueue
 {
@@ -33,7 +42,7 @@ class MatchCardSettlementReport implements ShouldQueue
         $this->onQueue('low');
     }
 
-    public function handle(CardSettlementMatcher $matcher): void
+    public function handle(CardSettlementMatcher $matcher, CardSettlementOrphanRepair $repair, CardSettlementRefundReconciler $reconciler): void
     {
         $report = CardSettlementReport::find($this->reportId);
         if (! $report) {
@@ -51,6 +60,7 @@ class MatchCardSettlementReport implements ShouldQueue
             }
 
             $matcher->match($report);
+            $this->repairOrphans($report, $repair, $reconciler);
         } catch (Throwable $e) {
             $report->forceFill([
                 'status' => CardSettlementReport::STATUS_FAILED,
@@ -58,6 +68,26 @@ class MatchCardSettlementReport implements ShouldQueue
             ])->save();
 
             throw $e;
+        }
+    }
+
+    protected function repairOrphans(CardSettlementReport $report, CardSettlementOrphanRepair $repair, CardSettlementRefundReconciler $reconciler): void
+    {
+        $span = $report->rows()->selectRaw('MIN(transaction_date) AS lo, MAX(transaction_date) AS hi')->first();
+        if (! $span?->lo) {
+            return;
+        }
+
+        $days = collect();
+        $plan = $repair->plan(Carbon::parse($span->lo)->subDay()->startOfDay(), Carbon::parse($span->hi)->addDay()->endOfDay(), null, $report->id);
+        foreach ($plan->filter(fn ($e) => $e['sale'] !== null) as $entry) {
+            $days = $days->merge($repair->apply($entry));
+        }
+        foreach ($days->unique() as $day) {
+            $reconciler->reconcileDay(Carbon::parse($day), true);
+        }
+        if ($days->isNotEmpty()) {
+            $report->refreshCounts();
         }
     }
 
