@@ -86,6 +86,8 @@ return [
     'waits' => [
         'redis:default' => 60,
         'redis:low' => 120,
+        // A 100-stop Create API Invoice(s) drains at 2 at a time; a few minutes is normal.
+        'redis:cms' => 900,
     ],
 
     /*
@@ -192,6 +194,23 @@ return [
             'timeout' => 1200,
             'nice' => 0,
         ],
+        // cms deal pushes (SyncOpsJobTransactionCMS). Fixed at a couple of workers
+        // on purpose: cms is a 2-vCPU box and parallel pushes deadlock on its
+        // `items` rows. Raising this brings the afternoon slowdown back.
+        'supervisor-cms' => [
+            'connection' => 'redis',
+            'queue' => ['cms'],
+            'balance' => false,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            // Below the redis retry_after (90) so a slow push is never run twice;
+            // the cms call itself times out at 30.
+            'timeout' => 60,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -220,6 +239,9 @@ return [
                 'balanceCooldown' => 3,
                 'nice' => 10, // deprioritise CPU-wise vs real-time supervisor
             ],
+            'supervisor-cms' => [
+                'maxProcesses' => 2,
+            ],
         ],
 
         'local' => [
@@ -228,6 +250,9 @@ return [
             ],
             'supervisor-low' => [
                 'maxProcesses' => 2,
+            ],
+            'supervisor-cms' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],

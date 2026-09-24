@@ -16,9 +16,15 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 3;  // Number of attempts
+    public $tries = 3;
 
-    public $retryAfter = 5; // Retry after 10 seconds
+    // $retryAfter was never read by Laravel; failed attempts retried at once.
+    public $backoff = [15, 60];
+
+    // Own queue with a 2-worker Horizon supervisor (config/horizon.php). Create
+    // API Invoice(s) fans out one job per stop; on the shared 35-worker queue
+    // they all hit cms at once and deadlocked it every afternoon (2026-09-24).
+    public const QUEUE = 'cms';
 
     protected $data;
 
@@ -39,6 +45,7 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
         $this->opsJobItem = $opsJobItem;
         $this->opsJobService = new OpsJobService;
         $this->userID = $userID;
+        $this->onQueue(self::QUEUE);
     }
 
     /**
@@ -195,6 +202,12 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 
         if ($response->successful()) {
             $this->opsJobService->updateJobItemCMSTransactionID($response->json());
+
+            return;
         }
+
+        // Fail the attempt so $tries/$backoff retry it. cms is idempotent per
+        // ops_job_item_id: a retry returns the existing transaction id.
+        $response->throw();
     }
 }
