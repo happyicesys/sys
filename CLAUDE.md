@@ -759,12 +759,13 @@ never on "not a vending machine" at the call site.
   and returned; an arriving SKU gets one `is_upcoming_product` row hung on its
   (reused or new, inactive, position-less) channel row. The post-swap sync
   (`rebuildChannels` / `FreezerChannelSync`) assigns the real codes.
-- **Suffix codes are chiller-only for now.** The freezer APK sends the slot as
-  an int and DROPS a cart line whose code is not plain digits from the REQQR
-  slot list (`MqttPaymentClient.slotIds`), so a lettered freezer code would
-  issue QRs with no slot; `assertValidChannelCode` refuses it until a freezer
-  APK carries the product id there. Sales still resolve the channel from the
-  frame's `SId` (Phase 3 of the plan resolves SKU-stocked sales by `goods_id`).
+- **Suffix codes are chiller-only, by decision** (Brian, 2026-09-24: a freezer
+  basket does not need 11A/11B). `assertValidChannelCode` keeps freezer codes
+  whole numbers; the APK constraint (`MqttPaymentClient.slotIds` drops a
+  non-digit slot from the REQQR list) is a second reason, not the only one.
+  Sales still resolve the channel from the frame's `SId`; resolving chiller
+  sales by product waits until CityBox delivers their order callback — until
+  then there are no chiller sales in mark1 to resolve (Brian, 2026-09-24).
 - Only an EXACT repeat of a code is refused (`assertUniqueChannelCode`, and the
   red cell + blocked Save in the editor). "102" and "102A" may coexist (Brian,
   2026-09-23): they are distinct rows under the unique index, distinct labels

@@ -179,6 +179,29 @@ class VendCodePrefixTest extends TestCase
             );
     }
 
+    public function test_setting_edit_and_parameter_pages_carry_the_prefix_for_the_header_and_id_field(): void
+    {
+        // Setting/Edit already renders vendCodeLabel(vend) for "Editing Machine …" and the
+        // Machine ID# field, but its own select list took vends.code without code_prefix,
+        // so the helper fell back to the bare number (Brian, 2026-09-24, C6001 read "6001").
+        $chiller = $this->chiller('E1', 6001);
+        $user = User::factory()->create(['operator_id' => 1]);
+        foreach (['read machine-settings', 'update machine-settings'] as $perm) {
+            $user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate($perm, 'web'));
+        }
+
+        $this->actingAs($user)->get("/settings/vend/{$chiller->id}/update")->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('vend.code', 6001)
+                ->where('vend.code_prefix', 'C'));
+
+        // Parameter passes VendResource (wrapped in `data`), whose code_label is what the page reads.
+        $this->actingAs($user)->get("/settings/vend/{$chiller->id}/parameter")->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('vend.data.code_prefix', 'C')
+                ->where('vend.data.code_label', 'C6001'));
+    }
+
     public function test_the_channel_export_prints_the_machine_id_ops_pro_uses(): void
     {
         // Finance and ops compare these files against OPS Pro by machine name.

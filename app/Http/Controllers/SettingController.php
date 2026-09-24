@@ -151,6 +151,7 @@ class SettingController extends Controller
                 'vends.card_terminal_id',
                 'vends.cashless_terminal_id',
                 'vends.code',
+                'vends.code_prefix',
                 'vends.customer_id',
                 'vends.apk_ver_json',
                 'vends.serial_num',
@@ -328,6 +329,7 @@ class SettingController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 'customers.id AS customer_id',
                 DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (",IFNULL(customers.virtual_customer_prefix, \'\'),")") ELSE customers.code END AS customer_code'),
                 'customers.name AS customer_name',
@@ -664,6 +666,7 @@ class SettingController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                'vends.code_prefix',
                 'vends.settings_parameter_json'
             )
             ->first();
