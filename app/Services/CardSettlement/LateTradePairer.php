@@ -325,7 +325,12 @@ class LateTradePairer
         return CardSettlementMatcher::receivedAnchor($sale) ?? Carbon::parse($sale->transaction_datetime);
     }
 
-    /** The board's own stamp: the raw frame TIME, else transaction_datetime. */
+    /**
+     * The board's own stamp: the raw frame TIME, else transaction_datetime.
+     * A TIME that is present but unparseable ("2026-08-03 14:06:112", 2624)
+     * means no readable clock — null, never transaction_datetime, which for
+     * such a frame is only the arrival and would pass for a sane clock.
+     */
     public static function boardAt(object $sale): ?Carbon
     {
         $raw = $sale->frame_time_json ?? null;
@@ -333,7 +338,7 @@ class LateTradePairer
             try {
                 return Carbon::parse($raw);
             } catch (\Throwable) {
-                // fall through
+                return null;
             }
         }
 

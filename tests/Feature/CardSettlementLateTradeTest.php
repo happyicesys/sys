@@ -183,13 +183,16 @@ class CardSettlementLateTradeTest extends TestCase
 
         // A garbage clock ("14:06:112", 2624 on 09-03) arriving in a burst 6½
         // min after the tap is still paired by arrival.
+        // Through the repair (no wide pass there), as on prod.
+        $report2 = $this->report(CardSettlementReport::STATUS_SYNCED);
+        $this->line($report2, '2026-09-03', '16:21:44', 300, ['status' => CardSettlementRow::STATUS_UNMATCHED, 'vend_id' => $this->vend->id, 'resolution_note' => CardSettlementRow::NOTE_NO_SALE_IN_WINDOW]);
+        app(CardSettlementOrphanSales::class)->createForReport($report2);
         $burst = $this->sale('2026-09-03 16:28:21', '2026-09-03 16:28:21', '2026-08-03 14:06:112', 300);
-        $report2 = $this->report();
-        $line2 = $this->line($report2, '2026-09-03', '16:21:44', 300);
 
-        app(CardSettlementMatcher::class)->match($report2);
+        $plan = app(CardSettlementOrphanRepair::class)->plan(Carbon::parse('2026-09-03'), Carbon::parse('2026-09-03 23:59:59'));
 
-        $this->assertSame($burst->id, $line2->fresh()->matched_vend_transaction_id);
+        $this->assertSame($burst->id, $plan[0]['sale']?->id);
+        $this->assertSame(LateTradePairer::TIER_SEQUENCE, $plan[0]['anchor']);
     }
 
     public function test_a_failed_trade_pairs_too(): void
