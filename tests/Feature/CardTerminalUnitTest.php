@@ -636,6 +636,30 @@ class CardTerminalUnitTest extends TestCase
         $this->assertSame('2026-07-01', CardTerminalBinding::firstOrFail()->bound_from->toDateString());
     }
 
+    public function test_a_terminal_swap_that_sends_the_old_terminals_start_date_binds_from_today(): void
+    {
+        // The old form pre-filled Bound From with the CURRENT terminal's start;
+        // a swap left untouched back-dated the new terminal over the old one's
+        // history (2831, 2026-09-24: 90602210 "from 2025-10-23").
+        $vend = $this->makeVend(7010);
+        $old = CardTerminalUnit::create(['terminal_id' => '23082817', 'card_terminal_id' => $this->nets->id]);
+        $new = CardTerminalUnit::create(['terminal_id' => '90602210', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => $old->terminal_id, 'vend_id' => $vend->id, 'bound_from' => '2025-10-23']);
+        $user = $this->staff(['read machine-settings', 'update machine-settings']);
+
+        $this->actingAs($user)
+            ->post('/vends/'.$vend->id.'/update', $this->savePayload($vend, [
+                'card_terminal_unit_id' => $new->id,
+                'card_terminal_bound_from' => '2025-10-23',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $oldRow = CardTerminalBinding::where('terminal_id', '23082817')->firstOrFail();
+        $newRow = CardTerminalBinding::where('terminal_id', '90602210')->firstOrFail();
+        $this->assertSame(now()->toDateString(), $newRow->bound_from->toDateString());
+        $this->assertSame(now()->toDateString(), $oldRow->bound_until->toDateString(), 'the old terminal keeps its history');
+    }
+
     public function test_a_nets_auresys_terminal_still_binds_under_the_nets_provider(): void
     {
         $vend = $this->makeVend(7005);

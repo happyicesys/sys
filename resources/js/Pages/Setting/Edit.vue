@@ -546,6 +546,7 @@
                 />
                 <p class="mt-1 text-xs text-gray-500">
                   Leave blank to bind from today. Only used when the terminal above changes.
+                  <span v-if="cardTerminalBinding?.bound_from">Current terminal bound from {{ cardTerminalBinding.bound_from }}.</span>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_bound_from">
                   {{ form.errors.card_terminal_bound_from }}
@@ -2546,7 +2547,10 @@ onMounted(() => {
     card_terminal_unit_id: props.cardTerminalBinding?.card_terminal_unit_id
       ? cardTerminalUnitOptions.value.find(u => u.id == props.cardTerminalBinding.card_terminal_unit_id)
       : null,
-    card_terminal_bound_from: props.cardTerminalBinding?.bound_from ?? '',
+    // Never pre-filled with the CURRENT terminal's start: a technician who
+    // swapped terminals and left it alone back-dated the new one over the old
+    // one's whole history (13 of 18 human bindings, up to 470 days, 2026-09-25).
+    card_terminal_bound_from: '',
     cashless_terminal_id: props.vend.cashless_terminal_id ? cashlessTerminalOptions.value.find(t => t.id == props.vend.cashless_terminal_id) : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,

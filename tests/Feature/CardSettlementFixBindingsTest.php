@@ -566,8 +566,8 @@ class CardSettlementFixBindingsTest extends TestCase
     /**
      * One fitting line is a coincidence, not a move: live 2026-09-03 a single
      * $1.60 whose sale sat 19 s BEFORE the terminal time flipped a terminal onto
-     * another machine for a day. The panel still shows it (flagged weak); the
-     * bulk button refuses to act on it.
+     * another machine for a day. Since 2026-09-25 (Brian) it is not suggested
+     * at all — the line stays a query — and the bulk button has nothing to move.
      */
     public function test_a_single_fitting_line_is_too_weak_to_move_a_terminal(): void
     {
@@ -584,11 +584,10 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $this->actingAs($this->staff())
             ->get('/card-settlements/'.$report->id)
-            ->assertInertia(fn ($page) => $page->where('suspectBindings.0.weak', true));
+            ->assertInertia(fn ($page) => $page->has('suspectBindings', 0));
 
         $this->actingAs($this->staff())
-            ->post('/card-settlements/'.$report->id.'/fix-bindings')
-            ->assertSessionHas('message', fn ($m) => str_contains($m, 'not enough to move it'));
+            ->post('/card-settlements/'.$report->id.'/fix-bindings');
 
         $this->assertNull(CardTerminalBinding::where('terminal_id', self::TID)->first()->bound_until);
         Queue::assertNotPushed(MatchCardSettlementReport::class);

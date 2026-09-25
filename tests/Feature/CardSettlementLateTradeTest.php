@@ -382,6 +382,53 @@ class CardSettlementLateTradeTest extends TestCase
         $this->assertSame($after->id, $this->sameDayPlan()[$line->id]);
     }
 
+    public function test_same_day_never_takes_a_failed_trade(): void
+    {
+        // A failed card sale with no line is a voided charge ("NA in NETS",
+        // refunded) — it must not be flipped to "charged" by a date match.
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $this->orphanLine($report, '2026-09-12', '11:04:12', 180);
+        $failed = $this->sale('2026-09-12 21:04:57', '2026-09-12 21:05:00', '2026-09-12 21:04:57', 180);
+        DB::table('vend_transactions')->where('id', $failed->id)->update(['success_qty' => 0, 'dispensed_qty' => 0]);
+
+        $this->assertNull(array_values($this->sameDayPlan())[0]);
+    }
+
+    public function test_same_day_skips_terminals_the_nets_file_only_partly_covers(): void
+    {
+        $auresys = CardTerminal::create(['name' => 'Nets-Auresys']);
+        CardTerminalUnit::where('terminal_id', self::TID)->update(['card_terminal_id' => $auresys->id]);
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $this->orphanLine($report, '2026-09-12', '12:00:00', 200);
+        $this->sale('2026-09-12 12:40:00', '2026-09-12 12:40:05', '2026-09-12 12:40:00', 200);
+
+        $this->assertNull(array_values($this->sameDayPlan())[0]);
+    }
+
+    public function test_repair_moves_a_refund_ticket_from_the_na_row_to_the_real_sale(): void
+    {
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $line = $this->orphanLine($report, '2026-09-12', '12:50:41', 250);
+        $orphan = VendTransaction::withoutGlobalScopes()->findOrFail($line->matched_vend_transaction_id);
+        $ticket = \App\Models\RefundTicket::create([
+            'reference' => 'RF-'.uniqid(), 'vend_code' => '2300', 'vend_id' => $this->vend->id, 'vend_transaction_id' => $orphan->id,
+            'order_id' => $orphan->order_id, 'claimed_amount_cents' => 250, 'status' => \App\Models\RefundTicket::STATUS_SUBMITTED,
+        ]);
+        $sale = $this->sale('2026-09-12 13:13:27', '2026-09-12 13:18:39', '2026-09-12 13:13:27', 250);
+
+        $repair = app(CardSettlementOrphanRepair::class);
+        $plan = $repair->plan(Carbon::parse('2026-09-12'), Carbon::parse('2026-09-12 23:59:59'));
+        $repair->apply($plan[0]);
+
+        $ticket->refresh();
+        $this->assertSame($sale->id, (int) $ticket->vend_transaction_id);
+        $this->assertSame($sale->order_id, $ticket->order_id);
+        $this->assertNull(VendTransaction::withoutGlobalScopes()->find($orphan->id));
+    }
+
     public function test_syncing_the_next_days_report_pairs_the_previous_days_orphan_at_once(): void
     {
         $day = $this->syncedCutover('2026-09-12');

@@ -403,6 +403,10 @@ class CardSettlementController extends Controller
                     'weak' => $fitting->count() < self::MIN_LINES_TO_MOVE_TERMINAL,
                 ] + $this->bindingMoveImpact((string) $terminalId, $suggestedCode, $fromDate);
             })
+            // One fitting line is not a suggestion at all (Brian, 2026-09-25):
+            // the lines stay queries with their candidates, a human binds by
+            // hand if they know better.
+            ->reject(fn ($s) => $s['weak'])
             ->sortByDesc('row_count')
             ->values();
     }

@@ -65,6 +65,8 @@ class CardSettlementMatcher
         'vend_transactions.amount',
         'vend_transactions.is_refunded',
         'vend_transactions.card_settlement_synced_at',
+        'vend_transactions.order_id',
+        'vend_transactions.success_qty',
     ];
 
     /**

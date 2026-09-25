@@ -202,6 +202,11 @@ class CardSettlementOrphanRepair
             $saleDay = Carbon::parse($sale->transaction_datetime)->toDateString();
             $syncedAt = $orphan->card_settlement_synced_at;
 
+            // Anything that points at the orphan moves to the real sale first —
+            // a refund ticket raised on the NA row must not lose its sale
+            // (4 live tickets on NA rows, 2026-09-25).
+            $repointed = $this->repointReferences((int) $orphan->id, $sale, $orphan);
+
             // Release the UNIQUE claim first, then the orphan goes.
             $row->forceFill(['matched_vend_transaction_id' => null])->save();
             $orphan->vendTransactionItems()->delete();
@@ -234,10 +239,36 @@ class CardSettlementOrphanRepair
 
             Log::info('CardSettlementOrphanRepair: orphan replaced by real sale', [
                 'row_id' => $row->id, 'orphan_id' => $orphan->id, 'sale_id' => $sale->id,
-                'delta' => $entry['delta'], 'anchor' => $entry['anchor'],
+                'delta' => $entry['delta'], 'anchor' => $entry['anchor'], 'repointed' => $repointed,
             ]);
 
             return array_values(array_unique([$orphanDay, $saleDay]));
         });
+    }
+
+    /**
+     * Move every reference to the orphan onto the real sale: refund tickets
+     * (with their CS-<row> order id when they copied it), the legacy refund
+     * request link, retained-credit links and channel-error logs.
+     *
+     * @return array<string, int> table → rows moved
+     */
+    protected function repointReferences(int $orphanId, object $sale, VendTransaction $orphan): array
+    {
+        $moved = [];
+        $moved['refund_tickets'] = DB::table('refund_tickets')->where('vend_transaction_id', $orphanId)->where('order_id', $orphan->order_id)
+            ->update(['vend_transaction_id' => $sale->id, 'order_id' => $sale->order_id ?? $orphan->order_id, 'updated_at' => now()]);
+        $moved['refund_tickets'] += DB::table('refund_tickets')->where('vend_transaction_id', $orphanId)
+            ->update(['vend_transaction_id' => $sale->id, 'updated_at' => now()]);
+        if ($orphan->refund_request_id) {
+            $moved['refund_request'] = VendTransaction::withoutGlobalScopes()->whereKey($sale->id)->whereNull('refund_request_id')
+                ->update(['refund_request_id' => $orphan->refund_request_id]);
+        }
+        $moved['retained_credit'] = DB::table('vend_transactions')->where('retained_credit_settles_txn_id', $orphanId)
+            ->update(['retained_credit_settles_txn_id' => $sale->id]);
+        $moved['vend_channel_error_logs'] = DB::table('vend_channel_error_logs')->where('vend_transaction_id', $orphanId)
+            ->update(['vend_transaction_id' => $sale->id]);
+
+        return array_filter($moved);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\CardSettlement;
 
 use App\Models\CardSettlementRow;
+use App\Models\CardTerminalUnit;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -104,7 +105,17 @@ class LateTradePairer
     protected function pairSameDay(Collection $lines, Collection $salesByVend, array $taken): array
     {
         $margin = (int) config('card_settlement.match_same_day_margin_seconds', 10800);
-        $lines = $lines->filter(fn (CardSettlementRow $l) => $this->isFinal($l->transaction_date->copy()->startOfDay()));
+        // A terminal the NETS file only partly carries (Nets-Auresys) proves
+        // nothing by a missing line — its unclaimed TRADE may well have a line
+        // NETS never sent. Same rule as the reconciler's `uncovered`.
+        $gapTerminals = CardTerminalUnit::query()->with('company')
+            ->whereIn('terminal_id', $lines->pluck('terminal_id')->unique()->values())
+            ->get()
+            ->filter(fn (CardTerminalUnit $u) => $u->hasReportCoverageGap())
+            ->pluck('terminal_id')
+            ->flip();
+        $lines = $lines->filter(fn (CardSettlementRow $l) => ! $gapTerminals->has($l->terminal_id)
+            && $this->isFinal($l->transaction_date->copy()->startOfDay()));
 
         $result = [];
         foreach ($lines->groupBy(fn (CardSettlementRow $l) => $l->vend_id.'|'.$l->amount_cents) as $group) {
@@ -112,7 +123,11 @@ class LateTradePairer
             $ls = $group->map(fn ($l) => ['row' => $l, 't' => self::lineAt($l)->getTimestamp(), 'day' => $l->transaction_date->copy()->startOfDay()->getTimestamp()])
                 ->sortBy(fn ($x) => sprintf('%012d.%012d', $x['t'], $x['row']->id))->values()->all();
             $ss = collect($salesByVend->get($first->vend_id) ?? [])
-                ->filter(fn ($s) => ! isset($taken[$s->id]) && (int) $s->amount === (int) $first->amount_cents)
+                // DISPENSED TRADEs only (2026-09-25): a failed card sale with no
+                // line is what a voided charge looks like — the reconciler's "NA
+                // in NETS" refund. Pairing it by date alone would flip that
+                // customer to "charged" and clear their refund.
+                ->filter(fn ($s) => ! isset($taken[$s->id]) && (int) $s->amount === (int) $first->amount_cents && (int) ($s->success_qty ?? 0) > 0)
                 ->map(fn ($s) => ['sale' => $s, 't' => self::saleAt($s)])
                 ->filter(fn ($x) => $this->isFinal($x['t']->copy()->startOfDay()))
                 ->map(fn ($x) => ['sale' => $x['sale'], 't' => $x['t']->getTimestamp()])

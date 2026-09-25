@@ -5886,7 +5886,18 @@ class VendController extends Controller
         // A person is fitting this terminal by hand — stamp them on the binding.
         // Everything unattended (the Card Settlement auto-match, the importer)
         // passes no user and shows as "sys".
-        if (! $service->assignToVend($vend, $unit, $request->input('card_terminal_bound_from'), auth()->id())) {
+        // A "bound from" equal to the CURRENT binding's own start is the old
+        // form's pre-fill, not a date anyone chose (a tab still on the old
+        // bundle keeps sending it): bind from today instead of back-dating the
+        // new terminal over the old one's history.
+        $boundFrom = $request->input('card_terminal_bound_from');
+        $current = $service->currentBindingFor($vend);
+        if ($boundFrom && $current && $unit && $current->terminal_id !== $unit->terminal_id
+            && $current->bound_from && $current->bound_from->toDateString() === \Carbon\Carbon::parse($boundFrom)->toDateString()) {
+            $boundFrom = null;
+        }
+
+        if (! $service->assignToVend($vend, $unit, $boundFrom, auth()->id())) {
             return;
         }
 
