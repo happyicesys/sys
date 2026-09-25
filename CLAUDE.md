@@ -568,7 +568,12 @@ Both directions of "the report and the machine disagree" are handled at Sync
   Dispense blank, no product, `order_id CS-<row>`, `card_settlement_row_id`
   set, SETTLED (REFUNDED when the line is reversed), operator GST rate; the
   line flips to MATCHED and claims it. Double taps, wrong-machine lines,
-  unbound TIDs and hour-less lines are never turned into sales.
+  unbound TIDs and hour-less lines are never turned into sales. Neither are
+  lines at a test-rig amount (`VendTransaction::ODD_TRANSACTION_AMOUNTS`, off
+  the retained rigs): the nightly `RemoveOddTransactions` sweep deletes every
+  sale at those amounts by `created_at`, so the NA sale vanished that night and
+  left the line pointing at nothing (77 lines, 09-09 → 09-24). They are
+  Ignored with `NOTE_TEST_AMOUNT` instead.
   `card-settlement:create-orphan-sales --apply` seeds reports synced before
   this existed. Assign / Ignore on such a line deletes an orphan still awaiting
   its TRADE (`release()`); an adopted one is a real sale and stays.
