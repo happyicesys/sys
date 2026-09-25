@@ -45,6 +45,13 @@ class CardSettlementRow extends Model
     /** resolution_note on a line paired with the machine's same-day, same-amount unmatched TRADE once NETS is final (LateTradePairer tier C). */
     const NOTE_MATCHED_SAME_DAY = 'Matched same day (NETS confirms the charge)';
 
+    /**
+     * resolution_note on a line at a test-rig amount (VendTransaction::ODD_TRANSACTION_AMOUNTS)
+     * that Sync does not turn into an NA sale: the nightly odd-transaction sweep
+     * deletes every sale at those amounts, and the line would point at nothing.
+     */
+    const NOTE_TEST_AMOUNT = 'Ignored: test amount (swept nightly, no sale kept)';
+
     const STATUS_LABELS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_MATCHED => 'Matched',

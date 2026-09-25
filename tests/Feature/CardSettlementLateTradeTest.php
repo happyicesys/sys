@@ -457,4 +457,19 @@ class CardSettlementLateTradeTest extends TestCase
         $this->assertSame(LateTradePairer::TIER_SEQUENCE, $plan[0]['anchor']);
         $this->assertSame($a->id, $plan[0]['row']->id);
     }
+
+    public function test_sync_never_makes_an_na_sale_the_odd_sweep_would_delete(): void
+    {
+        // $0.20 is a test-rig amount: RemoveOddTransactions deletes every sale
+        // at it nightly, so an NA sale would leave the line pointing at nothing.
+        $report = $this->syncedCutover('2026-09-12');
+        $line = $this->line($report, '2026-09-12', '10:00:00', 20, ['status' => CardSettlementRow::STATUS_UNMATCHED, 'vend_id' => $this->vend->id, 'resolution_note' => CardSettlementRow::NOTE_NO_SALE_IN_WINDOW]);
+
+        $this->assertSame(0, app(CardSettlementOrphanSales::class)->createForReport($report));
+
+        $line->refresh();
+        $this->assertSame(CardSettlementRow::STATUS_IGNORED, $line->status);
+        $this->assertSame(CardSettlementRow::NOTE_TEST_AMOUNT, $line->resolution_note);
+        $this->assertSame(0, VendTransaction::withoutGlobalScopes()->whereNotNull('card_settlement_row_id')->count());
+    }
 }

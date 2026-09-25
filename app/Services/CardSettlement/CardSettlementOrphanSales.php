@@ -78,10 +78,30 @@ class CardSettlementOrphanSales
             ->keyBy('terminal_id');
         $cardMethodId = PaymentMethod::query()->where('code', PaymentMethod::CODE_CARD_TERMINAL)->value('id');
 
+        // Test-rig amounts: the nightly RemoveOddTransactions sweep deletes
+        // every sale at these amounts by created_at, so an NA sale made here
+        // is gone by morning and the line points at nothing (77 such lines,
+        // 09-09 → 09-24). Ignore them with the reason instead — except on the
+        // machines the sweep keeps.
+        $sweptAmounts = array_map('intval', VendTransaction::ODD_TRANSACTION_AMOUNTS);
+        $keptVendCodes = array_map('strval', VendTransaction::ODD_TRANSACTION_RETAIN_VEND_CODES);
+
         $created = 0;
+        $ignored = 0;
         foreach ($rows as $row) {
             $vend = $vends->get($row->vend_id);
             if (! $vend) {
+                continue;
+            }
+            if (in_array((int) $row->amount_cents, $sweptAmounts, true) && ! in_array((string) $vend->code, $keptVendCodes, true)) {
+                $row->update([
+                    'status' => CardSettlementRow::STATUS_IGNORED,
+                    'matched_vend_transaction_id' => null,
+                    'candidates_json' => null,
+                    'resolution_note' => CardSettlementRow::NOTE_TEST_AMOUNT,
+                ]);
+                $ignored++;
+
                 continue;
             }
             $mfg = $units->get($row->terminal_id)?->company?->name ?? 'Nets';
@@ -110,7 +130,7 @@ class CardSettlementOrphanSales
             $created++;
         }
 
-        if ($created) {
+        if ($created || $ignored) {
             $report->refreshCounts();
         }
 
