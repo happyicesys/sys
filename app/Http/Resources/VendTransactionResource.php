@@ -32,7 +32,9 @@ class VendTransactionResource extends JsonResource
             'dispense_status' => \App\Support\SaleStatus::dispense($sale),
             'amount' => $this->amount / 100,
             'avg_seven_days_amount' => isset($this->avg_seven_days_amount) ? $this->avg_seven_days_amount : null,
-            'cashless_mfg' => $this->cashless_mfg,
+            // Display name: legacy board codes mapped (NYX ⇒ Nayax). The raw
+            // code stays in the DB; refund classification reads that.
+            'cashless_mfg' => \App\Models\VendTransaction::cashlessMfgLabel($this->cashless_mfg),
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_id' => isset($this->customer_id) ? $this->customer_id : null,

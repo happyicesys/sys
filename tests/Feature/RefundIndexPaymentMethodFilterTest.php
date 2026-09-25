@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\RefundController;
+use App\Models\CardTerminal;
+use App\Models\CardTerminalBinding;
+use App\Models\CardTerminalUnit;
 use App\Models\PaymentMethod;
 use App\Models\RefundTicket;
 use App\Models\VendTransaction;
@@ -115,6 +118,74 @@ class RefundIndexPaymentMethodFilterTest extends TestCase
         $this->assertSame(['RFD-1', 'RFD-2'], $this->referencesFor(['paymentMethods' => ['cc:Nets', 'cc:Nayax']]));
         // Mixed: a terminal entry plus a plain method id.
         $this->assertSame(['RFD-2', 'RFD-4'], $this->referencesFor(['paymentMethods' => ['cc:Nayax', $this->paynow->id]]));
+    }
+
+    /**
+     * "Credit Card (<terminal>)" matches the terminal the Sales grid DISPLAYS:
+     * the supplier of the terminal bound to the machine at the sale's moment,
+     * not the board-reported cashless_mfg (which says "Nets" for every NETS
+     * reader). Regression: machine 4610 on an Auresys unit reported "Nets", so
+     * its "Card Terminal (Nets-Auresys)" rows showed up under "Credit Card (Nets)".
+     */
+    public function test_cc_terminal_follows_the_bound_terminal_supplier_over_cashless_mfg()
+    {
+        $nets = CardTerminal::create(['name' => 'Nets']);
+        $auresys = CardTerminal::create(['name' => 'Nets-Auresys']);
+        CardTerminalUnit::create(['terminal_id' => '23113260', 'card_terminal_id' => $auresys->id]);
+        CardTerminalUnit::create(['terminal_id' => '23082801', 'card_terminal_id' => $nets->id]);
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23113260', 'vend_id' => 4610,
+            'from_at' => Carbon::now()->subDay(),
+        ]);
+        // An ended binding on the same machine must not decide a later sale.
+        CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23082801', 'vend_id' => 4610,
+            'from_at' => Carbon::now()->subDays(10), 'until_at' => Carbon::now()->subDay(),
+        ]);
+
+        $txn = fn (string $order, int $vendId, ?string $mfg) => VendTransaction::create([
+            'order_id' => $order, 'vend_id' => $vendId, 'transaction_datetime' => Carbon::now(),
+            'amount' => 140, 'qty' => 1, 'success_qty' => 1, 'dispensed_qty' => 1,
+            'vend_channel_id' => 0, 'gst_vat_rate' => 0,
+            'payment_method_id' => $this->card->id, 'cashless_mfg' => $mfg,
+        ]);
+        $txn('AURESYS-REPORTS-NETS', 4610, 'Nets');  // bound to Auresys, board says Nets
+        $txn('UNBOUND-NETS', 2616, 'Nets');          // no binding → cashless_mfg decides
+        $txn('UNBOUND-AURESYS', 2617, 'Nets-Auresys');
+
+        $orders = fn (array $pms) => VendTransaction::withoutGlobalScopes()
+            ->filterTransactionIndex(Request::create('/transactions', 'GET', ['paymentMethods' => $pms]), true)
+            ->pluck('order_id')->sort()->values()->all();
+
+        $this->assertSame(['UNBOUND-NETS'], $orders(['cc:Nets']));
+        $this->assertSame(['AURESYS-REPORTS-NETS', 'UNBOUND-AURESYS'], $orders(['cc:Nets-Auresys']));
+        $this->assertSame(['AURESYS-REPORTS-NETS', 'UNBOUND-AURESYS', 'UNBOUND-NETS'], $orders(['cc:Nets', 'cc:Nets-Auresys']));
+    }
+
+    /**
+     * Boards reported Nayax as "NYX" until 2026-05-14. "Credit Card (Nayax)"
+     * must include those rows, and the grid/CSV label them Nayax, while the
+     * stored code stays NYX (refund classification reads the raw value).
+     */
+    public function test_legacy_nyx_code_is_nayax_for_filter_and_label()
+    {
+        $this->ticket('RFD-1', $this->card->id, 'NYX');
+        $this->ticket('RFD-2', $this->card->id, 'Nayax');
+        $this->ticket('RFD-3', $this->card->id, 'Nets');
+
+        $orders = fn (array $pms) => VendTransaction::withoutGlobalScopes()
+            ->filterTransactionIndex(Request::create('/transactions', 'GET', ['paymentMethods' => $pms]), true)
+            ->pluck('order_id')->sort()->values()->all();
+
+        $this->assertSame(['ORD-RFD-1', 'ORD-RFD-2'], $orders(['cc:Nayax']));
+        $this->assertSame(['ORD-RFD-3'], $orders(['cc:Nets']));
+        $this->assertSame(['RFD-1', 'RFD-2'], $this->referencesFor(['paymentMethods' => ['cc:Nayax']]));
+
+        $nyx = VendTransaction::where('order_id', 'ORD-RFD-1')->first();
+        $this->assertSame('NYX', $nyx->cashless_mfg);
+        $this->assertSame('Nayax', (new \App\Http\Resources\VendTransactionResource($nyx))->resolve()['cashless_mfg']);
+        $this->assertSame('Nets', VendTransaction::cashlessMfgLabel('Nets'));
+        $this->assertNull(VendTransaction::cashlessMfgLabel(null));
     }
 
     /**

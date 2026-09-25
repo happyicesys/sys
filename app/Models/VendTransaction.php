@@ -591,6 +591,20 @@ class VendTransaction extends Model
     }
 
     /**
+     * Legacy board codes for a card terminal, keyed to the `card_terminals.name`
+     * they mean. Boards reported Nayax as "NYX" until 2026-05-14 and as "Nayax"
+     * from 2026-05-15 — same machines, same readers. Stored rows keep the raw
+     * code (refund classification reads it); only labels and filters map it.
+     */
+    public const CASHLESS_MFG_ALIASES = ['NYX' => 'Nayax'];
+
+    /** The terminal name to SHOW for a raw cashless_mfg code. */
+    public static function cashlessMfgLabel(?string $cashlessMfg): ?string
+    {
+        return self::CASHLESS_MFG_ALIASES[$cashlessMfg] ?? $cashlessMfg;
+    }
+
+    /**
      * Apply a "Payment Method" filter selection to a query over vend_transactions.
      *
      * Shared by the Transactions page (scopeFilterTransactionIndex) and the Refund
@@ -598,9 +612,11 @@ class VendTransaction extends Model
      * transaction), so both decode the dropdown's values identically. Values can be:
      *   - a numeric PaymentMethod id (legacy behavior)
      *   - the string "cc:<terminal name>" — a synthetic option that means
-     *     "card (payment_method.code = 1) AND vend_transactions.cashless_mfg =
-     *     <terminal name>". The old "Card Terminal" dropdown was folded into this on
-     *     2026-05-16; see paymentMethodOptions in resources/js/Pages/Vend/Transaction.vue.
+     *     "card (payment_method.code = 1) AND the sale's terminal = <terminal
+     *     name>", the terminal resolved the way the Sales grid labels it (bound
+     *     unit's supplier, else cashless_mfg with CASHLESS_MFG_ALIASES applied).
+     *     The old "Card Terminal" dropdown was folded into this on 2026-05-16;
+     *     see paymentMethodOptions in resources/js/Pages/Vend/Transaction.vue.
      * "all", blanks and nulls are ignored; an effectively-empty selection applies no
      * constraint. Works on Eloquent and plain query builders alike, as long as the
      * builder's FROM is vend_transactions (columns are qualified).
@@ -640,9 +656,39 @@ class VendTransaction extends Model
                 $q->orWhereIn('vend_transactions.payment_method_id', $numericIds);
             }
             if (! empty($terminalNames) && ! empty($creditCardId)) {
-                $q->orWhere(function ($q2) use ($creditCardId, $terminalNames) {
+                // Match the terminal the grid DISPLAYS, not the raw cashless_mfg:
+                // the Sales grid labels a card sale with the supplier of the
+                // terminal bound to its machine at the sale's moment (latest
+                // from_at wins), falling back to cashless_mfg when none is bound
+                // or the unit has no company. Boards report "Nets" for every
+                // NETS-family reader, so filtering cashless_mfg alone returned
+                // rows labelled "Nets-Auresys" under "Credit Card (Nets)"
+                // (machine 4610, 2026-09-21). Keep in step with the
+                // card_terminal_company resolution in VendController.
+                // A selected terminal also matches its legacy board codes
+                // ("Nayax" ⇒ NYX too), so the fallback agrees with the label.
+                foreach (static::CASHLESS_MFG_ALIASES as $code => $name) {
+                    if (in_array($name, $terminalNames, true)) {
+                        $terminalNames[] = $code;
+                    }
+                }
+                $placeholders = implode(',', array_fill(0, count($terminalNames), '?'));
+                $q->orWhere(function ($q2) use ($creditCardId, $terminalNames, $placeholders) {
                     $q2->where('vend_transactions.payment_method_id', $creditCardId)
-                        ->whereIn('vend_transactions.cashless_mfg', $terminalNames);
+                        ->whereRaw(
+                            "COALESCE((
+                                SELECT ct.name
+                                FROM card_terminal_bindings ctb
+                                LEFT JOIN card_terminal_units ctu ON ctu.terminal_id = ctb.terminal_id
+                                LEFT JOIN card_terminals ct ON ct.id = ctu.card_terminal_id
+                                WHERE ctb.vend_id = vend_transactions.vend_id
+                                    AND (ctb.from_at IS NULL OR ctb.from_at <= vend_transactions.transaction_datetime)
+                                    AND (ctb.until_at IS NULL OR ctb.until_at > vend_transactions.transaction_datetime)
+                                ORDER BY ctb.from_at DESC
+                                LIMIT 1
+                            ), vend_transactions.cashless_mfg) IN ({$placeholders})",
+                            $terminalNames
+                        );
                 });
             }
         });

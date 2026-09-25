@@ -508,8 +508,19 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   (`card_terminal_company`, from `attachTerminalFlags()` in `RefundController`
   and `VendController::transactionIndex`), falling back to `cashless_mfg` when
   no binding covers the sale's date; the hover names both when they differ.
-  The Pay Method **filter** still travels on `cashless_mfg` (request id
-  `cc:<terminal>`) — that is a request contract, do not repoint it.
+  The Pay Method **filter** request id `cc:<terminal>` is a request contract
+  (bookmarked URLs) — keep the ids. What an id MATCHES follows the label
+  (2026-09-26, Brian): `VendTransaction::applyPaymentMethodFilter` resolves the
+  sale's terminal exactly as the bracket does — the bound unit's company at the
+  sale's moment, else `cashless_mfg` — because matching raw `cashless_mfg`
+  put 4610's "(Nets-Auresys)" rows under "Credit Card (Nets)". Legacy board
+  codes map through `VendTransaction::CASHLESS_MFG_ALIASES` (NYX ⇒ Nayax: boards
+  sent "NYX" until 2026-05-14, "Nayax" after) in the filter, the grid label and
+  both CSV exports; the STORED value stays raw, because refund classification
+  (`config('refund.auto_refund_terminals')`) reads it. Keep the filter's
+  subquery and `VendController::transactionIndex`'s `card_terminal_company`
+  loop in step. Regression coverage:
+  `tests/Feature/RefundIndexPaymentMethodFilterTest.php`.
 - **`provider` is derived from the company**, via
   `config('card_settlement.company_provider')` (`CardTerminalUnit::settlementProvider()`).
   Nets **and** Nets-Auresys both resolve to `'nets'` — Auresys terminals appear

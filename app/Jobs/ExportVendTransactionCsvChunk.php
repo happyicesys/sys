@@ -428,7 +428,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $txn->cost ? $txn->cost / 100 : ''
                             ),
                             $txn->payment_method_name,
-                            $txn->cashless_mfg ?? '',
+                            \App\Models\VendTransaction::cashlessMfgLabel($txn->cashless_mfg) ?? '', // NYX ⇒ Nayax
                             \App\Support\DispenseVerdict::displayCode($txn->vend_channel_error_code), // 99 prints NA
                             $txn->location_type_name,
                             $txn->operator_code,
