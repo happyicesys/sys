@@ -166,6 +166,32 @@ class CardTerminalBindingTimeTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_a_report_row_for_the_same_terminal_from_midnight_is_collapsed(): void
+    {
+        // 2401 shape: the report opened the NEW terminal from 09-14 00:00; the old
+        // one sold until 07:53; the person saved the change at 10:33.
+        $person = User::factory()->create();
+        $import = CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23082817', 'vend_id' => $this->v2831->id,
+            'bound_from' => '2025-12-03', 'source' => CardTerminalBinding::SOURCE_IMPORT]);
+        Carbon::setTestNow('2026-09-14 10:33:14');
+        $import->update(['bound_until' => '2025-12-03']);
+        $manual = CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '90602210', 'vend_id' => $this->v2831->id,
+            'bound_from' => '2025-12-03', 'created_by' => $person->id]);
+        Carbon::setTestNow('2026-09-22 12:41:15');
+        $manual->update(['until_at' => '2026-09-14 00:00:00']);
+        $dup = CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '90602210', 'vend_id' => $this->v2831->id,
+            'from_at' => '2026-09-14 00:00:00', 'source' => CardTerminalBinding::SOURCE_REPORT]);
+        Carbon::setTestNow('2026-09-25 12:00:00');
+
+        $this->artisan('card-settlement:repair-backdated-bindings --apply')->assertSuccessful();
+
+        $this->assertSame(1, CardTerminalBinding::where('terminal_id', '90602210')->whereNull('until_at')->count(), 'one open binding per terminal');
+        $this->assertSame('23082817', CardTerminalBinding::terminalIdAt($this->v2831->id, Carbon::parse('2026-09-14 08:00')), 'the morning is the old terminal\'s');
+        $this->assertSame('90602210', CardTerminalBinding::terminalIdAt($this->v2831->id, Carbon::parse('2026-09-14 10:34')));
+        $this->assertTrue($dup->fresh()->until_at->equalTo($dup->fresh()->from_at));
+        Carbon::setTestNow();
+    }
+
     public function test_a_disputed_change_still_gets_its_history_before_the_save_repaired(): void
     {
         // 2321: imported 23082817 since March; a person saved 90602210 on 09-13

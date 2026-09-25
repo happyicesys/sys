@@ -87,19 +87,29 @@ class RepairBackdatedTerminalBindings extends Command
                 $sold = $this->matchedOn($c->terminal_id, $m->vend_id, $start, now())->min();
                 $sold ? $conflicts->push([$c, $sold]) : $overran->push($c);
             }
-            // Reopen the person's row only when it was closed by an overrunning
-            // report row and nothing disputes it.
+            // The same terminal opened here by a report fix from the swap day's
+            // midnight: it claims the morning the old terminal still sold in.
+            $dups = CardTerminalBinding::query()
+                ->where('id', '>', $m->id)
+                ->where('source', CardTerminalBinding::SOURCE_REPORT)
+                ->where('vend_id', $m->vend_id)
+                ->where('terminal_id', $m->terminal_id)
+                ->where('from_at', '<', $start)
+                ->where(fn ($q) => $q->whereNull('until_at')->orWhere('until_at', '>', $start))
+                ->get();
+            // Reopen the person's row only when a later report row closed it
+            // and nothing disputes it.
             $reopen = $conflicts->isEmpty() && $m->until_at !== null && $m->until_at->lte($m->created_at)
-                && $overran->contains(fn ($c) => $c->from_at && $c->from_at->lte($m->until_at));
+                && $overran->concat($dups)->contains(fn ($c) => $c->from_at && $c->from_at->lte($m->until_at));
             $mUntil = $reopen
                 ? CardTerminalBinding::query()->where('id', '!=', $m->id)
                     ->where(fn ($q) => $q->where('vend_id', $m->vend_id)->orWhere('terminal_id', $m->terminal_id))
-                    ->where('from_at', '>', $start)->whereNotIn('id', $overran->pluck('id'))->min('from_at')
+                    ->where('from_at', '>', $start)->whereNotIn('id', $overran->concat($dups)->pluck('id'))->min('from_at')
                 : $m->until_at;
             $mUntil = $mUntil ? Carbon::parse($mUntil) : null;
             $inverted = $mUntil !== null && $mUntil->lte($start);
 
-            $plan[] = compact('m', 'closedBySave', 'old', 'lastOld', 'firstNew', 'start', 'conflicts', 'overran', 'reopen', 'mUntil', 'inverted');
+            $plan[] = compact('m', 'closedBySave', 'old', 'lastOld', 'firstNew', 'start', 'conflicts', 'overran', 'dups', 'reopen', 'mUntil', 'inverted');
         }
 
         $this->table(
@@ -153,6 +163,9 @@ class RepairBackdatedTerminalBindings extends Command
                     }
                 }
                 $p['m']->update(['from_at' => $p['start'], 'until_at' => $p['mUntil']]);
+                // The person's row covers this terminal from the recorded
+                // moment: a report row that opened it from midnight collapses.
+                $p['dups']->each(fn (CardTerminalBinding $dup) => $dup->update(['until_at' => $dup->from_at]));
             });
             $this->line("repaired #{$p['m']->id}: {$p['m']->terminal_id} from {$p['start']->format('Y-m-d H:i:s')}"
                 .($p['conflicts']->isNotEmpty() ? ' (disputed report rows left for review)' : ''));
