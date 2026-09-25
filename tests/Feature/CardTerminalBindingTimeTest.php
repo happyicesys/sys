@@ -165,4 +165,34 @@ class CardTerminalBindingTimeTest extends TestCase
         $this->assertSame('90602210', CardTerminalBinding::terminalIdAt($this->v2831->id, Carbon::parse('2026-09-24 12:00')));
         Carbon::setTestNow();
     }
+
+    public function test_a_disputed_change_still_gets_its_history_before_the_save_repaired(): void
+    {
+        // 2321: imported 23082817 since March; a person saved 90602210 on 09-13
+        // 17:09 "from March"; report fixes then put 23082817 back from 09-10 and
+        // a third terminal selling there on 09-16 — the later period is disputed.
+        $person = User::factory()->create();
+        $import = CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23082817', 'vend_id' => $this->v2831->id,
+            'bound_from' => '2026-03-28', 'source' => CardTerminalBinding::SOURCE_IMPORT]);
+        Carbon::setTestNow('2026-09-13 17:09:52');
+        $import->update(['bound_until' => '2026-03-28']);
+        $manual = CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '90602210', 'vend_id' => $this->v2831->id,
+            'bound_from' => '2026-03-28', 'created_by' => $person->id]);
+        Carbon::setTestNow('2026-09-14 18:01:30');
+        $manual->update(['until_at' => '2026-09-10 00:00:00']);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23082817', 'vend_id' => $this->v2831->id,
+            'from_at' => '2026-09-10 00:00:00', 'until_at' => '2026-09-16 00:00:00', 'source' => CardTerminalBinding::SOURCE_REPORT]);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23000009', 'vend_id' => $this->v2831->id,
+            'from_at' => '2026-09-16 00:00:00', 'source' => CardTerminalBinding::SOURCE_REPORT]);
+        $r = CardSettlementReport::create(['provider' => 'nets', 'original_filename' => 'x.csv', 'status' => CardSettlementReport::STATUS_SYNCED]);
+        $s = $this->sale($this->v2831, '2026-09-16 11:24:10');
+        $this->line($r, '23000009', '2026-09-16', '11:24:00')->update(['status' => CardSettlementRow::STATUS_MATCHED, 'vend_id' => $this->v2831->id, 'matched_vend_transaction_id' => $s->id]);
+        Carbon::setTestNow('2026-09-25 12:00:00');
+
+        $this->artisan('card-settlement:repair-backdated-bindings --apply')->assertSuccessful();
+
+        $this->assertSame('23082817', CardTerminalBinding::terminalIdAt($this->v2831->id, Carbon::parse('2026-08-15 12:00')), 'August no longer resolves to the back-dated terminal');
+        $this->assertSame('23000009', CardTerminalBinding::terminalIdAt($this->v2831->id, Carbon::parse('2026-09-17 12:00')), 'the disputed period is left as it was');
+        Carbon::setTestNow();
+    }
 }

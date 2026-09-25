@@ -113,7 +113,7 @@ class RepairBackdatedTerminalBindings extends Command
                 $p['old'] ? $p['old']->terminal_id.' (#'.$p['old']->id.')' : '—',
                 $p['lastOld']?->format('Y-m-d H:i:s') ?? '—',
                 $p['firstNew']?->format('Y-m-d H:i:s') ?? '—',
-                $p['inverted'] ? 'SKIP (superseded — review)' : $p['start']->format('Y-m-d H:i:s').' → '.($p['mUntil']?->format('Y-m-d H:i') ?? 'open'),
+                $p['inverted'] ? 'history before the change only (later rows cover it — review)' : $p['start']->format('Y-m-d H:i:s').' → '.($p['mUntil']?->format('Y-m-d H:i') ?? 'open'),
                 $p['overran']->map(fn ($c) => $c->terminal_id.' #'.$c->id)->implode('; ') ?: '—',
                 $p['conflicts']->map(fn ($x) => $x[0]->terminal_id.' #'.$x[0]->id.' sold '.$x[1]->format('m-d H:i'))->implode('; ') ?: '—',
             ])->all()
@@ -127,7 +127,17 @@ class RepairBackdatedTerminalBindings extends Command
 
         foreach ($plan as $p) {
             if ($p['inverted']) {
-                $this->warn("skipped #{$p['m']->id}: superseded by later rows — review by hand");
+                // Later rows (disputed by NETS) already cover the time after the
+                // change: repair only the history BEFORE it — the old terminal
+                // runs to the change, and the person's row stops claiming the
+                // months before they saved it (collapsed, kept for the audit).
+                DB::transaction(function () use ($p) {
+                    foreach ($p['closedBySave'] as $closed) {
+                        $closed->update(['until_at' => $p['start']]);
+                    }
+                    $p['m']->update(['from_at' => $p['m']->until_at]);
+                });
+                $this->warn("#{$p['m']->id}: history before the change repaired; after it, later rows are disputed — review by hand");
 
                 continue;
             }
