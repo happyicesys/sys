@@ -45,6 +45,25 @@ class RepairCardSettlementOrphans extends Command
             $vendId = $vend->id;
         }
 
+        // Lines matched to a test-amount sale the nightly odd-transaction sweep
+        // has since deleted: released as Ignored (they point at nothing).
+        $swept = \App\Models\CardSettlementRow::query()
+            ->where('status', \App\Models\CardSettlementRow::STATUS_MATCHED)
+            ->where('is_reversal', false)
+            ->whereIn('amount_cents', \App\Models\VendTransaction::ODD_TRANSACTION_AMOUNTS)
+            ->whereNotNull('matched_vend_transaction_id')
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('vend_transactions')->whereColumn('vend_transactions.id', 'card_settlement_rows.matched_vend_transaction_id'))
+            ->get();
+        if ($apply) {
+            foreach ($swept as $row) {
+                $row->update(['status' => \App\Models\CardSettlementRow::STATUS_IGNORED, 'matched_vend_transaction_id' => null, 'resolution_note' => \App\Models\CardSettlementRow::NOTE_TEST_AMOUNT]);
+            }
+            foreach ($swept->pluck('card_settlement_report_id')->unique() as $reportId) {
+                \App\Models\CardSettlementReport::find($reportId)?->refreshCounts();
+            }
+        }
+        $this->line(sprintf('%d line(s) whose swept test sale is gone %s.', $swept->count(), $apply ? 'released' : 'to release'));
+
         // Retained-credit re-vends first (RetainedCreditLinker): a dispensed
         // retry served from a failed, charged sale's credit is linked to it.
         $revends = app(\App\Services\CardSettlement\RetainedCreditLinker::class)

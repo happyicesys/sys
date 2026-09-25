@@ -5,6 +5,7 @@ namespace App\Services\CardSettlement;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\RefundTicket;
+use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -79,6 +80,8 @@ class CardSettlementHealthCheck
             ->where(fn ($q) => $q->where('resolution_note', 'like', 'No matching sale on bound machine%')->orWhere('resolution_note', 'No terminal binding'))
             ->where('transaction_date', '>=', $from->toDateString())
             ->where('amount_cents', '>', 0)
+            // Test-rig amounts are swept nightly and prove nothing about a terminal.
+            ->whereNotIn('amount_cents', VendTransaction::ODD_TRANSACTION_AMOUNTS)
             ->get(['card_settlement_report_id', 'terminal_id', 'transaction_date', 'resolution_note', 'amount_cents']);
         $items = $rows->groupBy('terminal_id')->map(function ($g, $tid) use ($base) {
             $last = $g->sortByDesc('transaction_date')->first();
@@ -114,6 +117,7 @@ class CardSettlementHealthCheck
             ->join('vend_transactions as v', 'v.id', '=', 'r.matched_vend_transaction_id')
             ->join('vends as vd', 'vd.id', '=', 'v.vend_id')
             ->whereNull('vd.card_terminal_id')
+            ->whereNotIn('vd.code', VendTransaction::ODD_TRANSACTION_RETAIN_VEND_CODES)
             ->where('r.status', CardSettlementRow::STATUS_MATCHED)
             ->where('r.transaction_date', '>=', $from->toDateString())
             ->groupBy('vd.id', 'vd.code')
@@ -134,7 +138,9 @@ class CardSettlementHealthCheck
             ->join('vends as va', 'va.id', '=', 'a.vend_id')
             ->join('vends as vb', 'vb.id', '=', 'b.vend_id')
             ->whereRaw('(a.until_at IS NULL OR a.until_at > a.from_at) AND (b.until_at IS NULL OR b.until_at > b.from_at)')
-            ->whereRaw("GREATEST(COALESCE(a.from_at,'1970-01-01'), COALESCE(b.from_at,'1970-01-01')) < LEAST(COALESCE(a.until_at,'2100-01-01'), COALESCE(b.until_at,'2100-01-01'))")
+            // More than a day: a legacy date-only swap overlaps for exactly the
+            // swap day, which the newest-row-wins rule already resolves.
+            ->whereRaw("GREATEST(COALESCE(a.from_at,'1970-01-01'), COALESCE(b.from_at,'1970-01-01')) < LEAST(COALESCE(a.until_at,'2100-01-01'), COALESCE(b.until_at,'2100-01-01')) - INTERVAL 1 DAY")
             ->where(fn ($q) => $q->whereNull('a.until_at')->orWhereNull('b.until_at')->orWhere('a.until_at', '>=', now()->subDays(45))->orWhere('b.until_at', '>=', now()->subDays(45)))
             ->get(['a.terminal_id', 'va.code as va', 'vb.code as vb', 'a.from_at as af', 'a.until_at as au', 'b.from_at as bf', 'b.until_at as bu'])
             ->map(fn ($r) => ['text' => "Terminal {$r->terminal_id} is bound to {$r->va} (".substr((string) $r->af, 0, 10).' → '.($r->au ? substr($r->au, 0, 10) : 'now').") and {$r->vb} (".substr((string) $r->bf, 0, 10).' → '.($r->bu ? substr($r->bu, 0, 10) : 'now').') at the same time', 'url' => null])
@@ -190,6 +196,7 @@ class CardSettlementHealthCheck
             ->where('r.is_reversal', false)
             ->whereNotNull('r.matched_vend_transaction_id')
             ->whereNull('v.id')
+            ->whereNotIn('r.amount_cents', VendTransaction::ODD_TRANSACTION_AMOUNTS) // swept test sales: released nightly
             ->where('r.transaction_date', '>=', $from->toDateString())
             ->get(['r.card_settlement_report_id', 'r.terminal_id', 'r.transaction_date', 'r.amount_cents'])
             ->map(fn ($r) => ['text' => "Line {$r->terminal_id} {$r->transaction_date} \$".number_format($r->amount_cents / 100, 2).' points at a sale that no longer exists', 'url' => $base.'/card-settlements/'.$r->card_settlement_report_id])

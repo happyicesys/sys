@@ -307,4 +307,34 @@ class CardSettlementHandsOffTest extends TestCase
         Mail::assertQueued(CardSettlementHealthMail::class, fn ($m) => $m->hasTo('ops@example.com'));
         Mail::assertNotQueued(CardSettlementHealthMail::class, fn ($m) => $m->hasTo('other@example.com'));
     }
+
+    public function test_the_nightly_check_ignores_test_amounts_and_one_day_legacy_overlaps(): void
+    {
+        // A $0.20 unbound-terminal line and a same-day swap overlap: noise, not work.
+        $this->line($this->report(CardSettlementReport::STATUS_SYNCED), '10:00:00', 20, ['status' => CardSettlementRow::STATUS_UNMATCHED, 'resolution_note' => 'No terminal binding'], '23104113', now()->subDays(3)->toDateString());
+        $other = $this->machine('2847', $this->nets);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23104097', 'vend_id' => $this->vend->id, 'bound_from' => '2026-05-17', 'bound_until' => '2026-09-23']);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '23104097', 'vend_id' => $other->id, 'bound_from' => '2026-09-23']);
+
+        $keys = collect(app(CardSettlementHealthCheck::class)->run())->pluck('key');
+
+        $this->assertNotContains('pending_moves', $keys);
+        $this->assertNotContains('double_bound', $keys);
+
+        // A real overlap (weeks) is reported.
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '90602207', 'vend_id' => $this->vend->id, 'from_at' => '2026-03-19 00:00:00', 'until_at' => '2026-09-16 15:25:30']);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => '90602207', 'vend_id' => $other->id, 'from_at' => '2026-08-31 00:00:00', 'until_at' => '2026-09-22 00:00:00']);
+        $this->assertContains('double_bound', collect(app(CardSettlementHealthCheck::class)->run())->pluck('key'));
+    }
+
+    public function test_the_nightly_repair_releases_lines_whose_swept_test_sale_is_gone(): void
+    {
+        $report = $this->report(CardSettlementReport::STATUS_SYNCED);
+        $line = $this->line($report, '10:00:00', 10, ['status' => CardSettlementRow::STATUS_MATCHED, 'vend_id' => $this->vend->id, 'matched_vend_transaction_id' => 999999]);
+
+        $this->artisan('card-settlement:repair-orphans --apply --from=2026-09-01')->assertSuccessful();
+
+        $this->assertSame(CardSettlementRow::STATUS_IGNORED, $line->fresh()->status);
+        $this->assertSame(CardSettlementRow::NOTE_TEST_AMOUNT, $line->fresh()->resolution_note);
+    }
 }
