@@ -497,6 +497,16 @@ class VendResource extends JsonResource
             'refund_3d_count' => isset($this->refund_3d_count) ? (int) $this->refund_3d_count : null,
             'nofound_txn_2d_count' => isset($this->nofound_txn_2d_count) ? (int) $this->nofound_txn_2d_count : null,
             'nofound_txn_3d_count' => isset($this->nofound_txn_3d_count) ? (int) $this->nofound_txn_3d_count : null,
+            // MQTT link health per day (vend_daily_stats, RecordVendLinkHealth):
+            // seconds with no subscribed MQTT session, plus today's drops /
+            // client recycles / failed connects. Only big 306+ and small v14+
+            // report it; null = no data for that day, never "0 offline".
+            'mqtt_offline_1d_s' => isset($this->mqtt_offline_1d_s) ? (int) $this->mqtt_offline_1d_s : null,
+            'mqtt_offline_2d_s' => isset($this->mqtt_offline_2d_s) ? (int) $this->mqtt_offline_2d_s : null,
+            'mqtt_offline_3d_s' => isset($this->mqtt_offline_3d_s) ? (int) $this->mqtt_offline_3d_s : null,
+            'mqtt_drops_1d' => isset($this->mqtt_drops_1d) ? (int) $this->mqtt_drops_1d : null,
+            'mqtt_recycles_1d' => isset($this->mqtt_recycles_1d) ? (int) $this->mqtt_recycles_1d : null,
+            'mqtt_conn_fails_1d' => isset($this->mqtt_conn_fails_1d) ? (int) $this->mqtt_conn_fails_1d : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
             'vend_id' => isset($this->vend_id) ? $this->vend_id : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,

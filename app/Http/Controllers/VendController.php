@@ -126,6 +126,31 @@ use Rap2hpoutre\FastExcel\FastExcel;
 
 class VendController extends Controller
 {
+    /** vend_daily_stats metrics written by RecordVendLinkHealth (P heartbeat, 306+ / v14+). */
+    private const LINK_HEALTH_METRICS = ['mqtt_offline_s', 'mqtt_drops', 'mqtt_recycles', 'mqtt_conn_fails'];
+
+    /**
+     * Ops Dashboard "MQTT Offline" fields for one machine. Every value is NULL
+     * when the machine sent nothing for that day — an older build that does not
+     * measure its link must read as "no data", never as 0 minutes offline.
+     *
+     * @param  array<string, array<string, int>>  $byMetric  metric => date => count
+     * @return array<string, int|null>
+     */
+    private static function linkHealthFields(array $byMetric, string $d1, string $d2, string $d3): array
+    {
+        $offline = $byMetric['mqtt_offline_s'] ?? [];
+
+        return [
+            'mqtt_offline_1d_s' => $offline[$d1] ?? null,
+            'mqtt_offline_2d_s' => $offline[$d2] ?? null,
+            'mqtt_offline_3d_s' => $offline[$d3] ?? null,
+            'mqtt_drops_1d' => $byMetric['mqtt_drops'][$d1] ?? null,
+            'mqtt_recycles_1d' => $byMetric['mqtt_recycles'][$d1] ?? null,
+            'mqtt_conn_fails_1d' => $byMetric['mqtt_conn_fails'][$d1] ?? null,
+        ];
+    }
+
     use GetUserTimezone, HasFilter;
 
     /**
@@ -725,6 +750,12 @@ class VendController extends Controller
         // page's Machine RF 24h flag). Table is small; DATE(created_at) over a
         // 3-day window is cheap.
         $needsRefund = in_array($sortKey, ['refund_1d_count', 'refund_2d_count', 'refund_3d_count']);
+        // "MQTT Offline" 1d/2d/3d sort — seconds without a subscribed MQTT
+        // session per day, reported by big 306+ / small v14+ on the P heartbeat
+        // (vend_daily_stats metric=mqtt_offline_s, see RecordVendLinkHealth).
+        // Unlike PWRON the aliases stay NULL for machines that do not report
+        // (older builds): "no data" must never read as "0 min offline".
+        $needsMqttOffline = in_array($sortKey, ['mqtt_offline_1d_s', 'mqtt_offline_2d_s', 'mqtt_offline_3d_s']);
         // Dates are app-TZ — mirrors the post-query loop and matches how
         // IncrementVendDailyStat buckets writes. Computed up here so both the
         // sort-leftJoin and the post-query enrichment use the same values.
@@ -751,7 +782,7 @@ class VendController extends Controller
             && ! $needsLastOpsJobs && ! $needsLastSecondOpsJobs && ! $needsNextOpsJobs
             && ! $needsLastThirtyDaysStockIn && ! $needsAccumulatedVendingEarning
             && ! $needsThirtyDaysVendingEarning && ! $needsExternalSubsidize
-            && ! $needsNetLocFee && ! $needsPwron && ! $needsNofoundTxn;
+            && ! $needsNetLocFee && ! $needsPwron && ! $needsNofoundTxn && ! $needsMqttOffline;
 
         // Pre-Search aggregate cards ("Last 30 days" + "Current") — computed
         // across ALL rows matching the current filters (NOT capped by
@@ -1120,6 +1151,20 @@ class VendController extends Controller
                 GROUP BY vend_id
             ) AS vds_nofound"), 'vds_nofound.vend_id', '=', 'vends.id');
                 })
+                ->when($needsMqttOffline, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
+                    // MAX(CASE … END) without ELSE keeps NULL for a day the machine
+                    // did not report, so older builds sort as "no data", not as 0.
+                    $query->leftJoin(DB::raw("(
+                SELECT vend_id,
+                    MAX(CASE WHEN `date` = '{$pwronDate1d}' THEN count END) AS mqtt_offline_1d_s,
+                    MAX(CASE WHEN `date` = '{$pwronDate2d}' THEN count END) AS mqtt_offline_2d_s,
+                    MAX(CASE WHEN `date` = '{$pwronDate3d}' THEN count END) AS mqtt_offline_3d_s
+                FROM vend_daily_stats
+                WHERE metric = 'mqtt_offline_s'
+                AND `date` IN ('{$pwronDate1d}', '{$pwronDate2d}', '{$pwronDate3d}')
+                GROUP BY vend_id
+            ) AS vds_mqtt"), 'vds_mqtt.vend_id', '=', 'vends.id');
+                })
                 ->when($needsRefund, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
                     // "# of Refund" — counted from refund_tickets (per submitted
                     // ticket, any status), bucketed by submission date in app TZ to
@@ -1443,6 +1488,13 @@ class VendController extends Controller
                 $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_1d_count, 0) AS nofound_txn_1d_count');
                 $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_2d_count, 0) AS nofound_txn_2d_count');
                 $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_3d_count, 0) AS nofound_txn_3d_count');
+            }
+
+            if ($needsMqttOffline) {
+                // No COALESCE on purpose — see $needsMqttOffline above.
+                $selectColumns[] = DB::raw('vds_mqtt.mqtt_offline_1d_s AS mqtt_offline_1d_s');
+                $selectColumns[] = DB::raw('vds_mqtt.mqtt_offline_2d_s AS mqtt_offline_2d_s');
+                $selectColumns[] = DB::raw('vds_mqtt.mqtt_offline_3d_s AS mqtt_offline_3d_s');
             }
 
             if ($needsRefund) {
@@ -1876,10 +1928,11 @@ class VendController extends Controller
                 // sort-leftJoin and this enrichment share the exact same dates.
                 $pwronByVend = [];
                 $nofoundByVend = [];
+                $linkByVend = [];
                 if (! empty($vendIds)) {
                     $statsRows = DB::table('vend_daily_stats')
                         ->whereIn('vend_id', $vendIds)
-                        ->whereIn('metric', ['pwron', 'nofound_txn'])
+                        ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS))
                         ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
                         ->get(['vend_id', 'date', 'metric', 'count']);
                     foreach ($statsRows as $row) {
@@ -1891,6 +1944,8 @@ class VendController extends Controller
                             $pwronByVend[$vid][$dateKey] = (int) $row->count;
                         } elseif ($row->metric === 'nofound_txn') {
                             $nofoundByVend[$vid][$dateKey] = (int) $row->count;
+                        } else {
+                            $linkByVend[$vid][$row->metric][$dateKey] = (int) $row->count;
                         }
                     }
                 }
@@ -1920,6 +1975,9 @@ class VendController extends Controller
                     $vend->refund_1d_count = (int) ($refundByVend[$vid][$pwronDate1d] ?? 0);
                     $vend->refund_2d_count = (int) ($refundByVend[$vid][$pwronDate2d] ?? 0);
                     $vend->refund_3d_count = (int) ($refundByVend[$vid][$pwronDate3d] ?? 0);
+                    foreach (self::linkHealthFields($linkByVend[$vid] ?? [], $pwronDate1d, $pwronDate2d, $pwronDate3d) as $field => $value) {
+                        $vend->{$field} = $value;
+                    }
                 }
 
                 // Second pass: loadAggregates() and the accumulate-earning loop
@@ -2586,10 +2644,11 @@ class VendController extends Controller
         $aggVendIds = $items->pluck('vend_id')->filter()->unique()->values()->all();
         $pwronByVend = [];
         $nofoundByVend = [];
+        $linkByVend = [];
         if (! empty($aggVendIds)) {
             $statsRows = DB::table('vend_daily_stats')
                 ->whereIn('vend_id', $aggVendIds)
-                ->whereIn('metric', ['pwron', 'nofound_txn'])
+                ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS))
                 ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
                 ->get(['vend_id', 'date', 'metric', 'count']);
             foreach ($statsRows as $row) {
@@ -2599,6 +2658,8 @@ class VendController extends Controller
                     $pwronByVend[$vid][$dateKey] = (int) $row->count;
                 } elseif ($row->metric === 'nofound_txn') {
                     $nofoundByVend[$vid][$dateKey] = (int) $row->count;
+                } else {
+                    $linkByVend[$vid][$row->metric][$dateKey] = (int) $row->count;
                 }
             }
         }
@@ -2649,7 +2710,7 @@ class VendController extends Controller
                 'nofound_txn_1d_count' => isset($nf[$pwronDate1d]) ? (int) $nf[$pwronDate1d] : ($vid !== null ? 0 : null),
                 'nofound_txn_2d_count' => isset($nf[$pwronDate2d]) ? (int) $nf[$pwronDate2d] : ($vid !== null ? 0 : null),
                 'nofound_txn_3d_count' => isset($nf[$pwronDate3d]) ? (int) $nf[$pwronDate3d] : ($vid !== null ? 0 : null),
-            ];
+            ] + self::linkHealthFields($vid !== null ? ($linkByVend[$vid] ?? []) : [], $pwronDate1d, $pwronDate2d, $pwronDate3d);
         }
 
         // ── Card totals (mirrors indexCustomer $totals; page-scoped = these rows) ─

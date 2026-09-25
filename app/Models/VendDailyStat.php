@@ -18,6 +18,10 @@ use Illuminate\Database\Eloquent\Model;
  *   - 'ui_no_frames'     : looper alive but nothing drawn — dead draw pipeline
  *   - 'ui_probe_fail'    : the hourly page round-trip did not complete
  *   - 'ui_probe_pass'    : it did — the denominator the three above are read against
+ *   - 'mqtt_offline_s'   : seconds that day with no subscribed MQTT session ┐ written by
+ *   - 'mqtt_drops'       : established sessions that died                   │ RecordVendLinkHealth
+ *   - 'mqtt_recycles'    : in-process client recycles (306+ / v14+)         │ as the day's MAX of the
+ *   - 'mqtt_conn_fails'  : failed connect attempts                          ┘ device's running totals
  *
  * Reserved for future hardware/stat metrics — add new strings without a
  * schema migration.

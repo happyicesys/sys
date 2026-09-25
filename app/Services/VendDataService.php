@@ -18,6 +18,7 @@ use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\IncrementVendDailyStat;
+use App\Jobs\Vend\RecordVendLinkHealth;
 use App\Jobs\Vend\SyncFeatureApkSetting;
 // use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\SyncFreezerControlAck;
@@ -473,6 +474,7 @@ class VendDataService
                             && (string) $vend->offline_restart_count !== (string) $processedInput['OfflineRestartCount']) {
                             SyncP::dispatch($processedInput, $vend)->onQueue('default');
                         }
+                        $this->recordLinkHealth($processedInput, $vend);
                         $saveVendData = false;
                         break;
                     case 'FREEZERSTATUS':
@@ -584,5 +586,67 @@ class VendDataService
             || in_array((int) ($originalInput['m'] ?? 0), $rawAckVends, true));
 
         return $rawAck ? response($response) : response()->json($response);
+    }
+
+    /**
+     * MQTT link health carried on a "P" heartbeat by big-board 306+ and
+     * small-board v14+ (cvmqttmodule MqttLinkStats): the device's running
+     * totals for its local day — MqttDrops, MqttConnFails, MqttRecycles,
+     * MqttOfflineSec (+ MqttDay, MqttUp). Stored per day in vend_daily_stats
+     * by RecordVendLinkHealth as the day's maximum.
+     *
+     * Absent keys mean an older build that does not measure this: nothing is
+     * written, so the dashboard shows "no data", never a false 0 minutes.
+     *
+     * Write only when something moved. The small board heartbeats every 30 s
+     * and a healthy machine reports identical totals all day; offline seconds
+     * are compared to the minute, so an outage in progress writes at most
+     * once a minute. The device's day is trusted only within a day of ours
+     * (board clocks drift — audit A1), otherwise today's date is used.
+     */
+    private function recordLinkHealth(array $input, Vend $vend): void
+    {
+        if (! array_key_exists('MqttOfflineSec', $input)) {
+            return;
+        }
+
+        $today = Carbon::today();
+        $date = $today->toDateString();
+        $deviceDay = $input['MqttDay'] ?? null;
+        if (is_string($deviceDay) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $deviceDay)) {
+            try {
+                $parsed = Carbon::createFromFormat('Y-m-d', $deviceDay)->startOfDay();
+                if (abs($today->diffInDays($parsed, false)) <= 1) {
+                    $date = $parsed->toDateString();
+                }
+            } catch (\Throwable $e) {
+                // unparseable device day: keep ours
+            }
+        }
+
+        $values = [];
+        foreach (RecordVendLinkHealth::METRICS as $key => $metric) {
+            if (array_key_exists($key, $input) && is_numeric($input[$key])) {
+                $values[$metric] = max(0, (int) $input[$key]);
+            }
+        }
+        if ($values === []) {
+            return;
+        }
+
+        $fingerprint = implode('|', [
+            $date,
+            $values['mqtt_drops'] ?? '',
+            $values['mqtt_conn_fails'] ?? '',
+            $values['mqtt_recycles'] ?? '',
+            intdiv($values['mqtt_offline_s'] ?? 0, 60),
+        ]);
+        $cacheKey = 'link_health_fp_'.$vend->id;
+        if (Cache::get($cacheKey) === $fingerprint) {
+            return;
+        }
+        Cache::put($cacheKey, $fingerprint, now()->addHours(6));
+
+        RecordVendLinkHealth::dispatch($vend->id, (string) $vend->code, $date, $values)->onQueue('low');
     }
 }

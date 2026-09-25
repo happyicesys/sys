@@ -956,6 +956,29 @@
 									3d
 								</SingleSortItem>
 							</div>
+							<!-- MQTT Offline 1d/2d/3d — minutes per day with no subscribed MQTT
+							     session, measured on the machine itself (big 306+ / small
+							     v14+, P heartbeat -> vend_daily_stats metric=mqtt_offline_s).
+							     Sort hits the mqtt_offline_{1,2,3}d_s aliases; machines that
+							     do not report sort last. Data renders at the bottom of the cell. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900">MQTT Offline (min)</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Minutes per day the machine had no working MQTT session (QR payments and remote commands unavailable), measured by the machine itself. Includes outages still in progress. Hover today\'s value for drops / client recycles / failed connects.<br>Green under 10 min, amber 10-59, red 60+. “–” = no data: the machine runs a build older than big 306 / small v14.', html: true }"></ExclamationCircleIcon>
+							</div>
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="mqtt_offline_1d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_1d_s', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="mqtt_offline_2d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_2d_s', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="mqtt_offline_3d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_3d_s', false)">
+									3d
+								</SingleSortItem>
+							</div>
 							<!-- "# of No Found in Txn" 1d/2d/3d block — counter written by
 							     LogNofoundTxnIfStillMissing (5 min after a PG payment is
 							     approved, if the matching vend_transactions row still
@@ -1781,6 +1804,30 @@
 									<span class="text-gray-400">/</span>
 									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
 										{{ vend.pwron_3d_count }}
+									</span>
+								</div>
+							</template>
+							<!-- MQTT Offline 1d/2d/3d in minutes (vend_daily_stats metric=
+							     mqtt_offline_s). Absolute colouring, not trend: <10 green,
+							     10-59 amber, 60+ red; inactive machines gray. "–" when the
+							     machine sent no link health that day (older build). Shown
+							     only once the controller has enriched the fields. -->
+							<template v-if="vend.mqtt_offline_1d_s !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="mqttOfflineClass(vend, vend.mqtt_offline_1d_s)"
+										v-tooltip="mqttLinkTooltip(vend)"
+									>
+										{{ mqttOfflineMinutes(vend.mqtt_offline_1d_s) }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_2d_s)">
+										{{ mqttOfflineMinutes(vend.mqtt_offline_2d_s) }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_3d_s)">
+										{{ mqttOfflineMinutes(vend.mqtt_offline_3d_s) }}
 									</span>
 								</div>
 							</template>
@@ -3544,6 +3591,30 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	// aggregate cards. The totals are summed over the rows on the current
 	// page, so the per-machine average divides by the row count. Guard against
 	// 0 so the cards never render NaN/Infinity before a search returns rows.
+	// ── MQTT link health (vend_daily_stats via RecordVendLinkHealth) ─────────
+	// null = the machine sent no link health that day (build older than big 306 /
+	// small v14). Shown as "–", never as 0 — a machine that cannot measure its
+	// link must not look healthy.
+	function mqttOfflineMinutes(seconds) {
+		return seconds === null || seconds === undefined ? '–' : Math.round(seconds / 60);
+	}
+
+	function mqttOfflineClass(vend, seconds) {
+		if (!(vend.is_active || vend.is_testing) || seconds === null || seconds === undefined) {
+			return 'text-gray-400';
+		}
+		if (seconds >= 3600) return 'text-red-700 font-semibold';
+		if (seconds >= 600) return 'text-amber-600';
+		return 'text-green-700';
+	}
+
+	function mqttLinkTooltip(vend) {
+		if (vend.mqtt_offline_1d_s === null || vend.mqtt_offline_1d_s === undefined) {
+			return 'No link health reported today (build older than big 306 / small v14, or no heartbeat yet).';
+		}
+		return `Today: ${vend.mqtt_drops_1d ?? 0} drops · ${vend.mqtt_recycles_1d ?? 0} client recycles · ${vend.mqtt_conn_fails_1d ?? 0} failed connects`;
+	}
+
 	// ── Deferred aggregates (perf) ──────────────────────────────────────────
 	// The heavy $/stock/job columns are loaded in a 2nd background request so
 	// the table paints fast on big page sizes ("All"). See VendController
