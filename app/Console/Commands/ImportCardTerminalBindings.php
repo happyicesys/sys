@@ -103,6 +103,7 @@ class ImportCardTerminalBindings extends Command
                     'vend_id' => $vend->id,
                     'bound_from' => $row['bound_from'] ?: null,
                     'bound_until' => $row['bound_until'] ?: null,
+                    'source' => CardTerminalBinding::SOURCE_IMPORT,
                     'remarks' => $row['remarks'] ?? null,
                 ]);
             }

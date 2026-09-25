@@ -270,9 +270,11 @@ class TransactionIndexStatusColumnsTest extends TestCase
         DB::table('card_terminal_bindings')->insert([
             ['provider' => 'nets', 'terminal_id' => 'TID-NO', 'vend_id' => $this->vendId,
                 'bound_from' => now()->subMonth()->toDateString(), 'bound_until' => now()->subDay()->toDateString(),
+                'from_at' => now()->subMonth()->startOfDay(), 'until_at' => now()->startOfDay(),
                 'created_at' => now(), 'updated_at' => now()],
             ['provider' => 'nets', 'terminal_id' => 'TID-YES', 'vend_id' => $this->vendId,
                 'bound_from' => now()->toDateString(), 'bound_until' => null,
+                'from_at' => now()->startOfDay(), 'until_at' => null,
                 'created_at' => now(), 'updated_at' => now()],
         ]);
 

@@ -210,9 +210,10 @@ class CardSettlementLateTradeTest extends TestCase
     public function test_a_single_graze_on_another_machine_does_not_outvote_the_binding(): void
     {
         $other = Vend::create(['code' => '2283', 'operator_id' => $this->vend->operator_id, 'is_active' => 1]);
-        // The terminal matched two sales on its own machine that day…
+        // The terminal matched sales on its own machine that day, one of them
+        // AFTER the graze — so it never left (change point, 2026-09-25)…
         $own = $this->report(CardSettlementReport::STATUS_SYNCED);
-        foreach (['09:00:00', '11:00:00'] as $time) {
+        foreach (['09:00:00', '20:00:00'] as $time) {
             $s = $this->sale('2026-09-23 '.$time, '2026-09-23 '.$time, '2026-09-23 '.$time, 200);
             $this->line($own, '2026-09-23', $time, 200, ['status' => CardSettlementRow::STATUS_MATCHED, 'vend_id' => $this->vend->id, 'matched_vend_transaction_id' => $s->id]);
         }

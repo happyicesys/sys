@@ -130,15 +130,24 @@ class CardSettlementMatcher
             // opens the new one on the SAME date, and effectiveOn is inclusive
             // at both ends, so that one day resolves twice — the machine the
             // terminal moved TO is the answer that matches its later lines.
-            ->sortByDesc(fn (CardTerminalBinding $b) => $b->bound_from?->toDateString() ?? '')
+            ->sortByDesc(fn (CardTerminalBinding $b) => $b->from_at?->format('Y-m-d H:i:s') ?? '')
             ->groupBy('terminal_id');
 
+        // To the second (2026-09-25): a line resolves by its own time, so a
+        // 14:30 swap sends the morning's lines to the old machine. A line that
+        // lost its hour (Excel) still resolves by day — newest binding wins.
         $bindingFor = function (CardSettlementRow $row) use ($bindings): ?CardTerminalBinding {
-            $date = $row->transaction_date->toDateString();
+            $candidates = $bindings->get($row->terminal_id) ?? collect();
+            if (! $row->time_is_partial && $row->transaction_time !== null) {
+                $at = Carbon::parse($row->transaction_date->toDateString().' '.$row->transaction_time);
 
-            return ($bindings->get($row->terminal_id) ?? collect())
-                ->first(fn (CardTerminalBinding $b) => ($b->bound_from === null || $b->bound_from->toDateString() <= $date)
-                    && ($b->bound_until === null || $b->bound_until->toDateString() >= $date));
+                return $candidates->first(fn (CardTerminalBinding $b) => $b->coversAt($at));
+            }
+            $dayStart = $row->transaction_date->copy()->startOfDay();
+            $dayEnd = $dayStart->copy()->addDay();
+
+            return $candidates->first(fn (CardTerminalBinding $b) => ($b->from_at === null || $b->from_at->lt($dayEnd))
+                && ($b->until_at === null || $b->until_at->gt($dayStart)));
         };
 
         // A reversal is its own report line (negative amount); it never
@@ -680,7 +689,6 @@ class CardSettlementMatcher
 
         $hitsByRow = [];
         $otherVendOf = [];
-        $otherVotes = []; // "terminal|date|vend" → lines of that terminal-day fitting that machine
         foreach ($rows as $row) {
             $hits = [];
             foreach ($fleet as $sale) {
@@ -696,26 +704,24 @@ class CardSettlementMatcher
             $vendsHit = collect($hits)->pluck('candidate.vend_id')->unique();
             if ($vendsHit->count() === 1) {
                 $otherVendOf[$row->id] = $vendsHit->first();
-                $key = $row->terminal_id.'|'.$row->transaction_date->toDateString().'|'.$vendsHit->first();
-                $otherVotes[$key] = ($otherVotes[$key] ?? 0) + 1;
             }
         }
 
-        // The evidence has to outweigh the binding (Brian, 2026-09-24): a
-        // common price graze some machine inside six minutes all day long, so
-        // one "hit" elsewhere against 67 sales matched on the bound machine
-        // that same day is a coincidence, not a move — that line is an NA
-        // orphan. Only when the other machine fits at least as many of the
-        // terminal's lines that day as the bound machine matched is it
-        // flagged for a binding fix (2787/2696, 2026-09-05: 0 vs 1).
-        $boundMatches = $this->boundMatchesPerTerminalDay(collect($rows)->filter(fn ($r) => isset($otherVendOf[$r->id])));
+        // Change point, not a vote (Brian, 2026-09-25): a terminal that MOVED
+        // stops matching at home. A line is flagged "found on machine X" only
+        // when no line of this terminal matched a real sale on its bound
+        // machine AFTER it, over the day before and the day itself. A common
+        // price grazes some other machine inside six minutes all day long; a
+        // graze between two home sales (23104091 on 09-12: 67 matched at home
+        // around 2 grazes) is a coincidence, and that line is an NA orphan.
+        $lastHome = $this->lastHomeMatchPerTerminal(collect($rows)->filter(fn ($r) => isset($otherVendOf[$r->id])));
 
         foreach ($rows as $row) {
             $hits = $hitsByRow[$row->id];
             $otherVend = $otherVendOf[$row->id] ?? null;
-            $dayKey = $row->terminal_id.'|'.$row->transaction_date->toDateString();
-            $isMove = $otherVend !== null
-                && ($otherVotes[$dayKey.'|'.$otherVend] ?? 0) >= ($boundMatches[$dayKey] ?? 0);
+            $home = $lastHome[$row->terminal_id.'|'.$row->vend_id] ?? null;
+            $lineAt = Carbon::parse($row->transaction_date->toDateString().' '.$row->transaction_time);
+            $isMove = $otherVend !== null && ($home === null || $home->lt($lineAt));
             $vendsHit = collect($isMove ? [$otherVend] : []);
             if ($vendsHit->count() === 1) {
                 $code = $vendCodes->get($vendsHit->first()) ?? ('#'.$vendsHit->first());
@@ -743,32 +749,35 @@ class CardSettlementMatcher
     }
 
     /**
-     * Lines each terminal-day matched to a real sale (a TRADE, not an orphan)
-     * on the machine the terminal is bound to — the evidence FOR the binding.
+     * The latest moment each terminal was proven on its bound machine — a line
+     * matched to a real sale (a TRADE, not an NA orphan) there — from the day
+     * before the lines to the day after. Keyed "terminal|vend".
      *
      * @param  Collection<int, CardSettlementRow>  $rows
-     * @return array<string, int> "terminal|Y-m-d" → count
+     * @return array<string, Carbon>
      */
-    protected function boundMatchesPerTerminalDay(Collection $rows): array
+    protected function lastHomeMatchPerTerminal(Collection $rows): array
     {
         if ($rows->isEmpty()) {
             return [];
         }
+        $from = Carbon::parse($rows->min(fn ($r) => $r->transaction_date->toDateString()))->subDay()->toDateString();
+        $to = Carbon::parse($rows->max(fn ($r) => $r->transaction_date->toDateString()))->addDay()->toDateString();
 
         return CardSettlementRow::query()
             ->join('vend_transactions as vt', 'vt.id', '=', 'card_settlement_rows.matched_vend_transaction_id')
             ->whereIn('card_settlement_rows.terminal_id', $rows->pluck('terminal_id')->unique()->values())
-            ->whereIn('card_settlement_rows.transaction_date', $rows->map(fn ($r) => $r->transaction_date->toDateString())->unique()->values())
+            ->whereBetween('card_settlement_rows.transaction_date', [$from, $to])
             ->where('card_settlement_rows.status', CardSettlementRow::STATUS_MATCHED)
+            ->where('card_settlement_rows.time_is_partial', false)
             ->where('vt.is_found_in_transaction', true)
-            ->whereColumn('vt.vend_id', 'card_settlement_rows.vend_id')
-            ->groupBy('card_settlement_rows.terminal_id', 'card_settlement_rows.transaction_date')
+            ->groupBy('card_settlement_rows.terminal_id', 'vt.vend_id')
             ->get([
                 'card_settlement_rows.terminal_id',
-                'card_settlement_rows.transaction_date',
-                DB::raw('COUNT(*) AS n'),
+                'vt.vend_id',
+                DB::raw('MAX(TIMESTAMP(card_settlement_rows.transaction_date, card_settlement_rows.transaction_time)) AS last_at'),
             ])
-            ->mapWithKeys(fn ($r) => [$r->terminal_id.'|'.Carbon::parse($r->transaction_date)->toDateString() => (int) $r->n])
+            ->mapWithKeys(fn ($r) => [$r->terminal_id.'|'.$r->vend_id => Carbon::parse($r->last_at)])
             ->all();
     }
 

@@ -518,8 +518,9 @@ class SettingController extends Controller
                     ->get()
                     ->map(fn (CardTerminalBinding $row) => [
                         'terminal_id' => $row->terminal_id,
-                        'bound_from' => $row->bound_from?->format('Y-m-d'),
-                        'bound_until' => $row->bound_until?->format('Y-m-d'),
+                        // To the minute since 2026-09-25 (bindings are time-ranged).
+                        'bound_from' => $row->from_at?->format('Y-m-d H:i'),
+                        'bound_until' => $row->until_at?->format('Y-m-d H:i'),
                         'bound_at' => $row->created_at?->toIso8601String(),
                         'bound_by' => $row->boundByLabel(),
                     ]);
@@ -528,7 +529,7 @@ class SettingController extends Controller
                     'card_terminal_unit_id' => $binding
                         ? CardTerminalUnit::where('terminal_id', $binding->terminal_id)->value('id')
                         : null,
-                    'bound_from' => $binding?->bound_from?->format('Y-m-d'),
+                    'bound_from' => $binding?->from_at?->format('Y-m-d H:i'),
                     'bound_at' => $binding?->created_at?->toIso8601String(),
                     'bound_by' => $binding?->boundByLabel(),
                     'history' => $history,

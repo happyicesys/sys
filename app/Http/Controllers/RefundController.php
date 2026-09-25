@@ -1669,8 +1669,8 @@ class RefundController extends Controller
 
         $bindings = \App\Models\CardTerminalBinding::query()
             ->whereIn('vend_id', $cardSales->pluck('vend_id')->filter()->unique())
-            ->orderBy('id')
-            ->get(['vend_id', 'terminal_id', 'bound_from', 'bound_until'])
+            ->orderByDesc('from_at')
+            ->get(['vend_id', 'terminal_id', 'from_at', 'until_at'])
             ->groupBy('vend_id');
         $units = \App\Models\CardTerminalUnit::query()
             ->with('company:id,name')
@@ -1679,10 +1679,10 @@ class RefundController extends Controller
             ->keyBy('terminal_id');
 
         foreach ($cardSales as $txn) {
-            $day = $txn->transaction_datetime ? Carbon::parse($txn->transaction_datetime)->toDateString() : null;
-            $binding = $day === null ? null : ($bindings->get($txn->vend_id) ?? collect())
-                ->first(fn ($b) => ($b->bound_from === null || $b->bound_from->toDateString() <= $day)
-                    && ($b->bound_until === null || $b->bound_until->toDateString() >= $day));
+            // The terminal in force at the sale's own moment; latest from_at wins.
+            $at = $txn->transaction_datetime ? Carbon::parse($txn->transaction_datetime) : null;
+            $binding = $at === null ? null : ($bindings->get($txn->vend_id) ?? collect())
+                ->first(fn ($b) => $b->coversAt($at));
             $unit = $binding ? $units->get($binding->terminal_id) : null;
 
             $txn->card_terminal_unit_id = $unit?->terminal_id;

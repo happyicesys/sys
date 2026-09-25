@@ -16,6 +16,7 @@ use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\ParserRegistry;
 use App\Services\UserLogger;
 use App\Support\VendCode;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -339,18 +340,20 @@ class CardSettlementController extends Controller
 
         return $lines->groupBy('terminal_id')
             ->map(function ($group, $terminalId) use ($knownUnits) {
-                $suggested = $group
-                    ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code')->unique())
-                    ->countBy()
-                    ->sortDesc();
+                // Evidence over the day before and these days, every report
+                // (Brian, 2026-09-25): a terminal fitted at 21:00 has one line
+                // in each file, and neither file alone would reach two.
+                $evidence = $this->evidenceWindow((string) $terminalId, $group, 'No terminal binding');
+                [$code, $fitting, $clear] = $this->bestMachine($evidence);
+                $strong = $clear && $fitting->count() >= self::MIN_LINES_TO_MOVE_TERMINAL;
 
                 return [
                     'terminal_id' => (string) $terminalId,
                     'row_count' => $group->count(),
                     'unit_exists' => $knownUnits->has($terminalId),
-                    'suggested_vend_code' => $suggested->keys()->first(),
-                    'suggested_hits' => (int) ($suggested->first() ?? 0),
-                    'from_date' => $group->min('transaction_date')?->toDateString(),
+                    'suggested_vend_code' => $strong ? $code : null,
+                    'suggested_hits' => $strong ? $fitting->count() : 0,
+                    'from_date' => $strong ? $this->lineAt($fitting->first()) : $group->min('transaction_date')?->toDateString(),
                 ];
             })
             ->sortByDesc('row_count')
@@ -372,22 +375,16 @@ class CardSettlementController extends Controller
         return $lines
             ->groupBy('terminal_id')
             ->map(function ($lines, $terminalId) use ($vendCodes) {
-                $suggestedCode = $lines
-                    ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code'))
-                    ->countBy()
-                    ->sortDesc()
-                    ->keys()
-                    ->first();
-
-                // Date the evidence from the lines that fit the SUGGESTED
-                // machine; a line fitting some third machine must not drag the
-                // binding further back than this move can justify.
-                $fitting = $lines->filter(fn ($l) => collect($l->candidates_json ?? [])
-                    ->contains(fn ($c) => ($c['other_vend'] ?? false)
-                        && (string) ($c['vend_code'] ?? '') === (string) $suggestedCode));
-
-                $fromDate = ($fitting->isNotEmpty() ? $fitting : $lines)
-                    ->min(fn ($l) => $l->transaction_date->toDateString());
+                // A move is a change point (Brian, 2026-09-25): the matcher
+                // flags a line only when the terminal never matched at home
+                // after it, and here those flagged lines are gathered over the
+                // day before and these days, from every report. Two or more on
+                // ONE other machine, clearly ahead of any other, or no
+                // suggestion at all — the move then dates from the FIRST such
+                // line, to the second.
+                $evidence = $this->evidenceWindow((string) $terminalId, $lines, 'No matching sale on bound machine%');
+                [$suggestedCode, $fitting, $clear] = $this->bestMachine($evidence);
+                $fromDate = $fitting->isNotEmpty() ? $this->lineAt($fitting->first()) : null;
 
                 return [
                     'terminal_id' => (string) $terminalId,
@@ -396,19 +393,63 @@ class CardSettlementController extends Controller
                     'row_count' => $lines->count(),
                     'suggested_hits' => $fitting->count(),
                     'from_date' => $fromDate,
-                    // One line is a coincidence, not a move: live 2026-09-03 a
-                    // single \$1.60 whose sale sat 19 s BEFORE the terminal time
-                    // flipped TID 23102952 onto 2337 for a day and back. Two or
-                    // more fitting lines before the bulk button will act.
-                    'weak' => $fitting->count() < self::MIN_LINES_TO_MOVE_TERMINAL,
-                ] + $this->bindingMoveImpact((string) $terminalId, $suggestedCode, $fromDate);
+                    'weak' => ! $clear || $fitting->count() < self::MIN_LINES_TO_MOVE_TERMINAL,
+                ] + $this->bindingMoveImpact((string) $terminalId, $suggestedCode, $fromDate ? substr($fromDate, 0, 10) : null);
             })
-            // One fitting line is not a suggestion at all (Brian, 2026-09-25):
-            // the lines stay queries with their candidates, a human binds by
-            // hand if they know better.
+            // Below the bar it is not a suggestion at all (Brian, 2026-09-25):
+            // the lines stay queries with their candidates.
             ->reject(fn ($s) => $s['weak'])
             ->sortByDesc('row_count')
             ->values();
+    }
+
+    /**
+     * This terminal's lines carrying `$note` from the day before the given
+     * lines to their last day, across every report, oldest first.
+     */
+    private function evidenceWindow(string $terminalId, $lines, string $note)
+    {
+        $from = $lines->min(fn ($l) => $l->transaction_date->toDateString());
+        $to = $lines->max(fn ($l) => $l->transaction_date->toDateString());
+
+        return CardSettlementRow::query()
+            ->where('terminal_id', $terminalId)
+            ->whereBetween('transaction_date', [Carbon::parse($from)->subDay()->toDateString(), $to])
+            ->where('status', CardSettlementRow::STATUS_UNMATCHED)
+            ->where('resolution_note', 'like', $note)
+            ->where('time_is_partial', false)
+            ->whereNotNull('transaction_time')
+            ->get(['id', 'transaction_date', 'transaction_time', 'candidates_json'])
+            ->sortBy(fn ($l) => $this->lineAt($l))
+            ->values();
+    }
+
+    /**
+     * The machine most of the evidence fits, the lines that fit it (oldest
+     * first) and whether it is clearly ahead of the runner-up.
+     *
+     * @return array{0: ?string, 1: \Illuminate\Support\Collection, 2: bool}
+     */
+    private function bestMachine($evidence): array
+    {
+        $votes = $evidence
+            ->flatMap(fn ($l) => collect($l->candidates_json ?? [])->where('other_vend', true)->pluck('vend_code')->unique())
+            ->countBy()
+            ->sortDesc();
+        $code = $votes->keys()->first();
+        if ($code === null) {
+            return [null, collect(), false];
+        }
+        $fitting = $evidence->filter(fn ($l) => collect($l->candidates_json ?? [])
+            ->contains(fn ($c) => ($c['other_vend'] ?? false) && (string) ($c['vend_code'] ?? '') === (string) $code))->values();
+        $runnerUp = (int) ($votes->values()[1] ?? 0);
+
+        return [(string) $code, $fitting, $votes->first() > $runnerUp];
+    }
+
+    private function lineAt($line): string
+    {
+        return $line->transaction_date->toDateString().' '.Carbon::parse($line->transaction_time)->format('H:i:s');
     }
 
     /**

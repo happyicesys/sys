@@ -100,8 +100,12 @@ class VendTransactionTerminalSnapshotTest extends TestCase
             '2026-09-12'
         );
 
-        $after = $this->trade('T5');
-        $this->assertSame(self::TID_B, $after->terminal_id, 'newest binding wins on the swap day');
+        // To the second since 2026-09-25: the swap is recorded at 14:00:00
+        // ("today" = the save moment), so a sale ten seconds earlier went
+        // through A and one five minutes later through B.
+        $this->assertSame(self::TID_A, $this->trade('T5a')->terminal_id, 'sold at 13:59:50, before the swap');
+        $after = $this->trade('T5', ['TIME' => '2026-09-12 14:05:00']);
+        $this->assertSame(self::TID_B, $after->terminal_id, 'sold after the swap');
         $this->assertSame(self::TID_A, $before->fresh()->terminal_id, 'the earlier sale keeps the terminal it went through');
         $this->assertSame(self::TID_A, $before->fresh()->cardTerminalUnit->terminal_id);
     }

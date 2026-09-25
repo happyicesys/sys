@@ -462,25 +462,43 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   CRUD on the TID + company only; its Machine ID column is read-only display.
   Adding a machine field there would let ops write bindings with no dated
   history, which is what breaks settlement.
+- **Bindings are time ranges to the second** (2026-09-25): `from_at` /
+  `until_at` DATETIME, `[from_at, until_at)`, NULL = open. A technician swaps a
+  terminal at 14:30, not at midnight — the matcher resolves each NETS line by
+  ITS time (`CardTerminalBinding::coversAt`), the sale snapshot by the sale's
+  moment (`terminalIdAt`), so morning lines go to the old machine. `bound_from`
+  / `bound_until` are DERIVED dates kept by the model's `saving` hook for the
+  day-level screens and SQL; write the `_at` columns (a raw `DB::table` insert
+  skips the hook — the app has none; tests that do must set both). Where legacy
+  day-precision rows overlap on a swap day, the latest `from_at` wins.
+  `source`: `manual` (a person on Setting/Edit), `report` (NETS evidence),
+  `import` (the seed CSV).
 - **Two writers, both through `App\Services\CardSettlement\CardTerminalBindingService`.**
   `VendController::update` (`assignToVend`) only acts when the request carries
-  `card_terminal_unit_id`, so the APK/API callers of `update()` never close a
-  live binding. `CardSettlementController::fixBindings` (`moveToVend`) is the
-  Card Settlement page's "Move N terminals & rematch" button: it repairs every
-  terminal the report shows selling on another machine, dating each new binding
-  from the earliest line that PROVES the terminal was there, and rematches.
-  It refuses rather than guesses — no `card_terminal_units` row, a machine code
-  that is not unique, a terminal with two open bindings, or a back-date another
-  binding already covers is skipped with its reason in the flash message.
-  `moveToVend` may pull an existing binding's `bound_from` EARLIER (only into a
-  window nothing else claims), which `assignToVend` will never do; that is what
-  makes a month of reports uploaded out of order converge.
+  `card_terminal_unit_id`; Bound From is a date-time input, blank = the save
+  moment, a bare date = that day 00:00 (today = now). **It is never pre-filled**:
+  pre-filling it with the CURRENT terminal's start back-dated 13 of 18 human
+  bindings by 44–470 days (fixed 2026-09-25; the server also treats that exact
+  stale date from an old tab as "now"; repair: `card-settlement:repair-backdated-bindings`).
+  `CardSettlementController::fixBindings` / `bindUnbound` (`moveToVend`) write
+  NETS evidence as a SEGMENT from the first proving line: it runs to the next
+  recorded thing (a later binding of the terminal or the machine) and **never
+  past the moment a person recorded a change** (`created_at` of a `manual`
+  row) — a person's back-dated claim yields to evidence only before that
+  moment. Evidence that contradicts a change a person recorded BEFORE it is
+  refused with "check which is right"; another terminal's FINISHED stay on the
+  machine is refused too (two owners); an OPEN binding there is displaced.
+- **Move suggestions are change points** (2026-09-25). The matcher flags a line
+  "found on machine X" only when the terminal matched no real sale on its bound
+  machine AFTER it (day before → day after); a graze between home sales is an
+  NA orphan. The report page suggests a move only with ≥ 2 such lines on ONE
+  machine, clearly ahead of any other, gathered over the day before and the
+  report's days from EVERY report; the move starts at the first such line, to
+  the second. Unbound TIDs follow the same ≥ 2, day-before rule.
 - **A terminal that moves is never edited in place.** The old row is CLOSED
-  (`bound_until`) and a new one opened on the same date, because
-  `CardSettlementMatcher` resolves a report line by (provider, terminal_id)
-  **effective on that line's transaction date** — rewriting the row would
-  re-point last month's report at this month's machine. One open-ended binding
-  per terminal, always; two make matching pick a machine arbitrarily.
+  (`until_at`) and a new one opened at the same instant — rewriting the row
+  would re-point last month's report at this month's machine. One open-ended
+  binding per terminal, always; two make matching pick a machine arbitrarily.
 - **`cashless_mfg` is NOT the supplier.** The board reports `"Nets"` for every
   NETS-family reader, Auresys included, so a Nets-Auresys terminal (28 units,
   21 machines) read as plain "Nets" on Sales Transactions and Refund Request
@@ -500,8 +518,8 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   no report on purpose: better unreconciled than mis-assigned to NETS.
 - **`vend_transactions.terminal_id` is a frozen snapshot, not a lookup**
   (2026-09-12, Brian). Every card-terminal sale records the TID bound to its
-  machine ON ITS OWN DAY at write time (`CardTerminalBinding::terminalIdOn`,
-  newest binding wins on a swap day — the matcher's tie-break); a NETS-report
+  machine AT THE SALE'S MOMENT at write time (`CardTerminalBinding::terminalIdAt`,
+  latest `from_at` wins where rows overlap — the matcher's tie-break); a NETS-report
   orphan takes the TID straight off the report line. A later rebind never
   rewrites it, so it is the sibling of `cashless_mfg`. Null on cash and QR
   sales, on a card sale with no binding that day, and on every row written
@@ -511,7 +529,7 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   history per page: that view FOLLOWS a binding repair ("Move N terminals &
   rematch"), the column does not — they disagree exactly when a binding was
   wrong at the moment of sale. Regression coverage:
-  `tests/Feature/VendTransactionTerminalSnapshotTest.php`.
+  `tests/Feature/VendTransactionTerminalSnapshotTest.php`, `tests/Feature/CardTerminalBindingTimeTest.php`.
 - **A Nets-Auresys unit has TWO ids.** `card_terminal_units.terminal_id` is the
   NETS TID — the only one settlement matching, the bindings and the
   MerchantConnect report ever resolve on. `auresys_terminal_id` (2026-09-12) is

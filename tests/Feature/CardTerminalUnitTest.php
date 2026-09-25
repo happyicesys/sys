@@ -660,6 +660,26 @@ class CardTerminalUnitTest extends TestCase
         $this->assertSame(now()->toDateString(), $oldRow->bound_until->toDateString(), 'the old terminal keeps its history');
     }
 
+    public function test_a_terminal_fitted_at_a_given_time_binds_from_that_minute(): void
+    {
+        $vend = $this->makeVend(7011);
+        $old = CardTerminalUnit::create(['terminal_id' => '23000001', 'card_terminal_id' => $this->nets->id]);
+        $new = CardTerminalUnit::create(['terminal_id' => '23000002', 'card_terminal_id' => $this->nets->id]);
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => $old->terminal_id, 'vend_id' => $vend->id, 'bound_from' => '2026-08-01']);
+
+        $this->actingAs($this->staff(['read machine-settings', 'update machine-settings']))
+            ->post('/vends/'.$vend->id.'/update', $this->savePayload($vend, [
+                'card_terminal_unit_id' => $new->id,
+                'card_terminal_bound_from' => '2026-09-20T14:30', // <input type="datetime-local">
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('2026-09-20 14:30:00', CardTerminalBinding::where('terminal_id', '23000002')->first()->from_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-09-20 14:30:00', CardTerminalBinding::where('terminal_id', '23000001')->first()->until_at->format('Y-m-d H:i:s'));
+        $this->assertSame('23000001', CardTerminalBinding::terminalIdAt($vend->id, \Carbon\Carbon::parse('2026-09-20 14:29:59')));
+        $this->assertSame('23000002', CardTerminalBinding::terminalIdAt($vend->id, \Carbon\Carbon::parse('2026-09-20 14:30:00')));
+    }
+
     public function test_a_nets_auresys_terminal_still_binds_under_the_nets_provider(): void
     {
         $vend = $this->makeVend(7005);
@@ -733,10 +753,14 @@ class CardTerminalUnitTest extends TestCase
 
         $closed = CardTerminalBinding::where('terminal_id', '11111111')->firstOrFail();
         $this->assertSame('2026-01-01', $closed->bound_from->toDateString(), 'history is never rewritten');
-        $this->assertSame('2026-09-01', $closed->bound_until->toDateString());
+        // To the instant since 2026-09-25: a swap dated 09-01 ends the old
+        // terminal at 09-01 00:00, so its last whole day is 08-31.
+        $this->assertSame('2026-09-01 00:00:00', $closed->until_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-08-31', $closed->bound_until->toDateString());
 
         $opened = CardTerminalBinding::where('terminal_id', '22222222')->firstOrFail();
         $this->assertSame('2026-09-01', $opened->bound_from->toDateString());
+        $this->assertSame(CardTerminalBinding::SOURCE_MANUAL, $opened->source);
         $this->assertNull($opened->bound_until);
 
         // The old terminal still resolves to this machine for a date inside its
@@ -881,7 +905,7 @@ class CardTerminalUnitTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Setting/Edit')
                 ->where('cardTerminalBinding.card_terminal_unit_id', $unit->id)
-                ->where('cardTerminalBinding.bound_from', '2026-08-01')
+                ->where('cardTerminalBinding.bound_from', '2026-08-01 00:00')
             );
     }
 

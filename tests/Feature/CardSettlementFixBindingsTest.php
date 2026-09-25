@@ -241,7 +241,7 @@ class CardSettlementFixBindingsTest extends TestCase
 
         // Now an OLDER report proves it was there earlier, into a window the
         // closed binding does not claim.
-        CardTerminalBinding::where('vend_id', $wrong->id)->update(['bound_until' => '2026-08-01']);
+        CardTerminalBinding::where('vend_id', $wrong->id)->update(['bound_until' => '2026-08-01', 'until_at' => '2026-08-02 00:00:00']);
         $older = $this->report();
         $this->suspectRow($older, $wrong, 2518, '2026-08-10');
         $this->suspectRow($older, $wrong, 2518, '2026-08-11');
@@ -279,8 +279,8 @@ class CardSettlementFixBindingsTest extends TestCase
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings')
             ->assertSessionHas('message', fn ($m) => str_contains($m, 'Moved 1 of 1')
-                && str_contains($m, 'back-dated on 2787 to 2026-09-07')
-                && str_contains($m, 'closed its stay on 2003 at 2026-09-07'));
+                && str_contains($m, 'back-dated on 2787 to 2026-09-07 22:30')
+                && str_contains($m, 'on 2003 at 2026-09-07 22:30'));
 
         $this->assertSame('2026-09-07', $current->fresh()->bound_from->toDateString());
         $this->assertSame('2026-09-07', $previous->fresh()->bound_until->toDateString());
@@ -323,7 +323,13 @@ class CardSettlementFixBindingsTest extends TestCase
         Queue::assertNotPushed(MatchCardSettlementReport::class);
     }
 
-    public function test_it_refuses_to_back_date_past_the_start_of_the_previous_binding(): void
+    /**
+     * Since 2026-09-25 the evidence becomes a bounded segment instead of a
+     * refusal: the report proves the terminal on the right machine from 08-10,
+     * its recorded stay on the wrong one began 08-15 — so right 08-10 → 08-15,
+     * wrong 08-15 → 08-20, right from 08-20. Nothing recorded is rewritten.
+     */
+    public function test_evidence_before_the_previous_binding_becomes_a_bounded_segment(): void
     {
         $wrong = $this->makeVend(2443);
         $right = $this->makeVend(2518);
@@ -345,11 +351,15 @@ class CardSettlementFixBindingsTest extends TestCase
 
         $this->actingAs($this->staff())
             ->post('/card-settlements/'.$report->id.'/fix-bindings')
-            ->assertSessionHas('message', fn ($m) => str_contains($m, 'an earlier binding covers 2026-08-10'));
+            ->assertSessionHas('message', fn ($m) => str_contains($m, 'from 2026-08-10 22:30 until 2026-08-15 00:00'));
 
         $this->assertSame('2026-08-20', $current->fresh()->bound_from->toDateString());
         $this->assertSame('2026-08-15', $previous->fresh()->bound_from->toDateString());
-        Queue::assertNotPushed(MatchCardSettlementReport::class);
+        $segment = CardTerminalBinding::where('terminal_id', self::TID)->where('vend_id', $right->id)->where('id', '!=', $current->id)->firstOrFail();
+        $this->assertSame('2026-08-10 22:30:58', $segment->from_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-08-15 00:00:00', $segment->until_at->format('Y-m-d H:i:s'));
+        $this->assertSame(CardTerminalBinding::SOURCE_REPORT, $segment->source);
+        $this->assertSame(1, CardTerminalBinding::where('terminal_id', self::TID)->whereNull('until_at')->count());
     }
 
     public function test_a_terminal_with_no_card_terminal_record_is_skipped_with_its_reason(): void
@@ -561,6 +571,34 @@ class CardSettlementFixBindingsTest extends TestCase
         $this->assertNull($untouched->fresh()->bound_until);
         $this->assertSame($otherWrong->id, $untouched->fresh()->vend_id);
         $this->assertSame(0, CardTerminalBinding::where('vend_id', $otherRight->id)->count());
+    }
+
+    /**
+     * A terminal moved at 21:00 has one line in the D-1 file and one in the D
+     * file — neither report reaches two alone. The evidence is gathered over
+     * the day before too, and the move dates from the FIRST line, to the second.
+     */
+    public function test_evidence_from_the_day_before_counts_and_the_move_starts_at_the_first_line(): void
+    {
+        $wrong = $this->makeVend(2443);
+        $this->makeVend(2518);
+        $this->unit();
+        CardTerminalBinding::create(['provider' => 'nets', 'terminal_id' => self::TID, 'vend_id' => $wrong->id, 'bound_from' => '2025-09-26']);
+
+        $yesterday = $this->report();
+        $this->suspectRow($yesterday, $wrong, 2518, '2026-08-14');
+        $today = $this->report();
+        $this->suspectRow($today, $wrong, 2518, '2026-08-15');
+
+        $this->actingAs($this->staff())
+            ->get('/card-settlements/'.$yesterday->id)
+            ->assertInertia(fn ($page) => $page->has('suspectBindings', 0)); // one line on its own day, nothing before it
+        $this->actingAs($this->staff())
+            ->get('/card-settlements/'.$today->id)
+            ->assertInertia(fn ($page) => $page
+                ->where('suspectBindings.0.suggested_vend_code', '2518')
+                ->where('suspectBindings.0.suggested_hits', 2)
+                ->where('suspectBindings.0.from_date', '2026-08-14 22:30:58'));
     }
 
     /**

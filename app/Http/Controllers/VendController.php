@@ -1332,22 +1332,22 @@ class VendController extends Controller
                 // badge on the customer index page.
                 'vends.card_terminal_id',
                 'card_terminals.name AS card_terminal_name',
-                // The acquirer TID fitted TODAY and whether it makes a failed
+                // The acquirer TID fitted NOW and whether it makes a failed
                 // vend good by itself (card_terminal_units.is_will_auto_refund).
                 // Correlated subqueries, NOT joins: this SELECT already spans a
                 // dozen tables and the page is join-sensitive (see the SimCard
                 // note below and CLAUDE.md). Two PK-ish lookups per RETURNED row.
                 DB::raw('(SELECT b.terminal_id FROM card_terminal_bindings b
                     WHERE b.vend_id = vends.id
-                      AND (b.bound_from IS NULL OR b.bound_from <= CURDATE())
-                      AND (b.bound_until IS NULL OR b.bound_until >= CURDATE())
-                    ORDER BY b.id LIMIT 1) AS card_terminal_unit_id'),
+                      AND (b.from_at IS NULL OR b.from_at <= NOW())
+                      AND (b.until_at IS NULL OR b.until_at > NOW())
+                    ORDER BY b.from_at DESC, b.id DESC LIMIT 1) AS card_terminal_unit_id'),
                 DB::raw('(SELECT u.is_will_auto_refund FROM card_terminal_bindings b
                     JOIN card_terminal_units u ON u.terminal_id = b.terminal_id
                     WHERE b.vend_id = vends.id
-                      AND (b.bound_from IS NULL OR b.bound_from <= CURDATE())
-                      AND (b.bound_until IS NULL OR b.bound_until >= CURDATE())
-                    ORDER BY b.id LIMIT 1) AS card_terminal_will_auto_refund'),
+                      AND (b.from_at IS NULL OR b.from_at <= NOW())
+                      AND (b.until_at IS NULL OR b.until_at > NOW())
+                    ORDER BY b.from_at DESC, b.id DESC LIMIT 1) AS card_terminal_will_auto_refund'),
                 // SimCard package — drives the "SimCard Package" badge in the
                 // Machine Status column.
                 //
@@ -4079,8 +4079,8 @@ class VendController extends Controller
         if ($cardRecords->isNotEmpty()) {
             $bindings = CardTerminalBinding::query()
                 ->whereIn('vend_id', $cardRecords->pluck('vend_id')->filter()->unique())
-                ->orderBy('id')
-                ->get(['vend_id', 'terminal_id', 'bound_from', 'bound_until']);
+                ->orderByDesc('from_at')
+                ->get(['vend_id', 'terminal_id', 'from_at', 'until_at']);
             $units = CardTerminalUnit::query()
                 ->with('company:id,name')
                 ->whereIn('terminal_id', $bindings->pluck('terminal_id')->unique())
@@ -4089,10 +4089,11 @@ class VendController extends Controller
             $bindingsByVend = $bindings->groupBy('vend_id');
 
             foreach ($cardRecords as $record) {
-                $day = $record->transaction_datetime ? Carbon::parse($record->transaction_datetime)->toDateString() : null;
-                $binding = $day === null ? null : ($bindingsByVend->get($record->vend_id) ?? collect())
-                    ->first(fn ($b) => ($b->bound_from === null || $b->bound_from->toDateString() <= $day)
-                        && ($b->bound_until === null || $b->bound_until->toDateString() >= $day));
+                // The terminal in force at the sale's own moment (a 14:30 swap
+                // splits the day); latest from_at wins where rows overlap.
+                $at = $record->transaction_datetime ? Carbon::parse($record->transaction_datetime) : null;
+                $binding = $at === null ? null : ($bindingsByVend->get($record->vend_id) ?? collect())
+                    ->first(fn ($b) => $b->coversAt($at));
                 $unit = $binding ? $units->get($binding->terminal_id) : null;
 
                 $record->card_terminal_unit_id = $unit?->terminal_id;
@@ -5892,7 +5893,7 @@ class VendController extends Controller
         // new terminal over the old one's history.
         $boundFrom = $request->input('card_terminal_bound_from');
         $current = $service->currentBindingFor($vend);
-        if ($boundFrom && $current && $unit && $current->terminal_id !== $unit->terminal_id
+        if ($boundFrom && strlen(trim($boundFrom)) <= 10 && $current && $unit && $current->terminal_id !== $unit->terminal_id
             && $current->bound_from && $current->bound_from->toDateString() === \Carbon\Carbon::parse($boundFrom)->toDateString()) {
             $boundFrom = null;
         }

@@ -49,13 +49,13 @@ class SyncBackDateVendTransaction implements ShouldQueue
             $cashlessMfg = $rawMfg !== '' ? $rawMfg : null;
         }
 
-        // The TID bound to this machine on the BACKDATED day, not today —
+        // The TID bound to this machine at the BACKDATED moment, not now —
         // same freeze as the live TRADE path (VendTransactionService).
         $terminalId = null;
         if ((int) ($input['paymentMethodID'] ?? 0) === 2) {
-            $terminalId = CardTerminalBinding::terminalIdOn(
+            $terminalId = CardTerminalBinding::terminalIdAt(
                 (int) $this->vend->id,
-                \Carbon\Carbon::parse($input['date'])->toDateString()
+                \Carbon\Carbon::parse($input['date'])
             );
         }
 

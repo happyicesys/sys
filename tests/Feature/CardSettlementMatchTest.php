@@ -159,7 +159,7 @@ class CardSettlementMatchTest extends TestCase
 
     public function test_binding_effective_dates_are_respected()
     {
-        CardTerminalBinding::query()->update(['bound_from' => '2026-08-30']); // starts after the row's date
+        CardTerminalBinding::query()->update(['bound_from' => '2026-08-30', 'from_at' => '2026-08-30 00:00:00']); // starts after the row's date
         $this->txn('2026-08-29 22:31:07', 240);
         $report = $this->report();
         $row = $this->row($report);
@@ -368,7 +368,7 @@ class CardSettlementMatchTest extends TestCase
      */
     public function test_a_move_on_the_changeover_day_resolves_to_the_new_machine()
     {
-        CardTerminalBinding::where('terminal_id', '23082824')->update(['bound_until' => '2026-08-29']);
+        CardTerminalBinding::where('terminal_id', '23082824')->update(['bound_until' => '2026-08-29', 'until_at' => '2026-08-30 00:00:00']);
         CardTerminalBinding::create([
             'provider' => 'nets',
             'terminal_id' => '23082824',

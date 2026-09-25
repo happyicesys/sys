@@ -24,39 +24,43 @@ use Illuminate\Validation\ValidationException;
  *  - A terminal may hold at most ONE open-ended binding. Two would make the
  *    matcher pick a machine arbitrarily — the same invariant the old page
  *    enforced as a validation error.
- *  - Close and open share the same date. effectiveOn() is inclusive at both
- *    ends, so a same-day swap leaves no gap; the two rows carry different
- *    terminal_ids, so nothing is ambiguous for a given report line.
+ *  - Close and open share the same INSTANT (2026-09-25: bindings are
+ *    [from_at, until_at) to the second), so a 14:30 swap splits the day
+ *    exactly — morning lines resolve to the old terminal, afternoon to the new.
+ *  - A person's change (source manual) is authoritative from the moment they
+ *    recorded it (created_at). NETS evidence (moveToVend) may fill history
+ *    BEFORE that moment, never after it, and refuses — for a human to decide —
+ *    when it contradicts a change recorded before the evidence.
  */
 class CardTerminalBindingService
 {
     /**
      * Make `$unit` the machine's current terminal (or clear it when null).
      *
-     * @param  string|null  $boundFrom  Y-m-d; blank/null = today.
+     * @param  string|null  $boundFrom  blank = now (the save moment); a date =
+     *                                  that day 00:00 (today = now); a date+time
+     *                                  = that instant.
      * @param  int|null  $createdBy  the person fitting it on Setting/Edit; null
-     *                               for every unattended path (the settlement
-     *                               page's auto-match, the importer), which the
-     *                               screens show as "sys".
+     *                               for every unattended path, shown as "sys".
      * @return bool whether anything changed
      */
     public function assignToVend(Vend $vend, ?CardTerminalUnit $unit, ?string $boundFrom = null, ?int $createdBy = null): bool
     {
-        $date = $this->resolveDate($boundFrom);
+        $at = $this->resolveAt($boundFrom);
 
         $currentOnVend = $this->openBindingsForVend($vend)->get();
 
-        // Already the machine's open terminal — leave the row (and its
-        // bound_from) alone rather than rewriting settled history.
+        // Already the machine's open terminal — leave the row alone rather
+        // than rewriting settled history.
         if ($unit && $currentOnVend->count() === 1 && $currentOnVend->first()->terminal_id === $unit->terminal_id) {
             return false;
         }
 
-        $this->guardBackdating($currentOnVend, $date);
+        $this->guardBackdating($currentOnVend, $at);
 
-        return DB::transaction(function () use ($vend, $unit, $date, $currentOnVend, $createdBy) {
+        return DB::transaction(function () use ($vend, $unit, $at, $currentOnVend, $createdBy) {
             foreach ($currentOnVend as $binding) {
-                $binding->update(['bound_until' => $date]);
+                $binding->update(['until_at' => $at]);
             }
 
             if (! $unit) {
@@ -68,17 +72,18 @@ class CardTerminalBindingService
             // second open binding for this TID.
             CardTerminalBinding::query()
                 ->where('terminal_id', $unit->terminal_id)
-                ->whereNull('bound_until')
+                ->whereNull('until_at')
                 ->where('vend_id', '!=', $vend->id)
                 ->get()
-                ->each(fn (CardTerminalBinding $b) => $b->update(['bound_until' => $date]));
+                ->each(fn (CardTerminalBinding $b) => $b->update(['until_at' => $at]));
 
             CardTerminalBinding::create([
                 'provider' => $unit->settlementProvider(),
                 'terminal_id' => $unit->terminal_id,
                 'vend_id' => $vend->id,
-                'bound_from' => $date,
-                'bound_until' => null,
+                'from_at' => $at,
+                'until_at' => null,
+                'source' => $createdBy ? CardTerminalBinding::SOURCE_MANUAL : CardTerminalBinding::SOURCE_REPORT,
                 'remarks' => null,
                 'created_by' => $createdBy,
             ]);
@@ -88,136 +93,117 @@ class CardTerminalBindingService
     }
 
     /**
-     * Put `$unit` on `$vend` effective `$date` for the Card Settlement page's
-     * one-click binding repair, where `$date` is the earliest report line that
-     * already proves the terminal was sitting on that machine.
+     * NETS evidence says `$unit` was on `$vend` from `$from` (the first report
+     * line that fits a sale there): record that as a segment of history — the
+     * Card Settlement page's binding repair buttons.
      *
-     * Separate from assignToVend() because the two have opposite defaults.
-     * That one serves a human editing ONE machine and treats "already the open
-     * terminal" as a silent no-op; this one runs unattended across a whole
-     * report and must instead (a) say WHY it left a terminal alone, so the
-     * summary can show it, and (b) pull an existing binding's bound_from
-     * EARLIER when a back-dated report proves the terminal was already there —
-     * reports uploaded newest-first would otherwise never match their opening
-     * days, and assignToVend() would report "nothing changed".
+     * The segment runs from `$from` to the first thing already recorded after
+     * it — a later binding of this terminal or of this machine, or the moment a
+     * PERSON recorded a change (Brian, 2026-09-25: a technician who fits a new
+     * terminal at 11:43 must not be overwritten by yesterday's report). What
+     * covered `$from` is closed there; a person's back-dated claim yields to
+     * the evidence only for the part before they recorded it. When the
+     * evidence contradicts a change a person recorded BEFORE `$from`, nothing
+     * is moved — the note says so and a human decides.
      *
-     * @param  string  $date  Y-m-d the terminal is proven to have been on $vend.
+     * @param  string  $from  Y-m-d (that day 00:00) or a date-time.
      * @return array{moved: bool, note: string}
      */
-    public function moveToVend(CardTerminalUnit $unit, Vend $vend, string $date): array
+    public function moveToVend(CardTerminalUnit $unit, Vend $vend, string $from): array
     {
-        $date = $this->resolveDate($date);
+        try {
+            $at = strlen(trim($from)) <= 10 ? Carbon::parse($from)->startOfDay() : Carbon::parse($from);
+        } catch (\Throwable) {
+            return ['moved' => false, 'note' => 'not a valid date'];
+        }
+        $tid = $unit->terminal_id;
+        $isThis = fn (CardTerminalBinding $b) => $b->terminal_id === $tid && (int) $b->vend_id === (int) $vend->id;
 
-        $open = CardTerminalBinding::query()
-            ->where('terminal_id', $unit->terminal_id)
-            ->whereNull('bound_until')
-            ->orderBy('id')
-            ->get();
-
-        // Two open bindings for one TID is the invariant this service exists to
-        // prevent; if history already broke it, a human picks which one dies.
+        $open = CardTerminalBinding::query()->where('terminal_id', $tid)->whereNull('until_at')->get();
         if ($open->count() > 1) {
             return ['moved' => false, 'note' => 'has '.$open->count().' open bindings — fix by hand'];
         }
 
-        $current = $open->first();
-
-        if ($current && (int) $current->vend_id === (int) $vend->id) {
-            if ($current->bound_from === null || $current->bound_from->toDateString() <= $date) {
-                return ['moved' => false, 'note' => 'already on '.$vend->codeLabel()];
-            }
-
-            return $this->widenBackTo($current, $unit, $vend, $date);
-        }
-
-        // Whatever else is open on the target machine gets closed by
-        // assignToVend() — name it, so the summary can show what was displaced.
-        $displaced = $this->openBindingsForVend($vend)->get()
-            ->reject(fn (CardTerminalBinding $b) => $b->terminal_id === $unit->terminal_id)
-            ->pluck('terminal_id');
-
-        try {
-            $changed = $this->assignToVend($vend, $unit, $date);
-        } catch (ValidationException $e) {
-            return ['moved' => false, 'note' => collect($e->errors())->flatten()->first() ?? 'refused'];
-        }
-
-        if (! $changed) {
-            return ['moved' => false, 'note' => 'nothing to change'];
-        }
-
-        return [
-            'moved' => true,
-            'note' => $displaced->isEmpty()
-                ? 'from '.$date
-                : 'from '.$date.', closed '.$displaced->implode(', ').' on '.$vend->codeLabel(),
-        ];
-    }
-
-    /**
-     * The terminal is already on the right machine, but the binding starts
-     * AFTER a report line that proves it was there earlier. Pull bound_from
-     * back to that date.
-     *
-     * The terminal's own previous binding (the one a move closed on the day
-     * this one opened) normally still covers the gap — that is the binding
-     * the report just proved wrong for those days, so it is shortened to end
-     * on $date, exactly as a fresh move would have closed it. Live 2026-09-12:
-     * TID 23082812 moved 2003 → 2787 from 09-09 by the 09-09 report, then the
-     * 09-08 report proved it was on 2787 from 09-07 and the button refused
-     * forever because 2003's row "already covered" 09-07.
-     *
-     * Widening is refused when it would hand a date two answers the matcher
-     * cannot order: another terminal on the target machine in the gap, or a
-     * previous binding of this terminal that only STARTED inside the gap
-     * (shortening it would invert the range).
-     *
-     * @return array{moved: bool, note: string}
-     */
-    private function widenBackTo(CardTerminalBinding $current, CardTerminalUnit $unit, Vend $vend, string $date): array
-    {
-        $from = $current->bound_from->toDateString();
-        $gapEnd = Carbon::parse($from)->subDay()->toDateString();
-
-        $claims = CardTerminalBinding::query()
-            ->where('id', '!=', $current->id)
-            ->where(fn ($q) => $q->where('terminal_id', $unit->terminal_id)->orWhere('vend_id', $vend->id))
-            ->where(fn ($q) => $q->whereNull('bound_from')->orWhere('bound_from', '<=', $gapEnd))
-            ->where(fn ($q) => $q->whereNull('bound_until')->orWhere('bound_until', '>=', $date))
+        $rows = CardTerminalBinding::query()
+            ->with('creator:id,name')
+            ->where(fn ($q) => $q->where('terminal_id', $tid)->orWhere('vend_id', $vend->id))
             ->orderBy('id')
             ->get();
+        $covering = $rows->filter(fn (CardTerminalBinding $b) => $b->coversAt($at));
 
-        $refusal = ['moved' => false, 'note' => 'on '.$vend->codeLabel().' only from '.$from.', and an earlier binding covers '.$date];
-
-        // A different terminal on the target machine during the gap — a real
-        // conflict, not a stale row of this terminal's own history.
-        if ($claims->contains(fn (CardTerminalBinding $b) => $b->terminal_id !== $unit->terminal_id)) {
-            return $refusal;
+        if ($covering->contains($isThis)) {
+            return ['moved' => false, 'note' => 'already on '.$vend->codeLabel()];
         }
 
-        // This terminal's own history over the gap: only the single binding
-        // that ran up to $from can be shortened; anything else is ambiguous.
-        $previous = $claims->filter(fn (CardTerminalBinding $b) => $b->terminal_id === $unit->terminal_id);
-        if ($previous->count() > 1) {
-            return $refusal;
+        foreach ($covering as $b) {
+            // Another terminal's FINISHED stay on this machine covers $from:
+            // the period would have two owners — a human decides. (An OPEN
+            // binding there is simply displaced, as any move displaces it.)
+            if ($b->terminal_id !== $tid && (int) $b->vend_id === (int) $vend->id && $b->until_at !== null && ! $b->isManual()) {
+                return ['moved' => false, 'note' => 'on '.$vend->codeLabel().' from '.$at->format('Y-m-d H:i')
+                    .' by the report, but '.$b->terminal_id.' held it then — an earlier binding covers '.$at->toDateString()];
+            }
+            if ($b->isManual() && $b->created_at && $b->created_at->lte($at)) {
+                $code = Vend::withoutGlobalScopes()->whereKey($b->vend_id)->value('code');
+
+                return ['moved' => false, 'note' => 'NETS shows it on '.$vend->codeLabel().' at '.$at->format('Y-m-d H:i')
+                    .', but '.$b->boundByLabel().' recorded '.$b->terminal_id.' on '.($code ?? '#'.$b->vend_id)
+                    .' at '.$b->created_at->format('Y-m-d H:i').' — check which is right'];
+            }
         }
 
-        $previous = $previous->first();
-        if ($previous && $previous->bound_from && $previous->bound_from->toDateString() >= $date) {
-            return $refusal;
+        // Where the segment stops: the next recorded thing after $from.
+        $end = null;
+        foreach ($rows as $b) {
+            $candidates = [];
+            if ($b->from_at && $b->from_at->gt($at)) {
+                $candidates[] = $b->from_at;
+            }
+            if ($b->isManual() && $b->created_at && $b->created_at->gt($at) && $b->coversAt($at)) {
+                $candidates[] = $b->created_at; // a person's back-dated claim: theirs from when they said it
+            }
+            foreach ($candidates as $c) {
+                $end = $end === null || $c->lt($end) ? $c->copy() : $end;
+            }
         }
 
-        DB::transaction(function () use ($current, $previous, $date) {
-            $previous?->update(['bound_until' => $date]);
-            $current->update(['bound_from' => $date]);
+        $closed = [];
+        $merged = false;
+        DB::transaction(function () use ($covering, $rows, $at, $end, $isThis, $unit, $vend, &$closed, &$merged) {
+            foreach ($covering as $b) {
+                if ($b->isManual() && ($b->until_at === null || $b->until_at->gt($b->created_at))) {
+                    // A back-dated manual row (recorded after $at): theirs from
+                    // the moment they recorded it; the evidence takes the rest.
+                    $b->update(['from_at' => $b->created_at]);
+                } elseif ($b->from_at && $b->from_at->equalTo($at)) {
+                    $b->delete();
+                } else {
+                    $b->update(['until_at' => $at]);
+                }
+                $closed[] = $b->terminal_id.' on '.(Vend::withoutGlobalScopes()->whereKey($b->vend_id)->value('code') ?? '#'.$b->vend_id);
+            }
+
+            $next = $end ? $rows->first(fn ($b) => $isThis($b) && $b->from_at && $b->from_at->equalTo($end)) : null;
+            if ($next) {
+                $next->update(['from_at' => $at]); // the terminal's own later stay reaches back
+                $merged = true;
+            } else {
+                CardTerminalBinding::create([
+                    'provider' => $unit->settlementProvider(),
+                    'terminal_id' => $unit->terminal_id,
+                    'vend_id' => $vend->id,
+                    'from_at' => $at,
+                    'until_at' => $end,
+                    'source' => CardTerminalBinding::SOURCE_REPORT,
+                ]);
+            }
         });
 
-        $note = 'back-dated on '.$vend->codeLabel().' to '.$date;
-        if ($previous) {
-            // Same fleet-wide lookup as the controller: the old machine may
-            // belong to another operator, and the note must still name it.
-            $previousCode = Vend::withoutGlobalScopes()->whereKey($previous->vend_id)->value('code');
-            $note .= ', closed its stay on '.($previousCode ?? 'machine #'.$previous->vend_id).' at '.$date;
+        $note = $merged
+            ? 'back-dated on '.$vend->codeLabel().' to '.$at->format('Y-m-d H:i')
+            : 'from '.$at->format('Y-m-d H:i').($end ? ' until '.$end->format('Y-m-d H:i') : '');
+        if ($closed) {
+            $note .= ', closed '.implode(', ', array_unique($closed)).' at '.$at->format('Y-m-d H:i');
         }
 
         return ['moved' => true, 'note' => $note];
@@ -243,40 +229,50 @@ class CardTerminalBindingService
     {
         return CardTerminalBinding::query()
             ->where('vend_id', $vend->id)
-            ->whereNull('bound_until')
+            ->whereNull('until_at')
             ->orderBy('id');
     }
 
-    private function resolveDate(?string $boundFrom): string
+    /**
+     * Blank → now (the moment the person saved). A bare date → that day 00:00,
+     * except today → now: "today" means "just now", not "since midnight",
+     * which would hand the old terminal's morning sales to the new one.
+     */
+    private function resolveAt(?string $boundFrom): Carbon
     {
         $boundFrom = trim((string) $boundFrom);
 
         if ($boundFrom === '' || $boundFrom === 'Invalid date') {
-            return now()->toDateString();
+            return now()->startOfSecond();
         }
 
         try {
-            return Carbon::parse($boundFrom)->toDateString();
+            $at = Carbon::parse($boundFrom);
         } catch (\Throwable) {
             throw ValidationException::withMessages([
                 'card_terminal_bound_from' => 'Bound From is not a valid date.',
             ]);
         }
+
+        if (strlen($boundFrom) <= 10) {
+            return $at->isToday() ? now()->startOfSecond() : $at->startOfDay();
+        }
+
+        return $at->startOfSecond();
     }
 
     /**
-     * Refuse a bound_from that lands before the current binding started: it
-     * would close the old row with bound_until < bound_from, an inverted range
-     * that effectiveOn() can never satisfy, silently orphaning every report
-     * line for that terminal in the gap.
+     * Refuse a start that lands before the current binding started: it would
+     * close the old row before it opened, an inverted range nothing resolves
+     * to, silently orphaning every report line for that terminal in the gap.
      */
-    private function guardBackdating($currentOnVend, string $date): void
+    private function guardBackdating($currentOnVend, Carbon $at): void
     {
         foreach ($currentOnVend as $binding) {
-            if ($binding->bound_from && $binding->bound_from->toDateString() > $date) {
+            if ($binding->from_at && $binding->from_at->gt($at)) {
                 throw ValidationException::withMessages([
-                    'card_terminal_bound_from' => 'Bound From cannot be earlier than the current terminal\'s start date ('
-                        .$binding->bound_from->toDateString().').',
+                    'card_terminal_bound_from' => 'Bound From cannot be earlier than the current terminal\'s start ('
+                        .$binding->from_at->format('Y-m-d H:i').').',
                 ]);
             }
         }

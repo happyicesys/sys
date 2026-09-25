@@ -450,12 +450,12 @@ class VendTransactionService
         $transactionAt = $resolved ? $resolved->at : Carbon::parse($input['time']);
 
         // Sibling snapshot to cashless_mfg: the acquirer TID on this machine
-        // on the sale's day. Bindings are effective-dated and terminals get
+        // at the sale's moment. Bindings are time-ranged and terminals get
         // moved, so the row keeps the terminal it was actually sold through
         // after any later rebind. Card-terminal sales only — every other rail
         // has no terminal — and null when no binding covers that day.
         $terminalId = ($input['paymentClassification'] ?? null) === 'card'
-            ? CardTerminalBinding::terminalIdOn($vend->id, $transactionAt->toDateString())
+            ? CardTerminalBinding::terminalIdAt($vend->id, $transactionAt)
             : null;
 
         $vendTransaction = VendTransaction::create([
@@ -562,10 +562,10 @@ class VendTransactionService
             // A NETS orphan already names its terminal from the report line
             // (the acquirer's own word, kept); a gateway row has none. Only a
             // card TRADE landing on a still-blank row resolves it from the
-            // binding in force on the row's day.
+            // binding in force at the row's moment.
             'terminal_id' => $transaction->terminal_id
                 ?? (($input['paymentClassification'] ?? null) === 'card'
-                    ? CardTerminalBinding::terminalIdOn($vend->id, Carbon::parse($transaction->transaction_datetime)->toDateString())
+                    ? CardTerminalBinding::terminalIdAt($vend->id, Carbon::parse($transaction->transaction_datetime))
                     : null),
             'qty' => $input['qty'],
             'success_qty' => $input['success_qty'],

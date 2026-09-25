@@ -540,12 +540,12 @@
                   Card Terminal Bound From
                 </label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   v-model="form.card_terminal_bound_from"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 <p class="mt-1 text-xs text-gray-500">
-                  Leave blank to bind from today. Only used when the terminal above changes.
+                  Leave blank to bind from the moment you save. Only used when the terminal above changes — set the time the terminal was actually fitted if that was earlier.
                   <span v-if="cardTerminalBinding?.bound_from">Current terminal bound from {{ cardTerminalBinding.bound_from }}.</span>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_bound_from">

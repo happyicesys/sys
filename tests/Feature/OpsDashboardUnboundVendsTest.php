@@ -254,6 +254,8 @@ class OpsDashboardUnboundVendsTest extends TestCase
         $bind = fn (int $vendId, string $tid, ?string $until = null) => DB::table('card_terminal_bindings')->insert([
             'provider' => 'nets', 'terminal_id' => $tid, 'vend_id' => $vendId,
             'bound_from' => now()->subMonth()->toDateString(), 'bound_until' => $until,
+            // Raw inserts skip the model hook: write the times the app reads.
+            'from_at' => now()->subMonth()->startOfDay(), 'until_at' => $until ? \Carbon\Carbon::parse($until)->addDay()->startOfDay() : null,
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $bind($yes, '23100701');

@@ -61,7 +61,7 @@ class CardTerminalUnitController extends Controller
                 // The site under the machine comes along for the Machine ID
                 // cell's "<site ref id> - <site name>" line; unscoped for the
                 // same reason the vend is.
-                'bindings' => fn ($q) => $q->effectiveOn($today)
+                'bindings' => fn ($q) => $q->effectiveAt(now())
                     ->with(['vend' => fn ($qq) => $qq->withoutGlobalScopes()
                         ->select('id', 'code', 'code_prefix', 'name', 'customer_id')
                         ->with(['customer' => fn ($c) => $c->withoutGlobalScopes()->select('id', 'name')])]),
@@ -229,7 +229,7 @@ class CardTerminalUnitController extends Controller
         return CardTerminalBinding::query()
             ->join('vends', 'vends.id', '=', 'card_terminal_bindings.vend_id')
             ->whereColumn('card_terminal_bindings.terminal_id', 'card_terminal_units.terminal_id')
-            ->effectiveOn($today);
+            ->effectiveAt(now());
     }
 
     /** That machine's code, for ordering. Oldest binding wins, as the grid does. */
@@ -268,7 +268,7 @@ class CardTerminalUnitController extends Controller
             // it answers "which terminal is on machine X now", not "was ever".
             ->when($request->input('vend_code'), function ($q, $search) use ($today) {
                 return $q->whereIn('terminal_id', CardTerminalBinding::query()
-                    ->effectiveOn($today)
+                    ->effectiveAt(now())
                     ->whereIn('vend_id', Vend::withoutGlobalScopes()
                         ->where('code', 'like', "%{$search}%")
                         ->pluck('id'))
@@ -307,7 +307,7 @@ class CardTerminalUnitController extends Controller
     private function currentMachineByTerminal(string $today)
     {
         return CardTerminalBinding::query()
-            ->effectiveOn($today)
+            ->effectiveAt(now())
             ->leftJoin('vends', 'vends.id', '=', 'card_terminal_bindings.vend_id')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->orderBy('card_terminal_bindings.id')
