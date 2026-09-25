@@ -15,17 +15,19 @@ class CardSettlementHealthMail extends Mailable implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public array $sections, public string $generatedAt) {}
+    // Named so it never collides with the view's `$generatedAt` (a Carbon):
+    // a Mailable's public properties are merged INTO the view data and win.
+    public function __construct(public array $sections, public string $generatedAtIso) {}
 
     public function build()
     {
         $count = collect($this->sections)->sum(fn ($s) => count($s['items']));
 
         return $this
-            ->subject(sprintf('Card settlement: %d item(s) need attention (%s)', $count, Carbon::parse($this->generatedAt)->format('Y-m-d')))
+            ->subject(sprintf('Card settlement: %d item(s) need attention (%s)', $count, Carbon::parse($this->generatedAtIso)->format('Y-m-d')))
             ->view('emails.card-settlement-health', [
                 'sections' => $this->sections,
-                'generatedAt' => Carbon::parse($this->generatedAt),
+                'generatedAt' => Carbon::parse($this->generatedAtIso),
             ]);
     }
 }

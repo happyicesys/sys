@@ -337,4 +337,14 @@ class CardSettlementHandsOffTest extends TestCase
         $this->assertSame(CardSettlementRow::STATUS_IGNORED, $line->fresh()->status);
         $this->assertSame(CardSettlementRow::NOTE_TEST_AMOUNT, $line->fresh()->resolution_note);
     }
+
+    public function test_the_alert_email_renders(): void
+    {
+        $html = (new CardSettlementHealthMail([
+            ['key' => 'refunds_on_retries', 'title' => 'Refund claims where the item was received on retry', 'action' => 'Reject.', 'items' => [['text' => 'RF-1 (approved, machine 5073)', 'url' => 'https://x/refunds/1']]],
+        ], '2026-09-26 08:30:00'))->render();
+
+        $this->assertStringContainsString('RF-1 (approved, machine 5073)', $html);
+        $this->assertStringContainsString('2026-09-26 08:30', $html);
+    }
 }
