@@ -615,7 +615,19 @@ Both directions of "the report and the machine disagree" are handled at Sync
   only unique-both-ways pairings, ties stay queries. Failed TRADEs pair too.
   Notes: "Matched on the machine's learned clock" / "Matched late (same
   machine, amount, order)"; sequence and wide matches never serve as clock
-  references. It runs in ONE logic on upload and **Rematch** (`CardSettlementMatcher::assignLate`,
+  references. **C. Same day** (Brian, 2026-09-24: the NETS report is proof
+  the money came in): once NETS is FINAL for both days involved
+  (`isDayFinal`: files D and D+1 synced), an NA line and an unclaimed card
+  TRADE on the same machine, same cents, same date pair up — the sale's time
+  is its sane board clock else its arrival, `match_same_day_margin_seconds`
+  (3 h) either side of midnight. Several same-amount NAs and TRADEs on one
+  machine are an order-preserving minimum-cost assignment (DP): most pairs
+  first, then least total gap, earlier tap ↔ earlier TRADE, a TRADE stamped
+  before its tap costs double. Note "Matched
+  same day (NETS confirms the charge)", kept by the repair so it is never a
+  clock reference. **Sync** runs the orphan repair over the days it covers
+  right after creating orphans, so the report that makes day D final pairs
+  D's orphans at once. It runs in ONE logic on upload and **Rematch** (`CardSettlementMatcher::assignLate`,
   before the wrong-machine check), on Rematch over the report's own NA orphans
   (`MatchCardSettlementReport::repairOrphans`), in `repair-orphans`, and
   nightly at 01:40 (`repair_orphans_nightly_days`, 45; 0 = off) ahead of the

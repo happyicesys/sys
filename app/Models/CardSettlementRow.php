@@ -42,6 +42,9 @@ class CardSettlementRow extends Model
     /** resolution_note on a line paired late by machine + amount + order (LateTradePairer tier B). */
     const NOTE_MATCHED_LATE_SEQUENCE = 'Matched late (same machine, amount, order)';
 
+    /** resolution_note on a line paired with the machine's same-day, same-amount unmatched TRADE once NETS is final (LateTradePairer tier C). */
+    const NOTE_MATCHED_SAME_DAY = 'Matched same day (NETS confirms the charge)';
+
     const STATUS_LABELS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_MATCHED => 'Matched',

@@ -8,6 +8,7 @@ use App\Models\VendTransaction;
 use App\Services\Refund\RefundTicketService;
 use App\Services\Sales\RollupRebuilder;
 use App\Support\AutoRefundSource;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -46,6 +47,7 @@ class CardSettlementSyncService
         protected RefundTicketService $tickets,
         protected CardSettlementRefundReconciler $reconciler,
         protected CardSettlementOrphanSales $orphans,
+        protected CardSettlementOrphanRepair $repair,
         protected RollupRebuilder $rollups,
     ) {}
 
@@ -93,11 +95,25 @@ class CardSettlementSyncService
 
         // After the status flip: the reconciler decides "is this day final"
         // from report statuses, and this report is part of that answer.
+        $covered = CardSettlementRefundReconciler::daysCoveredBy($report);
+        $days = array_map(fn ($d) => $d->toDateString(), $covered);
+
+        // This sync may have made its days final: NA orphans on them whose
+        // machine has an unclaimed TRADE are replaced by it now (same pairing
+        // as Rematch and the nightly repair, tier C included), before the
+        // reconciler writes those days' states.
+        if ($covered) {
+            $plan = $this->repair->plan($covered[0]->copy()->startOfDay(), end($covered)->copy()->endOfDay());
+            foreach ($plan->filter(fn ($e) => $e['sale'] !== null) as $entry) {
+                $days = array_merge($days, $this->repair->apply($entry));
+            }
+        }
+        $days = array_values(array_unique($days));
+        sort($days);
+
         $this->lastReconcile = [];
-        $days = [];
-        foreach (CardSettlementRefundReconciler::daysCoveredBy($report) as $day) {
-            $this->lastReconcile[] = $this->reconciler->reconcileDay($day, true);
-            $days[] = $day->toDateString();
+        foreach ($days as $day) {
+            $this->lastReconcile[] = $this->reconciler->reconcileDay(Carbon::parse($day), true);
         }
 
         // This sync just changed those days' sales — orphan rows created, ticks

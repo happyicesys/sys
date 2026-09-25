@@ -262,6 +262,139 @@ class CardSettlementLateTradeTest extends TestCase
         $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->fresh()->status, 'never stuck in matching');
     }
 
+    /** A synced report cut on $date — two consecutive ones make the first day final. */
+    private function syncedCutover(string $date): CardSettlementReport
+    {
+        return CardSettlementReport::create(['provider' => 'nets', 'original_filename' => "MCONNECT_{$date}.csv", 'cutover_date' => $date, 'status' => CardSettlementReport::STATUS_SYNCED]);
+    }
+
+    private function orphanLine(CardSettlementReport $report, string $date, string $time, int $amount): CardSettlementRow
+    {
+        $line = $this->line($report, $date, $time, $amount, ['status' => CardSettlementRow::STATUS_UNMATCHED, 'vend_id' => $this->vend->id, 'resolution_note' => CardSettlementRow::NOTE_NO_SALE_IN_WINDOW]);
+        app(CardSettlementOrphanSales::class)->createForReport($report);
+
+        return $line->fresh();
+    }
+
+    public function test_same_day_pairs_an_na_orphan_with_the_machines_unmatched_trade_once_nets_is_final(): void
+    {
+        // 2760, 2026-09-12: NETS took $2.50 at 12:50:41, no TRADE fits it;
+        // a $2.50 TRADE at 13:13 has no NETS line. NETS is the money truth.
+        $report = $this->syncedCutover('2026-09-12');
+        $line = $this->orphanLine($report, '2026-09-12', '12:50:41', 250);
+        $sale = $this->sale('2026-09-12 13:13:27', '2026-09-12 13:18:39', '2026-09-12 13:13:27', 250);
+
+        $repair = app(CardSettlementOrphanRepair::class);
+        $this->assertNull($repair->plan(Carbon::parse('2026-09-12'), Carbon::parse('2026-09-12 23:59:59'))[0]['sale'], 'D+1 file not in yet — the TRADE may still have its own line');
+
+        $this->syncedCutover('2026-09-13');
+        $plan = app(CardSettlementOrphanRepair::class)->plan(Carbon::parse('2026-09-12'), Carbon::parse('2026-09-12 23:59:59'));
+        $this->assertSame($sale->id, $plan[0]['sale']?->id);
+        $this->assertSame(LateTradePairer::TIER_SAME_DAY, $plan[0]['anchor']);
+
+        $repair->apply($plan[0]);
+        $this->assertSame($sale->id, $line->fresh()->matched_vend_transaction_id);
+        $this->assertSame(CardSettlementRow::NOTE_MATCHED_SAME_DAY, $line->fresh()->resolution_note, 'kept, so it is never a clock reference');
+    }
+
+    public function test_same_day_reaches_across_midnight(): void
+    {
+        // Tap 23:58 on the 12th; the TRADE (board clock 2001) lands 00:03 on the 13th.
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $this->syncedCutover('2026-09-14');
+        $line = $this->orphanLine($report, '2026-09-12', '23:58:00', 300);
+        $sale = $this->sale('2026-09-13 00:03:00', '2026-09-13 00:03:00', '2001-01-08 19:00:00', 300);
+
+        $plan = app(CardSettlementOrphanRepair::class)->plan(Carbon::parse('2026-09-12'), Carbon::parse('2026-09-12 23:59:59'));
+
+        $this->assertSame($sale->id, $plan[0]['sale']?->id);
+        $this->assertSame($line->id, $plan[0]['row']->id);
+    }
+
+    public function test_same_day_pairs_never_cross(): void
+    {
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $morning = $this->orphanLine($report, '2026-09-12', '09:00:00', 200);
+        $evening = $this->orphanLine($report, '2026-09-12', '18:00:00', 200);
+        $noon = $this->sale('2026-09-12 12:00:00', '2026-09-12 12:00:10', '2026-09-12 12:00:00', 200);
+        $night = $this->sale('2026-09-12 20:00:00', '2026-09-12 20:00:10', '2026-09-12 20:00:00', 200);
+
+        $plan = app(CardSettlementOrphanRepair::class)->plan(Carbon::parse('2026-09-12'), Carbon::parse('2026-09-12 23:59:59'))
+            ->keyBy(fn ($e) => $e['row']->id);
+
+        $this->assertSame($noon->id, $plan[$morning->id]['sale']->id);
+        $this->assertSame($night->id, $plan[$evening->id]['sale']->id);
+    }
+
+    /** @return array<int, int|null> line id → planned sale id */
+    private function sameDayPlan(): array
+    {
+        return app(CardSettlementOrphanRepair::class)->plan(Carbon::parse('2026-09-12'), Carbon::parse('2026-09-12 23:59:59'))
+            ->mapWithKeys(fn ($e) => [$e['row']->id => $e['sale']?->id])->all();
+    }
+
+    public function test_several_same_amount_nas_take_the_trades_in_order_at_least_total_gap(): void
+    {
+        // Nearest-first takes 10:05 → 10:20 (15 min) and then cannot give
+        // 10:00 the 10:50 TRADE without crossing — one pair, one NA left. In
+        // order, both pair: 10:00 → 10:20, 10:05 → 10:50.
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $a = $this->orphanLine($report, '2026-09-12', '10:00:00', 460);
+        $b = $this->orphanLine($report, '2026-09-12', '10:05:00', 460);
+        $s1 = $this->sale('2026-09-12 10:20:00', '2026-09-12 10:20:10', '2026-09-12 10:20:00', 460);
+        $s2 = $this->sale('2026-09-12 10:50:00', '2026-09-12 10:50:10', '2026-09-12 10:50:00', 460);
+
+        $plan = $this->sameDayPlan();
+
+        $this->assertSame($s1->id, $plan[$a->id]);
+        $this->assertSame($s2->id, $plan[$b->id]);
+    }
+
+    public function test_more_nas_than_trades_leaves_the_one_that_fits_worst(): void
+    {
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $early = $this->orphanLine($report, '2026-09-12', '09:00:00', 200);
+        $noon = $this->orphanLine($report, '2026-09-12', '12:00:00', 200);
+        $evening = $this->orphanLine($report, '2026-09-12', '18:00:00', 200);
+        $s1 = $this->sale('2026-09-12 12:10:00', '2026-09-12 12:10:05', '2026-09-12 12:10:00', 200);
+        $s2 = $this->sale('2026-09-12 18:20:00', '2026-09-12 18:20:05', '2026-09-12 18:20:00', 200);
+
+        $plan = $this->sameDayPlan();
+
+        $this->assertSame($s1->id, $plan[$noon->id]);
+        $this->assertSame($s2->id, $plan[$evening->id]);
+        $this->assertNull($plan[$early->id], 'stays NA — NETS took money no TRADE explains');
+    }
+
+    public function test_a_trade_after_the_tap_is_preferred_to_one_before_it(): void
+    {
+        // 10 min before vs 12 min after: a TRADE follows its tap, so the later one.
+        $report = $this->syncedCutover('2026-09-12');
+        $this->syncedCutover('2026-09-13');
+        $line = $this->orphanLine($report, '2026-09-12', '12:00:00', 300);
+        $this->sale('2026-09-12 11:50:00', '2026-09-12 11:50:05', '2026-09-12 11:50:00', 300);
+        $after = $this->sale('2026-09-12 12:12:00', '2026-09-12 12:12:05', '2026-09-12 12:12:00', 300);
+
+        $this->assertSame($after->id, $this->sameDayPlan()[$line->id]);
+    }
+
+    public function test_syncing_the_next_days_report_pairs_the_previous_days_orphan_at_once(): void
+    {
+        $day = $this->syncedCutover('2026-09-12');
+        $line = $this->orphanLine($day, '2026-09-12', '12:50:41', 250);
+        $sale = $this->sale('2026-09-12 13:13:27', '2026-09-12 13:18:39', '2026-09-12 13:13:27', 250);
+        $next = CardSettlementReport::create(['provider' => 'nets', 'original_filename' => 'MCONNECT_2026-09-13.csv', 'cutover_date' => '2026-09-13', 'status' => CardSettlementReport::STATUS_REVIEW]);
+
+        app(\App\Services\CardSettlement\CardSettlementSyncService::class)->sync($next, null);
+
+        $this->assertSame($sale->id, $line->fresh()->matched_vend_transaction_id);
+        $this->assertSame(0, VendTransaction::withoutGlobalScopes()->whereNotNull('card_settlement_row_id')->where('is_found_in_transaction', false)->count(), 'orphan gone');
+    }
+
     public function test_the_repair_command_plans_with_the_same_tiers(): void
     {
         $report = $this->report(CardSettlementReport::STATUS_SYNCED);

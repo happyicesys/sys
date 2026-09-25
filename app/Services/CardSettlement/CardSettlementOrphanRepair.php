@@ -212,7 +212,13 @@ class CardSettlementOrphanRepair
                 'matched_vend_transaction_id' => $sale->id,
                 'match_time_delta' => $entry['delta'],
                 'candidates_json' => null,
-                'resolution_note' => CardSettlementRow::NOTE_REPAIRED_FROM_ORPHAN,
+                // A loose pairing keeps its own note, so it never serves as a
+                // learned-clock reference (LateTradePairer::learnedOffsets).
+                'resolution_note' => match ($entry['anchor'] ?? null) {
+                    LateTradePairer::TIER_SEQUENCE => CardSettlementRow::NOTE_MATCHED_LATE_SEQUENCE,
+                    LateTradePairer::TIER_SAME_DAY => CardSettlementRow::NOTE_MATCHED_SAME_DAY,
+                    default => CardSettlementRow::NOTE_REPAIRED_FROM_ORPHAN,
+                },
             ])->save();
 
             // The line was already Synced onto the orphan; the real sale

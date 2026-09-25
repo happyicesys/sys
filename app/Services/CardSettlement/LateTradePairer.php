@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
  * window can (Brian, 2026-09-24). Runs on lines the matcher's windows left
  * unmatched (CardSettlementMatcher::assign, i.e. upload and Rematch) and on
  * NA orphans still awaiting their TRADE (CardSettlementOrphanRepair). Same
- * machine and same cents always; then one of two tiers.
+ * machine and same cents always; then one of three tiers.
  *
  * Tier A — the machine's learned clock. A board's clock is wrong in a STABLE
  * way: 2760 runs ~314 s slow, 2300's board keeps resetting to 2001 and then
@@ -31,6 +31,8 @@ use Illuminate\Support\Facades\DB;
  * counts agree across the group; otherwise only the pairings unique both
  * ways. Ties never guess — they stay queries.
  *
+ * Tier C — same day, once NETS is final: see pairSameDay().
+ *
  * Failed sales pair too (Brian, 2026-09-24): an unclaimed failed TRADE on
  * the same machine with a leftover same-amount line IS the charge for that
  * failed vend — the reconciler then reads it as captured, not voided.
@@ -41,13 +43,21 @@ class LateTradePairer
 
     const TIER_SEQUENCE = 'sequence';
 
+    const TIER_SAME_DAY = 'same_day';
+
+    /** @var array<string, bool> Y-m-d → NETS final for that day */
+    protected array $finalDays = [];
+
+    public function __construct(protected CardSettlementRefundReconciler $reconciler) {}
+
     /**
      * @param  Collection<int, CardSettlementRow>  $lines  full-time purchase lines with vend_id set
      * @param  Collection<int, Collection<int, object>>  $salesByVend  vend_id → unclaimed sales (CardSettlementMatcher::candidateColumns())
      * @param  array<int, true>  $taken  sale ids no line may take
+     * @param  bool  $sameDay  also run tier C (days NETS has finalised only)
      * @return array<int, array{row:CardSettlementRow, sale:object, delta:int, tier:string, note:string}> keyed by row id
      */
-    public function pair(Collection $lines, Collection $salesByVend, array $taken = []): array
+    public function pair(Collection $lines, Collection $salesByVend, array $taken = [], bool $sameDay = true): array
     {
         $lines = $lines->filter(fn (CardSettlementRow $l) => $l->vend_id && ! $l->time_is_partial && $l->transaction_time !== null)->values();
         if ($lines->isEmpty()) {
@@ -60,8 +70,146 @@ class LateTradePairer
         }
 
         $rest = $lines->reject(fn (CardSettlementRow $l) => isset($result[$l->id]))->values();
+        $result += $this->pairInSequence($rest, $salesByVend, $taken);
+        if (! $sameDay) {
+            return $result;
+        }
 
-        return $result + $this->pairInSequence($rest, $salesByVend, $taken);
+        foreach ($result as $pair) {
+            $taken[$pair['sale']->id] = true;
+        }
+        $rest = $lines->reject(fn (CardSettlementRow $l) => isset($result[$l->id]))->values();
+
+        return $result + $this->pairSameDay($rest, $salesByVend, $taken);
+    }
+
+    /**
+     * Tier C — the NETS report is proof the money came in (Brian, 2026-09-24).
+     * Once NETS is final for the line's day AND the sale's day, a card TRADE
+     * that no line claimed and an NA line on the same machine, same cents,
+     * same date are one sale. The sale's time is its sane board clock, else
+     * its arrival; `match_same_day_margin_seconds` either side of the day
+     * catches a tap just before midnight whose TRADE lands just after.
+     *
+     * Several same-amount lines and TRADEs on one machine (Brian: "which
+     * should match which one") are an order-preserving minimum-cost
+     * assignment, per machine + amount: pair AS MANY lines as possible (each
+     * is money NETS took), then the smallest total time gap, never crossing —
+     * the earlier tap takes the earlier TRADE. A TRADE stamped BEFORE its tap
+     * costs double (the frame follows the tap). Solved exactly by DP over the
+     * two time-sorted lists; groups are a handful of rows.
+     *
+     * @return array<int, array> keyed by row id
+     */
+    protected function pairSameDay(Collection $lines, Collection $salesByVend, array $taken): array
+    {
+        $margin = (int) config('card_settlement.match_same_day_margin_seconds', 10800);
+        $lines = $lines->filter(fn (CardSettlementRow $l) => $this->isFinal($l->transaction_date->copy()->startOfDay()));
+
+        $result = [];
+        foreach ($lines->groupBy(fn (CardSettlementRow $l) => $l->vend_id.'|'.$l->amount_cents) as $group) {
+            $first = $group->first();
+            $ls = $group->map(fn ($l) => ['row' => $l, 't' => self::lineAt($l)->getTimestamp(), 'day' => $l->transaction_date->copy()->startOfDay()->getTimestamp()])
+                ->sortBy(fn ($x) => sprintf('%012d.%012d', $x['t'], $x['row']->id))->values()->all();
+            $ss = collect($salesByVend->get($first->vend_id) ?? [])
+                ->filter(fn ($s) => ! isset($taken[$s->id]) && (int) $s->amount === (int) $first->amount_cents)
+                ->map(fn ($s) => ['sale' => $s, 't' => self::saleAt($s)])
+                ->filter(fn ($x) => $this->isFinal($x['t']->copy()->startOfDay()))
+                ->map(fn ($x) => ['sale' => $x['sale'], 't' => $x['t']->getTimestamp()])
+                ->sortBy(fn ($x) => sprintf('%012d.%012d', $x['t'], $x['sale']->id))->values()->all();
+            if (! $ls || ! $ss) {
+                continue;
+            }
+
+            $cost = function (array $l, array $s) use ($margin): ?int {
+                if ($s['t'] < $l['day'] - $margin || $s['t'] > $l['day'] + 86400 + $margin) {
+                    return null;
+                }
+                $d = $s['t'] - $l['t'];
+
+                return $d >= 0 ? $d : -2 * $d;
+            };
+
+            foreach ($this->assignInOrder($ls, $ss, $cost) as [$i, $j]) {
+                $result[$ls[$i]['row']->id] = [
+                    'row' => $ls[$i]['row'],
+                    'sale' => $ss[$j]['sale'],
+                    'delta' => $ss[$j]['t'] - $ls[$i]['t'],
+                    'tier' => self::TIER_SAME_DAY,
+                    'note' => CardSettlementRow::NOTE_MATCHED_SAME_DAY,
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Order-preserving assignment of time-sorted lines to time-sorted sales:
+     * most pairs first, then least total cost. f[i][j] = best over lines ≥ i
+     * and sales ≥ j, as [pairs, cost].
+     *
+     * @param  callable(array, array): ?int  $cost  null = not allowed
+     * @return array<int, array{0:int, 1:int}> [line index, sale index]
+     */
+    protected function assignInOrder(array $ls, array $ss, callable $cost): array
+    {
+        $n = count($ls);
+        $m = count($ss);
+        $better = fn (array $a, array $b) => $a[0] > $b[0] || ($a[0] === $b[0] && $a[1] < $b[1]);
+        $f = array_fill(0, $n + 1, array_fill(0, $m + 1, [0, 0]));
+        $move = [];
+        for ($i = $n - 1; $i >= 0; $i--) {
+            for ($j = $m - 1; $j >= 0; $j--) {
+                $best = $f[$i + 1][$j];            // leave line i unpaired
+                $how = 'line';
+                if ($better($f[$i][$j + 1], $best)) { // leave sale j unpaired
+                    $best = $f[$i][$j + 1];
+                    $how = 'sale';
+                }
+                $c = $cost($ls[$i], $ss[$j]);
+                if ($c !== null) {
+                    $cand = [$f[$i + 1][$j + 1][0] + 1, $f[$i + 1][$j + 1][1] + $c];
+                    if ($better($cand, $best)) {
+                        $best = $cand;
+                        $how = 'pair';
+                    }
+                }
+                $f[$i][$j] = $best;
+                $move[$i][$j] = $how;
+            }
+        }
+
+        $pairs = [];
+        for ($i = 0, $j = 0; $i < $n && $j < $m;) {
+            $how = $move[$i][$j];
+            if ($how === 'pair') {
+                $pairs[] = [$i, $j];
+                $i++;
+                $j++;
+            } elseif ($how === 'line') {
+                $i++;
+            } else {
+                $j++;
+            }
+        }
+
+        return $pairs;
+    }
+
+    protected function isFinal(Carbon $day): bool
+    {
+        $key = $day->toDateString();
+
+        return $this->finalDays[$key] ??= $this->reconciler->isDayFinal($day);
+    }
+
+    /** The sale's time for tier C: its board clock when sane, else its arrival. */
+    public static function saleAt(object $sale): Carbon
+    {
+        $board = self::boardAt($sale);
+
+        return $board && self::boardIsBelievable($sale, $board) ? $board : self::arrivedAt($sale);
     }
 
     /** @return array<int, array> keyed by row id */
@@ -256,6 +404,7 @@ class LateTradePairer
                 ->orWhereNotIn('card_settlement_rows.resolution_note', [
                     CardSettlementRow::NOTE_MATCHED_WIDE,
                     CardSettlementRow::NOTE_MATCHED_LATE_SEQUENCE,
+                    CardSettlementRow::NOTE_MATCHED_SAME_DAY,
                 ]))
             ->get([
                 'card_settlement_rows.vend_id',

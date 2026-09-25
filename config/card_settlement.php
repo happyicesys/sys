@@ -71,6 +71,16 @@ return [
     'match_late_max_lag_seconds' => 10800,
 
     /*
+     * C. Same day (Brian, 2026-09-24: "NETS confirms we got the money").
+     *    Once NETS is final for the day (files D and D+1 synced), an NA orphan
+     *    and an unclaimed card TRADE on the same machine, same cents, same
+     *    date pair up — nearest in time first, never crossing. A sale within
+     *    this many seconds of either midnight also counts for the day, so a
+     *    23:58 tap whose TRADE lands at 00:03 still pairs.
+     */
+    'match_same_day_margin_seconds' => 10800,
+
+    /*
      * Nightly `card-settlement:repair-orphans --apply` over this many days back,
      * so an NA orphan whose TRADE turned up late is replaced by it overnight.
      * 0 turns the schedule off.
