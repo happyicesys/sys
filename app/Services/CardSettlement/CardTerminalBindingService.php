@@ -117,6 +117,15 @@ class CardTerminalBindingService
             return ['moved' => false, 'note' => 'not a valid date'];
         }
         $tid = $unit->terminal_id;
+
+        // Never put a terminal on a machine whose reader belongs to another
+        // company/provider (2700 is MLS: a NETS TID was bound there from one
+        // same-amount coincidence, 2026-09-22).
+        $company = $vend->card_terminal_id ? \App\Models\CardTerminal::whereKey($vend->card_terminal_id)->value('name') : null;
+        if ($company && in_array((int) $vend->card_terminal_id, CardSettlementMatcher::foreignCompanyIds($unit->settlementProvider()), true)) {
+            return ['moved' => false, 'note' => $vend->codeLabel().'\'s card reader is '.$company.', not '.strtoupper($unit->settlementProvider())];
+        }
+
         $isThis = fn (CardTerminalBinding $b) => $b->terminal_id === $tid && (int) $b->vend_id === (int) $vend->id;
 
         $open = CardTerminalBinding::query()->where('terminal_id', $tid)->whereNull('until_at')->get();

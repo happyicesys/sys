@@ -45,6 +45,12 @@ class RepairCardSettlementOrphans extends Command
             $vendId = $vend->id;
         }
 
+        // Retained-credit re-vends first (RetainedCreditLinker): a dispensed
+        // retry served from a failed, charged sale's credit is linked to it.
+        $revends = app(\App\Services\CardSettlement\RetainedCreditLinker::class)
+            ->linkRevends($from, $to, fn ($day) => $reconciler->isDayFinal($day), $apply);
+        $this->line(sprintf('%d retained-credit re-vend(s) %s.', count($revends), $apply ? 'linked' : 'to link'));
+
         $plan = $repair->plan($from, $to, $vendId);
         if ($plan->isEmpty()) {
             $this->info('No orphan sale awaiting a TRADE in range.');

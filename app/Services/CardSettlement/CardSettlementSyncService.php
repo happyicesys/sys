@@ -48,6 +48,7 @@ class CardSettlementSyncService
         protected CardSettlementRefundReconciler $reconciler,
         protected CardSettlementOrphanSales $orphans,
         protected CardSettlementOrphanRepair $repair,
+        protected RetainedCreditLinker $retainedCredit,
         protected RollupRebuilder $rollups,
     ) {}
 
@@ -110,6 +111,17 @@ class CardSettlementSyncService
         }
         $days = array_values(array_unique($days));
         sort($days);
+
+        // Retained-credit re-vends on these days, once NETS is final for them
+        // (RetainedCreditLinker): the dispensed retry is linked to the failed,
+        // charged sale instead of reading "no NETS line".
+        if ($days) {
+            $this->retainedCredit->linkRevends(
+                Carbon::parse($days[0])->startOfDay(),
+                Carbon::parse(end($days))->endOfDay(),
+                fn ($day) => $this->reconciler->isDayFinal($day)
+            );
+        }
 
         $this->lastReconcile = [];
         foreach ($days as $day) {

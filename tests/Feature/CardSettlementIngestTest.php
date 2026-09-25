@@ -76,7 +76,7 @@ class CardSettlementIngestTest extends TestCase
         $this->assertSame(2, $report->total_rows);
         $this->assertSame(1, $report->purchase_rows);
         $this->assertSame(0, $report->partial_time_rows); // raw portal file: every line keeps its hour
-        $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->status);
+        $this->assertSame(CardSettlementReport::STATUS_SYNCED, $report->status, 'synced by itself after matching (auto_sync, 2026-09-26)');
         $this->assertSame(2, $report->rows()->count());
         // No binding exists → the purchase row surfaces as a query, not an error.
         $this->assertSame(1, $report->rows()->where('resolution_note', 'No terminal binding')->count());

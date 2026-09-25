@@ -260,7 +260,7 @@ class CardSettlementLateTradeTest extends TestCase
         $this->assertSame($second->id, $b->fresh()->matched_vend_transaction_id);
         $this->assertSame(CardSettlementRow::NOTE_REPAIRED_FROM_ORPHAN, $a->fresh()->resolution_note);
         $this->assertSame(0, VendTransaction::withoutGlobalScopes()->whereIn('id', $orphanIds)->count(), 'orphans gone');
-        $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->fresh()->status, 'never stuck in matching');
+        $this->assertSame(CardSettlementReport::STATUS_SYNCED, $report->fresh()->status, 'never stuck in matching — and synced by itself');
     }
 
     /** A synced report cut on $date — two consecutive ones make the first day final. */

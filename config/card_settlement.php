@@ -88,6 +88,24 @@ return [
     'repair_orphans_nightly_days' => 45,
 
     /*
+     * Hands-off (Brian, 2026-09-26: "I need come and run check every week is
+     * not a way"). After a report is matched:
+     *  - a terminal move / unbound bind is applied by itself when at least
+     *    this many lines (day before + the report's days, every report) fit
+     *    ONE machine, clearly ahead of any other, the machine takes this
+     *    provider, and its current terminal has not sold there since. Weaker
+     *    evidence waits for a human and is listed in the alert email. 0 = off.
+     *  - the report is synced by itself (query lines never block a Sync).
+     * Alerts go to the active alert-email recipients of this operator code.
+     */
+    'auto_move_min_lines' => 3,
+    'auto_sync' => true,
+    'alert_operator_code' => 'HIPL',
+    // Dispensed card sales with no NETS line and no known cause, per day, above
+    // which the nightly check raises it (measured 2026-09: ~6/day).
+    'alert_unexplained_per_day' => 12,
+
+    /*
      * Card Terminal Companies (lower-cased `card_terminals.name`) whose sales
      * the NETS MerchantConnect file only PARTLY carries (Nets-Auresys: 40–60 %
      * coverage, 2026-09-08). For their terminals "no line" proves nothing: the

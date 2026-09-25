@@ -50,11 +50,20 @@ const NA_IN_NETS = {
     tip: 'Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.',
 };
 
+const RECEIVED_ON_RETRY = {
+    text: 'Item received on retry',
+    class: 'bg-red-100 text-red-800',
+    tip: 'This vend failed but the card was charged, and the reader kept the credit: the customer\'s next selection on this machine was served from it (a retained-credit re-vend or top-up, matched from the NETS report). The customer got the item — do not refund it.',
+};
+
 /**
- * @param {object} row a refund row carrying `na_in_nets` and `nets_report_state`
+ * @param {object} row a refund row carrying `received_on_retry`, `na_in_nets` and `nets_report_state`
  * @returns {{text: string, class: string, tip: string}|null}
  */
 export function netsReportBadge(row) {
+    if (row?.received_on_retry) {
+        return RECEIVED_ON_RETRY;
+    }
     if (row?.na_in_nets) {
         return NA_IN_NETS;
     }

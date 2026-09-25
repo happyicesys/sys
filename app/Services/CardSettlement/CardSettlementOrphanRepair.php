@@ -157,6 +157,7 @@ class CardSettlementOrphanRepair
                 $plan[$orphanId]['sale'] = $pair['sale'];
                 $plan[$orphanId]['delta'] = $pair['delta'];
                 $plan[$orphanId]['anchor'] = $pair['tier'];
+                $plan[$orphanId]['failed_id'] = $pair['failed_id'] ?? null;
                 $plan[$orphanId]['reason'] = null;
                 $takenSales[$pair['sale']->id] = true;
             }
@@ -222,6 +223,7 @@ class CardSettlementOrphanRepair
                 'resolution_note' => match ($entry['anchor'] ?? null) {
                     LateTradePairer::TIER_SEQUENCE => CardSettlementRow::NOTE_MATCHED_LATE_SEQUENCE,
                     LateTradePairer::TIER_SAME_DAY => CardSettlementRow::NOTE_MATCHED_SAME_DAY,
+                    LateTradePairer::TIER_TOP_UP => CardSettlementRow::NOTE_MATCHED_TOP_UP,
                     default => CardSettlementRow::NOTE_REPAIRED_FROM_ORPHAN,
                 },
             ])->save();
@@ -232,6 +234,10 @@ class CardSettlementOrphanRepair
                 VendTransaction::withoutGlobalScopes()->whereKey($sale->id)
                     ->whereNull('card_settlement_synced_at')
                     ->update(['card_settlement_synced_at' => $syncedAt]);
+            }
+
+            if (! empty($entry['failed_id'])) {
+                app(RetainedCreditLinker::class)->link((int) $sale->id, (int) $entry['failed_id'], 'top-up');
             }
 
             $this->dirtyDays->mark($orphanDay);

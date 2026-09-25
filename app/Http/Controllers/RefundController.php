@@ -1463,6 +1463,14 @@ class RefundController extends Controller
             // sales are only partly in the file). Card-terminal sales only: a
             // gateway sale has no NETS opinion at all. 'pending' = a card sale
             // whose day is not final yet, which is not the same as "nothing found".
+            // The customer got the item on a retry served from this failed
+            // sale's retained credit (RetainedCreditLinker, 2026-09-26) —
+            // paying this claim would refund goods that were delivered. Three
+            // were paid before this existed (RF-260903024 / 260904015 / 260904020).
+            'received_on_retry' => isset($txn) && \App\Models\VendTransaction::withoutGlobalScopes()
+                ->where('retained_credit_settles_txn_id', $txn->id)
+                ->where('is_retained_credit_settlement', true)
+                ->exists(),
             'nets_report_state' => (isset($txn) && (int) ($txn->paymentMethod->code ?? -1) === \App\Models\PaymentMethod::CODE_CARD_TERMINAL)
                 ? ($txn->card_settlement_state ?: 'pending')
                 : null,

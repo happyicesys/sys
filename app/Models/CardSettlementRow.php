@@ -45,6 +45,9 @@ class CardSettlementRow extends Model
     /** resolution_note on a line paired with the machine's same-day, same-amount unmatched TRADE once NETS is final (LateTradePairer tier C). */
     const NOTE_MATCHED_SAME_DAY = 'Matched same day (NETS confirms the charge)';
 
+    /** resolution_note on a top-up line: the sale's amount minus a failed, charged sale's retained credit (RetainedCreditLinker). */
+    const NOTE_MATCHED_TOP_UP = 'Matched as top-up (retained credit from a failed vend)';
+
     /**
      * resolution_note on a line at a test-rig amount (VendTransaction::ODD_TRANSACTION_AMOUNTS)
      * that Sync does not turn into an NA sale: the nightly odd-transaction sweep

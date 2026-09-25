@@ -128,6 +128,10 @@ class Kernel extends ConsoleKernel
                 ->dailyAt('01:40')->withoutOverlapping()
                 ->appendOutputTo(storage_path('logs/card-settlement-orphans.log'));
         }
+        // Hands-off card settlement: email only what needs a person (silent
+        // when nothing does), after the night's repair and rollups.
+        $schedule->command('card-settlement:health')->dailyAt('08:30')->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/card-settlement-health.log'));
         // Days a late TRADE / orphan row landed on (DirtyDayRegistry) are rebuilt
         // unconditionally first; the amount-drift passes below stay the safety net.
         $schedule->command('reconcile:sales-rollups --dirty')->dailyAt('02:00')->withoutOverlapping()

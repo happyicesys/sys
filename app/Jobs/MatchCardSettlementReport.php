@@ -4,16 +4,20 @@ namespace App\Jobs;
 
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
+use App\Models\CardTerminalBinding;
 use App\Services\CardSettlement\CardSettlementMatcher;
 use App\Services\CardSettlement\CardSettlementOrphanRepair;
 use App\Services\CardSettlement\CardSettlementRefundReconciler;
+use App\Services\CardSettlement\CardSettlementSyncService;
 use App\Services\CardSettlement\ParserRegistry;
+use App\Services\CardSettlement\TerminalMoveSuggestions;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -60,7 +64,17 @@ class MatchCardSettlementReport implements ShouldQueue
             }
 
             $matcher->match($report);
+            if ($this->autoMove($report)) {
+                // Moved terminals: their lines resolve differently now.
+                $matcher->match($report);
+            }
             $this->repairOrphans($report, $repair, $reconciler);
+
+            // Hands-off: sync as soon as matching is done — query lines stay
+            // queries and never block it (config card_settlement.auto_sync).
+            if (config('card_settlement.auto_sync')) {
+                app(CardSettlementSyncService::class)->sync($report->fresh(), null);
+            }
         } catch (Throwable $e) {
             $report->forceFill([
                 'status' => CardSettlementReport::STATUS_FAILED,
@@ -69,6 +83,67 @@ class MatchCardSettlementReport implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Apply the terminal moves the evidence makes certain, unattended: at
+     * least `auto_move_min_lines` lines on ONE machine that takes this
+     * provider, clearly ahead of any other, nothing synced broken, and the
+     * machine's current terminal silent there since. Everything weaker stays
+     * a suggestion on the page and in the nightly alert email.
+     *
+     * @return bool whether anything moved
+     */
+    protected function autoMove(CardSettlementReport $report): bool
+    {
+        $min = (int) config('card_settlement.auto_move_min_lines', 0);
+        if ($min <= 0) {
+            return false;
+        }
+        $suggestions = app(TerminalMoveSuggestions::class);
+
+        $suspects = $suggestions->suspects($report)
+            ->filter(fn ($s) => $s['suggested_hits'] >= $min && ($s['would_break_synced'] ?? 0) === 0
+                && $this->targetIsSafe($report->provider, (string) $s['suggested_vend_code'], (string) $s['from_date'], (string) $s['terminal_id']))
+            ->values();
+        [$moved] = $suspects->isNotEmpty() ? $suggestions->applySuspects($suspects) : [[]];
+
+        $unbound = $suggestions->unbound($report)
+            ->filter(fn ($t) => $t['suggested_vend_code'] !== null && $t['suggested_hits'] >= $min
+                && $this->targetIsSafe($report->provider, (string) $t['suggested_vend_code'], (string) $t['from_date'], (string) $t['terminal_id']))
+            ->values();
+        [$bound] = $unbound->isNotEmpty() ? $suggestions->applyUnbound($report, $unbound) : [[]];
+
+        foreach (array_merge($moved, $bound) as $what) {
+            Log::info('Card settlement auto-move', ['report_id' => $report->id, 'move' => $what]);
+        }
+
+        return (bool) ($moved || $bound);
+    }
+
+    /** The target takes this provider and its current terminal has not sold there since `$from`. */
+    protected function targetIsSafe(string $provider, string $vendCode, string $from, string $terminalId): bool
+    {
+        $vends = \App\Models\Vend::withoutGlobalScopes()->bareCode($vendCode)->get();
+        if ($vends->count() !== 1) {
+            return false;
+        }
+        $vend = $vends->first();
+        if ($vend->card_terminal_id && in_array((int) $vend->card_terminal_id, CardSettlementMatcher::foreignCompanyIds($provider ?: 'nets'), true)) {
+            return false;
+        }
+        $current = CardTerminalBinding::query()->where('vend_id', $vend->id)->whereNull('until_at')->where('terminal_id', '!=', $terminalId)->first();
+        if (! $current) {
+            return true;
+        }
+
+        return ! CardSettlementRow::query()
+            ->join('vend_transactions as vt', 'vt.id', '=', 'card_settlement_rows.matched_vend_transaction_id')
+            ->where('card_settlement_rows.terminal_id', $current->terminal_id)
+            ->where('vt.vend_id', $vend->id)
+            ->where('vt.is_found_in_transaction', true)
+            ->whereRaw('TIMESTAMP(card_settlement_rows.transaction_date, card_settlement_rows.transaction_time) >= ?', [Carbon::parse($from)])
+            ->exists();
     }
 
     protected function repairOrphans(CardSettlementReport $report, CardSettlementOrphanRepair $repair, CardSettlementRefundReconciler $reconciler): void

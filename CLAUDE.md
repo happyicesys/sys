@@ -675,7 +675,38 @@ Both directions of "the report and the machine disagree" are handled at Sync
   at Sync. Measured 2026-09-24: 44 of 51 such flags were coincidences
   (23104091: 67 matched at home vs 2 grazes).
 
-Regression coverage: `tests/Feature/CardSettlementLateTradeTest.php`,
+- **Hands-off (Brian, 2026-09-26: "I need come and run check every week is
+  not a way").** A person only uploads the daily NETS file:
+  - **NETS lines only meet NETS machines**: every candidate query goes through
+    `CardSettlementMatcher::restrictToProvider()` — judged by the MACHINE's
+    `vends.card_terminal_id` company (`foreignCompanyIds`), never the sale's
+    `cashless_mfg` (2114's board labels its NETS sales "Nayax"). A machine with
+    no company set stays eligible and is listed by the nightly check.
+    `moveToVend` refuses a machine whose reader belongs to another provider.
+  - **Retained credit from the report** (`RetainedCreditLinker`): a failed vend
+    NETS charged, then within 15 min on that machine — a same-amount dispense
+    with no line = RE-VEND (linked at Sync / nightly once NETS is final), or a
+    line equal to (sale − that charge) = TOP-UP (LateTradePairer tier, first,
+    note "Matched as top-up"). The dispensed sale becomes a retained-credit
+    settlement of the failed one (same columns `RetainedCreditSettlementRecorder`
+    writes for TXN_SRC 1); the failed sale's refund rows read "Item received on
+    retry" (`RefundController.received_on_retry`, `netsReportBadge.js`).
+    Nothing writes `is_refunded`.
+  - **Strong terminal moves apply themselves** after matching
+    (`MatchCardSettlementReport::autoMove`, via `TerminalMoveSuggestions`, the
+    service the page buttons also use): ≥ `auto_move_min_lines` (3) on one
+    NETS machine, clear winner, nothing synced broken, and the machine's
+    current terminal silent there since. Weaker evidence waits for a human.
+  - **Reports sync themselves** after matching (`auto_sync`); query lines never
+    block a Sync.
+  - **`card-settlement:health` at 08:30** emails the HIPL alert-email list
+    (`alert_operator_code`) ONLY what needs a person — missing NETS files,
+    unsynced reports, weak moves, open refunds on retried vends, machines with
+    no reader company, double-bound terminals, NETS lines on non-NETS
+    machines, days above `alert_unexplained_per_day` dispensed-but-uncharged
+    sales, lines pointing at deleted sales. Nothing to act on → no email.
+
+Regression coverage: `tests/Feature/CardSettlementLateTradeTest.php`, `tests/Feature/CardSettlementHandsOffTest.php`,
 `tests/Feature/CardSettlementOrphanSalesTest.php`,
 `tests/Feature/CardSettlementStateAndVoidTickTest.php`,
 `tests/Feature/CardSettlementWideMatchTest.php`,

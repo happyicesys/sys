@@ -34,6 +34,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Tier C — same day, once NETS is final: see pairSameDay().
  *
+ * Before all of them, TOP-UP (topUpPairs): a line that is a dispensed sale's
+ * amount minus a failed, charged sale's retained credit is that sale's.
+ *
  * Failed sales pair too (Brian, 2026-09-24): an unclaimed failed TRADE on
  * the same machine with a leftover same-amount line IS the charge for that
  * failed vend — the reconciler then reads it as captured, not voided.
@@ -46,10 +49,15 @@ class LateTradePairer
 
     const TIER_SAME_DAY = 'same_day';
 
+    const TIER_TOP_UP = 'top_up';
+
     /** @var array<string, bool> Y-m-d → NETS final for that day */
     protected array $finalDays = [];
 
-    public function __construct(protected CardSettlementRefundReconciler $reconciler) {}
+    public function __construct(
+        protected CardSettlementRefundReconciler $reconciler,
+        protected RetainedCreditLinker $retainedCredit,
+    ) {}
 
     /**
      * @param  Collection<int, CardSettlementRow>  $lines  full-time purchase lines with vend_id set
@@ -65,10 +73,19 @@ class LateTradePairer
             return [];
         }
 
-        $result = $this->pairOnLearnedClock($lines, $salesByVend, $taken);
+        // Exact arithmetic first: a top-up line is the sale minus the
+        // retained credit of a failed, charged sale just before it.
+        $result = $this->topUpPairs($lines, $salesByVend, $taken);
         foreach ($result as $pair) {
             $taken[$pair['sale']->id] = true;
         }
+        $rest = $lines->reject(fn (CardSettlementRow $l) => isset($result[$l->id]))->values();
+
+        $clock = $this->pairOnLearnedClock($rest, $salesByVend, $taken);
+        foreach ($clock as $pair) {
+            $taken[$pair['sale']->id] = true;
+        }
+        $result += $clock;
 
         $rest = $lines->reject(fn (CardSettlementRow $l) => isset($result[$l->id]))->values();
         $result += $this->pairInSequence($rest, $salesByVend, $taken);
@@ -210,6 +227,76 @@ class LateTradePairer
         }
 
         return $pairs;
+    }
+
+    /**
+     * TOP-UP (RetainedCreditLinker): the line's amount + a failed, charged
+     * sale's amount = a dispensed sale's amount on the same machine; the
+     * failed sale within RetainedCreditLinker::WINDOW_SECONDS before the sale,
+     * and the line inside the normal window of the sale (the top-up tap IS
+     * the sale's tap). 5073 on 2026-09-21: $0.70 line = $2.40 − $1.70.
+     * Nearest first; each failed sale funds one top-up.
+     *
+     * @return array<int, array> keyed by row id, each with 'failed_id'
+     */
+    protected function topUpPairs(Collection $lines, Collection $salesByVend, array $taken): array
+    {
+        if ($lines->isEmpty()) {
+            return [];
+        }
+        $early = (int) config('card_settlement.match_early_slack_seconds', 60);
+        $late = (int) config('card_settlement.match_late_slack_seconds', 300);
+        $from = Carbon::parse($lines->min(fn ($l) => $l->transaction_date->toDateString()))->subDay();
+        $until = Carbon::parse($lines->max(fn ($l) => $l->transaction_date->toDateString()))->addDays(2);
+        $failures = $this->retainedCredit->chargedFailures($lines->pluck('vend_id')->unique()->values()->all(), $from, $until);
+        if ($failures->isEmpty()) {
+            return [];
+        }
+
+        $pairs = [];
+        foreach ($lines as $line) {
+            $lineAt = self::lineAt($line)->getTimestamp();
+            foreach ($salesByVend->get($line->vend_id) ?? [] as $sale) {
+                if (isset($taken[$sale->id]) || (int) $sale->amount <= (int) $line->amount_cents || (int) ($sale->success_qty ?? 0) <= 0) {
+                    continue;
+                }
+                $saleAt = self::saleAt($sale)->getTimestamp();
+                $arrived = self::arrivedAt($sale)->getTimestamp();
+                $fits = collect([$saleAt, $arrived])->contains(fn ($t) => $t - $lineAt >= -$early && $t - $lineAt <= $late);
+                if (! $fits) {
+                    continue;
+                }
+                foreach ($failures->get($line->vend_id) ?? [] as $failed) {
+                    $gap = $saleAt - Carbon::parse($failed->transaction_datetime)->getTimestamp();
+                    if ((int) $failed->amount + (int) $line->amount_cents === (int) $sale->amount
+                        && $gap > 0 && $gap <= RetainedCreditLinker::WINDOW_SECONDS) {
+                        $pairs[] = ['row' => $line, 'sale' => $sale, 'failed_id' => (int) $failed->id, 'delta' => $saleAt - $lineAt, 'gap' => $gap];
+                    }
+                }
+            }
+        }
+
+        usort($pairs, fn ($a, $b) => abs($a['delta']) <=> abs($b['delta']) ?: $a['gap'] <=> $b['gap']);
+        $result = [];
+        $usedSale = [];
+        $usedFailed = [];
+        foreach ($pairs as $p) {
+            if (isset($result[$p['row']->id]) || isset($usedSale[$p['sale']->id]) || isset($usedFailed[$p['failed_id']])) {
+                continue;
+            }
+            $usedSale[$p['sale']->id] = true;
+            $usedFailed[$p['failed_id']] = true;
+            $result[$p['row']->id] = [
+                'row' => $p['row'],
+                'sale' => $p['sale'],
+                'delta' => $p['delta'],
+                'tier' => self::TIER_TOP_UP,
+                'note' => CardSettlementRow::NOTE_MATCHED_TOP_UP,
+                'failed_id' => $p['failed_id'],
+            ];
+        }
+
+        return $result;
     }
 
     protected function isFinal(Carbon $day): bool

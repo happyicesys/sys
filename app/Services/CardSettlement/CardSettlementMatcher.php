@@ -90,8 +90,52 @@ class CardSettlementMatcher
         ]);
     }
 
+    /** The report's provider, set by match(); the repair and others default to NETS. */
+    protected string $provider = 'nets';
+
+    /**
+     * Card-reader companies whose sales can never be on this provider's
+     * report (MLS, PAX, CAS…): card_terminals ids mapping to another
+     * provider (config card_settlement.company_provider). A machine with NO
+     * company set stays eligible — 4607 / 2637 are NETS machines missing the
+     * setting; the nightly health check lists them instead.
+     *
+     * @return int[]
+     */
+    public static function foreignCompanyIds(string $provider): array
+    {
+        $map = config('card_settlement.company_provider', []);
+
+        return \App\Models\CardTerminal::query()->get(['id', 'name'])
+            ->filter(fn ($c) => ($map[strtolower((string) $c->name)] ?? \Illuminate\Support\Str::slug((string) $c->name)) !== $provider)
+            ->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+    }
+
+    /**
+     * Only sales on machines whose reader can be on this provider's report
+     * (Brian, 2026-09-26: MLS 2700 and PAX 2504 had NETS lines matched to
+     * them by same-amount coincidence, and a one-line move bound a NETS TID
+     * to the MLS machine). Judged by the MACHINE's configured company, not the
+     * sale's cashless_mfg — 2114's board labels its NETS sales "Nayax".
+     */
+    public static function restrictToProvider($query, string $provider)
+    {
+        $foreign = self::foreignCompanyIds($provider);
+        if (! $foreign) {
+            return $query;
+        }
+
+        return $query->whereNotExists(function ($q) use ($foreign) {
+            $q->selectRaw('1')->from('vends as provider_vends')
+                ->whereColumn('provider_vends.id', 'vend_transactions.vend_id')
+                ->whereIn('provider_vends.card_terminal_id', $foreign);
+        });
+    }
+
     public function match(CardSettlementReport $report): void
     {
+        $this->provider = (string) ($report->provider ?: 'nets');
+
         $rows = $report->rows()
             ->whereIn('status', [
                 CardSettlementRow::STATUS_PENDING,
@@ -535,6 +579,9 @@ class CardSettlementMatcher
                     'resolution_note' => $pair['note'],
                 ]);
                 $claimedTxns[$pair['sale']->id] = true;
+                if (! empty($pair['failed_id'])) {
+                    app(RetainedCreditLinker::class)->link($pair['sale']->id, $pair['failed_id'], 'top-up');
+                }
             } catch (QueryException) {
                 $remaining[] = $row; // claimed by another report meanwhile
             }
@@ -588,6 +635,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
+            ->tap(fn ($q) => self::restrictToProvider($q, $this->provider))
             ->get(self::candidateColumns());
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
@@ -681,6 +729,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
+            ->tap(fn ($q) => self::restrictToProvider($q, $this->provider))
             ->get(self::candidateColumns());
 
         $vendCodes = \App\Models\Vend::withoutGlobalScopes()
@@ -928,6 +977,7 @@ class CardSettlementMatcher
             // Approved from VMC-retained credit — no card presented, no
             // terminal settlement will ever exist for it.
             ->where('vend_transactions.is_retained_credit_settlement', false)
+            ->tap(fn ($q) => self::restrictToProvider($q, $this->provider))
             ->get(self::candidateColumns());
 
         $claimed = CardSettlementRow::query()
@@ -964,6 +1014,7 @@ class CardSettlementMatcher
                     ->from('card_settlement_rows')
                     ->whereColumn('card_settlement_rows.matched_vend_transaction_id', 'vend_transactions.id');
             })
+            ->tap(fn ($q) => self::restrictToProvider($q, $this->provider))
             ->get(self::candidateColumns());
 
         return $candidates->groupBy('vend_id');
