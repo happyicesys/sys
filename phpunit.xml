@@ -30,6 +30,11 @@
         <env name="DB_DATABASE" value="testing"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- Belt and braces with TestCase's FakeMqttPublisher: anything that still
+             reaches for a real broker fails fast on localhost instead of
+             publishing to production. -->
+        <env name="MQTT_HOST" value="127.0.0.1"/>
+        <env name="MQTT_MODEM_HOST" value="127.0.0.1"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="SALES_DIRTY_DAYS_STORE" value="array"/>

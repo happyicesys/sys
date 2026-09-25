@@ -11,7 +11,10 @@ use Illuminate\Queue\SerializesModels;
 
 class PublishMqtt implements ShouldQueue
 {
-    public $timeout = 5;
+    // 15 s, was 5 (2026-09-25): room for MqttPublisher's worst case — connect
+    // (3 s) + PUBACK wait (3 s), then one reconnect-and-retry. A healthy publish
+    // still takes milliseconds. Hitting this timeout kills the worker process.
+    public $timeout = 15;
 
     public $tries = 1;
 

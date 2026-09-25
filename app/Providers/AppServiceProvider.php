@@ -30,6 +30,16 @@ class AppServiceProvider extends ServiceProvider
         // the in-memory store used by tests both live on the instance.
         $this->app->singleton(\App\Services\Sales\DirtyDayRegistry::class);
 
+        // One MQTT publisher connection per worker process (2026-09-25). SINGLETON
+        // on purpose: the queue worker clears facades and scoped instances after
+        // every job, and the old facade path opened a broker connection per
+        // publish (~8/s). See App\Services\Mqtt\MqttPublisher.
+        $this->app->singleton(\App\Services\Mqtt\MqttPublisher::class, fn () => new \App\Services\Mqtt\MqttPublisher(
+            (array) config('mqtt_publisher'),
+            (array) config('mqtt-client.connections'),
+            (string) config('mqtt-client.default_connection'),
+        ));
+
         // The banking calendar reads the public-holiday table once and keeps it
         // on the instance; a per-row instance would re-query it for every card
         // sale on a Sales Transactions page. SCOPED, not singleton: a Horizon
@@ -55,6 +65,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // Say goodbye to the broker when a worker stops (deploy, horizon:terminate,
+        // autoscaling) instead of leaving it to time the socket out.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Queue\Events\WorkerStopping::class, function () {
+            if ($this->app->resolved(\App\Services\Mqtt\MqttPublisher::class)) {
+                $this->app->make(\App\Services\Mqtt\MqttPublisher::class)->disconnectAll();
+            }
+        });
+
         Inertia::share('initBinded', env('VEND_INIT_BINDED'));
 
         // Blind SKU: keep per-product blended unit costs in sync.
