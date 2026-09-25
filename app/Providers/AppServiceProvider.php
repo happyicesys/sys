@@ -72,6 +72,12 @@ class AppServiceProvider extends ServiceProvider
                 $this->app->make(\App\Services\Mqtt\MqttPublisher::class)->disconnectAll();
             }
         });
+        // ...and when it has sat idle, instead of letting the broker time it out.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Queue\Events\Looping::class, function () {
+            if ($this->app->resolved(\App\Services\Mqtt\MqttPublisher::class)) {
+                $this->app->make(\App\Services\Mqtt\MqttPublisher::class)->closeIdleConnections();
+            }
+        });
 
         Inertia::share('initBinded', env('VEND_INIT_BINDED'));
 

@@ -37,8 +37,8 @@ use PhpMqtt\Client\Repositories\MemoryRepository;
  *   - any failure (socket error, missing PUBACK) drops the connection,
  *     reconnects once and publishes once more; a second failure propagates so
  *     the job fails visibly instead of silently;
- *   - a clean DISCONNECT when the worker stops (WorkerStopping) or the
- *     process ends.
+ *   - a clean DISCONNECT when the worker stops (WorkerStopping), when it has
+ *     been idle for idle_reconnect_after (Looping), or the process ends.
  *
  * Rollout is gated by config('mqtt_publisher.persistent_codes'): only the
  * CM<code> topics of those machines use the persistent connection, everything
@@ -104,6 +104,23 @@ class MqttPublisher
         }
 
         return preg_match('/^CM(\d+)$/', $topic, $m) === 1 && in_array($m[1], $codes, true);
+    }
+
+    /**
+     * Clean DISCONNECT for connections idle longer than idle_reconnect_after.
+     * Called from the worker's Looping event (every few seconds while it waits
+     * for jobs). Without it an idle worker's connection sat silent until the
+     * broker cut it at 1.5 x keepalive — seen in the 2026-09-25 canary as
+     * "exceeded timeout" + "Socket error" on every low-traffic worker.
+     */
+    public function closeIdleConnections(): void
+    {
+        $limit = (int) ($this->config['idle_reconnect_after'] ?? 45);
+        foreach ($this->connections as $name => $connection) {
+            if ($this->now() - $connection['last_used'] >= $limit) {
+                $this->drop($name);
+            }
+        }
     }
 
     /** Clean DISCONNECT for every open connection. Safe to call at any time. */

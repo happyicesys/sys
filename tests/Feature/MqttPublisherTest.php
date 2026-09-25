@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\PublishMqtt;
 use App\Services\Mqtt\MqttPublisher;
 use App\Services\MqttService;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Facade;
@@ -181,6 +182,24 @@ class MqttPublisherTest extends TestCase
         Event::dispatch(new WorkerStopping(0));
 
         $this->made[0]['client']->shouldHaveReceived('disconnect')->once();
+    }
+
+    public function test_an_idle_worker_closes_its_connection_cleanly_while_waiting_for_jobs(): void
+    {
+        $publisher = $this->publisher();
+        $this->app->instance(MqttPublisher::class, $publisher);
+        $publisher->publish('CM2031', 'frame', 1);
+
+        $this->now += 10;
+        Event::dispatch(new Looping('redis', 'default'));
+        $this->made[0]['client']->shouldNotHaveReceived('disconnect');
+
+        $this->now += 40; // 50 s idle > idle_reconnect_after (45)
+        Event::dispatch(new Looping('redis', 'default'));
+        $this->made[0]['client']->shouldHaveReceived('disconnect')->once();
+
+        $publisher->publish('CM2031', 'next', 1);
+        $this->assertCount(2, $this->made, 'the next publish reconnects');
     }
 
     public function test_client_ids_fit_the_mqtt_31_limit(): void
