@@ -94,6 +94,44 @@ class ProductLowStockVendsTest extends TestCase
         $this->assertNull($bravo['zone_name']);
     }
 
+    public function test_scope_all_and_with_stock_mirror_the_page_counts(): void
+    {
+        $product = Product::create(['code' => 'LS4', 'name' => 'Scoped Counts Bar']);
+
+        // 5+0 -> carrying, has stock (any channel > 0), not low
+        $full = $this->makeVend($this->hipl, 9301, 'Full Site', null);
+        $this->makeChannel($full, 11, $product->id, 5);
+        $this->makeChannel($full, 12, $product->id, 0);
+        // 1 -> carrying, has stock, low
+        $low = $this->makeVend($this->hipl, 9302, 'Low Site', null);
+        $this->makeChannel($low, 11, $product->id, 1);
+        // 0 -> carrying, no stock, low
+        $empty = $this->makeVend($this->hipl, 9303, 'Empty Site', null);
+        $this->makeChannel($empty, 11, $product->id, 0);
+        // unbound / inactive channel -> never counted in any scope
+        $unbound = $this->makeVend($this->hipl, 9304, 'Parked', null, bind: false);
+        $this->makeChannel($unbound, 11, $product->id, 5);
+        $inactive = $this->makeVend($this->hipl, 9305, 'Inactive Channel', null);
+        $this->makeChannel($inactive, 11, $product->id, 5, isActiveChannel: false);
+
+        $user = User::factory()->create(['operator_id' => $this->hipl->id]);
+        $user->givePermissionTo('read product-availability');
+        $this->actingAs($user);
+
+        $codes = fn (?string $scope) => collect($this->getJson(
+            "/products/availability/low-stock-vends/{$product->id}".($scope ? "?scope={$scope}" : '')
+        )->assertOk()->json('vends'))->pluck('vend_code')->sort()->values()->all();
+
+        $this->assertSame(['9301', '9302', '9303'], $codes('all'));
+        $this->assertSame(['9301', '9302'], $codes('with_stock'));
+        $this->assertSame(['9302', '9303'], $codes('low'));
+        // No scope keeps the original "stock <= 2" meaning.
+        $this->assertSame(['9302', '9303'], $codes(null));
+
+        $this->getJson("/products/availability/low-stock-vends/{$product->id}?scope=bogus")
+            ->assertStatus(422);
+    }
+
     public function test_reports_the_last_completed_job_date_and_its_age(): void
     {
         $product = Product::create(['code' => 'LS3', 'name' => 'Aged Bar']);

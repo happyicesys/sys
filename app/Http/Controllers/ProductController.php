@@ -303,13 +303,23 @@ class ProductController extends Controller
     }
 
     /**
-     * Drill-down for the "stock <= 2" line on the Warehouse Qty page:
-     * the machines behind vend_low_stock_count for one product, with the
-     * Site and its refilling route (zone). A blind flavour resolves
-     * through its active housing(s), mirroring the page's aggregation.
+     * Drill-down for the "Available in # of VM" cell on the Warehouse Qty
+     * page: the machines behind one of its three figures for one product,
+     * with the Site and its refilling route (zone). `scope` picks the figure
+     * and mirrors availableVendCounts() exactly:
+     *   all        - vend_count            (every deployed machine carrying it)
+     *   with_stock - vend_with_stock_count (any active channel qty > 0)
+     *   low        - vend_low_stock_count  (machine total <= 2; the default,
+     *                so the original "stock <= 2" URL keeps its meaning)
+     * A blind flavour resolves through its active housing(s), mirroring the
+     * page's aggregation.
      */
-    public function lowStockVends($productId)
+    public function lowStockVends(Request $request, $productId)
     {
+        $scope = $request->validate([
+            'scope' => 'nullable|in:all,with_stock,low',
+        ])['scope'] ?? 'low';
+
         $product = Product::query()
             ->with([
                 'blindParentLinks' => fn ($q) => $q
@@ -342,7 +352,8 @@ class ProductController extends Controller
             ->join('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
             ->groupBy('vends.id', 'vends.code', 'vends.code_prefix', 'customers.id', 'customers.name', 'zones.name')
-            ->havingRaw('COALESCE(SUM(vend_channels.qty), 0) <= 2')
+            ->when($scope === 'low', fn ($q) => $q->havingRaw('COALESCE(SUM(vend_channels.qty), 0) <= 2'))
+            ->when($scope === 'with_stock', fn ($q) => $q->havingRaw('MAX(vend_channels.qty > 0) = 1'))
             ->selectRaw('vends.id as vend_id, vends.code as vend_code, vends.code_prefix,
                 customers.id as customer_id, customers.name as customer_name,
                 zones.name as zone_name,

@@ -272,11 +272,29 @@
                         </div>
                       </div>
                     </td>
-                    <!-- Available in # of VM: live machines carrying the SKU (+ how many still hold stock) -->
+                    <!-- Available in # of VM: live machines carrying the SKU (+ how many still hold stock). Each figure opens its machine list. -->
                     <td class="p-1 sm:p-3 text-center" :class="[product.is_available ? '' : 'opacity-50']">
-                      <span class="text-sm sm:text-lg font-bold text-gray-800">{{ Number(product.available_vend_count ?? 0).toLocaleString() }}</span>
+                      <button
+                        v-if="product.available_vend_count > 0"
+                        type="button"
+                        class="text-sm sm:text-lg font-bold text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-4 hover:text-indigo-700 hover:decoration-indigo-400"
+                        v-tooltip="{ content: 'Click for every machine carrying this SKU, with site and refilling route.' }"
+                        @click.prevent="onVendDrillClicked(product, 'all')"
+                      >
+                        {{ Number(product.available_vend_count).toLocaleString() }}
+                      </button>
+                      <span v-else class="text-sm sm:text-lg font-bold text-gray-800">0</span>
                       <div v-if="product.available_vend_count > 0" class="text-xs text-gray-500">
-                        {{ Number(product.available_vend_with_stock_count ?? 0).toLocaleString() }} with stock
+                        <button
+                          v-if="Number(product.available_vend_with_stock_count ?? 0) > 0"
+                          type="button"
+                          class="underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-indigo-700 hover:decoration-indigo-400"
+                          v-tooltip="{ content: 'Click for the machines still holding stock of this SKU.' }"
+                          @click.prevent="onVendDrillClicked(product, 'with_stock')"
+                        >
+                          {{ Number(product.available_vend_with_stock_count).toLocaleString() }} with stock
+                        </button>
+                        <span v-else>0 with stock</span>
                       </div>
                       <!-- Low stock: machines whose total qty of this SKU is <= 2 (incl. empty). Click for the machine list. -->
                       <div v-if="product.available_vend_count > 0" class="mt-1">
@@ -285,7 +303,7 @@
                           type="button"
                           class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2.5 py-1 text-xs sm:text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 shadow-sm transition-colors hover:bg-red-100 hover:ring-red-300"
                           v-tooltip="{ content: 'Machines whose total stock of this SKU is 2 or less (empty included). Click for the machine list with refilling routes.' }"
-                          @click.prevent="onLowStockClicked(product)"
+                          @click.prevent="onVendDrillClicked(product, 'low')"
                         >
                           <ExclamationTriangleIcon class="h-4 w-4 text-red-500" aria-hidden="true" />
                           {{ Number(product.available_vend_low_stock_count).toLocaleString() }} at &le;2
@@ -432,37 +450,37 @@
       </div>
     </div>
 
-    <!-- Low-stock drill-down: machines whose total qty of the SKU is <= 2 -->
-    <Modal :open="lowStockModalOpen" @modalClose="lowStockModalOpen = false">
+    <!-- "Available in # of VM" drill-down: the machines behind the clicked figure -->
+    <Modal :open="vendDrillOpen" @modalClose="vendDrillOpen = false">
       <template #header>
         <div class="flex flex-col text-left">
-          <span>Machines with stock &lt;= 2</span>
-          <span class="text-sm font-normal text-gray-600" v-if="lowStockProduct">
-            {{ lowStockProduct.code }} — {{ lowStockProduct.name }}
+          <span>{{ vendDrillScopes[vendDrillScope].title }}</span>
+          <span class="text-sm font-normal text-gray-600" v-if="vendDrillProduct">
+            {{ vendDrillProduct.code }} — {{ vendDrillProduct.name }}
           </span>
         </div>
       </template>
       <div class="text-sm">
-        <div v-if="lowStockLoading" class="py-8 text-center text-gray-500">
+        <div v-if="vendDrillLoading" class="py-8 text-center text-gray-500">
           Loading...
         </div>
-        <div v-else-if="lowStockVends.length === 0" class="py-8 text-center text-gray-500">
-          No machines with stock &lt;= 2.
+        <div v-else-if="vendDrillVends.length === 0" class="py-8 text-center text-gray-500">
+          {{ vendDrillScopes[vendDrillScope].empty }}
         </div>
         <div v-else class="max-h-[60vh] overflow-y-auto">
           <table class="min-w-full divide-y divide-gray-300">
             <thead class="bg-gray-100 sticky top-0">
               <tr>
                 <th
-                  v-for="column in lowStockColumns"
+                  v-for="column in vendDrillColumns"
                   :key="column.key"
                   :class="['p-2 text-xs font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-200', column.align]"
-                  @click="sortLowStock(column.key)"
+                  @click="sortVendDrill(column.key)"
                 >
                   <div :class="['flex items-center gap-1', column.justify]">
                     <span>{{ column.label }}</span>
-                    <span v-if="lowStockSortKey === column.key">
-                      <svg v-if="lowStockSortAsc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <span v-if="vendDrillSortKey === column.key">
+                      <svg v-if="vendDrillSortAsc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                       </svg>
                       <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -474,14 +492,14 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white">
-              <tr v-for="(vend, vendIndex) in sortedLowStockVends" :key="vend.vend_id" class="hover:bg-gray-50">
+              <tr v-for="(vend, vendIndex) in sortedVendDrillVends" :key="vend.vend_id" class="hover:bg-gray-50">
                 <td class="p-2 text-xs text-gray-500">{{ vendIndex + 1 }}</td>
                 <td class="p-2 text-xs font-bold text-gray-900 whitespace-nowrap">{{ vend.vend_code }}</td>
                 <td class="p-2 text-xs text-gray-800">
                   <span class="font-semibold">{{ vend.site_ref_id }}</span>
                   {{ vend.site_name }}
                 </td>
-                <td class="p-2 text-center text-xs font-bold" :class="vend.qty === 0 ? 'text-red-600' : 'text-orange-600'">
+                <td class="p-2 text-center text-xs font-bold" :class="vend.qty <= 0 ? 'text-red-600' : (vend.qty <= 2 ? 'text-orange-600' : 'text-gray-800')">
                   {{ vend.qty }}
                 </td>
                 <td class="p-2 text-left text-xs whitespace-nowrap">
@@ -704,15 +722,22 @@ function getDailySoldQtyTotalCost() {
   }, 0);
 }
 
-// Low-stock drill-down modal: machines whose total qty of the SKU is <= 2.
-const lowStockModalOpen = ref(false)
-const lowStockLoading = ref(false)
-const lowStockProduct = ref(null)
-const lowStockVends = ref([])
+// "Available in # of VM" drill-down modal: the machines behind one of the
+// cell's three figures. Scopes mirror ProductController::availableVendCounts.
+const vendDrillScopes = {
+  all: { title: 'Machines carrying this SKU', empty: 'No machines carry this SKU.' },
+  with_stock: { title: 'Machines with stock', empty: 'No machines hold stock of this SKU.' },
+  low: { title: 'Machines with stock <= 2', empty: 'No machines with stock <= 2.' },
+}
+const vendDrillScope = ref('low')
+const vendDrillOpen = ref(false)
+const vendDrillLoading = ref(false)
+const vendDrillProduct = ref(null)
+const vendDrillVends = ref([])
 
 // The modal's columns, all click-to-sort. '#' is the server order (refilling
 // route, then site) — clicking it puts the list back the way it arrived.
-const lowStockColumns = [
+const vendDrillColumns = [
   { key: 'index', label: '#', align: 'text-left', justify: 'justify-start' },
   { key: 'vend_code', label: 'Machine', align: 'text-left', justify: 'justify-start' },
   { key: 'site_name', label: 'Site', align: 'text-left', justify: 'justify-start' },
@@ -720,19 +745,19 @@ const lowStockColumns = [
   { key: 'last_job_date', label: 'Last Job', align: 'text-left', justify: 'justify-start' },
   { key: 'zone_name', label: 'Refilling Route', align: 'text-right', justify: 'justify-end' },
 ]
-const lowStockSortKey = ref('index')
-const lowStockSortAsc = ref(true)
+const vendDrillSortKey = ref('index')
+const vendDrillSortAsc = ref(true)
 
-function sortLowStock(key) {
-  if (lowStockSortKey.value === key) {
-    lowStockSortAsc.value = !lowStockSortAsc.value
+function sortVendDrill(key) {
+  if (vendDrillSortKey.value === key) {
+    vendDrillSortAsc.value = !vendDrillSortAsc.value
   } else {
-    lowStockSortKey.value = key
-    lowStockSortAsc.value = true
+    vendDrillSortKey.value = key
+    vendDrillSortAsc.value = true
   }
 }
 
-function compareLowStock(a, b, key) {
+function compareVendDrill(a, b, key) {
   if (key === 'qty') {
     return a.qty - b.qty
   }
@@ -761,36 +786,42 @@ function compareLowStock(a, b, key) {
   return String(a[key] ?? '').localeCompare(String(b[key] ?? ''))
 }
 
-const sortedLowStockVends = computed(() => {
-  const key = lowStockSortKey.value
-  const dir = lowStockSortAsc.value ? 1 : -1
-  const rows = lowStockVends.value.map((vend, index) => ({ vend, index }))
+const sortedVendDrillVends = computed(() => {
+  const key = vendDrillSortKey.value
+  const dir = vendDrillSortAsc.value ? 1 : -1
+  const rows = vendDrillVends.value.map((vend, index) => ({ vend, index }))
 
   return rows.sort((a, b) => {
     if (key === 'index') return (a.index - b.index) * dir
-    const cmp = compareLowStock(a.vend, b.vend, key)
+    const cmp = compareVendDrill(a.vend, b.vend, key)
 
     // Ties keep the arrival order, so equal rows never reshuffle on re-sort.
     return cmp !== 0 ? cmp * dir : a.index - b.index
   }).map(row => row.vend)
 })
 
-function onLowStockClicked(product) {
-  lowStockProduct.value = product
-  lowStockVends.value = []
-  lowStockSortKey.value = 'index'
-  lowStockSortAsc.value = true
-  lowStockModalOpen.value = true
-  lowStockLoading.value = true
-  axios.get('/products/availability/low-stock-vends/' + product.id)
+// Each click bumps this, so a slow earlier response never fills the modal
+// opened by a later click (three entry points per row now).
+let vendDrillRequestSeq = 0
+
+function onVendDrillClicked(product, scope) {
+  const seq = ++vendDrillRequestSeq
+  vendDrillScope.value = scope
+  vendDrillProduct.value = product
+  vendDrillVends.value = []
+  vendDrillSortKey.value = 'index'
+  vendDrillSortAsc.value = true
+  vendDrillOpen.value = true
+  vendDrillLoading.value = true
+  axios.get('/products/availability/low-stock-vends/' + product.id, { params: { scope } })
     .then(response => {
-      lowStockVends.value = response.data.vends
+      if (seq === vendDrillRequestSeq) vendDrillVends.value = response.data.vends
     })
     .catch(error => {
-      console.error('Error loading low-stock machines:', error)
+      console.error('Error loading machines:', error)
     })
     .finally(() => {
-      lowStockLoading.value = false
+      if (seq === vendDrillRequestSeq) vendDrillLoading.value = false
     })
 }
 
