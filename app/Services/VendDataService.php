@@ -19,6 +19,7 @@ use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\IncrementVendDailyStat;
 use App\Jobs\Vend\RecordVendLinkHealth;
+use App\Jobs\Vend\RecordVendTradeQueue;
 use App\Jobs\Vend\SyncFeatureApkSetting;
 // use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\SyncFreezerControlAck;
@@ -475,6 +476,7 @@ class VendDataService
                             SyncP::dispatch($processedInput, $vend)->onQueue('default');
                         }
                         $this->recordLinkHealth($processedInput, $vend);
+                        $this->recordTradeQueue($processedInput, $vend);
                         $saveVendData = false;
                         break;
                     case 'FREEZERSTATUS':
@@ -604,6 +606,41 @@ class VendDataService
      * once a minute. The device's day is trusted only within a day of ours
      * (board clocks drift — audit A1), otherwise today's date is used.
      */
+    /**
+     * Unsent-TRADE backlog carried on a "P" heartbeat by big 307+ / small v15+
+     * (TradeOutbox): `TrdQ` = trades on disk not yet accepted by mark1,
+     * `TrdQAge` = seconds the oldest has waited. Stored as today's latest
+     * reading by RecordVendTradeQueue.
+     *
+     * Absent key = older build, nothing written ("no data"). Written only when
+     * it moves: the count changes, or — while trades are waiting — the age
+     * crosses a minute. An empty queue writes once per day, so a healthy
+     * machine still shows 0 today rather than "no data".
+     */
+    private function recordTradeQueue(array $input, Vend $vend): void
+    {
+        if (! array_key_exists('TrdQ', $input) || ! is_numeric($input['TrdQ'])) {
+            return;
+        }
+        $count = max(0, (int) $input['TrdQ']);
+        $age = isset($input['TrdQAge']) && is_numeric($input['TrdQAge']) ? max(0, (int) $input['TrdQAge']) : 0;
+        if ($count === 0) {
+            $age = 0;
+        }
+
+        $now = Carbon::now();
+        $date = $now->toDateString();
+        $fingerprint = $date.'|'.$count.'|'.intdiv($age, 60);
+        $cacheKey = 'trade_queue_fp_'.$vend->id;
+        if (Cache::get($cacheKey) === $fingerprint) {
+            return;
+        }
+        Cache::put($cacheKey, $fingerprint, now()->addHours(6));
+
+        RecordVendTradeQueue::dispatch($vend->id, (string) $vend->code, $date, $count, $age, $now->toDateTimeString())
+            ->onQueue('low');
+    }
+
     private function recordLinkHealth(array $input, Vend $vend): void
     {
         if (! array_key_exists('MqttOfflineSec', $input)) {

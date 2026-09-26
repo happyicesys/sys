@@ -507,6 +507,12 @@ class VendResource extends JsonResource
             'mqtt_drops_1d' => isset($this->mqtt_drops_1d) ? (int) $this->mqtt_drops_1d : null,
             'mqtt_recycles_1d' => isset($this->mqtt_recycles_1d) ? (int) $this->mqtt_recycles_1d : null,
             'mqtt_conn_fails_1d' => isset($this->mqtt_conn_fails_1d) ? (int) $this->mqtt_conn_fails_1d : null,
+            // Unsent sales (vend_daily_stats, RecordVendTradeQueue): TRADEs the
+            // machine holds on disk that mark1 has not accepted, today's latest
+            // reading. Big 307+ / small v15+ only; null = no data.
+            'trade_queue' => isset($this->trade_queue) ? (int) $this->trade_queue : null,
+            'trade_queue_age_s' => isset($this->trade_queue_age_s) ? (int) $this->trade_queue_age_s : null,
+            'trade_queue_at' => isset($this->trade_queue_at) ? (string) $this->trade_queue_at : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
             'vend_id' => isset($this->vend_id) ? $this->vend_id : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,

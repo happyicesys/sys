@@ -979,6 +979,17 @@
 									3d
 								</SingleSortItem>
 							</div>
+							<!-- Unsent Sales — TRADEs the machine holds on disk that mark1 has
+							     not accepted yet (big 307+ / small v15+ TradeOutbox, P heartbeat
+							     TrdQ/TrdQAge -> vend_daily_stats metric=trade_queue). Sort hits
+							     the trade_queue alias; machines that do not report sort last. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<SingleSortItem modelName="trade_queue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('trade_queue', false)">
+									<span class="text-[11px] font-semibold text-gray-900">Unsent Sales</span>
+								</SingleSortItem>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Sales the machine has saved on its own storage that mark1 has not received yet, with how long the oldest has waited. The machine keeps resending them until mark1 confirms, so a number that stays above 0 means sales are happening that mark1 cannot see yet (poor signal, server unreachable).<br>Green 0, amber waiting under 30 min, red 30 min+. “–” = no data today: the machine runs a build older than big 307 / small v15.', html: true }"></ExclamationCircleIcon>
+							</div>
 							<!-- "# of No Found in Txn" 1d/2d/3d block — counter written by
 							     LogNofoundTxnIfStillMissing (5 min after a PG payment is
 							     approved, if the matching vend_transactions row still
@@ -1828,6 +1839,16 @@
 									<span class="text-gray-400">/</span>
 									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_3d_s)">
 										{{ mqttOfflineMinutes(vend.mqtt_offline_3d_s) }}
+									</span>
+								</div>
+							</template>
+							<!-- Unsent Sales: count · age of the oldest (vend_daily_stats
+							     metric=trade_queue / trade_queue_age_s, today's latest reading). -->
+							<template v-if="vend.trade_queue !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span :class="tradeQueueClass(vend)" v-tooltip="tradeQueueTooltip(vend)">
+										{{ tradeQueueLabel(vend) }}
 									</span>
 								</div>
 							</template>
@@ -3613,6 +3634,39 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			return 'No link health reported today (build older than big 306 / small v14, or no heartbeat yet).';
 		}
 		return `Today: ${vend.mqtt_drops_1d ?? 0} drops · ${vend.mqtt_recycles_1d ?? 0} client recycles · ${vend.mqtt_conn_fails_1d ?? 0} failed connects`;
+	}
+
+	// ── Unsent sales (vend_daily_stats via RecordVendTradeQueue) ────────────
+	// null = no reading today (build older than big 307 / small v15): "–", never 0.
+	function tradeQueueAge(seconds) {
+		if (!seconds) return '';
+		if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))}m`;
+		if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
+		return `${Math.round(seconds / 86400)}d`;
+	}
+
+	function tradeQueueLabel(vend) {
+		if (vend.trade_queue === null || vend.trade_queue === undefined) return '–';
+		if (vend.trade_queue === 0) return '0';
+		return `${vend.trade_queue} · ${tradeQueueAge(vend.trade_queue_age_s)}`;
+	}
+
+	function tradeQueueClass(vend) {
+		if (!(vend.is_active || vend.is_testing) || vend.trade_queue === null || vend.trade_queue === undefined) {
+			return 'text-gray-400';
+		}
+		if (vend.trade_queue === 0) return 'text-green-700';
+		if ((vend.trade_queue_age_s ?? 0) >= 1800) return 'text-red-700 font-semibold';
+		return 'text-amber-600';
+	}
+
+	function tradeQueueTooltip(vend) {
+		if (vend.trade_queue === null || vend.trade_queue === undefined) {
+			return 'No unsent-sales reading today (build older than big 307 / small v15, or no heartbeat yet).';
+		}
+		const at = vend.trade_queue_at ? ` Reported ${vend.trade_queue_at}.` : '';
+		if (vend.trade_queue === 0) return `No unsent sales.${at}`;
+		return `${vend.trade_queue} sale(s) saved on the machine, not yet received by mark1; oldest waiting ${tradeQueueAge(vend.trade_queue_age_s)}.${at}`;
 	}
 
 	// ── Deferred aggregates (perf) ──────────────────────────────────────────

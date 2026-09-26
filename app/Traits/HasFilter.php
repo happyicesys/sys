@@ -891,7 +891,7 @@ trait HasFilter
                         }
 
                         $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-                    } elseif (in_array($search, ['mqtt_offline_1d_s', 'mqtt_offline_2d_s', 'mqtt_offline_3d_s'], true)) {
+                    } elseif (in_array($search, ['mqtt_offline_1d_s', 'mqtt_offline_2d_s', 'mqtt_offline_3d_s', 'trade_queue'], true)) {
                         // Machines that do not report link health (NULL) sort last in
                         // both directions — "no data" is not "best" or "worst".
                         $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));

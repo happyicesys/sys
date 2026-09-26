@@ -151,6 +151,28 @@ class VendController extends Controller
         ];
     }
 
+    /** vend_daily_stats gauges written by RecordVendTradeQueue (P heartbeat, 307+ / v15+). */
+    private const TRADE_QUEUE_METRICS = ['trade_queue', 'trade_queue_age_s'];
+
+    /**
+     * Ops Dashboard "Unsent Sales" fields for one machine: TRADEs the machine
+     * holds on disk that mark1 has not accepted yet, the age of the oldest,
+     * and when that reading was taken. NULL = the machine sent no reading
+     * today (build older than big 307 / small v15), never "0 unsent".
+     *
+     * @param  array<string, array<string, int>>  $byMetric  metric => date => count
+     * @param  array<string, array<string, string>>  $atByMetric  metric => date => updated_at
+     * @return array<string, int|string|null>
+     */
+    private static function tradeQueueFields(array $byMetric, array $atByMetric, string $d1): array
+    {
+        return [
+            'trade_queue' => $byMetric['trade_queue'][$d1] ?? null,
+            'trade_queue_age_s' => $byMetric['trade_queue_age_s'][$d1] ?? null,
+            'trade_queue_at' => $atByMetric['trade_queue'][$d1] ?? null,
+        ];
+    }
+
     use GetUserTimezone, HasFilter;
 
     /**
@@ -756,6 +778,10 @@ class VendController extends Controller
         // Unlike PWRON the aliases stay NULL for machines that do not report
         // (older builds): "no data" must never read as "0 min offline".
         $needsMqttOffline = in_array($sortKey, ['mqtt_offline_1d_s', 'mqtt_offline_2d_s', 'mqtt_offline_3d_s']);
+        // "Unsent Sales" sort — today's TradeOutbox backlog (vend_daily_stats
+        // metric=trade_queue, RecordVendTradeQueue). NULL for machines that do
+        // not report, sorted last like MQTT Offline.
+        $needsTradeQueue = $sortKey === 'trade_queue';
         // Dates are app-TZ — mirrors the post-query loop and matches how
         // IncrementVendDailyStat buckets writes. Computed up here so both the
         // sort-leftJoin and the post-query enrichment use the same values.
@@ -1165,6 +1191,13 @@ class VendController extends Controller
                 GROUP BY vend_id
             ) AS vds_mqtt"), 'vds_mqtt.vend_id', '=', 'vends.id');
                 })
+                ->when($needsTradeQueue, function ($query) use ($pwronDate1d) {
+                    $query->leftJoin(DB::raw("(
+                SELECT vend_id, count AS trade_queue
+                FROM vend_daily_stats
+                WHERE metric = 'trade_queue' AND `date` = '{$pwronDate1d}'
+            ) AS vds_tq"), 'vds_tq.vend_id', '=', 'vends.id');
+                })
                 ->when($needsRefund, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
                     // "# of Refund" — counted from refund_tickets (per submitted
                     // ticket, any status), bucketed by submission date in app TZ to
@@ -1495,6 +1528,10 @@ class VendController extends Controller
                 $selectColumns[] = DB::raw('vds_mqtt.mqtt_offline_1d_s AS mqtt_offline_1d_s');
                 $selectColumns[] = DB::raw('vds_mqtt.mqtt_offline_2d_s AS mqtt_offline_2d_s');
                 $selectColumns[] = DB::raw('vds_mqtt.mqtt_offline_3d_s AS mqtt_offline_3d_s');
+            }
+
+            if ($needsTradeQueue) {
+                $selectColumns[] = DB::raw('vds_tq.trade_queue AS trade_queue');
             }
 
             if ($needsRefund) {
@@ -1929,12 +1966,13 @@ class VendController extends Controller
                 $pwronByVend = [];
                 $nofoundByVend = [];
                 $linkByVend = [];
+                $linkAtByVend = [];
                 if (! empty($vendIds)) {
                     $statsRows = DB::table('vend_daily_stats')
                         ->whereIn('vend_id', $vendIds)
-                        ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS))
+                        ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS, self::TRADE_QUEUE_METRICS))
                         ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
-                        ->get(['vend_id', 'date', 'metric', 'count']);
+                        ->get(['vend_id', 'date', 'metric', 'count', 'updated_at']);
                     foreach ($statsRows as $row) {
                         $vid = (int) $row->vend_id;
                         // DB date may come back as 'Y-m-d' or 'Y-m-d 00:00:00'
@@ -1946,6 +1984,7 @@ class VendController extends Controller
                             $nofoundByVend[$vid][$dateKey] = (int) $row->count;
                         } else {
                             $linkByVend[$vid][$row->metric][$dateKey] = (int) $row->count;
+                            $linkAtByVend[$vid][$row->metric][$dateKey] = (string) $row->updated_at;
                         }
                     }
                 }
@@ -1976,6 +2015,9 @@ class VendController extends Controller
                     $vend->refund_2d_count = (int) ($refundByVend[$vid][$pwronDate2d] ?? 0);
                     $vend->refund_3d_count = (int) ($refundByVend[$vid][$pwronDate3d] ?? 0);
                     foreach (self::linkHealthFields($linkByVend[$vid] ?? [], $pwronDate1d, $pwronDate2d, $pwronDate3d) as $field => $value) {
+                        $vend->{$field} = $value;
+                    }
+                    foreach (self::tradeQueueFields($linkByVend[$vid] ?? [], $linkAtByVend[$vid] ?? [], $pwronDate1d) as $field => $value) {
                         $vend->{$field} = $value;
                     }
                 }
@@ -2645,12 +2687,13 @@ class VendController extends Controller
         $pwronByVend = [];
         $nofoundByVend = [];
         $linkByVend = [];
+        $linkAtByVend = [];
         if (! empty($aggVendIds)) {
             $statsRows = DB::table('vend_daily_stats')
                 ->whereIn('vend_id', $aggVendIds)
-                ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS))
+                ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS, self::TRADE_QUEUE_METRICS))
                 ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
-                ->get(['vend_id', 'date', 'metric', 'count']);
+                ->get(['vend_id', 'date', 'metric', 'count', 'updated_at']);
             foreach ($statsRows as $row) {
                 $vid = (int) $row->vend_id;
                 $dateKey = substr((string) $row->date, 0, 10);
@@ -2660,6 +2703,7 @@ class VendController extends Controller
                     $nofoundByVend[$vid][$dateKey] = (int) $row->count;
                 } else {
                     $linkByVend[$vid][$row->metric][$dateKey] = (int) $row->count;
+                    $linkAtByVend[$vid][$row->metric][$dateKey] = (string) $row->updated_at;
                 }
             }
         }
@@ -2710,7 +2754,8 @@ class VendController extends Controller
                 'nofound_txn_1d_count' => isset($nf[$pwronDate1d]) ? (int) $nf[$pwronDate1d] : ($vid !== null ? 0 : null),
                 'nofound_txn_2d_count' => isset($nf[$pwronDate2d]) ? (int) $nf[$pwronDate2d] : ($vid !== null ? 0 : null),
                 'nofound_txn_3d_count' => isset($nf[$pwronDate3d]) ? (int) $nf[$pwronDate3d] : ($vid !== null ? 0 : null),
-            ] + self::linkHealthFields($vid !== null ? ($linkByVend[$vid] ?? []) : [], $pwronDate1d, $pwronDate2d, $pwronDate3d);
+            ] + self::linkHealthFields($vid !== null ? ($linkByVend[$vid] ?? []) : [], $pwronDate1d, $pwronDate2d, $pwronDate3d)
+              + self::tradeQueueFields($vid !== null ? ($linkByVend[$vid] ?? []) : [], $vid !== null ? ($linkAtByVend[$vid] ?? []) : [], $pwronDate1d);
         }
 
         // ── Card totals (mirrors indexCustomer $totals; page-scoped = these rows) ─
