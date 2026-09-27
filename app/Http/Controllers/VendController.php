@@ -707,6 +707,12 @@ class VendController extends Controller
         // revenue with the figures merely hidden. Fall back to the page's own
         // default sort instead of honouring the request.
         $requestedSortKey = isset($request->sortKey) ? $request->sortKey : 'balance_percent';
+        // "# of No Found in Txn" was removed from this page (2026-09-27); its
+        // sort aliases no longer exist, so a bookmarked URL still carrying one
+        // would ORDER BY a missing column. Fall back to the default sort.
+        if (in_array($requestedSortKey, ['nofound_txn_1d_count', 'nofound_txn_2d_count', 'nofound_txn_3d_count'], true)) {
+            $requestedSortKey = 'balance_percent';
+        }
         // Sales(qty) is the exception: the column shows the viewer's OWN
         // product sales (ProductScopedSales), so the rows are ranked by that
         // figure in PHP once the population is known (sortByScopedSales()).
@@ -759,13 +765,6 @@ class VendController extends Controller
         // vend_daily_stats so filterVendsDB() can ORDER BY across the full
         // result set (otherwise sort would only work within the current page).
         $needsPwron = in_array($sortKey, ['pwron_1d_count', 'pwron_2d_count', 'pwron_3d_count']);
-        // "# of No Found in Txn" 1d/2d/3d sort — same pattern as PWRON. The
-        // metric ('nofound_txn') is written by LogNofoundTxnIfStillMissing
-        // (5-min delayed after a PG payment is approved) and decremented by
-        // VendTransactionService when the matching vend_transactions row
-        // finally lands. Both metrics share the same vend_daily_stats table
-        // and the same three-date window, so we can reuse the date variables.
-        $needsNofoundTxn = in_array($sortKey, ['nofound_txn_1d_count', 'nofound_txn_2d_count', 'nofound_txn_3d_count']);
         // "# of Refund" 1d/2d/3d sort — same pattern, but counted straight off
         // refund_tickets (one row per submitted RF ticket, any status — same
         // "how many claims did this machine generate" semantics as the Refund
@@ -808,7 +807,7 @@ class VendController extends Controller
             && ! $needsLastOpsJobs && ! $needsLastSecondOpsJobs && ! $needsNextOpsJobs
             && ! $needsLastThirtyDaysStockIn && ! $needsAccumulatedVendingEarning
             && ! $needsThirtyDaysVendingEarning && ! $needsExternalSubsidize
-            && ! $needsNetLocFee && ! $needsPwron && ! $needsNofoundTxn && ! $needsMqttOffline;
+            && ! $needsNetLocFee && ! $needsPwron && ! $needsMqttOffline;
 
         // Pre-Search aggregate cards ("Last 30 days" + "Current") — computed
         // across ALL rows matching the current filters (NOT capped by
@@ -1160,23 +1159,6 @@ class VendController extends Controller
                 GROUP BY vend_id
             ) AS vds_pwron"), 'vds_pwron.vend_id', '=', 'vends.id');
                 })
-                ->when($needsNofoundTxn, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
-                    // Same shape as the PWRON join above, different metric. Reuses
-                    // the same three-date window so the screen's three columns line
-                    // up across both rows. Aliased as vds_nofound to avoid colliding
-                    // with vds_pwron when both sorts are needed (only one runs at
-                    // a time today, but cheap insurance).
-                    $query->leftJoin(DB::raw("(
-                SELECT vend_id,
-                    SUM(CASE WHEN `date` = '{$pwronDate1d}' THEN count ELSE 0 END) AS nofound_txn_1d_count,
-                    SUM(CASE WHEN `date` = '{$pwronDate2d}' THEN count ELSE 0 END) AS nofound_txn_2d_count,
-                    SUM(CASE WHEN `date` = '{$pwronDate3d}' THEN count ELSE 0 END) AS nofound_txn_3d_count
-                FROM vend_daily_stats
-                WHERE metric = 'nofound_txn'
-                AND `date` IN ('{$pwronDate1d}', '{$pwronDate2d}', '{$pwronDate3d}')
-                GROUP BY vend_id
-            ) AS vds_nofound"), 'vds_nofound.vend_id', '=', 'vends.id');
-                })
                 ->when($needsMqttOffline, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
                     // MAX(CASE … END) without ELSE keeps NULL for a day the machine
                     // did not report, so older builds sort as "no data", not as 0.
@@ -1201,7 +1183,7 @@ class VendController extends Controller
                 ->when($needsRefund, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
                     // "# of Refund" — counted from refund_tickets (per submitted
                     // ticket, any status), bucketed by submission date in app TZ to
-                    // line up with the PWRON / nofound day windows above.
+                    // line up with the PWRON day window above.
                     $query->leftJoin(DB::raw("(
                 SELECT vend_id,
                     SUM(CASE WHEN DATE(created_at) = '{$pwronDate1d}' THEN 1 ELSE 0 END) AS refund_1d_count,
@@ -1514,13 +1496,6 @@ class VendController extends Controller
                 $selectColumns[] = DB::raw('COALESCE(vds_pwron.pwron_1d_count, 0) AS pwron_1d_count');
                 $selectColumns[] = DB::raw('COALESCE(vds_pwron.pwron_2d_count, 0) AS pwron_2d_count');
                 $selectColumns[] = DB::raw('COALESCE(vds_pwron.pwron_3d_count, 0) AS pwron_3d_count');
-            }
-
-            if ($needsNofoundTxn) {
-                // Same pattern as the PWRON block above — see comment there.
-                $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_1d_count, 0) AS nofound_txn_1d_count');
-                $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_2d_count, 0) AS nofound_txn_2d_count');
-                $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_3d_count, 0) AS nofound_txn_3d_count');
             }
 
             if ($needsMqttOffline) {
@@ -1964,13 +1939,12 @@ class VendController extends Controller
                 // $pwronDate1d/2d/3d are computed earlier in this method so the
                 // sort-leftJoin and this enrichment share the exact same dates.
                 $pwronByVend = [];
-                $nofoundByVend = [];
                 $linkByVend = [];
                 $linkAtByVend = [];
                 if (! empty($vendIds)) {
                     $statsRows = DB::table('vend_daily_stats')
                         ->whereIn('vend_id', $vendIds)
-                        ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS, self::TRADE_QUEUE_METRICS))
+                        ->whereIn('metric', array_merge(['pwron'], self::LINK_HEALTH_METRICS, self::TRADE_QUEUE_METRICS))
                         ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
                         ->get(['vend_id', 'date', 'metric', 'count', 'updated_at']);
                     foreach ($statsRows as $row) {
@@ -1980,8 +1954,6 @@ class VendController extends Controller
                         $dateKey = substr((string) $row->date, 0, 10);
                         if ($row->metric === 'pwron') {
                             $pwronByVend[$vid][$dateKey] = (int) $row->count;
-                        } elseif ($row->metric === 'nofound_txn') {
-                            $nofoundByVend[$vid][$dateKey] = (int) $row->count;
                         } else {
                             $linkByVend[$vid][$row->metric][$dateKey] = (int) $row->count;
                             $linkAtByVend[$vid][$row->metric][$dateKey] = (string) $row->updated_at;
@@ -2008,9 +1980,6 @@ class VendController extends Controller
                     $vend->pwron_1d_count = (int) ($pwronByVend[$vid][$pwronDate1d] ?? 0);
                     $vend->pwron_2d_count = (int) ($pwronByVend[$vid][$pwronDate2d] ?? 0);
                     $vend->pwron_3d_count = (int) ($pwronByVend[$vid][$pwronDate3d] ?? 0);
-                    $vend->nofound_txn_1d_count = (int) ($nofoundByVend[$vid][$pwronDate1d] ?? 0);
-                    $vend->nofound_txn_2d_count = (int) ($nofoundByVend[$vid][$pwronDate2d] ?? 0);
-                    $vend->nofound_txn_3d_count = (int) ($nofoundByVend[$vid][$pwronDate3d] ?? 0);
                     $vend->refund_1d_count = (int) ($refundByVend[$vid][$pwronDate1d] ?? 0);
                     $vend->refund_2d_count = (int) ($refundByVend[$vid][$pwronDate2d] ?? 0);
                     $vend->refund_3d_count = (int) ($refundByVend[$vid][$pwronDate3d] ?? 0);
@@ -2685,13 +2654,12 @@ class VendController extends Controller
         $pwronDate3d = Carbon::today()->subDays(2)->toDateString();
         $aggVendIds = $items->pluck('vend_id')->filter()->unique()->values()->all();
         $pwronByVend = [];
-        $nofoundByVend = [];
         $linkByVend = [];
         $linkAtByVend = [];
         if (! empty($aggVendIds)) {
             $statsRows = DB::table('vend_daily_stats')
                 ->whereIn('vend_id', $aggVendIds)
-                ->whereIn('metric', array_merge(['pwron', 'nofound_txn'], self::LINK_HEALTH_METRICS, self::TRADE_QUEUE_METRICS))
+                ->whereIn('metric', array_merge(['pwron'], self::LINK_HEALTH_METRICS, self::TRADE_QUEUE_METRICS))
                 ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
                 ->get(['vend_id', 'date', 'metric', 'count', 'updated_at']);
             foreach ($statsRows as $row) {
@@ -2699,8 +2667,6 @@ class VendController extends Controller
                 $dateKey = substr((string) $row->date, 0, 10);
                 if ($row->metric === 'pwron') {
                     $pwronByVend[$vid][$dateKey] = (int) $row->count;
-                } elseif ($row->metric === 'nofound_txn') {
-                    $nofoundByVend[$vid][$dateKey] = (int) $row->count;
                 } else {
                     $linkByVend[$vid][$row->metric][$dateKey] = (int) $row->count;
                     $linkAtByVend[$vid][$row->metric][$dateKey] = (string) $row->updated_at;
@@ -2718,7 +2684,6 @@ class VendController extends Controller
             $vid = $item->vend_id;
             $key = $vid !== null ? (string) $vid : ('cust-'.$item->customer_id);
             $pw = $vid !== null ? ($pwronByVend[$vid] ?? null) : null;
-            $nf = $vid !== null ? ($nofoundByVend[$vid] ?? null) : null;
 
             $map[$key] = [
                 'actual_stock_in_value' => isset($item->actual_stock_in_value) ? $item->actual_stock_in_value / 100 : null,
@@ -2751,9 +2716,6 @@ class VendController extends Controller
                 'pwron_1d_count' => isset($pw[$pwronDate1d]) ? (int) $pw[$pwronDate1d] : ($vid !== null ? 0 : null),
                 'pwron_2d_count' => isset($pw[$pwronDate2d]) ? (int) $pw[$pwronDate2d] : ($vid !== null ? 0 : null),
                 'pwron_3d_count' => isset($pw[$pwronDate3d]) ? (int) $pw[$pwronDate3d] : ($vid !== null ? 0 : null),
-                'nofound_txn_1d_count' => isset($nf[$pwronDate1d]) ? (int) $nf[$pwronDate1d] : ($vid !== null ? 0 : null),
-                'nofound_txn_2d_count' => isset($nf[$pwronDate2d]) ? (int) $nf[$pwronDate2d] : ($vid !== null ? 0 : null),
-                'nofound_txn_3d_count' => isset($nf[$pwronDate3d]) ? (int) $nf[$pwronDate3d] : ($vid !== null ? 0 : null),
             ] + self::linkHealthFields($vid !== null ? ($linkByVend[$vid] ?? []) : [], $pwronDate1d, $pwronDate2d, $pwronDate3d)
               + self::tradeQueueFields($vid !== null ? ($linkByVend[$vid] ?? []) : [], $vid !== null ? ($linkAtByVend[$vid] ?? []) : [], $pwronDate1d);
         }

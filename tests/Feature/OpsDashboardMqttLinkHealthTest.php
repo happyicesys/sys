@@ -144,6 +144,21 @@ class OpsDashboardMqttLinkHealthTest extends TestCase
         $this->assertSame([1003, 1001, 1002], $asc);
     }
 
+    public function test_sorting_by_an_earlier_day_ranks_on_that_day(): void
+    {
+        $desc = array_keys($this->page(['sortKey' => 'mqtt_offline_3d_s', 'sortBy' => 'false']));
+        $this->assertSame(1001, $desc[0], 'the only machine with a 3d reading leads, the silent ones follow');
+    }
+
+    public function test_a_bookmarked_no_found_sort_falls_back_instead_of_erroring(): void
+    {
+        // "# of No Found in Txn" was removed from the page; its sort aliases went with it.
+        $rows = $this->page(['sortKey' => 'nofound_txn_2d_count', 'sortBy' => 'false']);
+
+        $this->assertCount(3, $rows);
+        $this->assertArrayNotHasKey('nofound_txn_1d_count', $rows[1001]);
+    }
+
     public function test_the_deferred_aggregates_path_returns_the_same_fields(): void
     {
         $rows = collect([1001, 1002])->map(fn ($code) => [

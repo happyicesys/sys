@@ -990,32 +990,6 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Sales the machine has saved on its own storage that mark1 has not received yet, with how long the oldest has waited. The machine keeps resending them until mark1 confirms, so a number that stays above 0 means sales are happening that mark1 cannot see yet (poor signal, server unreachable).<br>Green 0, amber waiting under 30 min, red 30 min+. “–” = no data today: the machine runs a build older than big 307 / small v15.', html: true }"></ExclamationCircleIcon>
 							</div>
-							<!-- "# of No Found in Txn" 1d/2d/3d block — counter written by
-							     LogNofoundTxnIfStillMissing (5 min after a PG payment is
-							     approved, if the matching vend_transactions row still
-							     hasn't landed) and decremented when the txn eventually
-							     arrives — so the number is the count of *currently
-							     unresolved* payment-without-transaction anomalies for
-							     that day. Headers are per-day sortable; data renders at
-							     the bottom of the cell below. -->
-							<hr class="border-t border-gray-300 my-1 w-full" />
-							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900"># of No Found in Txn</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily count of payment-gateway transactions where the matching machine transaction never arrived within 5 minutes of payment approval. Decrements automatically if the transaction lands later. Sourced from vend_daily_stats (metric=nofound_txn). 1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
-							</div>
-							<div class="flex justify-center items-center space-x-1">
-								<SingleSortItem modelName="nofound_txn_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_1d_count', false)">
-									1d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="nofound_txn_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_2d_count', false)">
-									2d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="nofound_txn_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_3d_count', false)">
-									3d
-								</SingleSortItem>
-							</div>
 							<!-- SIM Card block — telco (or Wi-Fi/LAN) the machine reports,
 							     plus its signal strength pill. Data renders at the bottom
 							     of the cell below. -->
@@ -1103,7 +1077,7 @@
 							     refund_tickets by vend_id. Per-day sort handles hit the
 							     refund_{1,2,3}d_count aliases exposed conditionally by
 							     VendController::indexCustomer. Data renders at the bottom of
-							     the cell below. (PWRON / # of No Found in Txn / SIM Card moved
+							     the cell below. (PWRON / SIM Card moved
 							     to the bottom of the Temperature column.) -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
@@ -1849,48 +1823,6 @@
 								<div class="flex justify-center items-center space-x-1 text-sm">
 									<span :class="tradeQueueClass(vend)" v-tooltip="tradeQueueTooltip(vend)">
 										{{ tradeQueueLabel(vend) }}
-									</span>
-								</div>
-							</template>
-							<!-- "# of No Found in Txn" 1d/2d/3d (counts from vend_daily_stats
-							     metric=nofound_txn). Coloring rule mirrors the PWRON block
-							     directly above so the two trend lines read consistently:
-							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
-							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
-							       - 3d: always black (baseline)
-							     Inactive machines stay gray (matches PWRON). Block is
-							     hidden when the controller hasn't enriched the counts. -->
-							<template v-if="vend.nofound_txn_1d_count !== null && vend.nofound_txn_1d_count !== undefined">
-								<hr class="border-t border-gray-300 my-2 w-full" />
-								<div class="flex justify-center items-center space-x-1 text-sm">
-									<span
-										:class="
-											(vend.is_active || vend.is_testing) ?
-											(
-												vend.nofound_txn_1d_count > vend.nofound_txn_2d_count ? 'text-red-700' :
-												(vend.nofound_txn_1d_count < vend.nofound_txn_2d_count ? 'text-green-700' : 'text-gray-900')
-											) :
-											'text-gray-400'
-										"
-									>
-										{{ vend.nofound_txn_1d_count }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span
-										:class="
-											(vend.is_active || vend.is_testing) ?
-											(
-												vend.nofound_txn_2d_count > vend.nofound_txn_3d_count ? 'text-red-700' :
-												(vend.nofound_txn_2d_count < vend.nofound_txn_3d_count ? 'text-green-700' : 'text-gray-900')
-											) :
-											'text-gray-400'
-										"
-									>
-										{{ vend.nofound_txn_2d_count }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
-										{{ vend.nofound_txn_3d_count }}
 									</span>
 								</div>
 							</template>

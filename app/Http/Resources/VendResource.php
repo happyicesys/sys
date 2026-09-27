@@ -481,13 +481,6 @@ class VendResource extends JsonResource
             'pwron_1d_count' => isset($this->pwron_1d_count) ? (int) $this->pwron_1d_count : null,
             'pwron_2d_count' => isset($this->pwron_2d_count) ? (int) $this->pwron_2d_count : null,
             'pwron_3d_count' => isset($this->pwron_3d_count) ? (int) $this->pwron_3d_count : null,
-            // "# of No Found in Txn" 1d / 2d / 3d counts — same vend_daily_stats
-            // table as PWRON, different metric ('nofound_txn'). Written by
-            // LogNofoundTxnIfStillMissing (5-min delayed) and undone by
-            // VendTransactionService -> DecrementVendDailyStat when the
-            // matching vend_transactions row finally lands. Null-default so
-            // routes that don't enrich (e.g. /vends) hide the block.
-            'nofound_txn_1d_count' => isset($this->nofound_txn_1d_count) ? (int) $this->nofound_txn_1d_count : null,
             // "# of Refund" 1d / 2d / 3d — RF tickets submitted per day (any
             // status), counted from refund_tickets by vend_id. Drives the block
             // at the bottom of the Error column on Vend/CustomerIndex; null when
@@ -495,8 +488,6 @@ class VendResource extends JsonResource
             'refund_1d_count' => isset($this->refund_1d_count) ? (int) $this->refund_1d_count : null,
             'refund_2d_count' => isset($this->refund_2d_count) ? (int) $this->refund_2d_count : null,
             'refund_3d_count' => isset($this->refund_3d_count) ? (int) $this->refund_3d_count : null,
-            'nofound_txn_2d_count' => isset($this->nofound_txn_2d_count) ? (int) $this->nofound_txn_2d_count : null,
-            'nofound_txn_3d_count' => isset($this->nofound_txn_3d_count) ? (int) $this->nofound_txn_3d_count : null,
             // MQTT link health per day (vend_daily_stats, RecordVendLinkHealth):
             // seconds with no subscribed MQTT session, plus today's drops /
             // client recycles / failed connects. Only big 306+ and small v14+
