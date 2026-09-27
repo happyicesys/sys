@@ -4,48 +4,50 @@ namespace App\Http\Controllers\SmartFreezer;
 
 use App\Http\Controllers\Controller;
 use App\Models\SmartFreezerVideo;
-use App\Models\Vend;
+use App\Services\SmartFreezer\FreezerDeviceResolver;
+use App\Services\SmartFreezer\FreezerRecognitionService;
+use App\Services\SmartFreezer\Zijia\ZijiaVideoPush;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
- * POST /api/smart-freezer/zijia/videos — Zijia's servers push the door-session
- * camera video URLs here.
+ * POST /api/smart-freezer/zijia/videos — Zijia's servers push the door-session camera video URLs
+ * here, one push per door session, carrying the freezer's IMEI (Brian's request, 2026-09-27).
  *
- * The payload contract is not agreed yet (2026-09-14), so this receiver is
- * deliberately lenient: any JSON or form body is stored verbatim, and the
- * fields we can already recognise are lifted out beside it —
- *  - every http(s) string anywhere in the body → video_urls;
- *  - our order number "SF-<vendCode>-<epoch>-<seq>" (what the freezer APK hands
- *    the host's orderOpenDoor), found under any key → order_no, and its vend
- *    code → vend_id;
- *  - a device id / IMEI / serial under a common key name → device_id.
- * An unmatched push is still stored and still answered 200, so Zijia does not
- * retry-loop while the mapping is being worked out.
+ * The payload contract is not final, so the body is stored verbatim (`raw_body`, `payload`) and
+ * ZijiaVideoPush lifts out what can be recognised; FreezerDeviceResolver names the freezer; and
+ * FreezerRecognitionService opens the AI check for the session. An unmatched push is still stored
+ * and still answered 200, so Zijia does not retry-loop while the mapping is being worked out.
  *
- * Auth is one shared static token (config smart_freezer.zijia): no credential
- * exchange round-trip for the supplier to implement.
+ * Every refusal is logged too: nginx keeps no access log for this site, so without these lines a
+ * push that failed on its token would leave no trace at all ("did they call us?" was unanswerable
+ * on 2026-09-22).
+ *
+ * Auth is one shared static token (config smart_freezer.zijia): no credential exchange
+ * round-trip for the supplier to implement.
  */
 class ZijiaVideoWebhookController extends Controller
 {
-    private const ORDER_NO_PATTERN = '/\bSF-(\d+)-\d+-\d+\b/';
-
-    private const DEVICE_KEYS = ['deviceid', 'device_id', 'devicesn', 'device_sn', 'sn', 'imei', 'deviceno', 'device_no', 'equipmentid', 'equipment_id'];
+    public function __construct(
+        private readonly FreezerDeviceResolver $devices,
+        private readonly FreezerRecognitionService $recognitions,
+    ) {}
 
     public function store(Request $request): JsonResponse
     {
         $token = config('smart_freezer.zijia.video_webhook_token');
         if (! $token) {
-            return response()->json(['code' => 503, 'message' => 'receiver not configured'], 503);
+            return $this->refuse($request, 503, 'receiver not configured');
         }
 
         if (! hash_equals((string) $token, $this->presentedToken($request))) {
-            return response()->json(['code' => 401, 'message' => 'unauthorized'], 401);
+            return $this->refuse($request, 401, 'unauthorized');
         }
 
         if (strlen($request->getContent()) > (int) config('smart_freezer.zijia.video_webhook_max_bytes')) {
-            return response()->json(['code' => 413, 'message' => 'payload too large'], 413);
+            return $this->refuse($request, 413, 'payload too large');
         }
 
         $payload = $request->except('token');
@@ -55,57 +57,50 @@ class ZijiaVideoWebhookController extends Controller
             $payload = ['raw' => $raw];
         }
         if ($payload === []) {
-            return response()->json(['code' => 422, 'message' => 'empty payload'], 422);
+            return $this->refuse($request, 422, 'empty payload');
         }
 
-        $strings = [];
-        $deviceId = null;
-        array_walk_recursive($payload, function ($value, $key) use (&$strings, &$deviceId) {
-            if (! is_scalar($value)) {
-                return;
-            }
-            $value = trim((string) $value);
-            if ($value === '') {
-                return;
-            }
-            $strings[] = $value;
-            if ($deviceId === null && is_string($key) && in_array(strtolower($key), self::DEVICE_KEYS, true)) {
-                $deviceId = mb_substr($value, 0, 128);
-            }
-        });
-
-        $urls = array_values(array_unique(array_filter(
-            $strings,
-            fn ($s) => preg_match('#^https?://#i', $s) === 1
-        )));
-
-        $orderNo = null;
-        $vendId = null;
-        foreach ($strings as $s) {
-            if (preg_match(self::ORDER_NO_PATTERN, $s, $m)) {
-                $orderNo = $m[0];
-                $vendId = Vend::withoutGlobalScopes()->bareCode($m[1])->value('id');
-                break;
-            }
-        }
+        $push = ZijiaVideoPush::fromPayload($payload);
+        $vend = $this->devices->resolve($push);
 
         $video = SmartFreezerVideo::create([
             'supplier' => 'zijia',
-            'vend_id' => $vendId,
-            'order_no' => $orderNo,
-            'device_id' => $deviceId,
-            'video_urls' => $urls,
+            'vend_id' => $vend?->id,
+            'order_no' => $push->sessionRef ?? $push->tradeId,
+            'device_id' => $push->deviceIdentifier(),
+            'video_urls' => $push->videoUrls,
             'payload' => $payload,
             'raw_body' => $raw !== '' ? $raw : null,
             'content_type' => mb_substr((string) $request->header('Content-Type'), 0, 128) ?: null,
             'source_ip' => $request->ip(),
         ]);
 
+        // The push is stored by now. A failure opening its recognition must not become a 500 — Zijia
+        // would retry, and every retry would be another copy of the same push.
+        try {
+            $recognition = $this->recognitions->open($video, $push, $vend);
+        } catch (Throwable $e) {
+            report($e);
+            $recognition = null;
+        }
+
         Log::info('zijia video push', [
-            'id' => $video->id, 'order_no' => $orderNo, 'vend_id' => $vendId, 'urls' => count($urls),
+            'id' => $video->id, 'vend_id' => $vend?->id, 'imei' => $push->imei, 'trade_id' => $push->tradeId,
+            'urls' => count($push->videoUrls), 'recognition' => $recognition?->id, 'blocked' => $recognition?->status_reason,
         ]);
 
         return response()->json(['code' => 0, 'message' => 'ok', 'id' => $video->id]);
+    }
+
+    private function refuse(Request $request, int $status, string $message): JsonResponse
+    {
+        // Never the token itself: only whether one was presented.
+        Log::warning('zijia video push refused', [
+            'status' => $status, 'ip' => $request->ip(), 'bytes' => strlen($request->getContent()),
+            'token_presented' => $this->presentedToken($request) !== '',
+        ]);
+
+        return response()->json(['code' => $status, 'message' => $message], $status);
     }
 
     private function presentedToken(Request $request): string

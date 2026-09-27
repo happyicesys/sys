@@ -13,6 +13,7 @@ class SmartFreezerVideo extends Model
     protected $fillable = [
         'supplier',
         'vend_id',
+        'smart_freezer_recognition_id',
         'order_no',
         'device_id',
         'video_urls',
@@ -30,5 +31,11 @@ class SmartFreezerVideo extends Model
     public function vend()
     {
         return $this->belongsTo(Vend::class)->withoutGlobalScopes();
+    }
+
+    /** The door session's AI recognition this push belongs to. */
+    public function recognition()
+    {
+        return $this->belongsTo(SmartFreezerRecognition::class, 'smart_freezer_recognition_id');
     }
 }

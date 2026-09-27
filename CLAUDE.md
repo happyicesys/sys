@@ -771,21 +771,75 @@ Brian 2026-09-28) follows each sale machine → rail → bank. All rules live in
 - Permission `transactions-revenue-settlement` (read, export): superadmin,
   admin, supervisor. Regression coverage: `tests/Feature/TxnRevenueSettlementTest.php`.
 
-## Smart Freezer videos from Zijia: stored raw, contract not agreed
+## Smart Freezer videos + AI recognition (Zijia)
 
-`POST /api/smart-freezer/zijia/videos` (`SmartFreezer\ZijiaVideoWebhookController`,
-2026-09-14) receives the door-session camera video URLs Zijia's servers push.
-Static shared token (`config('smart_freezer.zijia.video_webhook_token')`, env
+`POST /api/smart-freezer/zijia/videos` (`SmartFreezer\ZijiaVideoWebhookController`)
+receives the door-session camera video URLs Zijia's servers push. Static shared
+token (`config('smart_freezer.zijia.video_webhook_token')`, env
 `ZIJIA_VIDEO_WEBHOOK_TOKEN`; Bearer / `X-Api-Key` / `?token=`), 503 until set.
-The payload shape is unknown, so every push is kept whole in
-`smart_freezer_videos` (`raw_body` exact bytes, `payload` parsed) with
-`video_urls`, `order_no` (`SF-<vendCode>-<epoch>-<seq>`, the APK's orderOpenDoor
-ref) → `vend_id`, and `device_id` lifted out. Not `attachments` (255-char
-`full_url`, needs a known parent). Once Zijia confirms fields, extend the
-extraction there rather than dropping the raw columns. Not linked to
-`vend_transactions` yet — mark1 does not store the APK txnRef. Spec to send
-them + open questions: `apk/smart-freezer/ZIJIA_VIDEO_WEBHOOK_2026-09-14.md`.
-Regression coverage: `tests/Feature/ZijiaVideoWebhookTest.php`.
+The payload shape is still not final, so every push is kept whole in
+`smart_freezer_videos` (`raw_body` exact bytes, `payload` parsed) and
+`App\Services\SmartFreezer\Zijia\ZijiaVideoPush` lifts out imei / device no /
+their `tradeId` / OUR session ref / video URLs — tighten THAT class when the
+contract is final, nothing else parses the body. Every refusal is logged
+(`zijia video push refused`): nginx has `access_log off` for this site, so
+without it "did Zijia call us?" is unanswerable.
+
+Each push opens one `smart_freezer_recognitions` row per door session — `trade_id`
+is UNIQUE and the row is made with `createOrFirst`, so concurrent pushes (one per
+camera) land on ONE row, and a later push fills in the freezer if an earlier one
+could not name it (`FreezerRecognitionService`, 2026-09-27): **open** (the freezer is named by
+`FreezerDeviceResolver` — our session ref, else the IMEI / device no each freezer
+reports in its own status snapshot `identity`, so there is no second copy of the
+identity) → **submit** to Zijia's algorithm (`ZijiaAlgorithmClient`,
+`dynamic.cabinet.add.queue`, videos + the freezer's LIVE planogram products by
+`products.barcode`) → **complete** on `POST /api/smart-freezer/zijia/algorithm/notify`
+(`cabinet.algorithm.order.result`, MD5-signed envelope) → **evaluate** against the
+paid sale (`RecognitionVerdict`: match / took_more / took_less / mixed /
+unrecognised). Rules:
+
+- **Requests are signed with our appSecret** (`ZijiaSigner`) — proven live
+  2026-09-27; the key printed in their document is rejected. Callback signatures
+  are verified per `callback_verification` (`log` → `enforce` once real callbacks
+  verify), and the verdict is stored as `callback_verified`.
+- **A recognition is metered on their side.** Only a `pending` row is ever sent;
+  `submit()` claims it (`pending` → `submitting`) so it is never sent twice, and
+  saves the proof of the call (`request_id`, status) before anything else. The
+  job has one try; a failed row goes back only on request
+  (`smart-freezer:zijia-recognition <id> --retry`, `--force` for one stuck in
+  `submitting` — its first call may have landed). `auto_submit` is off until
+  model ids and barcodes exist. Every stop records `status_reason` — the row alone
+  must explain why nothing happened.
+- **An unverified callback** (log mode) may complete a row mark1 sent, but never
+  overwrites a verified answer and never creates a row for a trade mark1 did not
+  send; the signature is checked on the raw body (`JSON_BIGINT_AS_STRING`).
+- **A door session may arrive as several pushes** (one per camera is possible —
+  Zijia has not said). Each `smart_freezer_videos` row points at its recognition
+  (`smart_freezer_recognition_id`); the submit job waits until the session has
+  been quiet for `submit_delay_seconds` (60) since its LAST push, and sends all
+  their videos. A camera arriving after the send is kept and logged, not sent. On
+  the sync queue driver the job cannot wait and submits at once (re-queueing
+  there would recurse).
+- **The sale is found by the TRADE's `SFREF`** (freezer APK v20: our txnRef, the
+  same string the door-open hands Zijia as `orderNo`) inside
+  `vend_transaction_json`, narrowed by the ref's own epoch on the
+  `(vend_id, transaction_datetime)` index (`FreezerSaleLocator`). No column on
+  vend_transactions, no TRADE-ingest change. The ref's epoch is the BOARD's
+  clock, so a miss falls back to OUR clock (`created_at` ± 2 days of the push).
+  A result that lands before the TRADE waits; `smart-freezer:zijia-evaluate-pending`
+  (every 10 min, last 7 days) judges it once the sale arrives.
+- **Nothing moves money or stock.** The verdict is information until Brian decides
+  what a `took_more` / `took_less` should do. A paid product the algorithm could
+  not have named (no barcode, or a slot with no product) makes the verdict
+  `incomplete`, never `took_less` — its "0 taken" is not evidence.
+- The algorithm names goods by their SKU library's `productCode`; put that code in
+  the product's Barcode (`smart-freezer:zijia-skus <name>` searches the library).
+
+Integration record, live proofs and open questions for Zijia:
+`apk/smart-freezer/ZIJIA_ALGORITHM_2026-09-27.md` (algorithm) and
+`ZIJIA_VIDEO_WEBHOOK_2026-09-14.md` (push). Regression coverage:
+`tests/Feature/ZijiaVideoWebhookTest.php`, `tests/Feature/ZijiaAlgorithmRecognitionTest.php`,
+`tests/Unit/ZijiaAlgorithmPiecesTest.php`.
 
 ## Smart Chiller (CityBox): not a vending machine with extra fields
 

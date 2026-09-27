@@ -102,8 +102,12 @@ Route::prefix('citybox')->middleware('throttle:120,1')->group(function () {
 
 // Smart-freezer supplier (Zijia) pushes door-session camera video URLs.
 // Static shared token (config smart_freezer.zijia), inert until it is set.
+// Their algorithm service answers each recognition on /algorithm/notify, authenticated by the
+// envelope's MD5 signature (config smart_freezer.zijia.algorithm).
 Route::prefix('smart-freezer/zijia')->middleware('throttle:120,1')->group(function () {
     Route::post('/videos', [\App\Http\Controllers\SmartFreezer\ZijiaVideoWebhookController::class, 'store']);
+    Route::post('/algorithm/notify', [\App\Http\Controllers\SmartFreezer\ZijiaAlgorithmNotifyController::class, 'store'])
+        ->name('smart-freezer.zijia.algorithm.notify');
 });
 
 // RFC 7591 Dynamic Client Registration for the MCP connector (Claude calls

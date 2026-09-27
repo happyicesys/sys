@@ -84,6 +84,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('freezer-logs:prune --hours=72')->hourly();
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();
+        // Freezer AI results that landed before their sale (offline board): judge them once it arrives.
+        $schedule->command('smart-freezer:zijia-evaluate-pending')->everyTenMinutes()->withoutOverlapping();
         // Ingest the regional rainfall snapshot (data.gov.sg refreshes every 5 min);
         // idempotent, so overlap-guarded re-runs never double-insert. Gated by
         // WEATHER_SYNC_ENABLED (config weather.enabled) so only opted-in regions
