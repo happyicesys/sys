@@ -180,6 +180,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Dispense Attempted?',
                 'Refund Request',
                 'Refund Status',
+                'Card Last 4',
+                'Credit From Card',
             ]);
 
             VendTransaction::query()
@@ -256,6 +258,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 })
                 ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
+
+                    // NETS card last 4 (+ the failed sale's card on a
+                    // retained-credit row) — one indexed query per chunk.
+                    $cards = \App\Services\CardSettlement\CardLast4Lookup::forSales($transactions);
 
                     // Pull items for this chunk (unchanged)
                     $items = VendTransactionItem::with([
@@ -447,6 +453,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $dispenseAttempted,
                             $headerRefundRef,
                             $headerRefundStatus,
+                            $cards[$txn->id]['card'] ?? '',
+                            $cards[$txn->id]['credit_from'] ?? '',
                         ]);
 
                         // ✏️ Child item rows — keep Labels empty (or use $labelStr if you prefer)
@@ -505,6 +513,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $dispenseAttempted, // inherit parent's gateway dispense state
                                 $itemIsRefundTarget ? $txn->refund_request_reference : '',
                                 $itemIsRefundTarget ? ($txn->refund_request_status ?? '') : '',
+                                '', // Card Last 4 lives on the parent row
+                                '',
                             ]);
                         }
                     }
@@ -513,7 +523,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
             // Append dispensed-but-unreported gateway revenue once (first part
             // only) so the combined zip tallies with the dashboard "Total Sales".
             if ((int) $this->chunkIndex === 0) {
-                $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom);
+                $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom, 34);
             }
 
             rewind($stream);

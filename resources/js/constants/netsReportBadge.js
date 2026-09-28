@@ -50,19 +50,40 @@ const NA_IN_NETS = {
     tip: 'Both NETS files that could carry this failed vend are synced and neither has a line for it — the charge was voided before batch upload, so it is already counted as refunded. Do not pay it again.',
 };
 
-const RECEIVED_ON_RETRY = {
-    text: 'Item received on retry',
-    class: 'bg-red-100 text-red-800',
-    tip: 'This vend failed but the card was charged, and the reader kept the credit: the customer\'s next selection on this machine was served from it (a retained-credit re-vend or top-up, matched from the NETS report). The customer got the item — do not refund it.',
+// A later sale on the machine was served from this failed sale's retained
+// credit. Whether the CLAIMANT got the item depends on the card behind each
+// NETS line (RefundController.retained_credit_retry, from RetainedCreditRetry):
+// on 5073, 2026-09-21, the failed $1.70 was card …9265 and the $0.70 top-up
+// that took the item was card …2599 — someone else got it.
+const at = (r) => (r.retry_at ?? '').slice(0, 16);
+const dollars = (cents) => `$${(Number(cents ?? 0) / 100).toFixed(2)}`;
+
+const RETRY_BADGES = {
+    same_card: (r) => ({
+        text: `Item received on retry (card …${r.retry_card})`,
+        class: 'bg-red-100 text-red-800',
+        tip: `This vend failed but the card was charged, and the reader kept the credit. The same card (…${r.retry_card}) then bought a ${dollars(r.retry_amount)} item on this machine at ${at(r)}, served from that credit. The customer got the item — do not refund it.`,
+    }),
+    different_card: (r) => ({
+        text: `Credit used by another card (…${r.retry_card})`,
+        class: 'bg-sky-100 text-sky-800',
+        tip: `This vend failed and card …${r.failed_card} was charged. The reader kept the credit, and a DIFFERENT card (…${r.retry_card}) used it at ${at(r)} for a ${dollars(r.retry_amount)} item, paying only the difference. The claimant did not get the item — the claim stands.`,
+    }),
+    unknown: (r) => ({
+        text: 'Credit used by a later sale',
+        class: 'bg-amber-100 text-amber-800',
+        tip: `This vend failed but the card was charged, and the reader kept the credit. A ${dollars(r.retry_amount)} sale on this machine at ${at(r)} was served from it, but NETS shows no card number for ${r.failed_card ? 'that sale' : 'one of the two sales'} (EFTPOS, or a re-vend with no line of its own), so whether it was this customer is unknown. Check before paying or rejecting.`,
+    }),
 };
 
 /**
- * @param {object} row a refund row carrying `received_on_retry`, `na_in_nets` and `nets_report_state`
+ * @param {object} row a refund row carrying `retained_credit_retry`, `na_in_nets` and `nets_report_state`
  * @returns {{text: string, class: string, tip: string}|null}
  */
 export function netsReportBadge(row) {
-    if (row?.received_on_retry) {
-        return RECEIVED_ON_RETRY;
+    const retry = row?.retained_credit_retry;
+    if (retry && RETRY_BADGES[retry.verdict]) {
+        return RETRY_BADGES[retry.verdict](retry);
     }
     if (row?.na_in_nets) {
         return NA_IN_NETS;

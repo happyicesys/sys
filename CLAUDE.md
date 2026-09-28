@@ -689,9 +689,29 @@ Both directions of "the report and the machine disagree" are handled at Sync
     line equal to (sale − that charge) = TOP-UP (LateTradePairer tier, first,
     note "Matched as top-up"). The dispensed sale becomes a retained-credit
     settlement of the failed one (same columns `RetainedCreditSettlementRecorder`
-    writes for TXN_SRC 1); the failed sale's refund rows read "Item received on
-    retry" (`RefundController.received_on_retry`, `netsReportBadge.js`).
-    Nothing writes `is_refunded`.
+    writes for TXN_SRC 1). Nothing writes `is_refunded`. **A link is not proof
+    the claimant got the item** (Brian, 2026-09-28: on 5073 the failed $1.70
+    was card …9265, the $0.70 top-up that took the item card …2599 — two
+    people). `RetainedCreditRetry` compares the NETS card on both sales:
+    `same_card` → "Item received on retry" (don't pay), `different_card` →
+    "Credit used by another card" (the claim stands; left out of the email),
+    `unknown` → no card on one side (EFTPOS, a re-vend with no line, a TXN_SRC 1
+    phantom days later) → check. Refund rows carry it as
+    `retained_credit_retry` (batched in `buildRows`), badged by
+    `netsReportBadge.js`.
+  - **Card last 4** (2026-09-28): `card_settlement_rows.card_last4`, from the
+    NETS "CashCard Application Number (CAN)" column
+    (`NetsMerchantConnectParser::cardLast4` — kept only when the value truly
+    ends in 4 digits: EFTPOS lines are blank, a cross-border line showing one
+    digit or an Excel-mangled `1.11E+15` stays NULL). Never stored on
+    `vend_transactions`: read through `matched_vend_transaction_id` (unique)
+    by `CardLast4Lookup`, one query per chunk. Surfaces: the converted-time
+    download ("Card Last 4") and both Sales Transactions CSV jobs ("Card Last
+    4" + "Credit From Card" = the failed sale's card on a retained-credit
+    row, the last two columns). Reports ingested before it:
+    `card-settlement:backfill-card-last4 [--report=] [--apply]` re-parses the
+    stored file and writes only NULL cells, skipping a whole report if any
+    line's terminal/date/amount disagrees with the stored row.
   - **Strong terminal moves apply themselves** after matching
     (`MatchCardSettlementReport::autoMove`, via `TerminalMoveSuggestions`, the
     service the page buttons also use): ≥ `auto_move_min_lines` (3) on one
@@ -701,12 +721,14 @@ Both directions of "the report and the machine disagree" are handled at Sync
     block a Sync.
   - **`card-settlement:health` at 08:30** emails the HIPL alert-email list
     (`alert_operator_code`) ONLY what needs a person — missing NETS files,
-    unsynced reports, weak moves, open refunds on retried vends, machines with
+    unsynced reports, weak moves, open refunds on retried vends (same card or
+    card unknown — never a different card), machines with
     no reader company, double-bound terminals, NETS lines on non-NETS
     machines, days above `alert_unexplained_per_day` dispensed-but-uncharged
     sales, lines pointing at deleted sales. Nothing to act on → no email.
 
 Regression coverage: `tests/Feature/CardSettlementLateTradeTest.php`, `tests/Feature/CardSettlementHandsOffTest.php`,
+`tests/Feature/CardSettlementCardLast4Test.php`,
 `tests/Feature/CardSettlementOrphanSalesTest.php`,
 `tests/Feature/CardSettlementStateAndVoidTickTest.php`,
 `tests/Feature/CardSettlementWideMatchTest.php`,

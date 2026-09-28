@@ -16,6 +16,7 @@ class ParsedRow
         public readonly int $amountCents,           // signed: a reversal line carries the negative amount
         public readonly ?string $sequenceNo,
         public readonly bool $isReversal = false,   // Reversal Code = Y (or Void Txn Indicator = Y)
+        public readonly ?string $cardLast4 = null,  // last 4 of the card number; null when the line shows none
     ) {}
 
     public function isPurchase(): bool

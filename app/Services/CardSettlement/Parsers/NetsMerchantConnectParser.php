@@ -138,7 +138,26 @@ class NetsMerchantConnectParser implements SettlementReportParser
             amountCents: $amountCents,
             sequenceNo: $seq === '' ? null : $seq,
             isReversal: $isReversal,
+            cardLast4: self::cardLast4($get('CashCard Application Number (CAN)')),
         );
+    }
+
+    /**
+     * The card's last 4 digits, or null when the line does not show four.
+     *
+     * Shapes seen Aug–Sep 2026: "4628xxxxxxxx1234" (scheme), "462812******1234"
+     * (cross border), a bare 16-digit FlashPay CAN, and blank on every EFTPOS
+     * line. Refused on purpose: "462812*********9" (cross border with only one
+     * digit shown — a guessed "***9" would match other cards) and anything an
+     * Excel re-save mangled ("1.11E+15" has lost its digits).
+     */
+    public static function cardLast4(string $raw): ?string
+    {
+        $raw = trim($raw, " \t'\"");
+
+        return preg_match('/^[0-9xX*]{8,19}$/', $raw) && preg_match('/([0-9]{4})$/', $raw, $m)
+            ? $m[1]
+            : null;
     }
 
     /** "2026-08-30" (raw) or "29/8/2026" (Excel round-trip) → Y-m-d */

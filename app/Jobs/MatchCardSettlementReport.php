@@ -239,6 +239,7 @@ class MatchCardSettlementReport implements ShouldQueue
                     'amount_cents' => $row->amountCents,
                     'sequence_no' => $row->sequenceNo,
                     'is_reversal' => $row->isReversal,
+                    'card_last4' => $row->cardLast4,
                     'fingerprint' => $fingerprint,
                     'status' => $isDuplicate ? CardSettlementRow::STATUS_DUPLICATE : CardSettlementRow::STATUS_PENDING,
                     'resolution_note' => $isDuplicate ? 'Already ingested by an earlier report' : null,

@@ -34,14 +34,15 @@ trait AppendsUnreportedGatewayCsvRows
      *
      * @param  array<int, int>|null  $allowedProductIds  null = unrestricted
      * @param  string|null  $transactionAccessFrom  'Y-m-d' cut-off, null = unrestricted
-     * @param  int  $columnCount  width of the CALLER's header. The rows below are
-     *                            built for the chunk export's 32-column layout;
-     *                            the single-file export's header is 29 wide (it
-     *                            has no Dispense Attempted?/Refund Request/Refund
-     *                            Status columns), and without this the appended
-     *                            rows spilled three cells past its header.
+     * @param  int  $columnCount  width of the CALLER's header — both callers pass
+     *                            it explicitly: the chunk export is 34 wide, the
+     *                            single-file export 31 (no Dispense Attempted?/
+     *                            Refund Request/Refund Status columns). Without it
+     *                            the appended rows spilled past a header. The
+     *                            trailing Card Last 4 / Credit From Card cells
+     *                            stay blank: a gateway row has no NETS line.
      */
-    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null, int $columnCount = 32): void
+    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null, int $columnCount = 34): void
     {
         if ($allowedProductIds !== null) {
             $this->putGatewayRow($stream, array_merge(

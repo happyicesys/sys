@@ -70,6 +70,7 @@ class CardSettlementRow extends Model
         'txn_type',
         'product',
         'card_issuer',
+        'card_last4',
         'terminal_id',
         'transaction_date',
         'transaction_time',

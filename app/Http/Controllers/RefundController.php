@@ -327,6 +327,11 @@ class RefundController extends Controller
         // it voids a failed vend by itself. Two bounded queries for the page, the
         // same shape the Sales Transactions grid uses.
         $this->attachTerminalFlags($txns);
+        // Who used each failed sale's retained credit — one query for the page.
+        $retries = \App\Services\CardSettlement\RetainedCreditRetry::forFailedSales($txns->keys()->all());
+        foreach ($txns as $txn) {
+            $txn->retained_credit_retry = $retries[$txn->id] ?? null;
+        }
 
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
             ->merge($txns->pluck('payment_gateway_log_id')->filter())
@@ -1310,6 +1315,11 @@ class RefundController extends Controller
 
     protected function toRow(RefundTicket $t, $txn = null, $log = null, $batch = null, $siteName = null, bool $payNowDuplicate = false, array $self = []): array
     {
+        // Batched by buildRows(); the ticket page reads one sale, so it asks here.
+        $retry = ! isset($txn) ? null : (array_key_exists('retained_credit_retry', $txn->getAttributes())
+            ? $txn->retained_credit_retry
+            : (\App\Services\CardSettlement\RetainedCreditRetry::forFailedSales([$txn->id])[$txn->id] ?? null));
+
         $matched = (bool) ($t->vend_transaction_id || $t->payment_gateway_log_id);
 
         // Frozen validation snapshot (same source the Show page badges read from),
@@ -1463,14 +1473,13 @@ class RefundController extends Controller
             // sales are only partly in the file). Card-terminal sales only: a
             // gateway sale has no NETS opinion at all. 'pending' = a card sale
             // whose day is not final yet, which is not the same as "nothing found".
-            // The customer got the item on a retry served from this failed
-            // sale's retained credit (RetainedCreditLinker, 2026-09-26) —
-            // paying this claim would refund goods that were delivered. Three
-            // were paid before this existed (RF-260903024 / 260904015 / 260904020).
-            'received_on_retry' => isset($txn) && \App\Models\VendTransaction::withoutGlobalScopes()
-                ->where('retained_credit_settles_txn_id', $txn->id)
-                ->where('is_retained_credit_settlement', true)
-                ->exists(),
+            // A later sale on the machine was served from this failed sale's
+            // retained credit (RetainedCreditLinker / RetainedCreditSettlementRecorder).
+            // The verdict says whether the SAME card paid it — only then did the
+            // claimant get the item (RetainedCreditRetry). Three claims were paid
+            // before any of this existed (RF-260903024 / 260904015 / 260904020).
+            'retained_credit_retry' => $retry,
+            'received_on_retry' => ($retry['verdict'] ?? null) === \App\Services\CardSettlement\RetainedCreditRetry::SAME_CARD,
             'nets_report_state' => (isset($txn) && (int) ($txn->paymentMethod->code ?? -1) === \App\Models\PaymentMethod::CODE_CARD_TERMINAL)
                 ? ($txn->card_settlement_state ?: 'pending')
                 : null,

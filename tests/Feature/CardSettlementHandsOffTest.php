@@ -22,6 +22,7 @@ use App\Services\CardSettlement\CardSettlementOrphanRepair;
 use App\Services\CardSettlement\CardSettlementOrphanSales;
 use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\RetainedCreditLinker;
+use App\Services\CardSettlement\RetainedCreditRetry;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -111,12 +112,12 @@ class CardSettlementHandsOffTest extends TestCase
         ]);
     }
 
-    /** A failed $amount vend at $at that NETS charged (a matched line, no reversal). */
-    private function chargedFailure(string $at, int $amount): VendTransaction
+    /** A failed $amount vend at $at that NETS charged (a matched line, no reversal), on card …$card when given. */
+    private function chargedFailure(string $at, int $amount, ?string $card = null): VendTransaction
     {
         $failed = $this->sale($this->vend, $at, $amount, true);
         $this->line($this->report(CardSettlementReport::STATUS_SYNCED), Carbon::parse($at)->subSeconds(20)->format('H:i:s'), $amount, [
-            'status' => CardSettlementRow::STATUS_MATCHED, 'vend_id' => $this->vend->id, 'matched_vend_transaction_id' => $failed->id,
+            'status' => CardSettlementRow::STATUS_MATCHED, 'vend_id' => $this->vend->id, 'matched_vend_transaction_id' => $failed->id, 'card_last4' => $card,
         ]);
 
         return $failed;
@@ -240,6 +241,71 @@ class CardSettlementHandsOffTest extends TestCase
 
         $this->assertStringContainsString('RF-TEST', $sections['refunds_on_retries']['items'][0]['text']);
         $this->assertStringEndsWith('/refunds/'.$ticket->id, $sections['refunds_on_retries']['items'][0]['url']);
+    }
+
+    /**
+     * 5073, 2026-09-21: the failed $1.70 was card …9265, the $0.70 top-up that
+     * took the $2.40 item was card …2599. Someone else got the item, so the
+     * claim stands: badged on the refund page, left out of the email.
+     */
+    public function test_a_retry_paid_by_a_different_card_is_not_the_claimants_item(): void
+    {
+        $failed = $this->chargedFailure('2026-09-21 22:02:01', 170, '9265');
+        $retry = $this->topUpRetry($failed, '2026-09-21 22:06:35', 240, 70, '2599');
+        $this->claim($failed, 'RF-DIFF');
+
+        $verdict = RetainedCreditRetry::forFailedSales([$failed->id])[$failed->id];
+        $this->assertSame(RetainedCreditRetry::DIFFERENT_CARD, $verdict['verdict']);
+        $this->assertSame(['9265', '2599', $retry->id, 240], [$verdict['failed_card'], $verdict['retry_card'], $verdict['retry_id'], $verdict['retry_amount']]);
+
+        $sections = collect(app(CardSettlementHealthCheck::class)->run())->keyBy('key');
+        $this->assertFalse(isset($sections['refunds_on_retries']), 'nothing for a person to catch');
+    }
+
+    public function test_a_retry_paid_by_the_same_card_is_flagged_as_received(): void
+    {
+        $failed = $this->chargedFailure('2026-09-21 22:02:01', 170, '9265');
+        $this->topUpRetry($failed, '2026-09-21 22:06:35', 240, 70, '9265');
+        $this->claim($failed, 'RF-SAME');
+
+        $this->assertSame(RetainedCreditRetry::SAME_CARD, RetainedCreditRetry::forFailedSales([$failed->id])[$failed->id]['verdict']);
+        $text = collect(app(CardSettlementHealthCheck::class)->run())->keyBy('key')['refunds_on_retries']['items'][0]['text'];
+        $this->assertStringContainsString('RF-SAME', $text);
+        $this->assertStringContainsString('same card …9265', $text);
+    }
+
+    /** RF-260924002: the credit was used 2½ days later by a sale with no NETS line — unknown, still listed. */
+    public function test_a_retry_with_no_card_on_nets_is_listed_as_unknown(): void
+    {
+        $failed = $this->chargedFailure('2026-09-24 00:11:54', 580, '4321');
+        $retry = $this->sale($this->vend, '2026-09-26 11:13:19', 620);
+        app(RetainedCreditLinker::class)->link($retry->id, $failed->id, 'phantom');
+        $this->claim($failed, 'RF-UNK');
+
+        $this->assertSame(RetainedCreditRetry::UNKNOWN, RetainedCreditRetry::forFailedSales([$failed->id])[$failed->id]['verdict']);
+        $text = collect(app(CardSettlementHealthCheck::class)->run())->keyBy('key')['refunds_on_retries']['items'][0]['text'];
+        $this->assertStringContainsString('RF-UNK', $text);
+        $this->assertStringContainsString('2026-09-26 11:13', $text);
+        $this->assertStringContainsString('check', $text);
+    }
+
+    private function topUpRetry(VendTransaction $failed, string $at, int $amount, int $lineAmount, string $card): VendTransaction
+    {
+        $retry = $this->sale($this->vend, $at, $amount);
+        $this->line($this->report(CardSettlementReport::STATUS_SYNCED), Carbon::parse($at)->addSeconds(4)->format('H:i:s'), $lineAmount, [
+            'status' => CardSettlementRow::STATUS_MATCHED, 'vend_id' => $this->vend->id, 'matched_vend_transaction_id' => $retry->id, 'card_last4' => $card,
+        ]);
+        app(RetainedCreditLinker::class)->link($retry->id, $failed->id, 'top-up');
+
+        return $retry;
+    }
+
+    private function claim(VendTransaction $failed, string $ref): RefundTicket
+    {
+        return RefundTicket::create([
+            'reference' => $ref, 'vend_code' => '4177', 'vend_id' => $this->vend->id, 'vend_transaction_id' => $failed->id,
+            'order_id' => $failed->order_id, 'claimed_amount_cents' => $failed->amount, 'status' => RefundTicket::STATUS_APPROVED,
+        ]);
     }
 
     public function test_strong_evidence_moves_the_terminal_and_the_report_syncs_itself(): void

@@ -178,6 +178,8 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'HID Card ID',
                 'Voucher',
                 'Campaign Labels',
+                'Card Last 4',
+                'Credit From Card',
             ]);
 
             VendTransaction::query()
@@ -237,6 +239,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                 ->orderBy('vend_transactions.id')
                 ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
+
+                    // NETS card last 4 (+ the failed sale's card on a
+                    // retained-credit row) — one indexed query per chunk.
+                    $cards = \App\Services\CardSettlement\CardLast4Lookup::forSales($transactions);
 
                     // Pull items for this chunk (unchanged)
                     $items = VendTransactionItem::with([
@@ -366,6 +372,8 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $meta_json['hid_card_id'] ?? '',
                             (! empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
                             $labelStr, // 👈 new
+                            $cards[$txn->id]['card'] ?? '',
+                            $cards[$txn->id]['credit_from'] ?? '',
                         ]);
 
                         // ✏️ Child item rows — keep Labels empty (or repeat $labelStr if you prefer)
@@ -416,6 +424,8 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 '',
                                 '',
                                 '', // 👈 Labels for item row (leave empty or put $labelStr)
+                                '', // Card Last 4 lives on the parent row
+                                '',
                             ]);
                         }
                     }
@@ -423,9 +433,9 @@ class ExportVendTransactionCsv implements ShouldQueue
 
             // Append dispensed-but-unreported gateway revenue so the CSV total
             // tallies with the dashboard "Total Sales" (from the cutoff onward).
-            // 29 = this job's header width (no Dispense Attempted?/Refund
+            // 31 = this job's header width (no Dispense Attempted?/Refund
             // Request/Refund Status columns; the chunk export has those three).
-            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom, 29);
+            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom, 31);
 
             rewind($stream);
 

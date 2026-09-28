@@ -110,6 +110,40 @@ class RefundShowNetsReportVerdictTest extends TestCase
     }
 
     /**
+     * The retained-credit verdict reaches both the ticket page (asked for one
+     * sale) and the list (batched once per page) — the same answer either way.
+     * 5073, 2026-09-21: a different card paid the retry, so the claim stands.
+     */
+    public function test_the_retained_credit_verdict_reaches_the_ticket_page_and_the_list()
+    {
+        $failed = $this->sale(['amount' => 170]);
+        $retry = $this->sale(['amount' => 240, 'success_qty' => 1, 'dispensed_qty' => 1]);
+        $retry->forceFill(['is_retained_credit_settlement' => true, 'retained_credit_settles_txn_id' => $failed->id])->save();
+        $report = CardSettlementReport::create(['provider' => 'nets', 'original_filename' => 'x.csv', 'status' => CardSettlementReport::STATUS_SYNCED]);
+        foreach ([[$failed, 170, '9265'], [$retry, 70, '2599']] as $i => [$sale, $cents, $card]) {
+            CardSettlementRow::create([
+                'card_settlement_report_id' => $report->id, 'row_no' => $i + 1, 'txn_type' => 'Purchase', 'terminal_id' => '23082801',
+                'transaction_date' => '2026-08-29', 'transaction_time' => '14:31:00', 'amount_cents' => $cents, 'fingerprint' => sha1(uniqid('', true)),
+                'status' => CardSettlementRow::STATUS_MATCHED, 'matched_vend_transaction_id' => $sale->id, 'card_last4' => $card,
+            ]);
+        }
+        $ticket = $this->ticket($failed);
+        $plain = $this->ticket($this->sale());
+
+        $detail = $this->detailFor($ticket);
+        $this->assertSame('different_card', $detail['retained_credit_retry']['verdict']);
+        $this->assertSame(['9265', '2599'], [$detail['retained_credit_retry']['failed_card'], $detail['retained_credit_retry']['retry_card']]);
+        $this->assertFalse($detail['received_on_retry'], 'someone else got the item');
+
+        $controller = app(RefundController::class);
+        $buildRows = (new \ReflectionClass($controller))->getMethod('buildRows');
+        $buildRows->setAccessible(true);
+        $rows = $buildRows->invoke($controller, RefundTicket::whereIn('id', [$ticket->id, $plain->id])->get());
+        $this->assertSame($detail['retained_credit_retry'], $rows[$ticket->id]['retained_credit_retry']);
+        $this->assertNull($rows[$plain->id]['retained_credit_retry']);
+    }
+
+    /**
      * Every verdict the report can reach reaches the screen. A claim it CANNOT
      * rule on used to look exactly like one nobody had checked — Brian, on an
      * `uncovered` row (Nets-Auresys, only part of its sales in the file):

@@ -93,22 +93,43 @@ class CardSettlementHealthCheck
         return ['key' => 'pending_moves', 'title' => 'Terminals that may have moved (evidence too weak to move automatically)', 'action' => 'If you know where the terminal is, set it on that machine\'s Setting/Edit page; otherwise it resolves itself once more sales arrive.', 'items' => $items];
     }
 
-    /** Open refund claims on a failed sale whose customer got the item on retry. */
+    /**
+     * Open refund claims on a failed sale whose retained credit a later sale
+     * used. Same card on both NETS lines = the claimant got the item on a
+     * retry; card unknown = check. A DIFFERENT card is left out: someone else
+     * got the item, the claimant did not, and the claim stands — nothing for a
+     * person to catch (the refund page still badges it). See RetainedCreditRetry.
+     */
     protected function openRefundsOnRetries(string $base): array
     {
         $closed = [RefundTicket::STATUS_COMPLETED, RefundTicket::STATUS_REJECTED, RefundTicket::STATUS_AUTO_RESOLVED];
-        $items = DB::table('refund_tickets as t')
-            ->join('vend_transactions as c', function ($j) {
-                $j->on('c.retained_credit_settles_txn_id', '=', 't.vend_transaction_id')->where('c.is_retained_credit_settlement', true);
-            })
+        $tickets = DB::table('refund_tickets as t')
             ->whereNotIn('t.status', $closed)
             ->whereNull('t.deleted_at')
-            ->get(['t.id', 't.reference', 't.status', 't.vend_code'])
-            ->unique('id')
-            ->map(fn ($t) => ['text' => "{$t->reference} ({$t->status}, machine {$t->vend_code}) — the customer got the item on a retry", 'url' => $base.'/refunds/'.$t->id])
-            ->values()->all();
+            ->whereExists(fn ($q) => $q->selectRaw('1')->from('vend_transactions as c')
+                ->whereColumn('c.retained_credit_settles_txn_id', 't.vend_transaction_id')
+                ->where('c.is_retained_credit_settlement', true))
+            ->orderBy('t.id')
+            ->get(['t.id', 't.reference', 't.status', 't.vend_code', 't.vend_transaction_id']);
 
-        return ['key' => 'refunds_on_retries', 'title' => 'Refund claims where the item was received on retry', 'action' => 'Reject or adjust before approving — the vend failed, but the retained credit served the customer\'s next selection.', 'items' => $items];
+        $retries = RetainedCreditRetry::forFailedSales($tickets->pluck('vend_transaction_id')->all());
+
+        $items = $tickets
+            ->map(function ($t) use ($retries, $base) {
+                $r = $retries[(int) $t->vend_transaction_id] ?? null;
+                if (! $r || $r['verdict'] === RetainedCreditRetry::DIFFERENT_CARD) {
+                    return null;
+                }
+                $at = Carbon::parse($r['retry_at'])->format('Y-m-d H:i');
+                $what = $r['verdict'] === RetainedCreditRetry::SAME_CARD
+                    ? "the customer got the item on a retry (same card …{$r['retry_card']}, {$at})"
+                    : "the credit was used by a sale at {$at}; no card on NETS to say whose — check";
+
+                return ['text' => "{$t->reference} ({$t->status}, machine {$t->vend_code}) — {$what}", 'url' => $base.'/refunds/'.$t->id];
+            })
+            ->filter()->values()->all();
+
+        return ['key' => 'refunds_on_retries', 'title' => 'Refund claims on a failed vend whose credit a later sale used', 'action' => 'Same card: the customer got the item — reject or adjust before approving. No card: find out who took it before deciding. (A different card means someone else got it; those claims stand and are not listed.)', 'items' => $items];
     }
 
     protected function machinesWithoutCompany(Carbon $from, string $base): array
