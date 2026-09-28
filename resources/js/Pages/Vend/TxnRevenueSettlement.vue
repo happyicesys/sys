@@ -86,7 +86,9 @@ const exportUrl = computed(() => {
 });
 
 // Money arrives as integer cents; divide only here, at display.
-const money = (cents) => (cents === null || cents === undefined) ? '' : (cents / 100).toFixed(2);
+// Thousand separators on screen only; the CSV export keeps plain numbers.
+const moneyFormat = new Intl.NumberFormat('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (cents) => (cents === null || cents === undefined) ? '' : moneyFormat.format(cents / 100);
 const pct = (part, whole) => whole ? (part * 100 / whole).toFixed(1) + '%' : '—';
 
 const railLabel = { card: 'Card', qr: 'QR', cash: 'Cash', other: 'Other' };
