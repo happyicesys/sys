@@ -11,11 +11,10 @@ namespace App\Support\CardSettlement;
  * date is App\Services\CardSettlement\Payout\SettlementPayoutResolver's job,
  * because that needs a banking calendar and this must stay trivially testable.
  *
- * The MDR fields are LABELS ("2.5%", "2% + GST"), not numbers: nothing in mark1
- * computes a fee from them today, and inventing a float here would invite a
- * future reader to treat a display string as money. Money is integer cents
- * everywhere in this estate; when fee computation lands it gets its own typed
- * field rather than parsing these.
+ * `mdrRate` / `mdrNote` are LABELS ("2.5%", "2% + GST") for tooltips and are
+ * never parsed. Fee arithmetic reads only the typed fields — `mdrBasisPoints`
+ * (integer, 250 = 2.5%), `mdrPlusGst` and `mdrDeducted` — and works in integer
+ * cents, like all money in this estate.
  */
 class PayoutTerms
 {
@@ -30,7 +29,45 @@ class PayoutTerms
         public readonly ?string $mdrRate = null,
         /** Whether the MDR is netted off the payout or billed separately. */
         public readonly ?string $mdrNote = null,
+        /** The MDR as an integer in basis points (250 = 2.5%); null = not told. */
+        public readonly ?int $mdrBasisPoints = null,
+        /** GST is charged on top of the MDR ("2% + GST"). */
+        public readonly bool $mdrPlusGst = false,
+        /** true = netted off the payout; false = gross banked, MDR billed separately. */
+        public readonly bool $mdrDeducted = false,
     ) {}
+
+    /**
+     * The MDR on one line of `$amountCents`, GST included when the schedule says
+     * so. Rounded half-up per line — an ESTIMATE: the acquirer may round per
+     * batch, so a day's total can differ from its statement by a few cents.
+     * Null when the schedule carries no numeric rate.
+     */
+    public function mdrCents(int $amountCents, int $gstBasisPoints): ?int
+    {
+        if ($this->mdrBasisPoints === null) {
+            return null;
+        }
+
+        $fee = (int) round($amountCents * $this->mdrBasisPoints / 10000);
+        if ($this->mdrPlusGst) {
+            $fee += (int) round($fee * $gstBasisPoints / 10000);
+        }
+
+        return $fee;
+    }
+
+    /** "2.5%", "2% + GST" — from the typed rate, so the label cannot drift from the maths. */
+    public function mdrRateLabel(): ?string
+    {
+        if ($this->mdrBasisPoints === null) {
+            return $this->mdrRate;
+        }
+
+        $pct = rtrim(rtrim(number_format($this->mdrBasisPoints / 100, 2, '.', ''), '0'), '.');
+
+        return $pct.'%'.($this->mdrPlusGst ? ' + GST' : '');
+    }
 
     public function termLabel(): string
     {

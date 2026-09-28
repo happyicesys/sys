@@ -225,14 +225,27 @@ return [
      *   issuers            : report "Financial Institution ID"; omit to match
      *                        every issuer of that product.
      *   term_days          : N in T+N, in banking days.
-     *   mdr / mdr_note     : display labels for the tooltip — no arithmetic is
-     *                        done with them here (fee computation, if it ever
-     *                        lands, should read these and not re-type them).
+     *   mdr / mdr_note     : display labels for the tooltip.
+     *   mdr_bps            : the same rate as an integer in basis points
+     *                        (250 = 2.5%) — the ONLY field fee arithmetic
+     *                        reads (Txn, Revenue & Settlement page). Keep it in
+     *                        step with `mdr` by hand; a label is never parsed.
+     *   mdr_plus_gst       : GST (`mdr_gst_bps`) is charged on top of the MDR.
+     *   mdr_deducted       : true = the acquirer nets the MDR off the payout
+     *                        ("after deduct MDR, bank in"), so bank-in =
+     *                        gross − MDR; false = "full back in", the gross is
+     *                        banked and the MDR is billed separately.
      *
      * A product/issuer pair no rule covers resolves to NULL and the column
      * stays blank: an unmapped card type must not silently inherit a
      * neighbour's payout date.
      */
+    /*
+     * GST charged on an MDR whose rule says `mdr_plus_gst`, in basis points
+     * (Singapore GST 9% since 2024-01-01).
+     */
+    'mdr_gst_bps' => 900,
+
     'payout_terms' => [
         'nets' => [
             // Visa / Mastercard — the only T+2 family in the live reports.
@@ -243,6 +256,8 @@ return [
                 'term_days' => 2,
                 'mdr' => '2.5%',
                 'mdr_note' => 'after deduct MDR, bank in',
+                'mdr_bps' => 250,
+                'mdr_deducted' => true,
             ],
             // NETS and NETS QR. Issuers seen: DBS Card / DBS PayLah /
             // OCBC Card / OCBC PayAnyone / UOB Card / UOB Mighty / HSBC /
@@ -254,6 +269,8 @@ return [
                 'term_days' => 1,
                 'mdr' => '0.8%',
                 'mdr_note' => 'full back in',
+                'mdr_bps' => 80,
+                'mdr_deducted' => false,
             ],
             // NETS FlashPay is NETS's own stored-value card; it is not a line
             // in Brian's table, and was placed on the NETS schedule (2026-09-12).
@@ -264,6 +281,8 @@ return [
                 'term_days' => 1,
                 'mdr' => '0.8%',
                 'mdr_note' => 'full back in',
+                'mdr_bps' => 80,
+                'mdr_deducted' => false,
             ],
             // WeChat cross-border is the one cross-border scheme that settles
             // through POS — must stay ABOVE the CROSS BORDER catch-all.
@@ -275,6 +294,8 @@ return [
                 'term_days' => 1,
                 'mdr' => '0.8%',
                 'mdr_note' => 'full back in',
+                'mdr_bps' => 80,
+                'mdr_deducted' => false,
             ],
             // UnionPay and BHIM are Brian's 1.8% line. Alipay+ and the ASEAN QR
             // schemes (PayNet / RINTIS / JALIN / ARTAJASA) are not in his table
@@ -287,6 +308,8 @@ return [
                 'term_days' => 1,
                 'mdr' => '1.8%',
                 'mdr_note' => 'full back in',
+                'mdr_bps' => 180,
+                'mdr_deducted' => false,
             ],
             // EZ-Link settles through Auresys. It has NEVER appeared as a line
             // in a MerchantConnect file (the EZ-Link TIDs are not NETS TIDs),
@@ -298,6 +321,9 @@ return [
                 'term_days' => 2,
                 'mdr' => '2% + GST',
                 'mdr_note' => 'after deduct MDR, bank in',
+                'mdr_bps' => 200,
+                'mdr_plus_gst' => true,
+                'mdr_deducted' => true,
             ],
         ],
     ],

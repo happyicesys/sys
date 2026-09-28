@@ -311,6 +311,15 @@ class RolePermissionSyncSeeder extends Seeder
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],
 
+            // Transactions > Txn, Revenue & Settlement (Brian, 2026-09-28): the
+            // sale, what the rail confirmed, and the bank-in after MDR. Money
+            // and MDR per sale — finance/admin staff, same set as Card Settlement.
+            [
+                'transactions-revenue-settlement',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor'],
+            ],
+
             [
                 'transactions-payment-gateway',
                 ['read', 'export'],

@@ -745,6 +745,32 @@ Regression coverage: `tests/Feature/CardTerminalUnitTest.php` (including an
 end-to-end proof that a terminal bound from Setting/Edit still matches a
 settlement report).
 
+## Txn, Revenue & Settlement: one sale, three sources, one line
+
+Transactions → **Txn, Revenue & Settlement** (`/vends/txn-revenue-settlement`,
+Brian 2026-09-28) follows each sale machine → rail → bank. All rules live in
+`App\Services\Sales\TxnRevenueSettlement`; the page only draws them.
+
+- **Revenue is what a RAIL confirms, never the machine's amount.** Card = the
+  matched NETS line's `amount_cents` (a retained-credit top-up line is smaller
+  than its sale — that is correct); QR = the approved Omise charge. Cash, HID
+  and Grab have no rail and stay blank. No figure when the rail returned the
+  money (reversal line, `settlement_status` REFUNDED, Omise status 98,
+  `is_refunded`) — **except `retained_credit_revend`**, whose money was kept.
+- The verdict is ONE SQL expression, `revenueStateSql()`, shared by the grid,
+  the Revenue Status filter and the totals. Add a state there, not in Vue.
+- **MDR arithmetic reads only `mdr_bps` / `mdr_plus_gst` / `mdr_deducted`** in
+  `config('card_settlement.payout_terms')` (`PayoutTerms::mdrCents`), integer
+  cents, half-up per line — an ESTIMATE for NETS (the acquirer may round per
+  batch). The `mdr` string is a label; keep the two in step by hand. `mdr_deducted`
+  false ("full back in") = bank-in is the gross and MDR is billed separately.
+  Omise MDR/net are Omise's ACTUAL `fee + fee_vat` / `net` on the charge; the
+  Omise transfer date is not tracked, so its Settlement Date is blank.
+- Totals group card lines by (terms, amount) and multiply, so they equal the sum
+  of the per-line rounding the grid shows. Testing machines are excluded.
+- Permission `transactions-revenue-settlement` (read, export): superadmin,
+  admin, supervisor. Regression coverage: `tests/Feature/TxnRevenueSettlementTest.php`.
+
 ## Smart Freezer videos from Zijia: stored raw, contract not agreed
 
 `POST /api/smart-freezer/zijia/videos` (`SmartFreezer\ZijiaVideoWebhookController`,

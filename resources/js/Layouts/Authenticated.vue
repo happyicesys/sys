@@ -92,6 +92,7 @@ const navigation = computed(() => [
             // the former and not the latter. Every other role holds both.
             {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-daily-summary'},
             {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
+            {name: 'Txn, Revenue & Settlement', href: '/vends/txn-revenue-settlement', permission: 'read transactions-revenue-settlement'},
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
             {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},
             {name: 'Card Settlement', href: '/card-settlements', permission: 'read card-settlements'},

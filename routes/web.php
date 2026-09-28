@@ -60,6 +60,7 @@ use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelcoController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TutorialController;
+use App\Http\Controllers\TxnRevenueSettlementController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserLogController;
@@ -1092,6 +1093,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Route::get('/vends/transactions/latest-exports', [VendController::class, 'latestExports']);
         Route::get('/transactions-daily-summary', [VendController::class, 'dailySummaryIndex'])->name('vends.transactions.daily-summary');
         Route::get('/transactions-daily-summary/export-csv', [VendController::class, 'exportDailySummaryCsv'])->name('vends.transactions.daily-summary.export-csv');
+        // Txn, Revenue & Settlement: one sale followed machine → rail → bank.
+        Route::get('/txn-revenue-settlement', [TxnRevenueSettlementController::class, 'index'])
+            ->name('vends.txn-revenue-settlement')->middleware('can:read transactions-revenue-settlement');
+        Route::get('/txn-revenue-settlement/export-csv', [TxnRevenueSettlementController::class, 'exportCsv'])
+            ->name('vends.txn-revenue-settlement.export-csv')->middleware('can:export transactions-revenue-settlement');
         Route::get('/payment-gateway-transactions', [VendController::class, 'paymentGatewayTransactionIndex'])->name('payment-gateway-transactions');
         Route::get('/payment-gateway-transactions/excel', [VendController::class, 'exportPaymentGatewayTransactionExcel']);
         Route::get('/vend-snapshots/excel/{vendSnapshotId}', [VendController::class, 'exportVendSnapshotExcel']);

@@ -41,6 +41,9 @@ abstract class ConfigPayoutTermsResolver implements PayoutTermsResolver
                 methodLabel: $rule['method'] ?? null,
                 mdrRate: $rule['mdr'] ?? null,
                 mdrNote: $rule['mdr_note'] ?? null,
+                mdrBasisPoints: isset($rule['mdr_bps']) ? (int) $rule['mdr_bps'] : null,
+                mdrPlusGst: (bool) ($rule['mdr_plus_gst'] ?? false),
+                mdrDeducted: (bool) ($rule['mdr_deducted'] ?? false),
             );
         }
 
