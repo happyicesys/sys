@@ -329,8 +329,13 @@ class RefundController extends Controller
         $this->attachTerminalFlags($txns);
         // Who used each failed sale's retained credit — one query for the page.
         $retries = \App\Services\CardSettlement\RetainedCreditRetry::forFailedSales($txns->keys()->all());
+        // …and, for a claim on the retry itself, whose credit paid for it.
+        $sources = \App\Services\CardSettlement\RetainedCreditRetry::forRetrySales(
+            $txns->filter(fn ($t) => $t->is_retained_credit_settlement)->keys()->all()
+        );
         foreach ($txns as $txn) {
             $txn->retained_credit_retry = $retries[$txn->id] ?? null;
+            $txn->retained_credit_source = $sources[$txn->id] ?? null;
         }
 
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
@@ -1319,6 +1324,9 @@ class RefundController extends Controller
         $retry = ! isset($txn) ? null : (array_key_exists('retained_credit_retry', $txn->getAttributes())
             ? $txn->retained_credit_retry
             : (\App\Services\CardSettlement\RetainedCreditRetry::forFailedSales([$txn->id])[$txn->id] ?? null));
+        $source = ! isset($txn) || ! $txn->is_retained_credit_settlement ? null : (array_key_exists('retained_credit_source', $txn->getAttributes())
+            ? $txn->retained_credit_source
+            : (\App\Services\CardSettlement\RetainedCreditRetry::forRetrySales([$txn->id])[$txn->id] ?? null));
 
         $matched = (bool) ($t->vend_transaction_id || $t->payment_gateway_log_id);
 
@@ -1479,6 +1487,9 @@ class RefundController extends Controller
             // claimant get the item (RetainedCreditRetry). Three claims were paid
             // before any of this existed (RF-260903024 / 260904015 / 260904020).
             'retained_credit_retry' => $retry,
+            // The claim is ON the retry: this sale was paid (wholly or partly)
+            // from a failed sale's retained credit, and its customer got the item.
+            'retained_credit_source' => $source,
             'received_on_retry' => ($retry['verdict'] ?? null) === \App\Services\CardSettlement\RetainedCreditRetry::SAME_CARD,
             'nets_report_state' => (isset($txn) && (int) ($txn->paymentMethod->code ?? -1) === \App\Models\PaymentMethod::CODE_CARD_TERMINAL)
                 ? ($txn->card_settlement_state ?: 'pending')

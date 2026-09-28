@@ -141,6 +141,14 @@ class RefundShowNetsReportVerdictTest extends TestCase
         $rows = $buildRows->invoke($controller, RefundTicket::whereIn('id', [$ticket->id, $plain->id])->get());
         $this->assertSame($detail['retained_credit_retry'], $rows[$ticket->id]['retained_credit_retry']);
         $this->assertNull($rows[$plain->id]['retained_credit_retry']);
+        $this->assertNull($detail['retained_credit_source'], 'the failed sale did not use anyone\'s credit');
+
+        // A claim on the retry: the second customer, who paid $0.70 of $2.40.
+        $onRetry = $this->ticket($retry);
+        $source = $this->detailFor($onRetry)['retained_credit_source'];
+        $this->assertSame(['different_card', $failed->id, 70], [$source['verdict'], $source['failed_id'], $source['paid_cents']]);
+        $rows = $buildRows->invoke($controller, RefundTicket::whereKey($onRetry->id)->get());
+        $this->assertSame($source, $rows[$onRetry->id]['retained_credit_source']);
     }
 
     /**

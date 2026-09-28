@@ -127,9 +127,22 @@ class CardSettlementHealthCheck
 
                 return ['text' => "{$t->reference} ({$t->status}, machine {$t->vend_code}) — {$what}", 'url' => $base.'/refunds/'.$t->id];
             })
-            ->filter()->values()->all();
+            ->filter()->values();
 
-        return ['key' => 'refunds_on_retries', 'title' => 'Refund claims on a failed vend whose credit a later sale used', 'action' => 'Same card: the customer got the item — reject or adjust before approving. No card: find out who took it before deciding. (A different card means someone else got it; those claims stand and are not listed.)', 'items' => $items];
+        // A claim on the RETRY itself: that sale was served from a failed
+        // sale's retained credit, so whoever made it got the item.
+        $onRetry = DB::table('refund_tickets as t')
+            ->join('vend_transactions as s', 's.id', '=', 't.vend_transaction_id')
+            ->whereNotIn('t.status', $closed)
+            ->whereNull('t.deleted_at')
+            ->where('s.is_retained_credit_settlement', true)
+            ->orderBy('t.id')
+            ->get(['t.id', 't.reference', 't.status', 't.vend_code'])
+            ->map(fn ($t) => ['text' => "{$t->reference} ({$t->status}, machine {$t->vend_code}) — claim on a sale paid with retained credit; the customer got the item", 'url' => $base.'/refunds/'.$t->id]);
+
+        $items = $items->concat($onRetry)->values()->all();
+
+        return ['key' => 'refunds_on_retries', 'title' => 'Refund claims on a failed vend whose credit a later sale used', 'action' => 'Same card, or a claim on the sale that used the credit: the customer got the item — reject or adjust before approving. No card: find out who took it before deciding. (A different card means someone else got it; those claims stand and are not listed.)', 'items' => $items];
     }
 
     protected function machinesWithoutCompany(Carbon $from, string $base): array

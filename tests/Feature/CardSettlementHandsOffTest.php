@@ -289,6 +289,23 @@ class CardSettlementHandsOffTest extends TestCase
         $this->assertStringContainsString('check', $text);
     }
 
+    /** "Not for the 2nd person": a claim on the sale that USED the credit is flagged — they got the item. */
+    public function test_a_claim_on_the_sale_that_used_the_credit_is_flagged(): void
+    {
+        $failed = $this->chargedFailure('2026-09-21 22:02:01', 170, '9265');
+        $retry = $this->topUpRetry($failed, '2026-09-21 22:06:35', 240, 70, '2599');
+        $this->claim($retry, 'RF-SECOND');
+
+        $source = RetainedCreditRetry::forRetrySales([$retry->id])[$retry->id];
+        $this->assertSame(RetainedCreditRetry::DIFFERENT_CARD, $source['verdict']);
+        $this->assertSame([$failed->id, 170, 70, '9265', '2599'], [$source['failed_id'], $source['failed_amount'], $source['paid_cents'], $source['failed_card'], $source['retry_card']]);
+
+        $items = collect(app(CardSettlementHealthCheck::class)->run())->keyBy('key')['refunds_on_retries']['items'];
+        $this->assertCount(1, $items, 'the first customer\'s claim is not listed — only the second\'s');
+        $this->assertStringContainsString('RF-SECOND', $items[0]['text']);
+        $this->assertStringContainsString('paid with retained credit', $items[0]['text']);
+    }
+
     private function topUpRetry(VendTransaction $failed, string $at, int $amount, int $lineAmount, string $card): VendTransaction
     {
         $retry = $this->sale($this->vend, $at, $amount);

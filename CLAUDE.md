@@ -693,12 +693,17 @@ Both directions of "the report and the machine disagree" are handled at Sync
     the claimant got the item** (Brian, 2026-09-28: on 5073 the failed $1.70
     was card …9265, the $0.70 top-up that took the item card …2599 — two
     people). `RetainedCreditRetry` compares the NETS card on both sales:
-    `same_card` → "Item received on retry" (don't pay), `different_card` →
-    "Credit used by another card" (the claim stands; left out of the email),
-    `unknown` → no card on one side (EFTPOS, a re-vend with no line, a TXN_SRC 1
-    phantom days later) → check. Refund rows carry it as
-    `retained_credit_retry` (batched in `buildRows`), badged by
-    `netsReportBadge.js`.
+    `same_card` → "Retained credit used by same card" (the customer got the
+    item on the retry — don't pay), `different_card` → "Retained credit used by
+    another card" (a new customer used the stuck credit; this claim stands, left
+    out of the email), `unknown` → no card on one side (EFTPOS, a re-vend with
+    no line, a TXN_SRC 1 phantom days later) → check. A claim on the RETRY sale
+    itself (the second customer, `RetainedCreditRetry::forRetrySales`) reads
+    "Paid with retained credit" — they got the item. Refund rows carry
+    `retained_credit_retry` / `retained_credit_source` (batched in
+    `buildRows`); badged by `netsReportBadge.js`, and said again beside
+    Approve on the ticket page (`retainedCreditAdvice`) — advice only, Approve
+    is never blocked by it.
   - **Card last 4** (2026-09-28): `card_settlement_rows.card_last4`, from the
     NETS "CashCard Application Number (CAN)" column
     (`NetsMerchantConnectParser::cardLast4` — kept only when the value truly
@@ -721,8 +726,8 @@ Both directions of "the report and the machine disagree" are handled at Sync
     block a Sync.
   - **`card-settlement:health` at 08:30** emails the HIPL alert-email list
     (`alert_operator_code`) ONLY what needs a person — missing NETS files,
-    unsynced reports, weak moves, open refunds on retried vends (same card or
-    card unknown — never a different card), machines with
+    unsynced reports, weak moves, open refunds on retried vends (same card,
+    card unknown, or a claim on the retry itself — never a different card), machines with
     no reader company, double-bound terminals, NETS lines on non-NETS
     machines, days above `alert_unexplained_per_day` dispensed-but-uncharged
     sales, lines pointing at deleted sales. Nothing to act on → no email.

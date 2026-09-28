@@ -2,7 +2,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
-import { netsReportBadge } from '@/constants/netsReportBadge';
+import { netsReportBadge, retainedCreditAdvice } from '@/constants/netsReportBadge';
 
 const props = defineProps({
     ticket: { type: Object, required: true },
@@ -871,6 +871,14 @@ function actionBadge(l) {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div v-if="hasActions" class="bg-gray-50 rounded-md border p-4 space-y-2">
                 <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-1">Actions</h3>
+
+                <!-- Retained credit, said where the decision is made (Brian, 2026-09-28):
+                     same card before and after = the customer got the item on the
+                     retry; another card = a new customer used the stuck credit, so
+                     this claimant's refund stands. Advice only — Approve stays. -->
+                <p v-if="retainedCreditAdvice(t)" class="text-xs font-semibold rounded border px-3 py-2 bg-white" :class="retainedCreditAdvice(t).class">
+                    {{ retainedCreditAdvice(t).text }}
+                </p>
 
                 <!-- Pending: manual follow-up. Shown only for a freshly Received ticket.
                      Parks it as Pending (blue) so Ops can email the customer by hand for

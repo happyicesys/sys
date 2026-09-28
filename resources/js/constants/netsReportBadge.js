@@ -60,12 +60,12 @@ const dollars = (cents) => `$${(Number(cents ?? 0) / 100).toFixed(2)}`;
 
 const RETRY_BADGES = {
     same_card: (r) => ({
-        text: `Item received on retry (card …${r.retry_card})`,
+        text: `Retained credit used by same card (…${r.retry_card})`,
         class: 'bg-red-100 text-red-800',
         tip: `This vend failed but the card was charged, and the reader kept the credit. The same card (…${r.retry_card}) then bought a ${dollars(r.retry_amount)} item on this machine at ${at(r)}, served from that credit. The customer got the item — do not refund it.`,
     }),
     different_card: (r) => ({
-        text: `Credit used by another card (…${r.retry_card})`,
+        text: `Retained credit used by another card (…${r.retry_card})`,
         class: 'bg-sky-100 text-sky-800',
         tip: `This vend failed and card …${r.failed_card} was charged. The reader kept the credit, and a DIFFERENT card (…${r.retry_card}) used it at ${at(r)} for a ${dollars(r.retry_amount)} item, paying only the difference. The claimant did not get the item — the claim stands.`,
     }),
@@ -76,14 +76,55 @@ const RETRY_BADGES = {
     }),
 };
 
+// The claim is on the RETRY: this sale was served from a failed sale's
+// retained credit (RefundController.retained_credit_source). Whoever made it
+// got the item, paying only their own NETS line (or nothing on a re-vend) —
+// the second customer on a different card, or the first one retrying.
+const paidWithCredit = (r) => ({
+    text: 'Paid with retained credit',
+    class: 'bg-red-100 text-red-800',
+    tip: `This sale was served from credit a failed ${dollars(r.failed_amount)} vend left on the reader at ${(r.failed_at ?? '').slice(0, 16)}${r.failed_card ? ` (card …${r.failed_card})` : ''}. `
+        + (r.paid_cents == null ? 'NETS has no charge of its own for it' : `Its own NETS charge was ${dollars(r.paid_cents)}${r.retry_card ? ` on card …${r.retry_card}` : ''}`)
+        + (r.verdict === 'different_card' ? ' — a different card: a new customer who paid less and got the item.' : r.verdict === 'same_card' ? ' — the same card: the first customer\'s retry, which got the item.' : '.')
+        + ' The item was received — do not refund it.',
+});
+
 /**
- * @param {object} row a refund row carrying `retained_credit_retry`, `na_in_nets` and `nets_report_state`
+ * One line for the ticket page's Actions panel, beside Approve: what the
+ * retained-credit verdict means for THIS decision. null when there is none.
+ *
+ * @param {object} row
+ * @returns {{text: string, class: string}|null}
+ */
+export function retainedCreditAdvice(row) {
+    const r = row?.retained_credit_retry;
+    if (row?.retained_credit_source) {
+        return { text: 'This sale was paid with retained credit from an earlier failed vend — the customer got the item. Do not refund.', class: 'text-red-700' };
+    }
+    if (r?.verdict === 'same_card') {
+        return { text: `Retained credit used by same card (…${r.retry_card}) at ${at(r)} — the customer got the item on the retry. Do not refund.`, class: 'text-red-700' };
+    }
+    if (r?.verdict === 'different_card') {
+        return { text: `Retained credit used by another card (…${r.retry_card}) — this customer did not get the item. The claim stands.`, class: 'text-sky-700' };
+    }
+    if (r?.verdict === 'unknown') {
+        return { text: `Retained credit used by a later sale at ${at(r)}, card not in NETS — check who took it before deciding.`, class: 'text-amber-700' };
+    }
+
+    return null;
+}
+
+/**
+ * @param {object} row a refund row carrying `retained_credit_retry`, `retained_credit_source`, `na_in_nets` and `nets_report_state`
  * @returns {{text: string, class: string, tip: string}|null}
  */
 export function netsReportBadge(row) {
     const retry = row?.retained_credit_retry;
     if (retry && RETRY_BADGES[retry.verdict]) {
         return RETRY_BADGES[retry.verdict](retry);
+    }
+    if (row?.retained_credit_source) {
+        return paidWithCredit(row.retained_credit_source);
     }
     if (row?.na_in_nets) {
         return NA_IN_NETS;

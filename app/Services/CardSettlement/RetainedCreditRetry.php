@@ -80,6 +80,55 @@ class RetainedCreditRetry
         return $out;
     }
 
+    /**
+     * The other side: sales that were SERVED from a failed sale's retained
+     * credit — a claim on one of these is the second customer's (or the same
+     * customer's retry), and they got the item. Sale id → verdict, the failed
+     * sale it drew on, and what their own NETS line charged (null = nothing:
+     * a re-vend or a phantom approval took the whole item from the credit).
+     *
+     * @param  int[]  $saleIds
+     * @return array<int, array{verdict: string, failed_id: int, failed_at: string, failed_amount: int, failed_card: ?string, retry_card: ?string, paid_cents: ?int}>
+     */
+    public static function forRetrySales(array $saleIds): array
+    {
+        $saleIds = array_values(array_unique(array_filter(array_map('intval', $saleIds))));
+        if (! $saleIds) {
+            return [];
+        }
+
+        $sales = DB::table('vend_transactions as s')
+            ->join('vend_transactions as f', 'f.id', '=', 's.retained_credit_settles_txn_id')
+            ->whereIn('s.id', $saleIds)
+            ->where('s.is_retained_credit_settlement', true)
+            ->get(['s.id', 'f.id as failed_id', 'f.transaction_datetime as failed_at', 'f.amount as failed_amount']);
+        if ($sales->isEmpty()) {
+            return [];
+        }
+
+        $lines = DB::table('card_settlement_rows')
+            ->whereIn('matched_vend_transaction_id', [...$sales->pluck('id'), ...$sales->pluck('failed_id')])
+            ->get(['matched_vend_transaction_id', 'card_last4', 'amount_cents'])
+            ->keyBy('matched_vend_transaction_id');
+
+        $out = [];
+        foreach ($sales as $s) {
+            $failedCard = $lines[$s->failed_id]->card_last4 ?? null;
+            $retryCard = $lines[$s->id]->card_last4 ?? null;
+            $out[(int) $s->id] = [
+                'verdict' => self::verdict($failedCard, $retryCard),
+                'failed_id' => (int) $s->failed_id,
+                'failed_at' => Carbon::parse($s->failed_at)->toDateTimeString(),
+                'failed_amount' => (int) $s->failed_amount,
+                'failed_card' => $failedCard,
+                'retry_card' => $retryCard,
+                'paid_cents' => isset($lines[$s->id]) ? (int) $lines[$s->id]->amount_cents : null,
+            ];
+        }
+
+        return $out;
+    }
+
     public static function verdict(?string $failedCard, ?string $retryCard): string
     {
         if ($failedCard === null || $retryCard === null) {
