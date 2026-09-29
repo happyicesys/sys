@@ -156,6 +156,37 @@ class FreezerRemoteControlTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_fan_control_mode_needs_app_20_and_takes_an_on_off(): void
+    {
+        // An app before v20 does not know the op: never send it, say why.
+        $old = $this->freezer(['apk_version_code' => 19]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'fanmode', 'args' => ['on' => true]])
+            ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 20)."]);
+        $this->assertSame(0, FreezerControlCommand::count());
+        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_fanmode'));
+
+        $vend = $this->freezer(['code' => 50005, 'apk_version_code' => 20]);
+        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_fanmode'));
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'fanmode', 'args' => ['on' => true]])
+            ->assertStatus(202);
+        $row = FreezerControlCommand::sole();
+        $this->assertSame('fanmode', $row->op);
+        $this->assertSame(['on' => true], $row->args);
+
+        // Same on/off shape as comprmode.
+        $other = $this->freezer(['code' => 50006, 'apk_version_code' => 20]);
+        $this->postJson("/vends/{$other->id}/freezer-controls", ['op' => 'fanmode', 'args' => ['on' => 'remote']])
+            ->assertStatus(422);
+    }
+
+    public function test_compressor_control_mode_keeps_its_original_gate(): void
+    {
+        // comprmode predates v20 and stays available from v13 (from v20 it writes the real register).
+        $this->assertSame(13, FreezerControlService::minApkVersionFor('comprmode'));
+        $this->assertSame(14, FreezerControlService::minApkVersionFor('photo'));
+        $this->assertSame(20, FreezerControlService::minApkVersionFor('fanmode'));
+    }
+
     public function test_ack_keeps_the_controller_mode_flags_in_the_status_snapshot(): void
     {
         $vend = $this->freezer();

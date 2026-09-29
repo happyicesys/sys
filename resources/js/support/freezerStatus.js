@@ -250,7 +250,7 @@ export class FreezerStatus {
             notes.push('The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.');
         }
         if (this.fanRemote === false) {
-            notes.push("The fan follows the door switch on the controller, so Cabinet fan on/off is ignored. Only Zijia's portal can change that today.");
+            notes.push('The fan follows the door switch on the controller, so Cabinet fan on/off is ignored until you press Remote under Fan control (app v20+).');
         }
         return notes;
     }

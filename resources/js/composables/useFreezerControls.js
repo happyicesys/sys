@@ -149,6 +149,7 @@ const OP_LABELS = {
     light: 'Light',
     compressor: 'Compressor',
     comprmode: 'Compressor control',
+    fanmode: 'Fan control',
     setpoint: 'Setpoint',
     volume: 'Volume',
     logs: 'Pull logs',

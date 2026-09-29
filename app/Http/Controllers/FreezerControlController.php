@@ -78,6 +78,8 @@ class FreezerControlController extends Controller
             'can_sdk_raw' => $request->user()->can(self::SDK_RAW_PERMISSION),
             // The second batch of controls needs APK 14; the page greys them on an older build.
             'supported_batch2' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_BATCH2,
+            // Fan control mode needs APK 20 (BoxSDK 1.1.0 thermostat registers).
+            'supported_fanmode' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,

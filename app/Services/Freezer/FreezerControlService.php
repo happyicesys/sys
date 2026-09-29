@@ -36,6 +36,8 @@ class FreezerControlService
         'status', 'lock', 'unlock', 'fan', 'light', 'compressor', 'comprmode', 'setpoint', 'volume', 'logs',
         // APK v14
         'selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall', 'beep',
+        // APK v20
+        'fanmode',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
@@ -45,6 +47,15 @@ class FreezerControlService
     public const BATCH2_OPS = ['selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall', 'beep'];
 
     public const MIN_APK_VERSION_CODE_BATCH2 = 14;
+
+    /**
+     * Ops that need APK 20: the AG-325's fan control register (0x0109, 风机控制) through the plugin's
+     * `thermostatControl` (BoxSDK 1.1.0). `comprmode` predates it and stays on the base gate; from v20
+     * it writes the real register too.
+     */
+    public const THERMOSTAT_MODE_OPS = ['fanmode'];
+
+    public const MIN_APK_VERSION_CODE_THERMOSTAT_MODES = 20;
 
     /** The device's fixed diagnostic probes (DiagProbe on the APK) — a closed list, never free text. */
     public const DIAG_PROBES = [
@@ -269,7 +280,11 @@ class FreezerControlService
     /** The smallest APK versionCode that understands $op. */
     public static function minApkVersionFor(string $op): int
     {
-        return in_array($op, self::BATCH2_OPS, true) ? self::MIN_APK_VERSION_CODE_BATCH2 : self::MIN_APK_VERSION_CODE;
+        return match (true) {
+            in_array($op, self::THERMOSTAT_MODE_OPS, true) => self::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
+            in_array($op, self::BATCH2_OPS, true) => self::MIN_APK_VERSION_CODE_BATCH2,
+            default => self::MIN_APK_VERSION_CODE,
+        };
     }
 
     /** @return array<string, mixed> the arguments to send */
@@ -287,7 +302,7 @@ class FreezerControlService
                 ? ['probe' => $args['probe']]
                 : throw ValidationException::withMessages(['args.probe' => 'Choose one of the listed diagnostics.']),
             'sdkcall' => $this->sdkCall($args['action'] ?? null, $args['params'] ?? null),
-            'fan', 'light', 'compressor', 'comprmode' => is_bool($args['on'] ?? null)
+            'fan', 'light', 'compressor', 'comprmode', 'fanmode' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => 'Choose on or off.']),
             'setpoint' => $this->setpoint($args['celsius'] ?? null),

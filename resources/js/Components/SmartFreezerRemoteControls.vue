@@ -176,9 +176,18 @@
                                @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :note="modeText(status.fanRemote)" :reason="blockedReason">
+              <ControlRow label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
+              </ControlRow>
+
+              <!-- The fan's own control register (风机控制): app v20+, and a unit whose plugin Zijia has updated. -->
+              <ControlRow label="Fan control" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
+                          :note="data.supported_fanmode ? '' : 'needs app v20'" :reason="fanModeBlocked">
+                <ControlButton :disabled="!canSendFanMode" :active="status.fanRemote === false"
+                               @click="ask('fanmode', { on: false }, 'Give the fan back to the controller?', 'The controller then runs it off the door switch, and remote on/off stops working.')">Controller</ControlButton>
+                <ControlButton :disabled="!canSendFanMode" :active="status.fanRemote === true"
+                               @click="ask('fanmode', { on: true }, 'Take remote control of the fan?', 'The controller stops running it off the door switch. Hand it back when you are done.')">Remote</ControlButton>
               </ControlRow>
 
               <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
@@ -493,6 +502,8 @@ function removeSchedule(entry) {
 
 /** The second batch of controls needs app v14 on top of everything `canSend` checks. */
 const canSendBatch2 = computed(() => canSend.value && !!data.value.supported_batch2)
+const canSendFanMode = computed(() => canSend.value && !!data.value.supported_fanmode)
+const fanModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_fanmode ? '' : "This machine's app is older than v20; fan control needs the update."))
 const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_batch2 ? '' : "This machine's app is older than v14; these controls need the update."))
 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */
