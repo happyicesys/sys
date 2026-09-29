@@ -162,32 +162,33 @@
                 </div>
               </div>
 
-              <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" :active="status.compressorOn === true"
+              <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="compressorBlocked">
+                <ControlButton :disabled="!!compressorBlocked" :active="status.compressorOn === true"
                                @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')">On</ControlButton>
-                <ControlButton :disabled="!canSend" :active="status.compressorOn === false"
+                <ControlButton :disabled="!!compressorBlocked" :active="status.compressorOn === false"
                                @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')">Off</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Compressor control" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" :active="status.compressorRemote === false"
+              <ControlRow label="Compressor control" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
+                          :note="data.supported_thermostat_modes ? '' : 'needs app v20'" :reason="thermostatModeBlocked">
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === false"
                                @click="ask('comprmode', { on: false }, 'Give the compressor back to the controller?', 'The controller then runs it from its own setpoint and differential, and remote on/off stops working.')">Controller</ControlButton>
-                <ControlButton :disabled="!canSend" :active="status.compressorRemote === true"
-                               @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature.')">Remote</ControlButton>
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === true"
+                               @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature. From app v21 the machine hands it back by itself after ' + REMOTE_LEASE_MINUTES + ' minutes.')">Remote</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
-                <ControlButton :disabled="!canSend" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
+              <ControlRow label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
+                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
+                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
               </ControlRow>
 
               <!-- The fan's own control register (风机控制): app v20+, and a unit whose plugin Zijia has updated. -->
               <ControlRow label="Fan control" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
-                          :note="data.supported_fanmode ? '' : 'needs app v20'" :reason="fanModeBlocked">
-                <ControlButton :disabled="!canSendFanMode" :active="status.fanRemote === false"
+                          :note="data.supported_thermostat_modes ? '' : 'needs app v20'" :reason="thermostatModeBlocked">
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === false"
                                @click="ask('fanmode', { on: false }, 'Give the fan back to the controller?', 'The controller then runs it off the door switch, and remote on/off stops working.')">Controller</ControlButton>
-                <ControlButton :disabled="!canSendFanMode" :active="status.fanRemote === true"
-                               @click="ask('fanmode', { on: true }, 'Take remote control of the fan?', 'The controller stops running it off the door switch. Hand it back when you are done.')">Remote</ControlButton>
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === true"
+                               @click="ask('fanmode', { on: true }, 'Take remote control of the fan?', 'The controller stops running it off the door switch. Hand it back when you are done. From app v21 the machine hands it back by itself after ' + REMOTE_LEASE_MINUTES + ' minutes.')">Remote</ControlButton>
               </ControlRow>
 
               <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
@@ -502,8 +503,22 @@ function removeSchedule(entry) {
 
 /** The second batch of controls needs app v14 on top of everything `canSend` checks. */
 const canSendBatch2 = computed(() => canSend.value && !!data.value.supported_batch2)
-const canSendFanMode = computed(() => canSend.value && !!data.value.supported_fanmode)
-const fanModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_fanmode ? '' : "This machine's app is older than v20; fan control needs the update."))
+/**
+ * Compressor / fan control mode (the AG-325's own registers) needs app v20. Before it, "Remote" on the
+ * compressor reached the SDK's cool/heat call instead — never send it there.
+ */
+const canSendThermostatMode = computed(() => canSend.value && !!data.value.supported_thermostat_modes)
+const thermostatModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_thermostat_modes ? '' : "This machine's app is older than v20; compressor and fan control need the update."))
+
+/** Minutes a remote mode lasts before app v21+ hands it back to the controller (ThermostatModeGuard on the APK). */
+const REMOTE_LEASE_MINUTES = 30
+
+/**
+ * On/off only reaches the relay while that output is in remote mode; in Controller the AG-325 ignores
+ * it. Same rule the machine's own service panel applies, so both screens grey out the same buttons.
+ */
+const compressorBlocked = computed(() => blockedReason.value || (status.value.compressorRemote === false ? 'The controller owns the compressor — set Compressor control to Remote first.' : ''))
+const fanBlocked = computed(() => blockedReason.value || (status.value.fanRemote === false ? 'The controller owns the fan (door switch) — set Fan control to Remote first.' : ''))
 const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_batch2 ? '' : "This machine's app is older than v14; these controls need the update."))
 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */

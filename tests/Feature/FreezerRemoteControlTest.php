@@ -142,7 +142,14 @@ class FreezerRemoteControlTest extends TestCase
 
     public function test_compressor_control_mode_is_sent_as_its_own_op(): void
     {
-        $vend = $this->freezer();
+        // Before v20 the app maps comprmode to the SDK's setComprMode — cool (0) / HEAT (1) in Zijia's
+        // guide — so an older app is never sent it.
+        $old = $this->freezer(['code' => 50007, 'apk_version_code' => 19]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'comprmode', 'args' => ['on' => true]])
+            ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 20)."]);
+        $this->assertSame(0, FreezerControlCommand::count());
+
+        $vend = $this->freezer(['apk_version_code' => 20]);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'comprmode', 'args' => ['on' => true]])
             ->assertStatus(202);
         $row = FreezerControlCommand::sole();
@@ -151,7 +158,7 @@ class FreezerRemoteControlTest extends TestCase
 
         // Same shape as every other on/off control: anything that is not a boolean is refused.
         // A second machine, because the one above still has a command in flight (one at a time).
-        $other = $this->freezer(['code' => 50004]);
+        $other = $this->freezer(['code' => 50004, 'apk_version_code' => 20]);
         $this->postJson("/vends/{$other->id}/freezer-controls", ['op' => 'comprmode', 'args' => ['on' => 'remote']])
             ->assertStatus(422);
     }
@@ -163,10 +170,10 @@ class FreezerRemoteControlTest extends TestCase
         $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'fanmode', 'args' => ['on' => true]])
             ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 20)."]);
         $this->assertSame(0, FreezerControlCommand::count());
-        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_fanmode'));
+        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_thermostat_modes'));
 
         $vend = $this->freezer(['code' => 50005, 'apk_version_code' => 20]);
-        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_fanmode'));
+        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_thermostat_modes'));
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'fanmode', 'args' => ['on' => true]])
             ->assertStatus(202);
         $row = FreezerControlCommand::sole();
@@ -179,10 +186,11 @@ class FreezerRemoteControlTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_compressor_control_mode_keeps_its_original_gate(): void
+    public function test_both_controller_modes_need_app_20(): void
     {
-        // comprmode predates v20 and stays available from v13 (from v20 it writes the real register).
-        $this->assertSame(13, FreezerControlService::minApkVersionFor('comprmode'));
+        // Both write the AG-325's own registers through SDK 1.1.0; nothing older may be sent either.
+        $this->assertSame(20, FreezerControlService::minApkVersionFor('comprmode'));
+        $this->assertSame(13, FreezerControlService::minApkVersionFor('compressor'));
         $this->assertSame(14, FreezerControlService::minApkVersionFor('photo'));
         $this->assertSame(20, FreezerControlService::minApkVersionFor('fanmode'));
     }

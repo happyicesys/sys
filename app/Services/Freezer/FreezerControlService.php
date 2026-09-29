@@ -49,11 +49,13 @@ class FreezerControlService
     public const MIN_APK_VERSION_CODE_BATCH2 = 14;
 
     /**
-     * Ops that need APK 20: the AG-325's fan control register (0x0109, 风机控制) through the plugin's
-     * `thermostatControl` (BoxSDK 1.1.0). `comprmode` predates it and stays on the base gate; from v20
-     * it writes the real register too.
+     * Ops that need APK 20: the AG-325's own control registers — compressor 0x0104 (压缩机控制) and
+     * fan 0x0109 (风机控制) — through the plugin's `thermostatControl` (BoxSDK 1.1.0), proven on 50001
+     * 2026-09-29. `comprmode` MUST stay behind this gate: an app before v20 maps it to the SDK's
+     * `setComprMode`, which Zijia documents as cool (0) / HEAT (1) — "Remote" there could ask a
+     * freezer to heat.
      */
-    public const THERMOSTAT_MODE_OPS = ['fanmode'];
+    public const THERMOSTAT_MODE_OPS = ['comprmode', 'fanmode'];
 
     public const MIN_APK_VERSION_CODE_THERMOSTAT_MODES = 20;
 
