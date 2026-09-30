@@ -88,18 +88,35 @@ class RecognitionBadges
         ];
     }
 
+    /**
+     * Plain words for ops (the Sales Transactions tooltip) — the technical wording stays on the AI
+     * Recognition page and in `status_reason`. Keyed by the finer `jsOrderStatus` when the callback
+     * carries one, else `orderStatus` (Zijia's §6.2 codes).
+     */
+    private const PLAIN_REASONS = [
+        401 => 'the video was unclear or incomplete',
+        501 => 'the camera check could not work it out',
+        502 => 'the items were handled unusually',
+        503 => 'a product is not set up for camera checking yet',
+        504 => 'a product\'s packaging has changed',
+        505 => 'unsafe handling was seen',
+    ];
+
     private function reason(SmartFreezerRecognition $r): ?string
     {
         if ($r->order_status !== null && $r->order_status !== RecognitionResult::STATUS_NORMAL) {
             $biz = json_decode((string) ($r->callback_payload['bizContent'] ?? ''), true);
             try {
-                return 'AI: '.RecognitionResult::fromBizContent(is_array($biz) ? $biz : ['tradeId' => $r->trade_id, 'orderStatus' => $r->order_status])->statusLabel();
+                $result = RecognitionResult::fromBizContent(is_array($biz) ? $biz : ['tradeId' => $r->trade_id, 'orderStatus' => $r->order_status]);
+                $code = $result->jsOrderStatus ?: $result->orderStatus;
+
+                return 'Reason: '.(self::PLAIN_REASONS[$code] ?? self::PLAIN_REASONS[$result->orderStatus] ?? $result->statusLabel());
             } catch (InvalidArgumentException) {
-                return "AI: status {$r->order_status}";
+                return "Reason: camera check status {$r->order_status}";
             }
         }
 
-        return $r->status_reason;
+        return $r->status_reason !== null ? 'Note: '.$r->status_reason : null;
     }
 
     private function sessionRef(object $sale): ?string

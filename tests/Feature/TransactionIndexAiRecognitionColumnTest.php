@@ -96,6 +96,14 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
             'status' => SmartFreezerRecognition::STATUS_SUBMITTED, 'submitted_at' => now(),
         ]);
 
+        // Their AI refused: the reason is put in plain words for ops.
+        $this->sale('REFUSED', 'SF-50001-1790747000-3');
+        SmartFreezerRecognition::create([
+            'vend_id' => $this->vendId, 'trade_id' => 'SF-50001-1790747000-3', 'session_ref' => 'SF-50001-1790747000-3',
+            'status' => SmartFreezerRecognition::STATUS_FAILED, 'order_status' => 501,
+            'callback_payload' => ['bizContent' => json_encode(['tradeId' => 'SF-50001-1790747000-3', 'orderStatus' => 501, 'jsOrderStatus' => 503])],
+        ]);
+
         $this->sale('PLAIN', null);
 
         $rows = $this->gridRows();
@@ -109,6 +117,8 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
 
         $this->assertSame('submitted', $rows['CHECKING']['ai_recognition']['status']);
         $this->assertNull($rows['CHECKING']['ai_recognition']['ai_seconds']);
+
+        $this->assertSame('Reason: a product is not set up for camera checking yet', $rows['REFUSED']['ai_recognition']['reason']);
 
         $this->assertNull($rows['PLAIN']['ai_recognition']);
     }

@@ -1321,23 +1321,23 @@ const autoRefundTriggerLabel = (trigger) => ({
 // Retained credit) stays as text, and blank stays blank.
 // AI Recognition cell. The verdict when there is one, else where the check stands.
 const aiVerdictBadges = {
-    match: { label: 'AI: Match', cls: 'bg-green-100 text-green-800 border-green-300' },
-    took_more: { label: 'AI: Took more', cls: 'bg-red-100 text-red-800 border-red-300' },
-    took_less: { label: 'AI: Took less', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
-    mixed: { label: 'AI: Mixed', cls: 'bg-red-100 text-red-800 border-red-300' },
-    unrecognised: { label: 'AI: Unrecognised', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
-    incomplete: { label: 'AI: Cannot judge', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    match: { label: 'Correct', cls: 'bg-green-100 text-green-800 border-green-300' },
+    took_more: { label: 'Took extra', cls: 'bg-red-100 text-red-800 border-red-300' },
+    took_less: { label: 'Took less', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+    mixed: { label: 'Items differ', cls: 'bg-red-100 text-red-800 border-red-300' },
+    unrecognised: { label: "Can't tell", cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    incomplete: { label: "Can't check", cls: 'bg-gray-100 text-gray-700 border-gray-300' },
 }
 const aiStatusBadges = {
-    pending: { label: 'AI: Waiting', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
-    submitting: { label: 'AI: Sending…', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
-    submitted: { label: 'AI: Checking…', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-    completed: { label: 'AI: Result in', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-    failed: { label: 'AI: Failed', cls: 'bg-red-100 text-red-800 border-red-300' },
+    pending: { label: 'Not checked yet', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    submitting: { label: 'Checking…', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+    submitted: { label: 'Checking…', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    completed: { label: 'Checked', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    failed: { label: 'Check failed', cls: 'bg-red-100 text-red-800 border-red-300' },
 }
 const aiRecognitionBadge = (ai) => (ai.verdict && aiVerdictBadges[ai.verdict])
     || aiStatusBadges[ai.status]
-    || { label: 'AI: ' + ai.status, cls: 'bg-gray-100 text-gray-700 border-gray-300' }
+    || { label: ai.status, cls: 'bg-gray-100 text-gray-700 border-gray-300' }
 const formatDuration = (seconds) => {
     if (seconds === null || seconds === undefined) return ''
     if (seconds < 60) return seconds + 's'
@@ -1345,14 +1345,14 @@ const formatDuration = (seconds) => {
     return h ? h + 'h ' + m + 'm' : m + 'm ' + String(s).padStart(2, '0') + 's'
 }
 const aiRecognitionTooltip = (ai) => [
-    'Door session ' + ai.trade_id,
-    ai.received_at ? 'Videos received ' + ai.received_at : null,
-    ai.submitted_at ? 'Sent to AI ' + ai.submitted_at : null,
-    ai.completed_at ? 'Result ' + ai.completed_at : null,
-    ai.total_seconds !== null ? 'Processing time ' + formatDuration(ai.total_seconds) : null,
-    ai.total_seconds !== null && ai.ai_seconds !== null ? '  · waiting to send ' + formatDuration(ai.total_seconds - ai.ai_seconds) : null,
-    ai.ai_seconds !== null ? '  · AI turnaround ' + formatDuration(ai.ai_seconds) : null,
-    ...(ai.mismatch || []).map((l) => (l.code || 'product ' + l.product_id) + ': paid ' + l.paid + ', taken ' + l.taken),
+    'Camera check of door opening ' + ai.trade_id,
+    ai.received_at ? 'Video received ' + ai.received_at : null,
+    ai.submitted_at ? 'Sent for checking ' + ai.submitted_at : null,
+    ai.completed_at ? 'Result back ' + ai.completed_at : null,
+    ai.total_seconds !== null ? 'Took ' + formatDuration(ai.total_seconds) + ' in total' : null,
+    ai.total_seconds !== null && ai.ai_seconds !== null ? '  · waiting before check: ' + formatDuration(ai.total_seconds - ai.ai_seconds) : null,
+    ai.ai_seconds !== null ? '  · checking: ' + formatDuration(ai.ai_seconds) : null,
+    ...(ai.mismatch || []).map((l) => (l.code || 'product ' + l.product_id) + ': paid for ' + l.paid + ', camera saw ' + l.taken + ' taken'),
     ai.reason,
 ].filter(Boolean).join('\n')
 
