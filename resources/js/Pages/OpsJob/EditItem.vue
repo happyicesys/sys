@@ -1105,15 +1105,15 @@
                             {{ Number(channel.qty) + Number(channel.refill) }}
                           </span>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord && hasVmcData">
                           <span v-if="!channel.is_replaced">{{ channel.vmc_before_qty }}</span>
                           <span v-else class="text-xs text-gray-500 italic">N/A</span>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord && hasVmcData">
                           <span v-if="!channel.is_replaced">{{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}</span>
                           <span v-else class="text-xs text-gray-500 italic">N/A</span>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord && hasVmcData">
                           <template v-if="!channel.is_replaced">
                             <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
                               {{ channel.vmc_after_qty }}
@@ -1250,13 +1250,13 @@
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 2">
                           {{ getSubtotalVMCInventoryCount() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord && hasVmcData">
                           {{ getSubtotalVMCBeforeQty() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord && hasVmcData">
                           {{ getSubtotalVMCQty() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord && hasVmcData">
                           {{ getSubtotalVMCAfterQty() }}
                         </td>
                         <td v-if="opsJobItem.status >= 3 && hasVmcData"></td>

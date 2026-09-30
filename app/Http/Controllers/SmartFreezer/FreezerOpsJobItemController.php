@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class FreezerOpsJobItemController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ScopesOpsJobToViewer;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -41,8 +43,9 @@ class FreezerOpsJobItemController extends Controller
             return response()->json(['message' => 'This freezer\'s app is too old to open the door remotely.'], 422);
         }
 
-        // A phone double-tap must not fire the door twice.
-        $key = "freezer:open:{$item->id}";
+        // A phone double-tap must not fire the door twice — per freezer, so two items for the same
+        // machine cannot either.
+        $key = "freezer:open:{$vend->id}";
         if (RateLimiter::tooManyAttempts($key, 1)) {
             return response()->json(['message' => 'Door was just opened — wait a few seconds before opening again.'], 429);
         }
@@ -79,7 +82,9 @@ class FreezerOpsJobItemController extends Controller
 
     private function freezerItemOr403(Request $request, int $id): OpsJobItem
     {
-        $item = OpsJobItem::with(['vend', 'opsJob'])->findOrFail($id); // global scopes = operator visibility
+        $item = OpsJobItem::with(['vend', 'opsJob'])->findOrFail($id);
+        // The job's operator is the tenancy boundary, as on every other ops-job route.
+        $this->assertWithinViewerCeiling($item->opsJob);
         abort_unless($item->vend && $item->vend->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER, 403, 'Not a Smart Freezer item.');
 
         $user = $request->user();

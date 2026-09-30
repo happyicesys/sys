@@ -960,8 +960,10 @@ class OpsJobController extends Controller
                     ]);
                 }
 
-                // search for B and A vend channel records within 30 mins
-                $vendChannelRecord = VendChannelRecord::query()
+                // search for B and A vend channel records within 30 mins. Not for a Smart
+                // Freezer: it sends no REFILL frames, and the lookup is by SITE, so a vending
+                // machine on the same site would lend it its board's slot qtys (codes 11–66 overlap).
+                $vendChannelRecord = $opsJobItem->vend?->isSmartFreezer() ? null : VendChannelRecord::query()
                     ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, before_data_created_at, ?))', [$opsJobItem->completed_at])
                     ->where('customer_id', $opsJobItem->customer_id)
                     ->doesntHave('opsJobItem')

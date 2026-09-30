@@ -18,11 +18,11 @@ use Illuminate\Support\Facades\DB;
  * (FreezerChannelSync already carries it across mapping changes, but until 2026-09-30 nothing wrote
  * it: 50001 stocked 3 cheesecakes in job 58533 and still read 0).
  *
- *  - **Stock In** sets each SKU to what the driver left in the cabinet: the count they confirmed
- *    (`ops_job_item_channels.qty`) plus the refill (`actual_qty`, negative for a return). The count
- *    is an absolute reading, so a drift from untracked sales or AI corrections is healed on every
- *    visit rather than accumulated.
- *  - **Undo Stock In** takes the refill back out. Sales made in between stay deducted.
+ *  - **Stock In** adds each SKU's refill (`actual_qty`, negative for a return). Relative, not
+ *    "count + refill": the driver never types a count — the page sends back the qty it loaded, so
+ *    an absolute write would put back every sale made while the page was open.
+ *  - **Undo Stock In** takes the refill back out — the exact inverse. Only on rows still in the
+ *    planogram: after a mapping swap a retired SKU's returned stock must not come back.
  *  - **A sale** takes one off per unit the TRADE reports dispensed, by product (`transf_info[].goods_id`
  *    = mark1 product id), once — only when the ingest creates or first fills the row.
  *
@@ -40,11 +40,12 @@ class FreezerStockLedger
         }
 
         foreach ($item->opsJobItemChannels()->get() as $line) {
-            if (! $line->vend_channel_id) {
+            $refill = (int) $line->actual_qty;
+            if (! $line->vend_channel_id || $refill === 0) {
                 continue;
             }
-            $left = max(0, (int) $line->qty + (int) $line->actual_qty);
-            VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)->update(['qty' => $left]);
+            VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)
+                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$refill.', 0)')]);
         }
 
         $this->refreshJson($vend);
@@ -62,7 +63,7 @@ class FreezerStockLedger
             if (! $line->vend_channel_id || $refill === 0) {
                 continue;
             }
-            VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)
+            VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)->where('is_active', true)
                 ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) - '.$refill.', 0)')]);
         }
 

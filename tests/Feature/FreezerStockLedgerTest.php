@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 /**
- * A Smart Freezer's stock is mark1's own ledger: Stock In sets each SKU to count + refill, Undo takes
+ * A Smart Freezer's stock is mark1's own ledger: Stock In adds each SKU's refill, Undo takes
  * the refill back, each dispensed unit sold takes one off — once, whatever the TRADE replays
  * (50001, 2026-09-30: stocked 3 in job 58533 and still read 0).
  */
@@ -75,6 +75,28 @@ class FreezerStockLedgerTest extends TestCase
 
         app(FreezerStockLedger::class)->undoStockIn($this->item->fresh());
         $this->assertSame(0, (int) $this->channel->fresh()->qty);
+    }
+
+    public function test_a_sale_made_while_the_page_was_open_stays_deducted(): void
+    {
+        // The page loaded qty 3 and sends it back; one sold before Confirm, so the ledger is at 2.
+        $this->channel->update(['qty' => 2]);
+        $this->item->opsJobItemChannels()->update(['qty' => 3, 'actual_qty' => 1]);
+
+        app(FreezerStockLedger::class)->stockIn($this->item->fresh());
+
+        $this->assertSame(3, (int) $this->channel->fresh()->qty, '2 left + 1 loaded — the sale is not put back');
+    }
+
+    public function test_undo_leaves_a_retired_sku_alone(): void
+    {
+        // After a mapping swap the leaving SKU was returned (refill -2) and its row retired.
+        $this->channel->update(['qty' => 0, 'is_active' => false]);
+        $this->item->opsJobItemChannels()->update(['qty' => 2, 'actual_qty' => -2]);
+
+        app(FreezerStockLedger::class)->undoStockIn($this->item->fresh());
+
+        $this->assertSame(0, (int) $this->channel->fresh()->qty, 'returned stock does not come back');
     }
 
     public function test_the_stock_in_screen_writes_the_ledger(): void
