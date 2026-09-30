@@ -1293,6 +1293,14 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
 });
 
 /*
+| AI Recognition (Transactions menu) — Smart Freezer door sessions put to Zijia's algorithm, with
+| the result and the verdict against the paid sale. Read-only; gated in the controller
+| (permission:read ai-recognition).
+*/
+Route::middleware(['auth', 'cors'])->get('/ai-recognition', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'index'])
+    ->name('ai-recognition');
+
+/*
 | Card Settlement — upload the acquirer's daily settlement report (NETS
 | MerchantConnect CSV first), match rows to vend_transactions via the terminal
 | bindings, resolve queries, then sync the settlement stamp onto the sales.

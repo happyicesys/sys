@@ -782,8 +782,12 @@ The payload shape is still not final, so every push is kept whole in
 `App\Services\SmartFreezer\Zijia\ZijiaVideoPush` lifts out imei / device no /
 their `tradeId` / OUR session ref / video URLs — tighten THAT class when the
 contract is final, nothing else parses the body. Every refusal is logged
-(`zijia video push refused`): nginx has `access_log off` for this site, so
-without it "did Zijia call us?" is unanswerable.
+(`zijia video push refused`), and nginx logs every request to
+`/var/log/nginx/sys.happyice.com.sg-access.log` (query string included — the
+token is in it, Zijia cannot send headers). **Their notifier counts a push as
+delivered only on a plain-text `SUCCESS` body** — anything else is retried every
+few minutes, forever (2026-09-30). Their live push carries their session id as
+`orderNo` ("SDK…"); an `orderNo` that is not our SF- ref is taken as the trade id.
 
 Each push opens one `smart_freezer_recognitions` row per door session — `trade_id`
 is UNIQUE and the row is made with `createOrFirst`, so concurrent pushes (one per
@@ -799,9 +803,12 @@ paid sale (`RecognitionVerdict`: match / took_more / took_less / mixed /
 unrecognised). Rules:
 
 - **Requests are signed with our appSecret** (`ZijiaSigner`) — proven live
-  2026-09-27; the key printed in their document is rejected. Callback signatures
-  are verified per `callback_verification` (`log` → `enforce` once real callbacks
-  verify), and the verdict is stored as `callback_verified`.
+  2026-09-27; the key printed in their document is rejected. Their callbacks are
+  signed with it too (first live results 2026-09-30), so prod runs
+  `callback_verification = enforce`: an unsigned or mis-signed callback is refused.
+  The verdict is stored as `callback_verified`. The callback also carries an
+  undocumented `jsOrderStatus` / `jsOrderStatusName` — the finer reason behind
+  `orderStatus` (501 came with 503 商品未上架) — shown by `RecognitionResult::statusLabel()`.
 - **A recognition is metered on their side.** Only a `pending` row is ever sent;
   `submit()` claims it (`pending` → `submitting`) so it is never sent twice, and
   saves the proof of the call (`request_id`, status) before anything else. The
@@ -834,6 +841,14 @@ unrecognised). Rules:
   `incomplete`, never `took_less` — its "0 taken" is not evidence.
 - The algorithm names goods by their SKU library's `productCode`; put that code in
   the product's Barcode (`smart-freezer:zijia-skus <name>` searches the library).
+
+**Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
+permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
+machine, Zijia's order no + our SF ref, links to the original videos, the AI's answer
+and the verdict against the sale. It reads `smart_freezer_recognitions` only — the sale
+link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
+no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
+session matched to no freezer (a supplier test cabinet) only the unrestricted operator.
 
 Integration record, live proofs and open questions for Zijia:
 `apk/smart-freezer/ZIJIA_ALGORITHM_2026-09-27.md` (algorithm) and

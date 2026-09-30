@@ -1052,6 +1052,14 @@ class RolePermissionSyncSeeder extends Seeder
                 ['superadmin', 'admin', 'supervisor'],
             ],
 
+            // AI Recognition (Transactions menu): Smart Freezer door sessions checked by
+            // Zijia's algorithm, and the verdict against the paid sale. Read-only.
+            [
+                'ai-recognition',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor'],
+            ],
+
             // Operator Groups (payout groups) module. Source of truth = migration
             // 2026_07_06_120000_seed_operator_group_permissions.php. Listed here too
             // because this seeder truncates ALL permissions and rebuilds only what it

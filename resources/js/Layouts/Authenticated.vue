@@ -96,6 +96,7 @@ const navigation = computed(() => [
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
             {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},
             {name: 'Card Settlement', href: '/card-settlements', permission: 'read card-settlements'},
+            {name: 'AI Recognition', href: '/ai-recognition', permission: 'read ai-recognition'},
         ]
     },
     {
