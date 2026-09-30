@@ -4162,6 +4162,14 @@ class VendController extends Controller
             }
         }
 
+        // "AI Recognition" column: the AI check of each Smart Freezer sale's door session (and a
+        // CityBox chiller's, when it has one). Two indexed lookups for the page — nothing is
+        // stored on vend_transactions; see RecognitionBadges.
+        $aiBadges = app(\App\Services\SmartFreezer\RecognitionBadges::class)->forSales($records);
+        foreach ($records as $record) {
+            $record->ai_recognition = $aiBadges[$record->id] ?? null;
+        }
+
         // Per-item "Refund Request" badge placement for MULTIPLE-purchase
         // transactions. When a customer's refund request targets a specific SKU
         // (the wizard lets them pick which line item to refund), the ticket

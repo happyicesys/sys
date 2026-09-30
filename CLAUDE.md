@@ -859,6 +859,15 @@ link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The 
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
 session matched to no freezer (a supplier test cabinet) only the unrestricted operator.
 
+**Sales Transactions → "AI Recognition" column** (`App\Services\SmartFreezer\RecognitionBadges`,
+attached per page in `VendController::transactionIndex` as `ai_recognition`): the verdict (or
+where the check stands), what the AI saw, and the processing time — `ai_seconds` (sent → result,
+their turnaround) and `total_seconds` (videos received → result). A sale is matched by the
+recognition's `vend_transaction_id`, or before the verdict by its TRADE's `SFREF` =
+`session_ref`: two indexed lookups per page, no column on `vend_transactions`. Built for any
+AI-checked machine (a CityBox chiller once their order data exists). Regression coverage:
+`tests/Feature/TransactionIndexAiRecognitionColumnTest.php`.
+
 Integration record, live proofs and open questions for Zijia:
 `apk/smart-freezer/ZIJIA_ALGORITHM_2026-09-27.md` (algorithm) and
 `ZIJIA_VIDEO_WEBHOOK_2026-09-14.md` (push). Regression coverage:

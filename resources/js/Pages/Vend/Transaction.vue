@@ -783,6 +783,9 @@
                             Settlement Date
                         </TableHead>
                         <TableHead>
+                            AI Recognition
+                        </TableHead>
+                        <TableHead>
                             Channels Error
                         </TableHead>
                         <TableHead>
@@ -986,6 +989,35 @@
                             </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <!-- AI Recognition = the AI check of this sale's door session (Smart
+                                 Freezer today; a CityBox chiller once it has one). Blank on every
+                                 other sale. Badges: the verdict (or where it stands), what the AI
+                                 saw, and how long it took — the AI's own turnaround, and door
+                                 close → result. Full timeline in the tooltip. -->
+                            <div v-if="vendTransaction.ai_recognition"
+                                class="flex flex-col items-center space-y-0.5 leading-tight"
+                                :title="aiRecognitionTooltip(vendTransaction.ai_recognition)">
+                                <a :href="permissions.includes('read ai-recognition') ? '/ai-recognition?search=' + encodeURIComponent(vendTransaction.ai_recognition.trade_id) : null"
+                                    target="_blank"
+                                    class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border whitespace-nowrap"
+                                    :class="aiRecognitionBadge(vendTransaction.ai_recognition).cls">
+                                    {{ aiRecognitionBadge(vendTransaction.ai_recognition).label }}
+                                </a>
+                                <span v-for="item in vendTransaction.ai_recognition.items" :key="item.code"
+                                    class="text-[10px] text-gray-700 whitespace-nowrap">
+                                    {{ item.number }} × {{ item.name || item.code }}
+                                </span>
+                                <span v-if="vendTransaction.ai_recognition.ai_seconds !== null"
+                                    class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 whitespace-nowrap">
+                                    AI {{ formatDuration(vendTransaction.ai_recognition.ai_seconds) }}
+                                </span>
+                                <span v-if="vendTransaction.ai_recognition.total_seconds !== null"
+                                    class="text-[10px] text-gray-500 whitespace-nowrap">
+                                    total {{ formatDuration(vendTransaction.ai_recognition.total_seconds) }}
+                                </span>
+                            </div>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.vend_channel_error_desc && vendTransaction.vend_channel_error_code != 0 && vendTransaction.vend_channel_error_code != 6">
                                 {{ vendTransaction.vend_channel_error_desc }}
                             </span>
@@ -1133,6 +1165,9 @@
                         <!-- Settlement Date: one payout per sale, so header-level only -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                         </TableData>
+                        <!-- AI Recognition: one door session per sale, so header-level only -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                        </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.vendChannelError && (vendTransactionItem.vendChannelError.code != 0 && vendTransactionItem.vendChannelError.code != 6)">
                                 {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
@@ -1179,7 +1214,7 @@
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
-                        <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                        <td colspan="26" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                             No Results Found
                         </td>
                     </tr>
@@ -1288,6 +1323,42 @@ const autoRefundTriggerLabel = (trigger) => ({
 // red, Re-vended amber (blank = unconfirmed payment, or no TRADE for dispense).
 // Tick / cross rendering for the clear-cut verdicts; anything else (Re-vended,
 // Retained credit) stays as text, and blank stays blank.
+// AI Recognition cell. The verdict when there is one, else where the check stands.
+const aiVerdictBadges = {
+    match: { label: 'AI: Match', cls: 'bg-green-100 text-green-800 border-green-300' },
+    took_more: { label: 'AI: Took more', cls: 'bg-red-100 text-red-800 border-red-300' },
+    took_less: { label: 'AI: Took less', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+    mixed: { label: 'AI: Mixed', cls: 'bg-red-100 text-red-800 border-red-300' },
+    unrecognised: { label: 'AI: Unrecognised', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    incomplete: { label: 'AI: Cannot judge', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+}
+const aiStatusBadges = {
+    pending: { label: 'AI: Waiting', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    submitting: { label: 'AI: Sending…', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+    submitted: { label: 'AI: Checking…', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    completed: { label: 'AI: Result in', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    failed: { label: 'AI: Failed', cls: 'bg-red-100 text-red-800 border-red-300' },
+}
+const aiRecognitionBadge = (ai) => (ai.verdict && aiVerdictBadges[ai.verdict])
+    || aiStatusBadges[ai.status]
+    || { label: 'AI: ' + ai.status, cls: 'bg-gray-100 text-gray-700 border-gray-300' }
+const formatDuration = (seconds) => {
+    if (seconds === null || seconds === undefined) return ''
+    if (seconds < 60) return seconds + 's'
+    const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60
+    return h ? h + 'h ' + m + 'm' : m + 'm ' + String(s).padStart(2, '0') + 's'
+}
+const aiRecognitionTooltip = (ai) => [
+    'Door session ' + ai.trade_id,
+    ai.received_at ? 'Videos received ' + ai.received_at : null,
+    ai.submitted_at ? 'Sent to AI ' + ai.submitted_at : null,
+    ai.completed_at ? 'Result ' + ai.completed_at : null,
+    ai.ai_seconds !== null ? 'AI turnaround ' + formatDuration(ai.ai_seconds) : null,
+    ai.total_seconds !== null ? 'Door close → result ' + formatDuration(ai.total_seconds) : null,
+    ...(ai.mismatch || []).map((l) => (l.code || 'product ' + l.product_id) + ': paid ' + l.paid + ', taken ' + l.taken),
+    ai.reason,
+].filter(Boolean).join('\n')
+
 const saleStatusIcon = (s) => ({
     'Paid': 'check',
     'Settled': 'check',
