@@ -61,7 +61,7 @@ class AiRecognitionPageTest extends TestCase
 
     public function test_a_row_carries_order_numbers_videos_the_ai_result_and_the_sale(): void
     {
-        $magnum = Product::forceCreate(['code' => 'U-01', 'name' => 'Magnum', 'operator_id' => 1]);
+        $magnum = Product::forceCreate(['code' => 'CC-01', 'name' => 'Magnum', 'operator_id' => 1, 'barcode' => '9726436016148']);
         $sale = VendTransaction::forceCreate([
             'order_id' => 'O-123', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 350,
             'transaction_datetime' => Carbon::parse('2026-09-30 10:00:00'), 'gst_vat_rate' => 9, 'operator_id' => 1,
@@ -69,10 +69,10 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition([
             'trade_id' => 'SDK1790732333409', 'session_ref' => 'SF-50001-1790732333-1', 'request_id' => '2105129738980528129',
             'vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED,
-            'order_status' => 0, 'items' => ['U-01' => 2], 'callback_verified' => true,
+            'order_status' => 0, 'items' => ['9726436016148' => 2], 'callback_verified' => true,
             'callback_payload' => ['bizContent' => json_encode(['tradeId' => 'SDK1790732333409', 'orderStatus' => 0, 'items' => []])],
             'verdict' => 'took_more',
-            'verdict_lines' => [['product_id' => $magnum->id, 'code' => 'U-01', 'paid' => 1, 'taken' => 2, 'delta' => 1]],
+            'verdict_lines' => [['product_id' => $magnum->id, 'code' => '9726436016148', 'paid' => 1, 'taken' => 2, 'delta' => 1]],
         ]);
 
         $this->actingAs($this->viewer())->get('/ai-recognition')
@@ -84,7 +84,7 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.trade_id', 'SDK1790732333409')
                 ->where('recognitions.data.0.session_ref', 'SF-50001-1790732333-1')
                 ->where('recognitions.data.0.videos.0', 'https://oss.example.cn/SDK1790732333409-d1c3-25f-1280x720.mp4')
-                ->where('recognitions.data.0.items.0', ['code' => 'U-01', 'name' => 'Magnum', 'number' => 2])
+                ->where('recognitions.data.0.items.0', ['code' => '9726436016148', 'name' => 'Magnum', 'number' => 2])
                 ->where('recognitions.data.0.verdict', 'took_more')
                 ->where('recognitions.data.0.verdict_lines.0.name', 'Magnum')
                 ->where('recognitions.data.0.sale', ['id' => $sale->id, 'order_id' => 'O-123', 'amount' => 350, 'date' => '2026-09-30'])

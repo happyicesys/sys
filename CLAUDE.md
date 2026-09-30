@@ -797,7 +797,7 @@ could not name it (`FreezerRecognitionService`, 2026-09-27): **open** (the freez
 reports in its own status snapshot `identity`, so there is no second copy of the
 identity) → **submit** to Zijia's algorithm (`ZijiaAlgorithmClient`,
 `dynamic.cabinet.add.queue`, videos + the freezer's LIVE planogram products by
-`products.code`) → **complete** on `POST /api/smart-freezer/zijia/algorithm/notify`
+`products.barcode`) → **complete** on `POST /api/smart-freezer/zijia/algorithm/notify`
 (`cabinet.algorithm.order.result`, MD5-signed envelope) → **evaluate** against the
 paid sale (`RecognitionVerdict`: match / took_more / took_less / mixed /
 unrecognised). Rules:
@@ -837,12 +837,16 @@ unrecognised). Rules:
   (every 10 min, last 7 days) judges it once the sale arrives.
 - **Nothing moves money or stock.** The verdict is information until Brian decides
   what a `took_more` / `took_less` should do. A paid product the algorithm could
-  not have named (off the live planogram, or a slot with no product) makes the verdict
+  not have named (no barcode, or a slot with no product) makes the verdict
   `incomplete`, never `took_less` — its "0 taken" is not evidence.
-- **`goodsList.sn` is our `products.code`** (Zijia, 2026-09-30: 商品编码). Each
-  product is modelled by ops in Zijia's portal (vms4.zjoyvd.cn → 商品管理 → 商品申请,
-  or their mini program) under its mark1 code — "CC-01" was the first — and the
-  algorithm answers in those codes, so no barcode is involved. Their central
+- **`goodsList.sn` is the product's BARCODE** — the 商品条形码 it was modelled with in
+  Zijia's portal (vms4.zjoyvd.cn → 商品管理 → 商品申请, or their mini program), which
+  their algorithm library stores as `productCode`. It is NOT the 商品编码, even though
+  ops type our mark1 code there: proven 2026-09-30 on 50001 — "CC-01" was refused
+  ("goodsList入参异常，存在sku商品为null"), its barcode 9726436016148 was accepted and the
+  AI answered 1 × 9726436016148, the paid item. Put that barcode in the mark1 product's
+  Barcode. ANY `sn` their library lacks rejects the whole request (free: no requestId),
+  and a tradeId they refused once is burnt ("订单保存失败" on every resend). Their central
   library (`smart-freezer:zijia-skus`) holds China packs; check it before modelling
   a product that may already exist. `modelIdList` is optional ("可以先不用传"):
   empty config sends `[]`, never omits the key.

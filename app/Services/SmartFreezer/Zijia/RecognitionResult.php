@@ -24,7 +24,7 @@ final class RecognitionResult
     ];
 
     /**
-     * @param  array<string, int>  $items  product code => units taken
+     * @param  array<string, int>  $items  barcode => units taken
      * @param  int|null  $jsOrderStatus  the finer reason behind `orderStatus` — undocumented, first
      *                                   seen on live callbacks 2026-09-30 (501 carried 503 "商品未上架")
      */

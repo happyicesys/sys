@@ -29,7 +29,7 @@ final class RecognitionVerdict
     public const UNRECOGNISED = 'unrecognised';
 
     /**
-     * Something was paid for that the algorithm could never have named — a product with no product code
+     * Something was paid for that the algorithm could never have named — a product with no barcode
      * (it was not in the candidate list) or a slot with no product. Its "0 taken" is not evidence,
      * so the sale cannot be judged; the lines still show what was seen.
      */
@@ -49,8 +49,8 @@ final class RecognitionVerdict
 
     /**
      * @param  array<int, int>  $paid  product id => units paid
-     * @param  array<string, int>  $taken  product code => units the algorithm saw taken
-     * @param  array<string, int>  $productByCode  product code => product id; a paid product absent
+     * @param  array<string, int>  $taken  barcode => units the algorithm saw taken
+     * @param  array<string, int>  $productByCode  barcode => product id; a paid product absent
      *                                             from it could not have been named
      */
     public static function compare(array $paid, array $taken, array $productByCode): self

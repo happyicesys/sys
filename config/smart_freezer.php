@@ -34,7 +34,7 @@ return [
         |  - a missing goodsList makes their server throw, so one is always sent.
         |
         | Inert until app_id + app_secret are set. `auto_submit` stays off until the
-        | freezer products are modelled in Zijia's portal (under their mark1 product code)
+        | freezer products are modelled in Zijia's portal and carry that barcode in mark1
         | and a live door session has been proven end to end: a recognition is
         | a metered call on their side (`remainIdentifyTime`).
         */

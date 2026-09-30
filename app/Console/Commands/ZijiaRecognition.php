@@ -60,7 +60,7 @@ class ZijiaRecognition extends Command
             ['callback signature', $recognition->callback_verified === null ? '—' : ($recognition->callback_verified ? 'verified' : 'NOT verified')],
         ]);
         foreach ((array) $recognition->verdict_lines as $line) {
-            $this->line(sprintf('  product %s (%s): paid %d, taken %d', $line['product_id'] ?? '?', $line['code'] ?? 'no code', $line['paid'], $line['taken']));
+            $this->line(sprintf('  product %s (%s): paid %d, taken %d', $line['product_id'] ?? '?', $line['code'] ?? 'no barcode', $line['paid'], $line['taken']));
         }
 
         return self::SUCCESS;

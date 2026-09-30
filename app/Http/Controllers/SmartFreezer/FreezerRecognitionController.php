@@ -127,7 +127,7 @@ class FreezerRecognitionController extends Controller
             'request_id' => $r->request_id,
             'videos' => $r->videos->flatMap(fn ($v) => (array) $v->video_urls)->unique()->values()->all(),
             'pushes' => $r->videos->count(),
-            // What the algorithm saw: product code => units, named where the code is ours.
+            // What the algorithm saw: barcode => units, named where the barcode is on one of our products.
             'items' => collect((array) $r->items)->map(fn ($n, $code) => [
                 'code' => (string) $code,
                 'name' => $names['by_code'][(string) $code] ?? null,
@@ -162,7 +162,7 @@ class FreezerRecognitionController extends Controller
     }
 
     /**
-     * Product names for one page, in two queries: by the product codes the algorithm answered with,
+     * Product names for one page, in two queries: by the barcodes the algorithm answered with,
      * and by the product ids on verdict lines.
      *
      * @return array{by_id: array<int, string>, by_code: array<string, string>}
@@ -173,8 +173,8 @@ class FreezerRecognitionController extends Controller
         $ids = $recognitions->flatMap(fn ($r) => array_column((array) $r->verdict_lines, 'product_id'))->filter()->unique()->values();
 
         return [
-            'by_code' => $codes->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('code', $codes)->orderBy('id')->get(['code', 'name'])
-                ->unique('code')->pluck('name', 'code')->all(),
+            'by_code' => $codes->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('barcode', $codes)->orderBy('id')->get(['barcode', 'name'])
+                ->unique('barcode')->pluck('name', 'barcode')->all(),
             'by_id' => $ids->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('id', $ids)->pluck('name', 'id')->all(),
         ];
     }

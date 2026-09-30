@@ -7,7 +7,7 @@ use InvalidArgumentException;
 /**
  * One door session put to the algorithm: `dynamic.cabinet.add.queue` (§4.2).
  *
- * `goodsCodes` is the CANDIDATE set — every SKU the cabinet may hold, by product code — not what the
+ * `goodsCodes` is the CANDIDATE set — every SKU the cabinet may hold, by barcode — not what the
  * customer paid for. The algorithm picks what left the cabinet from that list and answers with
  * codes and counts, which mark1 then holds against the paid cart (RecognitionVerdict).
  */
@@ -15,7 +15,7 @@ final class RecognitionRequest
 {
     /**
      * @param  list<string>  $videoUrls
-     * @param  list<string>  $goodsCodes  product codes (`sn`), de-duplicated
+     * @param  list<string>  $goodsCodes  barcodes (`sn` = their library's productCode), de-duplicated
      * @param  list<string>  $modelIds  may be empty: Zijia, 2026-09-30 — "modelIdList 可以先不用传"
      */
     public function __construct(
