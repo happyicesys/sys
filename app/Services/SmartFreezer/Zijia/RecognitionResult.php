@@ -23,13 +23,19 @@ final class RecognitionResult
         505 => 'unsafe behaviour',
     ];
 
-    /** @param  array<string, int>  $items  barcode => units taken */
+    /**
+     * @param  array<string, int>  $items  barcode => units taken
+     * @param  int|null  $jsOrderStatus  the finer reason behind `orderStatus` — undocumented, first
+     *                                   seen on live callbacks 2026-09-30 (501 carried 503 "商品未上架")
+     */
     public function __construct(
         public readonly string $tradeId,
         public readonly int $orderStatus,
         public readonly array $items,
         public readonly ?string $errorMessage,
         public readonly ?string $taskType,
+        public readonly ?int $jsOrderStatus = null,
+        public readonly ?string $jsOrderStatusName = null,
     ) {}
 
     /** @param  array<string, mixed>  $bizContent */
@@ -56,6 +62,8 @@ final class RecognitionResult
             items: $items,
             errorMessage: self::blankToNull($bizContent['errorMessage'] ?? null),
             taskType: self::blankToNull($bizContent['taskType'] ?? null),
+            jsOrderStatus: is_numeric($bizContent['jsOrderStatus'] ?? null) ? (int) $bizContent['jsOrderStatus'] : null,
+            jsOrderStatusName: self::blankToNull($bizContent['jsOrderStatusName'] ?? null),
         );
     }
 
@@ -64,9 +72,24 @@ final class RecognitionResult
         return $this->orderStatus === self::STATUS_NORMAL;
     }
 
+    /** e.g. "recognition error — 503 goods not listed in the model (商品未上架)". */
     public function statusLabel(): string
     {
-        return self::STATUS_LABELS[$this->orderStatus] ?? "status {$this->orderStatus}";
+        $label = self::STATUS_LABELS[$this->orderStatus] ?? "status {$this->orderStatus}";
+
+        return ($detail = $this->detailLabel()) !== null ? "{$label} — {$detail}" : $label;
+    }
+
+    /** The jsOrderStatus reason, when it says more than orderStatus already does. */
+    public function detailLabel(): ?string
+    {
+        if ($this->jsOrderStatus === null || $this->jsOrderStatus === $this->orderStatus) {
+            return null;
+        }
+        $english = self::STATUS_LABELS[$this->jsOrderStatus] ?? null;
+        $name = $this->jsOrderStatusName;
+
+        return trim($this->jsOrderStatus.' '.($english ?? $name ?? '').($english !== null && $name !== null ? " ({$name})" : ''));
     }
 
     private static function blankToNull(mixed $value): ?string

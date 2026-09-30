@@ -16,12 +16,11 @@ use InvalidArgumentException;
  * (`cabinet.algorithm.order.result`, 智佳算法服务接口文档 §6). Its URL is the `notifyUrl` mark1
  * sends with every recognition.
  *
- * Authenticated by the envelope's MD5 signature, not a token. The key their callbacks are signed
- * with is not yet proven (our requests verify with our appSecret; a callback has never arrived),
- * so config `callback_verification` starts at `log`: the verdict is stored on the recognition
- * (`callback_verified`) and the result processed — but an unverified result can neither overwrite
- * a verified one nor create a row for a trade mark1 never sent (FreezerRecognitionService::complete).
- * Switch to `enforce` once real callbacks show `callback_verified = 1`.
+ * Authenticated by the envelope's MD5 signature, not a token — signed with OUR appSecret, proven by
+ * the first live callbacks (2026-09-30, both `callback_verified = 1`). Config `callback_verification`:
+ * `enforce` refuses an unsigned or mis-signed callback (prod since 2026-09-30); `log` stores the
+ * verdict and processes anyway, but an unverified result can neither overwrite a verified one nor
+ * create a row for a trade mark1 never sent (FreezerRecognitionService::complete).
  *
  * Their contract: answer `{"status":200,"body":"SUCCESS"}`, or status 500 with a reason.
  */

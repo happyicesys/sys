@@ -52,8 +52,8 @@ return [
             'submit_delay_seconds' => (int) env('ZIJIA_ALGO_SUBMIT_DELAY', 60),
             'timeout' => (int) env('ZIJIA_ALGO_TIMEOUT', 20),
             // Callback signature: `log` records the verdict and processes anyway;
-            // `enforce` refuses a callback whose signature does not verify. Start in
-            // log until the first real callback has been seen to verify.
+            // `enforce` refuses a callback whose signature does not verify. Their
+            // callbacks verify with our appSecret (2026-09-30); prod runs `enforce`.
             'callback_verification' => env('ZIJIA_ALGO_CALLBACK_VERIFICATION', 'log'),
             // Their timestamps are China time; the freezers run in Singapore — both UTC+8.
             'timezone' => env('ZIJIA_ALGO_TIMEZONE', 'Asia/Shanghai'),

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\SmartFreezerRecognition;
 use App\Services\SmartFreezer\FreezerRecognitionService;
+use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use Illuminate\Console\Command;
 
 /**
@@ -53,7 +54,7 @@ class ZijiaRecognition extends Command
             ['status', $recognition->status],
             ['waiting on', $recognition->status_reason ?? $recognitions->blocker($recognition) ?? '—'],
             ['request id', $recognition->request_id ?? '—'],
-            ['algorithm status', $recognition->order_status ?? '—'],
+            ['algorithm status', $this->algorithmStatus($recognition)],
             ['verdict', $recognition->verdict ?? '—'],
             ['sale', $recognition->vend_transaction_id ?? '—'],
             ['callback signature', $recognition->callback_verified === null ? '—' : ($recognition->callback_verified ? 'verified' : 'NOT verified')],
@@ -63,5 +64,20 @@ class ZijiaRecognition extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** orderStatus with its reason, including the finer jsOrderStatus kept in the callback. */
+    private function algorithmStatus(SmartFreezerRecognition $recognition): string
+    {
+        if ($recognition->order_status === null) {
+            return '—';
+        }
+        $biz = json_decode((string) ($recognition->callback_payload['bizContent'] ?? ''), true);
+
+        try {
+            return $recognition->order_status.' '.RecognitionResult::fromBizContent(is_array($biz) ? $biz : ['tradeId' => $recognition->trade_id, 'orderStatus' => $recognition->order_status])->statusLabel();
+        } catch (\InvalidArgumentException) {
+            return (string) $recognition->order_status;
+        }
     }
 }

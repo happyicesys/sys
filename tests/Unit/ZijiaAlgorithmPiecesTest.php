@@ -91,6 +91,11 @@ class ZijiaAlgorithmPiecesTest extends TestCase
         $this->assertNull($result->errorMessage);
         $this->assertSame('video error / frames lost', RecognitionResult::fromBizContent(['tradeId' => 'T', 'orderStatus' => 401])->statusLabel());
         $this->assertSame('status 999', RecognitionResult::fromBizContent(['tradeId' => 'T', 'orderStatus' => 999])->statusLabel());
+        // Live callback 2026-09-30: the finer reason rides in the undocumented jsOrderStatus.
+        $live = RecognitionResult::fromBizContent(['tradeId' => 'SDK1790732333409', 'orderStatus' => 501, 'jsOrderStatus' => 503, 'jsOrderStatusName' => '商品未上架', 'items' => []]);
+        $this->assertSame('recognition error — 503 goods not listed in the model (商品未上架)', $live->statusLabel());
+        $this->assertSame('normal', RecognitionResult::fromBizContent(['tradeId' => 'T', 'orderStatus' => 0, 'jsOrderStatus' => 0, 'jsOrderStatusName' => '正常'])->statusLabel());
+        $this->assertSame('recognition error — 777 新原因', RecognitionResult::fromBizContent(['tradeId' => 'T', 'orderStatus' => 501, 'jsOrderStatus' => 777, 'jsOrderStatusName' => '新原因'])->statusLabel());
     }
 
     public function test_a_result_without_a_trade_id_is_unusable(): void
