@@ -46,7 +46,7 @@ class ZijiaVideoWebhookTest extends TestCase
 
         $this->postJson(self::URL, $body, ['Authorization' => 'Bearer secret-token'])
             ->assertOk()
-            ->assertJson(['code' => 0, 'message' => 'ok']);
+            ->assertContent('SUCCESS');
 
         $video = SmartFreezerVideo::sole();
         $this->assertSame($vend->id, $video->vend_id);

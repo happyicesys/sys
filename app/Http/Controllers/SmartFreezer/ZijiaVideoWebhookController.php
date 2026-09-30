@@ -10,6 +10,7 @@ use App\Services\SmartFreezer\Zijia\ZijiaVideoPush;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -35,7 +36,7 @@ class ZijiaVideoWebhookController extends Controller
         private readonly FreezerRecognitionService $recognitions,
     ) {}
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request): Response
     {
         $token = config('smart_freezer.zijia.video_webhook_token');
         if (! $token) {
@@ -89,7 +90,9 @@ class ZijiaVideoWebhookController extends Controller
             'urls' => count($push->videoUrls), 'recognition' => $recognition?->id, 'blocked' => $recognition?->status_reason,
         ]);
 
-        return response()->json(['code' => 0, 'message' => 'ok', 'id' => $video->id]);
+        // Their notifier treats a push as delivered only when the body is exactly `SUCCESS` (plain
+        // text, Zijia 2026-09-30); anything else is retried. Our row id goes in a header instead.
+        return new Response('SUCCESS', 200, ['Content-Type' => 'text/plain; charset=UTF-8', 'X-Push-Id' => (string) $video->id]);
     }
 
     private function refuse(Request $request, int $status, string $message): JsonResponse
