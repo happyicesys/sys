@@ -87,7 +87,7 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.items.0', ['code' => '9726436016148', 'name' => 'Magnum', 'number' => 2])
                 ->where('recognitions.data.0.verdict', 'took_more')
                 ->where('recognitions.data.0.verdict_lines.0.name', 'Magnum')
-                ->where('recognitions.data.0.sale', ['id' => $sale->id, 'order_id' => 'O-123', 'amount' => 350, 'date' => '2026-09-30'])
+                ->where('recognitions.data.0.sale', ['id' => $sale->id, 'order_id' => 'O-123', 'amount' => 350, 'date' => '2026-09-30', 'time' => '10:00:00'])
                 ->where('recognitions.data.0.algorithm_status', 'normal')
                 ->has('recognitions.meta')
             );
@@ -120,6 +120,28 @@ class AiRecognitionPageTest extends TestCase
         $this->assertSame(1, $count(['verdict' => 'match']));
         $this->assertSame(2, $count(['verdict' => 'none']));
         $this->assertSame(1, $count(['search' => '2009']));
+    }
+
+    public function test_machine_id_and_time_filters_narrow_the_list(): void
+    {
+        $this->recognition()->forceFill(['created_at' => Carbon::parse('2026-09-30 09:15:00')])->save();
+        $this->recognition()->forceFill(['created_at' => Carbon::parse('2026-09-30 13:28:00')])->save();
+        $this->recognition()->forceFill(['created_at' => Carbon::parse('2026-09-29 13:40:00')])->save();
+        $chiller = Vend::create(['code' => 6003, 'code_prefix' => 'C', 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1]);
+        $this->recognition(['vend_id' => $chiller->id])->forceFill(['created_at' => Carbon::parse('2026-09-30 13:00:00')])->save();
+
+        $viewer = $this->viewer();
+        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
+
+        $this->assertSame(3, $count(['codes' => '50001']));
+        $this->assertSame(1, $count(['codes' => 'C6003']));
+        $this->assertSame(4, $count(['codes' => '50001, C6003']));
+        // Date + time: a bounded window on one day.
+        $this->assertSame(2, $count(['date_from' => '2026-09-30', 'time_from' => '12:00', 'date_to' => '2026-09-30', 'time_to' => '14:00']));
+        $this->assertSame(1, $count(['codes' => '50001', 'date_from' => '2026-09-30', 'time_from' => '12:00', 'date_to' => '2026-09-30']));
+        // Time alone: that time of day on every day.
+        $this->assertSame(3, $count(['time_from' => '13:00', 'time_to' => '14:00']));
+        $this->actingAs($viewer)->get('/ai-recognition?time_from=25:99')->assertSessionHasErrors('time_from');
     }
 
     public function test_an_operator_viewer_sees_only_its_own_freezers_and_no_unmatched_sessions(): void

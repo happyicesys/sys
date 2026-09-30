@@ -37,6 +37,8 @@ class FreezerRecognitionController extends Controller
         $request->validate([
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'time_from' => ['nullable', 'date_format:H:i'],
+            'time_to' => ['nullable', 'date_format:H:i'],
             'numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/'],
         ]);
 
@@ -56,8 +58,15 @@ class FreezerRecognitionController extends Controller
                 'none' => $q->whereNull('verdict'),
                 default => $q->where('verdict', $v),
             })
-            ->when($request->input('date_from'), fn ($q, $d) => $q->where('created_at', '>=', $d.' 00:00:00'))
-            ->when($request->input('date_to'), fn ($q, $d) => $q->where('created_at', '<=', $d.' 23:59:59'))
+            // A time narrows its date to "from 14:00" / "to 16:30"; with no date it is a time-of-day
+            // window over every day (e.g. all door sessions between 12:00 and 14:00).
+            ->when($request->input('date_from'), fn ($q, $d) => $q->where('created_at', '>=', $d.' '.($request->input('time_from') ?: '00:00').':00'))
+            ->when($request->input('date_to'), fn ($q, $d) => $q->where('created_at', '<=', $d.' '.($request->input('time_to') ?: '23:59').':59'))
+            ->when(! $request->input('date_from') && $request->input('time_from'), fn ($q) => $q->whereTime('created_at', '>=', $request->input('time_from').':00'))
+            ->when(! $request->input('date_to') && $request->input('time_to'), fn ($q) => $q->whereTime('created_at', '<=', $request->input('time_to').':59'))
+            // Machine ID box: "50001", "C6003", or a comma list for an exact set — the Sales grid's rule.
+            ->when(trim((string) $request->input('codes')), fn ($q, $codes) => $q->whereIn('vend_id', Vend::withoutGlobalScopes()->select('id')
+                ->where(fn ($v) => VendCode::whereSearch($v, $codes))))
             ->when(trim((string) $request->input('search')), function ($q, $search) {
                 $q->where(fn ($q) => $q
                     ->where('trade_id', 'LIKE', "%{$search}%")
@@ -98,8 +107,11 @@ class FreezerRecognitionController extends Controller
                 'status' => $request->input('status', 'all'),
                 'verdict' => $request->input('verdict', 'all'),
                 'search' => $request->input('search', ''),
+                'codes' => $request->input('codes', ''),
                 'date_from' => $request->input('date_from', ''),
                 'date_to' => $request->input('date_to', ''),
+                'time_from' => $request->input('time_from', ''),
+                'time_to' => $request->input('time_to', ''),
                 'sortKey' => $sortKey,
                 'sortBy' => $request->sortBy ?? false,
             ],
@@ -142,6 +154,7 @@ class FreezerRecognitionController extends Controller
                 'order_id' => $sale->order_id,
                 'amount' => (int) $sale->amount,
                 'date' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 0, 10) : null,
+                'time' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 11, 8) : null,
             ] : null,
         ];
     }

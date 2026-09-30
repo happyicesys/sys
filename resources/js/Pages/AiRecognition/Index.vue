@@ -23,8 +23,13 @@
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-3">
           <div class="md:col-span-2">
-            <SearchInput placeholderStr="Machine ID / order no / device" v-model="filters.search" @keyup.enter="onSearchFilterUpdated()">
+            <SearchInput placeholderStr="Order no / device / machine" v-model="filters.search" @keyup.enter="onSearchFilterUpdated()">
               Search
+            </SearchInput>
+          </div>
+          <div class="md:col-span-2">
+            <SearchInput placeholderStr="Machine ID (e.g. 50001, or 50001,2009)" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+              Machine ID
             </SearchInput>
           </div>
           <div>
@@ -59,15 +64,31 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div class="md:col-span-2">
             <DatePicker v-model="filters.date_from">
               Date From
             </DatePicker>
           </div>
           <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Time From
+            </label>
+            <input type="time" v-model="filters.time_from" @keyup.enter="onSearchFilterUpdated()"
+              class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+            />
+          </div>
+          <div class="md:col-span-2">
             <DatePicker v-model="filters.date_to" :minDate="filters.date_from">
               Date To
             </DatePicker>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Time To
+            </label>
+            <input type="time" v-model="filters.time_to" @keyup.enter="onSearchFilterUpdated()"
+              class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+            />
           </div>
         </div>
 
@@ -223,6 +244,7 @@
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div v-if="row.sale" class="flex flex-col space-y-1 text-xs">
                       <a :href="saleUrl(row.sale)" target="_blank" class="text-blue-600 hover:underline font-mono whitespace-nowrap">{{ row.sale.order_id }}</a>
+                      <span v-if="row.sale.date" class="text-gray-500 whitespace-nowrap" title="Sale time (the TRADE)">{{ row.sale.date }} {{ row.sale.time }}</span>
                       <span>{{ formatCents(row.sale.amount) }}</span>
                     </div>
                     <span v-else class="text-gray-400">—</span>
@@ -324,10 +346,13 @@ function formatCents(cents) {
 
 const filters = ref({
   search: props.filters.search || '',
+  codes: props.filters.codes || '',
   status: props.filters.status || 'all',
   verdict: props.filters.verdict || 'all',
   date_from: props.filters.date_from || '',
   date_to: props.filters.date_to || '',
+  time_from: props.filters.time_from || '',
+  time_to: props.filters.time_to || '',
   sortKey: props.filters.sortKey || 'created_at',
   // Query-string round-trips turn the boolean into "true"/"false" strings.
   sortBy: String(props.filters.sortBy ?? false) === 'true',
