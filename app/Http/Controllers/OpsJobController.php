@@ -1628,9 +1628,10 @@ class OpsJobController extends Controller
         $opsJob = $this->scopedOpsJobItem($id)->opsJob;
         $opsJobItem = OpsJobItem::query()
             ->with([
-                // machine_type + citybox_equipment_id feed OpsJobItemResource.is_citybox_chiller,
-                // which hides "Implement New Mapping" for a Smart Chiller on this page.
-                'vend:id,customer_id,code,code_prefix,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,machine_type,citybox_equipment_id',
+                // machine_type + citybox_equipment_id feed OpsJobItemResource.is_citybox_chiller /
+                // is_smart_freezer (Open Door, cash block, VMC columns); is_online feeds the door
+                // buttons' offline warning.
+                'vend:id,customer_id,code,code_prefix,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,machine_type,citybox_equipment_id,is_online',
                 'vend.productMapping.productMappingItemsNormalSequence.product',
                 'vend.productMapping.productMappingItemsNormalSequence.product.thumbnail',
                 'vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',

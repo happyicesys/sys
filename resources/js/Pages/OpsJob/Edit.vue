@@ -862,6 +862,16 @@
                                 <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok' && row.status >= 3"><span class="text-green-700">Count pushed</span></div>
                                 <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'reverted'"><span class="text-gray-600">Count reverted</span></div>
                               </div>
+                              <!-- Smart Freezer: the same driver door-open (FREEZERCTL unlock). -->
+                              <div class="mb-1" v-if="row.is_smart_freezer">
+                                <FreezerOpenDoorButton
+                                  :item-id="row.id"
+                                  :machine-code="row.vend?.code"
+                                  :customer-name="row.customer?.name"
+                                  :offline="row.vend ? !row.vend.is_online : false"
+                                  compact
+                                />
+                              </div>
                               <Button
                                 class="bg-blue-500 hover:bg-blue-600 text-white"
                                 :class="[row.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
@@ -1295,6 +1305,7 @@ import { vendCodeLabel } from '@/utils/vendCode'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
+import FreezerOpenDoorButton from '@/Components/FreezerOpenDoorButton.vue';
 import BatchChangeDriver from '@/Pages/OpsJob/BatchChangeDriver.vue';
 import CreateServiceNoticeModal from '@/Pages/OpsJob/Stops/CreateServiceNoticeModal.vue';
 import CreateStockCheckModal from '@/Pages/OpsJob/Stops/CreateStockCheckModal.vue';

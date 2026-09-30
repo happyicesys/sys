@@ -555,6 +555,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{id}/citybox-open-door', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'openDoor'])->name('ops-job-items.citybox-open-door');
         Route::post('/items/{id}/citybox-retry-submit', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'retrySubmit'])->name('ops-job-items.citybox-retry-submit');
         Route::get('/items/{id}/citybox-door-opens', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'doorOpens'])->name('ops-job-items.citybox-door-opens');
+        // Smart Freezer driver door on an item — same driver-level rule, inside the controller.
+        Route::post('/items/{id}/freezer-open-door', [\App\Http\Controllers\SmartFreezer\FreezerOpsJobItemController::class, 'openDoor'])->name('ops-job-items.freezer-open-door');
+        Route::get('/items/{id}/freezer-open-door/{cmdId}', [\App\Http\Controllers\SmartFreezer\FreezerOpsJobItemController::class, 'doorStatus'])->name('ops-job-items.freezer-door-status');
         Route::get('/summary', [OpsJobController::class, 'summary'])->name('ops-jobs.summary');
         Route::get('/', [OpsJobController::class, 'index'])->name('ops-jobs');
         Route::get('/create', [OpsJobController::class, 'create']);

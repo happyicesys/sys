@@ -31,6 +31,9 @@ class FreezerControlCommand extends Model
     /** Sent by mark1's setpoint schedule (`freezer:run-setpoint-schedules`), not by a person. */
     public const SOURCE_SCHEDULE = 'schedule';
 
+    /** Sent from an ops-job item's Open Door (Restock) button by the driver or an ops user. */
+    public const SOURCE_OPS_JOB = 'ops_job';
+
     /** `log_scope` values: where the ack's log field came from. `output` = the op's own text, not a logcat excerpt. */
     public const LOG_SCOPES = ['app', 'system', 'hostfile', 'output'];
 

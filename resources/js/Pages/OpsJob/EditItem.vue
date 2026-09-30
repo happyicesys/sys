@@ -85,6 +85,15 @@
                   label="Open Door (Restock)"
                   @opened="reloadDoorOpens"
                 />
+                <!-- Smart Freezer: the same driver door-open (FREEZERCTL unlock). -->
+                <FreezerOpenDoorButton
+                  v-if="opsJobItem.is_smart_freezer"
+                  :item-id="opsJobItem.id"
+                  :machine-code="opsJobItem.vend?.code"
+                  :customer-name="opsJobItem.customer?.name"
+                  :offline="opsJobItem.vend ? !opsJobItem.vend.is_online : false"
+                  label="Open Door (Restock)"
+                />
                 <Menu as="div" class="relative inline-block text-left" v-if="permissions.includes('admin-access operations') && opsJobItem.status == 1">
                   <div>
                     <MenuButton class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-sky-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus:outline-none ring-1 ring-inset ring-sky-300">
@@ -442,7 +451,7 @@
                   <!-- mobile view -->
                   <table class="md:hidden min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
-                      <tr v-if="opsJobItem.status >= 3">
+                      <tr v-if="opsJobItem.status >= 3 && hasVmcData">
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="2">
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
@@ -522,7 +531,7 @@
                             </span>
                           </div>
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           <div class="flex flex-col space-y-2">
                             <span>
                               Before Refill
@@ -535,7 +544,7 @@
                             </span>
                           </div>
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           {{ machineLabel }} Inventory Not Tally, Fixed?
                         </th>
                       </tr>
@@ -652,7 +661,7 @@
                             </div>
                           </div>
                         </td>
-                        <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && hasVmcData">
                           <div class="flex flex-col space-y-1" v-if="opsJobItem.vendChannelRecord">
                             <template v-if="!channel.is_replaced">
                               <span>
@@ -670,7 +679,7 @@
                             </template>
                           </div>
                         </td>
-                        <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3 && hasVmcData">
                           <template v-if="!channel.is_replaced">
                             <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                             @click.prevent="isErrorSettleClicked(channel)"
@@ -776,7 +785,7 @@
                             </span>
                           </div>
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && hasVmcData">
                           <div class="flex flex-col space-y-1" >
                             <span>
                               {{ getSubtotalVMCBeforeQty() }}
@@ -789,7 +798,7 @@
                             </span>
                           </div>
                         </td>
-                        <td v-if="opsJobItem.status >= 3"></td>
+                        <td v-if="opsJobItem.status >= 3 && hasVmcData"></td>
                       </tr>
                       <!-- Add Channel row (mobile) — pending status, no stock action, channels exist in mapping -->
                       <tr v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type && availableChannels.length > 0">
@@ -871,7 +880,7 @@
                   <!-- desktop view -->
                   <table class="hidden md:table min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
-                      <tr v-if="opsJobItem.status >= 3">
+                      <tr v-if="opsJobItem.status >= 3 && hasVmcData">
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="7">
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
@@ -940,7 +949,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                           {{ machineLabel }} Inventory Count
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           <div class="flex flex-col space-y-1">
                             <span>
                               Before Refill
@@ -957,10 +966,10 @@
                             </div> -->
                           </div>
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           Stock In
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           <div>
                             <span>
                               After Refill
@@ -977,7 +986,7 @@
                             </div> -->
                           </div>
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           {{ machineLabel }} Inventory Not Tally, Fixed?
                         </th>
                       </tr>
@@ -1114,7 +1123,7 @@
                             <span class="text-xs text-gray-500 italic">N/A</span>
                           </template>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3 && hasVmcData">
                           <template v-if="!channel.is_replaced">
                             <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                             @click.prevent="isErrorSettleClicked(channel)"
@@ -1250,7 +1259,7 @@
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCAfterQty() }}
                         </td>
-                        <td v-if="opsJobItem.status >= 3"></td>
+                        <td v-if="opsJobItem.status >= 3 && hasVmcData"></td>
                       </tr>
                       <!-- Add Channel row (desktop) — pending status, no stock action, unmapped channels available -->
                       <tr v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type && availableChannels.length > 0">
@@ -1332,7 +1341,7 @@
             </div>
           </div>
 
-          <!-- Cash block: hidden for CityBox chillers — fully cashless, settled through
+          <!-- Cash block: hidden for CityBox chillers and Smart Freezers — both cashless (QR / card). The chiller is settled through
                their gateway; the JV holds the books (design §6c.4). One flag, no per-field v-if sprawl. -->
           <div class="px-2 pt-3 border-b mb-2 border-gray-100 text-left" v-if="showsCash">
             <dl class="divide-y divide-gray-100">
@@ -1736,6 +1745,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
+import FreezerOpenDoorButton from '@/Components/FreezerOpenDoorButton.vue';
 import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
 import axios from 'axios';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
@@ -1777,7 +1787,10 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const opsJobItem = ref([])
 // Header wording: a vending board is a VMC; a CityBox chiller is not, so its
 // inventory columns are labelled by the supplier instead.
-const machineLabel = computed(() => opsJobItem.value?.is_citybox_chiller ? 'Citybox' : 'VMC')
+const machineLabel = computed(() => opsJobItem.value?.is_citybox_chiller ? 'Citybox' : (opsJobItem.value?.is_smart_freezer ? 'Freezer' : 'VMC'))
+// A Smart Freezer has no VMC board: no REFILL frames, so no before/after-refill counts and nothing to
+// tally against. Its "From VMC" columns would only ever read Not Detected.
+const hasVmcData = computed(() => !opsJobItem.value?.is_smart_freezer)
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
 
@@ -1792,7 +1805,7 @@ async function reloadDoorOpens() {
     doorOpens.value = data; doorOpensLoaded.value = true
   } catch (e) { /* history is a nicety */ }
 }
-const showsCash = computed(() => !(opsJobItem.value && opsJobItem.value.is_citybox_chiller))
+const showsCash = computed(() => !(opsJobItem.value && (opsJobItem.value.is_citybox_chiller || opsJobItem.value.is_smart_freezer)))
 function onDoorOpensToggle(ev) { if (ev.target.open && !doorOpensLoaded.value) reloadDoorOpens() }
 function retryCityboxSubmit() {
   const id = props.opsJobItem?.data?.id ?? props.opsJobItem?.id
@@ -2402,7 +2415,7 @@ function onConfirmClicked() {
     isConfirm = true;
   }
 
-  // Cash checks only where cash exists — a CityBox chiller has no cash block.
+  // Cash checks only where cash exists — a CityBox chiller or Smart Freezer has no cash block.
   if(form.value.status == 2 && showsCash.value && form.value.cash_amount == 0) {
     confirmText += 'Cash Collected = 0; ';
     isConfirm = true;
