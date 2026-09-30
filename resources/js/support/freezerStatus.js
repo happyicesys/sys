@@ -156,6 +156,16 @@ export class FreezerStatus {
         return this.thermostat.fanRemoteMode ?? null;
     }
 
+    /** The controller's own setpoint SP, read back (app 22 + a BoxSDK 1.2.0 plugin); null when not reported. */
+    get setPoint() {
+        return numberOrNull(this.thermostat.setPoint);
+    }
+
+    /** The differential C0: the compressor restarts at setPoint + delta. Same source. */
+    get delta() {
+        return numberOrNull(this.thermostat.delta);
+    }
+
     get lightState() {
         return this.raw?.lightState || null;
     }
@@ -310,4 +320,9 @@ export class FreezerStatus {
             ...(this.humidity !== null ? [{ label: 'Humidity', value: `${Math.round(this.humidity)}%`, tone: TONE.INFO }] : []),
         ];
     }
+}
+
+/** A finite number, else null — the snapshot sends null for a value the machine could not read. */
+function numberOrNull(v) {
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }

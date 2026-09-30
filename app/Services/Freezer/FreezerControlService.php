@@ -38,6 +38,8 @@ class FreezerControlService
         'selfcheck', 'restart', 'reboot', 'photo', 'diag', 'sdkcall', 'beep',
         // APK v20
         'fanmode',
+        // APK v22
+        'delta',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
@@ -58,6 +60,19 @@ class FreezerControlService
     public const THERMOSTAT_MODE_OPS = ['comprmode', 'fanmode'];
 
     public const MIN_APK_VERSION_CODE_THERMOSTAT_MODES = 20;
+
+    /**
+     * Ops that need APK 22: the AG-325's differential C0 (register 0x1002) through BoxSDK 1.2.0
+     * `setThermostatDelta`. An older app does not know the op and would drop it unanswered.
+     */
+    public const DELTA_OPS = ['delta'];
+
+    public const MIN_APK_VERSION_CODE_DELTA = 22;
+
+    /** The AG-325's own C0 range (manual parameter table; factory value 3). The APK enforces it too. */
+    public const DELTA_MIN = 1;
+
+    public const DELTA_MAX = 25;
 
     /** The device's fixed diagnostic probes (DiagProbe on the APK) — a closed list, never free text. */
     public const DIAG_PROBES = [
@@ -283,6 +298,7 @@ class FreezerControlService
     public static function minApkVersionFor(string $op): int
     {
         return match (true) {
+            in_array($op, self::DELTA_OPS, true) => self::MIN_APK_VERSION_CODE_DELTA,
             in_array($op, self::THERMOSTAT_MODE_OPS, true) => self::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
             in_array($op, self::BATCH2_OPS, true) => self::MIN_APK_VERSION_CODE_BATCH2,
             default => self::MIN_APK_VERSION_CODE,
@@ -308,6 +324,7 @@ class FreezerControlService
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => 'Choose on or off.']),
             'setpoint' => $this->setpoint($args['celsius'] ?? null),
+            'delta' => $this->delta($args['celsius'] ?? null),
             'volume' => in_array($args['step'] ?? null, ['up', 'down', 'mute'], true)
                 ? ['step' => $args['step']]
                 : throw ValidationException::withMessages(['args.step' => 'Choose up, down or mute.']),
@@ -366,6 +383,18 @@ class FreezerControlService
         if (! is_int($celsius) || $celsius < self::SETPOINT_MIN || $celsius > self::SETPOINT_MAX) {
             throw ValidationException::withMessages([
                 'args.celsius' => 'Setpoint must be a whole number from '.self::SETPOINT_MIN.' to '.self::SETPOINT_MAX.' °C.',
+            ]);
+        }
+
+        return ['celsius' => $celsius];
+    }
+
+    /** The differential C0: the compressor restarts at setpoint + delta. */
+    private function delta(mixed $celsius): array
+    {
+        if (! is_int($celsius) || $celsius < self::DELTA_MIN || $celsius > self::DELTA_MAX) {
+            throw ValidationException::withMessages([
+                'args.celsius' => 'Delta must be a whole number from '.self::DELTA_MIN.' to '.self::DELTA_MAX.' °C.',
             ]);
         }
 

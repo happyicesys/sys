@@ -186,6 +186,53 @@ class FreezerRemoteControlTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_delta_needs_app_22_and_a_whole_number_from_1_to_25(): void
+    {
+        // App 21 does not know the op: never send it, say why.
+        $old = $this->freezer(['code' => 50021, 'apk_version_code' => 21]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'delta', 'args' => ['celsius' => 5]])
+            ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 22)."]);
+        $this->assertSame(0, FreezerControlCommand::count());
+        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_delta'));
+
+        // The AG-325's own C0 range; anything else is refused before it is sent.
+        foreach ([0, 26, -3, 2.5, '5', null] as $i => $bad) {
+            $vend = $this->freezer(['code' => 50030 + $i, 'apk_version_code' => 22]);
+            $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'delta', 'args' => ['celsius' => $bad]])
+                ->assertStatus(422);
+        }
+        $this->assertSame(0, FreezerControlCommand::count());
+
+        $vend = $this->freezer(['code' => 50022, 'apk_version_code' => 22]);
+        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_delta'));
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'delta', 'args' => ['celsius' => 5]])
+            ->assertStatus(202);
+        $row = FreezerControlCommand::sole();
+        $this->assertSame('delta', $row->op);
+        $this->assertSame(['celsius' => 5], $row->args);
+        $this->assertSame(22, FreezerControlService::minApkVersionFor('delta'));
+    }
+
+    public function test_the_last_accepted_delta_is_offered_when_the_machine_cannot_read_it_back(): void
+    {
+        $vend = $this->freezer(['code' => 50023, 'apk_version_code' => 22]);
+        $payload = $this->getJson("/vends/{$vend->id}/freezer-controls")->json('delta');
+        $this->assertSame(['min' => 1, 'max' => 25, 'last' => null], $payload);
+
+        FreezerControlCommand::create([
+            'vend_id' => $vend->id, 'cmd_id' => '01TESTDELTA000000000000001', 'op' => 'delta',
+            'args' => ['celsius' => 4], 'status' => 'ok', 'requested_by_name' => 'Brian', 'responded_at' => now(),
+        ]);
+        FreezerControlCommand::create([
+            'vend_id' => $vend->id, 'cmd_id' => '01TESTDELTA000000000000002', 'op' => 'delta',
+            'args' => ['celsius' => 9], 'status' => 'refused', 'requested_by_name' => 'Brian', 'responded_at' => now(),
+        ]);
+        $last = $this->getJson("/vends/{$vend->id}/freezer-controls")->json('delta.last');
+        // Only an accepted write counts: the refused 9 left the controller on 4.
+        $this->assertSame(4, $last['celsius']);
+        $this->assertSame('Brian', $last['by']);
+    }
+
     public function test_both_controller_modes_need_app_20(): void
     {
         // Both write the AG-325's own registers through SDK 1.1.0; nothing older may be sent either.

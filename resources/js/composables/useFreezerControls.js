@@ -22,7 +22,7 @@ export function useFreezerControls(vendId) {
     const sending = ref(false);
     const limit = ref(20);
     const now = ref(Date.now());
-    const data = ref({ commands: [], setpoint: { min: -30, max: -5 }, pending: false, supported: false });
+    const data = ref({ commands: [], setpoint: { min: -30, max: -5 }, delta: { min: 1, max: 25 }, pending: false, supported: false });
 
     const status = computed(() => FreezerStatus.from(data.value.status));
     /**
@@ -151,6 +151,7 @@ const OP_LABELS = {
     comprmode: 'Compressor control',
     fanmode: 'Fan control',
     setpoint: 'Setpoint',
+    delta: 'Delta (C0)',
     volume: 'Volume',
     logs: 'Pull logs',
     boot: 'Machine booted',

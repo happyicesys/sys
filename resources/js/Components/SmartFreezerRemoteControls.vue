@@ -96,15 +96,22 @@
             </p>
 
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <!-- The controller has no setpoint read, so "now" is the last setpoint mark1 got accepted. -->
+              <!--
+                Setpoint and delta. From app 22 on a BoxSDK 1.2.0 plugin the controller reads both back
+                (thermostat.setPoint / delta in the status); otherwise "now" is the last value mark1 got accepted.
+              -->
               <div class="rounded-lg border border-gray-200 bg-white p-3">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="text-sm font-medium text-gray-800">Temperature setpoint</span>
-                  <StateChip v-if="lastSetpoint" :value="lastSetpoint.celsius + ' °C'" tone="info" />
+                  <StateChip v-if="status.setPoint !== null" :value="fmtC(status.setPoint)" tone="ok" note="controller reads" />
+                  <StateChip v-else-if="lastSetpoint" :value="lastSetpoint.celsius + ' °C'" tone="info" note="last sent" />
                   <StateChip v-else value="not reported" tone="unknown" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  <template v-if="lastSetpoint">
+                  <template v-if="status.setPoint !== null">
+                    Read back from the controller · whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }}
+                  </template>
+                  <template v-else-if="lastSetpoint">
                     Set from mark1 {{ ago(lastSetpoint.at) }}{{ lastSetpoint.by ? ' by ' + lastSetpoint.by : '' }} · whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }}
                   </template>
                   <template v-else>
@@ -121,7 +128,34 @@
                   </span>
                   <ArrowPathIcon v-if="busyOp === 'setpoint'" class="h-4 w-4 animate-spin text-sky-700" />
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSend"
-                                 @click="ask('setpoint', { celsius: setpoint }, 'Set the temperature controller to ' + setpoint + ' °C?', 'The cabinet will cool to this target until someone changes it. The machine cannot report its current setpoint, so check the chamber temperature afterwards.')">
+                                 @click="ask('setpoint', { celsius: setpoint }, 'Set the temperature controller to ' + setpoint + ' °C?', 'The cabinet will cool to this target until someone changes it. The answer shows what the controller reads back about 10 seconds later.')">
+                    Set
+                  </ControlButton>
+                </div>
+              </div>
+
+              <!-- Delta (C0): the compressor stops at the setpoint and restarts at setpoint + delta. -->
+              <div class="rounded-lg border border-gray-200 bg-white p-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-medium text-gray-800">Delta (C0)</span>
+                  <StateChip v-if="status.delta !== null" :value="fmtC(status.delta)" tone="ok" note="controller reads" />
+                  <StateChip v-else-if="lastDelta" :value="lastDelta.celsius + ' °C'" tone="info" note="last sent" />
+                  <StateChip v-else :value="data.supported_delta ? 'not reported' : 'needs app v22'" :tone="data.supported_delta ? 'unknown' : 'warn'" />
+                </div>
+                <p class="mt-0.5 text-xs text-gray-500">
+                  Compressor stops at the setpoint and starts again once the chamber has warmed by the delta<template v-if="restartAt !== null"> — now at <span class="font-semibold text-gray-700">{{ fmtC(restartAt) }}</span></template> · whole °C, {{ data.delta.min }} to {{ data.delta.max }}
+                </p>
+                <div class="mt-2 flex items-center gap-2" v-tooltip="deltaBlocked">
+                  <span class="isolate inline-flex -space-x-px shadow-sm">
+                    <ControlButton :disabled="!canSendDelta" @click="delta = Math.max(data.delta.min, delta - 1)">−</ControlButton>
+                    <span class="inline-flex w-20 items-center justify-center bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300">
+                      {{ delta }} °C
+                    </span>
+                    <ControlButton :disabled="!canSendDelta" @click="delta = Math.min(data.delta.max, delta + 1)">+</ControlButton>
+                  </span>
+                  <ArrowPathIcon v-if="busyOp === 'delta'" class="h-4 w-4 animate-spin text-sky-700" />
+                  <ControlButton tone="primary" class="rounded-md" :disabled="!canSendDelta"
+                                 @click="ask('delta', { celsius: delta }, 'Set the delta to ' + delta + ' °C?', deltaDetail)">
                     Set
                   </ControlButton>
                 </div>
@@ -400,6 +434,7 @@ const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusSta
 
 const confirm = ref(null)
 const setpoint = ref(-18)
+const delta = ref(3)
 const logPull = ref({ minutes: 60, lines: 5000, grep: '' })
 const cameraOpen = ref(false)
 const cameraOpenId = ref(null)
@@ -510,6 +545,25 @@ const canSendBatch2 = computed(() => canSend.value && !!data.value.supported_bat
 const canSendThermostatMode = computed(() => canSend.value && !!data.value.supported_thermostat_modes)
 const thermostatModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_thermostat_modes ? '' : "This machine's app is older than v20; compressor and fan control need the update."))
 
+/** Delta (C0) needs app v22 (BoxSDK 1.2.0); before it the op is unknown to the machine. */
+const canSendDelta = computed(() => canSend.value && !!data.value.supported_delta)
+const deltaBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_delta ? '' : "This machine's app is older than v22; delta needs the update."))
+const lastDelta = computed(() => data.value.delta?.last ?? null)
+
+/** Where the compressor restarts now, from the controller's own read-back only. */
+const restartAt = computed(() => (status.value.setPoint !== null && status.value.delta !== null ? status.value.setPoint + status.value.delta : null))
+const deltaDetail = computed(() => {
+  const sp = status.value.setPoint
+  const example = sp !== null ? ' With the setpoint at ' + fmtC(sp) + ', the compressor would restart at ' + fmtC(sp + delta.value) + '.' : ''
+  return 'After stopping at the setpoint, the compressor waits until the chamber has warmed by this much.' + example +
+    ' A bigger delta means fewer compressor starts and a wider temperature swing.'
+})
+
+/** One decimal, as the controller reports it (0.1 °C registers). */
+function fmtC(c) {
+  return (Math.round(c * 10) / 10).toFixed(1) + ' °C'
+}
+
 /** Minutes a remote mode lasts before app v21+ hands it back to the controller (ThermostatModeGuard on the APK). */
 const REMOTE_LEASE_MINUTES = 30
 
@@ -532,7 +586,12 @@ const cameraChoices = computed(() => {
 // Open the stepper on the last setpoint we set, so "Set" without touching it is a no-op rather than
 // a silent jump to the -18 default; the log-pull boxes start on the server's documented defaults.
 whenLoaded((payload) => {
-  if (payload.setpoint?.last) setpoint.value = payload.setpoint.last.celsius
+  // Prefer what the controller reads back; else the last value mark1 got accepted.
+  const t = payload.status?.thermostat ?? (typeof payload.status === 'string' ? JSON.parse(payload.status)?.thermostat : null)
+  if (typeof t?.setPoint === 'number') setpoint.value = Math.round(t.setPoint)
+  else if (payload.setpoint?.last) setpoint.value = payload.setpoint.last.celsius
+  if (typeof t?.delta === 'number') delta.value = Math.round(t.delta)
+  else if (payload.delta?.last) delta.value = payload.delta.last.celsius
   if (payload.log_pull) logPull.value = { minutes: payload.log_pull.minutes.default, lines: payload.log_pull.lines.default, grep: '' }
 })
 

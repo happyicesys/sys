@@ -80,6 +80,8 @@ class FreezerControlController extends Controller
             'supported_batch2' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_BATCH2,
             // Fan control mode needs APK 20 (BoxSDK 1.1.0 thermostat registers).
             'supported_thermostat_modes' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
+            // Delta (C0) needs APK 22 (BoxSDK 1.2.0 setThermostatDelta).
+            'supported_delta' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DELTA,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,
@@ -88,10 +90,16 @@ class FreezerControlController extends Controller
             'setpoint' => [
                 'min' => FreezerControlService::SETPOINT_MIN,
                 'max' => FreezerControlService::SETPOINT_MAX,
-                // The AG325 has no setpoint read, so the panel shows the last one WE set. Resolved
-                // here rather than from the timeline the page holds: that is capped at `limit` rows,
-                // so a machine nobody has touched lately would read as "never set".
-                'last' => $this->lastSetpoint($vend),
+                // The last one WE set — shown when the machine cannot read its setpoint back (app < 22
+                // or an older plugin); from app 22 the status snapshot carries the controller's own
+                // `thermostat.setPoint`, which the page prefers. Resolved here rather than from the
+                // timeline the page holds: that is capped at `limit` rows.
+                'last' => $this->lastParameter($vend, 'setpoint'),
+            ],
+            'delta' => [
+                'min' => FreezerControlService::DELTA_MIN,
+                'max' => FreezerControlService::DELTA_MAX,
+                'last' => $this->lastParameter($vend, 'delta'),
             ],
             'total' => $total,
             'pending' => $commands->contains(fn ($c) => $c->displayStatus($now) === FreezerControlCommand::STATUS_PENDING),
@@ -120,13 +128,13 @@ class FreezerControlController extends Controller
     }
 
     /**
-     * The newest setpoint this machine accepted: `{celsius, at, by}`, or null if it never took one.
-     * Only `ok` counts — a refused or unanswered write left the controller where it was.
+     * The newest setpoint / delta this machine accepted: `{celsius, at, by}`, or null if it never took
+     * one. Only `ok` counts — a refused or unanswered write left the controller where it was.
      */
-    private function lastSetpoint(Vend $vend): ?array
+    private function lastParameter(Vend $vend, string $op): ?array
     {
         $command = FreezerControlCommand::where('vend_id', $vend->id)
-            ->where('op', 'setpoint')
+            ->where('op', $op)
             ->where('status', 'ok')
             ->orderByDesc('id')
             ->first();
