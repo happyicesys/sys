@@ -13,14 +13,16 @@ namespace App\Services\SmartFreezer\Zijia;
  *               own status snapshot reports as `identity.imei`, so it resolves the machine even
  *               when the order number is missing.
  *  - deviceNo:  their device number (2009 reports "JS093016"; 50001 reports its IMEI here too).
- *  - tradeId:   THEIR id for the door session — echoed back in the algorithm's result. Our own
- *               ref stands in only when they send none.
+ *  - tradeId:   THEIR id for the door session — echoed back in the algorithm's result. Their live
+ *               pushes (2026-09-30, `"method":"video"`) carry it as `orderNo` ("SDK1790732333409"),
+ *               so an `orderNo` that is not our ref is theirs. Our own ref stands in only when
+ *               they send neither.
  *  - sessionRef: OUR txnRef "SF-<vendCode>-<epoch>-<seq>", which the APK hands their
  *               orderOpenDoor as `orderNo`; found under any key, or inside any string.
  *
  * Each field is chosen by KEY PRIORITY (the order of its key list), never by where it happens to
  * sit in the payload — a body listing `orderNo` before `tradeId` must still yield their tradeId.
- * `orderNo` itself is deliberately not a trade key: in our spec it carries OUR ref.
+ * `orderNo` ranks below every explicit trade key, and never counts when it holds OUR ref.
  */
 final class ZijiaVideoPush
 {
@@ -32,6 +34,8 @@ final class ZijiaVideoPush
     private const DEVICE_NO_KEYS = ['deviceno', 'device_no', 'deviceid', 'device_id', 'devicesn', 'device_sn', 'equipmentid', 'equipment_id', 'equipmentno'];
 
     private const TRADE_KEYS = ['tradeid', 'trade_id', 'outtradeno', 'out_trade_no', 'orderid', 'order_id'];
+
+    private const ORDER_NO_KEYS = ['orderno', 'order_no'];
 
     private const DURATION_KEYS = ['videoduration', 'video_duration', 'duration'];
 
@@ -54,7 +58,7 @@ final class ZijiaVideoPush
     public static function fromPayload(array $payload): self
     {
         $fields = ['imei' => self::IMEI_KEYS, 'deviceNo' => self::DEVICE_NO_KEYS, 'tradeId' => self::TRADE_KEYS,
-            'duration' => self::DURATION_KEYS, 'door' => self::DOOR_KEYS];
+            'orderNo' => self::ORDER_NO_KEYS, 'duration' => self::DURATION_KEYS, 'door' => self::DOOR_KEYS];
         $seen = [];     // field => key => first value seen under that key
         $strings = [];
         array_walk_recursive($payload, function ($value, $key) use ($fields, &$seen, &$strings) {
@@ -96,12 +100,18 @@ final class ZijiaVideoPush
         return new self(
             imei: $found['imei'] ?? null,
             deviceNo: $found['deviceNo'] ?? null,
-            tradeId: $found['tradeId'] ?? $sessionRef,
+            tradeId: $found['tradeId'] ?? self::theirOrderNo($found['orderNo'] ?? null) ?? $sessionRef,
             sessionRef: $sessionRef,
             videoUrls: $videos !== [] ? $videos : $urls,
             videoDuration: isset($found['duration']) && is_numeric($found['duration']) ? max(0, (int) round((float) $found['duration'])) : 0,
             doorId: isset($found['door']) && ctype_digit($found['door']) ? max(1, (int) $found['door']) : 1,
         );
+    }
+
+    /** An `orderNo` is their door-session id unless it is our own SF- ref. */
+    private static function theirOrderNo(?string $orderNo): ?string
+    {
+        return $orderNo === null || preg_match(self::SESSION_REF_PATTERN, $orderNo) === 1 ? null : $orderNo;
     }
 
     /** The vend code inside our own session ref, when there is one. */

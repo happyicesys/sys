@@ -155,6 +155,31 @@ class ZijiaAlgorithmPiecesTest extends TestCase
         $this->assertNull($push->deviceNo);
     }
 
+    public function test_their_live_push_shape_yields_their_order_no_as_the_trade(): void
+    {
+        // Verbatim shape of their first real pushes, 2026-09-30 (test cabinet JS093519).
+        $push = ZijiaVideoPush::fromPayload(json_decode('{"orderNo":"SDK1790732333409","method":"video",'
+            .'"video1":{"videoDuration":0,"videoUrl":"https://jishi1.oss-cn-hangzhou.aliyuncs.com/boxapp/JS093519/order/SDK1790732333409/SDK1790732333409-d1c3-25f-1280x720.mp4","videoFrames":0,"videoSize":0},'
+            .'"video2":{"videoDuration":0,"videoUrl":"https://jishi1.oss-cn-hangzhou.aliyuncs.com/boxapp/JS093519/order/SDK1790732333409/SDK1790732333409-d1c4-25f-1280x720.mp4","videoFrames":0,"videoSize":0},'
+            .'"pullDoor":1,"deviceNo":"JS093519","doorId":1,"sign":"D2318D939A9331E6F51E0B4DCC605B4F"}', true));
+
+        $this->assertSame('SDK1790732333409', $push->tradeId);
+        $this->assertNull($push->sessionRef);
+        $this->assertSame('JS093519', $push->deviceNo);
+        $this->assertSame('JS093519', $push->deviceIdentifier());
+        $this->assertCount(2, $push->videoUrls);
+        $this->assertSame(0, $push->videoDuration);
+        $this->assertSame(1, $push->doorId);
+    }
+
+    public function test_an_order_no_holding_our_ref_is_not_their_trade(): void
+    {
+        $push = ZijiaVideoPush::fromPayload(['orderNo' => 'SF-50001-1789000000-3', 'deviceNo' => '861232069528880']);
+
+        $this->assertSame('SF-50001-1789000000-3', $push->tradeId);
+        $this->assertSame('SF-50001-1789000000-3', $push->sessionRef);
+    }
+
     // ------------------------------------------------------------------ verdict
 
     public function test_verdict_match(): void
