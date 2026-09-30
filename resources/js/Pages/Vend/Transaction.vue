@@ -992,8 +992,8 @@
                             <!-- AI Recognition = the AI check of this sale's door session (Smart
                                  Freezer today; a CityBox chiller once it has one). Blank on every
                                  other sale. Badges: the verdict (or where it stands), what the AI
-                                 saw, and how long it took — the AI's own turnaround, and door
-                                 close → result. Full timeline in the tooltip. -->
+                                 saw, and how long the check took (videos received → result); the
+                                 breakdown — our wait vs the AI's own turnaround — is in the tooltip. -->
                             <div v-if="vendTransaction.ai_recognition"
                                 class="flex flex-col items-center space-y-0.5 leading-tight"
                                 :title="aiRecognitionTooltip(vendTransaction.ai_recognition)">
@@ -1007,13 +1007,9 @@
                                     class="text-[10px] text-gray-700 whitespace-nowrap">
                                     {{ item.number }} × {{ item.name || item.code }}
                                 </span>
-                                <span v-if="vendTransaction.ai_recognition.ai_seconds !== null"
-                                    class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 whitespace-nowrap">
-                                    AI {{ formatDuration(vendTransaction.ai_recognition.ai_seconds) }}
-                                </span>
                                 <span v-if="vendTransaction.ai_recognition.total_seconds !== null"
-                                    class="text-[10px] text-gray-500 whitespace-nowrap">
-                                    total {{ formatDuration(vendTransaction.ai_recognition.total_seconds) }}
+                                    class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 whitespace-nowrap">
+                                    {{ formatDuration(vendTransaction.ai_recognition.total_seconds) }}
                                 </span>
                             </div>
                         </TableData>
@@ -1353,8 +1349,9 @@ const aiRecognitionTooltip = (ai) => [
     ai.received_at ? 'Videos received ' + ai.received_at : null,
     ai.submitted_at ? 'Sent to AI ' + ai.submitted_at : null,
     ai.completed_at ? 'Result ' + ai.completed_at : null,
-    ai.ai_seconds !== null ? 'AI turnaround ' + formatDuration(ai.ai_seconds) : null,
-    ai.total_seconds !== null ? 'Door close → result ' + formatDuration(ai.total_seconds) : null,
+    ai.total_seconds !== null ? 'Processing time ' + formatDuration(ai.total_seconds) : null,
+    ai.total_seconds !== null && ai.ai_seconds !== null ? '  · waiting to send ' + formatDuration(ai.total_seconds - ai.ai_seconds) : null,
+    ai.ai_seconds !== null ? '  · AI turnaround ' + formatDuration(ai.ai_seconds) : null,
     ...(ai.mismatch || []).map((l) => (l.code || 'product ' + l.product_id) + ': paid ' + l.paid + ', taken ' + l.taken),
     ai.reason,
 ].filter(Boolean).join('\n')
