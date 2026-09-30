@@ -797,7 +797,7 @@ could not name it (`FreezerRecognitionService`, 2026-09-27): **open** (the freez
 reports in its own status snapshot `identity`, so there is no second copy of the
 identity) → **submit** to Zijia's algorithm (`ZijiaAlgorithmClient`,
 `dynamic.cabinet.add.queue`, videos + the freezer's LIVE planogram products by
-`products.barcode`) → **complete** on `POST /api/smart-freezer/zijia/algorithm/notify`
+`products.code`) → **complete** on `POST /api/smart-freezer/zijia/algorithm/notify`
 (`cabinet.algorithm.order.result`, MD5-signed envelope) → **evaluate** against the
 paid sale (`RecognitionVerdict`: match / took_more / took_less / mixed /
 unrecognised). Rules:
@@ -815,7 +815,7 @@ unrecognised). Rules:
   job has one try; a failed row goes back only on request
   (`smart-freezer:zijia-recognition <id> --retry`, `--force` for one stuck in
   `submitting` — its first call may have landed). `auto_submit` is off until
-  model ids and barcodes exist. Every stop records `status_reason` — the row alone
+  products are modelled and a live session is proven. Every stop records `status_reason` — the row alone
   must explain why nothing happened.
 - **An unverified callback** (log mode) may complete a row mark1 sent, but never
   overwrites a verified answer and never creates a row for a trade mark1 did not
@@ -837,10 +837,15 @@ unrecognised). Rules:
   (every 10 min, last 7 days) judges it once the sale arrives.
 - **Nothing moves money or stock.** The verdict is information until Brian decides
   what a `took_more` / `took_less` should do. A paid product the algorithm could
-  not have named (no barcode, or a slot with no product) makes the verdict
+  not have named (off the live planogram, or a slot with no product) makes the verdict
   `incomplete`, never `took_less` — its "0 taken" is not evidence.
-- The algorithm names goods by their SKU library's `productCode`; put that code in
-  the product's Barcode (`smart-freezer:zijia-skus <name>` searches the library).
+- **`goodsList.sn` is our `products.code`** (Zijia, 2026-09-30: 商品编码). Each
+  product is modelled by ops in Zijia's portal (vms4.zjoyvd.cn → 商品管理 → 商品申请,
+  or their mini program) under its mark1 code — "CC-01" was the first — and the
+  algorithm answers in those codes, so no barcode is involved. Their central
+  library (`smart-freezer:zijia-skus`) holds China packs; check it before modelling
+  a product that may already exist. `modelIdList` is optional ("可以先不用传"):
+  empty config sends `[]`, never omits the key.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:

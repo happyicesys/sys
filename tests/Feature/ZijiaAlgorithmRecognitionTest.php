@@ -35,7 +35,8 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
 
     private const IMEI = '861232069528880';
 
-    private const BARCODE = '6925303751401';
+    // Zijia's 商品编码 is our products.code (2026-09-30): the product is modelled under it.
+    private const PRODUCT_CODE = 'U-01';
 
     private Vend $vend;
 
@@ -66,7 +67,7 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
 
         $this->vend = Vend::create(['code' => 50001, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1]);
         $this->vend->forceFill(['freezer_control_status_json' => json_encode(['identity' => ['imei' => self::IMEI, 'deviceNo' => self::IMEI]])])->save();
-        $this->product = Product::forceCreate(['code' => 'U-01', 'name' => 'Magnum', 'operator_id' => 1, 'barcode' => self::BARCODE]);
+        $this->product = Product::forceCreate(['code' => self::PRODUCT_CODE, 'name' => 'Magnum', 'operator_id' => 1]);
         VendChannel::create(['vend_id' => $this->vend->id, 'code' => 11, 'qty' => 4, 'capacity' => 5, 'amount' => 350,
             'product_id' => $this->product->id, 'is_active' => 1, 'error_rate_json' => []]);
         $this->epoch = Carbon::now()->timestamp;
@@ -124,7 +125,7 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
                 && (new ZijiaSigner(self::SECRET))->verify($envelope)
                 && $envelope['method'] === 'dynamic.cabinet.add.queue'
                 && $envelope['appId'] === '1789379222883159'
-                && $biz['goodsList'] === [['positions' => [], 'sn' => self::BARCODE]]
+                && $biz['goodsList'] === [['positions' => [], 'sn' => self::PRODUCT_CODE]]
                 && $biz['videoList'] === ['https://oss.example.cn/cam1.mp4', 'https://oss.example.cn/cam2.mp4']
                 && $biz['tradeId'] === 'ZSA769242319-251218135320244'
                 && $biz['deviceId'] === self::IMEI
@@ -139,7 +140,7 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
         $this->push();
         $sale = $this->sale(1);
 
-        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 2]]])
+        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 2]]])
             ->assertOk()->assertExactJson(['status' => 200, 'body' => 'SUCCESS']);
 
         $recognition = SmartFreezerRecognition::sole();
@@ -148,13 +149,13 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
         $this->assertSame($sale->id, $recognition->vend_transaction_id);
         $this->assertSame(RecognitionVerdict::TOOK_MORE, $recognition->verdict);
         // assertEquals: MySQL's JSON type reorders object keys; the values are what matter.
-        $this->assertEquals([['product_id' => $this->product->id, 'code' => self::BARCODE, 'paid' => 1, 'taken' => 2, 'delta' => 1]], $recognition->verdict_lines);
+        $this->assertEquals([['product_id' => $this->product->id, 'code' => self::PRODUCT_CODE, 'paid' => 1, 'taken' => 2, 'delta' => 1]], $recognition->verdict_lines);
     }
 
     public function test_a_sale_that_lands_after_the_result_is_linked_when_re_evaluated(): void
     {
         $this->push();
-        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 1]]]);
+        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 1]]]);
 
         $recognition = SmartFreezerRecognition::sole();
         $this->assertNull($recognition->verdict);
@@ -180,16 +181,27 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
 
     public function test_nothing_is_submitted_while_something_is_missing_and_the_row_says_what(): void
     {
-        $this->product->forceFill(['barcode' => null])->save();
+        VendChannel::where('vend_id', $this->vend->id)->update(['is_active' => 0]);
         $this->push();
 
         $recognition = SmartFreezerRecognition::sole();
         $this->assertSame(SmartFreezerRecognition::STATUS_PENDING, $recognition->status);
-        $this->assertSame("none of this freezer's products has a barcode", $recognition->status_reason);
+        $this->assertSame('this freezer has no product on its planogram', $recognition->status_reason);
         Http::assertNothingSent();
+    }
 
+    public function test_no_model_id_is_needed_and_an_empty_model_list_is_sent(): void
+    {
+        // Zijia, 2026-09-30: "modelIdList 可以先不用传". Sent as [] — never omitted.
         config(['smart_freezer.zijia.algorithm.model_ids' => []]);
-        $this->assertSame('no algorithm model id configured (ZIJIA_ALGO_MODEL_IDS)', app(FreezerRecognitionService::class)->blocker($recognition));
+        $this->push(['orderNo' => null]);
+
+        $this->assertSame(SmartFreezerRecognition::STATUS_SUBMITTED, SmartFreezerRecognition::sole()->status);
+        Http::assertSent(function (Request $request) {
+            $biz = json_decode(json_decode($request->body(), true)['bizContent'], true);
+
+            return $biz['modelIdList'] === [] && $biz['goodsList'] === [['positions' => [], 'sn' => self::PRODUCT_CODE]];
+        });
     }
 
     public function test_auto_submit_off_leaves_it_pending_and_a_recognition_is_never_spent_twice(): void
@@ -277,16 +289,16 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
         $this->assertCount(2, $recognition->videos);
     }
 
-    public function test_a_paid_product_without_a_barcode_is_incomplete_not_a_refund(): void
+    public function test_a_paid_product_off_the_planogram_is_incomplete_not_a_refund(): void
     {
-        $plain = Product::forceCreate(['code' => 'U-99', 'name' => 'No barcode yet', 'operator_id' => 1]);
+        $plain = Product::forceCreate(['code' => 'U-99', 'name' => 'Not on the planogram', 'operator_id' => 1]);
         $this->push();
         $sale = $this->sale(1);
         $frame = $sale->vend_transaction_json;
         $frame['transf_info'][] = ['SId' => 12, 'SErr' => 0, 'goods_id' => $plain->id];
         $sale->forceFill(['vend_transaction_json' => $frame])->save();
 
-        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 1]]]);
+        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 1]]]);
 
         $recognition = SmartFreezerRecognition::sole();
         $this->assertSame(RecognitionVerdict::INCOMPLETE, $recognition->verdict);
@@ -303,7 +315,7 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
         $sale->forceFill(['vend_transaction_json' => array_merge($sale->vend_transaction_json, ['SFREF' => 'SF-50001-'.Carbon::now()->timestamp.'-7'])])->save();
         $sale->forceFill(['transaction_datetime' => Carbon::now()->addYears(3)])->save();
 
-        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 1]]]);
+        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 1]]]);
 
         $this->assertSame($sale->id, SmartFreezerRecognition::sole()->vend_transaction_id);
     }
@@ -311,7 +323,7 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
     public function test_the_sweep_judges_a_result_once_its_late_sale_arrives(): void
     {
         $this->push();
-        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 1]]]);
+        $this->notify(['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 1]]]);
         $this->assertNull(SmartFreezerRecognition::sole()->verdict);
 
         $this->sale(1);
@@ -323,14 +335,14 @@ class ZijiaAlgorithmRecognitionTest extends TestCase
     public function test_an_unverified_result_cannot_overwrite_a_verified_one_or_invent_a_trade(): void
     {
         $this->push();
-        $good = ['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 1]]];
+        $good = ['tradeId' => 'ZSA769242319-251218135320244', 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 1]]];
         $this->notify($good);
         $this->assertTrue(SmartFreezerRecognition::sole()->callback_verified);
 
         // Forged (log mode lets it through the door): it must not replace the verified answer.
-        $this->notify(['tradeId' => $good['tradeId'], 'orderStatus' => 0, 'items' => [['code' => self::BARCODE, 'number' => 9]]], 'forged')
+        $this->notify(['tradeId' => $good['tradeId'], 'orderStatus' => 0, 'items' => [['code' => self::PRODUCT_CODE, 'number' => 9]]], 'forged')
             ->assertExactJson(['status' => 200, 'body' => 'SUCCESS']);
-        $this->assertSame([self::BARCODE => 1], SmartFreezerRecognition::sole()->items);
+        $this->assertSame([self::PRODUCT_CODE => 1], SmartFreezerRecognition::sole()->items);
 
         // Nor may it create a row for a trade mark1 never sent.
         $this->notify(['tradeId' => 'INVENTED-1', 'orderStatus' => 0, 'items' => []], 'forged');

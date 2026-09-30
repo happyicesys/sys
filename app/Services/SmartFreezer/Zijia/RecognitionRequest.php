@@ -7,7 +7,7 @@ use InvalidArgumentException;
 /**
  * One door session put to the algorithm: `dynamic.cabinet.add.queue` (§4.2).
  *
- * `goodsCodes` is the CANDIDATE set — every SKU the cabinet may hold, by barcode — not what the
+ * `goodsCodes` is the CANDIDATE set — every SKU the cabinet may hold, by product code — not what the
  * customer paid for. The algorithm picks what left the cabinet from that list and answers with
  * codes and counts, which mark1 then holds against the paid cart (RecognitionVerdict).
  */
@@ -15,8 +15,8 @@ final class RecognitionRequest
 {
     /**
      * @param  list<string>  $videoUrls
-     * @param  list<string>  $goodsCodes  barcodes (`sn`), de-duplicated
-     * @param  list<string>  $modelIds
+     * @param  list<string>  $goodsCodes  product codes (`sn`), de-duplicated
+     * @param  list<string>  $modelIds  may be empty: Zijia, 2026-09-30 — "modelIdList 可以先不用传"
      */
     public function __construct(
         public readonly string $deviceId,
@@ -35,7 +35,7 @@ final class RecognitionRequest
         }
         // Their server dereferences goodsList without a null check (probe, 2026-09-27), and a
         // recognition with no video or no model has nothing to run on — refuse here, not there.
-        foreach (['videoUrls' => $videoUrls, 'goodsCodes' => $goodsCodes, 'modelIds' => $modelIds] as $name => $list) {
+        foreach (['videoUrls' => $videoUrls, 'goodsCodes' => $goodsCodes] as $name => $list) {
             if ($list === []) {
                 throw new InvalidArgumentException("$name must not be empty");
             }

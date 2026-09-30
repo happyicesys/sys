@@ -26,7 +26,7 @@ use Throwable;
  *                  `smart-freezer:zijia-evaluate-pending` sweep for sales that arrive late.
  *
  * Every stop is recorded on the row with its reason, because each depends on something outside
- * mark1 (their contract, their model ids, our barcodes, the TRADE arriving) and "nothing happened"
+ * mark1 (their contract, their product modelling, the TRADE arriving) and "nothing happened"
  * must always be explainable from the row alone. A recognition is a metered call on their side:
  * only a `pending` row is ever sent, submit() claims it first, and sending one again is a person's
  * decision (retry()).
@@ -103,10 +103,9 @@ class FreezerRecognitionService
     {
         return match (true) {
             ! $this->client->isConfigured() => 'algorithm credentials not configured',
-            $this->client->modelIds() === [] => 'no algorithm model id configured (ZIJIA_ALGO_MODEL_IDS)',
             $recognition->vend_id === null => 'freezer not recognised from the push (no IMEI / device no / session ref match)',
             $this->videoUrls($recognition) === [] => 'the push carried no video URL',
-            $this->candidateCodes($recognition->vend) === [] => 'none of this freezer\'s products has a barcode',
+            $this->candidateCodes($recognition->vend) === [] => 'this freezer has no product on its planogram',
             default => null,
         };
     }
@@ -248,7 +247,7 @@ class FreezerRecognitionService
     /**
      * Step 4: the verdict against the paid sale. Safe to re-run, and re-run by the sweep
      * (`evaluateAwaitingSale`): the TRADE of an offline board can land long after the result, and
-     * barcodes may be filled in later.
+     * products may be modelled later.
      */
     public function evaluate(SmartFreezerRecognition $recognition): SmartFreezerRecognition
     {
@@ -270,7 +269,7 @@ class FreezerRecognitionService
         $verdict = RecognitionVerdict::compare(
             $this->sales->paidUnits($sale),
             (array) $recognition->items,
-            $this->productByBarcode($recognition->vend, array_keys((array) $recognition->items)),
+            $this->productByCode($recognition->vend, array_keys((array) $recognition->items)),
         );
 
         $recognition->update([
@@ -278,7 +277,7 @@ class FreezerRecognitionService
             'verdict' => $verdict->outcome,
             'verdict_lines' => $verdict->lines,
             'status_reason' => $verdict->outcome === RecognitionVerdict::INCOMPLETE
-                ? 'paid for a product the algorithm could not name (no barcode): '.implode(', ', $verdict->unnameable)
+                ? 'paid for a product the algorithm could not name (no product code): '.implode(', ', $verdict->unnameable)
                 : null,
         ]);
 
@@ -320,8 +319,10 @@ class FreezerRecognitionService
     }
 
     /**
-     * The cabinet's candidate SKUs by barcode — every product on the freezer's LIVE planogram that
-     * has one. A freezer's channel row is its SKU (mark1 CLAUDE.md, "SKU-stocked machines"); a SKU
+     * The cabinet's candidate SKUs by product code — every product on the freezer's LIVE planogram.
+     * The code is `goodsList.sn`: Zijia's 商品编码 IS our `products.code` (Zijia, 2026-09-30 — a
+     * product is modelled in their portal under that code, e.g. "CC-01"), so no barcode is needed.
+     * A freezer's channel row is its SKU (mark1 CLAUDE.md, "SKU-stocked machines"); a SKU
      * that left the planogram keeps a retired, inactive row, and is no candidate. Keyed by product id.
      *
      * @return array<int, string>
@@ -334,9 +335,9 @@ class FreezerRecognitionService
 
         return Product::query()
             ->whereIn('id', VendChannel::where('vend_id', $vend->id)->where('is_active', true)->whereNotNull('product_id')->select('product_id'))
-            ->whereNotNull('barcode')
-            ->where('barcode', '!=', '')
-            ->pluck('barcode', 'id')
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->pluck('code', 'id')
             ->map(fn ($code) => trim((string) $code))
             ->all();
     }
@@ -363,7 +364,7 @@ class FreezerRecognitionService
     }
 
     /**
-     * barcode => product id: every candidate the algorithm was offered, plus any product carrying a
+     * product code => product id: every candidate the algorithm was offered, plus any product carrying a
      * code it answered with that was not offered (goods can be put in the wrong freezer). The
      * verdict reads "nameable" from this map, so it must be the whole candidate set, not only the
      * codes that came back.
@@ -371,13 +372,13 @@ class FreezerRecognitionService
      * @param  list<string>  $answered
      * @return array<string, int>
      */
-    private function productByBarcode(Vend $vend, array $answered): array
+    private function productByCode(Vend $vend, array $answered): array
     {
         $map = array_flip($this->candidateCodes($vend));
         $missing = array_values(array_diff($answered, array_keys($map)));
         if ($missing !== []) {
-            foreach (Product::whereIn('barcode', $missing)->orderBy('id')->get(['id', 'barcode']) as $product) {
-                $map[$product->barcode] ??= $product->id;
+            foreach (Product::whereIn('code', $missing)->orderBy('id')->get(['id', 'code']) as $product) {
+                $map[$product->code] ??= $product->id;
             }
         }
 

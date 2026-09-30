@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
  *  --retry     puts a FAILED row back to pending (it will be billed again); with --force also a row
  *              stuck in `submitting` after a worker died — whose first call may have reached them.
  *  --submit    asks the algorithm (a metered call — only a `pending` row is ever sent).
- *  --evaluate  re-checks a completed result against the sale (after a late TRADE, or once barcodes
+ *  --evaluate  re-checks a completed result against the sale (after a late TRADE, or once products
  *              were filled in; the 10-minute sweep does this on its own for the last week).
  */
 class ZijiaRecognition extends Command
@@ -60,7 +60,7 @@ class ZijiaRecognition extends Command
             ['callback signature', $recognition->callback_verified === null ? '—' : ($recognition->callback_verified ? 'verified' : 'NOT verified')],
         ]);
         foreach ((array) $recognition->verdict_lines as $line) {
-            $this->line(sprintf('  product %s (%s): paid %d, taken %d', $line['product_id'] ?? '?', $line['code'] ?? 'no barcode', $line['paid'], $line['taken']));
+            $this->line(sprintf('  product %s (%s): paid %d, taken %d', $line['product_id'] ?? '?', $line['code'] ?? 'no code', $line['paid'], $line['taken']));
         }
 
         return self::SUCCESS;

@@ -222,7 +222,7 @@ class ZijiaAlgorithmPiecesTest extends TestCase
 
     public function test_a_paid_product_the_algorithm_could_not_name_makes_the_verdict_incomplete(): void
     {
-        // Product 12 was paid for but has no barcode, so it was never a candidate: its "0 taken" is
+        // Product 12 was paid for but has no product code, so it was never a candidate: its "0 taken" is
         // not evidence the customer is owed anything.
         $v = RecognitionVerdict::compare([10 => 1, 12 => 1], ['111' => 1], ['111' => 10]);
 

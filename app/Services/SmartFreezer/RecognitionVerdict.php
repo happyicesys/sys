@@ -29,7 +29,7 @@ final class RecognitionVerdict
     public const UNRECOGNISED = 'unrecognised';
 
     /**
-     * Something was paid for that the algorithm could never have named — a product with no barcode
+     * Something was paid for that the algorithm could never have named — a product with no product code
      * (it was not in the candidate list) or a slot with no product. Its "0 taken" is not evidence,
      * so the sale cannot be judged; the lines still show what was seen.
      */
@@ -49,20 +49,20 @@ final class RecognitionVerdict
 
     /**
      * @param  array<int, int>  $paid  product id => units paid
-     * @param  array<string, int>  $taken  barcode => units the algorithm saw taken
-     * @param  array<string, int>  $productByBarcode  barcode => product id; a paid product absent
-     *                                                from it could not have been named
+     * @param  array<string, int>  $taken  product code => units the algorithm saw taken
+     * @param  array<string, int>  $productByCode  product code => product id; a paid product absent
+     *                                             from it could not have been named
      */
-    public static function compare(array $paid, array $taken, array $productByBarcode): self
+    public static function compare(array $paid, array $taken, array $productByCode): self
     {
-        $nameable = array_flip(array_values($productByBarcode));
+        $nameable = array_flip(array_values($productByCode));
         $unnameable = array_values(array_filter(array_keys($paid), fn ($productId) => ! isset($nameable[$productId])));
 
         $takenByProduct = [];
-        $codeOf = array_flip($productByBarcode);
+        $codeOf = array_flip($productByCode);
         $unknown = [];
         foreach ($taken as $code => $units) {
-            $productId = $productByBarcode[$code] ?? null;
+            $productId = $productByCode[$code] ?? null;
             if ($productId === null) {
                 $unknown[] = (string) $code;
 

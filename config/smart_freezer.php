@@ -34,14 +34,16 @@ return [
         |  - a missing goodsList makes their server throw, so one is always sent.
         |
         | Inert until app_id + app_secret are set. `auto_submit` stays off until the
-        | model id(s) are known and freezer products carry barcodes: a recognition is
+        | freezer products are modelled in Zijia's portal (under their mark1 product code)
+        | and a live door session has been proven end to end: a recognition is
         | a metered call on their side (`remainIdentifyTime`).
         */
         'algorithm' => [
             'base_url' => env('ZIJIA_ALGO_BASE_URL', 'https://algorithm.zjoyvd.cn'),
             'app_id' => env('ZIJIA_ALGO_APP_ID'),
             'app_secret' => env('ZIJIA_ALGO_APP_SECRET'),
-            // Comma-separated `modelIdList` (their example: "mengniu1"). Issued by Zijia.
+            // Comma-separated `modelIdList`. OPTIONAL — Zijia (2026-09-30): "可以先不用传";
+            // empty sends `[]` (never omitted: a missing goodsList made their server throw).
             'model_ids' => array_values(array_filter(array_map('trim', explode(',', (string) env('ZIJIA_ALGO_MODEL_IDS', ''))))),
             // Where their result is POSTed. Defaults to this app's notify route.
             'notify_url' => env('ZIJIA_ALGO_NOTIFY_URL'),
