@@ -77,6 +77,7 @@ class Product extends Model
         'freezer_slot_qty',
         // Pieces of this SKU per CityBox chiller channel (the chiller planogram writes it onto the channel).
         'chiller_slot_qty',
+        'shelf_life_days',
         'name',
         'nutri_grade',
         'operator_id',

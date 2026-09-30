@@ -169,6 +169,10 @@
                     <TableHead>
                       Default Capacity
                     </TableHead>
+                    <TableHead>
+                      Shelf Life <br>
+                      <span class="text-xs text-gray-500">(days)</span>
+                    </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Unit Cost <br>
                       <span class="text-xs text-gray-500">
@@ -267,6 +271,10 @@
                           <span v-if="product.chiller_slot_qty">Chiller <b class="text-sm">{{ product.chiller_slot_qty }}</b></span>
                         </div>
                         <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <!-- CityBox products only (Product → Edit, Smart Chiller section); blank for vending and freezer. -->
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        {{ product.shelf_life_days ?? '' }}
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
                         {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}

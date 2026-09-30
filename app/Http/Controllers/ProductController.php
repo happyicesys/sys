@@ -905,6 +905,8 @@ class ProductController extends Controller
             'freezer_slot_qty' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:999'],
             // Pieces per CityBox chiller channel — same rule, same meaning.
             'chiller_slot_qty' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:999'],
+            // Days a CityBox product keeps (Smart Chiller section). Blank = not set.
+            'shelf_life_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:3650'],
             'code' => 'required',
             'name' => 'required',
             'operator_id' => 'required',

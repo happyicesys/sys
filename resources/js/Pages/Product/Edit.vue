@@ -422,6 +422,22 @@
                   Smart Chiller mapping that carries it; leave blank until it has been counted.
                 </p>
               </div>
+              <div class="sm:col-span-3" v-if="form.id">
+                <FormInput
+                  v-model="form.shelf_life_days"
+                  inputType="number"
+                  :minValue="1"
+                  :maxValue="3650"
+                  placeholderStr="e.g. 180"
+                  :error="form.errors.shelf_life_days"
+                  :disabled="!permissions.includes('update products')"
+                >
+                  Shelf Life (days)
+                </FormInput>
+                <p class="mt-1 text-xs text-gray-500">
+                  How many days this product keeps. Leave blank for vending machine and Smart Freezer products.
+                </p>
+              </div>
 
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
@@ -793,6 +809,7 @@ function getDefaultForm() {
     measurement_value: '',
     freezer_slot_qty: '',
     chiller_slot_qty: '',
+    shelf_life_days: '',
     measurement_unit: '',
     nutri_grade: '',
     operator_id: '',
