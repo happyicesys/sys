@@ -1105,7 +1105,7 @@ class ProductMappingController extends Controller
                 }
                 // else: leave DB default order
             },
-            'productMappingItemsNormalSequence.product:id,code,name,is_active,is_parent_sku,category_id,category_group_id',
+            'productMappingItemsNormalSequence.product:id,code,name,is_active,is_parent_sku,category_id,category_group_id,freezer_slot_qty,chiller_slot_qty',
             'productMappingItemsNormalSequence.product.thumbnail',
             'productMappingItemsNormalSequence.product.category',
             'productMappingItemsNormalSequence.product.categoryGroup',
