@@ -166,6 +166,9 @@
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Operator
                     </TableHead>
+                    <TableHead>
+                      Default Capacity
+                    </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Unit Cost <br>
                       <span class="text-xs text-gray-500">
@@ -255,6 +258,15 @@
                         <span v-if="product.operator">
                           {{ product.operator.code }}
                         </span>
+                      </TableData>
+                      <!-- Pieces per smart-freezer slot / smart-chiller channel (Product → Edit): the capacity a
+                           mapping item uses unless it carries its own "Reality" override. -->
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-0.5 text-xs whitespace-nowrap" v-if="product.freezer_slot_qty || product.chiller_slot_qty">
+                          <span v-if="product.freezer_slot_qty">Freezer <b class="text-sm">{{ product.freezer_slot_qty }}</b></span>
+                          <span v-if="product.chiller_slot_qty">Chiller <b class="text-sm">{{ product.chiller_slot_qty }}</b></span>
+                        </div>
+                        <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
                         {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
