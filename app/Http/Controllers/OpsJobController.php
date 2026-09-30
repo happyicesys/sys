@@ -846,6 +846,11 @@ class OpsJobController extends Controller
                     $this->enforceMappingSwapReturns($opsJobItem, $targetMappingId);
                 }
 
+                // Smart Freezer: mark1 is the only source of its stock. Set each SKU to what the
+                // driver left in the cabinet — after the swap returns above adjusted the refill of
+                // leaving SKUs, before FreezerChannelSync below carries qty across the new mapping.
+                app(\App\Services\Freezer\FreezerStockLedger::class)->stockIn($opsJobItem);
+
                 if ($hasMappingChange && $vend) {
                     // Only advance once the upcoming mapping's declared start
                     // date is effective (no start date => always effective).
@@ -2245,6 +2250,7 @@ class OpsJobController extends Controller
                 $opsJobItem->undo_completed_by = auth()->id();
                 $opsJobItem->save();
                 $this->revertCityboxCountOnUndo($opsJobItem);
+                app(\App\Services\Freezer\FreezerStockLedger::class)->undoStockIn($opsJobItem);
                 break;
             case OpsJob::STATUS_VERIFIED:
                 $opsJobItem->status = OpsJob::STATUS_DELIVERED;

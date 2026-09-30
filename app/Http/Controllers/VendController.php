@@ -3415,13 +3415,11 @@ class VendController extends Controller
      * every mapped SKU with thumbnail/name so the UI can draw the six-basket
      * grid straight from the planogram, whether or not channel data ever lands.
      *
-     * qty is best-effort. The smart-freezer APK never sends a CHANNEL frame
-     * (it treats CHANNEL purely as a "re-pull your menu" nudge), so until mark1
-     * itself writes vend_channels for smart vends — topup baseline from the ops
-     * job item, decremented per vend_transaction — there is no stock feed and
-     * every slot reports null. `has_stock_feed` says which of those two worlds
-     * the UI is in, so it can label "no stock feed yet" instead of an ambiguous
-     * dash on every cell.
+     * The smart-freezer APK never sends a CHANNEL frame (it treats CHANNEL purely
+     * as a "re-pull your menu" nudge), so qty is mark1's own ledger
+     * (FreezerStockLedger, 2026-09-30): set at Stock In, decremented per sale.
+     * `has_stock_feed` is false only while the freezer has no vend_channels rows,
+     * so the UI can label "no stock feed yet" instead of a dash on every cell.
      */
     public function smartPlanogram($id)
     {

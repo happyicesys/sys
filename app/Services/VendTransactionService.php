@@ -60,6 +60,13 @@ class VendTransactionService
         return $this->lateTradeTracker ??= app(LateTradeTracker::class);
     }
 
+    private ?\App\Services\Freezer\FreezerStockLedger $freezerStockLedger = null;
+
+    private function freezerStockLedger(): \App\Services\Freezer\FreezerStockLedger
+    {
+        return $this->freezerStockLedger ??= app(\App\Services\Freezer\FreezerStockLedger::class);
+    }
+
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
         $vend->loadMissing([
@@ -154,6 +161,8 @@ class VendTransactionService
                     }
 
                     $wasPreCreatedUpdate = true;
+                    // Smart Freezer stock out — here and on the fresh path only, never on a replay.
+                    $this->freezerStockLedger()->sale($vend, $existingVendTransaction);
 
                     return $existingVendTransaction;
                 }
@@ -179,6 +188,7 @@ class VendTransactionService
                 if ($transaction) {
                     // A sale booked on a past day dirties that day's rollups.
                     $this->lateTradeTracker()->noteLanded($transaction);
+                    $this->freezerStockLedger()->sale($vend, $transaction);
                 }
 
                 if ($transaction && $transaction->amount > 0) {

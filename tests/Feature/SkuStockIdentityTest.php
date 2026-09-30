@@ -294,7 +294,10 @@ class SkuStockIdentityTest extends TestCase
         $rows = $this->rows($vend)->where('is_active', true)->values();
         $this->assertSame(['21', '51'], $rows->map(fn ($r) => $r->label)->all());
         $this->assertSame($c->id, (int) $rows[0]->product_id, 'C took 21 once B released it');
-        $this->assertSame(6, (int) $rows->firstWhere('product_id', $a->id)->qty, "A's ledger survived the move to 51");
+        // The ledger (FreezerStockLedger, 2026-09-30): count + refill, carried across the move.
+        $this->assertSame(10, (int) $rows->firstWhere('product_id', $a->id)->qty, "A's 6 survived the move to 51 and took its refill of 4");
+        $this->assertSame(12, (int) $rows->firstWhere('product_id', $c->id)->qty, 'the arriving SKU starts at what was loaded');
+        $this->assertSame(0, (int) VendChannel::where('vend_id', $vend->id)->where('product_id', $b->id)->value('qty'), 'the leaving SKU was returned in full');
         $this->assertFalse((bool) VendChannel::where('vend_id', $vend->id)->where('product_id', $b->id)->value('is_active'));
     }
 }
