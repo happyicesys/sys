@@ -995,7 +995,7 @@
                                  saw, and how long the check took (videos received → result); the
                                  breakdown — our wait vs the AI's own turnaround — is in the tooltip. -->
                             <div v-if="vendTransaction.ai_recognition"
-                                class="flex flex-col items-center space-y-0.5 leading-tight"
+                                class="flex flex-col items-center space-y-0.5 leading-tight max-w-[6.5rem] mx-auto"
                                 :title="aiRecognitionTooltip(vendTransaction.ai_recognition)">
                                 <a :href="permissions.includes('read ai-recognition') ? '/ai-recognition?search=' + encodeURIComponent(vendTransaction.ai_recognition.trade_id) : null"
                                     target="_blank"
@@ -1004,7 +1004,7 @@
                                     {{ aiRecognitionBadge(vendTransaction.ai_recognition).label }}
                                 </a>
                                 <span v-for="item in vendTransaction.ai_recognition.items" :key="item.code"
-                                    class="text-[10px] text-gray-700 whitespace-nowrap">
+                                    class="text-[10px] text-gray-700 break-words">
                                     {{ item.number }} × {{ item.name || item.code }}
                                 </span>
                                 <span v-if="vendTransaction.ai_recognition.total_seconds !== null"
