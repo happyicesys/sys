@@ -211,13 +211,24 @@
                                @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature. From app v21 the machine hands it back by itself after ' + REMOTE_LEASE_MINUTES + ' minutes.')">Remote</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
+              <!--
+                App 22+: the AG-325's fan output is the demister above the glass lid. The machine keeps it on,
+                takes it to remote itself on every press, and turns an Off back on after 30 minutes.
+              -->
+              <ControlRow v-if="data.supported_demist_fan" label="Demist fan (glass lid)" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="status.fanOn === false ? 'warn' : boolTone(status.fanOn)"
+                          note="always on · Off lasts 30 min" :reason="blockedReason">
+                <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
+                <ControlButton :disabled="!canSend" :active="status.fanOn === false"
+                               @click="ask('fan', { on: false }, 'Turn the demist fan off?', 'The glass lid may fog while it is off. The machine turns it back on by itself after 30 minutes.')">Off</ControlButton>
+              </ControlRow>
+
+              <ControlRow v-if="!data.supported_demist_fan" label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
                 <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
                 <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
               </ControlRow>
 
-              <!-- The fan's own control register (风机控制): app v20+, and a unit whose plugin Zijia has updated. -->
-              <ControlRow label="Fan control" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
+              <!-- The fan's own control register (风机控制): app v20–21 only; from 22 the demist fan row does it. -->
+              <ControlRow v-if="!data.supported_demist_fan" label="Fan control" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
                           :note="data.supported_thermostat_modes ? '' : 'needs app v20'" :reason="thermostatModeBlocked">
                 <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === false"
                                @click="ask('fanmode', { on: false }, 'Give the fan back to the controller?', 'The controller then runs it off the door switch, and remote on/off stops working.')">Controller</ControlButton>

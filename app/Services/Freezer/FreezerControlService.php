@@ -69,6 +69,13 @@ class FreezerControlService
 
     public const MIN_APK_VERSION_CODE_DELTA = 22;
 
+    /**
+     * From APK 22 the AG-325's fan output is run as the demister fan above the glass lid: the app keeps
+     * it on (DemistFanKeeper), each fan On/Off takes it to remote itself, and an Off turns back on
+     * after 30 minutes. The page shows one "Demist fan" row instead of Cabinet fan + Fan control.
+     */
+    public const MIN_APK_VERSION_CODE_DEMIST_FAN = 22;
+
     /** The AG-325's own C0 range (manual parameter table; factory value 3). The APK enforces it too. */
     public const DELTA_MIN = 1;
 

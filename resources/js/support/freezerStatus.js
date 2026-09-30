@@ -148,8 +148,14 @@ export class FreezerStatus {
         return this.thermostat.compressorRemoteMode ?? null;
     }
 
+    /** The thermostat's fan output (the lid demister); the driver board's reading when the thermostat has none. */
     get fanOn() {
-        return this.raw?.fanOn ?? null;
+        return this.thermostat.fanOn ?? this.raw?.fanOn ?? null;
+    }
+
+    /** App 22+ runs the fan as the lid demister and keeps it on itself. */
+    get demistManaged() {
+        return Number(this.raw?.apk?.versionCode ?? 0) >= 22;
     }
 
     get fanRemote() {
@@ -259,7 +265,7 @@ export class FreezerStatus {
         if (this.compressorRemote === false) {
             notes.push('The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.');
         }
-        if (this.fanRemote === false) {
+        if (this.fanRemote === false && !this.demistManaged) {
             notes.push('The fan follows the door switch on the controller, so Cabinet fan on/off is ignored until you press Remote under Fan control (app v20+).');
         }
         return notes;
@@ -279,8 +285,10 @@ export class FreezerStatus {
             { label: 'Lock', value: this.door.lockState ?? '—', tone: this.door.lockState === 'locked' ? TONE.OK : this.door.lockState === 'unlocked' ? TONE.WARN : TONE.UNKNOWN },
             { label: 'Door', value: this.door.doorState ?? '—', tone: this.door.doorState === 'closed' ? TONE.OK : this.door.doorState === 'opened' ? TONE.WARN : TONE.UNKNOWN },
             { label: 'Lock link', value: this.door.lockOnlineState ?? '—', tone: this.door.lockOnlineState === 'online' ? TONE.OK : TONE.UNKNOWN },
-            { label: 'Cabinet fan', value: onOff(this.fanOn), tone: boolTone(this.fanOn) },
-            { label: 'Fan control', value: modeText(this.fanRemote), tone: modeTone(this.fanRemote) },
+            this.demistManaged
+                ? { label: 'Demist fan', value: onOff(this.fanOn), tone: this.fanOn === false ? TONE.WARN : boolTone(this.fanOn) }
+                : { label: 'Cabinet fan', value: onOff(this.fanOn), tone: boolTone(this.fanOn) },
+            ...(this.demistManaged ? [] : [{ label: 'Fan control', value: modeText(this.fanRemote), tone: modeTone(this.fanRemote) }]),
             { label: 'Light', value: this.lightState || 'not reported', tone: this.lightState ? TONE.INFO : TONE.UNKNOWN },
             { label: 'Volume', value: this.volume ?? '—', tone: this.volume === 0 ? TONE.WARN : this.volume === null ? TONE.UNKNOWN : TONE.INFO },
             {

@@ -194,6 +194,8 @@ class FreezerRemoteControlTest extends TestCase
             ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 22)."]);
         $this->assertSame(0, FreezerControlCommand::count());
         $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_delta'));
+        // App 21 still shows Cabinet fan + Fan control; from 22 the app runs it as the lid demister.
+        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_demist_fan'));
 
         // The AG-325's own C0 range; anything else is refused before it is sent.
         foreach ([0, 26, -3, 2.5, '5', null] as $i => $bad) {
@@ -205,6 +207,7 @@ class FreezerRemoteControlTest extends TestCase
 
         $vend = $this->freezer(['code' => 50022, 'apk_version_code' => 22]);
         $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_delta'));
+        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_demist_fan'));
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'delta', 'args' => ['celsius' => 5]])
             ->assertStatus(202);
         $row = FreezerControlCommand::sole();

@@ -82,6 +82,8 @@ class FreezerControlController extends Controller
             'supported_thermostat_modes' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
             // Delta (C0) needs APK 22 (BoxSDK 1.2.0 setThermostatDelta).
             'supported_delta' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DELTA,
+            // The fan is the lid demister, kept on by the app (APK 22).
+            'supported_demist_fan' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DEMIST_FAN,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,
