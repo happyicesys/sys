@@ -1114,6 +1114,14 @@
                   </div>
                 </div>
               </div>
+
+            <!-- On-hand qty, overwritable by hand (二哥 chiller / 三哥 freezer). A vending machine's
+                 qty is its VMC's, so it gets no such section. -->
+            <StockQtyAdjust
+              v-if="isChiller || isSmartFreezer"
+              :vend-id="vend.id"
+              :can-edit="permissions.includes('update machine-settings')"
+            />
             <hr class="sm:col-span-6">
 
             <!-- Validation error summary — always visible when save fails -->
@@ -1824,6 +1832,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 
 import FormInput from '@/Components/FormInput.vue';
 import FieldAudit from '@/Components/FieldAudit.vue';
+import StockQtyAdjust from '@/Components/StockQtyAdjust.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';

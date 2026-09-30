@@ -1023,6 +1023,20 @@ never on "not a vending machine" at the call site.
 Regression coverage: `tests/Feature/SkuStockIdentityTest.php`,
 `tests/Unit/ChannelCodeTest.php`, `tests/Feature/FreezerChannelSyncTest.php`.
 
+**Hand overwrite of on-hand qty** (Setting/Edit "Stock Qty", 2026-09-30 — ops and
+technicians correct a count without an ops job). `App\Services\Stock\ChannelQtyAdjuster`
+is the only writer, and every applied change is a `vend_channel_qty_adjustments` row
+(who, when, before → after), shown on the row as "brian · 260930 11:03 pm (3 → 7)".
+Freezer: sets `vend_channels.qty` (our ledger). Chiller: sends the new figure to CityBox
+through `device_stock_submit` on the machine's LAST door-open session, as the FULL live
+list with one line changed (a partial stocktake is unproven), reads it back, mirrors it;
+no door-open ever from mark1 = refused. Vending machine: refused — its VMC's next
+CHANNEL frame would overwrite it. Every overwrite carries the qty the person saw and is
+refused if the machine moved since (a sale, a Stock In). A chiller DECREASE made here is
+recorded by the next minute poll as a `sale` movement in `citybox_stock_movements`
+(no door-open window) — nothing reads that table yet. Regression coverage:
+`tests/Feature/VendStockQtyAdjustTest.php`.
+
 ## Ops job stops: four kinds of row, one registry
 
 An ops job (a driver-day) carries four row types: `ops_job_items` (machine

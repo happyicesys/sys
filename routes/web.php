@@ -1115,6 +1115,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/citybox-open-door', [\App\Http\Controllers\Citybox\CityboxVendActionController::class, 'openDoor']);
         Route::post('/{id}/citybox-pull', [\App\Http\Controllers\Citybox\CityboxVendActionController::class, 'pull']);
         Route::get('/{id}/citybox-planogram', [\App\Http\Controllers\Citybox\CityboxVendActionController::class, 'planogram']);
+        // Setting/Edit "Stock Qty": hand overwrite of a Smart Chiller / Smart Freezer SKU's on-hand qty.
+        Route::get('/{id}/stock-qty', [\App\Http\Controllers\VendStockQtyController::class, 'index'])
+            ->middleware('can:read machine-settings');
+        Route::post('/{id}/stock-qty/{channelId}', [\App\Http\Controllers\VendStockQtyController::class, 'update'])
+            ->middleware('can:update machine-settings');
         Route::post('/{id}/restart-apk', [VendController::class, 'restartAPK']);
         Route::post('/{id}/restart-vmc', [VendController::class, 'restartVMC']);
         Route::post('/{id}/sync-apk-settings', [VendController::class, 'syncApkSettings']);
