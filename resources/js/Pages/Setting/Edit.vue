@@ -1336,7 +1336,7 @@
                   <Button
                     type="button"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="!isChiller && vend && vend.customer && permissions.includes('update vend-settings')"
+                    v-if="vend && vend.customer && permissions.includes('update vend-settings')"
                     @click.prevent="unbindCustomer(form.id)"
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
@@ -1347,7 +1347,7 @@
                   <Button
                     type="button"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="!isChiller && vend && vend.customer && permissions.includes('update vend-settings')"
+                    v-if="vend && vend.customer && permissions.includes('update vend-settings')"
                     @click.prevent="unbindCustomerDeactivate(form.id)"
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
