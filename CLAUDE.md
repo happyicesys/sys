@@ -875,6 +875,35 @@ Integration record, live proofs and open questions for Zijia:
 `tests/Feature/ZijiaVideoWebhookTest.php`, `tests/Feature/ZijiaAlgorithmRecognitionTest.php`,
 `tests/Unit/ZijiaAlgorithmPiecesTest.php`.
 
+## Remote card terminals (Payrallel): one writer, void what nobody fulfils
+
+Built 2026-09-30 for the smart freezer, **not yet run against Payrallel** — bench
+steps: `apk/smart-freezer/PAYRALLEL_BENCH_RUNBOOK_2026-09-30.md`. Inert until
+`PAYRALLEL_API_BASE_URL` is set and a terminal is bound
+(`php artisan payrallel:bind-terminal {vend}`, token stored encrypted on
+`remote_card_terminals`, one per terminal). Nothing here touches NETS: those
+terminals are `card_terminal_units`, reconciled from the NETS CSV.
+
+- **`App\Services\CardTerminal\CardPaymentService` is the only writer of
+  `card_payment_intents`** (state diagram on the model). The device API
+  (`Api\V1\FreezerCardController`, `/api/v1/vends/{code}/card/*`) and
+  `card-payments:reconcile` (every minute) both go through it.
+- **An approval nobody will act on is voided:** a cancel that raced the tap, a
+  send that timed out but may have reached the terminal (`CardTerminalException::$mayHaveReachedTerminal`),
+  an attempt past `intent_ttl_seconds`. A void is refused after capture or past
+  `device_void_window_minutes` — the goods may be gone.
+- Only an exact provider `approved` approves (`PayrallelGateway::query`); an
+  unknown word stays processing.
+- Device requests are HMAC-signed with the vend's `private_key`
+  (`VerifyDeviceSignature`, alias `device.signed`); the freezer's
+  `DeviceRequestSigner` is pinned to it byte-for-byte. A vend on the fleet
+  fallback key is only as private as that key.
+- A new provider = one more `RemoteCardTerminalGateway` + a line in
+  `RemoteCardTerminalGatewayFactory`; the rules above do not move.
+
+Regression coverage: `tests/Feature/CardPaymentServiceTest.php`,
+`tests/Feature/PayrallelGatewayTest.php`, `tests/Feature/FreezerCardApiTest.php`.
+
 ## Smart Chiller (CityBox): not a vending machine with extra fields
 
 A `machine_type = smart_chiller` vend is CityBox's hardware running CityBox's

@@ -32,6 +32,10 @@ class Kernel extends ConsoleKernel
         // snapshot's synced_at and treat it as an estimate; the driver's
         // on-site count via device_stock_submit is the source of truth anyway.
         $schedule->command('citybox:openapi-poll')->everyMinute();
+        // Remote-terminal card attempts (smart-freezer Payrallel rail): resolve what the
+        // device stopped polling and void approvals no door will follow. A no-op
+        // (one indexed query) while nothing is open.
+        $schedule->command('card-payments:reconcile')->everyMinute()->withoutOverlapping();
         // Hourly mirror of their SKU catalog (§5). Same enabled guard inside.
         $schedule->command('citybox:sync-products')->hourly();
         // Their enabled/disabled `status` every minute (Brian, 2026-09-05). It is

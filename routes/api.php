@@ -46,6 +46,20 @@ Route::prefix('v1')->group(function () {
     Route::post('/vends/{code}/photos', [\App\Http\Controllers\FreezerControlController::class, 'uploadPhoto']);
     Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
 
+    // Device -> mark1 card rail for a machine on a remote (cloud) terminal — the smart
+    // freezer's Payrallel rail. Moves money, so every call is signed by the machine.
+    Route::prefix('/vends/{code}/card')
+        ->middleware(['throttle:device-card', 'device.signed'])
+        ->controller(\App\Http\Controllers\Api\V1\FreezerCardController::class)
+        ->group(function () {
+            Route::get('/terminal', 'terminal');
+            Route::post('/authorize', 'authorizePayment');
+            Route::get('/{reference}', 'show');
+            Route::post('/{reference}/cancel', 'cancel');
+            Route::post('/{reference}/capture', 'capture');
+            Route::post('/{reference}/void', 'void');
+        });
+
 });
 
 Route::prefix('delivery')->group(function () {

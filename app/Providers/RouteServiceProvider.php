@@ -52,5 +52,11 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('client', function (Request $request) {
             return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
         });
+
+        // Device card rail: per MACHINE, not per IP — freezers on carrier SIMs can share
+        // one NAT address. A card attempt polls ~40/min; 120 leaves room for a retry burst.
+        RateLimiter::for('device-card', function (Request $request) {
+            return Limit::perMinute(120)->by('device-card:'.$request->route('code'));
+        });
     }
 }
