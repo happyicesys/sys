@@ -58,10 +58,10 @@ class OperatorScope
      * this is the only list — never spell it out in a page or controller again
      * (tests/Unit/NoInlineOperatorGroupTest.php).
      *
-     * CB is in the ceiling above but has never been part of these defaults;
-     * that is unchanged.
+     * CB (Citybox) joined 2026-10-01 (Brian): HIPL ops staff run the Smart
+     * Chillers, so every Operator filter now opens with them selected too.
      */
-    public const DEFAULT_FILTER_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'XO', 'MSW'];
+    public const DEFAULT_FILTER_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'XO', 'MSW', 'CB'];
 
     /**
      * Per-request memo, keyed by user id — the ceiling is asked for several

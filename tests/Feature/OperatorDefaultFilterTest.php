@@ -13,7 +13,8 @@ use Tests\TestCase;
 /**
  * XO and MSW joined HIPL's default Operator filter on 2026-09-11: their
  * machines take payment on our Omise account and our NETS terminals, so HIPL
- * ops staff run them with our own. The list is OperatorScope::DEFAULT_FILTER_CODES
+ * ops staff run them with our own. CB (Citybox) joined on 2026-10-01: HIPL ops
+ * run the Smart Chillers. The list is OperatorScope::DEFAULT_FILTER_CODES
  * and every page and controller reads it from there.
  */
 class OperatorDefaultFilterTest extends TestCase
@@ -32,11 +33,10 @@ class OperatorDefaultFilterTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_hipl_default_filter_includes_xo_and_msw_but_not_cb_or_a_deactivated_sibling(): void
+    public function test_hipl_default_filter_includes_xo_msw_and_cb_but_not_a_deactivated_sibling(): void
     {
-        $expected = collect(['HIPL', 'HIMD', 'HIESG', 'UL-ST', 'XO', 'MSW'])
+        $expected = collect(['HIPL', 'HIMD', 'HIESG', 'UL-ST', 'XO', 'MSW', 'CB'])
             ->mapWithKeys(fn ($code) => [$code => (int) $this->operator($code)->id]);
-        $cb = $this->operator('CB');
         $lea = $this->operator('LEA', false);
 
         $default = OperatorScope::defaultFilterIds();
@@ -44,7 +44,6 @@ class OperatorDefaultFilterTest extends TestCase
         foreach ($expected as $code => $id) {
             $this->assertContains($id, $default, "{$code} is missing from the default Operator filter");
         }
-        $this->assertNotContains((int) $cb->id, $default);
         $this->assertNotContains((int) $lea->id, $default);
     }
 

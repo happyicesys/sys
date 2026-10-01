@@ -111,9 +111,10 @@ transaction grids enforce). The two are deliberately different — do not swap o
 for the other, it moves live numbers.
 
 What an HIPL viewer's Operator filter **opens with** is a third list,
-`OperatorScope::DEFAULT_FILTER_CODES` (HIPL, HIMD, LEA, HIESG, UL-ST, XO, MSW —
+`OperatorScope::DEFAULT_FILTER_CODES` (HIPL, HIMD, LEA, HIESG, UL-ST, XO, MSW, CB —
 XO and MSW since 2026-09-11, Brian: their machines take payment on our Omise
-account and NETS terminals). It also decides whose sales the Dashboard's
+account and NETS terminals; CB (Citybox) since 2026-10-01, Brian: HIPL ops run
+the Smart Chillers). It also decides whose sales the Dashboard's
 monthly sales popup totals. PHP reads it through
 `OperatorScope::defaultFilterIds()`; Vue through `hiplDefaultOperators()`
 (`resources/js/constants/defaultOperators.js`, fed by the shared

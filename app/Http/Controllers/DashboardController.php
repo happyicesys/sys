@@ -363,7 +363,7 @@ class DashboardController extends Controller
     /**
      * Lightweight JSON for the post-login "This month sales" popup.
      *
-     * Only the HIPL operator group (HIPL + HIMD + LEA + HIESG + UL-ST) is eligible.
+     * Only the default Operator filter group (OperatorScope::DEFAULT_FILTER_CODES) is eligible.
      * The figure mirrors the dashboard's sales total exactly: SUM(total_amount)
      * from vend_records for every day from the 1st up to *yesterday*, plus today's
      * live vend_transactions (DispenseVerdict sale codes/NULL, amount > 0). vend_records
@@ -433,8 +433,8 @@ class DashboardController extends Controller
             }
         }
 
-        // XO + MSW count in this total since 2026-09-11 (Brian): same group as
-        // the default Operator filter.
+        // XO + MSW count in this total since 2026-09-11 and CB (Citybox) since
+        // 2026-10-01 (Brian): same group as the default Operator filter.
         $operatorIds = Operator::whereIn('code', \App\Support\OperatorScope::DEFAULT_FILTER_CODES)
             ->pluck('id')
             ->all();
