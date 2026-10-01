@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
         ->controller(\App\Http\Controllers\Api\V1\FreezerCardController::class)
         ->group(function () {
             Route::get('/terminal', 'terminal');
+            Route::post('/events', 'events');
             Route::post('/authorize', 'authorizePayment');
             Route::get('/{reference}', 'show');
             Route::post('/{reference}/cancel', 'cancel');

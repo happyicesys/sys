@@ -70,6 +70,16 @@ return [
             'days' => 14,
         ],
 
+        // Payrallel remote card terminal (smart-freezer T05 trial): every provider
+        // call, attempt state change and terminal status change, in one file.
+        // The same lines are in card_payment_events; this copy survives a DB restore.
+        'payrallel' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/payrallel.log'),
+            'level' => 'debug',
+            'days' => 60,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

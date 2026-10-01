@@ -34,7 +34,10 @@ class CardPaymentService
 
     private const TERMINAL_STATUS_CACHE_SECONDS = 10;
 
-    public function __construct(private readonly RemoteCardTerminalGatewayFactory $gateways) {}
+    public function __construct(
+        private readonly RemoteCardTerminalGatewayFactory $gateways,
+        private readonly CardTerminalEventLog $events,
+    ) {}
 
     /**
      * Starts (or returns) the attempt for this device reference. Idempotent: a
@@ -226,6 +229,17 @@ class CardPaymentService
             $status = $this->gateways->for($terminal)->status($terminal);
         } catch (CardTerminalException $e) {
             $status = new TerminalStatus(false, null, ['error' => $e->getMessage()]);
+        }
+        if ($terminal->last_status_at === null
+            || $terminal->last_online !== $status->online
+            || $terminal->last_state !== $status->state) {
+            $this->events->record('terminal.status', array_filter([
+                'online' => $status->online,
+                'state' => $status->state,
+                'was_online' => $terminal->last_online,
+                'was_state' => $terminal->last_state,
+                'error' => $status->raw['error'] ?? null,
+            ], fn ($v) => $v !== null), $terminal, null, null, $status->online ? 'info' : 'warning');
         }
         $terminal->update([
             'last_online' => $status->online,

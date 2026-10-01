@@ -3,6 +3,7 @@
 namespace App\Services\CardTerminal\Payrallel;
 
 use App\Models\RemoteCardTerminal;
+use App\Services\CardTerminal\CardTerminalEventLog;
 use App\Services\CardTerminal\CardTerminalException;
 use App\Services\CardTerminal\RemoteCardTerminalGateway;
 use App\Services\CardTerminal\TerminalStatus;
@@ -26,9 +27,15 @@ use Illuminate\Support\Facades\Http;
  * Auth is per terminal: every request carries that terminal's own token in the
  * header shape `payrallel.authorization_format`. Tokens never reach a log or
  * an exception message.
+ *
+ * Every call is written to the trial timeline (CardTerminalEventLog
+ * `provider.http` / `provider.unreachable`) with its raw answer and timing —
+ * the public guide shows no error catalogue, so the real bodies are the spec.
  */
 class PayrallelGateway implements RemoteCardTerminalGateway
 {
+    public function __construct(private readonly CardTerminalEventLog $events) {}
+
     public function requestSale(RemoteCardTerminal $terminal, string $orderId, int $cents): void
     {
         $this->send($terminal, 'terminal/payment-request/sale', $this->amountBody($orderId, $cents));
@@ -112,12 +119,32 @@ class PayrallelGateway implements RemoteCardTerminalGateway
 
     private function post(RemoteCardTerminal $terminal, string $path, array $body): Response
     {
+        $client = $this->client($terminal);
+        $orderId = isset($body['customOrderId']) ? (string) $body['customOrderId'] : null;
+        $started = hrtime(true);
         try {
             // (object) so an empty body is sent as {} rather than [].
-            return $this->client($terminal)->post($path, (object) $body);
+            $response = $client->post($path, (object) $body);
         } catch (ConnectionException $e) {
+            $this->events->record('provider.unreachable', [
+                'path' => $path, 'request' => $body, 'error' => $e->getMessage(),
+            ], $terminal, $orderId, $this->elapsedMs($started), 'warning');
             throw new CardTerminalException("Payrallel unreachable ({$path}): ".$e->getMessage(), 0, $e);
         }
+
+        $this->events->record('provider.http', [
+            'path' => $path,
+            'request' => $body,
+            'http_status' => $response->status(),
+            'response' => CardTerminalEventLog::body($response->body()),
+        ], $terminal, $orderId, $this->elapsedMs($started), $response->successful() ? 'info' : 'warning');
+
+        return $response;
+    }
+
+    private function elapsedMs(int $startedNs): int
+    {
+        return (int) round((hrtime(true) - $startedNs) / 1_000_000);
     }
 
     private function client(RemoteCardTerminal $terminal): PendingRequest

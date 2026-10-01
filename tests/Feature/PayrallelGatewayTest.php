@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\CardPaymentEvent;
 use App\Models\RemoteCardTerminal;
 use App\Services\CardTerminal\CardTerminalException;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\CardTerminal\TerminalTransaction;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -16,6 +18,8 @@ use Tests\TestCase;
  */
 class PayrallelGatewayTest extends TestCase
 {
+    use RefreshDatabase;
+
     private PayrallelGateway $gateway;
 
     private RemoteCardTerminal $terminal;
@@ -24,7 +28,7 @@ class PayrallelGatewayTest extends TestCase
     {
         parent::setUp();
         config(['payrallel.base_url' => 'https://pay.example/api', 'payrallel.authorization_format' => 'Bearer {token}']);
-        $this->gateway = new PayrallelGateway;
+        $this->gateway = $this->app->make(PayrallelGateway::class);
         $this->terminal = new RemoteCardTerminal(['provider' => 'payrallel', 'access_token' => 'tok-1']);
         $this->terminal->id = 7;
     }
@@ -41,6 +45,27 @@ class PayrallelGatewayTest extends TestCase
                 && $r->header('Authorization')[0] === 'Bearer tok-1'
                 && $r->data() === ['amountInCents' => 430, 'customOrderId' => '50001-SF1'];
         });
+    }
+
+    public function test_every_call_is_on_the_timeline_with_its_raw_answer(): void
+    {
+        Http::fake(['pay.example/*' => Http::response(['success' => false, 'message' => 'Terminal offline'], 503)]);
+
+        try {
+            $this->gateway->requestSale($this->terminal, '50001-SF1', 430);
+        } catch (CardTerminalException) {
+        }
+
+        $e = CardPaymentEvent::sole();
+        $this->assertSame('provider.http', $e->event);
+        $this->assertSame('warning', $e->level);
+        $this->assertSame('50001-SF1', $e->custom_order_id);
+        $this->assertSame('terminal/payment-request/sale', $e->detail['path']);
+        $this->assertSame(503, $e->detail['http_status']);
+        $this->assertStringContainsString('Terminal offline', $e->detail['response']);
+        $this->assertSame(['amountInCents' => 430, 'customOrderId' => '50001-SF1'], $e->detail['request']);
+        $this->assertNotNull($e->duration_ms);
+        $this->assertStringNotContainsString('tok-1', json_encode($e->detail), 'the token never reaches the timeline');
     }
 
     public function test_every_endpoint_path(): void

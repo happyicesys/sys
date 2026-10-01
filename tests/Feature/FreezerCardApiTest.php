@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyDeviceSignature;
+use App\Models\CardPaymentEvent;
 use App\Models\CardPaymentIntent;
 use App\Models\RemoteCardTerminal;
 use App\Models\Vend;
@@ -126,5 +127,79 @@ class FreezerCardApiTest extends TestCase
             ->assertStatus(503);
         $this->signed('GET', '/api/v1/vends/50001/card/terminal')->assertOk()->assertJson(['configured' => false, 'ready' => false]);
         $this->assertSame(0, CardPaymentIntent::where('reference', 'SF4')->count());
+    }
+
+    public function test_the_trial_timeline_records_device_actions_state_changes_and_rejections(): void
+    {
+        $this->signed('GET', '/api/v1/vends/50001/card/terminal');
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF9', 'amount_cents' => 430]);
+        $this->gateway->answer('50001-SF9', T::APPROVED);
+        $this->signed('GET', '/api/v1/vends/50001/card/SF9');
+        $this->signed('POST', '/api/v1/vends/50001/card/SF9/capture', ['amount_cents' => 430]);
+        $this->signed('GET', '/api/v1/vends/50001/card/terminal', [], 'WRONGKEY');
+
+        $events = CardPaymentEvent::orderBy('id')->get();
+        $this->assertSame([
+            'terminal.status',
+            'intent.created',
+            'intent.state',      // pending → processing
+            'device.request',    // authorize
+            'intent.state',      // processing → approved
+            'intent.state',      // approved → captured
+            'device.request',    // capture
+            'device.rejected',
+        ], $events->pluck('event')->all());
+
+        $states = $events->where('event', 'intent.state')->map(fn ($e) => $e->detail['from'].'>'.$e->detail['to'])->values()->all();
+        $this->assertSame(['pending>processing', 'processing>approved', 'approved>captured'], $states);
+        $this->assertSame('authorize', $events[3]->detail['action']);
+        $this->assertSame(202, $events[3]->detail['http_status']);
+        $this->assertNotNull($events[3]->duration_ms);
+        $this->assertSame('bad signature', $events->last()->detail['why']);
+        $this->assertTrue($events->every(fn ($e) => $e->vend_id !== null));
+    }
+
+    public function test_terminal_status_is_logged_only_when_it_changes(): void
+    {
+        $this->signed('GET', '/api/v1/vends/50001/card/terminal');
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->signed('GET', '/api/v1/vends/50001/card/terminal');
+        $this->assertSame(1, CardPaymentEvent::where('event', 'terminal.status')->count());
+
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->gateway->status = new \App\Services\CardTerminal\TerminalStatus(false, null);
+        $this->signed('GET', '/api/v1/vends/50001/card/terminal');
+        $change = CardPaymentEvent::where('event', 'terminal.status')->orderByDesc('id')->first();
+        $this->assertSame(2, CardPaymentEvent::where('event', 'terminal.status')->count());
+        $this->assertFalse($change->detail['online']);
+        $this->assertTrue($change->detail['was_online']);
+    }
+
+    public function test_device_events_land_on_the_timeline(): void
+    {
+        $this->signed('POST', '/api/v1/vends/50001/card/events', ['events' => [
+            ['event' => 'rail.selected', 'detail' => ['rail' => 'remote', 'reason' => 'terminal bound in mark1']],
+            ['event' => 'call.failed', 'level' => 'warning', 'reference' => 'SF5', 'ms' => 8000, 'detail' => ['call' => 'status', 'error' => 'timeout']],
+        ]])->assertOk()->assertJson(['recorded' => 2]);
+
+        $rows = CardPaymentEvent::orderBy('id')->get();
+        $this->assertSame(['device.rail.selected', 'device.call.failed'], $rows->pluck('event')->all());
+        $this->assertSame('remote', $rows[0]->detail['rail']);
+        $this->assertSame('50001-SF5', $rows[1]->custom_order_id);
+        $this->assertSame(8000, $rows[1]->duration_ms);
+        $this->assertSame('warning', $rows[1]->level);
+
+        $this->signed('POST', '/api/v1/vends/50001/card/events', ['events' => [['event' => 'Bad Name!']]])->assertStatus(422);
+    }
+
+    public function test_timeline_command_prints_the_attempt(): void
+    {
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF7', 'amount_cents' => 430]);
+
+        $this->artisan('payrallel:timeline', ['vend' => '50001', '--ref' => 'SF7'])
+            ->expectsOutputToContain('intent.created')
+            ->expectsOutputToContain('from=pending to=processing')
+            ->expectsOutputToContain('action=authorize')
+            ->assertSuccessful();
     }
 }

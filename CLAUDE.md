@@ -900,6 +900,15 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   fallback key is only as private as that key.
 - A new provider = one more `RemoteCardTerminalGateway` + a line in
   `RemoteCardTerminalGatewayFactory`; the rules above do not move.
+- **The trial timeline** (`card_payment_events`, file `storage/logs/payrallel.log`):
+  `CardTerminalEventLog` is its only writer and never throws. It records every
+  Payrallel call with the raw body, every intent state change (model hook, so no
+  call site can skip it), terminal status changes, binds, refused device
+  requests, and the freezer's own `device.*` events (`POST …/card/events`). Read
+  it with `php artisan payrallel:timeline {vend} [--since= --ref= --raw]`.
+- The freezer picks this rail only where a terminal is bound here
+  (`SF_CARD_RAIL=auto`, `SelectingCardRail`): binding is the switch, `--deactivate`
+  switches back.
 
 Regression coverage: `tests/Feature/CardPaymentServiceTest.php`,
 `tests/Feature/PayrallelGatewayTest.php`, `tests/Feature/FreezerCardApiTest.php`.

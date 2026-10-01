@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CardTerminal\CardTerminalEventLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -91,6 +92,42 @@ class CardPaymentIntent extends Model
         'resolved_at' => 'datetime',
         'last_response' => 'array',
     ];
+
+    /**
+     * Every attempt and every state change lands on the trial timeline, whoever
+     * made it (device, reconciler, a human in tinker) — one hook, no call site
+     * can forget it.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (self $intent) {
+            app(CardTerminalEventLog::class)->record('intent.created', [
+                'reference' => $intent->reference,
+                'amount_cents' => $intent->amount_cents,
+                'mode' => $intent->mode,
+                'state' => $intent->state,
+            ], $intent->terminal, $intent->custom_order_id);
+        });
+
+        static::updated(function (self $intent) {
+            if (! $intent->wasChanged('state')) {
+                return;
+            }
+            $from = $intent->getOriginal('state');
+            app(CardTerminalEventLog::class)->record('intent.state', array_filter([
+                'from' => $from,
+                'to' => $intent->state,
+                'provider_status' => $intent->provider_status,
+                'payment_method' => $intent->payment_method,
+                'provider_txn_id' => $intent->provider_txn_id,
+                'error' => $intent->last_error,
+                'seconds_since_created' => $intent->created_at?->diffInSeconds($intent->updated_at ?? now(), true),
+                'queries' => $intent->query_count,
+            ], fn ($v) => $v !== null), $intent->terminal, $intent->custom_order_id, null,
+                in_array($intent->state, [self::STATE_VOID_FAILED, self::STATE_ERROR], true) ? 'error'
+                    : (in_array($intent->state, [self::STATE_VOIDED, self::STATE_CANCELLING], true) ? 'warning' : 'info'));
+        });
+    }
 
     public function vend(): BelongsTo
     {

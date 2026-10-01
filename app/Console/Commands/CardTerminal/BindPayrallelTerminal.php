@@ -6,6 +6,7 @@ use App\Models\RemoteCardTerminal;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Services\CardTerminal\CardPaymentService;
+use App\Services\CardTerminal\CardTerminalEventLog;
 use Illuminate\Console\Command;
 
 /**
@@ -25,7 +26,7 @@ class BindPayrallelTerminal extends Command
 
     protected $description = 'Bind a Payrallel remote terminal token to a machine (smart-freezer card rail)';
 
-    public function handle(CardPaymentService $payments): int
+    public function handle(CardPaymentService $payments, CardTerminalEventLog $events): int
     {
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->bareCode($this->argument('vend'))->first();
         if (! $vend) {
@@ -36,6 +37,9 @@ class BindPayrallelTerminal extends Command
 
         if ($this->option('deactivate')) {
             $n = RemoteCardTerminal::query()->where('vend_id', $vend->id)->update(['is_active' => false]);
+            if ($n) {
+                $events->record('terminal.deactivated', ['by' => 'payrallel:bind-terminal'], RemoteCardTerminal::where('vend_id', $vend->id)->first());
+            }
             $this->info($n ? "Remote terminal on {$vend->code} deactivated." : "No remote terminal on {$vend->code}.");
 
             return self::SUCCESS;
@@ -58,6 +62,7 @@ class BindPayrallelTerminal extends Command
             ],
         );
         $this->info("Terminal #{$terminal->id} bound to {$vend->code}.");
+        $events->record('terminal.bound', ['label' => $terminal->label, 'by' => 'payrallel:bind-terminal'], $terminal);
 
         $status = $payments->terminalStatus($vend);
         $this->line(sprintf(

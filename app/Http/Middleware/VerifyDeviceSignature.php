@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Services\CardTerminal\CardTerminalEventLog;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -41,17 +42,31 @@ class VerifyDeviceSignature
         $signature = strtolower((string) $request->header('X-Device-Signature', ''));
         $skew = (int) config('payrallel.device_signature_skew_seconds', 300);
         if ($timestamp === '' || ! ctype_digit($timestamp) || abs(time() - (int) $timestamp) > $skew) {
-            return response()->json(['error' => 'stale or missing timestamp'], 401);
+            return $this->reject($request, $vend, 'stale or missing timestamp', [
+                'device_timestamp' => $timestamp, 'server_time' => time(),
+            ]);
         }
 
         $expected = self::sign(self::keyFor($vend), $request->getMethod(), $request->getPathInfo(), $timestamp, $request->getContent());
         if ($signature === '' || ! hash_equals($expected, $signature)) {
-            return response()->json(['error' => 'bad signature'], 401);
+            return $this->reject($request, $vend, 'bad signature', [
+                'key' => $vend->private_key ? 'vend private_key' : 'fleet fallback',
+            ]);
         }
 
         $request->attributes->set(self::VEND_ATTRIBUTE, $vend);
 
         return $next($request);
+    }
+
+    /** 401, written to the trial timeline: a clock or key problem must be visible without adb. */
+    private function reject(Request $request, Vend $vend, string $why, array $detail): Response
+    {
+        app(CardTerminalEventLog::class)->record('device.rejected', [
+            'why' => $why, 'method' => $request->getMethod(), 'path' => $request->getPathInfo(),
+        ] + $detail, null, null, null, 'warning', $vend->id);
+
+        return response()->json(['error' => $why], 401);
     }
 
     public static function sign(string $key, string $method, string $path, string $timestamp, string $body): string
