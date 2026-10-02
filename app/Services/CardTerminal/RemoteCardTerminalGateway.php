@@ -24,8 +24,8 @@ interface RemoteCardTerminalGateway
     /** Charge a held pre-authorisation. */
     public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): void;
 
-    /** Clear the payment screen that is currently waiting for a card. */
-    public function cancelActiveRequest(RemoteCardTerminal $terminal): void;
+    /** Clear the payment screen that is currently waiting for a card; name the attempt when known. */
+    public function cancelActiveRequest(RemoteCardTerminal $terminal, ?string $orderId = null, ?int $cents = null): void;
 
     /** Reverse an approved transaction on its original gateway. */
     public function void(RemoteCardTerminal $terminal, string $orderId): void;

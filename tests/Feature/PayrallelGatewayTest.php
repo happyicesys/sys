@@ -68,6 +68,30 @@ class PayrallelGatewayTest extends TestCase
         $this->assertStringNotContainsString('tok-1', json_encode($e->detail), 'the token never reaches the timeline');
     }
 
+    public function test_exactly_one_content_type_and_the_raw_token_format(): void
+    {
+        config(['payrallel.authorization_format' => '{token}']);
+        Http::fake(['pay.example/*' => Http::response(['success' => true, 'status' => 'online', 'state' => 'ready'])]);
+
+        $this->gateway->status($this->terminal);
+
+        Http::assertSent(function (Request $r) {
+            return $r->header('Content-Type') === ['application/json; charset=UTF-8']
+                && $r->header('Authorization') === ['tok-1'];
+        });
+    }
+
+    public function test_cancel_names_the_attempt_when_known(): void
+    {
+        Http::fake(['pay.example/*' => Http::response(['success' => true])]);
+
+        $this->gateway->cancelActiveRequest($this->terminal, '50001-SF1', 430);
+        $this->gateway->cancelActiveRequest($this->terminal);
+
+        $bodies = Http::recorded()->map(fn ($pair) => $pair[0]->body())->all();
+        $this->assertSame(['{"amountInCents":430,"customOrderId":"50001-SF1"}', '{}'], $bodies);
+    }
+
     public function test_every_endpoint_path(): void
     {
         Http::fake(['pay.example/*' => Http::response(['success' => true, 'status' => 'online', 'state' => 'ready'])]);

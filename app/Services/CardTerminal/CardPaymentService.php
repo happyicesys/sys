@@ -130,7 +130,7 @@ class CardPaymentService
             ]);
             $terminal = $intent->terminal;
             try {
-                $this->gateways->for($terminal)->cancelActiveRequest($terminal);
+                $this->gateways->for($terminal)->cancelActiveRequest($terminal, $intent->custom_order_id, $intent->amount_cents);
             } catch (CardTerminalException $e) {
                 // Best effort: the reconciler still watches for a late approval.
                 $intent->update(['last_error' => $this->errorText('cancel: '.$e->getMessage())]);
@@ -416,7 +416,7 @@ class CardPaymentService
         ]);
         $terminal = $intent->terminal;
         try {
-            $this->gateways->for($terminal)->cancelActiveRequest($terminal);
+            $this->gateways->for($terminal)->cancelActiveRequest($terminal, $intent->custom_order_id, $intent->amount_cents);
         } catch (CardTerminalException $e) {
             // The reconciler keeps watching either way.
         }
@@ -476,7 +476,7 @@ class CardPaymentService
             'last_error' => $this->errorText('send: '.$e->getMessage()),
         ]);
         try {
-            $gateway->cancelActiveRequest($terminal);
+            $gateway->cancelActiveRequest($terminal, $intent->custom_order_id, $intent->amount_cents);
         } catch (CardTerminalException) {
             // The reconciler still watches.
         }

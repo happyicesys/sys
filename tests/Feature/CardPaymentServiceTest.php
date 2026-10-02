@@ -140,7 +140,7 @@ class CardPaymentServiceTest extends TestCase
 
         $cancelling = $this->service->cancel($intent);
         $this->assertSame(CardPaymentIntent::STATE_CANCELLING, $cancelling->state);
-        $this->assertCount(1, $this->gateway->callsOf('cancel'));
+        $this->assertSame([['cancel', '50001-SF1', 430]], $this->gateway->callsOf('cancel'), 'cancel names the attempt');
 
         // The tap raced the cancel: the provider reports an approval afterwards.
         $this->gateway->answer($this->order(), T::APPROVED);

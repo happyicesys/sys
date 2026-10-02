@@ -69,9 +69,9 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
         }
     }
 
-    public function cancelActiveRequest(RemoteCardTerminal $terminal): void
+    public function cancelActiveRequest(RemoteCardTerminal $terminal, ?string $orderId = null, ?int $cents = null): void
     {
-        $this->calls[] = ['cancel', null, null];
+        $this->calls[] = ['cancel', $orderId, $cents];
     }
 
     public function void(RemoteCardTerminal $terminal, string $orderId): void

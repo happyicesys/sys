@@ -51,9 +51,17 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         $this->send($terminal, 'transactions/card/capture', $this->amountBody($orderId, $cents));
     }
 
-    public function cancelActiveRequest(RemoteCardTerminal $terminal): void
+    /**
+     * Live test 2026-10-02: a bare {} cancel answered success but the terminal
+     * still read in_payment; with the order id and amount it was back to ready
+     * within 3 s. So the attempt is named whenever we know it.
+     */
+    public function cancelActiveRequest(RemoteCardTerminal $terminal, ?string $orderId = null, ?int $cents = null): void
     {
-        $this->send($terminal, 'terminal/payment-request/cancel', []);
+        $this->send($terminal, 'terminal/payment-request/cancel', array_filter([
+            'amountInCents' => $cents,
+            'customOrderId' => $orderId,
+        ], fn ($v) => $v !== null));
     }
 
     public function void(RemoteCardTerminal $terminal, string $orderId): void
@@ -161,9 +169,12 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         return Http::baseUrl(rtrim($base, '/').'/')
             ->acceptJson()
             ->asJson()
+            // One Content-Type, set through the body format: a second one in
+            // withHeaders() was sent as "application/json,application/json;
+            // charset=UTF-8" and Payrallel refused it with 415 (live, 2026-10-02).
+            ->contentType('application/json; charset=UTF-8')
             ->withHeaders([
                 'Authorization' => str_replace('{token}', $token, (string) config('payrallel.authorization_format', 'Bearer {token}')),
-                'Content-Type' => 'application/json; charset=UTF-8',
             ])
             ->timeout((int) config('payrallel.timeout', 8))
             ->connectTimeout((int) config('payrallel.connect_timeout', 4));
