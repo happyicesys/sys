@@ -892,6 +892,13 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   send that timed out but may have reached the terminal (`CardTerminalException::$mayHaveReachedTerminal`),
   an attempt past `intent_ttl_seconds`. A void is refused after capture or past
   `device_void_window_minutes` — the goods may be gone.
+- **Pre-auth is the mode** (`payrallel.mode`, default `preauth` since
+  2026-10-01, Brian — Payrallel's flow, auth_incr on their side): the tap holds,
+  the freezer's capture after the door opens charges, a failed door voids
+  (releases) the hold. A hold the freezer never confirms is captured in full by
+  `card-payments:reconcile` once the void window has passed — goods are
+  presumed released, and an uncaptured hold expiring (~a month) would give them
+  away. A refused capture stays `approved` and is retried every 10 min.
 - Only an exact provider `approved` approves (`PayrallelGateway::query`); an
   unknown word stays processing.
 - Device requests are HMAC-signed with the vend's `private_key`

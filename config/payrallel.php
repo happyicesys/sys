@@ -29,13 +29,15 @@ return [
     'connect_timeout' => (int) env('PAYRALLEL_CONNECT_TIMEOUT', 4),
 
     /*
-    | `sale` charges on tap and the device's "capture" only marks the sale
-    | fulfilled; a door that fails to open is voided. `preauth` holds on tap and
-    | charges on capture. The freezer's pay-first model needs only `sale`, which
-    | also survives an APK crash after the door opened (nothing is left
-    | uncaptured). Switch to `preauth` only for a grab-and-go trial.
+    | `preauth` (default since 2026-10-01, Brian; Payrallel's recommended flow —
+    | they handle auth_incr on their side): the tap HOLDS the amount, the device's
+    | capture after the door opens charges it, a door that fails to open voids
+    | (releases) the hold. A hold the device never confirms is captured by
+    | `card-payments:reconcile` once `device_void_window_minutes` has passed.
+    | Payrallel says a hold lasts about a month.
+    | `sale` charges at the tap; capture only marks the sale fulfilled.
     */
-    'mode' => env('PAYRALLEL_MODE', 'sale'),
+    'mode' => env('PAYRALLEL_MODE', 'preauth'),
 
     // A status read from the device re-queries Payrallel at most this often per
     // intent, so a fast-polling or duplicated client cannot hammer their API.

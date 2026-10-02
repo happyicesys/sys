@@ -34,6 +34,9 @@ class CardPaymentService
 
     private const TERMINAL_STATUS_CACHE_SECONDS = 10;
 
+    /** How often the reconciler retries a pre-auth capture the provider refused. */
+    private const AUTO_CAPTURE_RETRY_MINUTES = 10;
+
     public function __construct(
         private readonly RemoteCardTerminalGatewayFactory $gateways,
         private readonly CardTerminalEventLog $events,
@@ -278,29 +281,59 @@ class CardPaymentService
                 $this->locked($intent, fn (CardPaymentIntent $i) => $this->advance($i));
             });
 
-        // A sale the device never confirmed: the charge stands (sale mode took the
-        // money at the tap) and the void window has closed, so close it as captured.
-        // A preauth in the same position is left for a human — we cannot know
-        // whether the door opened.
+        // An approval the device never confirmed, past the void window: the goods are
+        // presumed released (approval -> door is immediate), so the money follows them,
+        // the same rule in both modes (Brian, 2026-10-01, pre-auth chosen).
+        //  - sale: the charge was taken at the tap; just close it as captured.
+        //  - preauth: capture the full held amount at the provider. Left alone, the
+        //    hold would expire (~a month, per Payrallel) and hand the goods out free.
+        //    A failed capture stays approved and is retried every
+        //    AUTO_CAPTURE_RETRY_MINUTES.
         $voidWindow = (int) config('payrallel.device_void_window_minutes', 15);
         CardPaymentIntent::query()
             ->where('state', CardPaymentIntent::STATE_APPROVED)
-            ->where('mode', CardPaymentIntent::MODE_SALE)
             ->where('approved_at', '<', Carbon::now()->subMinutes($voidWindow))
+            ->where(fn ($q) => $q->whereNull('last_queried_at')
+                ->orWhere('last_queried_at', '<', Carbon::now()->subMinutes(self::AUTO_CAPTURE_RETRY_MINUTES)))
             ->lazyById(100)
             ->each(function (CardPaymentIntent $intent) use (&$touched) {
                 $touched++;
-                $intent->update([
-                    'state' => CardPaymentIntent::STATE_CAPTURED,
-                    'captured_cents' => $intent->amount_cents,
-                    'captured_at' => Carbon::now(),
-                    'resolved_at' => Carbon::now(),
-                    'last_error' => 'closed by reconciler: device never confirmed the door',
-                ]);
-                Log::warning('Card sale closed without device confirmation', $this->logContext($intent));
+                $this->locked($intent, fn (CardPaymentIntent $i) => $this->closeUnconfirmed($i));
             });
 
         return $touched;
+    }
+
+    /** Captures an approval the device never confirmed. Caller holds the lock. */
+    private function closeUnconfirmed(CardPaymentIntent $intent): CardPaymentIntent
+    {
+        if ($intent->state !== CardPaymentIntent::STATE_APPROVED) {
+            return $intent; // the device confirmed or voided it meanwhile
+        }
+        if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
+            $terminal = $intent->terminal;
+            try {
+                $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $intent->amount_cents);
+            } catch (CardTerminalException $e) {
+                $intent->update([
+                    'last_error' => $this->errorText('auto-capture: '.$e->getMessage()),
+                    'last_queried_at' => Carbon::now(),
+                ]);
+                Log::error('Card auto-capture failed — retrying', $this->logContext($intent) + ['error' => $e->getMessage()]);
+
+                return $intent;
+            }
+        }
+        $intent->update([
+            'state' => CardPaymentIntent::STATE_CAPTURED,
+            'captured_cents' => $intent->amount_cents,
+            'captured_at' => Carbon::now(),
+            'resolved_at' => Carbon::now(),
+            'last_error' => 'captured by reconciler: device never confirmed the door',
+        ]);
+        Log::warning('Card payment captured without device confirmation', $this->logContext($intent));
+
+        return $intent;
     }
 
     /** One provider query, and the state change it implies. Caller holds the lock. */

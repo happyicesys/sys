@@ -307,4 +307,68 @@ class CardPaymentServiceTest extends TestCase
         $this->assertTrue($terminal->last_online);
         $this->assertSame('ready', $terminal->last_state);
     }
+
+    public function test_preauth_is_the_default_mode(): void
+    {
+        $config = require base_path('config/payrallel.php');
+        $this->assertSame('preauth', $config['mode']);
+    }
+
+    public function test_an_unconfirmed_preauth_hold_is_captured_after_the_void_window(): void
+    {
+        config(['payrallel.mode' => 'preauth']);
+        $intent = $this->start();
+        $this->gateway->answer($this->order(), T::APPROVED);
+        $this->service->refresh($intent);
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(14));
+        $this->service->reconcile();
+        $this->assertSame(CardPaymentIntent::STATE_APPROVED, $intent->fresh()->state, 'still inside the door window');
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(2));
+        $this->service->reconcile();
+
+        $closed = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $closed->state);
+        $this->assertSame(430, $closed->captured_cents);
+        $this->assertSame([['capture', '50001-SF1', 430]], $this->gateway->callsOf('capture'));
+        $this->assertSame([], $this->gateway->callsOf('void'), 'the goods may have gone — never void here');
+    }
+
+    public function test_a_refused_auto_capture_stays_approved_and_is_retried(): void
+    {
+        config(['payrallel.mode' => 'preauth']);
+        $intent = $this->start();
+        $this->gateway->answer($this->order(), T::APPROVED);
+        $this->service->refresh($intent);
+
+        $this->gateway->failCapture = new CardTerminalException('Payrallel capture refused (HTTP 502)');
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+        $this->assertSame(CardPaymentIntent::STATE_APPROVED, $intent->fresh()->state);
+        $this->assertStringContainsString('auto-capture', $intent->fresh()->last_error);
+
+        $this->service->reconcile(); // too soon to retry
+        $this->assertCount(1, $this->gateway->callsOf('capture'));
+
+        $this->gateway->failCapture = null;
+        Carbon::setTestNow(Carbon::now()->addMinutes(11));
+        $this->service->reconcile();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->fresh()->state);
+        $this->assertCount(2, $this->gateway->callsOf('capture'));
+    }
+
+    public function test_a_device_capture_before_the_deadline_is_not_captured_twice(): void
+    {
+        config(['payrallel.mode' => 'preauth']);
+        $intent = $this->start();
+        $this->gateway->answer($this->order(), T::APPROVED);
+        $this->service->capture($this->service->refresh($intent), 430);
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(20));
+        $this->service->reconcile();
+
+        $this->assertCount(1, $this->gateway->callsOf('capture'));
+    }
 }

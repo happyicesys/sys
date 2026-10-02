@@ -24,6 +24,8 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
 
     public ?CardTerminalException $failVoid = null;
 
+    public ?CardTerminalException $failCapture = null;
+
     public TerminalStatus $status;
 
     public function __construct()
@@ -62,6 +64,9 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
     public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): void
     {
         $this->calls[] = ['capture', $orderId, $cents];
+        if ($this->failCapture) {
+            throw $this->failCapture;
+        }
     }
 
     public function cancelActiveRequest(RemoteCardTerminal $terminal): void
