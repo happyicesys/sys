@@ -992,8 +992,8 @@
                             <!-- AI Recognition = the AI check of this sale's door session (Smart
                                  Freezer today; a CityBox chiller once it has one). Blank on every
                                  other sale. Badges: the verdict (or where it stands), what the AI
-                                 saw, and how long the check took (videos received → result); the
-                                 breakdown — our wait vs the AI's own turnaround — is in the tooltip. -->
+                                 saw, how long the check took (videos received → result) and, under it,
+                                 our wait vs the AI's own turnaround; the full timeline is in the tooltip. -->
                             <div v-if="vendTransaction.ai_recognition"
                                 class="flex flex-col items-center space-y-0.5 leading-tight max-w-[6.5rem] mx-auto"
                                 :title="aiRecognitionTooltip(vendTransaction.ai_recognition)">
@@ -1010,6 +1010,14 @@
                                 <span v-if="vendTransaction.ai_recognition.total_seconds !== null"
                                     class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 whitespace-nowrap">
                                     {{ formatDuration(vendTransaction.ai_recognition.total_seconds) }}
+                                </span>
+                                <!-- The split, on the page rather than only in the hover text (a title tooltip
+                                     needs the pointer held still and was easy to miss, Brian 2026-10-02):
+                                     our wait (videos in → sent) and the AI's own turnaround (sent → result). -->
+                                <span v-if="vendTransaction.ai_recognition.ai_seconds !== null"
+                                    class="text-[9px] text-gray-500 whitespace-nowrap">
+                                    AI {{ formatDuration(vendTransaction.ai_recognition.ai_seconds) }}<template
+                                        v-if="vendTransaction.ai_recognition.total_seconds !== null && vendTransaction.ai_recognition.total_seconds > vendTransaction.ai_recognition.ai_seconds"> · wait {{ formatDuration(vendTransaction.ai_recognition.total_seconds - vendTransaction.ai_recognition.ai_seconds) }}</template>
                                 </span>
                             </div>
                             <!-- Our own recording of the door session (camera 5), uploaded by the
