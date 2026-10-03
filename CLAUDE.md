@@ -453,7 +453,7 @@ Easy to confuse, so name them precisely:
 
 | Table | UI name | What it is |
 |---|---|---|
-| `card_terminals` | Data Management → **Card Terminal Company** | The supplier list: Nayax, Nets, Nets-Auresys, PAX, MLS, HID. `vends.card_terminal_id` points here. |
+| `card_terminals` | Data Management → **Card Terminal Company** | The supplier list: Nayax, Nets, Nets-Auresys, PAX, MLS, HID, Payrallel (T05). `vends.card_terminal_id` points here. `can_bind_multiple_vends` (default **off**, 2026-10-03): off = binding one of the company's terminals to a machine releases it from any other machine; on = it stays bound to every machine it is given (`CardTerminalBindingService::assignToVend` skips closing the other open bindings; the T05 binder skips deactivating the same token elsewhere). Turning it on for a NETS company makes a TID open on two machines, which the settlement matcher cannot attribute — leave NETS off. |
 | `card_terminal_units` | Data Management → **Card Terminal** | One physical terminal: acquirer TID + its company. `terminal_id` is unique fleet-wide. |
 | `card_terminal_bindings` | machine **Setting/Edit** | That terminal sat on that machine over a date range. |
 
@@ -914,8 +914,18 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   requests, and the freezer's own `device.*` events (`POST …/card/events`). Read
   it with `php artisan payrallel:timeline {vend} [--since= --ref= --raw]`.
 - The freezer picks this rail only where a terminal is bound here
-  (`SF_CARD_RAIL=auto`, `SelectingCardRail`): binding is the switch, `--deactivate`
-  switches back.
+  (`SF_CARD_RAIL=auto`, `SelectingCardRail`): binding is the switch, deactivating
+  switches back. **Bind / deactivate on Setting/Edit → "Remote card terminal (T05 ·
+  Payrallel)"** (2026-10-03, `RemoteCardTerminalController`, smart freezers only;
+  binding needs `update machine-settings` AND `update card-terminals` because it
+  stores the token) or with `php artisan payrallel:bind-terminal`. Both go through
+  `App\Services\CardTerminal\RemoteCardTerminalBinder` — the one writer of
+  `remote_card_terminals`. The token is write-only (encrypted, never returned to the
+  browser; a blank token on save keeps the stored one). One T05, one machine unless
+  the Payrallel (T05) company row has `can_bind_multiple_vends` on: binding a token
+  that is active on another freezer deactivates it there (compared after decrypting).
+  A first bind fills `vends.card_terminal_id` with Payrallel (T05) when it is empty.
+  Regression coverage: `tests/Feature/RemoteCardTerminalBindingTest.php`.
 
 Regression coverage: `tests/Feature/CardPaymentServiceTest.php`,
 `tests/Feature/PayrallelGatewayTest.php`, `tests/Feature/FreezerCardApiTest.php`.

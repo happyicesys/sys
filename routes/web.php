@@ -46,6 +46,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\RefundFormController;
 use App\Http\Controllers\RefundSettlementController;
+use App\Http\Controllers\RemoteCardTerminalController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\RolePermissionController;
@@ -992,6 +993,18 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // stripWholeMachineMoney() the page itself uses.
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
             ->name('vends.customer.aggregates');
+
+        // Smart Freezer remote card terminal (Payrallel T05) — Setting > Edit. Binding stores
+        // the terminal's access token, so it needs update card-terminals as well as the page.
+        Route::get('/{vend}/remote-card-terminal', [RemoteCardTerminalController::class, 'show'])
+            ->name('vends.remote-card-terminal.show')
+            ->middleware('can:read machine-settings');
+        Route::put('/{vend}/remote-card-terminal', [RemoteCardTerminalController::class, 'update'])
+            ->name('vends.remote-card-terminal.update')
+            ->middleware(['can:update machine-settings', 'can:update card-terminals']);
+        Route::post('/{vend}/remote-card-terminal/check', [RemoteCardTerminalController::class, 'check'])
+            ->name('vends.remote-card-terminal.check')
+            ->middleware('can:read machine-settings');
 
         // Smart Freezer remote cabinet controls — Setting > Edit > "Remote controls".
         // JSON only, polled by the panel. Lock/unlock additionally need

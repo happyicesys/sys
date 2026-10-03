@@ -1652,6 +1652,11 @@
               :vend-id="vend.id"
             />
 
+            <RemoteCardTerminalPanel
+              v-if="isSmartFreezer && vend && vend.id && permissions.includes('read machine-settings')"
+              :vend-id="vend.id"
+            />
+
             <!-- Smart Freezer: no VMC, and its APK ignores RESET / REBOOTANDROID, so only the two
                  nudges it does act on are offered (TYPESYNCAPICHANNELSLOTLIST → re-fetch /menu,
                  TYPESYNCSETTINGSPARAM → re-read settings). -->
@@ -1838,6 +1843,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import SmartFreezerPlanogramGrid from '@/Components/SmartFreezerPlanogramGrid.vue';
 import SmartFreezerRemoteControls from '@/Components/SmartFreezerRemoteControls.vue';
+import RemoteCardTerminalPanel from '@/Components/RemoteCardTerminalPanel.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';

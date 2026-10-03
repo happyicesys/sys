@@ -22,6 +22,24 @@
                 Name
               </FormInput>
             </div>
+            <div class="sm:col-span-6 flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="card_terminal_can_bind_multiple_vends"
+                v-model="form.can_bind_multiple_vends"
+                class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+              />
+              <label for="card_terminal_can_bind_multiple_vends" class="text-sm text-gray-700 cursor-pointer">
+                <span class="font-medium">One terminal can serve several machines</span>
+                <span class="block text-xs text-gray-500">
+                  Off (default): binding a terminal to a machine releases it from any other machine.
+                  On: the same terminal stays bound to every machine it is given to.
+                </span>
+              </label>
+            </div>
+            <div class="text-sm text-red-600 sm:col-span-6" v-if="form.errors.can_bind_multiple_vends">
+              {{ form.errors.can_bind_multiple_vends }}
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -78,6 +96,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     name: '',
+    can_bind_multiple_vends: false,
   }
 }
 

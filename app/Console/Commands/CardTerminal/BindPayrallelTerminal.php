@@ -6,12 +6,14 @@ use App\Models\RemoteCardTerminal;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Services\CardTerminal\CardPaymentService;
-use App\Services\CardTerminal\CardTerminalEventLog;
+use App\Services\CardTerminal\RemoteCardTerminalBinder;
 use Illuminate\Console\Command;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Binds a Payrallel terminal (its Sales Channel access token) to a machine, or
- * deactivates the binding. The token is asked for as a hidden prompt so it
+ * deactivates the binding. Same rules as Setting > Edit > "Remote card terminal (T05)"
+ * (both go through RemoteCardTerminalBinder). The token is asked for as a hidden prompt so it
  * never lands in shell history, and is stored encrypted.
  *
  *   php artisan payrallel:bind-terminal 2009 --label="Bench UPT"
@@ -26,7 +28,7 @@ class BindPayrallelTerminal extends Command
 
     protected $description = 'Bind a Payrallel remote terminal token to a machine (smart-freezer card rail)';
 
-    public function handle(CardPaymentService $payments, CardTerminalEventLog $events): int
+    public function handle(CardPaymentService $payments, RemoteCardTerminalBinder $binder): int
     {
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->bareCode($this->argument('vend'))->first();
         if (! $vend) {
@@ -36,11 +38,14 @@ class BindPayrallelTerminal extends Command
         }
 
         if ($this->option('deactivate')) {
-            $n = RemoteCardTerminal::query()->where('vend_id', $vend->id)->update(['is_active' => false]);
-            if ($n) {
-                $events->record('terminal.deactivated', ['by' => 'payrallel:bind-terminal'], RemoteCardTerminal::where('vend_id', $vend->id)->first());
+            if (! RemoteCardTerminal::query()->where('vend_id', $vend->id)->exists()) {
+                $this->info("No remote terminal on {$vend->code}.");
+
+                return self::SUCCESS;
             }
-            $this->info($n ? "Remote terminal on {$vend->code} deactivated." : "No remote terminal on {$vend->code}.");
+            $existing = RemoteCardTerminal::query()->where('vend_id', $vend->id)->first();
+            $this->runBinder(fn () => $binder->save($vend, false, $existing->label, null, 'payrallel:bind-terminal', 'artisan'));
+            $this->info("Remote terminal on {$vend->code} deactivated.");
 
             return self::SUCCESS;
         }
@@ -52,17 +57,14 @@ class BindPayrallelTerminal extends Command
             return self::FAILURE;
         }
 
-        $terminal = RemoteCardTerminal::query()->updateOrCreate(
-            ['vend_id' => $vend->id],
-            [
-                'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL,
-                'label' => $this->option('label'),
-                'access_token' => trim($token),
-                'is_active' => true,
-            ],
-        );
-        $this->info("Terminal #{$terminal->id} bound to {$vend->code}.");
-        $events->record('terminal.bound', ['label' => $terminal->label, 'by' => 'payrallel:bind-terminal'], $terminal);
+        $result = $this->runBinder(fn () => $binder->save($vend, true, $this->option('label'), $token, 'payrallel:bind-terminal', 'artisan'));
+        if ($result === null) {
+            return self::FAILURE;
+        }
+        $this->info("Terminal #{$result['terminal']->id} bound to {$vend->code}.");
+        if ($result['released_from']) {
+            $this->warn('Taken off: '.implode(', ', $result['released_from']).' (one terminal, one machine — see Card Terminal Company).');
+        }
 
         $status = $payments->terminalStatus($vend);
         $this->line(sprintf(
@@ -73,5 +75,17 @@ class BindPayrallelTerminal extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /** @return array<string, mixed>|null the binder's result, or null after printing why it refused */
+    private function runBinder(callable $save): ?array
+    {
+        try {
+            return $save();
+        } catch (ValidationException $e) {
+            $this->error(collect($e->errors())->flatten()->implode(' '));
+
+            return null;
+        }
     }
 }

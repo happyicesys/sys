@@ -80,6 +80,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Multi-machine
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -90,6 +93,10 @@
                       </TableData>
                       <TableData :currentIndex="cardTerminalIndex" :totalLength="cardTerminals.length" inputClass="text-left">
                         {{ cardTerminal.name }}
+                      </TableData>
+                      <TableData :currentIndex="cardTerminalIndex" :totalLength="cardTerminals.length" inputClass="text-center">
+                        <span v-if="cardTerminal.can_bind_multiple_vends" class="text-green-700 font-medium" title="One terminal can serve several machines">Yes</span>
+                        <span v-else class="text-gray-400" title="One terminal, one machine">No</span>
                       </TableData>
                       <TableData :currentIndex="cardTerminalIndex" :totalLength="cardTerminals.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

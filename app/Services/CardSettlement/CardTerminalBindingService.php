@@ -69,13 +69,16 @@ class CardTerminalBindingService
 
             // The terminal may currently be open on a DIFFERENT machine (it was
             // physically moved). Close that too, or the new row would be the
-            // second open binding for this TID.
-            CardTerminalBinding::query()
-                ->where('terminal_id', $unit->terminal_id)
-                ->whereNull('until_at')
-                ->where('vend_id', '!=', $vend->id)
-                ->get()
-                ->each(fn (CardTerminalBinding $b) => $b->update(['until_at' => $at]));
+            // second open binding for this TID — unless its company says one
+            // terminal serves several machines (Card Terminal Company flag).
+            if (! $unit->company?->can_bind_multiple_vends) {
+                CardTerminalBinding::query()
+                    ->where('terminal_id', $unit->terminal_id)
+                    ->whereNull('until_at')
+                    ->where('vend_id', '!=', $vend->id)
+                    ->get()
+                    ->each(fn (CardTerminalBinding $b) => $b->update(['until_at' => $at]));
+            }
 
             CardTerminalBinding::create([
                 'provider' => $unit->settlementProvider(),

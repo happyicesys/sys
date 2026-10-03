@@ -18,9 +18,21 @@ class CardTerminal extends Model
 
     protected $table = 'card_terminals';
 
+    /** The company row Payrallel remote terminals (T05) are filed under. */
+    public const NAME_PAYRALLEL = 'Payrallel (T05)';
+
     protected $fillable = [
         'name',
         'remarks',
+        'can_bind_multiple_vends',
+    ];
+
+    /**
+     * can_bind_multiple_vends: one of this company's terminals may serve several machines
+     * at once. Off (the default) = binding a terminal to a machine releases it from any other.
+     */
+    protected $casts = [
+        'can_bind_multiple_vends' => 'boolean',
     ];
 
     public function vends()

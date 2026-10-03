@@ -18,6 +18,7 @@ class CardTerminalResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'remarks' => $this->remarks,
+            'can_bind_multiple_vends' => (bool) $this->can_bind_multiple_vends,
         ];
     }
 }
