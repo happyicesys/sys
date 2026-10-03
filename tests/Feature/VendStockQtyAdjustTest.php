@@ -123,6 +123,7 @@ class VendStockQtyAdjustTest extends TestCase
         $this->actingAs($user)->getJson("/vends/{$channel->vend_id}/stock-qty")
             ->assertOk()
             ->assertJsonPath('refusal', null)
+            ->assertJsonPath('channels.0.code', '41') // the planogram cell it is drawn in
             ->assertJsonPath('channels.0.qty', 7)
             ->assertJsonPath('channels.0.history.0.who', 'brian')
             ->assertJsonPath('channels.0.history.0.from', 3)

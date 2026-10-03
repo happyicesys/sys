@@ -44,6 +44,7 @@ class VendStockQtyController extends Controller
             'is_chiller' => $vend->isSmartChiller(),
             'channels' => $channels->map(fn (VendChannel $c) => [
                 'id' => $c->id,
+                'code' => (string) $c->code,
                 'label' => $c->label,
                 'product' => $c->product ? ['id' => $c->product->id, 'code' => $c->product->code, 'name' => $c->product->name] : null,
                 'qty' => (int) $c->qty,

@@ -53,21 +53,23 @@
                 ? 'bg-indigo-50/60 ring-1 ring-indigo-100'
                 : 'bg-gray-50 ring-1 ring-gray-200 border border-dashed border-gray-300'"
             >
-              <div class="flex items-center justify-between gap-1 mb-1.5">
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-1.5">
                 <span
                   class="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-xs font-semibold"
                   :class="cell.item ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'"
                 >
                   {{ cell.code }}
                 </span>
-                <span
-                  v-if="showQty && cell.item"
-                  class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold"
-                  :class="qtyClass(cell.item.qty)"
-                  v-tooltip="qtyTooltip(cell.item)"
-                >
-                  {{ qtyLabel(cell.item.qty) }}
-                </span>
+                <!-- Setting/Edit fills this slot with the overwrite control (StockQtyInline). -->
+                <slot v-if="showQty && cell.item" name="qty" :item="cell.item">
+                  <span
+                    class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold"
+                    :class="qtyClass(cell.item.qty)"
+                    v-tooltip="qtyTooltip(cell.item)"
+                  >
+                    {{ qtyLabel(cell.item.qty) }}
+                  </span>
+                </slot>
               </div>
 
               <div v-if="cell.item" class="flex items-center gap-2 min-w-0">
@@ -100,6 +102,8 @@
               <div v-else class="h-12 grid place-items-center text-[11px] text-gray-400">
                 empty
               </div>
+
+              <slot v-if="cell.item" name="cell-footer" :item="cell.item" />
             </div>
           </div>
         </div>

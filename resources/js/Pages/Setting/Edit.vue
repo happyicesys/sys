@@ -1011,18 +1011,52 @@
                   <span class="text-xs font-normal text-gray-500">
                     · {{ freezerPlanogramItems.length }} of {{ freezerSlotCount }} slots bound
                     <template v-if="vend?.customer?.selling_price_type"> · prices at RP{{ vend.customer.selling_price_type }}</template>
+                    · qty on hand now
                   </span>
                 </span>
+                <button type="button" class="text-xs text-blue-600 hover:underline" @click="loadFreezerStock" :disabled="freezerStockLoading">
+                  {{ freezerStockLoading ? 'Loading…' : 'Refresh qty' }}
+                </button>
               </div>
+              <p v-if="freezerStockRefusal" class="mb-2 text-xs text-amber-700">{{ freezerStockRefusal }}</p>
               <div v-if="!freezerPlanogramItems.length" class="rounded-md border border-dashed border-gray-300 py-8 text-center text-sm text-gray-500">
                 No products mapped yet.
               </div>
+              <!-- On-hand qty sits in each cell and is overwritten there (no separate Stock Qty
+                   table for a freezer — Brian, 2026-10-03). It is the SAVED machine's stock, so a
+                   cell whose product differs from the saved mapping shows a dash until Save. -->
               <SmartFreezerPlanogramGrid
                 v-else
                 :basket-layout="freezerBasketLayout"
                 :items="freezerPlanogramItems"
                 :format-price="formatFreezerPrice"
-              />
+                show-qty
+              >
+                <template #qty="{ item }">
+                  <StockQtyInline
+                    v-if="item.stock"
+                    compact
+                    :vend-id="vend.id"
+                    :channel="item.stock"
+                    :can-edit="canEditFreezerStock"
+                    @saved="loadFreezerStock"
+                  />
+                  <span
+                    v-else
+                    class="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-400"
+                    v-tooltip="freezerStockLoading ? 'Loading…' : 'Not on the saved machine yet — Save to stock this slot'"
+                  >—</span>
+                </template>
+                <template #cell-footer="{ item }">
+                  <div
+                    v-if="item.stock?.history?.length"
+                    class="mt-1.5 truncate text-[11px] italic text-blue-600"
+                    v-tooltip="item.stock.history.map(stockQtyLine).join('  |  ')"
+                  >
+                    {{ stockQtyLine(item.stock.history[0]) }}
+                  </div>
+                </template>
+              </SmartFreezerPlanogramGrid>
             </div>
 
             <!-- Vend Channels Section -->
@@ -1115,10 +1149,10 @@
                 </div>
               </div>
 
-            <!-- On-hand qty, overwritable by hand (二哥 chiller / 三哥 freezer). A vending machine's
-                 qty is its VMC's, so it gets no such section. -->
+            <!-- On-hand qty, overwritable by hand (二哥 chiller). A freezer does the same inside its
+                 planogram above; a vending machine's qty is its VMC's, so it gets neither. -->
             <StockQtyAdjust
-              v-if="isChiller || isSmartFreezer"
+              v-if="isChiller"
               :vend-id="vend.id"
               :can-edit="permissions.includes('update machine-settings')"
             />
@@ -1839,6 +1873,8 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FieldAudit from '@/Components/FieldAudit.vue';
 import StockQtyAdjust from '@/Components/StockQtyAdjust.vue';
+import StockQtyInline from '@/Components/StockQtyInline.vue';
+import { stockQtyLine, useStockQty } from '@/composables/useStockQty';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
@@ -2906,7 +2942,39 @@ const freezerPlanogramItems = computed(() => vendChannels.value
     thumbnail: channel.product.thumbnail?.full_url ?? null,
     // Site-tier selling price, integer cents (selling_prices is pre-filtered to that tier).
     price_cents: channel.product.selling_prices?.[0]?.amount ?? null,
-  })))
+  }))
+  .map(item => {
+    // Only when the saved channel holds the same product: a mapping picked but not yet saved
+    // must not show (or overwrite) another SKU's stock.
+    const row = freezerStockByCode.value[item.channel_code]
+    const stock = row && row.product?.id === item.product_id ? row : null
+    return { ...item, stock, qty: stock?.qty, capacity: stock?.capacity }
+  }))
+
+// The SAVED machine's on-hand qty per channel, drawn into the planogram cells and overwritten there.
+const {
+  channels: freezerStockChannels,
+  refusal: freezerStockRefusal,
+  loading: freezerStockLoading,
+  load: loadFreezerStock,
+} = useStockQty(() => props.vend?.id)
+
+const canEditFreezerStock = computed(() => permissions.includes('update machine-settings') && !freezerStockRefusal.value)
+
+const freezerStockByCode = computed(() => {
+  const map = {}
+  for (const row of freezerStockChannels.value) map[String(row.code)] = row
+  return map
+})
+
+onMounted(() => {
+  if (isSmartFreezer.value) loadFreezerStock()
+})
+
+// A full Save reloads `vend`; the saved channels may have moved with a new mapping.
+watch(() => props.vend, () => {
+  if (isSmartFreezer.value) loadFreezerStock()
+})
 
 // Divisions per basket, mirroring VendController::smartBasketLayout: every basket has at
 // least one slot, widened by the mapping's basket_layout_json and by any channel code

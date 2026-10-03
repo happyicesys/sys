@@ -1086,8 +1086,11 @@ never on "not a vending machine" at the call site.
 Regression coverage: `tests/Feature/SkuStockIdentityTest.php`,
 `tests/Unit/ChannelCodeTest.php`, `tests/Feature/FreezerChannelSyncTest.php`.
 
-**Hand overwrite of on-hand qty** (Setting/Edit "Stock Qty", 2026-09-30 — ops and
-technicians correct a count without an ops job). `App\Services\Stock\ChannelQtyAdjuster`
+**Hand overwrite of on-hand qty** (Setting/Edit, 2026-09-30 — ops and technicians
+correct a count without an ops job). A chiller has a "Stock Qty" table under its mapping; a
+freezer has no table — each planogram cell carries its qty and Adjust (Brian, 2026-10-03),
+shown only where the saved channel holds the same product as the mapping picked on screen.
+Both draw `Components/StockQtyInline.vue` over `composables/useStockQty.js`. `App\Services\Stock\ChannelQtyAdjuster`
 is the only writer, and every applied change is a `vend_channel_qty_adjustments` row
 (who, when, before → after), shown on the row as "brian · 260930 11:03 pm (3 → 7)".
 Freezer: sets `vend_channels.qty` (our ledger). Chiller: sends the new figure to CityBox
