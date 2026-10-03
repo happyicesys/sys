@@ -38,11 +38,28 @@ class CardTerminalUnit extends Model
         'is_will_auto_refund',
         'auto_refund_flag_source',
         'auto_refund_stats_json',
+        // Payrallel (T05) units only: the terminal's own access token. Write-only —
+        // encrypted at rest, never in an array or a resource.
+        'access_token',
     ];
+
+    protected $hidden = ['access_token'];
 
     protected $casts = [
         'auto_refund_stats_json' => 'json',
+        'access_token' => 'encrypted',
     ];
+
+    /** A Payrallel (T05) remote terminal: its terminal_id is the SN and it carries an access token. */
+    public function isRemoteTerminal(): bool
+    {
+        return $this->company?->name === CardTerminal::NAME_PAYRALLEL;
+    }
+
+    public function hasAccessToken(): bool
+    {
+        return filled($this->getRawOriginal('access_token'));
+    }
 
     /** The supplying company — a row in `card_terminals`. */
     public function company()

@@ -5,6 +5,7 @@ namespace App\Services\CardSettlement;
 use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
 use App\Models\Vend;
+use App\Services\CardTerminal\RemoteCardTerminalBinder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -45,6 +46,33 @@ class CardTerminalBindingService
      * @return bool whether anything changed
      */
     public function assignToVend(Vend $vend, ?CardTerminalUnit $unit, ?string $boundFrom = null, ?int $createdBy = null): bool
+    {
+        $changed = $this->recordBinding($vend, $unit, $boundFrom, $createdBy);
+        $this->followWithRemoteRail($vend, $unit, $createdBy);
+
+        return $changed;
+    }
+
+    /**
+     * A smart freezer's card rail follows its bound terminal: a Payrallel (T05) unit switches
+     * it to that remote terminal, anything else (or none) switches it back to the wired reader.
+     * Runs even when the binding itself did not change, so a T05 bound before its token was
+     * entered, or a command-line row, is brought in line on the next save.
+     */
+    private function followWithRemoteRail(Vend $vend, ?CardTerminalUnit $unit, ?int $createdBy): void
+    {
+        if (! $vend->isSmartFreezer()) {
+            return;
+        }
+        $binder = app(RemoteCardTerminalBinder::class);
+        if ($unit && $unit->isRemoteTerminal()) {
+            $binder->bindUnit($vend, $unit, $createdBy, 'setting-edit');
+        } else {
+            $binder->unbind($vend, $createdBy, 'setting-edit');
+        }
+    }
+
+    private function recordBinding(Vend $vend, ?CardTerminalUnit $unit, ?string $boundFrom, ?int $createdBy): bool
     {
         $at = $this->resolveAt($boundFrom);
 

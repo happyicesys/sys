@@ -994,14 +994,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
             ->name('vends.customer.aggregates');
 
-        // Smart Freezer remote card terminal (Payrallel T05) — Setting > Edit. Binding stores
-        // the terminal's access token, so it needs update card-terminals as well as the page.
+        // Smart Freezer remote card terminal (Payrallel T05) — Setting > Edit status panel.
+        // Read-only: the T05 is bound with the Card Terminal picker on the same page.
         Route::get('/{vend}/remote-card-terminal', [RemoteCardTerminalController::class, 'show'])
             ->name('vends.remote-card-terminal.show')
             ->middleware('can:read machine-settings');
-        Route::put('/{vend}/remote-card-terminal', [RemoteCardTerminalController::class, 'update'])
-            ->name('vends.remote-card-terminal.update')
-            ->middleware(['can:update machine-settings', 'can:update card-terminals']);
         Route::post('/{vend}/remote-card-terminal/check', [RemoteCardTerminalController::class, 'check'])
             ->name('vends.remote-card-terminal.check')
             ->middleware('can:read machine-settings');

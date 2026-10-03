@@ -21,6 +21,7 @@ class RemoteCardTerminal extends Model
 
     protected $fillable = [
         'vend_id',
+        'card_terminal_unit_id',
         'provider',
         'label',
         'access_token',
@@ -42,6 +43,12 @@ class RemoteCardTerminal extends Model
     public function vend(): BelongsTo
     {
         return $this->belongsTo(Vend::class);
+    }
+
+    /** The Data Management unit (SN + token) it was bound from; null for a command-line binding. */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(CardTerminalUnit::class, 'card_terminal_unit_id');
     }
 
     public function intents(): HasMany

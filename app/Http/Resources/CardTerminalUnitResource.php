@@ -30,6 +30,9 @@ class CardTerminalUnitResource extends JsonResource
             // Auresys' own EZ terminal ID, where ops used to type "EZTID: …"
             // into remarks. Shown under the TID, not as its own column.
             'auresys_terminal_id' => $this->auresys_terminal_id,
+            // Payrallel (T05): terminal_id is its SN; the token itself never leaves the server.
+            'is_remote_terminal' => $this->resource->isRemoteTerminal(),
+            'has_access_token' => $this->resource->hasAccessToken(),
             'remarks' => $this->remarks,
             // Hardware batch + "Auto refund?" (Brian's flag, seeded from the
             // partner workbook; null = unknown). Informational since 2026-09-09:

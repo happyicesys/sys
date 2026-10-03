@@ -880,8 +880,8 @@ Integration record, live proofs and open questions for Zijia:
 Built 2026-09-30 for the smart freezer, **not yet run against Payrallel** — bench
 steps: `apk/smart-freezer/PAYRALLEL_BENCH_RUNBOOK_2026-09-30.md`. Inert until
 `PAYRALLEL_API_BASE_URL` is set and a terminal is bound
-(`php artisan payrallel:bind-terminal {vend}`, token stored encrypted on
-`remote_card_terminals`, one per terminal). Nothing here touches NETS: those
+(a Payrallel (T05) Card Terminal unit picked on Setting/Edit — see below; the
+freezer's runtime row is `remote_card_terminals`). Nothing here touches NETS: those
 terminals are `card_terminal_units`, reconciled from the NETS CSV.
 
 - **`App\Services\CardTerminal\CardPaymentService` is the only writer of
@@ -915,16 +915,23 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   it with `php artisan payrallel:timeline {vend} [--since= --ref= --raw]`.
 - The freezer picks this rail only where a terminal is bound here
   (`SF_CARD_RAIL=auto`, `SelectingCardRail`): binding is the switch, deactivating
-  switches back. **Bind / deactivate on Setting/Edit → "Remote card terminal (T05 ·
-  Payrallel)"** (2026-10-03, `RemoteCardTerminalController`, smart freezers only;
-  binding needs `update machine-settings` AND `update card-terminals` because it
-  stores the token) or with `php artisan payrallel:bind-terminal`. Both go through
-  `App\Services\CardTerminal\RemoteCardTerminalBinder` — the one writer of
-  `remote_card_terminals`. The token is write-only (encrypted, never returned to the
-  browser; a blank token on save keeps the stored one). One T05, one machine unless
-  the Payrallel (T05) company row has `can_bind_multiple_vends` on: binding a token
-  that is active on another freezer deactivates it there (compared after decrypting).
-  A first bind fills `vends.card_terminal_id` with Payrallel (T05) when it is empty.
+  switches back. **A T05 is a Data Management → Card Terminal unit** (2026-10-03) under
+  the company Payrallel (T05): `terminal_id` is its **SN** and `card_terminal_units.access_token`
+  its Payrallel token (encrypted, `$hidden`, write-only on the form — blank keeps it; the
+  NETS-only fields are hidden for it). It is put on a freezer like any terminal, with the
+  **Card Terminal picker on Setting/Edit** (T05 units are offered on smart freezers only), so
+  the binding has the usual dated history. `CardTerminalBindingService::assignToVend` then
+  drives the rail through `App\Services\CardTerminal\RemoteCardTerminalBinder` — the one
+  writer of `remote_card_terminals`: a T05 unit → active row (token + `card_terminal_unit_id`
+  copied from the unit); another terminal or none → that row off. **A Setting/Edit save only
+  switches off a row bound FROM a unit**: the form posts the terminal on every save, so a row
+  made by the old token-prompt command (no unit — 50001 since 2026-10-02) survives unrelated
+  saves; `payrallel:bind-terminal {vend} --deactivate` takes off either kind. Editing a unit's
+  token/SN reaches every row made from it (`syncUnit`); deleting the unit switches them off.
+  One T05, one machine unless the company's `can_bind_multiple_vends` is on (the binding
+  service keeps the other open binding, the binder keeps the other row). The Setting/Edit
+  panel "Remote card terminal (T05 · Payrallel)" is read-only status (SN, online/state, Check).
+  CLI: `php artisan payrallel:bind-terminal {vend} --sn=<SN>` binds a registered unit.
   Regression coverage: `tests/Feature/RemoteCardTerminalBindingTest.php`.
 
 Regression coverage: `tests/Feature/CardPaymentServiceTest.php`,

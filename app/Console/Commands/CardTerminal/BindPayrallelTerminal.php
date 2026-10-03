@@ -2,33 +2,35 @@
 
 namespace App\Console\Commands\CardTerminal;
 
+use App\Models\CardTerminal;
+use App\Models\CardTerminalUnit;
 use App\Models\RemoteCardTerminal;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\RemoteCardTerminalBinder;
 use Illuminate\Console\Command;
-use Illuminate\Validation\ValidationException;
 
 /**
- * Binds a Payrallel terminal (its Sales Channel access token) to a machine, or
- * deactivates the binding. Same rules as Setting > Edit > "Remote card terminal (T05)"
- * (both go through RemoteCardTerminalBinder). The token is asked for as a hidden prompt so it
- * never lands in shell history, and is stored encrypted.
+ * Binds a registered Payrallel (T05) terminal to a smart freezer, or takes it off — the
+ * same as picking it in Setting/Edit's Card Terminal field (both go through
+ * CardTerminalBindingService, so the binding history is recorded too). The T05 itself
+ * (SN + access token) is registered under Data Management > Card Terminal.
  *
- *   php artisan payrallel:bind-terminal 2009 --label="Bench UPT"
- *   php artisan payrallel:bind-terminal 2009 --deactivate
+ *   php artisan payrallel:bind-terminal 50001 --sn=T05SN12345
+ *   php artisan payrallel:bind-terminal 50001 --deactivate
  */
 class BindPayrallelTerminal extends Command
 {
     protected $signature = 'payrallel:bind-terminal
-        {vend : bare machine code, e.g. 2009}
-        {--label= : a name for the terminal, e.g. its serial}
+        {vend : bare machine code, e.g. 50001}
+        {--sn= : the T05\'s SN, as registered under Data Management > Card Terminal}
         {--deactivate : stop selling through this machine\'s remote terminal}';
 
-    protected $description = 'Bind a Payrallel remote terminal token to a machine (smart-freezer card rail)';
+    protected $description = 'Bind a registered Payrallel (T05) terminal to a smart freezer, or take it off';
 
-    public function handle(CardPaymentService $payments, RemoteCardTerminalBinder $binder): int
+    public function handle(CardPaymentService $payments, CardTerminalBindingService $bindings, RemoteCardTerminalBinder $binder): int
     {
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->bareCode($this->argument('vend'))->first();
         if (! $vend) {
@@ -38,33 +40,37 @@ class BindPayrallelTerminal extends Command
         }
 
         if ($this->option('deactivate')) {
-            if (! RemoteCardTerminal::query()->where('vend_id', $vend->id)->exists()) {
-                $this->info("No remote terminal on {$vend->code}.");
-
-                return self::SUCCESS;
+            if ($bindings->currentUnitFor($vend)?->isRemoteTerminal()) {
+                $bindings->assignToVend($vend, null); // closes the binding and switches the rail back
             }
-            $existing = RemoteCardTerminal::query()->where('vend_id', $vend->id)->first();
-            $this->runBinder(fn () => $binder->save($vend, false, $existing->label, null, 'payrallel:bind-terminal', 'artisan'));
+            // A row made before T05s were units has no binding to close.
+            $binder->unbind($vend, null, 'artisan', includeCommandRows: true);
             $this->info("Remote terminal on {$vend->code} deactivated.");
 
             return self::SUCCESS;
         }
 
-        $token = (string) $this->secret('Payrallel access token for this terminal');
-        if (trim($token) === '') {
-            $this->error('No token given.');
+        if (! $vend->isSmartFreezer()) {
+            $this->error("{$vend->code} is not a smart freezer.");
+
+            return self::FAILURE;
+        }
+        $sn = trim((string) $this->option('sn'));
+        $unit = $sn === '' ? null : CardTerminalUnit::query()->with('company')->where('terminal_id', $sn)->first();
+        if (! $unit || ! $unit->isRemoteTerminal()) {
+            $this->error('Give --sn= of a T05 registered under Data Management > Card Terminal (company '.CardTerminal::NAME_PAYRALLEL.').');
+
+            return self::FAILURE;
+        }
+        if (! $unit->hasAccessToken()) {
+            $this->error("T05 {$sn} has no access token yet — add it under Data Management > Card Terminal.");
 
             return self::FAILURE;
         }
 
-        $result = $this->runBinder(fn () => $binder->save($vend, true, $this->option('label'), $token, 'payrallel:bind-terminal', 'artisan'));
-        if ($result === null) {
-            return self::FAILURE;
-        }
-        $this->info("Terminal #{$result['terminal']->id} bound to {$vend->code}.");
-        if ($result['released_from']) {
-            $this->warn('Taken off: '.implode(', ', $result['released_from']).' (one terminal, one machine — see Card Terminal Company).');
-        }
+        $bindings->assignToVend($vend, $unit);
+        $terminal = RemoteCardTerminal::query()->where('vend_id', $vend->id)->first();
+        $this->info("T05 {$sn} bound to {$vend->code} (remote terminal #{$terminal?->id}).");
 
         $status = $payments->terminalStatus($vend);
         $this->line(sprintf(
@@ -75,17 +81,5 @@ class BindPayrallelTerminal extends Command
         ));
 
         return self::SUCCESS;
-    }
-
-    /** @return array<string, mixed>|null the binder's result, or null after printing why it refused */
-    private function runBinder(callable $save): ?array
-    {
-        try {
-            return $save();
-        } catch (ValidationException $e) {
-            $this->error(collect($e->errors())->flatten()->implode(' '));
-
-            return null;
-        }
     }
 }

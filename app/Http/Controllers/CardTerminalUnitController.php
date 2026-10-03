@@ -9,6 +9,7 @@ use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Services\CardTerminal\RemoteCardTerminalBinder;
 use App\Support\VendCode;
 use App\Traits\ExportOptimizationTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Rap2hpoutre\FastExcel\FastExcel;
 
@@ -266,7 +268,7 @@ class CardTerminalUnitController extends Controller
             })
             // Machine filter resolves through the binding effective TODAY, so
             // it answers "which terminal is on machine X now", not "was ever".
-            ->when($request->input('vend_code'), function ($q, $search) use ($today) {
+            ->when($request->input('vend_code'), function ($q, $search) {
                 return $q->whereIn('terminal_id', CardTerminalBinding::query()
                     ->effectiveAt(now())
                     ->whereIn('vend_id', Vend::withoutGlobalScopes()
@@ -339,12 +341,17 @@ class CardTerminalUnitController extends Controller
         $unit = CardTerminalUnit::findOrFail($id);
         $unit->update($this->validated($request, $unit->id));
 
+        // A T05's SN or token edited here reaches every freezer row made from it.
+        app(RemoteCardTerminalBinder::class)->syncUnit($unit->fresh('company'), auth()->id());
+
         return redirect()->route('card-terminal-units');
     }
 
     public function delete($id)
     {
-        CardTerminalUnit::findOrFail($id)->delete();
+        $unit = CardTerminalUnit::findOrFail($id);
+        app(RemoteCardTerminalBinder::class)->releaseUnit($unit, auth()->id());
+        $unit->delete();
 
         return redirect()->route('card-terminal-units');
     }
@@ -369,7 +376,19 @@ class CardTerminalUnitController extends Controller
             // 'auto' = no override (seed / unknown), 'yes' / 'no' = a manual flag
             // that the seed import will not overwrite.
             'will_auto_refund' => ['nullable', Rule::in(['auto', 'yes', 'no'])],
+            // Payrallel (T05) units only: write-only, blank keeps the stored token.
+            'access_token' => ['nullable', 'string', 'max:4000'],
         ]);
+
+        // A Payrallel (T05) unit is a remote terminal: its terminal_id is the SN and it needs
+        // its access token. Every other company never carries one.
+        $isRemote = ($validated['card_terminal_id'] ?? null)
+            && CardTerminal::query()->whereKey($validated['card_terminal_id'])->value('name') === CardTerminal::NAME_PAYRALLEL;
+        $token = trim((string) ($validated['access_token'] ?? ''));
+        $existing = $ignoreId ? CardTerminalUnit::find($ignoreId) : null;
+        if ($isRemote && $token === '' && ! $existing?->hasAccessToken()) {
+            throw ValidationException::withMessages(['access_token' => 'Paste the T05\'s Payrallel access token.']);
+        }
 
         $attrs = [
             'terminal_id' => trim($validated['terminal_id']),
@@ -379,6 +398,11 @@ class CardTerminalUnitController extends Controller
             // empty box must mean null rather than "".
             'auresys_terminal_id' => trim((string) ($validated['auresys_terminal_id'] ?? '')) ?: null,
         ];
+        if ($isRemote && $token !== '') {
+            $attrs['access_token'] = $token;
+        } elseif (! $isRemote) {
+            $attrs['access_token'] = null;
+        }
         if (array_key_exists('batch', $validated)) {
             $attrs['batch'] = $validated['batch'] !== null && $validated['batch'] !== '' ? trim($validated['batch']) : null;
         }

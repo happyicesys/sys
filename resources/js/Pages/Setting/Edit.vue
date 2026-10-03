@@ -1655,6 +1655,7 @@
             <RemoteCardTerminalPanel
               v-if="isSmartFreezer && vend && vend.id && permissions.includes('read machine-settings')"
               :vend-id="vend.id"
+              :bound-unit-id="cardTerminalBinding?.card_terminal_unit_id ?? null"
             />
 
             <!-- Smart Freezer: no VMC, and its APK ignores RESET / REBOOTANDROID, so only the two
@@ -2444,10 +2445,15 @@ onMounted(() => {
   // in a list of 300-odd bare 8-digit numbers.
   cardTerminalUnitOptions.value = [
     { id: '', name: '--- Clear ---'},
-    ...((props.cardTerminalUnitOptions?.data) ?? []).map(unit => ({
-      id: unit.id,
-      name: unit.card_terminal_name ? `${unit.terminal_id} — ${unit.card_terminal_name}` : unit.terminal_id,
-    })),
+    // A Payrallel (T05) unit is offered on smart freezers only — no other machine's app can use it.
+    ...((props.cardTerminalUnitOptions?.data) ?? [])
+      .filter(unit => isSmartFreezer.value || !unit.is_remote_terminal)
+      .map(unit => ({
+        id: unit.id,
+        name: unit.is_remote_terminal
+          ? `${unit.terminal_id} — ${unit.card_terminal_name}${unit.has_access_token ? '' : ' (no token yet)'}`
+          : (unit.card_terminal_name ? `${unit.terminal_id} — ${unit.card_terminal_name}` : unit.terminal_id),
+      })),
   ]
   cashlessTerminalOptions.value = [
     { id: '', name: '--- Clear ---'},
