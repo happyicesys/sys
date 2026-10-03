@@ -56,6 +56,22 @@ return [
     // door-failed window. Past it the goods are presumed released.
     'device_void_window_minutes' => (int) env('PAYRALLEL_DEVICE_VOID_WINDOW_MINUTES', 15),
 
+    /*
+    | AI-decided charge (Brian, 2026-10-03). In `preauth` mode a freezer (app 26+)
+    | that sends its session ref with the door-closed capture does NOT charge
+    | there: the hold waits (`awaiting_ai`) for that session's verdict in
+    | smart_freezer_recognitions, and CardPaymentService::settleAwaitingAi charges
+    | what the AI judged, never more than the hold (AiCaptureDecision). A capture
+    | with no session ref (app 25) still charges at once. Off = always at once.
+    */
+    'ai_capture' => (bool) env('PAYRALLEL_AI_CAPTURE', true),
+
+    // A hold still awaiting the AI this long after the door closed is charged in
+    // full, so it can never expire uncaptured and hand the goods out free. Brian:
+    // "just before hold expiry" — Payrallel says about a month, not per scheme, so
+    // 3 days until they confirm the shortest lifetime.
+    'ai_capture_backstop_hours' => (int) env('PAYRALLEL_AI_CAPTURE_BACKSTOP_HOURS', 72),
+
     // Accepted clock skew on device-signed requests (X-Device-Timestamp).
     'device_signature_skew_seconds' => (int) env('PAYRALLEL_DEVICE_SIGNATURE_SKEW_SECONDS', 300),
 ];

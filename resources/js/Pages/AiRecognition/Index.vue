@@ -16,8 +16,9 @@
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <p class="text-xs text-gray-500">
           Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw
-          taken, and how that compares with what the customer paid for. Information only — nothing here
-          changes a sale or stock.
+          taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal
+          is charged by this verdict (never above the hold made at checkout); NETS and QR sales were charged
+          at the machine. Nothing here changes stock.
         </p>
 
         <!-- Filters -->
@@ -160,7 +161,7 @@
                     Verdict vs Paid
                   </TableHeadSort>
                   <TableHead>
-                    Sale
+                    Sale / Card charge
                   </TableHead>
                 </tr>
               </thead>
@@ -248,6 +249,13 @@
                       <span>{{ formatCents(row.sale.amount) }}</span>
                     </div>
                     <span v-else class="text-gray-400">—</span>
+                    <div v-if="row.card" class="mt-1 flex flex-col space-y-0.5 text-xs" :title="row.card.reason || ''">
+                      <span class="inline-flex w-fit mx-auto items-center rounded px-1.5 py-0.5 font-bold border" :class="cardBadgeClass(row.card)">
+                        {{ cardLabel(row.card) }}
+                      </span>
+                      <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">Owed {{ formatCents(row.card.owed_cents) }} (above the hold)</span>
+                      <span v-if="row.card.error" class="text-red-700">{{ row.card.error }}</span>
+                    </div>
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
@@ -342,6 +350,21 @@ function saleUrl(sale) {
 // Money is integer cents; divide only for display.
 function formatCents(cents) {
   return (cents / 100).toFixed(2)
+}
+
+// The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).
+function cardLabel(card) {
+  if (card.state === 'awaiting_ai') return `T05 hold ${formatCents(card.hold_cents)} · awaiting AI`
+  if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} of ${formatCents(card.hold_cents)}`
+  if (card.state === 'voided') return `T05 hold ${formatCents(card.hold_cents)} released`
+  return `T05 ${card.state}`
+}
+
+function cardBadgeClass(card) {
+  if (card.state === 'awaiting_ai') return 'bg-amber-50 text-amber-800 border-amber-300'
+  if (card.state === 'voided') return 'bg-gray-100 text-gray-700 border-gray-300'
+  if (card.owed_cents) return 'bg-red-50 text-red-700 border-red-300'
+  return 'bg-green-50 text-green-700 border-green-300'
 }
 
 const filters = ref({

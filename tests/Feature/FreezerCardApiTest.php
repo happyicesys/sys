@@ -82,6 +82,20 @@ class FreezerCardApiTest extends TestCase
             ->assertOk()->assertJson(['configured' => true, 'online' => true, 'state' => 'ready', 'ready' => true]);
     }
 
+    public function test_a_door_close_naming_its_session_hands_the_preauth_to_the_ai(): void
+    {
+        config(['payrallel.mode' => 'preauth', 'payrallel.ai_capture' => true]);
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF2', 'amount_cents' => 430])->assertStatus(202);
+        $this->gateway->answer('50001-SF2', T::APPROVED);
+        $this->signed('GET', '/api/v1/vends/50001/card/SF2')->assertJson(['state' => 'approved']);
+
+        $this->signed('POST', '/api/v1/vends/50001/card/SF2/capture', ['amount_cents' => 430, 'session_ref' => 'bad ref!'])
+            ->assertStatus(422);
+        $this->signed('POST', '/api/v1/vends/50001/card/SF2/capture', ['amount_cents' => 430, 'session_ref' => 'SF-50001-1791100000-3'])
+            ->assertOk()->assertJson(['state' => 'awaiting_ai', 'final' => false, 'captured_cents' => null]);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+    }
+
     public function test_full_purchase_authorize_poll_capture(): void
     {
         $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])

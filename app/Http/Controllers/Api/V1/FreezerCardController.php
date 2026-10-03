@@ -22,7 +22,7 @@ use Illuminate\Http\Request;
  *   POST /api/v1/vends/{code}/card/authorize            {reference, amount_cents} → 202 intent
  *   GET  /api/v1/vends/{code}/card/{reference}          poll; re-queries the provider
  *   POST /api/v1/vends/{code}/card/{reference}/cancel
- *   POST /api/v1/vends/{code}/card/{reference}/capture  {amount_cents}
+ *   POST /api/v1/vends/{code}/card/{reference}/capture  {amount_cents, session_ref?}
  *   POST /api/v1/vends/{code}/card/{reference}/void
  *
  * Every route is signed by the machine (VerifyDeviceSignature). Errors are
@@ -80,11 +80,16 @@ class FreezerCardController extends Controller
 
     public function capture(Request $request, string $code, string $reference): JsonResponse
     {
-        $data = $request->validate(['amount_cents' => ['required', 'integer', 'min:1', 'max:10000000']]);
+        $data = $request->validate([
+            'amount_cents' => ['required', 'integer', 'min:1', 'max:10000000'],
+            // App 26+: the kiosk session (the TRADE's SFREF); the AI verdict then decides the charge.
+            'session_ref' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9_-]+$/'],
+        ]);
+        $sessionRef = $data['session_ref'] ?? null;
 
         return $this->logged('capture', $request, $reference, fn () => response()->json(
-            $this->present($this->payments->capture($this->intent($request, $reference), (int) $data['amount_cents'])),
-        ), ['amount_cents' => (int) $data['amount_cents']]);
+            $this->present($this->payments->capture($this->intent($request, $reference), (int) $data['amount_cents'], $sessionRef)),
+        ), array_filter(['amount_cents' => (int) $data['amount_cents'], 'session_ref' => $sessionRef]));
     }
 
     public function void(Request $request, string $code, string $reference): JsonResponse

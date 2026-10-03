@@ -815,8 +815,8 @@ unrecognised). Rules:
   saves the proof of the call (`request_id`, status) before anything else. The
   job has one try; a failed row goes back only on request
   (`smart-freezer:zijia-recognition <id> --retry`, `--force` for one stuck in
-  `submitting` — its first call may have landed). `auto_submit` is off until
-  products are modelled and a live session is proven. Every stop records `status_reason` — the row alone
+  `submitting` — its first call may have landed). `auto_submit` is ON in prod
+  (`ZIJIA_ALGO_AUTO_SUBMIT=true`, since 2026-10-02; config default off). Every stop records `status_reason` — the row alone
   must explain why nothing happened.
 - **An unverified callback** (log mode) may complete a row mark1 sent, but never
   overwrites a verified answer and never creates a row for a trade mark1 did not
@@ -836,10 +836,14 @@ unrecognised). Rules:
   clock, so a miss falls back to OUR clock (`created_at` ± 2 days of the push).
   A result that lands before the TRADE waits; `smart-freezer:zijia-evaluate-pending`
   (every 10 min, last 7 days) judges it once the sale arrives.
-- **Nothing moves money or stock.** The verdict is information until Brian decides
-  what a `took_more` / `took_less` should do. A paid product the algorithm could
+- **The verdict moves money only on a T05 hold; never stock.** A sale paid on a
+  Payrallel (T05) terminal by a freezer on app 26+ is charged by its session's
+  verdict (`CardPaymentService::settleAwaitingAi`, see the Remote card terminals
+  section). NETS and QR sales were charged at the machine and nothing here touches
+  them. A paid product the algorithm could
   not have named (no barcode, or a slot with no product) makes the verdict
-  `incomplete`, never `took_less` — its "0 taken" is not evidence.
+  `incomplete`, never `took_less` — its "0 taken" is not evidence (and a T05 hold
+  is then charged the cart total).
 - **`goodsList.sn` is the product's BARCODE** — the 商品条形码 it was modelled with in
   Zijia's portal (vms4.zjoyvd.cn → 商品管理 → 商品申请, or their mini program), which
   their algorithm library stores as `productCode`. It is NOT the 商品编码, even though
@@ -899,6 +903,25 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   `card-payments:reconcile` once the void window has passed — goods are
   presumed released, and an uncaptured hold expiring (~a month) would give them
   away. A refused capture stays `approved` and is retried every 10 min.
+- **The AI verdict decides a T05 charge** (Brian, 2026-10-03; plan
+  `apk/smart-freezer/AI_GATED_CARD_CAPTURE_PLAN_2026-10-03.md`). A door-closed
+  capture carrying `session_ref` (the kiosk txnRef = the TRADE's SFREF, freezer app
+  26+) charges nothing: the intent goes `awaiting_ai`, and `card-payments:reconcile`
+  charges it once `smart_freezer_recognitions` (same vend + session_ref) has a
+  verdict, by `AiCaptureDecision`: the hold is the ceiling (no buffer); match →
+  cart; took_less / mixed / took_more → what the AI saw, valued at the price paid
+  in that sale else the machine's `vend_channels.amount`; nothing taken → void;
+  above the hold → the full hold + `owed_cents` (Payrallel has no second charge
+  without a tap — no card-on-file, no incremental auth, one capture); unrecognised
+  / incomplete / a taken product with no price → cart. No verdict → cart at
+  `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
+  expire. `failed` recognitions are not verdicts — they wait for the backstop.
+  The decision is made ONCE (`ai_decision`, the first verdict is final); a refused
+  provider call retries that decision every 10 min. A capture with no session ref
+  (app 25) still charges at once; `PAYRALLEL_AI_CAPTURE=false` restores that for
+  all. Shown on AI Recognition ("Sale / Card charge"). `vend_transactions.amount`
+  is NOT changed to the captured figure — revenue follow-up open.
+  Regression coverage: `tests/Feature/AiGatedCardCaptureTest.php`, `tests/Unit/AiCaptureDecisionTest.php`.
 - Only an exact provider `approved` approves (`PayrallelGateway::query`); an
   unknown word stays processing.
 - Device requests are HMAC-signed with the vend's `private_key`

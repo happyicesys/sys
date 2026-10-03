@@ -89,4 +89,28 @@ class FreezerSaleLocator
 
         return $paid;
     }
+
+    /**
+     * Product id => the unit price (cents) the customer paid for it in this sale, from the
+     * TRADE's per-unit `Price` — what an AI-judged charge values a product at.
+     *
+     * @return array<int, int>
+     */
+    public function paidUnitPrices(VendTransaction $sale): array
+    {
+        $frame = $sale->vend_transaction_json;
+        if (is_string($frame)) {
+            $frame = json_decode($frame, true);
+        }
+
+        $prices = [];
+        foreach ((array) (($frame['transf_info'] ?? null) ?: []) as $unit) {
+            $productId = (int) ($unit['goods_id'] ?? 0);
+            if ($productId > 0 && isset($unit['Price']) && is_numeric($unit['Price'])) {
+                $prices[$productId] = (int) $unit['Price'];
+            }
+        }
+
+        return $prices;
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SmartFreezer;
 
 use App\Http\Controllers\Controller;
+use App\Models\CardPaymentIntent;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerRecognition;
@@ -86,8 +87,9 @@ class FreezerRecognitionController extends Controller
 
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
         $names = $this->productNames($page->getCollection());
+        $cards = $this->cardCharges($page->getCollection());
 
-        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names));
+        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards));
 
         return Inertia::render('AiRecognition/Index', [
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
@@ -118,10 +120,14 @@ class FreezerRecognitionController extends Controller
         ]);
     }
 
-    /** @param  array{by_id: array<int, string>, by_code: array<string, string>}  $names */
-    private function row(SmartFreezerRecognition $r, array $names): array
+    /**
+     * @param  array{by_id: array<int, string>, by_code: array<string, string>}  $names
+     * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
+     */
+    private function row(SmartFreezerRecognition $r, array $names, array $cards): array
     {
         $sale = $r->vendTransaction;
+        $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
 
         return [
             'id' => $r->id,
@@ -156,7 +162,37 @@ class FreezerRecognitionController extends Controller
                 'date' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 0, 10) : null,
                 'time' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 11, 8) : null,
             ] : null,
+            // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
+            'card' => $card ? [
+                'state' => $card->state,
+                'hold_cents' => $card->amount_cents,
+                'captured_cents' => $card->captured_cents,
+                'owed_cents' => $card->owed_cents,
+                'reason' => $card->ai_decision['reason'] ?? null,
+                'error' => $card->state === CardPaymentIntent::STATE_AWAITING_AI ? $card->last_error : null,
+            ] : null,
         ];
+    }
+
+    /**
+     * The T05 holds of this page's sessions, one query.
+     *
+     * @return array<string, CardPaymentIntent>
+     */
+    private function cardCharges($recognitions): array
+    {
+        $refs = $recognitions->pluck('session_ref')->filter()->unique()->values();
+        if ($refs->isEmpty()) {
+            return [];
+        }
+
+        return CardPaymentIntent::query()
+            ->whereIn('session_ref', $refs)
+            ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique())
+            ->orderBy('id')
+            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'owed_cents', 'ai_decision', 'last_error'])
+            ->keyBy(fn (CardPaymentIntent $i) => $i->vend_id.'|'.$i->session_ref)
+            ->all();
     }
 
     /** "501 recognition error — 503 goods not listed in the model (商品未上架)", or null before a result. */

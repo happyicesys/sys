@@ -18,8 +18,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *      │                                   └──late approval──▶ (auto void) voided | void_failed
  *      └──send failed──▶ error
  *
+ *   approved ──door closed + session ref (preauth, ai_capture)──▶ awaiting_ai
+ *   awaiting_ai ──AI verdict / backstop──▶ captured (≤ the hold) | voided (nothing taken)
+ *
  * `cancelling` exists because a cancel does not prove the customer did not tap:
  * the approval can land after it, and then the money must go back.
+ *
+ * `awaiting_ai`: the goods are released and the hold stays open until the kiosk
+ * session's AI verdict decides the charge (AiCaptureDecision). Nothing on the device
+ * moves it; only CardPaymentService::settleAwaitingAi does.
  */
 class CardPaymentIntent extends Model
 {
@@ -43,6 +50,9 @@ class CardPaymentIntent extends Model
 
     public const STATE_ERROR = 'error';
 
+    /** Door closed on a hold; the charge waits for the session's AI verdict. */
+    public const STATE_AWAITING_AI = 'awaiting_ai';
+
     public const MODE_SALE = 'sale';
 
     public const MODE_PREAUTH = 'preauth';
@@ -62,9 +72,11 @@ class CardPaymentIntent extends Model
         'provider',
         'reference',
         'custom_order_id',
+        'session_ref',
         'mode',
         'amount_cents',
         'captured_cents',
+        'owed_cents',
         'state',
         'provider_status',
         'provider_txn_id',
@@ -73,24 +85,29 @@ class CardPaymentIntent extends Model
         'query_count',
         'last_queried_at',
         'approved_at',
+        'door_closed_at',
         'cancel_requested_at',
         'captured_at',
         'voided_at',
         'resolved_at',
         'last_response',
+        'ai_decision',
     ];
 
     protected $casts = [
         'amount_cents' => 'integer',
         'captured_cents' => 'integer',
+        'owed_cents' => 'integer',
         'query_count' => 'integer',
         'last_queried_at' => 'datetime',
         'approved_at' => 'datetime',
+        'door_closed_at' => 'datetime',
         'cancel_requested_at' => 'datetime',
         'captured_at' => 'datetime',
         'voided_at' => 'datetime',
         'resolved_at' => 'datetime',
         'last_response' => 'array',
+        'ai_decision' => 'array',
     ];
 
     /**

@@ -4,10 +4,14 @@ namespace App\Services\CardTerminal;
 
 use App\Models\CardPaymentIntent;
 use App\Models\RemoteCardTerminal;
+use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
+use App\Models\VendTransaction;
+use App\Services\SmartFreezer\FreezerSaleLocator;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -40,6 +44,7 @@ class CardPaymentService
     public function __construct(
         private readonly RemoteCardTerminalGatewayFactory $gateways,
         private readonly CardTerminalEventLog $events,
+        private readonly FreezerSaleLocator $sales,
     ) {}
 
     /**
@@ -144,12 +149,18 @@ class CardPaymentService
      * The door opened: the sale is fulfilled. `sale` mode was charged at the tap,
      * so this only closes the void window; `preauth` mode charges here.
      *
+     * A preauth door-close that names its kiosk session ($sessionRef, freezer app 26+)
+     * charges nothing here when `payrallel.ai_capture` is on: the hold moves to
+     * `awaiting_ai` and the session's AI verdict decides the charge
+     * ({@see settleAwaitingAi}). The device is told it succeeded either way — the goods
+     * are released, nothing more is the device's to do.
+     *
      * @throws DomainException when the attempt is not approved or the amount is wrong
      */
-    public function capture(CardPaymentIntent $intent, int $cents): CardPaymentIntent
+    public function capture(CardPaymentIntent $intent, int $cents, ?string $sessionRef = null): CardPaymentIntent
     {
-        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents) {
-            if ($intent->state === CardPaymentIntent::STATE_CAPTURED) {
+        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $sessionRef) {
+            if (in_array($intent->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_AWAITING_AI], true)) {
                 return $intent;
             }
             if ($intent->state !== CardPaymentIntent::STATE_APPROVED) {
@@ -157,6 +168,17 @@ class CardPaymentService
             }
             if ($cents <= 0 || $cents > $intent->amount_cents) {
                 throw new DomainException("capture {$cents}c outside the approved {$intent->amount_cents}c");
+            }
+
+            if ($sessionRef !== null && $intent->mode === CardPaymentIntent::MODE_PREAUTH && config('payrallel.ai_capture')) {
+                $intent->update([
+                    'state' => CardPaymentIntent::STATE_AWAITING_AI,
+                    'session_ref' => $sessionRef,
+                    'door_closed_at' => Carbon::now(),
+                    'ai_decision' => ['cart_cents' => $cents],
+                ]);
+
+                return $this->settleAwaitingAiLocked($intent);
             }
 
             if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
@@ -204,6 +226,8 @@ class CardPaymentService
                     throw new DomainException('not approved yet — cancel it instead');
                 case CardPaymentIntent::STATE_CAPTURED:
                     throw new DomainException('already captured: the goods were released');
+                case CardPaymentIntent::STATE_AWAITING_AI:
+                    throw new DomainException('door closed: the AI verdict decides the charge');
             }
 
             $window = (int) config('payrallel.device_void_window_minutes', 15);
@@ -301,7 +325,155 @@ class CardPaymentService
                 $this->locked($intent, fn (CardPaymentIntent $i) => $this->closeUnconfirmed($i));
             });
 
+        // Holds waiting on their AI verdict: charge as soon as it is in, or in full at the
+        // backstop. A decided charge the provider refused is retried every
+        // AUTO_CAPTURE_RETRY_MINUTES (inside settleAwaitingAiLocked).
+        CardPaymentIntent::query()
+            ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
+            ->lazyById(100)
+            ->each(function (CardPaymentIntent $intent) use (&$touched) {
+                $touched++;
+                $this->locked($intent, fn (CardPaymentIntent $i) => $this->settleAwaitingAiLocked($i));
+            });
+
         return $touched;
+    }
+
+    /**
+     * Charges a hold whose door has closed, once the kiosk session's AI verdict is in
+     * smart_freezer_recognitions (Brian, 2026-10-03: the AI result is final). The amount is
+     * {@see AiCaptureDecision}: never above the hold; nothing taken releases it. With no
+     * verdict, it waits — until `ai_capture_backstop_hours` after the door closed, when the
+     * cart total is charged so the hold cannot expire unpaid. The decision is made ONCE and
+     * kept on the intent; a provider failure retries that same decision.
+     */
+    public function settleAwaitingAi(CardPaymentIntent $intent): CardPaymentIntent
+    {
+        return $this->locked($intent, fn (CardPaymentIntent $i) => $this->settleAwaitingAiLocked($i));
+    }
+
+    /** Caller holds the lock. */
+    private function settleAwaitingAiLocked(CardPaymentIntent $intent): CardPaymentIntent
+    {
+        if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI) {
+            return $intent;
+        }
+        $stored = (array) $intent->ai_decision;
+        $cart = (int) ($stored['cart_cents'] ?? $intent->amount_cents);
+
+        if (isset($stored['action'])) {
+            if ($intent->last_queried_at && $intent->last_queried_at->gt(Carbon::now()->subMinutes(self::AUTO_CAPTURE_RETRY_MINUTES))) {
+                return $intent; // a refused charge, retried on the next window
+            }
+            $action = $stored['action'];
+            $captureCents = (int) $stored['capture_cents'];
+        } else {
+            $decided = $this->decideForAi($intent, $cart);
+            if ($decided === null) {
+                return $intent; // no verdict yet, and the backstop is not due
+            }
+            [$decision, $recognitionId] = $decided;
+            $intent->update([
+                'ai_decision' => ['cart_cents' => $cart] + $decision->toArray() + [
+                    'recognition_id' => $recognitionId,
+                    'decided_at' => Carbon::now()->toIso8601String(),
+                ],
+                'owed_cents' => $decision->owedCents ?: null,
+            ]);
+            $this->events->record('ai.decision', ['cart_cents' => $cart] + $decision->toArray() + array_filter([
+                'recognition_id' => $recognitionId,
+                'session_ref' => $intent->session_ref,
+            ]), $intent->terminal, $intent->custom_order_id, null, $decision->owedCents > 0 ? 'warning' : 'info');
+            $action = $decision->action;
+            $captureCents = $decision->captureCents;
+        }
+
+        $terminal = $intent->terminal;
+        try {
+            if ($action === AiCaptureDecision::VOID) {
+                $this->gateways->for($terminal)->void($terminal, $intent->custom_order_id);
+            } else {
+                $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $captureCents);
+            }
+        } catch (CardTerminalException $e) {
+            $intent->update([
+                'last_error' => $this->errorText("ai {$action}: ".$e->getMessage()),
+                'last_queried_at' => Carbon::now(),
+            ]);
+            Log::error('Card charge after AI verdict failed — retrying', $this->logContext($intent) + ['error' => $e->getMessage()]);
+
+            return $intent;
+        }
+
+        return $action === AiCaptureDecision::VOID
+            ? $this->finish($intent, CardPaymentIntent::STATE_VOIDED, ['voided_at' => Carbon::now(), 'last_error' => null])
+            : $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
+                'captured_cents' => $captureCents,
+                'captured_at' => Carbon::now(),
+                'last_error' => null,
+            ]);
+    }
+
+    /**
+     * The session's verdict as a decision, the backstop once it is due, or null to keep waiting.
+     *
+     * @return array{0: AiCaptureDecision, 1: int|null}|null
+     */
+    private function decideForAi(CardPaymentIntent $intent, int $cart): ?array
+    {
+        $recognition = $intent->session_ref === null ? null : SmartFreezerRecognition::query()
+            ->where('vend_id', $intent->vend_id)
+            ->where('session_ref', $intent->session_ref)
+            ->whereNotNull('verdict')
+            ->latest('id')
+            ->first();
+
+        if ($recognition) {
+            $sale = $recognition->vend_transaction_id
+                ? VendTransaction::withoutGlobalScopes()->find($recognition->vend_transaction_id)
+                : null;
+            $lines = (array) $recognition->verdict_lines;
+            $productIds = array_values(array_filter(array_map(fn ($l) => (int) ($l['product_id'] ?? 0), $lines)));
+
+            return [AiCaptureDecision::decide(
+                $intent->amount_cents,
+                $cart,
+                $recognition->verdict,
+                $lines,
+                $sale ? $this->sales->paidUnitPrices($sale) : [],
+                $this->shelfPrices($intent->vend_id, $productIds),
+            ), $recognition->id];
+        }
+
+        $hours = (int) config('payrallel.ai_capture_backstop_hours', 72);
+        if ($intent->door_closed_at && $intent->door_closed_at->lte(Carbon::now()->subHours($hours))) {
+            return [AiCaptureDecision::backstop($intent->amount_cents, $cart, $hours), null];
+        }
+
+        return null;
+    }
+
+    /**
+     * The machine's price for each product today (vend_channels.amount, cents — on a freezer
+     * the server price per SKU).
+     *
+     * @param  list<int>  $productIds
+     * @return array<int, int>
+     */
+    private function shelfPrices(int $vendId, array $productIds): array
+    {
+        if ($productIds === []) {
+            return [];
+        }
+
+        return DB::table('vend_channels')
+            ->where('vend_id', $vendId)
+            ->whereIn('product_id', $productIds)
+            ->where('amount', '>', 0)
+            ->orderBy('id')
+            ->pluck('amount', 'product_id')
+            ->map(fn ($cents) => (int) $cents)
+            ->all();
     }
 
     /** Captures an approval the device never confirmed. Caller holds the lock. */

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\CardPaymentIntent;
 use App\Models\Product;
+use App\Models\RemoteCardTerminal;
 use App\Models\SmartFreezerRecognition;
 use App\Models\SmartFreezerVideo;
 use App\Models\User;
@@ -91,6 +93,30 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.algorithm_status', 'normal')
                 ->has('recognitions.meta')
             );
+    }
+
+    public function test_a_session_paid_on_a_t05_shows_what_the_verdict_charged(): void
+    {
+        $terminal = RemoteCardTerminal::create([
+            'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
+        ]);
+        CardPaymentIntent::forceCreate([
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
+            'reference' => 'SF1', 'custom_order_id' => '50001-SF1', 'session_ref' => 'SF-50001-1790732333-1',
+            'mode' => 'preauth', 'amount_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
+            'state' => CardPaymentIntent::STATE_CAPTURED, 'ai_decision' => ['reason' => 'AI judged took_more above the hold'],
+        ]);
+        $this->recognition(['session_ref' => 'SF-50001-1790732333-1', 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'took_more']);
+        $this->recognition(['trade_id' => 'SDK-other', 'session_ref' => 'SF-50001-1790732999-2']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?sortKey=created_at')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.1.card', [
+                    'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
+                    'reason' => 'AI judged took_more above the hold', 'error' => null,
+                ])
+                ->where('recognitions.data.0.card', null));
     }
 
     public function test_the_finer_ai_reason_is_shown(): void
