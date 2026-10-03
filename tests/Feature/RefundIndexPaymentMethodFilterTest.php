@@ -223,7 +223,8 @@ class RefundIndexPaymentMethodFilterTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Refund/Index')
                 ->where('filters.paymentMethods', ['cc:Nets', (string) $this->paynow->id])
-                ->where('cardTerminalOptions.data', ['Nets'])
+                // Payrallel (T05) is seeded by its migration (2026-10-03) — every company is offered.
+                ->where('cardTerminalOptions.data', ['Nets', 'Payrallel (T05)'])
                 ->has('paymentMethods.data', 2));
     }
 }
