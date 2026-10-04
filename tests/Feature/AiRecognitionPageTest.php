@@ -116,7 +116,7 @@ class AiRecognitionPageTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.1.card', [
                     'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
-                    'judged_cents' => 960, 'charges' => 2, 'paid' => 1,
+                    'judged_cents' => 960, 'charges' => 2, 'paid' => 1, 'uncertain_cents' => null,
                     'reason' => 'AI judged took_more above the hold: 2 charges', 'error' => 'further charge refused: no',
                 ])
                 ->where('recognitions.data.0.card', null));

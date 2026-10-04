@@ -38,8 +38,11 @@ class CardPaymentService
 
     private const TERMINAL_STATUS_CACHE_SECONDS = 10;
 
-    /** How many AI-decided charges one sweep makes for an intent; the rest wait a minute. */
-    private const AI_CHARGES_PER_RUN = 10;
+    /**
+     * How many AI-decided charges one sweep makes for an intent; the rest wait a minute. One
+     * call at the HTTP timeout plus its writes stays well inside LOCK_SECONDS.
+     */
+    private const AI_CHARGES_PER_RUN = 1;
 
     /** How often the reconciler retries a pre-auth capture the provider refused. */
     private const AUTO_CAPTURE_RETRY_MINUTES = 10;
@@ -80,6 +83,9 @@ class CardPaymentService
             'mode' => $this->mode(),
             'amount_cents' => $cents,
             'state' => CardPaymentIntent::STATE_PENDING,
+            // The token this hold was made with: a later T05 swap edits the vend's row in
+            // place, and a capture days later must still go to the terminal that holds it.
+            'access_token' => $terminal->access_token,
         ]);
         if (! $intent->wasRecentlyCreated) {
             return $intent;
@@ -136,7 +142,7 @@ class CardPaymentService
                 'state' => CardPaymentIntent::STATE_CANCELLING,
                 'cancel_requested_at' => Carbon::now(),
             ]);
-            $terminal = $intent->terminal;
+            $terminal = $this->terminalOf($intent);
             try {
                 $this->gateways->for($terminal)->cancelActiveRequest($terminal, $intent->custom_order_id, $intent->amount_cents);
             } catch (CardTerminalException $e) {
@@ -185,7 +191,7 @@ class CardPaymentService
             }
 
             if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
-                $terminal = $intent->terminal;
+                $terminal = $this->terminalOf($intent);
                 try {
                     $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
                 } catch (CardTerminalException $e) {
@@ -300,12 +306,14 @@ class CardPaymentService
             ->lazyById(100)
             ->each(function (CardPaymentIntent $intent) use ($horizon, &$touched) {
                 $touched++;
-                if ($intent->created_at->lt($horizon)) {
-                    $this->locked($intent, fn (CardPaymentIntent $i) => $this->giveUp($i));
+                $this->isolated($intent, function () use ($intent, $horizon) {
+                    if ($intent->created_at->lt($horizon)) {
+                        $this->locked($intent, fn (CardPaymentIntent $i) => $this->giveUp($i));
 
-                    return;
-                }
-                $this->locked($intent, fn (CardPaymentIntent $i) => $this->advance($i));
+                        return;
+                    }
+                    $this->locked($intent, fn (CardPaymentIntent $i) => $this->advance($i));
+                });
             });
 
         // An approval the device never confirmed, past the void window: the goods are
@@ -325,7 +333,7 @@ class CardPaymentService
             ->lazyById(100)
             ->each(function (CardPaymentIntent $intent) use (&$touched) {
                 $touched++;
-                $this->locked($intent, fn (CardPaymentIntent $i) => $this->closeUnconfirmed($i));
+                $this->isolated($intent, fn () => $this->locked($intent, fn (CardPaymentIntent $i) => $this->closeUnconfirmed($i)));
             });
 
         // Holds waiting on their AI verdict: charge as soon as it is in, or in full at the
@@ -336,7 +344,7 @@ class CardPaymentService
             ->lazyById(100)
             ->each(function (CardPaymentIntent $intent) use (&$touched) {
                 $touched++;
-                $this->locked($intent, fn (CardPaymentIntent $i) => $this->settleAwaitingAiLocked($i));
+                $this->isolated($intent, fn () => $this->locked($intent, fn (CardPaymentIntent $i) => $this->settleAwaitingAiLocked($i)));
             });
 
         return $touched;
@@ -371,6 +379,13 @@ class CardPaymentService
         $decision = (array) $intent->ai_decision;
         $cart = (int) ($decision['cart_cents'] ?? $intent->amount_cents);
 
+        if (isset($decision['uncertain'])) {
+            return $intent; // a charge that may have gone through: a person decides (resolveUncertainAiCharge)
+        }
+        if (isset($decision['inflight'])) {
+            // A run died between sending a charge and recording its answer.
+            return $this->chargeUncertain($intent, $decision, 'the sweep stopped before its answer was recorded');
+        }
         if (isset($decision['action'])) {
             if ($intent->last_queried_at && $intent->last_queried_at->gt(Carbon::now()->subMinutes(self::AUTO_CAPTURE_RETRY_MINUTES))) {
                 return $intent; // a refused charge, retried on the next window
@@ -393,7 +408,7 @@ class CardPaymentService
             ]), $intent->terminal, $intent->custom_order_id, null, count($made->charges) > 1 ? 'warning' : 'info');
         }
 
-        $terminal = $intent->terminal;
+        $terminal = $this->terminalOf($intent);
         if ($decision['action'] === AiCaptureDecision::VOID) {
             try {
                 $this->gateways->for($terminal)->void($terminal, $intent->custom_order_id);
@@ -410,9 +425,17 @@ class CardPaymentService
 
         foreach (array_slice($charges, count($paid), self::AI_CHARGES_PER_RUN) as $cents) {
             $further = $paid !== [];
+            // Write-ahead: further charges share one order id, so a charge whose answer was
+            // lost must never be sent again blindly — it may already have been taken.
+            $decision['inflight'] = $cents;
+            $intent->update(['ai_decision' => $decision]);
             try {
                 $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
             } catch (CardTerminalException $e) {
+                if ($e->mayHaveReachedTerminal) {
+                    return $this->chargeUncertain($intent, $decision, $e->getMessage());
+                }
+                unset($decision['inflight']);
                 $decision['refusals'] = (int) ($decision['refusals'] ?? 0) + 1;
                 $intent->ai_decision = $decision;
                 if ($further && $decision['refusals'] >= (int) config('payrallel.ai_extra_charge_attempts', 6)) {
@@ -425,6 +448,7 @@ class CardPaymentService
 
                 return $this->chargeRefused($intent, $further ? 'ai further charge' : 'ai capture', $e);
             }
+            unset($decision['inflight']);
             $paid[] = $cents;
             $decision['paid'] = $paid;
             $decision['refusals'] = 0;
@@ -441,6 +465,63 @@ class CardPaymentService
         return count($paid) === count($charges)
             ? $this->finish($intent, CardPaymentIntent::STATE_CAPTURED)
             : $intent; // more further charges: the next sweep continues
+    }
+
+    /**
+     * A charge whose outcome is unknown (timeout, 5xx, or a run that died mid-call): it is never
+     * resent. The intent stays `awaiting_ai`, flagged, until a person checks Payrallel and calls
+     * {@see resolveUncertainAiCharge}.
+     */
+    private function chargeUncertain(CardPaymentIntent $intent, array $decision, string $why): CardPaymentIntent
+    {
+        $decision['uncertain'] = (int) $decision['inflight'];
+        unset($decision['inflight']);
+        $intent->fill([
+            'ai_decision' => $decision,
+            'last_error' => $this->errorText("charge of {$decision['uncertain']}c may have gone through — not resent; check Payrallel ({$why})"),
+            'last_queried_at' => Carbon::now(),
+        ])->save();
+        Log::error('Card charge outcome unknown — held for a person', $this->logContext($intent) + ['cents' => $decision['uncertain'], 'why' => $why]);
+
+        return $intent;
+    }
+
+    /**
+     * A person checked Payrallel for a flagged charge: $charged = it went through (counted as
+     * paid), false = it did not (it is sent again on the next sweep). Then settling resumes.
+     *
+     * @throws DomainException when the intent has no flagged charge
+     */
+    public function resolveUncertainAiCharge(CardPaymentIntent $intent, bool $charged): CardPaymentIntent
+    {
+        return $this->locked($intent, function (CardPaymentIntent $intent) use ($charged) {
+            $decision = (array) $intent->ai_decision;
+            if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI || ! isset($decision['uncertain'])) {
+                throw new DomainException('no charge of uncertain outcome on this intent');
+            }
+            $cents = (int) $decision['uncertain'];
+            unset($decision['uncertain']);
+            $charges = array_map('intval', (array) ($decision['charges'] ?? []));
+            $paid = array_map('intval', (array) ($decision['paid'] ?? []));
+            if ($charged) {
+                $paid[] = $cents;
+                $decision['paid'] = $paid;
+            }
+            $intent->update([
+                'ai_decision' => $decision,
+                'captured_cents' => $paid === [] ? $intent->captured_cents : array_sum($paid),
+                'captured_at' => $paid === [] ? $intent->captured_at : ($intent->captured_at ?? Carbon::now()),
+                'owed_cents' => (array_sum($charges) - array_sum($paid)) ?: null,
+                'last_error' => null,
+                'last_queried_at' => null,
+            ]);
+            $this->events->record('ai.charge_resolved', ['cents' => $cents, 'charged' => $charged],
+                $intent->terminal, $intent->custom_order_id, null, 'warning');
+
+            return count($paid) === count($charges)
+                ? $this->finish($intent, CardPaymentIntent::STATE_CAPTURED)
+                : $this->settleAwaitingAiLocked($intent);
+        });
     }
 
     /** A provider refusal while settling: keep the decision, retry in AUTO_CAPTURE_RETRY_MINUTES. */
@@ -462,17 +543,33 @@ class CardPaymentService
      */
     private function decideForAi(CardPaymentIntent $intent, int $cart): ?array
     {
-        $recognition = $intent->session_ref === null ? null : SmartFreezerRecognition::query()
+        $recognitions = $intent->session_ref === null ? collect() : SmartFreezerRecognition::query()
             ->where('vend_id', $intent->vend_id)
             ->where('session_ref', $intent->session_ref)
             ->whereNotNull('verdict')
-            ->latest('id')
-            ->first();
+            ->orderBy('id')
+            ->get();
 
-        if ($recognition) {
+        if ($recognitions->isNotEmpty()) {
+            $recognition = $recognitions->first();
             $sale = $recognition->vend_transaction_id
                 ? VendTransaction::withoutGlobalScopes()->find($recognition->vend_transaction_id)
                 : null;
+
+            // Only an answer that is unambiguously about THIS card sale may lower or raise the
+            // charge; anything else charges the cart the customer agreed to.
+            $doubt = match (true) {
+                $recognitions->count() > 1 => 'several AI results for one session',
+                $recognition->callback_verified !== true => 'the AI result is not signature-verified',
+                $sale === null => 'the AI result names no sale',
+                ! $this->isCardSale($sale) => 'the session\'s sale was not paid by card',
+                (int) $sale->amount !== $cart => "the sale ({$sale->amount}c) is not this hold's cart ({$cart}c)",
+                default => null,
+            };
+            if ($doubt !== null) {
+                return [AiCaptureDecision::undecidable($intent->amount_cents, $cart, $doubt), $recognition->id];
+            }
+
             $lines = (array) $recognition->verdict_lines;
             $productIds = array_values(array_filter(array_map(fn ($l) => (int) ($l['product_id'] ?? 0), $lines)));
 
@@ -481,7 +578,7 @@ class CardPaymentService
                 $cart,
                 $recognition->verdict,
                 $lines,
-                $sale ? $this->sales->paidUnitPrices($sale) : [],
+                $this->sales->paidUnitPrices($sale),
                 $this->shelfPrices($intent->vend_id, $productIds),
             ), $recognition->id];
         }
@@ -492,6 +589,17 @@ class CardPaymentService
         }
 
         return null;
+    }
+
+    /** A freezer TRADE says how it was paid: TXN_SRC 1 = card (Mark1SaleUploader.TXN_SRC_CARD). */
+    private function isCardSale(VendTransaction $sale): bool
+    {
+        $frame = $sale->vend_transaction_json;
+        if (is_string($frame)) {
+            $frame = json_decode($frame, true);
+        }
+
+        return (int) (((array) $frame)['TXN_SRC'] ?? -1) === 1;
     }
 
     /**
@@ -517,6 +625,20 @@ class CardPaymentService
             ->all();
     }
 
+    /**
+     * One intent's failure (a lock timeout, bad data, a DB error) is reported and skipped: it must
+     * never stop the sweep for every other hold — a hold left unswept expires and gives the goods away.
+     */
+    private function isolated(CardPaymentIntent $intent, callable $work): void
+    {
+        try {
+            $work();
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Card reconcile skipped an intent', $this->logContext($intent) + ['error' => $e->getMessage()]);
+        }
+    }
+
     /** Captures an approval the device never confirmed. Caller holds the lock. */
     private function closeUnconfirmed(CardPaymentIntent $intent): CardPaymentIntent
     {
@@ -524,7 +646,7 @@ class CardPaymentService
             return $intent; // the device confirmed or voided it meanwhile
         }
         if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
-            $terminal = $intent->terminal;
+            $terminal = $this->terminalOf($intent);
             try {
                 $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $intent->amount_cents);
             } catch (CardTerminalException $e) {
@@ -555,7 +677,7 @@ class CardPaymentService
         if (! $intent->isUnresolved() && $intent->state !== CardPaymentIntent::STATE_VOID_FAILED) {
             return $intent;
         }
-        $terminal = $intent->terminal;
+        $terminal = $this->terminalOf($intent);
         $gateway = $this->gateways->for($terminal);
 
         try {
@@ -627,7 +749,7 @@ class CardPaymentService
             'cancel_requested_at' => Carbon::now(),
             'last_error' => $this->errorText('expired after '.$ttl.'s'),
         ]);
-        $terminal = $intent->terminal;
+        $terminal = $this->terminalOf($intent);
         try {
             $this->gateways->for($terminal)->cancelActiveRequest($terminal, $intent->custom_order_id, $intent->amount_cents);
         } catch (CardTerminalException $e) {
@@ -657,7 +779,7 @@ class CardPaymentService
 
     private function voidNow(CardPaymentIntent $intent, string $why): CardPaymentIntent
     {
-        $terminal = $intent->terminal;
+        $terminal = $this->terminalOf($intent);
         try {
             $this->gateways->for($terminal)->void($terminal, $intent->custom_order_id);
         } catch (CardTerminalException $e) {
@@ -709,6 +831,22 @@ class CardPaymentService
 
         return $intent->last_queried_at !== null
             && $intent->last_queried_at->diffInMilliseconds(Carbon::now(), true) < $minMs;
+    }
+
+    /**
+     * The terminal to send this intent's calls to, with the token the hold was made with. The
+     * vend's remote_card_terminals row is edited in place when its T05 is swapped, so without the
+     * snapshot a capture made after a swap would go out on the new terminal's token. Never saved.
+     */
+    private function terminalOf(CardPaymentIntent $intent): RemoteCardTerminal
+    {
+        $terminal = $intent->terminal;
+        if ($intent->access_token && $terminal && $terminal->access_token !== $intent->access_token) {
+            $terminal = clone $terminal;
+            $terminal->access_token = $intent->access_token;
+        }
+
+        return $terminal;
     }
 
     /**

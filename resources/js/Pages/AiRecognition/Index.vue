@@ -355,6 +355,7 @@ function formatCents(cents) {
 
 // The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).
 function cardLabel(card) {
+  if (card.uncertain_cents) return `T05 charge ${formatCents(card.uncertain_cents)} unconfirmed — check Payrallel`
   if (card.state === 'awaiting_ai' && card.paid) return `T05 charging ${formatCents(card.captured_cents)} so far`
   if (card.state === 'awaiting_ai') return `T05 hold ${formatCents(card.hold_cents)} · awaiting AI`
   if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} (hold ${formatCents(card.hold_cents)})`
@@ -363,6 +364,7 @@ function cardLabel(card) {
 }
 
 function cardBadgeClass(card) {
+  if (card.uncertain_cents) return 'bg-red-50 text-red-700 border-red-300'
   if (card.state === 'awaiting_ai') return 'bg-amber-50 text-amber-800 border-amber-300'
   if (card.state === 'voided') return 'bg-gray-100 text-gray-700 border-gray-300'
   if (card.owed_cents) return 'bg-red-50 text-red-700 border-red-300'

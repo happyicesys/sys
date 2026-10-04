@@ -73,20 +73,26 @@ final class AiCaptureDecision
         }
 
         $judged = 0;
+        $units = 0;
         foreach ($lines as $line) {
             $taken = (int) ($line['taken'] ?? 0);
             if ($taken <= 0) {
                 continue;
             }
+            $units += $taken;
             $productId = (int) ($line['product_id'] ?? 0);
-            $unit = $paidPrice[$productId] ?? $shelfPrice[$productId] ?? null;
+            // A price only counts when it is positive: a 0 or negative TRADE line (a promo, a bug)
+            // falls back to the shelf price, and a product with no positive price at all cannot be
+            // valued — the cart is charged rather than guessing low.
+            $unit = self::positive($paidPrice[$productId] ?? null) ?? self::positive($shelfPrice[$productId] ?? null);
             if ($productId === 0 || $unit === null) {
                 return self::capture($cart, null, "AI saw product {$productId} with no price: cart total");
             }
             $judged += $taken * $unit;
         }
 
-        if ($judged === 0) {
+        // Released only when the AI saw no unit taken — never because something valued at 0.
+        if ($units === 0) {
             return new self(self::VOID, [], 0, 'AI saw nothing taken: hold released');
         }
         if ($judged <= $holdCents) {
@@ -101,6 +107,17 @@ final class AiCaptureDecision
 
         return new self(self::CAPTURE, $charges, $judged,
             "AI judged {$verdict} above the hold: ".count($charges).' charges of at most the hold');
+    }
+
+    /** The cart total, when the AI result cannot be trusted to decide this card sale. */
+    public static function undecidable(int $holdCents, int $cartCents, string $why): self
+    {
+        return self::capture(min($cartCents, $holdCents), null, "{$why}: cart total");
+    }
+
+    private static function positive(mixed $cents): ?int
+    {
+        return is_numeric($cents) && (int) $cents > 0 ? (int) $cents : null;
     }
 
     /** The cart total, when no verdict came before the hold could expire. */

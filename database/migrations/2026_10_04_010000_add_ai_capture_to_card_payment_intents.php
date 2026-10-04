@@ -19,6 +19,9 @@ return new class extends Migration
             $table->timestamp('door_closed_at')->nullable()->after('approved_at');
             $table->json('ai_decision')->nullable()->after('last_response');
             $table->unsignedInteger('owed_cents')->nullable()->after('captured_cents');
+            // The T05 token the hold was made with (encrypted): a T05 swap edits
+            // remote_card_terminals in place, and a capture days later must reach the old one.
+            $table->text('access_token')->nullable()->after('remote_card_terminal_id');
         });
     }
 
@@ -26,7 +29,7 @@ return new class extends Migration
     {
         Schema::table('card_payment_intents', function (Blueprint $table) {
             $table->dropIndex(['session_ref']);
-            $table->dropColumn(['session_ref', 'door_closed_at', 'ai_decision', 'owed_cents']);
+            $table->dropColumn(['session_ref', 'door_closed_at', 'ai_decision', 'owed_cents', 'access_token']);
         });
     }
 };

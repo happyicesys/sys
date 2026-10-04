@@ -921,7 +921,25 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
   expire. `failed` recognitions are not verdicts — they wait for the backstop.
   The decision is made ONCE (`ai_decision`: `charges`, `paid`, the first verdict is
-  final); a refused provider call resumes at the next unpaid charge every 10 min. A capture with no session ref
+  final); a refused provider call (4xx) resumes at the next unpaid charge every 10 min,
+  one charge per intent per sweep. **A charge whose outcome is unknown is never resent**
+  (further charges share one order id, so a lost answer may already be money taken):
+  each charge is written ahead (`inflight`); a timeout / 5xx / a run that died mid-call
+  flags it `uncertain`, the intent stays `awaiting_ai` with the error on AI Recognition,
+  and a person checks Payrallel's portal and runs
+  `php artisan card-payments:resolve-ai-charge {reference} --charged|--not-charged`.
+  A DNS / TCP-connect failure is a definite "not sent" (`PayrallelGateway::neverConnected`),
+  only a read timeout or 5xx is uncertain. Safety rules from the 2026-10-04 review:
+  a verdict decides the amount only if it is the session's ONLY verdict, its callback is
+  signature-verified, and its sale is a card TRADE (`TXN_SRC` 1) for exactly the cart —
+  otherwise the cart is charged; a TRADE price ≤ 0 never counts (shelf price, else cart),
+  and the hold is released only when the AI saw zero units taken. Each intent snapshots
+  its T05 token (`card_payment_intents.access_token`, encrypted; `terminalOf`) because a
+  T05 swap edits `remote_card_terminals` in place. Each intent in the sweep is isolated
+  (`isolated()`), so one bad row never stops the others; the schedule is
+  `withoutOverlapping(5)`. The 08:30 `card-settlement:health` email lists T05 charges
+  needing a person (uncertain, refused, uncollected, waiting > 2 days), and no longer
+  flags a terminal of a `can_bind_multiple_vends` company as double-bound. A capture with no session ref
   (app 25) still charges at once; `PAYRALLEL_AI_CAPTURE=false` restores that for
   all. Shown on AI Recognition ("Sale / Card charge"). `vend_transactions.amount`
   is NOT changed to the captured figure — revenue follow-up open.

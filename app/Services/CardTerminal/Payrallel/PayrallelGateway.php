@@ -8,6 +8,7 @@ use App\Services\CardTerminal\CardTerminalException;
 use App\Services\CardTerminal\RemoteCardTerminalGateway;
 use App\Services\CardTerminal\TerminalStatus;
 use App\Services\CardTerminal\TerminalTransaction;
+use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -137,7 +138,12 @@ class PayrallelGateway implements RemoteCardTerminalGateway
             $this->events->record('provider.unreachable', [
                 'path' => $path, 'request' => $body, 'error' => $e->getMessage(),
             ], $terminal, $orderId, $this->elapsedMs($started), 'warning');
-            throw new CardTerminalException("Payrallel unreachable ({$path}): ".$e->getMessage(), 0, $e);
+            $text = "Payrallel unreachable ({$path}): ".$e->getMessage();
+            // A failed DNS lookup or TCP connect never sent the request, so nothing can have
+            // happened at Payrallel. Only a read timeout after connecting stays "may have reached".
+            throw self::neverConnected($e)
+                ? CardTerminalException::notSent($text)
+                : new CardTerminalException($text, 0, $e);
         }
 
         $this->events->record('provider.http', [
@@ -148,6 +154,20 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         ], $terminal, $orderId, $this->elapsedMs($started), $response->successful() ? 'info' : 'warning');
 
         return $response;
+    }
+
+    /**
+     * cURL 6 (could not resolve host), 7 (could not connect) and the CONNECT-phase timeout (cURL 28
+     * "Connection timed out" / "Resolving timed out") happen before a byte of the request is sent.
+     * "Operation timed out … bytes received" is a read timeout: the request may have landed.
+     */
+    private static function neverConnected(ConnectionException $e): bool
+    {
+        $previous = $e->getPrevious();
+        $errno = $previous instanceof ConnectException ? (int) ($previous->getHandlerContext()['errno'] ?? 0) : 0;
+
+        return in_array($errno, [6, 7], true)
+            || (bool) preg_match('/cURL error (6|7):|Resolving timed out|Connection timed out after/i', $e->getMessage());
     }
 
     private function elapsedMs(int $startedNs): int

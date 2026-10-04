@@ -93,7 +93,11 @@ class CardPaymentIntent extends Model
         'resolved_at',
         'last_response',
         'ai_decision',
+        'access_token',
     ];
+
+    /** The Payrallel token the hold was made with (CardPaymentService::terminalOf); never serialised. */
+    protected $hidden = ['access_token'];
 
     protected $casts = [
         'amount_cents' => 'integer',
@@ -109,6 +113,7 @@ class CardPaymentIntent extends Model
         'resolved_at' => 'datetime',
         'last_response' => 'array',
         'ai_decision' => 'array',
+        'access_token' => 'encrypted',
     ];
 
     /**

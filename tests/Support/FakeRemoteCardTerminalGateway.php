@@ -26,6 +26,12 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
 
     public ?CardTerminalException $failCapture = null;
 
+    /** @var list<string> order ids whose capture throws a non-terminal error (a bug, bad data) */
+    public array $explodeFor = [];
+
+    /** @var list<string|null> the token each capture was sent with */
+    public array $tokens = [];
+
     /** With $failCapture: let this many captures through first (a refused FURTHER charge). */
     public int $failCaptureAfter = 0;
 
@@ -67,6 +73,10 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
     public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): void
     {
         $this->calls[] = ['capture', $orderId, $cents];
+        $this->tokens[] = $terminal->access_token;
+        if (in_array($orderId, $this->explodeFor, true)) {
+            throw new \RuntimeException("exploding capture for {$orderId}");
+        }
         if ($this->failCapture && count($this->callsOf('capture')) > $this->failCaptureAfter) {
             throw $this->failCapture;
         }

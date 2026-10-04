@@ -62,6 +62,15 @@ class AiGatedCardCaptureTest extends TestCase
         parent::tearDown();
     }
 
+    /** Runs the minute sweep $times times, a minute apart (one AI charge per intent per sweep). */
+    private function sweep(int $times = 1): void
+    {
+        for ($i = 0; $i < $times; $i++) {
+            $this->service->reconcile();
+            Carbon::setTestNow(Carbon::now()->addMinute());
+        }
+    }
+
     /** A 760c hold (2 × product 1 at 300c + 1 × product 2 at 160c), door closed. */
     private function doorClosed(?string $session = self::SESSION): CardPaymentIntent
     {
@@ -71,12 +80,12 @@ class AiGatedCardCaptureTest extends TestCase
         return $this->service->capture($this->service->refresh($intent), 760, $session);
     }
 
-    private function verdict(string $verdict, array $taken): SmartFreezerRecognition
+    private function verdict(string $verdict, array $taken, array $sale = [], array $recognition = []): SmartFreezerRecognition
     {
-        $sale = VendTransaction::forceCreate([
-            'order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 760,
+        $sale = VendTransaction::forceCreate($sale + [
+            'order_id' => 'O-'.uniqid(), 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 760,
             'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'is_multiple' => true, 'operator_id' => 1,
-            'vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => self::SESSION, 'transf_info' => [
+            'vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => self::SESSION, 'TXN_SRC' => 1, 'transf_info' => [
                 ['SId' => 11, 'goods_id' => 1, 'Price' => 300],
                 ['SId' => 11, 'goods_id' => 1, 'Price' => 300],
                 ['SId' => 12, 'goods_id' => 2, 'Price' => 160],
@@ -89,10 +98,10 @@ class AiGatedCardCaptureTest extends TestCase
                 'taken' => $taken[$productId] ?? 0, 'delta' => ($taken[$productId] ?? 0) - ($paid[$productId] ?? 0)];
         }
 
-        return SmartFreezerRecognition::query()->create([
+        return SmartFreezerRecognition::query()->create($recognition + [
             'vend_id' => $this->vend->id, 'trade_id' => 'SDK-'.uniqid(), 'session_ref' => self::SESSION,
             'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'vend_transaction_id' => $sale->id,
-            'verdict' => $verdict, 'verdict_lines' => $lines, 'completed_at' => Carbon::now(),
+            'verdict' => $verdict, 'verdict_lines' => $lines, 'completed_at' => Carbon::now(), 'callback_verified' => true,
         ]);
     }
 
@@ -155,7 +164,9 @@ class AiGatedCardCaptureTest extends TestCase
         DB::table('vend_channels')->insert(['vend_id' => $this->vend->id, 'code' => 31, 'product_id' => 3, 'amount' => 200]);
         $this->doorClosed();
         $recognition = $this->verdict('took_more', [1 => 2, 2 => 1, 3 => 1]);
-        $this->service->reconcile();
+        $this->sweep();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::sole()->state, 'one charge per sweep');
+        $this->sweep();
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
@@ -171,8 +182,8 @@ class AiGatedCardCaptureTest extends TestCase
         $this->doorClosed();
         $this->verdict('took_more', [1 => 5, 2 => 1]); // 1660c = 760 + 760 + 140
         $this->gateway->failCaptureAfter = 1;
-        $this->gateway->failCapture = new CardTerminalException('second capture refused');
-        $this->service->reconcile();
+        $this->gateway->failCapture = CardTerminalException::notSent('second capture refused');
+        $this->sweep(2);
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state, 'charges remain');
@@ -193,12 +204,12 @@ class AiGatedCardCaptureTest extends TestCase
         $this->doorClosed();
         $this->verdict('took_more', [1 => 5, 2 => 1]); // 760 + 760 + 140
         $this->gateway->failCaptureAfter = 1;
-        $this->gateway->failCapture = new CardTerminalException('busy');
-        $this->service->reconcile();
+        $this->gateway->failCapture = CardTerminalException::notSent('busy');
+        $this->sweep(2);
 
         $this->gateway->failCapture = null;
         Carbon::setTestNow(Carbon::now()->addMinutes(11));
-        $this->service->reconcile();
+        $this->sweep(2);
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
@@ -236,7 +247,7 @@ class AiGatedCardCaptureTest extends TestCase
     {
         $this->doorClosed();
         $this->verdict('took_less', [1 => 1]);
-        $this->gateway->failCapture = new CardTerminalException('provider down');
+        $this->gateway->failCapture = CardTerminalException::notSent('provider refused');
         $this->service->reconcile();
 
         $intent = CardPaymentIntent::sole();
@@ -252,6 +263,128 @@ class AiGatedCardCaptureTest extends TestCase
         Carbon::setTestNow(Carbon::now()->addMinutes(11));
         $this->service->reconcile();
         $this->assertSame(300, $intent->fresh()->captured_cents);
+    }
+
+    public function test_a_charge_that_may_have_gone_through_is_never_resent_until_a_person_says(): void
+    {
+        $this->doorClosed();
+        $this->verdict('took_more', [1 => 5, 2 => 1]); // 760 + 760 + 140
+        $this->gateway->failCaptureAfter = 1;
+        $this->gateway->failCapture = new CardTerminalException('timeout'); // may have reached Payrallel
+        $this->sweep(2);
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(760, $intent->ai_decision['uncertain']);
+        $this->assertStringContainsString('not resent', $intent->last_error);
+
+        $this->gateway->failCapture = null;
+        Carbon::setTestNow(Carbon::now()->addHours(2));
+        $this->service->reconcile();
+        $this->assertCount(2, $this->gateway->callsOf('capture'), 'flagged: nothing more is sent');
+
+        $this->artisan('card-payments:resolve-ai-charge', ['reference' => 'SF1', '--charged' => true])->assertSuccessful();
+        $this->sweep();
+        $intent->refresh();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
+        $this->assertSame(1660, $intent->captured_cents);
+        $this->assertSame([760, 140], array_map(fn ($c) => $c[2], array_slice($this->gateway->callsOf('capture'), -2)), 'only the 140 was sent after');
+    }
+
+    public function test_a_flagged_charge_the_person_says_did_not_go_through_is_sent_again(): void
+    {
+        $this->doorClosed();
+        $this->verdict('match', [1 => 2, 2 => 1]);
+        $this->gateway->failCapture = new CardTerminalException('HTTP 502');
+        $this->service->reconcile();
+        $this->assertSame(760, CardPaymentIntent::sole()->ai_decision['uncertain']);
+
+        $this->gateway->failCapture = null;
+        $this->artisan('card-payments:resolve-ai-charge', ['reference' => 'SF1', '--not-charged' => true])->assertSuccessful();
+
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::sole()->state);
+        $this->assertCount(2, $this->gateway->callsOf('capture'));
+    }
+
+    public function test_a_run_that_died_mid_charge_is_flagged_not_resent(): void
+    {
+        $intent = $this->doorClosed();
+        $intent->update(['ai_decision' => ['cart_cents' => 760, 'action' => 'capture', 'charges' => [760], 'paid' => [], 'inflight' => 760]]);
+
+        $this->service->reconcile();
+
+        $this->assertSame(760, $intent->fresh()->ai_decision['uncertain']);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+    }
+
+    /** @return array<string, array{0: array, 1: array, 2: int, 3: string}> */
+    public static function untrustedResults(): array
+    {
+        $qr = ['vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => self::SESSION, 'TXN_SRC' => 0, 'transf_info' => [['goods_id' => 1, 'Price' => 300]]]];
+
+        return [
+            'unverified callback' => [[], ['callback_verified' => false], 1, 'not signature-verified'],
+            'a QR sale' => [$qr, [], 1, 'not paid by card'],
+            'another amount' => [['amount' => 900], [], 1, 'is not this hold'],
+            'two results' => [[], [], 2, 'several AI results'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('untrustedResults')]
+    public function test_a_result_that_is_not_clearly_about_this_card_sale_charges_the_cart(array $sale, array $recognition, int $copies, string $reason): void
+    {
+        $this->doorClosed();
+        for ($i = 0; $i < $copies; $i++) {
+            $this->verdict('took_less', [], $sale, $recognition); // "nothing taken" would release the hold
+        }
+        $this->service->reconcile();
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(760, $intent->captured_cents);
+        $this->assertStringContainsString($reason, $intent->ai_decision['reason']);
+    }
+
+    public function test_a_zero_priced_line_never_releases_a_hold_on_goods_taken(): void
+    {
+        $this->doorClosed();
+        $this->verdict('took_less', [1 => 1], ['vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => self::SESSION, 'TXN_SRC' => 1,
+            'transf_info' => [['goods_id' => 1, 'Price' => 0], ['goods_id' => 1, 'Price' => 0], ['goods_id' => 2, 'Price' => 160]]]]);
+        $this->service->reconcile();
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state, 'no shelf price either: the cart');
+        $this->assertSame(760, $intent->captured_cents);
+    }
+
+    public function test_a_hold_is_charged_on_the_token_it_was_made_with_after_a_t05_swap(): void
+    {
+        $this->doorClosed();
+        RemoteCardTerminal::sole()->update(['access_token' => 'tok-NEW-T05']);
+        $this->verdict('match', [1 => 2, 2 => 1]);
+        $this->service->reconcile();
+
+        $this->assertSame(['tok-50001'], $this->gateway->tokens);
+        $this->assertSame('tok-NEW-T05', RemoteCardTerminal::sole()->access_token, 'the swap itself is untouched');
+    }
+
+    public function test_one_broken_intent_never_stops_the_sweep_for_the_others(): void
+    {
+        $broken = $this->doorClosed();
+        $broken->forceFill(['ai_decision' => ['cart_cents' => 760, 'action' => 'capture', 'charges' => [760], 'paid' => []]])->save();
+        $this->gateway->explodeFor = ['50001-SF1'];
+
+        $other = $this->service->authorize($this->vend, 'SF2', 760);
+        $this->gateway->answer('50001-SF2', T::APPROVED);
+        $other = $this->service->capture($this->service->refresh($other), 760, 'SF-50001-1791100000-9');
+        SmartFreezerRecognition::query()->create([
+            'vend_id' => $this->vend->id, 'trade_id' => 'SDK-other', 'session_ref' => 'SF-50001-1791100000-9',
+            'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'incomplete', 'verdict_lines' => [],
+            'callback_verified' => true, 'vend_transaction_id' => $this->verdict('match', [])->vend_transaction_id,
+        ]);
+
+        $this->service->reconcile();
+
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $broken->fresh()->state);
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $other->fresh()->state);
     }
 
     public function test_the_device_cannot_void_once_the_door_closed(): void

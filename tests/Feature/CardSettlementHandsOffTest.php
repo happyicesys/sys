@@ -410,6 +410,36 @@ class CardSettlementHandsOffTest extends TestCase
         $this->assertContains('double_bound', collect(app(CardSettlementHealthCheck::class)->run())->pluck('key'));
     }
 
+    public function test_a_terminal_whose_company_may_serve_several_machines_is_not_double_bound(): void
+    {
+        $other = $this->machine('2847', $this->nets);
+        $t05 = \App\Models\CardTerminal::query()->firstOrCreate(['name' => \App\Models\CardTerminal::NAME_PAYRALLEL]);
+        $t05->update(['can_bind_multiple_vends' => true]);
+        \App\Models\CardTerminalUnit::query()->create(['card_terminal_id' => $t05->id, 'terminal_id' => 'N620W325842', 'access_token' => 't']);
+        CardTerminalBinding::create(['provider' => 'payrallel', 'terminal_id' => 'N620W325842', 'vend_id' => $this->vend->id, 'from_at' => '2026-08-01 00:00:00']);
+        CardTerminalBinding::create(['provider' => 'payrallel', 'terminal_id' => 'N620W325842', 'vend_id' => $other->id, 'from_at' => '2026-08-01 00:00:00']);
+
+        $this->assertNotContains('double_bound', collect(app(CardSettlementHealthCheck::class)->run())->pluck('key'));
+    }
+
+    public function test_t05_charges_needing_a_person_are_in_the_health_email(): void
+    {
+        $terminal = \App\Models\RemoteCardTerminal::create(['vend_id' => $this->vend->id, 'provider' => 'payrallel', 'access_token' => 't', 'is_active' => true]);
+        $intent = fn (array $a) => \App\Models\CardPaymentIntent::forceCreate($a + [
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
+            'reference' => 'SF'.uniqid(), 'mode' => 'preauth', 'amount_cents' => 760,
+        ] + ['custom_order_id' => 'o-'.uniqid()]);
+        $intent(['state' => 'awaiting_ai', 'ai_decision' => ['action' => 'capture', 'charges' => [760], 'paid' => [], 'uncertain' => 760]]);
+        $intent(['state' => 'captured', 'owed_cents' => 200, 'last_error' => 'further charge refused: x']);
+        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subDays(3)]);
+        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour()]); // waiting normally: not listed
+
+        $section = collect(app(CardSettlementHealthCheck::class)->run())->firstWhere('key', 't05_ai_charges');
+
+        $this->assertCount(3, $section['items']);
+        $this->assertStringContainsString('resolve-ai-charge', $section['items'][0]['text']);
+    }
+
     public function test_the_nightly_repair_releases_lines_whose_swept_test_sale_is_gone(): void
     {
         $report = $this->report(CardSettlementReport::STATUS_SYNCED);

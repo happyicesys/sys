@@ -35,7 +35,8 @@ class Kernel extends ConsoleKernel
         // Remote-terminal card attempts (smart-freezer Payrallel rail): resolve what the
         // device stopped polling and void approvals no door will follow. A no-op
         // (one indexed query) while nothing is open.
-        $schedule->command('card-payments:reconcile')->everyMinute()->withoutOverlapping();
+        // withoutOverlapping(5): a killed run must not hold the money sweep off for the default 24 h.
+        $schedule->command('card-payments:reconcile')->everyMinute()->withoutOverlapping(5);
         // Hourly mirror of their SKU catalog (§5). Same enabled guard inside.
         $schedule->command('citybox:sync-products')->hourly();
         // Their enabled/disabled `status` every minute (Brian, 2026-09-05). It is

@@ -106,7 +106,7 @@ class FreezerSaleLocator
         $prices = [];
         foreach ((array) (($frame['transf_info'] ?? null) ?: []) as $unit) {
             $productId = (int) ($unit['goods_id'] ?? 0);
-            if ($productId > 0 && isset($unit['Price']) && is_numeric($unit['Price'])) {
+            if ($productId > 0 && isset($unit['Price']) && is_numeric($unit['Price']) && (int) $unit['Price'] > 0) {
                 $prices[$productId] = (int) $unit['Price'];
             }
         }

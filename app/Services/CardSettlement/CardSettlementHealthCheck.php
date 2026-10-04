@@ -2,6 +2,7 @@
 
 namespace App\Services\CardSettlement;
 
+use App\Models\CardPaymentIntent;
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\RefundTicket;
@@ -38,6 +39,7 @@ class CardSettlementHealthCheck
             $this->foreignMatches($from, $base),
             $this->unexplainedNoLine($from, $today),
             $this->danglingLines($from, $base),
+            $this->t05AiCharges($base),
         ];
 
         return array_values(array_filter($sections, fn ($s) => ! empty($s['items'])));
@@ -176,11 +178,51 @@ class CardSettlementHealthCheck
             // swap day, which the newest-row-wins rule already resolves.
             ->whereRaw("GREATEST(COALESCE(a.from_at,'1970-01-01'), COALESCE(b.from_at,'1970-01-01')) < LEAST(COALESCE(a.until_at,'2100-01-01'), COALESCE(b.until_at,'2100-01-01')) - INTERVAL 1 DAY")
             ->where(fn ($q) => $q->whereNull('a.until_at')->orWhereNull('b.until_at')->orWhere('a.until_at', '>=', now()->subDays(45))->orWhere('b.until_at', '>=', now()->subDays(45)))
+            // A company allowed on several machines at once (Payrallel (T05) shared by 50001 and
+            // 2009) is bound twice on purpose.
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('card_terminal_units as u')
+                ->join('card_terminals as c', 'c.id', '=', 'u.card_terminal_id')
+                ->whereColumn('u.terminal_id', 'a.terminal_id')
+                ->where('c.can_bind_multiple_vends', true))
             ->get(['a.terminal_id', 'va.code as va', 'vb.code as vb', 'a.from_at as af', 'a.until_at as au', 'b.from_at as bf', 'b.until_at as bu'])
             ->map(fn ($r) => ['text' => "Terminal {$r->terminal_id} is bound to {$r->va} (".substr((string) $r->af, 0, 10).' → '.($r->au ? substr($r->au, 0, 10) : 'now').") and {$r->vb} (".substr((string) $r->bf, 0, 10).' → '.($r->bu ? substr($r->bu, 0, 10) : 'now').') at the same time', 'url' => null])
             ->all();
 
         return ['key' => 'double_bound', 'title' => 'Terminals bound to two machines at once', 'action' => 'End the wrong binding on that machine\'s Setting/Edit page.', 'items' => $items];
+    }
+
+    /**
+     * T05 holds charged by the AI verdict (CardPaymentService::settleAwaitingAi) that need a
+     * person: a charge whose outcome is unknown (never resent until resolved), a refused charge
+     * still retrying, money judged but not collected, and holds still waiting after two days
+     * (the backstop charges at 72 h; an uncaptured hold expires and gives the goods away).
+     */
+    protected function t05AiCharges(string $base): array
+    {
+        $items = [];
+        CardPaymentIntent::query()
+            ->with('vend:id,code,code_prefix')
+            ->where(fn ($q) => $q->where('state', CardPaymentIntent::STATE_AWAITING_AI)
+                ->orWhere(fn ($q) => $q->where('state', CardPaymentIntent::STATE_CAPTURED)->where('owed_cents', '>', 0)
+                    ->where('updated_at', '>=', now()->subDays(14))))
+            ->orderBy('id')
+            ->get()
+            ->each(function (CardPaymentIntent $i) use (&$items, $base) {
+                $decision = (array) $i->ai_decision;
+                $machine = $i->vend?->codeLabel() ?? "vend #{$i->vend_id}";
+                $text = match (true) {
+                    isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-ai-charge {$i->reference} --charged|--not-charged`",
+                    $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected ('.($i->last_error ?? 'further charge refused').')',
+                    $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
+                    $i->door_closed_at && $i->door_closed_at->lt(now()->subDays(2)) => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100).' still waiting for the AI since '.$i->door_closed_at->toDateTimeString(),
+                    default => null,
+                };
+                if ($text !== null) {
+                    $items[] = ['text' => $text, 'url' => $base.'/ai-recognition'];
+                }
+            });
+
+        return ['key' => 't05_ai_charges', 'title' => 'T05 card charges decided by the AI', 'action' => 'Check each in Payrallel\'s portal; the AI Recognition page shows the session.', 'items' => $items];
     }
 
     protected function foreignMatches(Carbon $from, string $base): array

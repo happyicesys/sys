@@ -171,6 +171,9 @@ class FreezerRecognitionController extends Controller
                 'judged_cents' => $card->ai_decision['judged_cents'] ?? null,
                 'charges' => count((array) ($card->ai_decision['charges'] ?? [])),
                 'paid' => count((array) ($card->ai_decision['paid'] ?? [])),
+                // A charge that may have gone through; nothing more is sent until resolved
+                // (`card-payments:resolve-ai-charge`).
+                'uncertain_cents' => $card->ai_decision['uncertain'] ?? null,
                 'reason' => $card->ai_decision['reason'] ?? null,
                 'error' => $card->last_error,
             ] : null,

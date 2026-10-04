@@ -162,6 +162,29 @@ class PayrallelGatewayTest extends TestCase
         }
     }
 
+    public function test_a_connect_failure_never_reached_payrallel_but_a_read_timeout_may_have(): void
+    {
+        $cases = [
+            'cURL error 7: Failed to connect to pay.example port 443' => false,
+            'cURL error 6: Could not resolve host: pay.example' => false,
+            'cURL error 28: Connection timed out after 4001 milliseconds' => false,
+            'cURL error 28: Operation timed out after 8001 milliseconds with 0 bytes received' => true,
+        ];
+        $current = '';
+        Http::fake(function () use (&$current) {
+            throw new \Illuminate\Http\Client\ConnectionException($current);
+        });
+        foreach ($cases as $message => $mayHaveReached) {
+            $current = $message;
+            try {
+                $this->gateway->capture($this->terminal, '50001-SF1', 430);
+                $this->fail('expected an exception');
+            } catch (CardTerminalException $e) {
+                $this->assertSame($mayHaveReached, $e->mayHaveReachedTerminal, $message);
+            }
+        }
+    }
+
     public function test_unconfigured_base_url_never_calls_out_and_never_leaks_the_token(): void
     {
         config(['payrallel.base_url' => null]);
