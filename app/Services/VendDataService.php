@@ -19,6 +19,7 @@ use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\IncrementVendDailyStat;
 use App\Jobs\Vend\RecordVendLinkHealth;
+use App\Jobs\Vend\RecordVendOtaModem;
 use App\Jobs\Vend\RecordVendTradeQueue;
 use App\Jobs\Vend\SyncFeatureApkSetting;
 // use App\Jobs\Vend\CreateVendStatistics;
@@ -477,6 +478,7 @@ class VendDataService
                         }
                         $this->recordLinkHealth($processedInput, $vend);
                         $this->recordTradeQueue($processedInput, $vend);
+                        $this->recordOtaModem($processedInput, $vend);
                         $saveVendData = false;
                         break;
                     case 'FREEZERSTATUS':
@@ -639,6 +641,61 @@ class VendDataService
 
         RecordVendTradeQueue::dispatch($vend->id, (string) $vend->code, $date, $count, $age, $now->toDateTimeString())
             ->onQueue('low');
+    }
+
+    /**
+     * OTA updater and square-module state carried on a "P" heartbeat by big 307+
+     * (apk/mark1-apk/UNRELEASED_V307.md): `OtaFail` = consecutive failed OTA
+     * polls/downloads (0 = the last poll was fine), `OtaErr` = the last reason
+     * while failing; `ModemFw` / `ModemPdp` = the Air724 square module's
+     * firmware and PDP type/APN, present only on boards that have one.
+     * Stored on `vends` by RecordVendOtaModem.
+     *
+     * Absent keys = an older build or no square module: nothing is queued and
+     * the stored values stay. The heartbeat repeats the same values all day, so
+     * a per-vend fingerprint queues a write only when one of them changed.
+     */
+    private function recordOtaModem(array $input, Vend $vend): void
+    {
+        $fields = [];
+        if (array_key_exists('OtaFail', $input) && is_numeric($input['OtaFail'])) {
+            $fields['ota_fail_streak'] = min(65535, max(0, (int) $input['OtaFail']));
+            // Travels with OtaFail: no OtaErr on this beat = the last poll succeeded.
+            $fields['ota_last_error'] = self::boundedText($input['OtaErr'] ?? null, 160);
+        }
+        foreach (['ModemFw' => 'modem_firmware', 'ModemPdp' => 'modem_pdp'] as $key => $column) {
+            $value = self::boundedText($input[$key] ?? null, 64);
+            if ($value !== null) {
+                $fields[$column] = $value;
+            }
+        }
+        if ($fields === []) {
+            return;
+        }
+
+        $fingerprint = md5(json_encode($fields));
+        $cacheKey = 'ota_modem_fp_'.$vend->id;
+        if (Cache::get($cacheKey) === $fingerprint) {
+            return;
+        }
+        Cache::put($cacheKey, $fingerprint, now()->addHours(6));
+
+        RecordVendOtaModem::dispatch($vend->id, $fields, Carbon::now()->toDateTimeString())
+            ->onQueue('low');
+    }
+
+    /** A scalar reduced to a trimmed, non-empty string of at most $max chars, or null. */
+    private static function boundedText(mixed $value, int $max): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+        $text = trim((string) $value);
+        if ($text === '') {
+            return null;
+        }
+
+        return mb_substr($text, 0, $max);
     }
 
     private function recordLinkHealth(array $input, Vend $vend): void

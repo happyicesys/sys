@@ -74,6 +74,14 @@ return [
      */
     'nightly_nudge' => [
         'enabled' => (bool) env('OTA_NIGHTLY_NUDGE', true),
+        // Daytime (07:30-23:30, every 30 min) nudge, `ota:nudge-stale --unreachable`:
+        // only stale machines whose own OTA poll has not reached mark1 for this many
+        // hours (or ever). Air724 square-module + VoicePing boards rarely get a poll
+        // through (2026-09-27); each extra nudge is another chance, and a board that
+        // lands on 307 retries by itself from then on. Healthy stale boards keep
+        // updating overnight / on their own 6 h poll and are not disturbed by day.
+        'daytime_enabled' => (bool) env('OTA_DAYTIME_NUDGE', true),
+        'unreachable_after_hours' => (int) env('OTA_UNREACHABLE_AFTER_HOURS', 12),
         'channels' => [
             'vending' => ['min_version_code' => 301],
         ],

@@ -15,25 +15,40 @@ use Illuminate\Support\Facades\Log;
  * its targets, so a machine that upgraded at 01:30 is not nudged at 02:00, and a
  * newly published build makes the whole previous version a target automatically.
  *
+ * `--unreachable` (every 30 min, 07:30-23:30) narrows that to machines whose own
+ * OTA poll has not reached mark1 for `unreachable_after_hours` (or ever): the
+ * Air724 square-module + VoicePing boards whose polls almost never get through,
+ * so every extra nudge is another chance (apk/mark1-apk/UNRELEASED_V307.md).
+ *
  * Which machines and why: see OtaCheckNudge::staleTargets() and
  * config('ota.nightly_nudge').
  */
 class OtaNudgeStale extends Command
 {
     protected $signature = 'ota:nudge-stale
-        {--dry-run : List the machines that would be nudged without publishing}';
+        {--dry-run : List the machines that would be nudged without publishing}
+        {--unreachable : Only machines whose OTA poll has not reached mark1 recently (daytime run)}';
 
     protected $description = 'Send OTA_CHECK to online machines running an older APK than the latest published build';
 
     public function handle(OtaCheckNudge $nudge, OtaChannelResolver $channels): int
     {
         $dryRun = (bool) $this->option('dry-run');
+        $unreachable = (bool) $this->option('unreachable');
 
         if (! $dryRun && ! config('ota.nightly_nudge.enabled')) {
             $this->info('Nightly OTA nudge is disabled (OTA_NIGHTLY_NUDGE=false).');
 
             return self::SUCCESS;
         }
+        if ($unreachable && ! $dryRun && ! config('ota.nightly_nudge.daytime_enabled')) {
+            $this->info('Daytime OTA nudge is disabled (OTA_DAYTIME_NUDGE=false).');
+
+            return self::SUCCESS;
+        }
+        $silentSince = $unreachable
+            ? now()->subHours(max(1, (int) config('ota.nightly_nudge.unreachable_after_hours', 12)))
+            : null;
 
         foreach ((array) config('ota.nightly_nudge.channels', []) as $channel => $cfg) {
             if (! $channels->exists($channel)) {
@@ -50,7 +65,7 @@ class OtaNudgeStale extends Command
                 continue;
             }
 
-            $targets = $nudge->staleTargets($channel, (int) ($cfg['min_version_code'] ?? 0));
+            $targets = $nudge->staleTargets($channel, (int) ($cfg['min_version_code'] ?? 0), $silentSince);
             $summary = $targets->map(fn ($v) => $v->code.':'.$v->reportedApkVersion())->implode(' ');
 
             if (! $dryRun) {
@@ -61,7 +76,7 @@ class OtaNudgeStale extends Command
             $this->line("[{$channel}] latest {$latest}; {$verb} {$targets->count()} machine(s): {$summary}");
 
             if (! $dryRun && $targets->isNotEmpty()) {
-                Log::info('OTA nightly nudge sent.', [
+                Log::info($unreachable ? 'OTA daytime nudge sent.' : 'OTA nightly nudge sent.', [
                     'channel' => $channel,
                     'latest_version_code' => $latest,
                     'count' => $targets->count(),

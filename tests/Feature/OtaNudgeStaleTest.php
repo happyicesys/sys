@@ -108,6 +108,70 @@ class OtaNudgeStaleTest extends TestCase
         $this->assertSame([1149, 2206, 2741], $this->nudgedCodes());
     }
 
+    public function test_unreachable_nudges_only_stale_machines_whose_own_poll_is_not_arriving(): void
+    {
+        Queue::fake();
+        Carbon::setTestNow('2026-10-04 12:00:00');
+        $this->publish(306);
+
+        $this->vend(2330, $this->pwron('301'));                                              // never checked in
+        $this->vend(2504, $this->pwron('305') + ['apk_checked_in_at' => '2026-09-25 04:50:16']); // silent for days
+        $this->vend(2832, $this->pwron('305') + ['apk_checked_in_at' => '2026-10-04 06:40:00']); // polled 5 h ago
+        $this->vend(2046, $this->pwron('306'));                                              // already latest
+
+        $this->artisan('ota:nudge-stale', ['--unreachable' => true])
+            ->expectsOutputToContain('[vending] latest 306; nudged 2 machine(s)')
+            ->assertSuccessful();
+
+        $this->assertSame([2330, 2504], $this->nudgedCodes());
+    }
+
+    public function test_the_daytime_nudge_has_its_own_off_switch(): void
+    {
+        Queue::fake();
+        config(['ota.nightly_nudge.daytime_enabled' => false]);
+        $this->publish(306);
+        $this->vend(2330, $this->pwron('301'));
+
+        $this->artisan('ota:nudge-stale', ['--unreachable' => true])
+            ->expectsOutputToContain('Daytime OTA nudge is disabled')
+            ->assertSuccessful();
+        Queue::assertNothingPushed();
+
+        // The overnight run is unaffected by the daytime switch.
+        $this->artisan('ota:nudge-stale')->assertSuccessful();
+        $this->assertSame([2330], $this->nudgedCodes());
+    }
+
+    public function test_the_daytime_unreachable_nudge_runs_every_thirty_minutes_from_0730_to_2330(): void
+    {
+        $due = function (string $time) {
+            Carbon::setTestNow(Carbon::parse("2026-10-04 {$time}:03", config('app.timezone')));
+
+            $schedule = new Schedule(config('app.timezone'));
+            $build = new \ReflectionMethod(app(\Illuminate\Contracts\Console\Kernel::class), 'schedule');
+            $build->invoke(app(\Illuminate\Contracts\Console\Kernel::class), $schedule);
+
+            $event = collect($schedule->events())
+                ->first(fn ($e) => str_contains((string) $e->command, 'ota:nudge-stale --unreachable'));
+            $this->assertNotNull($event, 'ota:nudge-stale --unreachable is not scheduled');
+
+            return $event->isDue(app()) && $event->filtersPass(app());
+        };
+
+        $runs = collect(range(0, 23 * 60 + 59))
+            ->map(fn ($m) => sprintf('%02d:%02d', intdiv($m, 60), $m % 60))
+            ->filter($due)
+            ->values()
+            ->all();
+
+        $expected = [];
+        for ($m = 7 * 60 + 30; $m <= 23 * 60 + 30; $m += 30) {
+            $expected[] = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+        }
+        $this->assertSame($expected, $runs);
+    }
+
     public function test_a_draft_build_does_not_count_as_latest(): void
     {
         Queue::fake();

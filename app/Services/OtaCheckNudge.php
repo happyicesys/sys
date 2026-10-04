@@ -70,7 +70,7 @@ class OtaCheckNudge
      *
      * @return Collection<int, Vend>
      */
-    public function staleTargets(string $channel, int $minVersionCode): Collection
+    public function staleTargets(string $channel, int $minVersionCode, ?\DateTimeInterface $silentSince = null): Collection
     {
         $latest = $this->latestPublishedVersion($channel);
 
@@ -85,6 +85,11 @@ class OtaCheckNudge
             ->where('is_disposed', false)
             ->where('is_online', true)
             ->whereNotNull('code')
+            // Only machines whose own OTA poll has not reached us since $silentSince
+            // (or ever): the daytime nudge, see config('ota.nightly_nudge').
+            ->when($silentSince !== null, fn ($q) => $q->where(fn ($w) => $w
+                ->whereNull('apk_checked_in_at')
+                ->orWhere('apk_checked_in_at', '<', $silentSince)))
             ->select(['id', 'code', 'private_key', 'apk_version_code', 'apk_ver_json'])
             ->chunkById(500, function ($vends) use (&$targets, $channel, $latest, $minVersionCode) {
                 foreach ($vends as $vend) {

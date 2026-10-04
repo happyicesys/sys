@@ -1147,6 +1147,33 @@ recorded by the next minute poll as a `sale` movement in `citybox_stock_movement
 (no door-open window) — nothing reads that table yet. Regression coverage:
 `tests/Feature/VendStockQtyAdjustTest.php`.
 
+## APK OTA: nudges and the updater's own report
+
+`ota:nudge-stale` sends OTA_CHECK (`App\Services\OtaCheckNudge`) to online,
+active machines behind the latest published build on their channel. Two runs
+(`App\Console\Kernel`):
+
+- **01:00–07:00, every 30 min**: every stale machine (installs land while idle).
+- **07:30–23:30, every 30 min, `--unreachable`** (2026-10-04): only stale
+  machines whose own OTA poll has not reached `/ota/manifest` for
+  `ota.nightly_nudge.unreachable_after_hours` (12) — `apk_checked_in_at` NULL or
+  older. These are the Air724 square-module + VoicePing boards: their ≤306
+  updater gives a poll 30 s and a new connection there takes ~20 s+, so almost
+  every poll times out (field logs 2026-09-27, bench repro 2026-10-04). Each
+  nudge is another chance; a board that reaches 307 retries by itself
+  (`apk/mark1-apk/UNRELEASED_V307.md`). Off switches: `OTA_NIGHTLY_NUDGE`,
+  `OTA_DAYTIME_NUDGE`.
+
+Big-board 307+ also reports on every `P` heartbeat what the updater and the
+square module see, stored on `vends` by `RecordVendOtaModem` (low queue):
+`ota_fail_streak` (OtaFail, 0 = last poll fine), `ota_last_error` (OtaErr,
+NULL once a poll succeeds), `modem_firmware` (ModemFw), `modem_pdp` (ModemPdp,
+"IPV4V6/redone"). NULL = a build that does not report or no square module. A
+per-vend cache fingerprint queues a write only when a value changed, and the job
+writes only the columns that differ, so `ota_modem_changed_at` is "last
+changed", not "last heard". Regression coverage: `tests/Feature/VendOtaModemTest.php`,
+`tests/Feature/OtaNudgeStaleTest.php`.
+
 ## Ops job stops: four kinds of row, one registry
 
 An ops job (a driver-day) carries four row types: `ops_job_items` (machine

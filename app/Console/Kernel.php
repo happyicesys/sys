@@ -119,6 +119,10 @@ class Kernel extends ConsoleKernel
         // between() compares against the moment schedule:run boots, which is already a
         // few hundred ms past 07:00:00 — an end of '07:00' would silently drop the last run.
         $schedule->command('ota:nudge-stale')->everyThirtyMinutes()->between('01:00', '07:05')->withoutOverlapping();
+        // By day, only machines whose own OTA poll has not reached us for 12 h (Air724 +
+        // VoicePing boards): every nudge is another chance at the poll that gets them
+        // onto 307. Off switch: OTA_DAYTIME_NUDGE=false.
+        $schedule->command('ota:nudge-stale --unreachable')->everyThirtyMinutes()->between('07:30', '23:35')->withoutOverlapping();
         $schedule->command('vend:cleanup-jobs')->dailyAt('02:00');
         // Keep vend_records & gp_metrics tallied to vend_transactions and auto-heal
         // any drifted day (late settlements, backdated uploads, cost backfills,
