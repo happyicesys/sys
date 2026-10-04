@@ -429,8 +429,8 @@ class CardSettlementHandsOffTest extends TestCase
             'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
             'reference' => 'SF'.uniqid(), 'mode' => 'preauth', 'amount_cents' => 760,
         ] + ['custom_order_id' => 'o-'.uniqid()]);
-        $intent(['state' => 'awaiting_ai', 'ai_decision' => ['action' => 'capture', 'charges' => [760], 'paid' => [], 'uncertain' => 760]]);
-        $intent(['state' => 'captured', 'owed_cents' => 200, 'last_error' => 'further charge refused: x']);
+        $intent(['state' => 'awaiting_ai', 'ai_decision' => ['action' => 'capture', 'capture_cents' => 760, 'uncertain' => 760]]);
+        $intent(['state' => 'captured', 'owed_cents' => 200, 'last_error' => null, 'ai_decision' => ['increment_refused' => 'HTTP 422']]);
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subDays(3)]);
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour()]); // waiting normally: not listed
 

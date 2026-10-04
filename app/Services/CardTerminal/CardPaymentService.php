@@ -38,12 +38,6 @@ class CardPaymentService
 
     private const TERMINAL_STATUS_CACHE_SECONDS = 10;
 
-    /**
-     * How many AI-decided charges one sweep makes for an intent; the rest wait a minute. One
-     * call at the HTTP timeout plus its writes stays well inside LOCK_SECONDS.
-     */
-    private const AI_CHARGES_PER_RUN = 1;
-
     /** How often the reconciler retries a pre-auth capture the provider refused. */
     private const AUTO_CAPTURE_RETRY_MINUTES = 10;
 
@@ -353,17 +347,16 @@ class CardPaymentService
     /**
      * Charges a hold whose door has closed, once the kiosk session's AI verdict is in
      * smart_freezer_recognitions (Brian, 2026-10-03: the AI result is final). The amount is
-     * {@see AiCaptureDecision}: up to the hold in one capture; above it, the hold and then
-     * further charges of at most the hold each until the judged total (Brian, 2026-10-04:
-     * assumed unlimited, per Payrallel's sales); nothing taken releases it. With no verdict it
-     * waits — until `ai_capture_backstop_hours` after the door closed, when the cart total is
-     * charged so the hold cannot expire unpaid.
+     * {@see AiCaptureDecision}, always ONE capture: above the hold too, since Payrallel increments
+     * the authorisation on their backend (Brian, 2026-10-04); if they refuse that increase, the hold
+     * itself is captured and the rest recorded in `owed_cents`. Nothing taken releases the hold.
+     * With no verdict it waits — until `ai_capture_backstop_hours` after the door closed, when the
+     * cart total is charged so the hold cannot expire unpaid.
      *
-     * The decision is made ONCE and kept on the intent (`ai_decision`) with the charges already
-     * taken (`paid`), so a refusal resumes at the next unpaid charge every
-     * AUTO_CAPTURE_RETRY_MINUTES. The hold's own capture is retried for as long as it takes; a
-     * further charge the provider refuses `ai_extra_charge_attempts` times is given up and its
-     * money left in `owed_cents`. While charges remain the intent stays `awaiting_ai`.
+     * The decision is made ONCE and kept on the intent (`ai_decision`). The capture is written
+     * ahead (`inflight`): an answer that never came (timeout, 5xx, a run that died) is never
+     * resent — it is flagged for a person ({@see resolveUncertainAiCharge}). A refusal (4xx) of
+     * the hold's own amount is retried every AUTO_CAPTURE_RETRY_MINUTES.
      */
     public function settleAwaitingAi(CardPaymentIntent $intent): CardPaymentIntent
     {
@@ -399,13 +392,12 @@ class CardPaymentService
             $decision = ['cart_cents' => $cart] + $made->toArray() + [
                 'recognition_id' => $recognitionId,
                 'decided_at' => Carbon::now()->toIso8601String(),
-                'paid' => [],
             ];
             $intent->update(['ai_decision' => $decision]);
             $this->events->record('ai.decision', ['cart_cents' => $cart] + $made->toArray() + array_filter([
                 'recognition_id' => $recognitionId,
                 'session_ref' => $intent->session_ref,
-            ]), $intent->terminal, $intent->custom_order_id, null, count($made->charges) > 1 ? 'warning' : 'info');
+            ]), $intent->terminal, $intent->custom_order_id, null, $made->fallbackCents !== null ? 'warning' : 'info');
         }
 
         $terminal = $this->terminalOf($intent);
@@ -419,52 +411,47 @@ class CardPaymentService
             return $this->finish($intent, CardPaymentIntent::STATE_VOIDED, ['voided_at' => Carbon::now(), 'last_error' => null]);
         }
 
-        $charges = array_map('intval', (array) ($decision['charges'] ?? [$decision['capture_cents'] ?? $cart]));
-        $paid = array_map('intval', (array) ($decision['paid'] ?? []));
-        $total = array_sum($charges);
-
-        foreach (array_slice($charges, count($paid), self::AI_CHARGES_PER_RUN) as $cents) {
-            $further = $paid !== [];
-            // Write-ahead: further charges share one order id, so a charge whose answer was
-            // lost must never be sent again blindly — it may already have been taken.
-            $decision['inflight'] = $cents;
-            $intent->update(['ai_decision' => $decision]);
-            try {
-                $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
-            } catch (CardTerminalException $e) {
-                if ($e->mayHaveReachedTerminal) {
-                    return $this->chargeUncertain($intent, $decision, $e->getMessage());
-                }
-                unset($decision['inflight']);
-                $decision['refusals'] = (int) ($decision['refusals'] ?? 0) + 1;
-                $intent->ai_decision = $decision;
-                if ($further && $decision['refusals'] >= (int) config('payrallel.ai_extra_charge_attempts', 6)) {
-                    Log::error('Further card charge refused — left owed', $this->logContext($intent) + ['error' => $e->getMessage()]);
-
-                    return $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
-                        'last_error' => $this->errorText('further charge refused: '.$e->getMessage()),
-                    ]);
-                }
-
-                return $this->chargeRefused($intent, $further ? 'ai further charge' : 'ai capture', $e);
+        $cents = (int) ($decision['capture_cents'] ?? $cart);
+        $decision['inflight'] = $cents;
+        $intent->update(['ai_decision' => $decision]);
+        try {
+            $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
+        } catch (CardTerminalException $e) {
+            if ($e->mayHaveReachedTerminal) {
+                return $this->chargeUncertain($intent, $decision, $e->getMessage());
             }
             unset($decision['inflight']);
-            $paid[] = $cents;
-            $decision['paid'] = $paid;
-            $decision['refusals'] = 0;
-            $intent->update([
-                'ai_decision' => $decision,
-                'captured_cents' => array_sum($paid),
-                'owed_cents' => ($total - array_sum($paid)) ?: null,
-                'captured_at' => $intent->captured_at ?? Carbon::now(),
-                'last_error' => null,
-                'last_queried_at' => null,
-            ]);
-        }
+            $fallback = isset($decision['fallback_cents']) ? (int) $decision['fallback_cents'] : null;
+            if ($fallback !== null && $cents > $fallback) {
+                // Payrallel would not raise the authorisation: take the hold, record the rest.
+                $decision['increment_refused'] = $this->errorText($e->getMessage());
+                $decision['capture_cents'] = $fallback;
+                $intent->update(['ai_decision' => $decision, 'owed_cents' => $cents - $fallback, 'last_queried_at' => null]);
+                $this->events->record('ai.increment_refused', ['judged_cents' => $cents, 'fallback_cents' => $fallback, 'error' => $e->getMessage()],
+                    $intent->terminal, $intent->custom_order_id, null, 'warning');
+                Log::warning('Card auth increment refused — capturing the hold', $this->logContext($intent) + ['error' => $e->getMessage()]);
 
-        return count($paid) === count($charges)
-            ? $this->finish($intent, CardPaymentIntent::STATE_CAPTURED)
-            : $intent; // more further charges: the next sweep continues
+                return $this->settleAwaitingAiLocked($intent);
+            }
+            $intent->ai_decision = $decision;
+
+            return $this->chargeRefused($intent, 'ai capture', $e);
+        }
+        unset($decision['inflight']);
+
+        return $this->captured($intent, $decision, $cents);
+    }
+
+    /** The decided capture went through. Caller holds the lock. */
+    private function captured(CardPaymentIntent $intent, array $decision, int $cents): CardPaymentIntent
+    {
+        return $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
+            'ai_decision' => $decision,
+            'captured_cents' => $cents,
+            'captured_at' => Carbon::now(),
+            'last_error' => null,
+            'last_queried_at' => null,
+        ]);
     }
 
     /**
@@ -487,8 +474,8 @@ class CardPaymentService
     }
 
     /**
-     * A person checked Payrallel for a flagged charge: $charged = it went through (counted as
-     * paid), false = it did not (it is sent again on the next sweep). Then settling resumes.
+     * A person checked Payrallel for a flagged charge: $charged = it went through (the intent is
+     * captured at that amount), false = it did not (the same capture is sent again now).
      *
      * @throws DomainException when the intent has no flagged charge
      */
@@ -501,26 +488,15 @@ class CardPaymentService
             }
             $cents = (int) $decision['uncertain'];
             unset($decision['uncertain']);
-            $charges = array_map('intval', (array) ($decision['charges'] ?? []));
-            $paid = array_map('intval', (array) ($decision['paid'] ?? []));
-            if ($charged) {
-                $paid[] = $cents;
-                $decision['paid'] = $paid;
-            }
-            $intent->update([
-                'ai_decision' => $decision,
-                'captured_cents' => $paid === [] ? $intent->captured_cents : array_sum($paid),
-                'captured_at' => $paid === [] ? $intent->captured_at : ($intent->captured_at ?? Carbon::now()),
-                'owed_cents' => (array_sum($charges) - array_sum($paid)) ?: null,
-                'last_error' => null,
-                'last_queried_at' => null,
-            ]);
             $this->events->record('ai.charge_resolved', ['cents' => $cents, 'charged' => $charged],
                 $intent->terminal, $intent->custom_order_id, null, 'warning');
 
-            return count($paid) === count($charges)
-                ? $this->finish($intent, CardPaymentIntent::STATE_CAPTURED)
-                : $this->settleAwaitingAiLocked($intent);
+            if ($charged) {
+                return $this->captured($intent, $decision, $cents);
+            }
+            $intent->update(['ai_decision' => $decision, 'last_error' => null, 'last_queried_at' => null]);
+
+            return $this->settleAwaitingAiLocked($intent); // sends the same capture again
         });
     }
 

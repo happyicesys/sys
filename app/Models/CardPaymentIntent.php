@@ -19,8 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *      └──send failed──▶ error
  *
  *   approved ──door closed + session ref (preauth, ai_capture)──▶ awaiting_ai
- *   awaiting_ai ──AI verdict / backstop──▶ captured (the judged total: the hold, then further
- *                                          charges of ≤ the hold each) | voided (nothing taken)
+ *   awaiting_ai ──AI verdict / backstop──▶ captured (the judged total in one capture, above
+ *                                          the hold too) | voided (nothing taken)
  *
  * `cancelling` exists because a cancel does not prove the customer did not tap:
  * the approval can land after it, and then the money must go back.

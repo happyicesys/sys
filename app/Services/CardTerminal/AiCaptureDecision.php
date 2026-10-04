@@ -7,16 +7,16 @@ use App\Services\SmartFreezer\RecognitionVerdict;
 /**
  * What a T05 hold is charged once the kiosk session's AI verdict is in (Brian, 2026-10-03).
  *
- * The hold is the checkout amount and it is the ceiling: one capture can take less, never
- * more. So:
+ * Always ONE capture (Brian, 2026-10-04, matching Payrallel: "you only need to do capture, as
+ * auth_incr is done on our backend"). The hold is the checkout amount; a capture above it is
+ * allowed, and Payrallel raises the authorisation itself. So:
  *
  *   match                         → the cart total
  *   unrecognised / incomplete     → the cart total (the AI cannot tell, the customer agreed it)
  *   took_less / mixed / took_more → what the AI saw, valued: nothing → release the hold;
- *                                   up to the hold → that amount; more → the whole hold, then
- *                                   further charges of at most the hold each, as many as it
- *                                   takes, until the judged total (Brian 2026-10-04: assume
- *                                   unlimited, per Payrallel's sales; their docs do not show it)
+ *                                   otherwise that amount in one capture, above the hold
+ *                                   included — with the hold as the fallback if Payrallel
+ *                                   refuses the increase (the rest is then recorded as owed)
  *   backstop (no verdict in time) → the cart total
  *
  * Valued at the price the customer paid for a product in this sale, else the machine's
@@ -31,31 +31,28 @@ final class AiCaptureDecision
 
     public const CAPTURE = 'capture';
 
-    /** The total to take: the sum of {@see $charges}; 0 when the hold is released. */
-    public readonly int $captureCents;
-
     /**
-     * @param  list<int>  $charges  the captures, in order, each at most the hold; the first is the
-     *                              hold's own capture, the rest are the further charges
+     * @param  int  $captureCents  the one capture; 0 when the hold is released
+     * @param  int|null  $fallbackCents  above the hold: what to capture instead if Payrallel refuses
+     *                                   the increase (the hold itself); null otherwise
      * @param  int|null  $judgedCents  the AI basket's value; null when the cart total stands in for it
      */
     private function __construct(
         public readonly string $action,
-        public readonly array $charges,
+        public readonly int $captureCents,
+        public readonly ?int $fallbackCents,
         public readonly ?int $judgedCents,
         public readonly string $reason,
-    ) {
-        $this->captureCents = array_sum($charges);
-    }
+    ) {}
 
-    /** One capture of $cents (≤ the hold). */
+    /** One capture of $cents, within the hold. */
     private static function capture(int $cents, ?int $judged, string $reason): self
     {
-        return new self(self::CAPTURE, [$cents], $judged, $reason);
+        return new self(self::CAPTURE, $cents, null, $judged, $reason);
     }
 
     /**
-     * @param  int  $holdCents  the approved pre-auth, the most any capture can take
+     * @param  int  $holdCents  the approved pre-auth (Payrallel raises it for a larger capture)
      * @param  int  $cartCents  what the kiosk settled at door close (≤ the hold)
      * @param  list<array{product_id: int|null, taken: int}>  $lines  RecognitionVerdict lines
      * @param  array<int, int>  $paidPrice  product id => unit cents paid in this sale
@@ -93,20 +90,15 @@ final class AiCaptureDecision
 
         // Released only when the AI saw no unit taken — never because something valued at 0.
         if ($units === 0) {
-            return new self(self::VOID, [], 0, 'AI saw nothing taken: hold released');
+            return new self(self::VOID, 0, null, 0, 'AI saw nothing taken: hold released');
         }
         if ($judged <= $holdCents) {
             return self::capture($judged, $judged, "AI judged {$verdict}: charged what was taken");
         }
 
-        // Above the hold: the hold in full, then the rest in charges of at most the hold each.
-        $charges = [];
-        for ($left = $judged; $left > 0; $left -= $holdCents) {
-            $charges[] = min($left, $holdCents);
-        }
-
-        return new self(self::CAPTURE, $charges, $judged,
-            "AI judged {$verdict} above the hold: ".count($charges).' charges of at most the hold');
+        // Above the hold: one capture of the whole judged amount; Payrallel increments the
+        // authorisation on their side. If they refuse, the hold itself is captured instead.
+        return new self(self::CAPTURE, $judged, $holdCents, $judged, "AI judged {$verdict} above the hold: one capture with auth increment");
     }
 
     /** The cart total, when the AI result cannot be trusted to decide this card sale. */
@@ -134,7 +126,7 @@ final class AiCaptureDecision
         return [
             'action' => $this->action,
             'capture_cents' => $this->captureCents,
-            'charges' => $this->charges,
+            'fallback_cents' => $this->fallbackCents,
             'judged_cents' => $this->judgedCents,
             'reason' => $this->reason,
         ];

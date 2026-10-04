@@ -32,8 +32,11 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
     /** @var list<string|null> the token each capture was sent with */
     public array $tokens = [];
 
-    /** With $failCapture: let this many captures through first (a refused FURTHER charge). */
+    /** With $failCapture: let this many captures through first. */
     public int $failCaptureAfter = 0;
+
+    /** A capture above this many cents is refused (4xx) — Payrallel declining an auth increment. */
+    public ?int $refuseAbove = null;
 
     public TerminalStatus $status;
 
@@ -74,6 +77,9 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
     {
         $this->calls[] = ['capture', $orderId, $cents];
         $this->tokens[] = $terminal->access_token;
+        if ($this->refuseAbove !== null && $cents > $this->refuseAbove) {
+            throw CardTerminalException::notSent('Payrallel capture refused (HTTP 422): increment declined');
+        }
         if (in_array($orderId, $this->explodeFor, true)) {
             throw new \RuntimeException("exploding capture for {$orderId}");
         }

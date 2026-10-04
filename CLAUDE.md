@@ -911,20 +911,19 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   verdict, by `AiCaptureDecision`: the hold is the ceiling (no buffer); match →
   cart; took_less / mixed / took_more → what the AI saw, valued at the price paid
   in that sale else the machine's `vend_channels.amount`; nothing taken → void;
-  above the hold → the hold, then FURTHER captures on the same order of at most the
-  hold each until the judged total (Brian, 2026-10-04: assume unlimited, per
-  Payrallel's sales — their published docs show one capture and no charge without a
-  tap, so this is unproven); a further charge refused `ai_extra_charge_attempts` (6)
-  times is given up and its money left in `owed_cents` (the hold's own capture is
-  never given up); unrecognised / incomplete / a taken product with no price → cart.
-  While charges remain the intent stays `awaiting_ai`. No verdict → cart at
+  above the hold → ONE capture of the whole judged amount (Brian, 2026-10-04, as
+  Payrallel told us: "you only need to do capture, as auth_incr is done on our
+  backend" — never several captures on one order); if Payrallel refuses that (4xx),
+  the hold itself is captured at once and the rest recorded in `owed_cents`
+  (`ai_decision.increment_refused`); unrecognised / incomplete / a taken product with
+  no price → cart. No verdict → cart at
   `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
   expire. `failed` recognitions are not verdicts — they wait for the backstop.
-  The decision is made ONCE (`ai_decision`: `charges`, `paid`, the first verdict is
-  final); a refused provider call (4xx) resumes at the next unpaid charge every 10 min,
-  one charge per intent per sweep. **A charge whose outcome is unknown is never resent**
-  (further charges share one order id, so a lost answer may already be money taken):
-  each charge is written ahead (`inflight`); a timeout / 5xx / a run that died mid-call
+  The decision is made ONCE (`ai_decision`: `capture_cents`, `fallback_cents`; the first
+  verdict is final); a refused capture of the hold amount (4xx) is retried every 10 min.
+  **A capture whose outcome is unknown is never resent** (a lost answer may already be
+  money taken, and a second capture on one order could double it): the capture is
+  written ahead (`inflight`); a timeout / 5xx / a run that died mid-call
   flags it `uncertain`, the intent stays `awaiting_ai` with the error on AI Recognition,
   and a person checks Payrallel's portal and runs
   `php artisan card-payments:resolve-ai-charge {reference} --charged|--not-charged`.
@@ -938,7 +937,7 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   T05 swap edits `remote_card_terminals` in place. Each intent in the sweep is isolated
   (`isolated()`), so one bad row never stops the others; the schedule is
   `withoutOverlapping(5)`. The 08:30 `card-settlement:health` email lists T05 charges
-  needing a person (uncertain, refused, uncollected, waiting > 2 days), and no longer
+  needing a person (uncertain, refused, increment refused, waiting > 2 days), and no longer
   flags a terminal of a `can_bind_multiple_vends` company as double-bound. A capture with no session ref
   (app 25) still charges at once; `PAYRALLEL_AI_CAPTURE=false` restores that for
   all. Shown on AI Recognition ("Sale / Card charge"). `vend_transactions.amount`

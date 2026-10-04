@@ -9,7 +9,8 @@ use Illuminate\Console\Command;
 
 /**
  * A T05 charge decided by the AI whose outcome mark1 could not learn (timeout, 5xx, a run that
- * died mid-call) is never resent: it may already have been taken. Check the order in
+ * died mid-call) is never resent: it may already have been taken, and a second capture on the
+ * same order could charge the card twice. Check the order in
  * Payrallel's portal, then say what happened:
  *
  *   php artisan card-payments:resolve-ai-charge SFTEST261003225442 --charged
@@ -22,7 +23,7 @@ class ResolveAiCardCharge extends Command
     protected $signature = 'card-payments:resolve-ai-charge
         {reference : the card attempt reference (or the full custom order id)}
         {--charged : Payrallel shows the flagged charge was taken}
-        {--not-charged : Payrallel shows it was not taken (it is sent again)}';
+        {--not-charged : Payrallel shows it was not taken (it is sent again now)}';
 
     protected $description = 'Resolve an AI-decided T05 charge whose outcome is unknown';
 
@@ -37,9 +38,9 @@ class ResolveAiCardCharge extends Command
         }
         $intent = $intents->first();
         $decision = (array) $intent->ai_decision;
-        $this->line(sprintf('%s  state=%s  charges=%s  paid=%s  flagged=%s',
+        $this->line(sprintf('%s  state=%s  capture=%sc  hold=%dc  flagged=%s',
             $intent->custom_order_id, $intent->state,
-            json_encode($decision['charges'] ?? []), json_encode($decision['paid'] ?? []),
+            $decision['capture_cents'] ?? '-', $intent->amount_cents,
             isset($decision['uncertain']) ? $decision['uncertain'].'c' : 'none'));
 
         $charged = (bool) $this->option('charged');
@@ -60,7 +61,7 @@ class ResolveAiCardCharge extends Command
 
             return self::FAILURE;
         }
-        $this->info("Now {$intent->state}, captured {$intent->captured_cents}c, not charged yet ".($intent->owed_cents ?? 0).'c.');
+        $this->info("Now {$intent->state}, captured ".($intent->captured_cents ?? 0).'c, owed '.($intent->owed_cents ?? 0).'c.');
 
         return self::SUCCESS;
     }

@@ -105,8 +105,8 @@ class AiRecognitionPageTest extends TestCase
             'reference' => 'SF1', 'custom_order_id' => '50001-SF1', 'session_ref' => 'SF-50001-1790732333-1',
             'mode' => 'preauth', 'amount_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
             'state' => CardPaymentIntent::STATE_CAPTURED, 'last_error' => 'further charge refused: no',
-            'ai_decision' => ['reason' => 'AI judged took_more above the hold: 2 charges', 'judged_cents' => 960,
-                'charges' => [760, 200], 'paid' => [760]],
+            'ai_decision' => ['reason' => 'AI judged took_more above the hold: one capture with auth increment', 'judged_cents' => 960,
+                'capture_cents' => 760, 'fallback_cents' => 760, 'increment_refused' => 'HTTP 422'],
         ]);
         $this->recognition(['session_ref' => 'SF-50001-1790732333-1', 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'took_more']);
         $this->recognition(['trade_id' => 'SDK-other', 'session_ref' => 'SF-50001-1790732999-2']);
@@ -116,8 +116,8 @@ class AiRecognitionPageTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.1.card', [
                     'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
-                    'judged_cents' => 960, 'charges' => 2, 'paid' => 1, 'uncertain_cents' => null,
-                    'reason' => 'AI judged took_more above the hold: 2 charges', 'error' => 'further charge refused: no',
+                    'judged_cents' => 960, 'increment_refused' => true, 'uncertain_cents' => null,
+                    'reason' => 'AI judged took_more above the hold: one capture with auth increment', 'error' => 'further charge refused: no',
                 ])
                 ->where('recognitions.data.0.card', null));
     }

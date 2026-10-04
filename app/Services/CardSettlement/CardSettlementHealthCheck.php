@@ -212,7 +212,7 @@ class CardSettlementHealthCheck
                 $machine = $i->vend?->codeLabel() ?? "vend #{$i->vend_id}";
                 $text = match (true) {
                     isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-ai-charge {$i->reference} --charged|--not-charged`",
-                    $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected ('.($i->last_error ?? 'further charge refused').')',
+                    $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected (Payrallel refused to raise the hold; the hold was charged)',
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
                     $i->door_closed_at && $i->door_closed_at->lt(now()->subDays(2)) => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100).' still waiting for the AI since '.$i->door_closed_at->toDateTimeString(),
                     default => null,
