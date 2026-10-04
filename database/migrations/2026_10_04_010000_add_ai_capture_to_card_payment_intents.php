@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
  * AI-decided charge on a T05 hold (2026-10-03): the door-closed capture names the kiosk
  * session (`session_ref` = the TRADE's SFREF = smart_freezer_recognitions.session_ref), and
  * the hold waits for that session's verdict. `ai_decision` keeps what was decided and why;
- * `owed_cents` is what the AI judged beyond the hold, which no capture can take.
+ * `owed_cents` is what the AI judged that is not charged yet (further charges pending or refused).
  */
 return new class extends Migration
 {

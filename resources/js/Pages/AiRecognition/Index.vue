@@ -17,7 +17,7 @@
         <p class="text-xs text-gray-500">
           Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw
           taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal
-          is charged by this verdict (never above the hold made at checkout); NETS and QR sales were charged
+          is charged by this verdict (above the checkout hold: the hold, then further charges); NETS and QR sales were charged
           at the machine. Nothing here changes stock.
         </p>
 
@@ -253,7 +253,8 @@
                       <span class="inline-flex w-fit mx-auto items-center rounded px-1.5 py-0.5 font-bold border" :class="cardBadgeClass(row.card)">
                         {{ cardLabel(row.card) }}
                       </span>
-                      <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">Owed {{ formatCents(row.card.owed_cents) }} (above the hold)</span>
+                      <span v-if="row.card.charges > 1" class="text-gray-600 whitespace-nowrap">{{ row.card.paid }} of {{ row.card.charges }} charges</span>
+                      <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">Not charged yet {{ formatCents(row.card.owed_cents) }}</span>
                       <span v-if="row.card.error" class="text-red-700">{{ row.card.error }}</span>
                     </div>
                   </TableData>
@@ -354,8 +355,9 @@ function formatCents(cents) {
 
 // The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).
 function cardLabel(card) {
+  if (card.state === 'awaiting_ai' && card.paid) return `T05 charging ${formatCents(card.captured_cents)} so far`
   if (card.state === 'awaiting_ai') return `T05 hold ${formatCents(card.hold_cents)} · awaiting AI`
-  if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} of ${formatCents(card.hold_cents)}`
+  if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} (hold ${formatCents(card.hold_cents)})`
   if (card.state === 'voided') return `T05 hold ${formatCents(card.hold_cents)} released`
   return `T05 ${card.state}`
 }

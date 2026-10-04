@@ -13,8 +13,10 @@ use App\Services\SmartFreezer\RecognitionVerdict;
  *   match                         → the cart total
  *   unrecognised / incomplete     → the cart total (the AI cannot tell, the customer agreed it)
  *   took_less / mixed / took_more → what the AI saw, valued: nothing → release the hold;
- *                                   less than the hold → that amount; more → the whole hold,
- *                                   and the rest is recorded as owed (no API takes it today)
+ *                                   up to the hold → that amount; more → the whole hold, then
+ *                                   further charges of at most the hold each, as many as it
+ *                                   takes, until the judged total (Brian 2026-10-04: assume
+ *                                   unlimited, per Payrallel's sales; their docs do not show it)
  *   backstop (no verdict in time) → the cart total
  *
  * Valued at the price the customer paid for a product in this sale, else the machine's
@@ -29,18 +31,28 @@ final class AiCaptureDecision
 
     public const CAPTURE = 'capture';
 
+    /** The total to take: the sum of {@see $charges}; 0 when the hold is released. */
+    public readonly int $captureCents;
+
     /**
-     * @param  int  $captureCents  0 when the hold is released
+     * @param  list<int>  $charges  the captures, in order, each at most the hold; the first is the
+     *                              hold's own capture, the rest are the further charges
      * @param  int|null  $judgedCents  the AI basket's value; null when the cart total stands in for it
-     * @param  int  $owedCents  judged beyond the hold, which no capture can take
      */
     private function __construct(
         public readonly string $action,
-        public readonly int $captureCents,
+        public readonly array $charges,
         public readonly ?int $judgedCents,
-        public readonly int $owedCents,
         public readonly string $reason,
-    ) {}
+    ) {
+        $this->captureCents = array_sum($charges);
+    }
+
+    /** One capture of $cents (≤ the hold). */
+    private static function capture(int $cents, ?int $judged, string $reason): self
+    {
+        return new self(self::CAPTURE, [$cents], $judged, $reason);
+    }
 
     /**
      * @param  int  $holdCents  the approved pre-auth, the most any capture can take
@@ -54,10 +66,10 @@ final class AiCaptureDecision
         $cart = min($cartCents, $holdCents);
 
         if ($verdict === RecognitionVerdict::MATCH) {
-            return new self(self::CAPTURE, $cart, $cart, 0, 'AI matched the paid cart');
+            return self::capture($cart, $cart, 'AI matched the paid cart');
         }
         if (! in_array($verdict, [RecognitionVerdict::TOOK_LESS, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::MIXED], true)) {
-            return new self(self::CAPTURE, $cart, null, 0, "AI could not judge the session ({$verdict}): cart total");
+            return self::capture($cart, null, "AI could not judge the session ({$verdict}): cart total");
         }
 
         $judged = 0;
@@ -69,20 +81,26 @@ final class AiCaptureDecision
             $productId = (int) ($line['product_id'] ?? 0);
             $unit = $paidPrice[$productId] ?? $shelfPrice[$productId] ?? null;
             if ($productId === 0 || $unit === null) {
-                return new self(self::CAPTURE, $cart, null, 0, "AI saw product {$productId} with no price: cart total");
+                return self::capture($cart, null, "AI saw product {$productId} with no price: cart total");
             }
             $judged += $taken * $unit;
         }
 
         if ($judged === 0) {
-            return new self(self::VOID, 0, 0, 0, 'AI saw nothing taken: hold released');
+            return new self(self::VOID, [], 0, 'AI saw nothing taken: hold released');
         }
         if ($judged <= $holdCents) {
-            return new self(self::CAPTURE, $judged, $judged, 0, "AI judged {$verdict}: charged what was taken");
+            return self::capture($judged, $judged, "AI judged {$verdict}: charged what was taken");
         }
 
-        return new self(self::CAPTURE, $holdCents, $judged, $judged - $holdCents,
-            "AI judged {$verdict} above the hold: hold charged in full, rest owed");
+        // Above the hold: the hold in full, then the rest in charges of at most the hold each.
+        $charges = [];
+        for ($left = $judged; $left > 0; $left -= $holdCents) {
+            $charges[] = min($left, $holdCents);
+        }
+
+        return new self(self::CAPTURE, $charges, $judged,
+            "AI judged {$verdict} above the hold: ".count($charges).' charges of at most the hold');
     }
 
     /** The cart total, when no verdict came before the hold could expire. */
@@ -90,7 +108,7 @@ final class AiCaptureDecision
     {
         $cart = min($cartCents, $holdCents);
 
-        return new self(self::CAPTURE, $cart, null, 0, "no AI verdict within {$hours} h: cart total");
+        return self::capture($cart, null, "no AI verdict within {$hours} h: cart total");
     }
 
     /** @return array<string, mixed> what is stored on the intent (`ai_decision`) */
@@ -99,8 +117,8 @@ final class AiCaptureDecision
         return [
             'action' => $this->action,
             'capture_cents' => $this->captureCents,
+            'charges' => $this->charges,
             'judged_cents' => $this->judgedCents,
-            'owed_cents' => $this->owedCents,
             'reason' => $this->reason,
         ];
     }

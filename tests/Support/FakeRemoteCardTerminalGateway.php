@@ -26,6 +26,9 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
 
     public ?CardTerminalException $failCapture = null;
 
+    /** With $failCapture: let this many captures through first (a refused FURTHER charge). */
+    public int $failCaptureAfter = 0;
+
     public TerminalStatus $status;
 
     public function __construct()
@@ -64,7 +67,7 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
     public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): void
     {
         $this->calls[] = ['capture', $orderId, $cents];
-        if ($this->failCapture) {
+        if ($this->failCapture && count($this->callsOf('capture')) > $this->failCaptureAfter) {
             throw $this->failCapture;
         }
     }

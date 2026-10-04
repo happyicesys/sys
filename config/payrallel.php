@@ -61,10 +61,17 @@ return [
     | that sends its session ref with the door-closed capture does NOT charge
     | there: the hold waits (`awaiting_ai`) for that session's verdict in
     | smart_freezer_recognitions, and CardPaymentService::settleAwaitingAi charges
-    | what the AI judged, never more than the hold (AiCaptureDecision). A capture
+    | what the AI judged (AiCaptureDecision): up to the hold in one capture, above
+    | it the hold plus further charges of at most the hold each. A capture
     | with no session ref (app 25) still charges at once. Off = always at once.
     */
     'ai_capture' => (bool) env('PAYRALLEL_AI_CAPTURE', true),
+
+    // Above the hold the AI-judged total is taken as the hold plus further charges of at
+    // most the hold each (Brian, 2026-10-04: assumed unlimited, per Payrallel's sales). A
+    // further charge refused this many times in a row (one try per 10 min) is given up and
+    // its money left in owed_cents. The hold's own capture is never given up.
+    'ai_extra_charge_attempts' => (int) env('PAYRALLEL_AI_EXTRA_CHARGE_ATTEMPTS', 6),
 
     // A hold still awaiting the AI this long after the door closed is charged in
     // full, so it can never expire uncaptured and hand the goods out free. Brian:

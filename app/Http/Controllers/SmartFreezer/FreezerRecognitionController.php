@@ -168,8 +168,11 @@ class FreezerRecognitionController extends Controller
                 'hold_cents' => $card->amount_cents,
                 'captured_cents' => $card->captured_cents,
                 'owed_cents' => $card->owed_cents,
+                'judged_cents' => $card->ai_decision['judged_cents'] ?? null,
+                'charges' => count((array) ($card->ai_decision['charges'] ?? [])),
+                'paid' => count((array) ($card->ai_decision['paid'] ?? [])),
                 'reason' => $card->ai_decision['reason'] ?? null,
-                'error' => $card->state === CardPaymentIntent::STATE_AWAITING_AI ? $card->last_error : null,
+                'error' => $card->last_error,
             ] : null,
         ];
     }
