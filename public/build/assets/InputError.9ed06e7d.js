@@ -1,1 +1,0 @@
-import{g as s,q as t,a,c as r,d as c,t as o}from"./app.1299f4e5.js";const n={class:"text-sm text-red-600"},p={__name:"InputError",props:["message"],setup(e){return(i,m)=>s((a(),r("div",null,[c("p",n,o(e.message),1)],512)),[[t,e.message]])}};export{p as _};
