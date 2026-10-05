@@ -122,6 +122,30 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.card', null));
     }
 
+    public function test_a_row_lists_what_the_trade_paid_for_and_flags_products_the_ai_was_not_asked_about(): void
+    {
+        $original = Product::forceCreate(['code' => 'CC-01', 'name' => 'Basque Original', 'operator_id' => 1, 'barcode' => '9726436016148']);
+        $chocolate = Product::forceCreate(['code' => 'CC-02', 'name' => 'Basque Chocolate', 'operator_id' => 1]);
+        $sale = VendTransaction::forceCreate([
+            'order_id' => 'O-9', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 33,
+            'transaction_datetime' => Carbon::parse('2026-10-05 13:59:25'), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['Type' => 'TRADE', 'transf_info' => [
+                ['goods_id' => $original->id, 'goods_name' => 'x', 'Price' => 11],
+                ['goods_id' => $chocolate->id, 'goods_name' => 'y', 'Price' => 22],
+                ['goods_id' => $chocolate->id, 'goods_name' => 'y', 'Price' => 22],
+            ]],
+        ]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'incomplete']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.purchased', [
+                    ['product_id' => $original->id, 'name' => 'Basque Original', 'code' => 'CC-01', 'qty' => 1, 'unit_cents' => 11, 'has_barcode' => true],
+                    ['product_id' => $chocolate->id, 'name' => 'Basque Chocolate', 'code' => 'CC-02', 'qty' => 2, 'unit_cents' => 22, 'has_barcode' => false],
+                ]));
+    }
+
     public function test_the_finer_ai_reason_is_shown(): void
     {
         $this->recognition([

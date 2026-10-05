@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
+use App\Models\VendTransaction;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Support\VendCode;
@@ -50,7 +51,7 @@ class FreezerRecognitionController extends Controller
         $query = SmartFreezerRecognition::query()
             ->with([
                 'vend:id,code,code_prefix,operator_id',
-                'vendTransaction:id,order_id,amount,transaction_datetime',
+                'vendTransaction:id,order_id,amount,transaction_datetime,vend_transaction_json',
                 'videos:id,smart_freezer_recognition_id,video_urls,created_at',
             ])
             ->when($request->input('status'), fn ($q, $s) => $s !== 'all' ? $q->where('status', $s) : $q)
@@ -88,8 +89,9 @@ class FreezerRecognitionController extends Controller
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
         $names = $this->productNames($page->getCollection());
         $cards = $this->cardCharges($page->getCollection());
+        $purchasedProducts = $this->purchasedProducts($page->getCollection());
 
-        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards));
+        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts));
 
         return Inertia::render('AiRecognition/Index', [
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
@@ -123,8 +125,9 @@ class FreezerRecognitionController extends Controller
     /**
      * @param  array{by_id: array<int, string>, by_code: array<string, string>}  $names
      * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
+     * @param  array<int, Product>  $products  the TRADE products of this page, by id
      */
-    private function row(SmartFreezerRecognition $r, array $names, array $cards): array
+    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products): array
     {
         $sale = $r->vendTransaction;
         $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
@@ -151,6 +154,10 @@ class FreezerRecognitionController extends Controller
                 'name' => $names['by_code'][(string) $code] ?? null,
                 'number' => (int) $n,
             ])->values()->all(),
+            // What the customer paid for, from the sale's TRADE (`transf_info`, one entry per unit).
+            // `has_barcode` false = mark1 never asked the AI to look for it, so "not taken" cannot
+            // be judged for that product.
+            'purchased' => $sale ? $this->purchased($sale, $products) : [],
             'verdict' => $r->verdict,
             'verdict_lines' => collect((array) $r->verdict_lines)->map(fn ($line) => $line + [
                 'name' => isset($line['product_id']) ? ($names['by_id'][(int) $line['product_id']] ?? null) : null,
@@ -178,6 +185,57 @@ class FreezerRecognitionController extends Controller
                 'error' => $card->last_error,
             ] : null,
         ];
+    }
+
+    /**
+     * @param  array<int, Product>  $products
+     * @return list<array{product_id: int|null, name: string, code: string|null, qty: int, unit_cents: int|null, has_barcode: bool}>
+     */
+    private function purchased(VendTransaction $sale, array $products): array
+    {
+        $lines = [];
+        foreach ($this->tradeUnits($sale) as $unit) {
+            $id = (int) ($unit['goods_id'] ?? 0);
+            $key = $id ?: 'name:'.($unit['goods_name'] ?? '?');
+            $product = $products[$id] ?? null;
+            $lines[$key] ??= [
+                'product_id' => $id ?: null,
+                'name' => $product?->name ?? (string) ($unit['goods_name'] ?? 'Unknown product'),
+                'code' => $product?->code,
+                'qty' => 0,
+                'unit_cents' => isset($unit['Price']) && is_numeric($unit['Price']) ? (int) $unit['Price'] : null,
+                'has_barcode' => filled($product?->barcode),
+            ];
+            $lines[$key]['qty']++;
+        }
+
+        return array_values($lines);
+    }
+
+    /** @return list<array<string, mixed>> the TRADE's per-unit entries */
+    private function tradeUnits(VendTransaction $sale): array
+    {
+        $frame = $sale->vend_transaction_json;
+        if (is_string($frame)) {
+            $frame = json_decode($frame, true);
+        }
+
+        return array_values(array_filter((array) (((array) $frame)['transf_info'] ?? []), 'is_array'));
+    }
+
+    /**
+     * The products named in this page's TRADEs, one query.
+     *
+     * @return array<int, Product>
+     */
+    private function purchasedProducts($recognitions): array
+    {
+        $ids = $recognitions->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
+            ->flatMap(fn (VendTransaction $sale) => array_map(fn ($u) => (int) ($u['goods_id'] ?? 0), $this->tradeUnits($sale)))
+            ->filter()->unique()->values();
+
+        return $ids->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('id', $ids)
+            ->get(['id', 'code', 'name', 'barcode'])->keyBy('id')->all();
     }
 
     /**

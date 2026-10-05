@@ -155,6 +155,9 @@
                     Status
                   </TableHeadSort>
                   <TableHead>
+                    Paid For
+                  </TableHead>
+                  <TableHead>
                     AI Saw Taken
                   </TableHead>
                   <TableHeadSort modelName="verdict" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('verdict')">
@@ -220,6 +223,19 @@
                     </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <!-- The sale's TRADE: what the customer paid for. A product with no barcode in mark1 is
+                         never sent to the AI, so its "not taken" cannot be judged. -->
+                    <div v-if="row.purchased.length" class="flex flex-col space-y-1 text-xs">
+                      <span v-for="line in row.purchased" :key="line.product_id || line.name">
+                        {{ line.qty }} × {{ line.name }}
+                        <span v-if="line.unit_cents !== null" class="text-gray-500">{{ formatCents(line.unit_cents) }}</span>
+                        <span v-if="!line.has_barcode" class="ml-1 inline-flex rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300"
+                              title="No barcode in mark1, so the AI was not asked to look for this product">no barcode — AI not asked</span>
+                      </span>
+                    </div>
+                    <span v-else class="text-gray-400" :title="row.sale ? '' : 'Shown once the sale is matched to this session'">—</span>
+                  </TableData>
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <div v-if="row.algorithm_status !== null" class="flex flex-col space-y-1 text-xs">
                       <span v-for="item in row.items" :key="item.code">
                         {{ item.number }} × {{ item.name || item.code }}
@@ -260,7 +276,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     No Results Found
                   </td>
                 </tr>
