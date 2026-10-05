@@ -63,8 +63,20 @@
             <CheckCircleIcon class="w-4 h-4 text-green-500"></CheckCircleIcon>
             <span>Synced</span>
           </span>
+          <!-- A synced report cannot be deleted while its stamps sit on the sales:
+               Undo sync takes them back first (CardSettlementUnsyncService). -->
           <Button
-            v-if="report.status !== 'synced'"
+            v-if="report.status === 'synced' && canUpdate"
+            class="bg-amber-200 hover:bg-amber-300 px-3 py-2 text-xs text-amber-900 flex space-x-1"
+            @click="unsync()"
+          >
+            <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+            <span>
+              Undo Sync
+            </span>
+          </Button>
+          <Button
+            v-if="report.status !== 'synced' && report.status !== 'matching'"
             class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
             @click="destroyReport()"
           >
@@ -477,11 +489,11 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { ArrowDownTrayIcon, ArrowPathIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowPathIcon, ArrowUturnLeftIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { computed, ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
@@ -658,6 +670,27 @@ function sync() {
     preserveScroll: true,
     onSuccess: () => toast.success("Matched transactions synced", { timeout: 3000 }),
     onError: () => toast.error("Failed to sync", { timeout: 3000 }),
+  })
+}
+
+const page = usePage()
+const canUpdate = computed(() => (page.props.auth?.permissions || []).includes('update card-settlements'))
+
+function unsync() {
+  const approval = confirm(
+    'Undo the sync of ' + props.report.original_filename + '?\n\n' +
+    'The sales it matched lose their "settlement synced" stamp, NA sales it created with no TRADE are removed, ' +
+    'and auto-refund ticks it set (reversals, NA in NETS) are cleared, releasing their refund tickets. ' +
+    'Its days stop counting as final until it, or a replacement file, is synced.\n\n' +
+    'The report goes back to review, where you can Delete it or Sync it again.'
+  );
+  if (!approval) {
+    return;
+  }
+  router.post('/card-settlements/' + props.report.id + '/unsync', {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Sync undone", { timeout: 3000 }),
+    onError: () => toast.error("Failed to undo sync", { timeout: 3000 }),
   })
 }
 

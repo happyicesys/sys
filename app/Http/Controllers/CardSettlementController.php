@@ -11,6 +11,7 @@ use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Services\CardSettlement\CardSettlementOrphanSales;
 use App\Services\CardSettlement\CardSettlementSyncService;
+use App\Services\CardSettlement\CardSettlementUnsyncService;
 use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\ParserRegistry;
 use App\Services\CardSettlement\TerminalMoveSuggestions;
@@ -37,7 +38,7 @@ class CardSettlementController extends Controller
     {
         $this->middleware(['permission:read card-settlements'])->only(['index', 'show', 'download', 'downloadConverted']);
         $this->middleware(['permission:create card-settlements'])->only(['store']);
-        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'fixBindings', 'bindUnbound', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync']);
+        $this->middleware(['permission:update card-settlements'])->only(['rematch', 'fixBindings', 'bindUnbound', 'resolveRow', 'ignoreRow', 'ignoreRows', 'sync', 'unsync']);
         $this->middleware(['permission:delete card-settlements'])->only(['destroy']);
     }
 
@@ -594,12 +595,42 @@ class CardSettlementController extends Controller
         return back()->with('message', $msg);
     }
 
-    public function destroy($id)
+    /**
+     * Undo sync: the report goes back to review and every sale reads as if it
+     * had never been synced (CardSettlementUnsyncService). Then it can be
+     * deleted, or synced again.
+     */
+    public function unsync($id, CardSettlementUnsyncService $unsync)
+    {
+        $report = CardSettlementReport::findOrFail($id);
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+        abort_unless($report->status === CardSettlementReport::STATUS_SYNCED, 422, 'This report is not synced.');
+
+        $r = $unsync->unsync($report, auth()->id());
+
+        $msg = "Sync undone: {$r['unstamped']} sale(s) unstamped";
+        if ($r['orphans_deleted']) {
+            $msg .= ", {$r['orphans_deleted']} NA sale(s) it had created removed";
+        }
+        if ($r['ticks_cleared']) {
+            $msg .= ", {$r['ticks_cleared']} auto-refund tick(s) it had set cleared";
+        }
+        if ($r['links_removed']) {
+            $msg .= ", {$r['links_removed']} retained-credit link(s) removed";
+        }
+
+        return back()->with('message', $msg.'. The report is back in review — Delete or Sync it.');
+    }
+
+    public function destroy($id, CardSettlementUnsyncService $unsync)
     {
         $report = CardSettlementReport::findOrFail($id);
 
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
         abort_if($report->status === CardSettlementReport::STATUS_SYNCED, 422,
-            'A synced report cannot be deleted — its stamps are already on the sales.');
+            'A synced report cannot be deleted — Undo sync first.');
+
+        $evidence = $unsync->evidenceOf($report);
 
         foreach ($report->attachments as $attachment) {
             if ($attachment->local_url) {
@@ -608,6 +639,10 @@ class CardSettlementController extends Controller
             $attachment->delete();
         }
         $report->delete(); // rows cascade
+
+        // Its reversal lines may have undone purchases in other reports, and its
+        // lines may have proved top-ups: take back what they vouched for.
+        $unsync->forgetDeleted($evidence);
 
         return redirect()->route('card-settlements')->with('message', 'Report deleted.');
     }

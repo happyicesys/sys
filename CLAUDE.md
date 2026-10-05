@@ -725,6 +725,21 @@ Both directions of "the report and the machine disagree" are handled at Sync
     current terminal silent there since. Weaker evidence waits for a human.
   - **Reports sync themselves** after matching (`auto_sync`); query lines never
     block a Sync.
+  - **Undo sync, then Delete** (Brian, 2026-10-05: a wrong or partial file could
+    never be removed). A synced report cannot be deleted; **Undo Sync** on its page
+    (`CardSettlementUnsyncService`, permission `update card-settlements`) puts it back
+    in review and takes back what its Sync wrote: NA sales it created that are still
+    awaiting a TRADE are deleted (lines back to "No matching sale in window"; an
+    adopted one stays), the `card_settlement_synced_at` stamp comes off its sales,
+    its two days stop being final, report-made re-vend links there are removed (an
+    APK-recorded one — `CSHL_ARMED_MS` — stays), and every day it touched is unwound
+    (`CardSettlementRefundReconciler::unwindDay`: reversal / NA-in-NETS ticks no
+    synced report supports any more are cleared and their tickets released, states
+    the day can no longer support go to NULL, then the day is reconciled again) and
+    rebuilt. Matching and terminal moves are not undone. Delete does the same unwind
+    for what the file vouched for beyond its own rows — a purchase in ANOTHER report
+    its reversal line undid, and top-up links its lines proved. Regression coverage:
+    `tests/Feature/CardSettlementUnsyncTest.php`.
   - **`card-settlement:health` at 08:30** emails the HIPL alert-email list
     (`alert_operator_code`) ONLY what needs a person — missing NETS files,
     unsynced reports, weak moves, open refunds on retried vends (same card,

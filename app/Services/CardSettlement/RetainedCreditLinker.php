@@ -148,6 +148,60 @@ class RetainedCreditLinker
         return $linked;
     }
 
+    /**
+     * Take back links the NETS report made and can no longer prove, after a
+     * report was un-synced or deleted. Only report-made links: a sale whose
+     * TRADE carries CSHL_ARMED_MS was linked by RetainedCreditSettlementRecorder
+     * from the APK's own evidence and keeps it.
+     *
+     *  - RE-VENDS dated in [$from, $until] (when given) on a day that is no
+     *    longer final (linkRevends only links once it is);
+     *  - TOP-UPS among $saleIds, the sales whose lines are going away.
+     *
+     * @param  int[]  $saleIds
+     * @return int links removed
+     */
+    public function unlinkWithdrawn(?CarbonInterface $from, ?CarbonInterface $until, callable $isFinal, array $saleIds = []): int
+    {
+        if (! ($from && $until) && ! $saleIds) {
+            return 0;
+        }
+
+        $linked = VendTransaction::withoutGlobalScopes()
+            ->where('is_retained_credit_settlement', true)
+            ->where(fn ($q) => $q
+                ->when($from && $until, fn ($qq) => $qq->whereBetween('transaction_datetime', [$from, $until]))
+                ->when($saleIds, fn ($qq) => $qq->orWhereIn('id', $saleIds)))
+            ->get(['id', 'transaction_datetime', 'retained_credit_settles_txn_id', 'vend_transaction_json']);
+
+        $hasLine = CardSettlementRow::query()
+            ->whereIn('matched_vend_transaction_id', $linked->pluck('id'))
+            ->pluck('matched_vend_transaction_id')
+            ->flip();
+
+        $removed = 0;
+        foreach ($linked as $sale) {
+            if (isset(($sale->vend_transaction_json ?? [])['CSHL_ARMED_MS'])) {
+                continue;
+            }
+            $topUp = in_array((int) $sale->id, $saleIds, true);
+            $revend = $from && ! $hasLine->has($sale->id)
+                && ! $isFinal(Carbon::parse($sale->transaction_datetime)->startOfDay());
+            if (! $topUp && ! $revend) {
+                continue;
+            }
+
+            VendTransaction::withoutGlobalScopes()->whereKey($sale->id)->update([
+                'is_retained_credit_settlement' => false,
+                'retained_credit_settles_txn_id' => null,
+            ]);
+            Log::info('RetainedCreditLinker: link withdrawn with its report', ['sale_id' => $sale->id, 'failed_sale_id' => $sale->retained_credit_settles_txn_id]);
+            $removed++;
+        }
+
+        return $removed;
+    }
+
     /** Sales that consumed each of these failed sales' retained credit (failed id → sale). */
     public static function consumersOf(array $failedIds): Collection
     {

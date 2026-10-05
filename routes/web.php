@@ -1338,6 +1338,7 @@ Route::middleware(['auth', 'cors'])->prefix('card-settlements')->group(function 
     Route::post('/{id}/rows/ignore-batch', [CardSettlementController::class, 'ignoreRows'])->name('card-settlements.rows.ignore-batch');
     Route::post('/{id}/rows/{rowId}/ignore', [CardSettlementController::class, 'ignoreRow'])->name('card-settlements.rows.ignore');
     Route::post('/{id}/sync', [CardSettlementController::class, 'sync'])->name('card-settlements.sync');
+    Route::post('/{id}/unsync', [CardSettlementController::class, 'unsync'])->name('card-settlements.unsync');
     Route::delete('/{id}', [CardSettlementController::class, 'destroy'])->name('card-settlements.destroy');
 });
 

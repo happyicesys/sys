@@ -254,6 +254,86 @@ class CardSettlementRefundReconciler
         return $stats;
     }
 
+    /**
+     * The reverse of reconcileDay, after a report was un-synced or deleted
+     * (CardSettlementUnsyncService): take back whatever the synced reports no
+     * longer support on $day, then reconcile the day again so anything still
+     * supported is re-applied.
+     *
+     * reconcileDay never takes anything back on a day that is not final (the
+     * next file may still carry the line), so on its own it would leave the
+     * withdrawn report's ticks and states in place. Here:
+     *
+     *  - a settlement_report_reversal tick stays only while a synced report
+     *    still shows the sale REVERSED;
+     *  - a settlement_report_not_captured ("NA in NETS") tick stays only while
+     *    the day is still final and the sale still not captured;
+     *  - an orphan set REFUNDED by rule 1 counts as a sale again (SETTLED);
+     *  - a persisted state the day can no longer support is set back to NULL.
+     *
+     * An inference-era card_terminal_reversal tick was not set by any report
+     * and is left alone. Every cleared tick releases its ticket.
+     *
+     * @return array<string, int|string|bool|array>
+     */
+    public function unwindDay(CarbonInterface $day): array
+    {
+        $from = $day->copy()->startOfDay();
+        $to = $from->copy()->addDay();
+        $final = $this->isDayFinal($from);
+
+        $stats = [
+            'day' => $from->toDateString(),
+            'final' => $final,
+            'ticks_cleared' => 0,
+            'orphans_resettled' => 0,
+            'states_cleared' => 0,
+            'tickets_released' => 0,
+        ];
+
+        $sales = $this->salesOn($from, $to);
+        if ($sales->isNotEmpty()) {
+            $lines = $this->linesFor($sales->pluck('id')->all());
+            $terminals = $this->terminalsByVend($from);
+            $codes = VendChannelError::query()->pluck('code', 'id');
+            $stateCleared = [];
+
+            foreach ($sales as $sale) {
+                $unit = $terminals->get((int) $sale->vend_id);
+                $state = $this->classify($lines->get($sale->id), $final, $unit !== null, $unit ? ! $unit->hasReportCoverageGap() : false);
+
+                $unsupported = $sale->is_refunded && match ($sale->auto_refund_source) {
+                    AutoRefundSource::SETTLEMENT_REPORT_REVERSAL => $state !== self::STATE_REVERSED,
+                    AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED => ! ($state === self::STATE_NOT_CAPTURED && $this->isVoidableFailure($sale, $codes)),
+                    default => false,
+                };
+                if ($unsupported) {
+                    $stats['ticks_cleared']++;
+                    $stats['tickets_released'] += $this->clear($sale, 'NETS report withdrawn: no synced report supports this tick any more');
+                }
+
+                if ($sale->isSettlementOrphan() && (int) $sale->settlement_status === VendTransaction::SETTLEMENT_REFUNDED && $state !== self::STATE_REVERSED) {
+                    $stats['orphans_resettled']++;
+                    $sale->forceFill(['settlement_status' => VendTransaction::SETTLEMENT_SETTLED])->save();
+                }
+
+                $supported = $state === self::STATE_REVERSED || ($final && in_array($state, self::PERSISTED_STATES, true));
+                if ($sale->card_settlement_state !== null && ! $supported) {
+                    $stateCleared[] = $sale->id;
+                }
+            }
+
+            $stats['states_cleared'] = count($stateCleared);
+            foreach (array_chunk($stateCleared, 500) as $chunk) {
+                VendTransaction::query()->withoutGlobalScopes()->whereIn('id', $chunk)->update(['card_settlement_state' => null]);
+            }
+        }
+
+        $stats['reconcile'] = $this->reconcileDay($from, true);
+
+        return $stats;
+    }
+
     /** Rule 1. */
     protected function applyReversed(VendTransaction $sale, bool $apply, array &$stats): void
     {
