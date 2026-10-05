@@ -7,7 +7,9 @@ use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\RefundTicket;
 use App\Models\VendTransaction;
+use App\Models\ZijiaSkuNotification;
 use App\Services\SmartFreezer\Zijia\ZijiaBarcodeSync;
+use App\Services\SmartFreezer\Zijia\ZijiaSkuApprovalService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -42,6 +44,7 @@ class CardSettlementHealthCheck
             $this->danglingLines($from, $base),
             $this->t05AiCharges($base),
             $this->freezerProductsWithoutBarcode($base),
+            $this->zijiaSkuPushesNeedingAPerson(),
         ];
 
         return array_values(array_filter($sections, fn ($s) => ! empty($s['items'])));
@@ -248,6 +251,28 @@ class CardSettlementHealthCheck
         }
 
         return ['key' => 'freezer_no_barcode', 'title' => 'Freezer products the AI cannot recognise (no barcode)', 'action' => 'Until a product has its Zijia barcode, its sales are charged the checkout amount.', 'items' => $items];
+    }
+
+    /** Product-audit pushes from Zijia (last 7 days) that mark1 could not apply on its own. */
+    protected function zijiaSkuPushesNeedingAPerson(): array
+    {
+        $items = ZijiaSkuNotification::query()
+            ->whereIn('outcome', ZijiaSkuApprovalService::NEEDS_A_PERSON)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ZijiaSkuNotification $n) => ['text' => sprintf('%s: %s %s (%s) — %s',
+                $n->created_at?->format('m-d H:i'), $n->merchant_goods_code ?? '?', $n->sku_name ?? '', $n->product_code ?? 'no barcode',
+                match ($n->outcome) {
+                    ZijiaSkuApprovalService::OUTCOME_CONFLICT => 'mark1 already has a different barcode for this product',
+                    ZijiaSkuApprovalService::OUTCOME_NO_PRODUCT => 'no mark1 product with this code',
+                    ZijiaSkuApprovalService::OUTCOME_AMBIGUOUS => 'several mark1 products with this code',
+                    ZijiaSkuApprovalService::OUTCOME_UNKNOWN_STATUS => 'unknown audit status "'.$n->audit_status.'"',
+                    default => 'push without product code or barcode',
+                }), 'url' => null])
+            ->all();
+
+        return ['key' => 'zijia_sku_push', 'title' => 'Zijia product approvals mark1 could not apply', 'action' => 'Set the barcode on the right product by hand, or tell Zijia what is wrong with the push.', 'items' => $items];
     }
 
     protected function foreignMatches(Carbon $from, string $base): array

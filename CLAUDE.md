@@ -861,7 +861,15 @@ unrecognised). Rules:
   Original") or two entries with our name are left for a person; an existing barcode is never
   touched. Each write is a `user_logs` row (`source` zijia-sync, "Zijia sync"). What it could not
   fill is the 08:30 health email's "Freezer products the AI cannot recognise" section
-  (`ZijiaBarcodeSync`). `modelIdList` is optional ("可以先不用传"):
+  (`ZijiaBarcodeSync`). **Zijia's product-audit push** (requested 2026-10-05, payload not
+  final) lands on `POST /api/smart-freezer/zijia/sku/notify` (`ZijiaSkuNotifyController`),
+  signed like the result callback (enforce: an unsigned push changes nothing). It matches by
+  their 商品编码 = `products.code` exactly — never by name; a code shared by several products
+  resolves only to the one on a smart freezer's planogram. Approved → fills an empty barcode
+  (a different existing one is left and reported); rejected / withdrawn → clears a barcode
+  equal to theirs (an unknown sn would make Zijia reject the whole session). Every push is
+  kept in `zijia_sku_notifications` with its outcome; the ones needing a person are in the
+  08:30 health email. The 3-minute crawl stays as the backstop. `modelIdList` is optional ("可以先不用传"):
   empty config sends `[]`, never omits the key.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
