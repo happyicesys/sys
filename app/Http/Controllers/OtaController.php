@@ -2,12 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ApkRelease;
-use App\Models\Vend;
-use App\Services\OtaChannelResolver;
-use Carbon\Carbon;
+use App\Services\Ota\OtaManifestService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 /**
  * OtaController — device-facing APK OTA manifest endpoint.
@@ -41,102 +37,21 @@ use Illuminate\Support\Facades\Log;
  */
 class OtaController extends Controller
 {
-    public function __construct(private OtaChannelResolver $channels)
-    {
-    }
+    public function __construct(private OtaManifestService $manifests) {}
 
     public function manifest(Request $request)
     {
-        $vendCode = $request->query('vend_code');
         // Accept either camelCase (device) or snake_case, default 0 = "fresh install".
         $currentVersionCode = (int) ($request->query('versionCode', $request->query('version_code', 0)));
         $package = $request->query('package', $request->query('packageName'));
 
-        $vend = ($vendCode !== null && $vendCode !== '')
-            // apk_ver_json: OtaChannelResolver::resolve()'s board-family backstop
-            // reads deviceType off it. Omit it and the backstop silently never fires.
-            ? Vend::query()->select(['id', 'code', 'vend_model_id', 'apk_version_code', 'apk_checked_in_at', 'apk_ver_json'])->bareCode($vendCode)->first()
-            : null;
+        $vend = $this->manifests->findVend($request->query('vend_code'));
+        $manifest = $this->manifests->manifestFor($vend, $currentVersionCode, $package);
 
-        if ($vend) {
-            $this->recordCheckIn($vend, $currentVersionCode);
-        }
-
-        // A device that reports an applicationId we do not recognise gets NOTHING.
-        //
-        // Without this, an unknown package falls through resolve() to the vend's model
-        // and then to the default channel — i.e. a typo'd or newly-renamed applicationId
-        // silently receives the DEFAULT fleet's APK. Serving the wrong binary is strictly
-        // worse than serving none: the device would fail the signer pin and retry forever.
-        //
-        // The warning is also the discovery mechanism for the smart-freezer applicationId,
-        // which is not confirmed against a built binary yet (see config/ota.php). Poll the
-        // log after a freezer checks in and the real value is right there.
-        //
-        // Devices that report NO package at all are unaffected — they still resolve by vend
-        // model, which is what the legacy vending fleet relies on.
-        if (trim((string) $package) !== '' && $this->channels->forPackage($package) === null) {
-            Log::warning('OTA manifest: unrecognised applicationId, no build offered.', [
-                'package' => (string) $package,
-                'vend_code' => $vendCode,
-                'version_code' => $currentVersionCode,
-                'known_packages' => array_map(
-                    fn ($key) => $this->channels->packageName($key),
-                    $this->channels->keys()
-                ),
-            ]);
-
-            return response()->noContent(); // 204
-        }
-
-        $channel = $this->channels->resolve($package, $vend);
-
-        $release = ApkRelease::query()->liveManifest($channel)->first();
-
-        // No published build for this channel, or the device is already on it (or
-        // newer) -> up to date.
-        if (! $release || $release->version_code <= $currentVersionCode) {
-            return response()->noContent(); // 204
-        }
-
-        return response()->json([
-            'versionCode' => (int) $release->version_code,
-            'versionName' => $release->version_name,
-            'url' => $release->file_url,
-            'sha256' => $release->sha256,
-            'sizeBytes' => (int) $release->size_bytes,
-            'mandatory' => (bool) $release->mandatory,
-            'minSupportedVersionCode' => (int) $release->min_supported_version_code,
-            'rolloutPermille' => (int) $release->rollout_permille,
-        ]);
-    }
-
-    /**
-     * Fleet version telemetry.
-     *
-     * Written on every poll would be one UPDATE per machine per poll for a value
-     * that almost never changes, so the timestamp is only refreshed when the
-     * reported version actually changed or the throttle window has elapsed. That
-     * makes apk_checked_in_at accurate to within the window, which is all the
-     * "stuck on an old build" view needs.
-     */
-    private function recordCheckIn(Vend $vend, int $versionCode): void
-    {
-        $reported = $versionCode ?: null;
-        $throttleMinutes = (int) config('ota.checkin_throttle_minutes', 5);
-
-        $versionChanged = $vend->apk_version_code !== $reported;
-        $stale = $throttleMinutes <= 0
-            || $vend->apk_checked_in_at === null
-            || Carbon::parse($vend->apk_checked_in_at)->lte(Carbon::now()->subMinutes($throttleMinutes));
-
-        if (! $versionChanged && ! $stale) {
-            return;
-        }
-
-        $vend->forceFill([
-            'apk_version_code' => $reported,
-            'apk_checked_in_at' => Carbon::now(),
-        ])->save();
+        // No published build for this channel, an unknown package, or the device is
+        // already on it (or newer) -> up to date.
+        return $manifest === null
+            ? response()->noContent() // 204
+            : response()->json($manifest);
     }
 }

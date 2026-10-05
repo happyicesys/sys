@@ -1206,6 +1206,20 @@ active machines behind the latest published build on their channel. Two runs
   (`apk/mark1-apk/UNRELEASED_V307.md`). Off switches: `OTA_NIGHTLY_NUDGE`,
   `OTA_DAYTIME_NUDGE`.
 
+**OTA over MQTT (big-board 309+, 2026-10-05).** When a board's HTTPS manifest
+poll fails 3 times in a row (Air724 + VoicePing on the CMI-HK route never
+completes it while MQTT stays up), it sends `OTAREQ` and mark1 answers on
+`CM<code>` with `OTAMANIFEST` — `ServeOtaManifestOverMqtt`, built by
+`App\Services\Ota\OtaManifestService`, the SAME service `GET /ota/manifest`
+uses (check-in included). After 2 failed HTTPS downloads the board pulls the
+APK as `OTACHUNK` → `OTACHUNKDATA` 48 KB pieces (`ServeOtaChunkOverMqtt`),
+served only for the channel's live release at the exact version + sha, from a
+verified local copy (`OtaApkCache`, `storage/app/ota-cache`). Both jobs run on
+`low` (never in front of a payment), are rate-limited per vend, and the frames
+are never stored in `vend_data`. Change the manifest rules in
+`OtaManifestService`, never in one transport. Regression coverage:
+`tests/Feature/OtaOverMqttTest.php`.
+
 Big-board 307+ also reports on every `P` heartbeat what the updater and the
 square module see, stored on `vends` by `RecordVendOtaModem` (low queue):
 `ota_fail_streak` (OtaFail, 0 = last poll fine), `ota_last_error` (OtaErr,

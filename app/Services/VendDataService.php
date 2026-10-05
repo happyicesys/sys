@@ -3,18 +3,20 @@
 namespace App\Services;
 
 use App\Jobs\CreateVendData;
+use App\Jobs\Ota\ServeOtaChunkOverMqtt;
+use App\Jobs\Ota\ServeOtaManifestOverMqtt;
 use App\Jobs\PublishMqtt;
 use App\Jobs\SendHttpDataToLogServer;
-use App\Jobs\SyncAcbStatus;
-use App\Jobs\SyncAcbVmcPa;
 // use App\Models\VendData;
 // use App\Models\VendJob;
+use App\Jobs\SyncAcbStatus;
+use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncP;
 use App\Jobs\UpdateHttpLastUpdated;
-use App\Jobs\UpdateModemLastUpdated;
-use App\Jobs\Vend\CreateVendTransaction;
 // use App\Jobs\SyncDeliveryPlatformMenu;
 // use App\Jobs\SyncIsMqttVend;
+use App\Jobs\UpdateModemLastUpdated;
+use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\IncrementVendDailyStat;
@@ -435,6 +437,18 @@ class VendDataService
                     case 'REQQR':
                         GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)
                             ->onQueue('high');
+                        break;
+                    case 'OTAREQ':
+                        // Big-board 309+: OTA check over MQTT once its HTTPS poll keeps
+                        // failing (CMI-HK route). Answered on CM<code>, never stored.
+                        ServeOtaManifestOverMqtt::dispatch($vend->id, $processedInput)->onQueue('low');
+                        $saveVendData = false;
+                        break;
+                    case 'OTACHUNK':
+                        // One piece of the APK over MQTT; 'low' so a transfer never
+                        // sits in front of a payment. ~140 per transfer: never stored.
+                        ServeOtaChunkOverMqtt::dispatch($vend->id, $processedInput)->onQueue('low');
+                        $saveVendData = false;
                         break;
                     case 'STATIS1':
                         UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');
