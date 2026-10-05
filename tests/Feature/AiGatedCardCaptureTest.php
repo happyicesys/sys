@@ -189,6 +189,21 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertArrayHasKey('increment_refused', $intent->ai_decision);
     }
 
+    public function test_incomplete_charges_what_the_ai_saw_plus_unasked_products_as_paid(): void
+    {
+        // Product 1 (300c) has a barcode; product 2 (160c) has none. Paid 2 + 1, the AI saw 1 of product 1.
+        $this->doorClosed();
+        $this->verdict('incomplete', [], [], ['verdict_lines' => [
+            ['product_id' => 1, 'code' => '111', 'paid' => 2, 'taken' => 1, 'delta' => -1],
+            ['product_id' => 2, 'code' => null, 'paid' => 1, 'taken' => 0, 'delta' => -1],
+        ]]);
+        $this->sweep();
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(460, $intent->captured_cents, '300 seen + 160 charged as paid');
+        $this->assertStringContainsString('not asked about charged as paid', $intent->ai_decision['reason']);
+    }
+
     public function test_cannot_identify_charges_the_cart_total(): void
     {
         $this->doorClosed();

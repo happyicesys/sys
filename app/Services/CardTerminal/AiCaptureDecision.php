@@ -12,7 +12,10 @@ use App\Services\SmartFreezer\RecognitionVerdict;
  * allowed, and Payrallel raises the authorisation itself. So:
  *
  *   match                         → the cart total
- *   unrecognised / incomplete     → the cart total (the AI cannot tell, the customer agreed it)
+ *   unrecognised                  → the cart total (the AI named a product we do not know)
+ *   incomplete                    → the middle ground (2026-10-05): products the AI was asked about
+ *                                   count as it saw them; a paid product with no barcode (never in
+ *                                   goodsList, so its "not taken" means nothing) counts as taken
  *   took_less / mixed / took_more → what the AI saw, valued: nothing → release the hold;
  *                                   otherwise that amount in one capture, above the hold
  *                                   included — with the hold as the fallback if Payrallel
@@ -65,14 +68,24 @@ final class AiCaptureDecision
         if ($verdict === RecognitionVerdict::MATCH) {
             return self::capture($cart, $cart, 'AI matched the paid cart');
         }
-        if (! in_array($verdict, [RecognitionVerdict::TOOK_LESS, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::MIXED], true)) {
+        $incomplete = $verdict === RecognitionVerdict::INCOMPLETE;
+        if (! $incomplete && ! in_array($verdict, [RecognitionVerdict::TOOK_LESS, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::MIXED], true)) {
             return self::capture($cart, null, "AI could not judge the session ({$verdict}): cart total");
         }
 
         $judged = 0;
         $units = 0;
+        $assumed = 0;
         foreach ($lines as $line) {
             $taken = (int) ($line['taken'] ?? 0);
+            // Incomplete (Brian, 2026-10-05, the middle ground): a paid product the AI was never
+            // asked about — no barcode, so no `code` on its line — is charged as paid, as if taken.
+            // Its "0 taken" is not evidence. Products the AI WAS asked about count as it saw them.
+            if ($incomplete && ($line['product_id'] ?? null) !== null && ($line['code'] ?? null) === null) {
+                $paid = (int) ($line['paid'] ?? 0);
+                $assumed += max(0, $paid - $taken);
+                $taken = max($taken, $paid);
+            }
             if ($taken <= 0) {
                 continue;
             }
@@ -88,17 +101,25 @@ final class AiCaptureDecision
             $judged += $taken * $unit;
         }
 
+        // Incomplete never releases a hold: something was paid for that the AI could not see, so
+        // with nothing left to value (lines missing or malformed) the cart stands.
+        if ($incomplete && $units === 0) {
+            return self::capture($cart, null, 'AI could not judge the session (incomplete, nothing to value): cart total');
+        }
         // Released only when the AI saw no unit taken — never because something valued at 0.
         if ($units === 0) {
             return new self(self::VOID, 0, null, 0, 'AI saw nothing taken: hold released');
         }
+        $how = $assumed > 0
+            ? "AI judged {$verdict}: what it saw, plus {$assumed} unit(s) it was not asked about charged as paid"
+            : "AI judged {$verdict}: charged what was taken";
         if ($judged <= $holdCents) {
-            return self::capture($judged, $judged, "AI judged {$verdict}: charged what was taken");
+            return self::capture($judged, $judged, $how);
         }
 
         // Above the hold: one capture of the whole judged amount; Payrallel increments the
         // authorisation on their side. If they refuse, the hold itself is captured instead.
-        return new self(self::CAPTURE, $judged, $holdCents, $judged, "AI judged {$verdict} above the hold: one capture with auth increment");
+        return new self(self::CAPTURE, $judged, $holdCents, $judged, "{$how} — above the hold: one capture with auth increment");
     }
 
     /** The cart total, when the AI result cannot be trusted to decide this card sale. */

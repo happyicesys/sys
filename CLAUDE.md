@@ -842,8 +842,8 @@ unrecognised). Rules:
   section). NETS and QR sales were charged at the machine and nothing here touches
   them. A paid product the algorithm could
   not have named (no barcode, or a slot with no product) makes the verdict
-  `incomplete`, never `took_less` — its "0 taken" is not evidence (and a T05 hold
-  is then charged the cart total).
+  `incomplete`, never `took_less` — its "0 taken" is not evidence (a T05 hold then
+  charges what the AI saw plus that product at the price paid).
 - **`goodsList.sn` is the product's BARCODE** — the 商品条形码 it was modelled with in
   Zijia's portal (vms4.zjoyvd.cn → 商品管理 → 商品申请, or their mini program), which
   their algorithm library stores as `productCode`. It is NOT the 商品编码, even though
@@ -923,8 +923,12 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   Payrallel told us: "you only need to do capture, as auth_incr is done on our
   backend" — never several captures on one order); if Payrallel refuses that (4xx),
   the hold itself is captured at once and the rest recorded in `owed_cents`
-  (`ai_decision.increment_refused`); unrecognised / incomplete / a taken product with
-  no price → cart. No verdict → cart at
+  (`ai_decision.increment_refused`); **incomplete** (a paid product had no barcode, so
+  the AI was never asked about it) → the middle ground (Brian, 2026-10-05): products the
+  AI was asked about count as it saw them, and each unasked paid product (its verdict line
+  has `product_id` but no `code`) counts as taken at the price paid — never less than the
+  old cart rule, still catches extras; an incomplete result never releases a hold;
+  unrecognised / a taken product with no price → cart. No verdict → cart at
   `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
   expire. `failed` recognitions are not verdicts — they wait for the backstop.
   The decision is made ONCE (`ai_decision`: `capture_cents`, `fallback_cents`; the first
