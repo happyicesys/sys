@@ -853,7 +853,15 @@ unrecognised). Rules:
   Barcode. ANY `sn` their library lacks rejects the whole request (free: no requestId),
   and a tradeId they refused once is burnt ("订单保存失败" on every resend). Their central
   library (`smart-freezer:zijia-skus`) holds China packs; check it before modelling
-  a product that may already exist. `modelIdList` is optional ("可以先不用传"):
+  a product that may already exist. **`smart-freezer:zijia-barcode-sync` runs every 3 minutes**
+  (Brian, 2026-10-05, until Zijia offers an approval callback): for each product on a smart
+  freezer's planogram with no barcode it searches their library by name and writes the barcode
+  ONLY on a unique exact name match (case/punctuation aside) — their library is shared by all
+  their customers and carries no link to our product, so a near name ("Cat, Basque Cheesecake
+  Original") or two entries with our name are left for a person; an existing barcode is never
+  touched. Each write is a `user_logs` row (`source` zijia-sync, "Zijia sync"). What it could not
+  fill is the 08:30 health email's "Freezer products the AI cannot recognise" section
+  (`ZijiaBarcodeSync`). `modelIdList` is optional ("可以先不用传"):
   empty config sends `[]`, never omits the key.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,

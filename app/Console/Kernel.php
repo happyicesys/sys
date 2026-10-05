@@ -91,6 +91,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();
         // Freezer AI results that landed before their sale (offline board): judge them once it arrives.
         $schedule->command('smart-freezer:zijia-evaluate-pending')->everyTenMinutes()->withoutOverlapping();
+        // Freezer product barcodes from Zijia's SKU library (unique exact name match only) until
+        // Zijia offers an approval callback — a product with no barcode is never sent to their AI.
+        $schedule->command('smart-freezer:zijia-barcode-sync')->cron('*/3 * * * *')->withoutOverlapping(5);
         // Ingest the regional rainfall snapshot (data.gov.sg refreshes every 5 min);
         // idempotent, so overlap-guarded re-runs never double-insert. Gated by
         // WEATHER_SYNC_ENABLED (config weather.enabled) so only opted-in regions

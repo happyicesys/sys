@@ -7,6 +7,7 @@ use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
 use App\Models\RefundTicket;
 use App\Models\VendTransaction;
+use App\Services\SmartFreezer\Zijia\ZijiaBarcodeSync;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -40,6 +41,7 @@ class CardSettlementHealthCheck
             $this->unexplainedNoLine($from, $today),
             $this->danglingLines($from, $base),
             $this->t05AiCharges($base),
+            $this->freezerProductsWithoutBarcode($base),
         ];
 
         return array_values(array_filter($sections, fn ($s) => ! empty($s['items'])));
@@ -223,6 +225,29 @@ class CardSettlementHealthCheck
             });
 
         return ['key' => 't05_ai_charges', 'title' => 'T05 card charges decided by the AI', 'action' => 'Check each in Payrallel\'s portal; the AI Recognition page shows the session.', 'items' => $items];
+    }
+
+    /**
+     * Freezer products the AI is never asked about (no barcode) that the 3-minute Zijia sync could
+     * not fill in on its own: not in their library yet (not approved), or several library products
+     * with the same name (a person picks).
+     */
+    protected function freezerProductsWithoutBarcode(string $base): array
+    {
+        $items = [];
+        foreach (app(ZijiaBarcodeSync::class)->lastResults() as $r) {
+            $why = match ($r['outcome'] ?? '') {
+                'ambiguous' => 'several products with this name in Zijia\'s library ('.implode(', ', (array) ($r['candidates'] ?? [])).') — set the right barcode by hand',
+                'not_in_library' => 'not in Zijia\'s library yet (not approved in their portal)',
+                'unreachable' => 'Zijia\'s library did not answer',
+                default => null,
+            };
+            if ($why !== null) {
+                $items[] = ['text' => "{$r['name']} (product #{$r['product_id']}): {$why}", 'url' => $base.'/products'];
+            }
+        }
+
+        return ['key' => 'freezer_no_barcode', 'title' => 'Freezer products the AI cannot recognise (no barcode)', 'action' => 'Until a product has its Zijia barcode, its sales are charged the checkout amount.', 'items' => $items];
     }
 
     protected function foreignMatches(Carbon $from, string $base): array
