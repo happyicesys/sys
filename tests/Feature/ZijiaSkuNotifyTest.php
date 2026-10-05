@@ -113,6 +113,86 @@ class ZijiaSkuNotifyTest extends TestCase
         $this->assertNull($elsewhere->fresh()->barcode);
     }
 
+    /** The documented 商品审批回调 (§7): plain JSON, unsigned. */
+    private function documented(bool $pass, array $sku, string $query = ''): TestResponse
+    {
+        return $this->postJson(self::URL.$query, ['pass' => $pass, 'msg' => $pass ? null : '申请被拒绝,拒绝原因: 图片不清', 'sku' => $sku + [
+            'brandName' => '其他/其他', 'category' => 4, 'packageType' => 5, 'spec' => '120克', 'status' => 1, 'version' => 1,
+            'sysSkuId' => 1791006205910842, 'standardProduct' => true,
+        ]]);
+    }
+
+    private function library(array $codes): void
+    {
+        \Illuminate\Support\Facades\Http::fake(['algo.test/*' => fn ($r) => \Illuminate\Support\Facades\Http::response([
+            'list' => array_values(array_map(fn ($c) => ['productCode' => $c, 'skuName' => 'x'],
+                array_filter($codes, fn ($c) => $c === ($r->data()['productCode'] ?? null)))),
+            'totalPage' => 1, 'currentPage' => 1, 'totalCount' => 1,
+        ])]);
+    }
+
+    private function onFreezer(Product $product): void
+    {
+        $freezer = \App\Models\Vend::query()->where('code', 50001)->first() ?? tap(new \App\Models\Vend, fn ($v) => $v->forceFill(['code' => 50001, 'machine_type' => \App\Models\Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1, 'vend_model_id' => 1])->save());
+        DB::table('vend_channels')->insert(['vend_id' => $freezer->id, 'code' => random_int(11, 69), 'product_id' => $product->id, 'amount' => 22]);
+    }
+
+    public function test_the_documented_callback_matches_our_code_in_attach_after_a_library_check(): void
+    {
+        $this->library(['0726436016209']);
+        $chocolate = $this->product('CC-02');
+
+        $this->documented(true, ['productCode' => '0726436016209', 'skuName' => 'Basque Cheesecake - Chocolate', 'attach' => 'CC-02'])
+            ->assertOk()->assertJson(['status' => 200, 'body' => 'SUCCESS']);
+
+        $this->assertSame('0726436016209', $chocolate->fresh()->barcode);
+    }
+
+    public function test_a_portal_application_without_our_code_matches_a_unique_freezer_product_by_name(): void
+    {
+        $this->library(['0726436016209']);
+        $chocolate = $this->product('CC-02');
+        $chocolate->forceFill(['name' => 'Basque Cheesecake - Chocolate'])->save();
+        $this->onFreezer($chocolate);
+
+        $this->documented(true, ['productCode' => '0726436016209', 'skuName' => 'basque cheesecake chocolate', 'applicationNo' => '1766037363852'])->assertOk();
+
+        $this->assertSame('0726436016209', $chocolate->fresh()->barcode);
+    }
+
+    public function test_an_unsigned_callback_cannot_plant_a_barcode_their_library_does_not_have(): void
+    {
+        $this->library([]);
+        $chocolate = $this->product('CC-02');
+
+        $this->documented(true, ['productCode' => '1234567890123', 'attach' => 'CC-02'])->assertOk();
+
+        $this->assertNull($chocolate->fresh()->barcode);
+        $this->assertSame('not_in_library', ZijiaSkuNotification::sole()->outcome);
+    }
+
+    public function test_once_a_token_is_set_the_callback_must_carry_it(): void
+    {
+        config(['smart_freezer.zijia.sku_callback_token' => 'sku-token']);
+        $this->library(['0726436016209']);
+        $chocolate = $this->product('CC-02');
+
+        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'])->assertJson(['status' => 500]);
+        $this->assertNull($chocolate->fresh()->barcode);
+
+        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'], '?token=sku-token')->assertJson(['status' => 200]);
+        $this->assertSame('0726436016209', $chocolate->fresh()->barcode);
+    }
+
+    public function test_a_rejection_clears_only_the_barcode_it_names(): void
+    {
+        $chocolate = $this->product('CC-02', '0726436016209');
+
+        $this->documented(false, ['productCode' => '0726436016209', 'attach' => 'CC-02'])->assertOk();
+
+        $this->assertNull($chocolate->fresh()->barcode);
+    }
+
     public function test_unknown_codes_statuses_and_shapes_are_kept_and_reported(): void
     {
         $this->product('DUP');

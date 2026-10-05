@@ -268,6 +268,8 @@ class CardSettlementHealthCheck
                     ZijiaSkuApprovalService::OUTCOME_NO_PRODUCT => 'no mark1 product with this code',
                     ZijiaSkuApprovalService::OUTCOME_AMBIGUOUS => 'several mark1 products with this code',
                     ZijiaSkuApprovalService::OUTCOME_UNKNOWN_STATUS => 'unknown audit status "'.$n->audit_status.'"',
+                    ZijiaSkuApprovalService::OUTCOME_NOT_IN_LIBRARY => 'approved barcode not found in Zijia\'s library (not applied)',
+                    ZijiaSkuApprovalService::OUTCOME_UNREACHABLE => 'Zijia\'s library did not answer (not applied; the 3-minute sync will retry)',
                     default => 'push without product code or barcode',
                 }), 'url' => null])
             ->all();

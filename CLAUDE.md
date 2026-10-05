@@ -876,11 +876,18 @@ unrecognised). Rules:
   Original") or two entries with our name are left for a person; an existing barcode is never
   touched. Each write is a `user_logs` row (`source` zijia-sync, "Zijia sync"). What it could not
   fill is the 08:30 health email's "Freezer products the AI cannot recognise" section
-  (`ZijiaBarcodeSync`). **Zijia's product-audit push** (requested 2026-10-05, payload not
-  final) lands on `POST /api/smart-freezer/zijia/sku/notify` (`ZijiaSkuNotifyController`),
-  signed like the result callback (enforce: an unsigned push changes nothing). It matches by
-  their 商品编码 = `products.code` exactly — never by name; a code shared by several products
-  resolves only to the one on a smart freezer's planogram. Approved → fills an empty barcode
+  (`ZijiaBarcodeSync`). **Product approvals land on `POST /api/smart-freezer/zijia/sku/notify`**
+  (`ZijiaSkuNotifyController`) in two shapes. (1) Their DOCUMENTED one — 算法服务接口文档 §7
+  商品审批回调 (the doc is in Brian's WeChat files, `智佳算法服务接口文档 20260914.md`): plain
+  UNSIGNED JSON `{pass, msg, sku:{productCode, skuName, sysSkuId, applicationNo, attach…}}`, sent
+  to the `callbackUrl` set on each application (§5 `sys.sku.sync.put`; portal applications may
+  have none). No signature exists, so an approval only changes a barcode after their public
+  library (§8) confirms that barcode, and `ZIJIA_SKU_CALLBACK_TOKEN` (unset today — the URL
+  already given to Zijia has no token) makes `?token=` mandatory once set. Product: `attach` /
+  `applicationNo` = `products.code`, else a unique exact name among freezer-planogram products.
+  (2) The signed envelope we proposed (2026-10-05), signed like the result callback (enforce:
+  unsigned changes nothing), matched by 商品编码 = `products.code`. In both, a code shared by
+  several products resolves only to the one on a smart freezer's planogram. Approved → fills an empty barcode
   (a different existing one is left and reported); rejected / withdrawn → clears a barcode
   equal to theirs (an unknown sn would make Zijia reject the whole session). Every push is
   kept in `zijia_sku_notifications` with its outcome; the ones needing a person are in the

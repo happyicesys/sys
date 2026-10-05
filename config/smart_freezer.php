@@ -14,6 +14,9 @@ return [
     */
     'zijia' => [
         'video_webhook_token' => env('ZIJIA_VIDEO_WEBHOOK_TOKEN'),
+        // Product approval callback (算法服务接口文档 §7) is unsigned plain JSON: once set, its URL
+        // must carry ?token= (we choose the callbackUrl). Unset: the library check alone guards it.
+        'sku_callback_token' => env('ZIJIA_SKU_CALLBACK_TOKEN'),
         // Raw request body cap. A push carries URLs + metadata, never the video itself.
         'video_webhook_max_bytes' => (int) env('ZIJIA_VIDEO_WEBHOOK_MAX_BYTES', 256 * 1024),
 
