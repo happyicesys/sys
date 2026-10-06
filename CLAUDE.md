@@ -898,7 +898,16 @@ unrecognised). Rules:
   log. The §7 callback finds the application by `applicationNo`; approving the barcode we submitted
   sets it on the product (no library check needed), anything else is library-checked; a rejection
   keeps their `msg`. Submitted = locked; a new application copies the last one (new number).
-  Permission `update products`. The barcode is NEVER set at submit — only on approval. Approved → fills an empty barcode
+  Permission `update products`. The barcode is NEVER set at submit — only on approval.
+  **vms4 mirror** (2026-10-06; `ZijiaLibraryImport`, run by the 3-minute
+  `smart-freezer:zijia-barcode-sync` for every smart-freezer planogram product WITH a barcode):
+  what a product was approved with in Zijia's vms4 portal is read from their public library by
+  barcode and kept as a `source = vms4`, approved application — name, brand, spec, category,
+  package type, package + model photos COPIED to DO Spaces `sys/zijia-sku/{product}/vms4/`
+  (their link kept only when a copy fails, logged as a warning). Refreshed when their
+  `updatedTime` moves (only new photos downloaded); skipped when mark1 itself already has an
+  approved application for that barcode. A draft or pending application always stays the
+  section's current one. Training happens in mark1 from now on (Brian); vms4 is mirrored. Approved → fills an empty barcode
   (a different existing one is left and reported); rejected / withdrawn → clears a barcode
   equal to theirs (an unknown sn would make Zijia reject the whole session). Every push is
   kept in `zijia_sku_notifications` with its outcome; the ones needing a person are in the

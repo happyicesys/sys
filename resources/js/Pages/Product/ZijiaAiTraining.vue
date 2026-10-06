@@ -16,6 +16,8 @@
       </div>
       <div v-if="app" class="flex flex-wrap items-center gap-2 text-xs">
         <span class="rounded px-2 py-0.5 font-semibold border" :class="statusClass(app.status)">{{ statusLabel(app.status) }}</span>
+        <span v-if="app.source === 'vms4'" class="rounded px-2 py-0.5 font-semibold border bg-indigo-50 text-indigo-700 border-indigo-300"
+              title="Approved in Zijia's vms4 portal; details and photos mirrored from their library">Imported from vms4</span>
         <span class="text-gray-500">Application <span class="font-mono">{{ app.application_no }}</span></span>
       </div>
     </div>
@@ -29,6 +31,14 @@
       <div v-if="app.status === 'submitted'">
         Waiting for Zijia's review — submitted {{ app.submitted_at }}<span v-if="app.submitted_by"> by {{ app.submitted_by }}</span>.
         The barcode <span class="font-mono">{{ app.product_code }}</span> is set on the product when they approve.
+      </div>
+      <div v-else-if="app.status === 'approved' && app.source === 'vms4'">
+        Approved in Zijia's vms4 portal. Details and photos below are mirrored from their library
+        (last changed there {{ app.library_updated_at || 'unknown' }}) and kept in step every 3 minutes.
+        Barcode <span class="font-mono">{{ app.product_code }}</span> is on the AI's list.
+        <span v-if="productBarcode !== app.product_code" class="block text-red-700">
+          The product's barcode is {{ productBarcode || 'empty' }} — see the log below.
+        </span>
       </div>
       <div v-else-if="app.status === 'approved'">
         Approved by Zijia {{ app.decided_at }}. Barcode <span class="font-mono">{{ app.product_code }}</span> is on the AI's list.
@@ -47,6 +57,27 @@
           Start a new application
         </Button>
         <span class="ml-2 text-xs text-gray-500">Copies this one into a new draft (new pack, photos, or a fix after rejection).</span>
+      </div>
+    </div>
+
+    <!-- What this application was sent / approved with (read-only) -->
+    <div v-if="app && !app.editable" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-6 text-sm">
+      <div class="sm:col-span-3"><span class="text-gray-500">Name for the AI:</span> {{ app.sku_name }}</div>
+      <div class="sm:col-span-3"><span class="text-gray-500">Barcode:</span> <span class="font-mono">{{ app.product_code }}</span></div>
+      <div class="sm:col-span-2"><span class="text-gray-500">Brand:</span> {{ app.brand_name }}</div>
+      <div class="sm:col-span-1"><span class="text-gray-500">Spec:</span> {{ app.spec || '—' }}</div>
+      <div class="sm:col-span-3"><span class="text-gray-500">Category / package:</span> {{ optionName(data.categoryOptions, app.category) }} · {{ optionName(data.packageTypeOptions, app.package_type) }}</div>
+      <div class="sm:col-span-6 flex flex-wrap gap-2 items-end">
+        <div v-if="app.package_image_url" class="text-xs text-gray-500">
+          <a :href="app.package_image_url" target="_blank"><img :src="app.package_image_url" class="h-24 w-24 rounded border border-gray-200 object-contain bg-white" alt="" /></a>
+          package
+        </div>
+        <template v-for="angle in angles" :key="'ro-' + angle.key">
+          <div v-for="url in (app.model_pics[angle.key] || [])" :key="url" class="text-xs text-gray-500">
+            <a :href="url" target="_blank"><img :src="url" class="h-24 w-24 rounded border border-gray-200 object-contain bg-white" alt="" /></a>
+            {{ angle.short }}
+          </div>
+        </template>
       </div>
     </div>
 
@@ -174,7 +205,7 @@
     <div v-if="data.history.length > 1" class="mt-3 text-xs text-gray-600">
       <span class="font-semibold">Earlier applications:</span>
       <span v-for="h in data.history.slice(1)" :key="h.id" class="ml-2">
-        <span class="font-mono">{{ h.application_no }}</span> {{ statusLabel(h.status) }}<span v-if="h.decided_at"> {{ h.decided_at }}</span>
+        <span class="font-mono">{{ h.application_no }}</span> {{ statusLabel(h.status) }}<span v-if="h.source === 'vms4'"> (vms4)</span><span v-if="h.decided_at"> {{ h.decided_at }}</span>
       </span>
     </div>
   </div>
@@ -198,9 +229,9 @@ const busy = ref(false);
 const errors = ref({});
 
 const angles = [
-  { key: 'high', label: 'Model photos — top view', required: true, hint: 'At least 1; Zijia suggests 5–10, from above like the freezer cameras, different sides and angles.' },
-  { key: 'horizontal', label: 'Model photos — side view', required: false, hint: 'Optional.' },
-  { key: 'low', label: 'Model photos — low angle', required: false, hint: 'Optional.' },
+  { key: 'high', short: 'top', label: 'Model photos — top view', required: true, hint: 'At least 1; Zijia suggests 5–10, from above like the freezer cameras, different sides and angles, background removed (see an approved product).' },
+  { key: 'horizontal', short: 'side', label: 'Model photos — side view', required: false, hint: 'Optional.' },
+  { key: 'low', short: 'low', label: 'Model photos — low angle', required: false, hint: 'Optional.' },
 ];
 
 function blankForm() {
@@ -295,6 +326,8 @@ function statusPanelClass(s) {
 }
 
 const EVENTS = {
+  'vms4.imported': 'Imported from vms4 (Zijia library) — details and photos copied to mark1',
+  'vms4.updated': 'Updated from vms4 (changed in Zijia\'s portal)',
   'draft.created': 'Draft started',
   'draft.saved': 'Draft saved',
   'submit.sent': 'Sent to Zijia (sys.sku.sync.put)',
@@ -311,4 +344,5 @@ const EVENTS = {
   'barcode.library_unreachable': 'Barcode NOT set — Zijia\'s library did not answer',
 };
 function eventLabel(e) { return EVENTS[e] || e; }
+function optionName(options, id) { return (options.find(o => o.id === id) || {}).name || '—'; }
 </script>

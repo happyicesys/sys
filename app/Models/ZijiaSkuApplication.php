@@ -28,10 +28,16 @@ class ZijiaSkuApplication extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    /** Made in mark1 (Product → Edit) or mirrored from a product approved in Zijia's vms4 portal. */
+    public const SOURCE_MARK1 = 'mark1';
+
+    public const SOURCE_VMS4 = 'vms4';
+
     protected $fillable = [
         'product_id', 'application_no', 'status', 'sku_name', 'brand_name', 'spec', 'category', 'package_type',
         'product_code', 'package_image_url', 'model_pics', 'attach', 'callback_url', 'zijia_sku_id', 'sys_sku_id',
         'decision_msg', 'submitted_by', 'submitted_at', 'decided_at', 'last_error',
+        'source', 'library_entry', 'library_updated_at',
     ];
 
     protected $casts = [
@@ -40,6 +46,8 @@ class ZijiaSkuApplication extends Model
         'package_type' => 'integer',
         'submitted_at' => 'datetime',
         'decided_at' => 'datetime',
+        'library_entry' => 'array',
+        'library_updated_at' => 'datetime',
     ];
 
     public function product(): BelongsTo

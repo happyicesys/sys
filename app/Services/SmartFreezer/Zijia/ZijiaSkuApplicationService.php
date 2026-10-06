@@ -58,8 +58,8 @@ class ZijiaSkuApplicationService
             'product_barcode' => $product->barcode ?: null,
             'application' => $current ? $this->present($current) : null,
             'history' => ZijiaSkuApplication::query()->where('product_id', $product->id)->orderByDesc('id')
-                ->get(['id', 'application_no', 'status', 'product_code', 'submitted_at', 'decided_at', 'decision_msg'])
-                ->map(fn ($a) => ['id' => $a->id, 'application_no' => $a->application_no, 'status' => $a->status, 'product_code' => $a->product_code,
+                ->get(['id', 'application_no', 'status', 'source', 'product_code', 'submitted_at', 'decided_at', 'decision_msg'])
+                ->map(fn ($a) => ['id' => $a->id, 'application_no' => $a->application_no, 'status' => $a->status, 'source' => $a->source, 'product_code' => $a->product_code,
                     'submitted_at' => $a->submitted_at?->format('Y-m-d H:i:s'), 'decided_at' => $a->decided_at?->format('Y-m-d H:i:s'), 'decision_msg' => $a->decision_msg])
                 ->all(),
             'defaults' => $this->defaults($product),
@@ -68,9 +68,16 @@ class ZijiaSkuApplicationService
         ];
     }
 
+    /**
+     * The application the section shows: one being worked on (draft) or waiting for Zijia comes
+     * first — a vms4 mirror refreshed later must never hide it — else the latest.
+     */
     public function current(Product $product): ?ZijiaSkuApplication
     {
-        return ZijiaSkuApplication::query()->with('events', 'submitter:id,name')->where('product_id', $product->id)->latest('id')->first();
+        $query = fn () => ZijiaSkuApplication::query()->with('events', 'submitter:id,name')->where('product_id', $product->id)->latest('id');
+
+        return $query()->whereIn('status', [ZijiaSkuApplication::STATUS_DRAFT, ZijiaSkuApplication::STATUS_SUBMITTED])->first()
+            ?? $query()->first();
     }
 
     /** The values a new draft starts from: what mark1 already knows about the product. */
@@ -298,6 +305,8 @@ class ZijiaSkuApplicationService
             'id' => $app->id,
             'application_no' => $app->application_no,
             'status' => $app->status,
+            'source' => $app->source,
+            'library_updated_at' => $app->library_updated_at?->format('Y-m-d H:i:s'),
             'editable' => $app->isEditable(),
             'sku_name' => $app->sku_name,
             'brand_name' => $app->brand_name,

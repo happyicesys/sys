@@ -24,7 +24,10 @@ class ZijiaBarcodeSync
 {
     private const RESULT_CACHE_KEY = 'zijia-barcode-sync:results';
 
-    public function __construct(private readonly ZijiaAlgorithmClient $client) {}
+    public function __construct(
+        private readonly ZijiaAlgorithmClient $client,
+        private readonly ZijiaLibraryImport $import,
+    ) {}
 
     /**
      * @return array<int, array{product_id: int, name: string, outcome: string, barcode?: string, candidates?: list<string>}>
@@ -36,6 +39,26 @@ class ZijiaBarcodeSync
             $results[$product->id] = $this->syncOne($product);
         }
         Cache::put(self::RESULT_CACHE_KEY, $results, now()->addDay());
+
+        return $results;
+    }
+
+    /**
+     * Mirrors every smart-freezer product WITH a barcode from Zijia's library into mark1 — what it
+     * was approved with in vms4, photos included — and picks up changes made there since
+     * (ZijiaLibraryImport). Cheap when nothing changed: one library query per product.
+     *
+     * @return array<int, array{product_id: int, name: string, outcome: string}>
+     */
+    public function importApproved(): array
+    {
+        $results = [];
+        $products = Product::withoutGlobalScopes()->whereIn('id', $this->freezerProductIds())
+            ->whereNotNull('barcode')->where('barcode', '!=', '')
+            ->orderBy('id')->get(['id', 'code', 'name', 'barcode']);
+        foreach ($products as $product) {
+            $results[$product->id] = ['product_id' => $product->id, 'name' => $product->name, 'outcome' => $this->import->sync($product)];
+        }
 
         return $results;
     }
@@ -102,18 +125,22 @@ class ZijiaBarcodeSync
     /** @return \Illuminate\Support\Collection<int, Product> products on a smart freezer's planogram with no barcode */
     private function productsWithoutBarcode()
     {
-        $ids = DB::table('vend_channels')
+        return Product::withoutGlobalScopes()->whereIn('id', $this->freezerProductIds())
+            ->where(fn ($q) => $q->whereNull('barcode')->orWhere('barcode', ''))
+            ->whereNotNull('name')->where('name', '!=', '')
+            ->orderBy('id')
+            ->get(['id', 'name', 'barcode']);
+    }
+
+    /** @return \Illuminate\Support\Collection<int, int> */
+    private function freezerProductIds()
+    {
+        return DB::table('vend_channels')
             ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
             ->where('vends.machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
             ->whereNotNull('vend_channels.product_id')
             ->distinct()
             ->pluck('vend_channels.product_id');
-
-        return Product::withoutGlobalScopes()->whereIn('id', $ids)
-            ->where(fn ($q) => $q->whereNull('barcode')->orWhere('barcode', ''))
-            ->whereNotNull('name')->where('name', '!=', '')
-            ->orderBy('id')
-            ->get(['id', 'name', 'barcode']);
     }
 
     /** "Basque Cheesecake - Chocolate" and "basque cheesecake chocolate" are the same name. */
