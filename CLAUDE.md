@@ -887,7 +887,18 @@ unrecognised). Rules:
   `applicationNo` = `products.code`, else a unique exact name among freezer-planogram products.
   (2) The signed envelope we proposed (2026-10-05), signed like the result callback (enforce:
   unsigned changes nothing), matched by 商品编码 = `products.code`. In both, a code shared by
-  several products resolves only to the one on a smart freezer's planogram. Approved → fills an empty barcode
+  several products resolves only to the one on a smart freezer's planogram.
+  **Smart Freezer AI Training** (Product → Edit, 2026-10-06; `ZijiaSkuApplicationService`, only
+  writer of `zijia_sku_applications` + `zijia_sku_application_events`): staff draft a product's
+  modelling application (name, barcode, brand, spec, §5.3 category / package type, package photo,
+  model photos per angle — `high` required), saved to DO Spaces `sys/zijia-sku/{product}`; Submit
+  sends `sys.sku.sync.put` with `applicationNo` (ours, digits), `attach` = products.code and
+  `callbackUrl` = our `/sku/notify`. Every exchange is an event (draft, photos, the exact signed
+  envelope, their answer, the §7 callback, the barcode outcome) shown as the section's activity
+  log. The §7 callback finds the application by `applicationNo`; approving the barcode we submitted
+  sets it on the product (no library check needed), anything else is library-checked; a rejection
+  keeps their `msg`. Submitted = locked; a new application copies the last one (new number).
+  Permission `update products`. The barcode is NEVER set at submit — only on approval. Approved → fills an empty barcode
   (a different existing one is left and reported); rejected / withdrawn → clears a barcode
   equal to theirs (an unknown sn would make Zijia reject the whole session). Every push is
   kept in `zijia_sku_notifications` with its outcome; the ones needing a person are in the
