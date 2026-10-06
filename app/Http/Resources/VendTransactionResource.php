@@ -31,6 +31,18 @@ class VendTransactionResource extends JsonResource
             'payment_note' => \App\Support\SaleStatus::paymentNote($sale),
             'dispense_status' => \App\Support\SaleStatus::dispense($sale),
             'amount' => $this->amount / 100,
+            // A smart-freezer sale paid on a T05 whose camera AI has not audited the door session
+            // yet: `amount` is still the cart the customer agreed to, not a settled sale, and the
+            // row is held out of every sales and qty figure until the verdict decides the charge
+            // (App\Services\Freezer\FreezerSaleAudit). The grid shows the cell as pending and
+            // keeps the cart amount in its tooltip.
+            'audit_pending' => ! empty($this->audit_pending_at),
+            'audit_pending_at' => $this->formatUserDateTime($this->audit_pending_at ?? null),
+            // Set once the camera AI has decided this sale, and only when its verdict CHANGED it
+            // from the cart the customer agreed to: the grid labels the amount so a corrected
+            // figure is never read as the machine's own. meta_json.audit, written by
+            // App\Services\Freezer\FreezerSaleAudit.
+            'audit' => $this->auditLabel(),
             'avg_seven_days_amount' => isset($this->avg_seven_days_amount) ? $this->avg_seven_days_amount : null,
             // Display name: legacy board codes mapped (NYX ⇒ Nayax). The raw
             // code stays in the DB; refund classification reads that.
@@ -181,5 +193,36 @@ class VendTransactionResource extends JsonResource
     private function formatUserDateTime($value): ?string
     {
         return $value ? Carbon::parse($value)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null;
+    }
+
+    /**
+     * The "AI" label for a sale the camera audit moved: what was charged against what the cart
+     * said, and how many units each. Null for every other row — including an audited sale the AI
+     * agreed with, which needs no label.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function auditLabel(): ?array
+    {
+        $audit = ((array) ($this->meta_json ?? []))['audit'] ?? null;
+        if (! is_array($audit)) {
+            return null;
+        }
+
+        $cart = (int) ($audit['cart_cents'] ?? 0);
+        $charged = (int) ($audit['charged_cents'] ?? 0);
+        $paid = (array) ($audit['basket_paid'] ?? []);
+        $billed = (array) ($audit['basket_charged'] ?? []);
+        if ($cart === $charged && $paid === $billed) {
+            return null; // the AI agreed with the cart
+        }
+
+        return [
+            'cart' => $cart / 100,
+            'charged' => $charged / 100,
+            'units_paid' => $paid === [] ? null : (int) array_sum($paid),
+            'units_charged' => $billed === [] ? null : (int) array_sum($billed),
+            'reason' => $audit['reason'] ?? null,
+        ];
     }
 }

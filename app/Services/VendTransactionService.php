@@ -67,6 +67,13 @@ class VendTransactionService
         return $this->freezerStockLedger ??= app(\App\Services\Freezer\FreezerStockLedger::class);
     }
 
+    private ?\App\Services\Freezer\FreezerSaleAudit $freezerSaleAudit = null;
+
+    private function freezerSaleAudit(): \App\Services\Freezer\FreezerSaleAudit
+    {
+        return $this->freezerSaleAudit ??= app(\App\Services\Freezer\FreezerSaleAudit::class);
+    }
+
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
         $vend->loadMissing([
@@ -163,6 +170,12 @@ class VendTransactionService
                     $wasPreCreatedUpdate = true;
                     // Smart Freezer stock out — here and on the fresh path only, never on a replay.
                     $this->freezerStockLedger()->sale($vend, $existingVendTransaction);
+                    // No audit hold on this path. A row a payment rail pre-created belongs to
+                    // that rail's settlement logic — and PENDING here is its signal to hand the
+                    // sale to the refund/void path a few lines below, which a held freezer sale
+                    // must never trigger. A T05 card sale pre-creates nothing, so it does not
+                    // reach this branch; if one ever adopted a settlement orphan, it simply
+                    // counts as it does today.
 
                     return $existingVendTransaction;
                 }
@@ -189,6 +202,8 @@ class VendTransactionService
                     // A sale booked on a past day dirties that day's rollups.
                     $this->lateTradeTracker()->noteLanded($transaction);
                     $this->freezerStockLedger()->sale($vend, $transaction);
+                    // A T05 freezer sale is provisional until its camera AI audits the session.
+                    $this->freezerSaleAudit()->record($vend, $transaction);
                 }
 
                 if ($transaction && $transaction->amount > 0) {

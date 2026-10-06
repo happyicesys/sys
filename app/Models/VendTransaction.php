@@ -87,6 +87,7 @@ class VendTransaction extends Model
         'is_zero_amount' => 'boolean',
         'is_found_in_transaction' => 'boolean',
         'settlement_status' => 'integer',
+        'audit_pending_at' => 'datetime',
         'product_drop_sensor' => 'boolean',
         'is_retained_credit_settlement' => 'boolean',
     ];
@@ -137,6 +138,7 @@ class VendTransaction extends Model
         'settlement_status',
         'card_settlement_row_id',
         'card_settlement_state',
+        'audit_pending_at',
     ];
 
     protected $with = [
@@ -295,6 +297,30 @@ class VendTransaction extends Model
     public static function settledSql(string $alias = 'vend_transactions'): string
     {
         return $alias.'.settlement_status = '.self::SETTLEMENT_SETTLED;
+    }
+
+    /**
+     * Figures on hold for an outside audit: a smart-freezer sale paid on a T05, whose camera-AI
+     * verdict has not decided the charge yet (Brian, 2026-10-05 — such a row "cannot be
+     * calculate as sales total and qty total"). The row is real and listed; its amount and qty
+     * are provisional until FreezerSaleAudit settles it.
+     *
+     * What keeps it out of the aggregates is settlement_status = PENDING, the gate every sales,
+     * revenue, GP and qty aggregation already applies (scopeCountsAsSale / settledSql /
+     * scopeIsSuccessful). `audit_pending_at` only says WHY it is pending — without it this row
+     * is indistinguishable from a gateway row still waiting for its TRADE, which is a different
+     * thing and renders differently (SaleStatus::dispenseReason).
+     */
+    public function isAwaitingAudit(): bool
+    {
+        return $this->audit_pending_at !== null
+            && (int) $this->settlement_status === self::SETTLEMENT_PENDING;
+    }
+
+    public function scopeAwaitingAudit($query, string $alias = 'vend_transactions')
+    {
+        return $query->whereNotNull($alias.'.audit_pending_at')
+            ->where($alias.'.settlement_status', self::SETTLEMENT_PENDING);
     }
 
     /**

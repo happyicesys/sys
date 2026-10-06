@@ -40,6 +40,11 @@ final class AiCaptureDecision
      * @param  int|null  $fallbackCents  above the hold: what to capture instead if Payrallel refuses
      *                                   the increase (the hold itself); null otherwise
      * @param  int|null  $judgedCents  the AI basket's value; null when the cart total stands in for it
+     * @param  array<int, int>|null  $basket  product id => units the charge was valued from, so the
+     *                                        sale's own basket can follow the money instead of
+     *                                        re-deriving it (FreezerSaleAudit). Null whenever the
+     *                                        cart total stands in: the charge did not follow the AI,
+     *                                        so neither may the basket.
      */
     private function __construct(
         public readonly string $action,
@@ -47,12 +52,13 @@ final class AiCaptureDecision
         public readonly ?int $fallbackCents,
         public readonly ?int $judgedCents,
         public readonly string $reason,
+        public readonly ?array $basket = null,
     ) {}
 
     /** One capture of $cents, within the hold. */
-    private static function capture(int $cents, ?int $judged, string $reason): self
+    private static function capture(int $cents, ?int $judged, string $reason, ?array $basket = null): self
     {
-        return new self(self::CAPTURE, $cents, null, $judged, $reason);
+        return new self(self::CAPTURE, $cents, null, $judged, $reason, $basket);
     }
 
     /**
@@ -77,6 +83,7 @@ final class AiCaptureDecision
         $judged = 0;
         $units = 0;
         $assumed = 0;
+        $basket = [];
         foreach ($lines as $line) {
             $taken = (int) ($line['taken'] ?? 0);
             // Incomplete (Brian, 2026-10-05, the middle ground): a paid product the AI was never
@@ -92,6 +99,7 @@ final class AiCaptureDecision
             }
             $units += $taken;
             $productId = (int) ($line['product_id'] ?? 0);
+            $basket[$productId] = ($basket[$productId] ?? 0) + $taken;
             // A price only counts when it is positive: a 0 or negative TRADE line (a promo, a bug)
             // falls back to the shelf price, and a product with no positive price at all cannot be
             // valued — the cart is charged rather than guessing low.
@@ -109,18 +117,18 @@ final class AiCaptureDecision
         }
         // Released only when the AI saw no unit taken — never because something valued at 0.
         if ($units === 0) {
-            return new self(self::VOID, 0, null, 0, 'AI saw nothing taken: hold released');
+            return new self(self::VOID, 0, null, 0, 'AI saw nothing taken: hold released', []);
         }
         $how = $assumed > 0
             ? "AI judged {$verdict}: what it saw, plus {$assumed} unit(s) it was not asked about charged as paid"
             : "AI judged {$verdict}: charged what was taken";
         if ($judged <= $holdCents) {
-            return self::capture($judged, $judged, $how);
+            return self::capture($judged, $judged, $how, $basket);
         }
 
         // Above the hold: one capture of the whole judged amount; Payrallel increments the
         // authorisation on their side. If they refuse, the hold itself is captured instead.
-        return new self(self::CAPTURE, $judged, $holdCents, $judged, "{$how} — above the hold: one capture with auth increment");
+        return new self(self::CAPTURE, $judged, $holdCents, $judged, "{$how} — above the hold: one capture with auth increment", $basket);
     }
 
     /** The cart total, when the AI result cannot be trusted to decide this card sale. */
@@ -143,6 +151,7 @@ final class AiCaptureDecision
             'fallback_cents' => $this->fallbackCents,
             'judged_cents' => $this->judgedCents,
             'reason' => $this->reason,
+            'basket' => $this->basket,
         ];
     }
 }

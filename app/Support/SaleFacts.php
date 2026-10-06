@@ -10,8 +10,9 @@ namespace App\Support;
  * Columns read: is_multiple, vend_channel_error_code (or the loaded
  * vendChannelError.code), settlement_status, is_found_in_transaction,
  * is_refunded, auto_refund_source, is_retained_credit_settlement,
- * card_settlement_synced_at, and the payment rail via the grid/export alias
- * payment_method_gateway_id or the loaded paymentMethod.payment_gateway_id.
+ * card_settlement_synced_at, audit_pending_at, and the payment rail via the
+ * grid/export alias payment_method_gateway_id or the loaded
+ * paymentMethod.payment_gateway_id.
  */
 final readonly class SaleFacts
 {
@@ -27,6 +28,13 @@ final readonly class SaleFacts
         public bool $paidThroughGateway,
         /** Card-terminal sale confirmed by an uploaded acquirer settlement report (card_settlement_synced_at). */
         public bool $confirmedBySettlementReport,
+        /**
+         * Figures held for an outside audit — a smart-freezer T05 sale whose camera-AI verdict has
+         * not decided the charge yet (FreezerSaleAudit). Such a row is settlement_status = PENDING
+         * like a gateway row awaiting its TRADE, but for an entirely different reason: the TRADE
+         * IS in, so its dispense verdict must still be shown.
+         */
+        public bool $isAwaitingAudit = false,
     ) {}
 
     public static function fromRow(object $row): self
@@ -49,6 +57,7 @@ final readonly class SaleFacts
             isRetainedCreditSettlement: (bool) ($row->is_retained_credit_settlement ?? false),
             paidThroughGateway: $gatewayId !== null,
             confirmedBySettlementReport: ! empty($row->card_settlement_synced_at),
+            isAwaitingAudit: ! empty($row->audit_pending_at),
         );
     }
 }

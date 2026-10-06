@@ -243,6 +243,10 @@ class TxnRevenueSettlement
                 'vend_transactions.is_refunded',
                 'vend_transactions.auto_refund_source',
                 'vend_transactions.settlement_status',
+                // Why a row is PENDING. Without it SaleFacts reads a smart-freezer sale held for
+                // its camera audit as a gateway row still waiting for its TRADE, and blanks a
+                // dispense verdict that is actually in (FreezerSaleAudit).
+                'vend_transactions.audit_pending_at',
                 'vend_transactions.is_found_in_transaction',
                 'vend_transactions.is_retained_credit_settlement',
                 'vend_transactions.card_settlement_synced_at',

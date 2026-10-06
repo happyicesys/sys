@@ -4132,6 +4132,9 @@ class VendController extends Controller
                     'vend_transactions.is_payment_received',
                     // Payment Status / Dispense Status columns (App\Support\SaleStatus).
                     'vend_transactions.settlement_status',
+                    // Why a row is PENDING: held for its camera-AI audit (FreezerSaleAudit), as
+                    // opposed to waiting for its TRADE. Drives the pending Amount / Qty cells.
+                    'vend_transactions.audit_pending_at',
                     'vend_transactions.is_found_in_transaction',
                     'vend_transactions.is_retained_credit_settlement',
                     'vend_transactions.qty',

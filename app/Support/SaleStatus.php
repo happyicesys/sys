@@ -154,6 +154,13 @@ final class SaleStatus
      */
     public static function dispenseReason(SaleFacts $sale): ?string
     {
+        // A sale held for its AI audit is PENDING for a different reason: its TRADE is in and
+        // carries a real verdict — only the money and the qty are still provisional. Blanking it
+        // as "no TRADE" would hide the machine's own answer (FreezerSaleAudit).
+        if ($sale->isAwaitingAudit) {
+            return $sale->isMultiple ? self::REASON_ON_ITEMS : null;
+        }
+
         if ($sale->settlementStatus === VendTransaction::SETTLEMENT_PENDING || ! $sale->isFoundInTransaction) {
             return self::REASON_NO_TRADE;
         }

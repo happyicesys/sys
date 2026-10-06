@@ -8,6 +8,7 @@ use App\Models\SmartFreezerRecognition;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Services\Freezer\FreezerSaleAudit;
 use App\Services\HappyHour\HappyHourPricing;
 use App\Services\SmartFreezer\FreezerSaleLocator;
 use Carbon\Carbon;
@@ -50,10 +51,14 @@ class CardPaymentService
     /** How often the reconciler retries a pre-auth capture the provider refused. */
     private const AUTO_CAPTURE_RETRY_MINUTES = 10;
 
+    /** How far back the sweep looks for a decided charge whose sale is still held for its audit. */
+    private const AUDIT_SETTLE_LOOKBACK_HOURS = 48;
+
     public function __construct(
         private readonly RemoteCardTerminalGatewayFactory $gateways,
         private readonly CardTerminalEventLog $events,
         private readonly FreezerSaleLocator $sales,
+        private readonly FreezerSaleAudit $audit,
     ) {}
 
     /**
@@ -365,7 +370,56 @@ class CardPaymentService
                 $this->isolated($intent, fn () => $this->locked($intent, fn (CardPaymentIntent $i) => $this->settleAwaitingAiLocked($i)));
             });
 
+        $this->settleUnaudited();
+
         return $touched;
+    }
+
+    /**
+     * Sales still held for an audit whose charge is already decided. The TRADE and the verdict
+     * travel separately: a freezer that was offline uploads its sale long after its hold was
+     * charged, and the write that settles a sale can fail on its own
+     * ({@see settleSale}). Either way the row would sit PENDING — out of every sales figure —
+     * with nothing left to wait for.
+     *
+     * Driven from the intents (a small table), never from a scan of vend_transactions, and
+     * bounded to charges resolved in the last AUDIT_SETTLE_LOOKBACK_HOURS. FreezerSaleAudit::settle
+     * only touches a sale that is still held, so a re-run of an already-settled charge does
+     * nothing.
+     */
+    private function settleUnaudited(): void
+    {
+        $decided = CardPaymentIntent::query()
+            ->whereIn('state', [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED])
+            ->whereNotNull('session_ref')
+            ->where('resolved_at', '>=', Carbon::now()->subHours(self::AUDIT_SETTLE_LOOKBACK_HOURS))
+            ->get(); // whole rows: a handful at most, and settling reads the intent freely
+
+        if ($decided->isEmpty()) {
+            return;
+        }
+
+        // Almost every run has nothing to do, so ask once which of these sessions still has a
+        // held sale rather than looking each one up in turn.
+        $waiting = VendTransaction::withoutGlobalScopes()
+            ->awaitingAudit()
+            ->whereIn('vend_id', $decided->pluck('vend_id')->filter()->unique()->all())
+            ->whereIn(DB::raw("vend_transactions.vend_transaction_json->>'$.SFREF'"), $decided->pluck('session_ref')->unique()->all())
+            ->pluck(DB::raw("vend_transactions.vend_transaction_json->>'$.SFREF'"))
+            ->all();
+
+        if ($waiting === []) {
+            return;
+        }
+
+        $decided->whereIn('session_ref', $waiting)->each(fn (CardPaymentIntent $intent) => $this->isolated(
+            $intent,
+            fn () => $this->audit->settle(
+                $intent,
+                (int) $intent->captured_cents,
+                (string) (((array) $intent->ai_decision)['reason'] ?? 'charge decided'),
+            ),
+        ));
     }
 
     /**
@@ -434,7 +488,11 @@ class CardPaymentService
                 return $this->chargeRefused($intent, 'ai void', $e);
             }
 
-            return $this->finish($intent, CardPaymentIntent::STATE_VOIDED, ['voided_at' => Carbon::now(), 'last_error' => null]);
+            $voided = $this->finish($intent, CardPaymentIntent::STATE_VOIDED, ['voided_at' => Carbon::now(), 'last_error' => null]);
+            // The AI saw nothing taken: no money was collected, so the sale stops being one.
+            $this->settleSale($voided, 0, (string) ($decision['reason'] ?? 'hold released'));
+
+            return $voided;
         }
 
         $cents = (int) ($decision['capture_cents'] ?? $cart);
@@ -473,13 +531,37 @@ class CardPaymentService
     /** The decided capture went through. Caller holds the lock. */
     private function captured(CardPaymentIntent $intent, array $decision, int $cents): CardPaymentIntent
     {
-        return $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
+        $captured = $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
             'ai_decision' => $decision,
             'captured_cents' => $cents,
             'captured_at' => Carbon::now(),
             'last_error' => null,
             'last_queried_at' => null,
         ]);
+
+        // Only now: what was charged becomes the sale's amount and the sale starts counting,
+        // where until this point it was held out of every sales figure (FreezerSaleAudit).
+        $this->settleSale($captured, $cents, (string) ($decision['reason'] ?? 'charge decided'));
+
+        return $captured;
+    }
+
+    /**
+     * Put the charged amount onto the sale behind a decided charge. Deliberately never throws:
+     * the money is already taken and recorded by the time this runs, and losing that record over
+     * a failed secondary write would have the next sweep treat a completed charge as one of
+     * unknown outcome. A sale left behind is picked up by settleUnaudited() on a later sweep.
+     */
+    private function settleSale(CardPaymentIntent $intent, int $cents, string $reason): void
+    {
+        try {
+            $this->audit->settle($intent, $cents, $reason);
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Card charge recorded but its sale was not settled', $this->logContext($intent) + [
+                'cents' => $cents, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

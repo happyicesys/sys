@@ -855,7 +855,30 @@
                             {{ vendTransaction.product_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
-                            {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            <!-- A smart-freezer sale paid on a T05 is only a proposal until the
+                                 camera AI has audited the door session: the charge follows that
+                                 verdict, so the row is held out of Total Sales and Total Qty until
+                                 it lands (App\Services\Freezer\FreezerSaleAudit). The cart the
+                                 customer agreed to stays in the tooltip. QR and NETS freezer sales
+                                 are charged in full at door close and are unaffected. -->
+                            <span v-if="vendTransaction.audit_pending"
+                                class="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 hover:cursor-help"
+                                :title="auditPendingTooltip(vendTransaction)">
+                                <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                                Pending AI
+                            </span>
+                            <span v-else class="inline-flex items-center justify-end gap-1">
+                                {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                <!-- The camera AI's verdict changed this sale from the cart the
+                                     customer agreed to, so the figure beside it is the AI's, not
+                                     the machine's. Labelled rather than left to look like an
+                                     ordinary sale (Brian, 2026-10-06). -->
+                                <span v-if="vendTransaction.audit"
+                                    class="rounded border border-sky-300 bg-sky-100 px-1 text-[10px] font-bold text-sky-800 hover:cursor-help"
+                                    :title="auditLabelTooltip(vendTransaction.audit)">AI</span>
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <!-- The bracket names the terminal's SUPPLIER when we know it
@@ -1412,6 +1435,31 @@ const latestExports = ref([])
 const loadingCsv = ref(false)
 const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
+
+// Amount cell of a sale held for its camera-AI audit (smart freezer on a T05). Says what is
+// being waited for, what the customer agreed to pay, and since when — the figure itself is not
+// final, so it is deliberately not printed in the cell.
+// The "AI" label beside a corrected amount: what was charged against what the cart said.
+const auditLabelTooltip = (a) => {
+    const money = (v) => v.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})
+    return [
+        'Corrected by the camera AI after the door closed.',
+        'Cart the customer agreed: ' + money(a.cart),
+        'Charged: ' + money(a.charged),
+        a.units_paid !== null && a.units_charged !== null
+            ? 'Units: paid for ' + a.units_paid + ', charged for ' + a.units_charged
+            : null,
+        a.reason,
+    ].filter(Boolean).join('\n')
+}
+
+const auditPendingTooltip = (t) => [
+    'Waiting for the camera AI to audit this door opening.',
+    'The card is on hold and the final charge follows the AI verdict, so this sale is not counted'
+        + ' in Total Sales or Total Qty yet.',
+    'Cart the customer agreed: ' + t.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}),
+    t.audit_pending_at ? 'On hold since ' + t.audit_pending_at : null,
+].filter(Boolean).join('\n')
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const tagOptions = ref([]);
