@@ -142,6 +142,26 @@ class ZijiaLibraryImportTest extends TestCase
         $this->assertSame(['https://oss.test/id/top2.png'], $event->detail['photos_not_copied']);
     }
 
+    public function test_overlapping_runs_never_import_twice_and_one_failure_never_stops_the_rest(): void
+    {
+        $lock = \Illuminate\Support\Facades\Cache::lock('smart-freezer:zijia-barcode-sync', 600);
+        $lock->get();
+        $this->artisan('smart-freezer:zijia-barcode-sync')->expectsOutputToContain('Another sync is running')->assertSuccessful();
+        $lock->release();
+        $this->assertSame(0, ZijiaSkuApplication::count());
+
+        // The chocolate's import throws (its mirror number is already taken); the next product is
+        // still processed.
+        $next = Product::forceCreate(['code' => 'X-1', 'name' => 'Next', 'operator_id' => 1, 'barcode' => '111']);
+        DB::table('vend_channels')->insert(['vend_id' => Vend::query()->value('id'), 'code' => 11, 'product_id' => $next->id, 'amount' => 1]);
+        ZijiaSkuApplication::query()->create(['product_id' => $next->id, 'application_no' => 'vms4-1791006205910842', 'status' => 'draft', 'source' => 'mark1']);
+
+        $results = app(\App\Services\SmartFreezer\Zijia\ZijiaBarcodeSync::class)->importApproved();
+
+        $this->assertStringStartsWith('error:', $results[$this->chocolate->id]['outcome']);
+        $this->assertSame('not_in_library', $results[$next->id]['outcome']);
+    }
+
     public function test_the_three_minute_sync_mirrors_every_barcoded_freezer_product(): void
     {
         $this->artisan('smart-freezer:zijia-barcode-sync')->expectsOutputToContain('vms4: imported')->assertSuccessful();

@@ -57,7 +57,14 @@ class ZijiaBarcodeSync
             ->whereNotNull('barcode')->where('barcode', '!=', '')
             ->orderBy('id')->get(['id', 'code', 'name', 'barcode']);
         foreach ($products as $product) {
-            $results[$product->id] = ['product_id' => $product->id, 'name' => $product->name, 'outcome' => $this->import->sync($product)];
+            // One product's failure (a photo host, bad data) never stops the others.
+            try {
+                $outcome = $this->import->sync($product);
+            } catch (\Throwable $e) {
+                report($e);
+                $outcome = 'error: '.mb_substr($e->getMessage(), 0, 120);
+            }
+            $results[$product->id] = ['product_id' => $product->id, 'name' => $product->name, 'outcome' => $outcome];
         }
 
         return $results;
