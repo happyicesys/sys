@@ -9,7 +9,7 @@ class ZijiaSkuNotification extends Model
 {
     protected $fillable = [
         'raw_body', 'payload', 'verified', 'merchant_goods_code', 'product_code', 'sku_name',
-        'audit_status', 'product_id', 'outcome',
+        'audit_status', 'product_id', 'zijia_sku_application_id', 'outcome',
     ];
 
     protected $casts = [

@@ -789,6 +789,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/store', [ProductController::class, 'store']);
         Route::post('/{id}/update', [ProductController::class, 'update']);
         Route::post('/{id}/children', [ProductController::class, 'saveChildren']);
+        // Smart Freezer AI Training: modelling application to Zijia (§5) and its log.
+        Route::post('/{id}/ai-training', [\App\Http\Controllers\SmartFreezer\ZijiaAiTrainingController::class, 'save'])
+            ->middleware('can:update products')->whereNumber('id');
+        Route::post('/{id}/ai-training/submit', [\App\Http\Controllers\SmartFreezer\ZijiaAiTrainingController::class, 'submit'])
+            ->middleware('can:update products')->whereNumber('id');
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
         Route::get('/availability', [ProductController::class, 'availability'])->name('products-availability');

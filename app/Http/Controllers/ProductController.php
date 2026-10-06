@@ -1134,6 +1134,8 @@ class ProductController extends Controller
                     ->get()
             ),
             'product' => ProductResource::make($product),
+            // Smart Freezer AI Training: this product's modelling application to Zijia and its log.
+            'aiTraining' => app(\App\Services\SmartFreezer\Zijia\ZijiaSkuApplicationService::class)->pageData($product),
             // Blind SKU: real flavours selectable as children (never a housing).
             'flavourOptions' => ProductResource::collection(
                 Product::with(['thumbnail', 'latestUnitCost'])

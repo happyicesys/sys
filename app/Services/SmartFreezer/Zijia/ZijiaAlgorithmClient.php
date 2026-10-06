@@ -22,6 +22,9 @@ class ZijiaAlgorithmClient
 
     public const METHOD_RESULT = 'cabinet.algorithm.order.result';
 
+    /** §5 商品建模申请: apply for a product to be modelled; the answer comes on its callbackUrl (§7). */
+    public const METHOD_SKU_APPLY = 'sys.sku.sync.put';
+
     private const API_PATH = '/api/algorithm/api';
 
     private const SKU_QUERY_PATH = '/core/expose/sys_sku/v1/query_list';
@@ -64,6 +67,18 @@ class ZijiaAlgorithmClient
     public function submitRecognition(RecognitionRequest $request): AlgorithmResponse
     {
         return $this->call(self::METHOD_RECOGNISE, $request->bizContent());
+    }
+
+    /**
+     * Submit a product modelling application (§5). Returns the exact envelope sent (for the
+     * application's log) and their answer: `{code, msg, data: {applicationNo, skuId}}`.
+     *
+     * @param  array<string, mixed>  $sku  the `sku` object of §5.2
+     * @return array{0: array<string, string>|null, 1: AlgorithmResponse}
+     */
+    public function applySku(array $sku): array
+    {
+        return $this->send(self::METHOD_SKU_APPLY, ['sku' => $sku]);
     }
 
     /**
@@ -128,8 +143,14 @@ class ZijiaAlgorithmClient
 
     private function call(string $method, array $bizContent): AlgorithmResponse
     {
+        return $this->send($method, $bizContent)[1];
+    }
+
+    /** @return array{0: array<string, string>|null, 1: AlgorithmResponse} the envelope sent (null if none) and the answer */
+    private function send(string $method, array $bizContent): array
+    {
         if (! $this->isConfigured()) {
-            return AlgorithmResponse::transportFailure('algorithm service not configured');
+            return [null, AlgorithmResponse::transportFailure('algorithm service not configured')];
         }
 
         $envelope = $this->envelope($method, $bizContent);
@@ -141,13 +162,13 @@ class ZijiaAlgorithmClient
         } catch (ConnectionException $e) {
             Log::warning('zijia algorithm call failed', ['method' => $method, 'error' => $e->getMessage()]);
 
-            return AlgorithmResponse::transportFailure($e->getMessage());
+            return [$envelope, AlgorithmResponse::transportFailure($e->getMessage())];
         }
 
         // They answer text/plain JSON even on errors, so read the body rather than trust the header.
         $body = json_decode($response->body(), true);
         if (! is_array($body)) {
-            return AlgorithmResponse::transportFailure("HTTP {$response->status()}: unreadable reply");
+            return [$envelope, AlgorithmResponse::transportFailure("HTTP {$response->status()}: unreadable reply")];
         }
 
         $result = AlgorithmResponse::fromBody($body);
@@ -155,7 +176,7 @@ class ZijiaAlgorithmClient
             'method' => $method, 'code' => $result->code, 'msg' => $result->message, 'request_id' => $result->requestId,
         ]);
 
-        return $result;
+        return [$envelope, $result];
     }
 
     private function url(string $path): string

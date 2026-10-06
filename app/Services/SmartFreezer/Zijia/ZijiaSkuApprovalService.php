@@ -4,6 +4,7 @@ namespace App\Services\SmartFreezer\Zijia;
 
 use App\Models\Product;
 use App\Models\Vend;
+use App\Models\ZijiaSkuApplication;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -108,14 +109,26 @@ class ZijiaSkuApprovalService
         if ($barcode === null) {
             return $fields + ['product_id' => null, 'outcome' => self::OUTCOME_NO_CODE];
         }
-        if ($kind === 'approved') {
-            $page = $this->client->querySkus(1, 20, null, $barcode);
-            if ($page === null) {
-                return $fields + ['product_id' => null, 'outcome' => self::OUTCOME_UNREACHABLE];
+
+        // One of OUR applications (Product → Edit, Smart Freezer AI Training): its number names the
+        // product exactly, and an approval of the very barcode we submitted needs no library check.
+        $application = ($no = self::first($sku, ['applicationNo'])) !== null
+            ? ZijiaSkuApplication::query()->with('product')->where('application_no', $no)->first()
+            : null;
+        if ($application !== null && $application->product !== null) {
+            $trusted = $application->product_code === $barcode;
+            if ($kind === 'approved' && ! $trusted && ($miss = $this->libraryMiss($barcode)) !== null) {
+                $result = ['product_id' => $application->product_id, 'outcome' => $miss];
+            } else {
+                $result = ['product_id' => $application->product_id] + $this->applyTo($application->product, $kind, $barcode);
             }
-            if (! collect($page['list'])->contains(fn ($s) => (string) ($s['productCode'] ?? '') === $barcode)) {
-                return $fields + ['product_id' => null, 'outcome' => self::OUTCOME_NOT_IN_LIBRARY];
-            }
+            app(ZijiaSkuApplicationService::class)->recordDecision($application, $payload, $kind === 'approved', $result['outcome']);
+
+            return $fields + $result + ['zijia_sku_application_id' => $application->id];
+        }
+
+        if ($kind === 'approved' && ($miss = $this->libraryMiss($barcode)) !== null) {
+            return $fields + ['product_id' => null, 'outcome' => $miss];
         }
 
         [$product, $miss] = $code !== null ? $this->byCode($code) : [null, self::OUTCOME_NO_PRODUCT];
@@ -127,6 +140,17 @@ class ZijiaSkuApprovalService
         }
 
         return $fields + $this->applyTo($product, $kind, $barcode);
+    }
+
+    /** Null when Zijia's public library (§8) has this barcode; else why it cannot be applied. */
+    private function libraryMiss(string $barcode): ?string
+    {
+        $page = $this->client->querySkus(1, 20, null, $barcode);
+        if ($page === null) {
+            return self::OUTCOME_UNREACHABLE;
+        }
+
+        return collect($page['list'])->contains(fn ($s) => (string) ($s['productCode'] ?? '') === $barcode) ? null : self::OUTCOME_NOT_IN_LIBRARY;
     }
 
     /** @return array{product_id: int, outcome: string} */

@@ -674,6 +674,11 @@
             </div>
           </form>
         </div>
+        <ZijiaAiTraining
+          v-if="aiTraining && product && product.id"
+          :product-id="product.id"
+          :data="aiTraining"
+        />
       </div>
     </div>
   </div>
@@ -690,6 +695,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import FlavourBinding from '@/Pages/Product/FlavourBinding.vue';
+import ZijiaAiTraining from '@/Pages/Product/ZijiaAiTraining.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, watch, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -709,6 +715,7 @@ const props = defineProps({
     permissions: [Array, Object],
     productTagOptions: Object,
     flavourOptions: Object,
+    aiTraining: Object,
   })
 
 // Blind SKU: flavour-binding data (product-level).
