@@ -43,7 +43,7 @@
         Zijia did not accept the submission: <span class="font-medium">{{ app.last_error }}</span>
       </div>
       <div v-if="canEdit && app.status !== 'submitted'" class="pt-1">
-        <Button type="button" class="bg-sky-700 hover:bg-sky-800 text-white" :disabled="busy" @click="startNew">
+        <Button type="button" class="bg-sky-700 hover:bg-sky-800 text-white disabled:opacity-50 disabled:cursor-not-allowed" :disabled="busy" @click="startNew">
           Start a new application
         </Button>
         <span class="ml-2 text-xs text-gray-500">Copies this one into a new draft (new pack, photos, or a fix after rejection).</span>
@@ -141,10 +141,10 @@
       <div v-if="err('application')" class="sm:col-span-6 text-sm text-red-600">{{ err('application') }}</div>
 
       <div v-if="canEdit" class="sm:col-span-6 flex flex-wrap justify-end gap-2">
-        <Button type="button" class="bg-gray-600 hover:bg-gray-700 text-white" :disabled="busy" @click="save">
+        <Button type="button" class="bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed" :disabled="busy" @click="save">
           {{ busy ? 'Saving…' : 'Save draft' }}
         </Button>
-        <Button type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white" :disabled="busy || !app || !data.configured || dirty || missingList.length > 0" @click="submit"
+        <Button type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed" :disabled="busy || !app || !data.configured || dirty || missingList.length > 0" @click="submit"
                 :title="dirty ? 'Save the draft first' : (missingList.length ? 'Fill in the required fields first' : '')">
           Submit to Zijia
         </Button>
