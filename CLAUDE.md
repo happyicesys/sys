@@ -1250,6 +1250,24 @@ writes only the columns that differ, so `ota_modem_changed_at` is "last
 changed", not "last heard". Regression coverage: `tests/Feature/VendOtaModemTest.php`,
 `tests/Feature/OtaNudgeStaleTest.php`.
 
+## Vending menu refresh: every visible change tells the machines
+
+A vending APK re-reads its names list (`/thumbnails`) only when told to
+(TYPESYNCAPICHANNELSLOTLIST, the "Push Products Info to Machine" frame) — on
+APK 209 not even on reboot. So a product added to a channel of a mapping the
+machine was already on showed a photo and price with no name (4730,
+2026-10-07). `App\Jobs\Vend\PushMappingMenuSync` now sends that frame,
+debounced per mapping (10 s), to every active or testing **vending** machine on
+the mapping; smart freezers keep their own immediate `SmartFreezerCatalogPush`,
+chillers have no APK. Triggers: every planogram write in
+`ProductMappingController` (via `nudgeBoundMachines()`, and Save), and in
+`ProductController` a change to a column the machine shows
+(`ProductController::MENU_COLUMNS`), its tags, photo or translated names → every
+mapping carrying the product; a selling price added or deleted → only machines
+on server price. A new write path that changes what a machine shows calls
+`PushMappingMenuSync::schedule()` / `scheduleForProduct()`. Regression coverage:
+`tests/Feature/MappingMenuAutoPushTest.php`.
+
 ## Ops job stops: four kinds of row, one registry
 
 An ops job (a driver-day) carries four row types: `ops_job_items` (machine

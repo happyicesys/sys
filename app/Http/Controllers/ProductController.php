@@ -9,6 +9,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UomResource;
+use App\Jobs\Vend\PushMappingMenuSync;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Operator;
@@ -40,6 +41,15 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
+    /**
+     * Product columns a vending machine shows (VendController::getVendAllChannelThumbnails).
+     * A change to one of them re-fetches the menu on every machine carrying it.
+     */
+    private const MENU_COLUMNS = [
+        'code', 'name', 'desc', 'is_halal', 'is_healthier_choice',
+        'nutri_grade', 'category_id', 'measurement_value',
+    ];
+
     use GetUserTimezone;
 
     protected $cmsService;
@@ -918,7 +928,17 @@ class ProductController extends Controller
         $product->fill($request->except(['is_available', 'is_available_updated_at']));
         $product->save();
 
+        // What a vending machine shows comes from /thumbnails: these columns,
+        // the tags (labels), the photo, the translated names and the server
+        // price. The form saves every field on each Save, so push only when
+        // one of them really changed.
+        $menuChanged = $product->wasChanged(self::MENU_COLUMNS);
+        $tagsBefore = $product->tagBindings()->pluck('tag_id')->sort()->values()->all();
+
         $this->tagBindingService->sync($product, Arr::wrap($request->tags));
+
+        $menuChanged = $menuChanged
+            || $tagsBefore !== $product->tagBindings()->pluck('tag_id')->sort()->values()->all();
 
         if ($request->hasFile('thumbnail')) {
             $request->validate([
@@ -931,13 +951,17 @@ class ProductController extends Controller
                 'full_url' => $url,
                 'local_url' => $url,
             ]);
+            $menuChanged = true;
         }
 
         if ($request->has('languages')) {
             $product->update([
                 'translated_names_json' => $request->languages,
             ]);
+            $menuChanged = $menuChanged || $product->wasChanged('translated_names_json');
         }
+
+        $priceAdded = false;
 
         // A CityBox-owned SKU is priced by their portal, and the edit page hides the
         // block; refuse the write here too so a stale tab or a hand-rolled request
@@ -951,6 +975,7 @@ class ProductController extends Controller
                             'amount' => $sellingPrice['amount'],
                             'type' => $sellingPrice['type'],
                         ]);
+                        $priceAdded = true;
                     }
                 }
             }
@@ -977,6 +1002,15 @@ class ProductController extends Controller
                     }
                 }
             }
+        }
+
+        // Vending machines carrying this product re-fetch their menu (debounced
+        // per mapping). A new price only shows where the machine follows the
+        // Site's pricing; anything else visible goes to every machine.
+        if ($menuChanged) {
+            PushMappingMenuSync::scheduleForProduct($product->id);
+        } elseif ($priceAdded) {
+            PushMappingMenuSync::scheduleForProduct($product->id, serverPriceOnly: true);
         }
 
         return redirect()->back()->with('success', 'Product updated successfully');
@@ -1125,6 +1159,8 @@ class ProductController extends Controller
         // SellingPrice has no scope of its own; go through a visible product.
         Product::findOrFail($sellingPrice->product_id);
         $sellingPrice->delete();
+
+        PushMappingMenuSync::scheduleForProduct($sellingPrice->product_id, serverPriceOnly: true);
 
         return redirect()->back()->with('success', 'Selling price deleted successfully');
     }

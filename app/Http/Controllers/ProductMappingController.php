@@ -7,6 +7,7 @@ use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendResource;
+use App\Jobs\Vend\PushMappingMenuSync;
 use App\Models\Operator;
 use App\Models\Product;
 use App\Models\ProductMapping;
@@ -33,8 +34,9 @@ class ProductMappingController extends Controller
     /**
      * Pushes a "re-pull your menu" MQTT nudge to bound Smart-Freezer terminals after
      * ANY planogram write on this controller (Save, bind, unbind, reorder, sequence,
-     * smart toggle, machine re-bind). No-op for vending mappings. See
-     * {@see \App\Services\SmartFreezerCatalogPush} and {@see nudgeSmartFreezers()}.
+     * smart toggle, machine re-bind). No-op for vending mappings - their machines
+     * are told by PushMappingMenuSync. See {@see \App\Services\SmartFreezerCatalogPush}
+     * and {@see nudgeBoundMachines()}.
      */
     private $smartFreezerCatalogPush;
 
@@ -114,12 +116,19 @@ class ProductMappingController extends Controller
         }
     }
 
-    private function nudgeSmartFreezers($productMappingId): void
+    /**
+     * After any planogram write: smart freezers are nudged at once
+     * (SmartFreezerCatalogPush), vending machines on the mapping get a debounced
+     * re-fetch (PushMappingMenuSync) - without it a product added to a channel
+     * reached the screen with no name (4730, 2026-10-07).
+     */
+    private function nudgeBoundMachines($productMappingId): void
     {
         $mapping = ProductMapping::find($productMappingId);
 
         if ($mapping) {
             $this->smartFreezerCatalogPush->pushForMapping($mapping);
+            PushMappingMenuSync::schedule($mapping->id);
         }
     }
 
@@ -866,7 +875,7 @@ class ProductMappingController extends Controller
 
         $productMapping->save();
 
-        $this->nudgeSmartFreezers($productMapping->id);
+        $this->nudgeBoundMachines($productMapping->id);
 
         return redirect()->back();
     }
@@ -1053,7 +1062,7 @@ class ProductMappingController extends Controller
         });
 
         $this->resyncChillerChannels($productMappingId); // after commit — see helper docblock
-        $this->nudgeSmartFreezers($productMappingId); // after commit — see helper docblock
+        $this->nudgeBoundMachines($productMappingId); // after commit — see helper docblock
 
         return $response;
     }
@@ -1065,7 +1074,7 @@ class ProductMappingController extends Controller
         $item->delete();
 
         $this->resyncChillerChannels($productMappingId);
-        $this->nudgeSmartFreezers($productMappingId);
+        $this->nudgeBoundMachines($productMappingId);
 
         return redirect()->back();
     }
@@ -1248,6 +1257,9 @@ class ProductMappingController extends Controller
 
         $this->productMappingService->syncChannels($productMapping->id);
 
+        // Vending machines on this mapping re-fetch their menu (debounced).
+        PushMappingMenuSync::schedule($productMapping->id);
+
         // Smart freezers don't poll for menu changes, so tell any bound Smart-Freezer
         // to re-pull now instead of waiting for its next reboot. Queued + fail-safe:
         // the planogram is already committed, so a broker hiccup must not fail the save
@@ -1312,7 +1324,7 @@ class ProductMappingController extends Controller
 
         $this->resyncFreezerChannels($productMappingItem->product_mapping_id);
         $this->resyncChillerChannels($productMappingItem->product_mapping_id);
-        $this->nudgeSmartFreezers($productMappingItem->product_mapping_id);
+        $this->nudgeBoundMachines($productMappingItem->product_mapping_id);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);
     }
@@ -1367,7 +1379,7 @@ class ProductMappingController extends Controller
             return redirect()->back();
         });
 
-        $this->nudgeSmartFreezers($mapping->id);
+        $this->nudgeBoundMachines($mapping->id);
 
         return $response;
     }
@@ -1400,7 +1412,7 @@ class ProductMappingController extends Controller
             return redirect()->back();
         });
 
-        $this->nudgeSmartFreezers($item->product_mapping_id);
+        $this->nudgeBoundMachines($item->product_mapping_id);
 
         return $response;
     }
