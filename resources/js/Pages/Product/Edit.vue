@@ -890,6 +890,10 @@ function removeUnitCost(unitCost) {
         const toast = useToast();
         toast.success("Unit cost deleted successfully");
       },
+      onError: (errors) => {
+        const toast = useToast();
+        toast.error(errors.unit_cost || "Failed to delete unit cost", { timeout: 8000 });
+      },
       preserveState: true,
       replace: true,
     });

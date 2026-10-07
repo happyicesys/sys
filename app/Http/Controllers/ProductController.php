@@ -1066,10 +1066,55 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'UOM deleted successfully');
     }
 
+    /**
+     * Product -> Edit -> Unit Cost "remove". The page called this for months
+     * with no route behind it (every click 404'd - EATZ, 2026-10-07).
+     *
+     * - Reached only through a product the viewer may see: UnitCost has no
+     *   scope of its own, so a bare findOrFail would delete any operator's row.
+     * - A cost already stamped on a sale (vend_transactions /
+     *   vend_transaction_items.unit_cost_id) is kept: deleting it would strip
+     *   the cost off those sales in GP. Add a new cost dated from today instead.
+     *   Both lookups go through product_id, which is indexed; unit_cost_id is not.
+     * - Deleting the current cost promotes the next one by the same rule
+     *   update() uses when a cost is added.
+     */
     public function deleteUnitCost($unitCostId)
     {
-        $unitCost = UnitCost::findOrFail($unitCostId);
-        $unitCost->delete();
+        $unitCost = UnitCost::whereNull('product_mapping_id')->findOrFail($unitCostId);
+        $product = Product::findOrFail($unitCost->product_id);
+
+        $usedBySales = DB::table('vend_transactions')
+            ->where('product_id', $product->id)
+            ->where('unit_cost_id', $unitCost->id)
+            ->exists()
+            || DB::table('vend_transaction_items')
+                ->where('product_id', $product->id)
+                ->where('unit_cost_id', $unitCost->id)
+                ->exists();
+
+        if ($usedBySales) {
+            return redirect()->back()->withErrors([
+                'unit_cost' => 'This unit cost is already used by recorded sales, so it cannot be deleted. Add a new unit cost instead - it takes over from its start date.',
+            ]);
+        }
+
+        DB::transaction(function () use ($unitCost, $product) {
+            $wasCurrent = (bool) $unitCost->is_current;
+            $unitCost->delete();
+
+            if ($wasCurrent) {
+                $next = $product->unitCosts()
+                    ->whereDate('date_from', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->toDateString())
+                    ->latest('created_at')
+                    ->first();
+
+                if ($next) {
+                    $next->is_current = true;
+                    $next->save();
+                }
+            }
+        });
 
         return redirect()->back()->with('success', 'Unit cost deleted successfully');
     }
@@ -1077,6 +1122,8 @@ class ProductController extends Controller
     public function deleteSellingPrice($sellingPriceId)
     {
         $sellingPrice = SellingPrice::findOrFail($sellingPriceId);
+        // SellingPrice has no scope of its own; go through a visible product.
+        Product::findOrFail($sellingPrice->product_id);
         $sellingPrice->delete();
 
         return redirect()->back()->with('success', 'Selling price deleted successfully');

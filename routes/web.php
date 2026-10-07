@@ -796,6 +796,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:update products')->whereNumber('id');
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
+        Route::delete('/unit-costs/{unitCostId}', [ProductController::class, 'deleteUnitCost']);
         Route::get('/availability', [ProductController::class, 'availability'])->name('products-availability');
         Route::post('/availability/update-max-ops-job-pick-limit/{product_id}', [ProductController::class, 'updateMaxOpsJobPickLimit'])->name('products-availability.update-max-ops-job-pick-limit');
         Route::post('/availability/toggle-is-available', [ProductController::class, 'toggleIsAvailable'])->name('products-availability.toggle-is-available');
