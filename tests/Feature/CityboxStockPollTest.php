@@ -150,4 +150,21 @@ class CityboxStockPollTest extends TestCase
         $this->assertSame(0, CityboxInventoryPoll::count());
         $this->assertSame(1, CityboxStockMovement::count());
     }
+
+    public function test_prune_keeps_30_days_by_default(): void
+    {
+        $this->stock(3);
+        app(CityboxOpenapiSync::class)->syncAll();
+        $this->travel(3)->minutes();
+        $this->stock(2);
+        app(CityboxOpenapiSync::class)->syncAll();
+        [$old, $recent] = CityboxInventoryPoll::orderBy('id')->get()->all();
+        $old->update(['polled_at' => now()->subDays(31)]);
+        $recent->update(['polled_at' => now()->subDays(29)]);
+
+        $this->artisan('citybox:prune-polls')->assertSuccessful();
+
+        $this->assertSame([$recent->id], CityboxInventoryPoll::pluck('id')->all());
+        $this->assertSame(1, CityboxStockMovement::count());
+    }
 }
