@@ -16,6 +16,7 @@ use App\Models\ApkSettingVend;
 use App\Models\Campaign;
 use App\Models\CampaignItem;
 use App\Models\Operator;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Tag;
 use App\Models\Vend;
 use App\Models\VendPrefix;
@@ -115,10 +116,12 @@ class ApkSettingController extends Controller
             'campaign_ids.*' => ['integer', 'exists:campaigns,id'],
         ]);
 
-        $campaignIds = collect($validated['campaign_ids'])
-            ->filter()
-            ->unique()
-            ->values()
+        // exists:campaigns,id accepts any operator's campaign; keep only the
+        // ones this viewer may see, so a crafted id cannot attach another
+        // operator's promotion to this setting.
+        $campaignIds = $this->visibleCampaigns()
+            ->whereIn('campaigns.id', collect($validated['campaign_ids'])->filter()->unique())
+            ->pluck('campaigns.id')
             ->all();
 
         if (! count($campaignIds)) {
@@ -135,6 +138,10 @@ class ApkSettingController extends Controller
     public function deleteCampaignItem($id)
     {
         $campaignItem = CampaignItem::findOrFail($id);
+
+        // CampaignItem has no scope of its own: reach it only through a
+        // setting this viewer may see, or any id in the table is deletable.
+        ApkSetting::findOrFail($campaignItem->apk_setting_id);
 
         // Captured before the delete — the row is gone afterwards.
         $apkSettingId = $campaignItem->apk_setting_id;
@@ -155,7 +162,12 @@ class ApkSettingController extends Controller
             'settings_parameter_json' => $this->vendParameterService->getCampaignParameter($this->vendParameterService->getDefaultParameter()),
         ]);
 
-        $apkSetting = ApkSetting::create($request->all());
+        $apkSetting = new ApkSetting($request->all());
+        // The creator's operator owns it, so OperatorApkSettingScope keeps it
+        // visible before any machine is bound - the redirect below would
+        // otherwise 404 for every non-HappyIce user.
+        $apkSetting->operator_id = auth()->user()->operator_id;
+        $apkSetting->save();
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
@@ -236,7 +248,7 @@ class ApkSettingController extends Controller
                     ])->values(),
             ],
             'campaignOptions' => CampaignResource::collection(
-                Campaign::with(['operator'])->orderBy('name')->get()
+                $this->visibleCampaigns()->with(['operator'])->orderBy('name')->get()
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -380,9 +392,16 @@ class ApkSettingController extends Controller
                 ->pluck('vend_id')->all();
             $hiddenBound = array_diff($rawBound, $visibleBound);
 
+            // exists:vends,id accepts any machine; the Vend scope keeps only
+            // the viewer's own, so a crafted id cannot bind (and push this
+            // setting to) another operator's machine. No-op for HappyIce.
+            $requested = Vend::whereIn('vends.id', collect($request->vends)->filter()->all())
+                ->pluck('vends.id')
+                ->all();
+
             $target = array_values(array_unique(array_merge(
                 $hiddenBound,
-                collect($request->vends)->filter()->all()
+                $requested
             )));
 
             // detached ⊆ visibleBound by construction, so the scoped lookup
@@ -596,7 +615,9 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if ($apkSetting->vends()->exists()) {
+        // Raw pivot, not the operator-scoped vends() relation: a setting bound
+        // only to another operator's machines is still in use.
+        if (ApkSettingVend::where('apk_setting_id', $apkSetting->id)->exists()) {
             return back()->with('error', 'APK Setting is currently in use and cannot be deleted.');
         }
 
@@ -630,6 +651,19 @@ class ApkSettingController extends Controller
         $apkSetting->delete();
 
         return redirect()->back();
+    }
+
+    /**
+     * Campaigns this viewer may attach. Campaign has no global scope, so
+     * non-HappyIce viewers are pinned with Campaign::visibleTo(); HappyIce
+     * keeps the full list it has always had here.
+     */
+    private function visibleCampaigns()
+    {
+        return Campaign::query()->when(
+            OperatorVendFilterScope::viewerOperatorId(),
+            fn ($query) => $query->visibleTo()
+        );
     }
 
     private function syncApkSettings($vendID)

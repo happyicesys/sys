@@ -24,6 +24,9 @@ class ApkSetting extends Model
         static::addGlobalScope(new OperatorApkSettingScope);
     }
 
+    // operator_id is deliberately NOT fillable: store()/update() fill from
+    // $request->all(), and the owner must come from the creator, never the
+    // request body. ApkSettingController::store() sets it.
     protected $fillable = [
         'name',
         'remarks',
@@ -56,6 +59,11 @@ class ApkSetting extends Model
     public function campaignVideos()
     {
         return $this->morphMany(Attachment::class, 'modelable')->where('type', ApkSetting::FILE_TYPE_CAMPAIGN_VIDEO)->oldest();
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function images()
