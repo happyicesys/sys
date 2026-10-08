@@ -68,7 +68,7 @@
                 No stock feed yet
               </span>
               <span v-else-if="stockUpdatedAt" class="text-xs text-gray-500 self-start">
-                Stock updated {{ stockUpdatedAt }}
+                Stock updated {{ formatStockUpdatedAt(stockUpdatedAt) }}
               </span>
             </div>
 
@@ -98,6 +98,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
+import moment from 'moment'
 import Modal from '@/Components/Modal.vue'
 import SmartFreezerPlanogramGrid from '@/Components/SmartFreezerPlanogramGrid.vue'
 import { vendCodeLabel } from '@/utils/vendCode'
@@ -123,6 +124,13 @@ const basketLayout = ref([])
 const items = ref([])
 const hasStockFeed = ref(false)
 const stockUpdatedAt = ref('')
+
+// stock_updated_at arrives as ISO UTC ("2026-10-08T09:00:14.000000Z"); show it in
+// the app's usual YYMMDD hh:mm a, local time, plus how long ago.
+function formatStockUpdatedAt(iso) {
+  const at = moment(iso)
+  return at.isValid() ? `${at.format('YYMMDD hh:mm a')} (${at.fromNow()})` : iso
+}
 const productMappingId = ref(null)
 const productMappingName = ref('')
 

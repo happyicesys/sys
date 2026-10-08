@@ -193,24 +193,49 @@
                     {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '–' }}
                   </span>
                 </div>
-                <label
-                  class="flex h-7 cursor-text items-center justify-between gap-1 px-2 focus-within:bg-indigo-50/50"
+                <!-- Real Capacity: proper − / + buttons instead of the browser's tiny
+                     number spinner (hidden), and the box still takes a typed value. -->
+                <div
+                  class="flex h-9 items-center justify-between gap-1 pl-2 pr-1"
                   :class="isCapacityOverridden(cell.item) ? 'bg-amber-50' : 'bg-white'"
                   title="Real Capacity: pieces this slot really holds, for this mapping only. Blank uses the Default Capacity."
                 >
                   <span class="truncate" :class="isCapacityOverridden(cell.item) ? 'font-medium text-amber-700' : 'text-slate-500'">Real Capacity</span>
-                  <input
-                    type="number" min="0" max="999" step="1"
-                    :value="realityShown(cell.item)"
-                    @input="onCapacityInput(cell.item, $event.target.value)"
-                    @blur="onCapacityBlur(cell.item)"
-                    @mousedown.stop
-                    @dragstart.stop.prevent
-                    draggable="false"
-                    placeholder="–"
-                    class="w-9 min-w-0 flex-none border-0 bg-transparent p-0 text-right text-xs font-semibold tabular-nums text-slate-800 placeholder:text-slate-300 focus:ring-0"
-                  />
-                </label>
+                  <div class="flex flex-none items-center overflow-hidden rounded-md bg-white ring-1 ring-inset ring-slate-200 focus-within:ring-2 focus-within:ring-indigo-400">
+                    <button
+                      type="button"
+                      class="grid h-7 w-7 place-items-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+                      :disabled="!canStepCapacity(cell.item, -1)"
+                      @click.prevent="stepCapacity(cell.item, -1)"
+                      @mousedown.stop
+                      :title="`One less for ${cell.code}`"
+                    >
+                      <MinusIcon class="h-3.5 w-3.5" />
+                    </button>
+                    <input
+                      type="number" min="0" max="999" step="1"
+                      :value="realityShown(cell.item)"
+                      @input="onCapacityInput(cell.item, $event.target.value)"
+                      @blur="onCapacityBlur(cell.item)"
+                      @mousedown.stop
+                      @dragstart.stop.prevent
+                      draggable="false"
+                      placeholder="–"
+                      :aria-label="`Real Capacity for ${cell.code}`"
+                      class="h-7 w-8 min-w-0 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums text-slate-800 placeholder:text-slate-300 focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <button
+                      type="button"
+                      class="grid h-7 w-7 place-items-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+                      :disabled="!canStepCapacity(cell.item, 1)"
+                      @click.prevent="stepCapacity(cell.item, 1)"
+                      @mousedown.stop
+                      :title="`One more for ${cell.code}`"
+                    >
+                      <PlusIcon class="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </template>
 
@@ -591,6 +616,22 @@ function realityShown(item) {
   if (isCapacityOverridden(item)) return String(item.capacity_override)
   const d = defaultCapacityOf(item)
   return d === null ? '' : String(d)
+}
+// − / + on Real Capacity: steps from the number shown (the override, else the
+// default; blank counts as 0) and saves through the same debounced path as typing.
+function currentCapacity(item) {
+  const n = parseInt(realityShown(item), 10)
+  return Number.isFinite(n) ? n : 0
+}
+function canStepCapacity(item, delta) {
+  const next = currentCapacity(item) + delta
+  return next >= 0 && next <= 999 && !(delta < 0 && realityShown(item) === '')
+}
+function stepCapacity(item, delta) {
+  if (!canStepCapacity(item, delta)) return
+  onCapacityInput(item, String(currentCapacity(item) + delta))
+  // No cursor in the box, so nothing to protect: let it show the canonical value.
+  delete realityDraft[item.id]
 }
 function onCapacityBlur(item) {
   delete realityDraft[item.id]
