@@ -5,8 +5,8 @@ import { useToast } from 'vue-toastification';
 
 /**
  * The SAVED machine's on-hand qty per SKU (VendStockQtyController), with each row's last hand
- * overwrites. Shared by the chiller's Stock Qty table and the freezer's planogram, which shows
- * the same rows inside its basket cells instead of as a separate table (Brian, 2026-10-03).
+ * overwrites. Drawn inside the freezer's planogram cells (Brian, 2026-10-03) and as Qty columns
+ * of the chiller's mapping table (Brian, 2026-10-08) — neither has a separate Stock Qty table.
  *
  * @param {import('vue').Ref<number>|(() => number)|number} vendId
  */

@@ -1,0 +1,1 @@
+import{C as n}from"./app.693e14bd.js";function m(d,f){var e;return(d==null?void 0:d.code)!=="HIPL"?[]:((e=n().props.defaultOperatorCodes)!=null?e:[]).filter(c=>c!==d.code).map(c=>(f!=null?f:[]).find(l=>(l==null?void 0:l.code)===c)).filter(Boolean)}export{m as h};

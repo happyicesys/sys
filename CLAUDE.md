@@ -1193,9 +1193,11 @@ Regression coverage: `tests/Feature/SkuStockIdentityTest.php`,
 `tests/Unit/ChannelCodeTest.php`, `tests/Feature/FreezerChannelSyncTest.php`.
 
 **Hand overwrite of on-hand qty** (Setting/Edit, 2026-09-30 — ops and technicians
-correct a count without an ops job). A chiller has a "Stock Qty" table under its mapping; a
-freezer has no table — each planogram cell carries its qty and Adjust (Brian, 2026-10-03),
-shown only where the saved channel holds the same product as the mapping picked on screen.
+correct a count without an ops job). Neither machine has a separate Stock Qty table: a freezer's
+planogram cells carry qty and Adjust (Brian, 2026-10-03), a chiller's mapping table has Qty +
+"Last changed by hand" columns (Brian, 2026-10-08). Shown only where the saved machine holds the
+same product as the mapping picked on screen (freezer: same code AND product; chiller: by
+product, the SKU's first row Adjusts, later facings show "same stock as 101" read-only).
 Both draw `Components/StockQtyInline.vue` over `composables/useStockQty.js`. `App\Services\Stock\ChannelQtyAdjuster`
 is the only writer, and every applied change is a `vend_channel_qty_adjustments` row
 (who, when, before → after), shown on the row as "brian · 260930 11:03 pm (3 → 7)".

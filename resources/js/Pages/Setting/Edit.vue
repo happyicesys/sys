@@ -1014,11 +1014,11 @@
                     · qty on hand now
                   </span>
                 </span>
-                <button type="button" class="text-xs text-blue-600 hover:underline" @click="loadFreezerStock" :disabled="freezerStockLoading">
-                  {{ freezerStockLoading ? 'Loading…' : 'Refresh qty' }}
+                <button type="button" class="text-xs text-blue-600 hover:underline" @click="loadStock" :disabled="stockLoading">
+                  {{ stockLoading ? 'Loading…' : 'Refresh qty' }}
                 </button>
               </div>
-              <p v-if="freezerStockRefusal" class="mb-2 text-xs text-amber-700">{{ freezerStockRefusal }}</p>
+              <p v-if="stockRefusal" class="mb-2 text-xs text-amber-700">{{ stockRefusal }}</p>
               <div v-if="!freezerPlanogramItems.length" class="rounded-md border border-dashed border-gray-300 py-8 text-center text-sm text-gray-500">
                 No products mapped yet.
               </div>
@@ -1038,13 +1038,13 @@
                     compact
                     :vend-id="vend.id"
                     :channel="item.stock"
-                    :can-edit="canEditFreezerStock"
-                    @saved="loadFreezerStock"
+                    :can-edit="canEditStock"
+                    @saved="loadStock"
                   />
                   <span
                     v-else
                     class="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-400"
-                    v-tooltip="freezerStockLoading ? 'Loading…' : 'Not on the saved machine yet — Save to stock this slot'"
+                    v-tooltip="stockLoading ? 'Loading…' : 'Not on the saved machine yet — Save to stock this slot'"
                   >—</span>
                 </template>
                 <template #cell-footer="{ item }">
@@ -1061,6 +1061,22 @@
 
             <!-- Vend Channels Section -->
               <div v-if="!isSmartFreezer" class="flex flex-col sm:col-span-5">
+                <!-- A chiller's on-hand qty sits in its own columns of this table and is overwritten
+                     there (no separate Stock Qty table — Brian, 2026-10-08, as the freezer's planogram). -->
+                <div v-if="isChiller" class="mb-3">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-xs text-gray-500">
+                      Qty = on hand now (CityBox's count, refreshed every minute)
+                    </span>
+                    <button type="button" class="text-xs text-blue-600 hover:underline" @click="loadStock" :disabled="stockLoading">
+                      {{ stockLoading ? 'Loading…' : 'Refresh qty' }}
+                    </button>
+                  </div>
+                  <p v-if="stockRefusal" class="mt-1 text-xs text-amber-700">{{ stockRefusal }}</p>
+                  <p v-else-if="canEditStock" class="mt-1 text-xs text-gray-500">
+                    An Adjust is sent to CityBox straight away (on the chiller's last door-open session) and read back.
+                  </p>
+                </div>
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                   <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                     <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -1103,6 +1119,10 @@
                               </th>
                             </template>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Ref Price<template v-if="!isChiller"> {{ vend?.customer?.selling_price_type }}</template> </th>
+                            <template v-if="isChiller">
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Qty </th>
+                              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"> Last changed by hand </th>
+                            </template>
                           </tr>
                         </thead>
                         <tbody class="bg-white">
@@ -1138,9 +1158,42 @@
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                               {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                             </td>
+                            <template v-if="isChiller">
+                              <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-center">
+                                <!-- Stock is per SKU: a SKU on several codes is one stock row, so only its
+                                     first row here can Adjust it; the others show the same figure. -->
+                                <StockQtyInline
+                                  v-if="chillerStockRows[channelIndex]?.stock"
+                                  :vend-id="vend.id"
+                                  :channel="chillerStockRows[channelIndex].stock"
+                                  :can-edit="canEditStock && chillerStockRows[channelIndex].primary"
+                                  is-chiller
+                                  @saved="loadStock"
+                                />
+                                <span
+                                  v-else-if="channel.product"
+                                  class="text-gray-400"
+                                  v-tooltip="stockLoading ? 'Loading…' : 'Not on the saved machine yet — Save to stock this product'"
+                                >—</span>
+                                <div
+                                  v-if="chillerStockRows[channelIndex]?.stock && !chillerStockRows[channelIndex].primary"
+                                  class="text-[11px] text-gray-400"
+                                >same stock as {{ chillerStockRows[channelIndex].primaryCode }}</div>
+                              </td>
+                              <td class="px-3 py-4 text-xs text-blue-600 italic">
+                                <template v-if="chillerStockRows[channelIndex]?.primary && chillerStockRows[channelIndex].stock.history.length">
+                                  <div>{{ stockQtyLine(chillerStockRows[channelIndex].stock.history[0]) }}</div>
+                                  <div
+                                    v-if="chillerStockRows[channelIndex].stock.history.length > 1"
+                                    class="not-italic text-gray-500"
+                                    v-tooltip="chillerStockRows[channelIndex].stock.history.slice(1).map(stockQtyLine).join('  |  ')"
+                                  >earlier ({{ chillerStockRows[channelIndex].stock.history.length - 1 }})</div>
+                                </template>
+                              </td>
+                            </template>
                           </tr>
                           <tr v-if="!vendChannels || !vendChannels.length">
-                            <td :colspan="isVendingMachine ? 6 : 5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
+                            <td :colspan="isVendingMachine ? 6 : (isChiller ? 7 : 5)" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
                           </tr>
                         </tbody>
                       </table>
@@ -1149,13 +1202,6 @@
                 </div>
               </div>
 
-            <!-- On-hand qty, overwritable by hand (二哥 chiller). A freezer does the same inside its
-                 planogram above; a vending machine's qty is its VMC's, so it gets neither. -->
-            <StockQtyAdjust
-              v-if="isChiller"
-              :vend-id="vend.id"
-              :can-edit="permissions.includes('update machine-settings')"
-            />
             <hr class="sm:col-span-6">
 
             <!-- Validation error summary — always visible when save fails -->
@@ -1872,7 +1918,6 @@ import DatePicker from '@/Components/DatePicker.vue';
 
 import FormInput from '@/Components/FormInput.vue';
 import FieldAudit from '@/Components/FieldAudit.vue';
-import StockQtyAdjust from '@/Components/StockQtyAdjust.vue';
 import StockQtyInline from '@/Components/StockQtyInline.vue';
 import { stockQtyLine, useStockQty } from '@/composables/useStockQty';
 import Modal from '@/Components/Modal.vue';
@@ -2951,29 +2996,53 @@ const freezerPlanogramItems = computed(() => vendChannels.value
     return { ...item, stock, qty: stock?.qty, capacity: stock?.capacity }
   }))
 
-// The SAVED machine's on-hand qty per channel, drawn into the planogram cells and overwritten there.
+// The SAVED machine's on-hand qty per SKU, overwritable by hand: drawn into a freezer's planogram
+// cells, or into a chiller's mapping table columns. A vending machine's qty is its VMC's, so neither.
 const {
-  channels: freezerStockChannels,
-  refusal: freezerStockRefusal,
-  loading: freezerStockLoading,
-  load: loadFreezerStock,
+  channels: stockChannels,
+  refusal: stockRefusal,
+  loading: stockLoading,
+  load: loadStock,
 } = useStockQty(() => props.vend?.id)
 
-const canEditFreezerStock = computed(() => permissions.includes('update machine-settings') && !freezerStockRefusal.value)
+const canEditStock = computed(() => permissions.includes('update machine-settings') && !stockRefusal.value)
 
 const freezerStockByCode = computed(() => {
   const map = {}
-  for (const row of freezerStockChannels.value) map[String(row.code)] = row
+  for (const row of stockChannels.value) map[String(row.code)] = row
   return map
 })
 
+// A chiller's stock row for each row of the mapping table (by index), matched by PRODUCT: a
+// chiller is SKU-stocked, so one row per SKU however many codes it sits on. The first table row
+// of a SKU is its `primary` (Adjust + history); later facings show the same qty read-only.
+// A product the saved machine does not hold (mapping picked, not yet saved) gets no stock.
+const chillerStockRows = computed(() => {
+  if (!isChiller.value) return []
+  const byProduct = {}
+  for (const row of stockChannels.value) {
+    if (row.product?.id != null && !byProduct[row.product.id]) byProduct[row.product.id] = row
+  }
+  const firstCode = {}
+  return vendChannels.value.map(channel => {
+    const productId = channel.product?.id
+    const stock = productId != null ? byProduct[productId] ?? null : null
+    if (!stock) return { stock: null, primary: false, primaryCode: null }
+    if (firstCode[productId] === undefined) {
+      firstCode[productId] = channel.code
+      return { stock, primary: true, primaryCode: channel.code }
+    }
+    return { stock, primary: false, primaryCode: firstCode[productId] }
+  })
+})
+
 onMounted(() => {
-  if (isSmartFreezer.value) loadFreezerStock()
+  if (isSmartFreezer.value || isChiller.value) loadStock()
 })
 
 // A full Save reloads `vend`; the saved channels may have moved with a new mapping.
 watch(() => props.vend, () => {
-  if (isSmartFreezer.value) loadFreezerStock()
+  if (isSmartFreezer.value || isChiller.value) loadStock()
 })
 
 // Divisions per basket, mirroring VendController::smartBasketLayout: every basket has at

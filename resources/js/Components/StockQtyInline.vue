@@ -1,8 +1,8 @@
 <template>
   <!--
     One SKU's on-hand qty with its hand overwrite (VendStockQtyController → ChannelQtyAdjuster):
-    "3 / 6  Adjust", then an input in place. Used by the chiller's Stock Qty table and, `compact`,
-    as the qty badge inside a freezer planogram cell. Emits `saved` once the server has answered,
+    "3 / 6  Adjust", then an input in place. Used in the Qty column of the chiller's mapping table
+    and, `compact`, as the qty badge inside a freezer planogram cell. Emits `saved` once the server has answered,
     either way, so the parent reloads the rows.
   -->
   <div v-if="editing" class="flex items-center justify-center gap-1">
