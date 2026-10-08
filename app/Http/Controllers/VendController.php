@@ -3360,6 +3360,11 @@ class VendController extends Controller
         // images stay cached. Vending machines (is_smart = false) get the exact same output as before.
         $isSmart = (bool) ($vend->productMapping?->is_smart);
 
+        // Smart mappings also carry each product's welcome-scene drawing (null = drop the photo).
+        $welcomeSketches = $isSmart
+            ? \App\Models\ProductWelcomeSketch::query()->whereIn('product_id', $productIds)->get()->keyBy('product_id')
+            : collect();
+
         $dataArr = [];
 
         foreach ($sortedItems as $item) {
@@ -3393,6 +3398,12 @@ class VendController extends Controller
                     'name' => $tb->tag?->name,
                 ])->toArray() ?? [],
             ];
+
+            if ($isSmart) {
+                $data['welcome_sketch'] = \App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::menuUrl(
+                    $welcomeSketches->get($item->product_id)
+                );
+            }
 
             if ($product?->translated_names_json) {
                 foreach ($product->translated_names_json as $lang => $value) {

@@ -229,6 +229,10 @@ class ProductController extends Controller
                 'full_url' => $url,
                 'local_url' => $url,
             ]);
+            // A new product with a photo gets its freezer welcome sketch drawn (queued, inert
+            // without an image service).
+            app(\App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::class)
+                ->requestAfterSave($product->unsetRelation('thumbnail'), auth()->id(), 'created');
         }
 
         return redirect()->route('products.edit', ['id' => $product->id])->with('success', 'Product saved successfully');
@@ -954,6 +958,15 @@ class ProductController extends Controller
             $menuChanged = true;
         }
 
+        // Freezer welcome sketch: redraw from a new photo, or draw one for a freezer product that
+        // has none. Other saves of a vending-only product never spend an image request.
+        $sketches = app(\App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::class);
+        if ($request->hasFile('thumbnail')) {
+            $sketches->requestAfterSave($product->unsetRelation('thumbnail'), auth()->id(), 'photo_saved');
+        } elseif ($sketches->isFreezerProduct($product) && ! $product->welcomeSketch()->exists()) {
+            $sketches->requestAfterSave($product, auth()->id(), 'freezer_product');
+        }
+
         if ($request->has('languages')) {
             $product->update([
                 'translated_names_json' => $request->languages,
@@ -1219,6 +1232,8 @@ class ProductController extends Controller
             'product' => ProductResource::make($product),
             // Smart Freezer AI Training: this product's modelling application to Zijia and its log.
             'aiTraining' => app(\App\Services\SmartFreezer\Zijia\ZijiaSkuApplicationService::class)->pageData($product),
+            // Freezer welcome sketch: the drawing the freezer's welcome scene drops for this product.
+            'welcomeSketch' => app(\App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::class)->pageData($product),
             // Blind SKU: real flavours selectable as children (never a housing).
             'flavourOptions' => ProductResource::collection(
                 Product::with(['thumbnail', 'latestUnitCost'])

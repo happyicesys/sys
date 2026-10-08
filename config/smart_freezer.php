@@ -3,6 +3,33 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Welcome-screen sketches (the treat that falls to the polar bear)
+    |--------------------------------------------------------------------------
+    | Each product can carry a hand-drawn-style sketch (transparent WebP) that the
+    | freezer's welcome scene drops instead of the catalog photo
+    | (ProductWelcomeSketchService). When a product's photo is saved, mark1 asks an
+    | image model to redraw it in the style of the approved sketches. Inert until
+    | OPENAI_API_KEY is set (config services.openai.api_key); every product keeps its
+    | photo as the fallback meanwhile.
+    */
+    'welcome_sketch' => [
+        // false stops automatic conversion on save; Regenerate on Product → Edit still works.
+        'auto_generate' => env('WELCOME_SKETCH_AUTO', true),
+        'model' => env('WELCOME_SKETCH_MODEL', 'gpt-image-1'),
+        'quality' => env('WELCOME_SKETCH_QUALITY', 'medium'),
+        // Longest side of the stored sketch, px (the approved set is ≤ 512).
+        'max_px' => (int) env('WELCOME_SKETCH_MAX_PX', 512),
+        'timeout_seconds' => (int) env('WELCOME_SKETCH_TIMEOUT', 150),
+        // Free fallback (RembgCutout): background removed, finished as a white-outlined sticker.
+        // Used when no image model is configured or its drawing fails. Missing binary = off.
+        'rembg_bin' => env('WELCOME_SKETCH_REMBG_BIN', '/home/forge/.local/bin/rembg'),
+        'rembg_model' => env('WELCOME_SKETCH_REMBG_MODEL', 'isnet-general-use'),
+        // Passed as REMBG_HOME so the queue worker finds the downloaded model whatever its HOME.
+        'rembg_home' => env('WELCOME_SKETCH_REMBG_HOME', '/home/forge/.rembg'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Zijia (smart-freezer supplier) → mark1 video push
     |--------------------------------------------------------------------------
     | Zijia's servers POST the door-session camera video URLs to

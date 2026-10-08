@@ -914,6 +914,28 @@ unrecognised). Rules:
   08:30 health email. The 3-minute crawl stays as the backstop. `modelIdList` is optional ("可以先不用传"):
   empty config sends `[]`, never omits the key.
 
+**Freezer welcome sketches** (Brian, 2026-10-08). The freezer's welcome scene drops a hand-drawn
+sketch of each mapped product; mark1 owns them, not the APK. `ProductWelcomeSketchService` is the only
+writer of `product_welcome_sketches` (one row per product), served on `/api/vends/{code}/menu` as
+`welcome_sketch` — smart mappings only, `?v=` versioned, null = the freezer drops the photo; vending
+menus are byte-for-byte unchanged. Sources: **seed** (the approved set in
+`resources/welcome-sketches/{product code}.webp`, `ProductWelcomeSketchSeeder`, idempotent, never over an
+upload; a duplicated code resolves to the freezer-planogram product), **generated** (OpenAI image edit,
+`OpenAiSketchGenerator` behind `SketchGenerator`, the photo + three seed sketches as the style;
+config `smart_freezer.welcome_sketch`, inert without `OPENAI_API_KEY`), **upload** (Product → Edit →
+Freezer Welcome Sketch), and **cutout** — the free fallback when no model key is set or its drawing
+fails: rembg (MIT, `RembgCutout`, CLI at `/home/forge/.local/bin/rembg` installed with uv, model in
+`/home/forge/.rembg`, ~7 s / 1.2 GB per photo on prod) removes the background and `sticker()` adds a white
+outline + soft shadow. A cut-out made only because no key was set is upgraded to a drawn sketch once
+`OPENAI_API_KEY` exists (next save / hourly sweep). Automatic drawing is queued (`GenerateProductWelcomeSketch`, `low`, one try) when a
+product is created with a photo, gets a new photo, or is a freezer product saved without a sketch, and by
+the hourly `products:welcome-sketches --missing-freezer` sweep (a product just added to a mapping). Rules:
+each paid call happens once (pending → generating claim; redis `retry_after` is shorter than a generation),
+a failed photo is not re-paid until the photo changes or someone presses Regenerate, a pending/generating
+row older than 15 min is abandoned, a redraw only replaces the drawing when it succeeds, and seed/upload art
+is never redrawn automatically. Images are trimmed, ≤ 512 px, transparent WebP under
+`sys/products/{id}/welcome-sketch/`. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
+
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
 machine, Zijia's order no + our SF ref, links to the original videos, the AI's answer

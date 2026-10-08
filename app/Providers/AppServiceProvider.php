@@ -30,6 +30,17 @@ class AppServiceProvider extends ServiceProvider
         // the in-memory store used by tests both live on the instance.
         $this->app->singleton(\App\Services\Sales\DirtyDayRegistry::class);
 
+        // Freezer welcome sketches are redrawn by OpenAI's image edit (inert without OPENAI_API_KEY).
+        $this->app->bind(
+            \App\Services\Products\WelcomeSketch\SketchGenerator::class,
+            \App\Services\Products\WelcomeSketch\OpenAiSketchGenerator::class,
+        );
+        // ...and fall back to an open-source background cut-out (rembg) finished as a sticker.
+        $this->app->bind(
+            \App\Services\Products\WelcomeSketch\CutoutMaker::class,
+            \App\Services\Products\WelcomeSketch\RembgCutout::class,
+        );
+
         // One MQTT publisher connection per worker process (2026-09-25). SINGLETON
         // on purpose: the queue worker clears facades and scoped instances after
         // every job, and the old facade path opened a broker connection per

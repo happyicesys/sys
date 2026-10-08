@@ -679,6 +679,11 @@
           :product-id="product.id"
           :data="aiTraining"
         />
+        <WelcomeSketch
+          v-if="welcomeSketch && product && product.id"
+          :product-id="product.id"
+          :data="welcomeSketch"
+        />
       </div>
     </div>
   </div>
@@ -696,6 +701,7 @@ import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import FlavourBinding from '@/Pages/Product/FlavourBinding.vue';
 import ZijiaAiTraining from '@/Pages/Product/ZijiaAiTraining.vue';
+import WelcomeSketch from '@/Pages/Product/WelcomeSketch.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, watch, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -716,6 +722,7 @@ const props = defineProps({
     productTagOptions: Object,
     flavourOptions: Object,
     aiTraining: Object,
+    welcomeSketch: Object,
   })
 
 // Blind SKU: flavour-binding data (product-level).

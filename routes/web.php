@@ -796,6 +796,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:update products')->whereNumber('id');
         Route::post('/{id}/ai-training/submit', [\App\Http\Controllers\SmartFreezer\ZijiaAiTrainingController::class, 'submit'])
             ->middleware('can:update products')->whereNumber('id');
+        // Freezer welcome sketch: redraw from the photo, or upload a drawing.
+        Route::post('/{id}/welcome-sketch/regenerate', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'regenerate'])
+            ->middleware('can:update products')->whereNumber('id');
+        Route::post('/{id}/welcome-sketch', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'upload'])
+            ->middleware('can:update products')->whereNumber('id');
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
         Route::delete('/unit-costs/{unitCostId}', [ProductController::class, 'deleteUnitCost']);

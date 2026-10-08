@@ -183,6 +183,12 @@ class Product extends Model
         return $this->morphMany(TagBinding::class, 'modelable');
     }
 
+    /** The smart-freezer welcome-scene drawing of this product (ProductWelcomeSketchService). */
+    public function welcomeSketch()
+    {
+        return $this->hasOne(ProductWelcomeSketch::class);
+    }
+
     public function thumbnail()
     {
         return $this->morphOne(Attachment::class, 'modelable')->ofMany('type', 'min');
