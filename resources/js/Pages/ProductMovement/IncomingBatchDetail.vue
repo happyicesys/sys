@@ -74,6 +74,15 @@
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-center font-bold">{{ movement.qty }}</td>
                             </tr>
                         </tbody>
+                        <tfoot class="bg-gray-100 border-t-2 border-gray-300">
+                            <tr>
+                                <td colspan="4" class="px-3 py-4 text-sm font-bold text-gray-900 text-right uppercase tracking-wide">
+                                    Total
+                                    <span class="ml-2 font-medium normal-case text-gray-500">({{ movements.length }} {{ movements.length === 1 ? 'product' : 'products' }})</span>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-base font-bold text-gray-900 text-center">{{ totalQty }}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -82,6 +91,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import { ArrowLeftIcon } from '@heroicons/vue/24/solid'
@@ -91,6 +101,8 @@ const props = defineProps({
     movements: Array,
     metadata: Object,
 })
+
+const totalQty = computed(() => props.movements.reduce((sum, m) => sum + (Number(m.qty) || 0), 0))
 
 const formatDate = (date) => {
     return moment(date).format('YYYY-MM-DD')

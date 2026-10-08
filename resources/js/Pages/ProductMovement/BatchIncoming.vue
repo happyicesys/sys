@@ -103,6 +103,15 @@
                                         </td>
                                     </tr>
                                 </tbody>
+                                <tfoot class="bg-gray-100 border-t-2 border-gray-300">
+                                    <tr>
+                                        <td colspan="4" class="px-3 py-4 text-sm font-bold text-gray-900 text-right uppercase tracking-wide">
+                                            Total
+                                            <span class="ml-2 font-medium normal-case text-gray-500">({{ enteredCount }} {{ enteredCount === 1 ? 'product' : 'products' }})</span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-base font-bold text-gray-900 text-center">{{ totalQty }}</td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -111,7 +120,11 @@
 
             <!-- Sticky Footer for Submit -->
             <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg flex justify-end items-center z-50">
-                <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-end">
+                <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-end items-center gap-6">
+                    <div class="text-sm text-gray-600">
+                        Total: <span class="text-lg font-bold text-gray-900">{{ totalQty }}</span> pcs
+                        <span class="text-gray-400">· {{ enteredCount }} {{ enteredCount === 1 ? 'product' : 'products' }}</span>
+                    </div>
                     <Button class="inline-flex items-center rounded-md border border-transparent bg-green-600 px-8 py-3 text-base font-bold text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200" @click="submit" :disabled="form.processing">
                         <span v-if="form.processing">Saving...</span>
                         <span v-else>Confirm & Save Stock</span>
@@ -161,6 +174,11 @@ const filteredProducts = computed(() => {
                    (item.data.code && item.data.code.toLowerCase().includes(lowerQuery))
         })
 })
+
+// Across every row, not just the search-filtered ones — this is what Save stores.
+// A cleared input binds '' and a typed one may bind a string, hence Number().
+const totalQty = computed(() => form.products.reduce((sum, p) => sum + (Number(p.qty) || 0), 0))
+const enteredCount = computed(() => form.products.filter(p => (Number(p.qty) || 0) !== 0).length)
 
 const resetSearch = () => {
     searchQuery.value = ''

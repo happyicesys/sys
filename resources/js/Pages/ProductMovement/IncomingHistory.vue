@@ -56,7 +56,8 @@
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ batch.user ? batch.user.name : (batch.operator ? batch.operator.name : '-') }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center max-w-xs truncate" :title="batch.remarks">{{ batch.remarks || '-' }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">
-                                    <Link :href="route('product-movements.incoming-batch-detail', batch.batch_number)" class="text-indigo-600 hover:text-indigo-900 font-bold">
+                                    <!-- Ziggy 1.x only encodeURI()s params, so a "#" in the batch number became a fragment (404). -->
+                                    <Link :href="route('product-movements.incoming-batch-detail', encodeURIComponent(batch.batch_number))" class="text-indigo-600 hover:text-indigo-900 font-bold">
                                         View
                                     </Link>
                                 </td>

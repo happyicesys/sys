@@ -778,7 +778,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/movements/batch-incoming', [ProductMovementController::class, 'batchStore'])->name('product-movements.batch-store');
         Route::get('/movements/incoming-history', [ProductMovementController::class, 'incomingHistory'])->name('product-movements.incoming-history');
         Route::get('/movements/incoming-history/export', [ProductMovementController::class, 'incomingHistoryExport'])->name('product-movements.incoming-history-export');
-        Route::get('/movements/incoming-history/{batch_number}', [ProductMovementController::class, 'incomingBatchDetail'])->name('product-movements.incoming-batch-detail');
+        // Batch numbers are free text ("Benelux #001", "PO 12/3"): the page encodes
+        // the segment, and .+ lets a decoded "/" still reach the controller.
+        Route::get('/movements/incoming-history/{batch_number}', [ProductMovementController::class, 'incomingBatchDetail'])->where('batch_number', '.+')->name('product-movements.incoming-batch-detail');
 
         Route::get('/', [ProductController::class, 'index'])->name('products');
         Route::post('/{id}/toggle-activate-deactivate', [ProductController::class, 'toggleActivateDeactivate']);
