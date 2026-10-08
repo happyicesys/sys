@@ -66,12 +66,12 @@ class ProductMappingController extends Controller
      */
     /**
      * A freezer's vend_channels rows are written from its planogram
-     * (FreezerChannelSync), so an item edited in the basket grid — a Reality
-     * capacity typed on a cell — reaches the rows now, not at the next page
+     * (FreezerChannelSync), so an item edited in the basket grid — a Real Capacity
+     * typed on a cell — reaches the rows now, not at the next page
      * Save. Freezer mappings only: a chiller's rows come from its minute poll.
      */
     /**
-     * The Reality box is PRE-FILLED with the product's default so ops can see the
+     * The Real Capacity box is PRE-FILLED with the product's default so ops can see the
      * effective number (Brian, 2026-09-23). An override that merely repeats that
      * default is therefore stored as NULL — otherwise every item would freeze
      * today's default and a later change on Product → Edit would stop reaching

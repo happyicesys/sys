@@ -264,7 +264,7 @@
                         </span>
                       </TableData>
                       <!-- Pieces per smart-freezer slot / smart-chiller channel (Product → Edit): the capacity a
-                           mapping item uses unless it carries its own "Reality" override. -->
+                           mapping item uses unless it carries its own "Real Capacity" override. -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex flex-col space-y-0.5 text-xs whitespace-nowrap" v-if="product.freezer_slot_qty || product.chiller_slot_qty">
                           <span v-if="product.freezer_slot_qty">Freezer <b class="text-sm">{{ product.freezer_slot_qty }}</b></span>

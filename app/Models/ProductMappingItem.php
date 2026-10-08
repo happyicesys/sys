@@ -22,7 +22,7 @@ class ProductMappingItem extends Model
 
     /**
      * The capacity this item gives its SKU on a SKU-stocked machine (Brian,
-     * 2026-09-22): the mapping's "Reality" override when set, else the
+     * 2026-09-22): the mapping's "Real Capacity" override (capacity_override) when set, else the
      * product's default (freezer_slot_qty / chiller_slot_qty, Product → Edit).
      * 0 = unmeasured, which the dashboards read as "-". Meaningless for a
      * vending mapping — a vending slot's capacity is the board's.

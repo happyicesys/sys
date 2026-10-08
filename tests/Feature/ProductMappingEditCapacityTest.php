@@ -16,8 +16,8 @@ use Tests\TestCase;
 /**
  * ProductMapping → Edit must carry each SKU's default capacity. The page eager-
  * loaded products with a narrow column list that left out chiller_slot_qty /
- * freezer_slot_qty, so the Default column and every un-overridden Reality box
- * read "-" — a Reality equal to the default is stored as null, so ops typed 7,
+ * freezer_slot_qty, so the Default column and every un-overridden Real Capacity box
+ * read "-" — a Real Capacity equal to the default is stored as null, so ops typed 7,
  * saved, reopened and saw "-" (C6001, 2026-09-30) although the save had landed.
  */
 class ProductMappingEditCapacityTest extends TestCase

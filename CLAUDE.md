@@ -1181,7 +1181,7 @@ never on "not a vending machine" at the call site.
 - **One planogram reader.** `App\Services\Stock\SkuPlanogram::forMapping()`
   gives one `SkuSlot` per product (primary label = its lowest code, `labels` =
   all of them, capacity = the SUM of its items' effective capacity —
-  `product_mapping_items.capacity_override` ("Reality" on ProductMapping →
+  `product_mapping_items.capacity_override` ("Real Capacity" on ProductMapping →
   Edit) else the product's `freezer_slot_qty` / `chiller_slot_qty`). A SKU
   listed on two codes "never happens" but is not forbidden; it is one row.
 - **Writers.** `FreezerChannelSync` (qty carried by product — our ledger) and

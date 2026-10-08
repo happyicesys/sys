@@ -277,14 +277,14 @@
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 SubCategory
                               </th>
-                              <!-- Capacity per SKU (Brian, 2026-09-22): Default = the product's
-                                   chiller_slot_qty (Product → Edit); Reality = this mapping's override,
+                              <!-- Capacity per SKU (Brian, 2026-09-22): Default Capacity = the product's
+                                   chiller_slot_qty (Product → Edit); Real Capacity (was "Reality") = this mapping's override,
                                    saved with the page's Save. Blank = use the default. -->
-                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="From Product → Edit → Smart Chiller">
-                                Capacity<br><span class="font-normal text-xs text-gray-500">Default</span>
+                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="From Product → Edit → Smart Chiller (read-only here)">
+                                Default<br>Capacity
                               </th>
-                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="Override for this mapping only; blank uses the default">
-                                Capacity<br><span class="font-normal text-xs text-gray-500">Reality</span>
+                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="Pieces this channel really holds, for this mapping only; blank uses the Default Capacity">
+                                Real<br>Capacity
                               </th>
                               <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Server Price ({{ operatorCountry.currency_symbol }}) <br>
@@ -644,7 +644,7 @@ const channelCodeProblems = computed(() => {
   return problems
 })
 
-// ── Reality capacity ───────────────────────────────────────────────────────
+// ── Real Capacity (was "Reality") ───────────────────────────────────────────────────────
 // The box SHOWS the product's default (Brian, 2026-09-23) so ops read the number
 // that is actually in force, not a blank. It is only STORED when it differs from
 // that default — otherwise a later change on Product → Edit would never reach a

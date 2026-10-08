@@ -216,7 +216,7 @@ class SkuStockIdentityTest extends TestCase
 
     public function test_a_reality_capacity_equal_to_the_products_default_is_not_stored_as_an_override(): void
     {
-        // The Reality box is pre-filled with the default, so an untouched row posts that
+        // The Real Capacity box is pre-filled with the default, so an untouched row posts that
         // number back. Storing it would freeze today's default (Brian, 2026-09-23).
         [$vend] = $this->chiller();
         $mapping = ChillerMapping::bind($vend, [101 => [90338, 5]]);

@@ -20,24 +20,27 @@
     `layout-changed` to bubble the latest shape up, and `items-changed` after
     a successful bind/unbind so the parent reloads productMappingItems.
   -->
-  <div class="space-y-5">
+  <div class="space-y-4">
     <!-- Summary header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-indigo-50 ring-1 ring-indigo-100 px-4 py-3">
-      <div class="flex items-center gap-3">
-        <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold px-2.5 py-1">
+    <div class="flex flex-col gap-3 rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex min-w-0 items-center gap-3">
+        <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">
           Smart Freezer Planogram
         </span>
-        <span class="text-sm text-gray-700">
-          <span class="font-semibold text-indigo-700">{{ boundCount }}</span>
-          of
-          <span class="font-semibold text-gray-900">{{ totalSlots }}</span>
-          slots bound
+        <span class="text-sm text-slate-600">
+          <span class="font-semibold text-slate-900">{{ boundCount }}</span>
+          / {{ totalSlots }} slots bound
         </span>
+        <div class="hidden h-1.5 w-28 overflow-hidden rounded-full bg-slate-100 sm:block">
+          <div class="h-full rounded-full bg-indigo-500 transition-all" :style="{ width: boundPercent + '%' }"></div>
+        </div>
       </div>
-      <div class="text-xs text-gray-500">
-        Channel codes are
-        <code class="bg-white px-1.5 py-0.5 rounded text-indigo-700 font-medium">basket + division</code>
-        — e.g. <code class="bg-white px-1 rounded">11</code>, <code class="bg-white px-1 rounded">23</code>, <code class="bg-white px-1 rounded">41</code>.
+      <div class="text-xs text-slate-500">
+        Code = basket + division, e.g.
+        <code class="rounded bg-slate-100 px-1 font-mono text-slate-700">11</code>
+        <code class="rounded bg-slate-100 px-1 font-mono text-slate-700">23</code>
+        <code class="rounded bg-slate-100 px-1 font-mono text-slate-700">41</code>
+        · drag a product to reorder within its basket
       </div>
     </div>
 
@@ -53,11 +56,11 @@
       thumb-scrolling a stack reads more naturally on a narrow viewport than
       a side-by-side pair that would force horizontal scroll or cramp inputs.
     -->
-    <!-- The freezer schematic: one bordered outer box holding six baskets in two
-         columns (1-3 left, 4-6 right), each a bordered basket box with its
-         divisions as sub-boxes in a row — mirrors the APK's on-door FreezerGrid. -->
-    <div class="rounded-xl border-[3px] border-gray-800 bg-slate-50 p-3 md:p-4">
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col md:gap-4 md:min-h-[560px]">
+    <!-- The freezer schematic: one outer cabinet holding six baskets in two
+         columns (1-3 left, 4-6 right), each basket a card with its divisions
+         as tiles in a row — mirrors the APK's on-door FreezerGrid. -->
+    <div class="rounded-2xl bg-slate-100 p-2.5 ring-1 ring-slate-200 md:p-3">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col md:gap-3">
       <!--
         NOTE: no `overflow-hidden` on this card, deliberately. The product picker
         in an empty cell is a @vueform/multiselect whose dropdown is an
@@ -71,136 +74,154 @@
       <article
         v-for="basket in localLayout"
         :key="basket.basket"
-        class="flex flex-col rounded-lg border-2 border-gray-400 bg-white h-full"
+        class="flex h-full flex-col rounded-xl bg-white shadow-sm ring-1 ring-slate-200"
       >
-      <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+      <header class="flex items-center justify-between gap-3 px-3 pb-2 pt-2.5">
         <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center h-7 min-w-7 px-2 rounded-md bg-gray-900 text-white text-sm font-semibold">
+          <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-slate-800 px-1.5 text-xs font-semibold text-white">
             {{ basket.basket }}
           </span>
-          <span class="text-sm font-medium text-gray-900">Basket {{ basket.basket }}</span>
-          <span class="text-xs text-gray-500">
-            ({{ cellsFor(basket).length }} slot{{ cellsFor(basket).length === 1 ? '' : 's' }})
+          <span class="text-sm font-semibold text-slate-800">Basket {{ basket.basket }}</span>
+          <span class="text-xs text-slate-400">
+            {{ boundIn(basket) }}/{{ cellsFor(basket).length }} bound
           </span>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">Divisions</span>
-          <div class="inline-flex items-center rounded-md border border-gray-200 bg-white">
+        <div class="flex items-center gap-2" title="Divisions in this basket">
+          <span class="hidden text-xs text-slate-400 lg:inline">Divisions</span>
+          <div class="inline-flex items-center rounded-md ring-1 ring-inset ring-slate-200">
             <button
               type="button"
-              class="px-2.5 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              class="grid h-7 w-7 place-items-center rounded-l-md text-slate-500 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
               @click="decDivisions(basket)"
               :disabled="basket.divisions <= MIN_DIVISIONS"
+              :title="`Fewer divisions in basket ${basket.basket}`"
             >
-              −
+              <MinusIcon class="h-3.5 w-3.5" />
             </button>
-            <span class="px-2 py-1 text-sm font-semibold text-gray-900 min-w-8 text-center border-x border-gray-200">
+            <span class="w-6 text-center text-sm font-semibold tabular-nums text-slate-800">
               {{ basket.divisions }}
             </span>
             <button
               type="button"
-              class="px-2.5 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              class="grid h-7 w-7 place-items-center rounded-r-md text-slate-500 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
               @click="incDivisions(basket)"
               :disabled="basket.divisions >= MAX_DIVISIONS"
+              :title="`More divisions in basket ${basket.basket}`"
             >
-              +
+              <PlusIcon class="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
       </header>
 
-      <div class="flex-1 p-2.5">
+      <div class="flex-1 px-2.5 pb-2.5">
         <div :class="cellGridClasses(basket)">
           <div
             v-for="(cell, cellIndex) in cellsFor(basket)"
             :key="cell.code"
-            class="rounded-md p-3 transition"
-            :class="[cellWrapperClasses(cell), cell.item ? 'cursor-move' : '', isDragOver(basket, cellIndex) ? 'ring-2 ring-indigo-400' : '']"
+            class="relative flex flex-col gap-2 rounded-xl p-2 transition"
+            :class="[cellWrapperClasses(cell), cell.item ? 'cursor-grab active:cursor-grabbing' : '', isDragOver(basket, cellIndex) ? 'ring-2 ring-indigo-400' : '']"
             :draggable="!!cell.item"
             @dragstart="onCellDragStart(basket, cellIndex, cell, $event)"
             @dragend="onCellDragEnd"
             @dragover="onCellDragOver(basket, cellIndex, $event)"
             @drop.prevent="onCellDrop(basket, cellIndex)"
           >
-            <div class="flex items-center justify-between mb-2">
-              <span
-                class="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-semibold"
-                :class="cell.item ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'"
-              >
-                {{ cell.code }}
-              </span>
+            <!-- Bound state -->
+            <template v-if="cell.item">
               <!--
-                type="button" + @click.prevent is load-bearing here: the shared
-                Components/Button.vue defaults `type` to "submit", and this
-                cell renders inside Edit.vue's outer <form>. Without these,
-                clicking submits the whole mapping (posting /update with the
-                stale productMappingItems ref, no preserveScroll → "nothing
-                happens, scrolls to top"). Mirrors the vending Bind button.
+                type="button" + @click.prevent is load-bearing here: this cell
+                renders inside Edit.vue's outer <form>, and a button without an
+                explicit type submits it (posting /update with the stale
+                productMappingItems ref, no preserveScroll → "nothing happens,
+                scrolls to top"). Mirrors the vending Bind button.
               -->
-              <Button
-                v-if="cell.item"
+              <button
                 type="button"
-                class="bg-red-100 hover:bg-red-200 text-red-700"
+                class="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-md text-slate-300 hover:bg-red-50 hover:text-red-600"
                 @click.prevent="onUnbind(cell)"
+                @mousedown.stop
                 :title="`Unbind ${cell.code}`"
               >
-                <BackspaceIcon class="w-3.5 h-3.5" />
-              </Button>
-            </div>
+                <XMarkIcon class="h-4 w-4" />
+              </button>
 
-            <!-- Bound state -->
-            <div v-if="cell.item" class="flex items-center gap-3">
-              <img
-                v-if="cell.item.product && cell.item.product.thumbnail"
-                :src="cell.item.product.thumbnail.full_url"
-                class="h-14 w-14 rounded-md object-contain bg-white p-0.5 ring-1 ring-gray-200 flex-none pointer-events-none"
-                draggable="false"
-                alt=""
-              />
-              <div
-                v-else
-                class="h-14 w-14 rounded-md bg-gray-100 grid place-items-center text-gray-400 text-[10px] flex-none"
-              >
-                no image
-              </div>
-              <div class="flex flex-col min-w-0">
-                <span
-                  v-if="cell.item.product && cell.item.product.code"
-                  class="text-[11px] font-semibold text-gray-500 truncate"
-                >
-                  {{ cell.item.product.code }}
-                </span>
-                <span class="text-sm text-gray-900 truncate" :title="cell.item.product && cell.item.product.name">
-                  {{ cell.item.product && cell.item.product.name }}
-                </span>
-                <!-- Capacity per SKU (Brian, 2026-09-23): Default = the product's
-                     freezer_slot_qty (Product → Edit → Smart Freezer); Reality = this
-                     mapping's override, saved on its own as soon as it is typed. -->
-                <div class="mt-1 flex items-center gap-2 text-[11px] text-gray-600">
-                  <span :title="'Default from Product → Edit → Smart Freezer'">
-                    Cap. {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '-' }}
-                  </span>
-                  <label class="flex items-center gap-1" title="Reality: override for this mapping only; blank uses the default">
-                    Reality
-                    <input
-                      type="number" min="0" max="999" step="1"
-                      :value="realityShown(cell.item)"
-                      @input="onCapacityInput(cell.item, $event.target.value)"
-                      @blur="onCapacityBlur(cell.item)"
-                      @mousedown.stop
-                      @dragstart.stop.prevent
+              <div class="flex items-start gap-2.5">
+                <!-- Thumbnail with the slot code pinned to its corner. -->
+                <div class="relative flex-none">
+                  <div class="h-14 w-14 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-black/5">
+                    <img
+                      v-if="cell.item.product && cell.item.product.thumbnail"
+                      :src="cell.item.product.thumbnail.full_url"
+                      class="pointer-events-none h-full w-full object-cover"
                       draggable="false"
-                      placeholder="-"
-                      class="w-14 rounded border-gray-300 text-center text-[11px] py-0.5"
-                      :class="isCapacityOverridden(cell.item) ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
+                      alt=""
                     />
-                  </label>
+                    <div v-else class="grid h-full w-full place-items-center">
+                      <PhotoIcon class="h-5 w-5 text-slate-300" />
+                    </div>
+                  </div>
+                  <span class="absolute -left-1.5 -top-1.5 rounded-md bg-indigo-600 px-1.5 py-px font-mono text-[10px] font-semibold leading-4 text-white shadow-sm ring-2 ring-white">
+                    {{ cell.code }}
+                  </span>
+                </div>
+                <div class="min-w-0 flex-1 pr-4 pt-0.5">
+                  <div
+                    v-if="cell.item.product && cell.item.product.code"
+                    class="truncate text-[11px] font-medium leading-4 text-slate-400"
+                  >
+                    {{ cell.item.product.code }}
+                  </div>
+                  <div
+                    class="line-clamp-2 text-[13px] font-medium leading-[1.125rem] text-slate-800"
+                    :title="cell.item.product && cell.item.product.name"
+                  >
+                    {{ cell.item.product && cell.item.product.name }}
+                  </div>
                 </div>
               </div>
-            </div>
+
+              <!-- Capacity per SKU (Brian, 2026-09-23): Default Capacity = the product's
+                   freezer_slot_qty (Product → Edit → Smart Freezer); Real Capacity = this
+                   mapping's override (capacity_override, formerly labelled "Reality"),
+                   saved on its own as soon as it is typed. Pieces a slot holds — never
+                   on-hand stock, which is per machine (Setting/Edit → Stock Qty). -->
+              <div class="mt-auto divide-y divide-slate-200 overflow-hidden rounded-lg text-[11px] ring-1 ring-inset ring-slate-200">
+                <div class="flex h-6 items-center justify-between gap-1 bg-slate-50 px-2" title="From Product → Edit → Smart Freezer (read-only here)">
+                  <span class="truncate text-slate-500">Default Capacity</span>
+                  <span class="font-semibold tabular-nums text-slate-600">
+                    {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '–' }}
+                  </span>
+                </div>
+                <label
+                  class="flex h-7 cursor-text items-center justify-between gap-1 px-2 focus-within:bg-indigo-50/50"
+                  :class="isCapacityOverridden(cell.item) ? 'bg-amber-50' : 'bg-white'"
+                  title="Real Capacity: pieces this slot really holds, for this mapping only. Blank uses the Default Capacity."
+                >
+                  <span class="truncate" :class="isCapacityOverridden(cell.item) ? 'font-medium text-amber-700' : 'text-slate-500'">Real Capacity</span>
+                  <input
+                    type="number" min="0" max="999" step="1"
+                    :value="realityShown(cell.item)"
+                    @input="onCapacityInput(cell.item, $event.target.value)"
+                    @blur="onCapacityBlur(cell.item)"
+                    @mousedown.stop
+                    @dragstart.stop.prevent
+                    draggable="false"
+                    placeholder="–"
+                    class="w-9 min-w-0 flex-none border-0 bg-transparent p-0 text-right text-xs font-semibold tabular-nums text-slate-800 placeholder:text-slate-300 focus:ring-0"
+                  />
+                </label>
+              </div>
+            </template>
 
             <!-- Empty / picker state -->
-            <div v-else>
+            <div v-else class="flex flex-1 flex-col gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="rounded-md bg-slate-200 px-1.5 py-px font-mono text-[10px] font-semibold leading-4 text-slate-600">
+                  {{ cell.code }}
+                </span>
+                <span class="text-[11px] text-slate-400">Empty</span>
+              </div>
               <MultiSelect
                 v-model="selections[cell.code]"
                 :options="productOptions"
@@ -217,33 +238,31 @@
                 MultiSelect doesn't expose a per-option slot, so we can't show
                 thumbnails inside the dropdown without forking it; surfacing
                 the thumbnail here gives the user the same visual confirmation
-                without touching shared infra. Mirrors the bound-state layout
-                below it so the cell visually settles into place after Bind.
+                without touching shared infra.
               -->
               <div
                 v-if="selectedProduct(cell.code)"
-                class="mt-2 flex items-center gap-2 rounded-md bg-white ring-1 ring-gray-200 p-2"
+                class="flex items-center gap-2 rounded-lg bg-white p-1.5 ring-1 ring-slate-200"
               >
-                <img
-                  v-if="selectedProduct(cell.code).thumbnail && selectedProduct(cell.code).thumbnail.full_url"
-                  :src="selectedProduct(cell.code).thumbnail.full_url"
-                  class="h-12 w-12 rounded-md object-contain bg-white p-0.5 ring-1 ring-gray-200 flex-none"
-                  alt=""
-                />
-                <div
-                  v-else
-                  class="h-12 w-12 rounded-md bg-gray-100 grid place-items-center text-gray-400 text-[10px] flex-none"
-                >
-                  no image
+                <div class="h-10 w-10 flex-none overflow-hidden rounded-lg bg-slate-100 ring-1 ring-black/5">
+                  <img
+                    v-if="selectedProduct(cell.code).thumbnail && selectedProduct(cell.code).thumbnail.full_url"
+                    :src="selectedProduct(cell.code).thumbnail.full_url"
+                    class="h-full w-full object-cover"
+                    alt=""
+                  />
+                  <div v-else class="grid h-full w-full place-items-center">
+                    <PhotoIcon class="h-4 w-4 text-slate-300" />
+                  </div>
                 </div>
-                <div class="flex flex-col min-w-0">
+                <div class="flex min-w-0 flex-col">
                   <span
                     v-if="selectedProduct(cell.code).code"
-                    class="text-[11px] font-semibold text-gray-500 truncate"
+                    class="truncate text-[11px] font-medium text-slate-400"
                   >
                     {{ selectedProduct(cell.code).code }}
                   </span>
-                  <span class="text-sm text-gray-900 truncate" :title="selectedProduct(cell.code).name">
+                  <span class="truncate text-xs font-medium text-slate-800" :title="selectedProduct(cell.code).name">
                     {{ selectedProduct(cell.code).name }}
                   </span>
                 </div>
@@ -251,19 +270,18 @@
 
               <!--
                 See the unbind button above for why type="button" + .prevent is
-                required: defaults inside Edit.vue's <form> would submit the
-                entire mapping instead of firing /items/create.
+                required: a default button inside Edit.vue's <form> would submit
+                the entire mapping instead of firing /items/create.
               -->
-              <Button
+              <button
                 type="button"
-                class="mt-2 w-full bg-green-500 hover:bg-green-600 text-white justify-center"
-                :class="!selections[cell.code] ? 'opacity-50 cursor-not-allowed' : ''"
+                class="mt-auto inline-flex w-full items-center justify-center gap-1 rounded-lg bg-green-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                 :disabled="!selections[cell.code]"
                 @click.prevent="onBind(cell)"
               >
-                <PlusCircleIcon class="w-3.5 h-3.5 mr-1" />
+                <PlusCircleIcon class="h-3.5 w-3.5" />
                 Bind
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -278,9 +296,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useToast } from 'vue-toastification'
-import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
-import { BackspaceIcon, PlusCircleIcon } from '@heroicons/vue/20/solid'
+import { MinusIcon, PhotoIcon, PlusCircleIcon, PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 
 const props = defineProps({
   productMappingId: { type: [Number, String], required: true },
@@ -323,6 +340,14 @@ const boundCount = computed(() => Object.keys(itemsByCode.value).length)
 const totalSlots = computed(() =>
   localLayout.value.reduce((sum, b) => sum + b.divisions, 0)
 )
+
+const boundPercent = computed(() =>
+  totalSlots.value ? Math.min(100, Math.round((boundCount.value / totalSlots.value) * 100)) : 0
+)
+
+function boundIn(basket) {
+  return cellsFor(basket).filter(c => c.item).length
+}
 
 // Highest division actually occupied in a basket, read from the bound items'
 // numeric "<basket><division>" codes. Lets the grid always open wide enough to
@@ -397,15 +422,15 @@ function cellGridClasses(basket) {
     3: 'grid-cols-3',
     4: 'grid-cols-4',
   }
-  return ['grid gap-2.5 h-full', cols[count] || 'grid-cols-4']
+  return ['grid gap-2 h-full', cols[count] || 'grid-cols-4']
 }
 
 function cellWrapperClasses(cell) {
-  // Bordered division sub-boxes (schematic look), bound = solid indigo edge,
-  // empty = dashed. h-full so a basket's divisions read as equal-width columns.
+  // Division tiles: bound = white card with a hairline edge, empty = dashed
+  // drop zone. h-full so a basket's divisions read as equal-width columns.
   return cell.item
-    ? 'h-full bg-indigo-50 border-2 border-indigo-300'
-    : 'h-full bg-gray-50 border-2 border-dashed border-gray-300'
+    ? 'h-full bg-white ring-1 ring-slate-200 hover:ring-indigo-300 hover:shadow-sm'
+    : 'h-full bg-slate-50/70 border border-dashed border-slate-300'
 }
 
 // --- Drag-and-drop reorder (within a single basket only) --------------------
@@ -546,7 +571,7 @@ function onUnbind(cell) {
   deleteItem(cell.item)
 }
 
-// Reality capacity: the box SHOWS the product's default (Brian, 2026-09-23) and
+// Real Capacity (was "Reality"): the box SHOWS the product's default (Brian, 2026-09-23) and
 // only STORES a value that differs from it, so a later change on Product → Edit
 // still reaches the machines. A per-cell draft keeps the field from being
 // rewritten under the cursor; on blur it settles to the canonical value. One
