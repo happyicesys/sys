@@ -70,7 +70,7 @@ class HappyHourCampaignController extends Controller
 
             return $campaign;
         });
-        $this->planner->planCampaign($campaign, Carbon::now());
+        $this->planNow($campaign);
 
         return back()->with('success', "Happy Hour \"{$campaign->name}\" saved.");
     }
@@ -92,7 +92,7 @@ class HappyHourCampaignController extends Controller
                 $this->planner->cancel($campaign, $now, $removed);
             }
         });
-        $this->planner->planCampaign($campaign->fresh(), $now);
+        $this->planNow($campaign->fresh());
 
         return back()->with('success', "Happy Hour \"{$campaign->name}\" updated.");
     }
@@ -123,6 +123,19 @@ class HappyHourCampaignController extends Controller
                 'candidates' => array_map(fn ($c) => $c->toArray(), $ranker->rank($campaign, $vend, $now)),
             ])->values(),
         ]);
+    }
+
+    /**
+     * Plans at once so the freezers hear within seconds. The campaign is already saved: if planning
+     * fails here (a cache or queue hiccup), the minute run plans it instead of the save erroring.
+     */
+    private function planNow(HappyHourCampaign $campaign): void
+    {
+        try {
+            $this->planner->planCampaign($campaign, Carbon::now());
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** @return array<string, mixed> */
