@@ -329,6 +329,22 @@ class ProductWelcomeSketchTest extends TestCase
         return false;
     }
 
+    public function test_a_new_sketch_nudges_its_freezers_once_to_re_read_the_menu(): void
+    {
+        $a = $this->product('N-1');
+        $b = $this->product('N-2');
+        $vendingOnly = $this->product('N-3');
+        $vend = $this->onFreezer($a, $b);
+
+        $this->service()->seed($a, self::png(300, 300));
+        $this->service()->seed($b, self::png(320, 300));
+        $this->service()->seed($vendingOnly, self::png(300, 300));
+
+        // Two sketches on the same freezer within the window: one nudge, delayed.
+        Queue::assertPushed(\App\Jobs\NudgeFreezerMenu::class, 1);
+        Queue::assertPushed(\App\Jobs\NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id && $job->delay !== null);
+    }
+
     public function test_the_freezer_menu_carries_the_sketch_and_vending_menus_are_unchanged(): void
     {
         $drawn = $this->product('M-1');

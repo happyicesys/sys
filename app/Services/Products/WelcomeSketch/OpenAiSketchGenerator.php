@@ -17,7 +17,11 @@ Redraw the product in the FIRST image as one cute hand-drawn sticker illustratio
 same art style as the other images (soft coloured-pencil texture, clean dark outline, warm flat
 colours, gentle shading). Keep the product recognisable: same shape, colours and packaging, as it
 looks when held. Draw only the product, centred and upright, filling most of the canvas. No
-background, no shadow, no extra objects, no added text beyond what is printed on the product.
+background, no shadow, no extra objects.
+Text: copy ONLY words that are clearly printed on the product or its packaging in the FIRST image,
+spelled exactly. If the product has no printed text (a plain ice bar, loose fruit, a bare cone),
+draw it with NO text at all. Never invent a label, sticker, wrapper, bag or box that is not in
+the photo, and never write the product's name onto it.
 Transparent background.
 TXT;
 
@@ -43,7 +47,7 @@ TXT;
         try {
             $response = $request->post(rtrim((string) config('services.openai.base_uri', 'https://api.openai.com/v1'), '/').'/images/edits', [
                 'model' => $this->model(),
-                'prompt' => self::PROMPT."\nProduct: {$productName}.",
+                'prompt' => self::PROMPT."\nWhat the product is (for reference only — do not write this on it): {$productName}.",
                 'background' => 'transparent',
                 'output_format' => 'png',
                 'size' => '1024x1024',

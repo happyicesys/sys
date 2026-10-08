@@ -934,7 +934,11 @@ each paid call happens once (pending → generating claim; redis `retry_after` i
 a failed photo is not re-paid until the photo changes or someone presses Regenerate, a pending/generating
 row older than 15 min is abandoned, a redraw only replaces the drawing when it succeeds, and seed/upload art
 is never redrawn automatically. Images are trimmed, ≤ 512 px, transparent WebP under
-`sys/products/{id}/welcome-sketch/`. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
+`sys/products/{id}/welcome-sketch/`. A freezer re-reads `/menu` only on boot or a nudge, so every stored
+sketch nudges the active freezers carrying that product (`NudgeFreezerMenu`, 90 s delay, debounced per
+freezer). The model prompt forbids text not printed on the product (it invented labels on plain bars,
+2026-10-08). Freezer APK 29+ drops the sketch (`welcome_sketch`), then its built-in drawing, then the
+photo. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:

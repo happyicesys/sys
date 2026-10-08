@@ -40,6 +40,9 @@ class ProductWelcomeSketchService
     /** A pending/generating row untouched this long was abandoned; a new request may replace it. */
     public const STALE_MINUTES = 15;
 
+    /** A freezer is nudged to re-read its menu this long after its first new sketch (debounce). */
+    public const NUDGE_DELAY_SECONDS = 90;
+
     public function __construct(
         private readonly SketchGenerator $generator,
         private readonly CutoutMaker $cutouts,
@@ -117,6 +120,27 @@ class ProductWelcomeSketchService
         }
 
         return $this->queue($product, 'regenerate', $userId);
+    }
+
+    /**
+     * Freezers re-read `/menu` only on boot or when nudged: every active freezer carrying this
+     * product gets one nudge NUDGE_DELAY_SECONDS from now, debounced per freezer, so a batch of new
+     * sketches is fetched in one go.
+     */
+    public function nudgeFreezers(Product $product): void
+    {
+        $vendIds = \Illuminate\Support\Facades\DB::table('vend_channels')
+            ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
+            ->where('vends.machine_type', \App\Models\Vend::MACHINE_TYPE_SMART_FREEZER)
+            ->where('vends.is_active', 1)
+            ->where('vend_channels.product_id', $product->id)
+            ->distinct()
+            ->pluck('vends.id');
+        foreach ($vendIds as $vendId) {
+            if (\Illuminate\Support\Facades\Cache::add("welcome-sketch-nudge:{$vendId}", true, self::NUDGE_DELAY_SECONDS)) {
+                \App\Jobs\NudgeFreezerMenu::dispatch((int) $vendId)->delay(now()->addSeconds(self::NUDGE_DELAY_SECONDS))->afterCommit();
+            }
+        }
     }
 
     /** On any smart freezer's planogram (vend_channels, kept by FreezerChannelSync). */
@@ -298,6 +322,7 @@ class ProductWelcomeSketchService
             'last_error' => null,
             'generated_at' => now(),
         ])->save();
+        $this->nudgeFreezers($product);
 
         return $sketch;
     }
