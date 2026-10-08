@@ -22,6 +22,7 @@ use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\FreezerControlController;
+use App\Http\Controllers\HappyHourCampaignController;
 use App\Http\Controllers\HidCardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
@@ -864,6 +865,20 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:create machine-settings');
         Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation'])
             ->middleware('can:update machine-settings');
+    });
+
+    // Happy Hour Campaign — scheduled freezer discounts on slow movers (HappyHourPlanner).
+    Route::prefix('happy-hour-campaigns')->group(function () {
+        Route::get('/', [HappyHourCampaignController::class, 'index'])->name('happy-hour-campaigns')
+            ->middleware('can:read happy-hour-campaigns');
+        Route::get('/{id}/preview', [HappyHourCampaignController::class, 'preview'])
+            ->middleware('can:read happy-hour-campaigns');
+        Route::post('/', [HappyHourCampaignController::class, 'store'])
+            ->middleware('can:create happy-hour-campaigns');
+        Route::post('/{id}', [HappyHourCampaignController::class, 'update'])
+            ->middleware('can:update happy-hour-campaigns');
+        Route::delete('/{id}', [HappyHourCampaignController::class, 'destroy'])
+            ->middleware('can:delete happy-hour-campaigns');
     });
 
     // APK OTA Updates — one page, one tab per channel (config/ota.php). Uploading a

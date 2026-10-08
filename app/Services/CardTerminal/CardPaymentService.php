@@ -7,6 +7,7 @@ use App\Models\RemoteCardTerminal;
 use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Services\HappyHour\HappyHourPricing;
 use App\Services\SmartFreezer\FreezerSaleLocator;
 use Carbon\Carbon;
 use DomainException;
@@ -555,7 +556,7 @@ class CardPaymentService
                 $recognition->verdict,
                 $lines,
                 $this->sales->paidUnitPrices($sale),
-                $this->shelfPrices($intent->vend_id, $productIds),
+                $this->shelfPrices($intent->vend_id, $productIds, $intent->door_closed_at ?? $intent->created_at),
             ), $recognition->id];
         }
 
@@ -579,19 +580,22 @@ class CardPaymentService
     }
 
     /**
-     * The machine's price for each product today (vend_channels.amount, cents — on a freezer
-     * the server price per SKU).
+     * The machine's price for each product at the door session (vend_channels.amount, cents — on a
+     * freezer the server price per SKU), or the Happy Hour price where a slot for that SKU covered
+     * that moment: the customer saw the promo price on screen.
      *
      * @param  list<int>  $productIds
      * @return array<int, int>
      */
-    private function shelfPrices(int $vendId, array $productIds): array
+    private function shelfPrices(int $vendId, array $productIds, ?\DateTimeInterface $at = null): array
     {
         if ($productIds === []) {
             return [];
         }
 
-        return DB::table('vend_channels')
+        $promo = $at ? HappyHourPricing::promoPricesAt($vendId, $productIds, \Illuminate\Support\Carbon::instance($at)) : [];
+
+        return $promo + DB::table('vend_channels')
             ->where('vend_id', $vendId)
             ->whereIn('product_id', $productIds)
             ->where('amount', '>', 0)

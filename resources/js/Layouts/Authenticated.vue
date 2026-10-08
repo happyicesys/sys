@@ -153,6 +153,7 @@ const navigation = computed(() => [
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
             {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
+            {name: 'Happy Hour Campaign', href: '/happy-hour-campaigns', permission: 'read happy-hour-campaigns'},
             {name: 'APK OTA Updates', href: '/apk-releases', permission: 'read apk-releases'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]

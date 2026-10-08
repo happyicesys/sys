@@ -3365,6 +3365,9 @@ class VendController extends Controller
             ? \App\Models\ProductWelcomeSketch::query()->whereIn('product_id', $productIds)->get()->keyBy('product_id')
             : collect();
 
+        // Smart mappings also carry each product's Happy Hour slots (freezer app 30+; empty otherwise).
+        $happyHour = $isSmart ? \App\Services\HappyHour\HappyHourPricing::menuSlots($vend, now()) : [];
+
         $dataArr = [];
 
         foreach ($sortedItems as $item) {
@@ -3403,6 +3406,7 @@ class VendController extends Controller
                 $data['welcome_sketch'] = \App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::menuUrl(
                     $welcomeSketches->get($item->product_id)
                 );
+                $data['happy_hour'] = $happyHour[$item->product_id] ?? [];
             }
 
             if ($product?->translated_names_json) {

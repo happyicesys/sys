@@ -496,6 +496,14 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Machine Management → Happy Hour Campaign (2026-10-09). Sets automatic discounts on
+                // freezer stock, so kept to the staff who own pricing.
+                'happy-hour-campaigns',
+                ['read', 'create', 'update', 'delete'],
+                ['superadmin', 'admin'],
+            ],
+
+            [
                 'apk-settings',
                 ['read', 'export'],
                 // 2026-07-23 sheet sync: - driver (UI Setting row has no Driver)
