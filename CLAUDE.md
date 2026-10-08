@@ -941,6 +941,43 @@ freezer). The model prompt forbids text not printed on the product (it invented 
 only when eaten from it (cup, tub, fruit tray) (Brian, 2026-10-08: Magnum/Yakoo/Oukuk came with wrappers). Freezer APK 29+ drops the sketch (`welcome_sketch`), then its built-in drawing, then the
 photo. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
 
+**Happy Hour campaigns** (Brian, 2026-10-09; Machine Management → Happy Hour Campaign, permission
+`happy-hour-campaigns`: superadmin, admin).
+
+What a campaign is:
+- A scheduled percentage discount on a smart freezer's slowest movers, one SKU per slot.
+- Settings: days, hours, active dates, duration per SKU, how many SKUs take turns, discount %, stock floor %,
+  minimum units, price rounding, exclusions, allow below cost.
+
+`HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute, and once
+on each save. It:
+1. picks a day's lineup 10 min before the window: `HappyHourRanker`, days of cover = stock ÷ average daily sales
+   from `vend_product_records`, where nothing sold = first and a tie goes to the higher qty. Rank 1 takes slot 1,
+   cycling through the top N;
+2. freezes each slot's product and both prices (integer cents, Site tier, rounded down to the step);
+3. swaps a SKU that no longer qualifies as its slot starts;
+4. ends a slot early when its SKU sells out;
+5. records units / takings / discount from settled sales when the slot closes.
+
+Exclusion rules:
+- The stock floor % applies only where Real Capacity is set; most freezer SKUs have none, which is why minimum
+  units exists.
+- A promo below the current unit cost is excluded unless the campaign allows it.
+
+Machines and the freezer:
+- One machine, one campaign at a time: overlap is refused on save, and unique `(vend_id, starts_at)` is the backstop.
+- Only freezers reporting `apk_version_code` ≥ `config('happy_hour.min_freezer_apk_version')` (30) get slots.
+  An older app would show the full price while mark1 believed in a discount.
+- `/menu` rows carry `happy_hour` (smart mappings; that product's open slots in the next 24 h, ISO times with
+  offset). The freezer switches on its own clock, and each slot write nudges it (`NudgeFreezerMenu`).
+
+Where the promo price applies:
+- An AI-judged extra unit taken during a slot is valued at the promo price (`CardPaymentService::shelfPrices`).
+- Nothing else in sale ingest changes: the freezer's TRADE already carries the promo unit price.
+
+A save never errors on a planning hiccup; the minute run catches up. Regression coverage:
+`tests/Feature/HappyHourCampaignTest.php`.
+
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
 machine, Zijia's order no + our SF ref, links to the original videos, the AI's answer
