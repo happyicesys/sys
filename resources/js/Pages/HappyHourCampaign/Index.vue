@@ -28,77 +28,105 @@
             <span>New campaign</span>
           </Button>
         </div>
+      </div>
 
-        <div class="mt-4 flex flex-col">
-          <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-              <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="min-w-full divide-y divide-gray-300">
-                  <thead class="bg-gray-100">
-                    <tr class="divide-x divide-gray-200">
-                      <TableHead>Campaign</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>When</TableHead>
-                      <TableHead>Offer</TableHead>
-                      <TableHead>Machines</TableHead>
-                      <TableHead></TableHead>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200 bg-white">
-                    <tr v-for="c in campaigns" :key="c.id" class="divide-x divide-gray-200 align-top">
-                      <TableData>
-                        <div class="font-medium text-gray-900">{{ c.name }}</div>
-                        <div class="text-xs text-gray-500">{{ ruleLabel(c.selection_rule) }}</div>
-                      </TableData>
-                      <TableData>
-                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
-                          {{ statusLabels[c.status] }}
-                        </span>
-                        <div v-for="s in c.today.filter(s => s.live)" :key="s.id" class="mt-1 text-xs font-semibold text-rose-700 whitespace-nowrap">
-                          <span v-if="c.vends.length > 1">{{ vendCode(c, s.vend_id) }} · </span>{{ s.product }} {{ money(s.promo_price) }}
-                        </div>
-                      </TableData>
-                      <TableData>
-                        <div class="text-sm">{{ c.days_label }}, {{ c.window_start }}–{{ c.window_end }}</div>
-                        <div class="text-xs text-gray-500">{{ c.slot_minutes }} min per SKU · top {{ c.sku_count }}</div>
-                        <div class="text-xs text-gray-500" v-if="c.starts_on || c.ends_on">
-                          {{ c.starts_on || '…' }} → {{ c.ends_on || 'no end' }}
-                        </div>
-                      </TableData>
-                      <TableData>
-                        <div class="text-sm font-semibold text-rose-600">−{{ c.discount_pct }}%</div>
-                        <div class="text-xs text-gray-500">
-                          floor {{ c.min_balance_pct }}% · min {{ c.min_qty }} units
-                        </div>
-                      </TableData>
-                      <TableData>
-                        <div class="flex flex-wrap gap-1">
-                          <span v-for="v in c.vends" :key="v.id"
-                            class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border"
-                            :class="v.supported ? 'bg-gray-50 text-gray-800 border-gray-300' : 'bg-amber-50 text-amber-800 border-amber-300'"
-                            :title="v.supported ? '' : 'Not on app ' + minApkVersion + '+ (or inactive): no slots until it updates'">
-                            {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
-                          </span>
-                        </div>
-                      </TableData>
-                      <TableData>
-                        <div class="flex flex-col space-y-1">
-                          <Button class="bg-sky-500 hover:bg-sky-600 text-white text-xs" @click="openPreview(c)">Preview lineup</Button>
-                          <Button class="bg-white hover:bg-gray-50 text-sky-700 border border-sky-300 text-xs" @click="openToday(c)">
-                            Today's slots ({{ c.today.length }})
-                          </Button>
-                          <Button v-if="permissions.includes('update happy-hour-campaigns')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs" @click="openEdit(c)">Edit</Button>
-                          <Button v-if="permissions.includes('delete happy-hour-campaigns')" class="bg-red-50 hover:bg-red-100 text-red-700 text-xs" @click="destroy(c)">Delete</Button>
-                        </div>
-                      </TableData>
-                    </tr>
-                    <tr v-if="!campaigns.length">
-                      <td colspan="6" class="text-center text-sm text-gray-500 py-6">No Happy Hour campaigns yet.</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+      <div class="mt-6 flex flex-col">
+        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 px-3">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+            <table class="min-w-full border-separate" style="border-spacing: 0">
+              <thead class="bg-gray-100">
+                <tr class="divide-x divide-gray-200">
+                  <TableHead>#</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Days</TableHead>
+                  <TableHead>Hours</TableHead>
+                  <TableHead>Per SKU</TableHead>
+                  <TableHead>Discount</TableHead>
+                  <TableHead>Skip When</TableHead>
+                  <TableHead>Machines</TableHead>
+                  <TableHead>Today's Slots</TableHead>
+                  <TableHead>Action</TableHead>
+                </tr>
+              </thead>
+              <tbody class="bg-white">
+                <tr v-for="(c, cIndex) in campaigns" :key="c.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    {{ cIndex + 1 }}
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-left">
+                    {{ c.name }}
+                    <div class="text-xs font-normal text-gray-500">{{ ruleLabel(c.selection_rule) }}</div>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
+                      {{ statusLabels[c.status] }}
+                    </span>
+                    <div v-for="s in c.today.filter(s => s.live)" :key="s.id" class="mt-1 text-xs font-semibold text-rose-700 whitespace-nowrap">
+                      <span v-if="c.vends.length > 1">{{ vendCode(c, s.vend_id) }} · </span>{{ s.product }} {{ money(s.promo_price) }}
+                    </div>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    {{ c.days_label }}
+                    <div class="text-xs font-normal text-gray-500 whitespace-nowrap" v-if="c.starts_on || c.ends_on">
+                      {{ c.starts_on || '…' }} → {{ c.ends_on || 'no end' }}
+                    </div>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <span class="whitespace-nowrap">{{ c.window_start }}–{{ c.window_end }}</span>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <span class="whitespace-nowrap">{{ c.slot_minutes }} min</span>
+                    <div class="text-xs font-normal text-gray-500 whitespace-nowrap">top {{ c.sku_count }} SKUs</div>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <span class="font-semibold text-rose-600">−{{ c.discount_pct }}%</span>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <span class="whitespace-nowrap">stock ≤ {{ c.min_balance_pct }}%</span>
+                    <div class="whitespace-nowrap">or &lt; {{ c.min_qty }} units</div>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <div class="flex flex-wrap justify-center gap-1">
+                      <span v-for="v in c.vends" :key="v.id"
+                        class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border"
+                        :class="v.supported ? 'bg-gray-50 text-gray-800 border-gray-300' : 'bg-amber-50 text-amber-800 border-amber-300'"
+                        :title="v.supported ? '' : 'Not on app ' + minApkVersion + '+ (or inactive): no slots until it updates'">
+                        {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    {{ c.today.length }}
+                  </TableData>
+                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <div class="flex justify-center space-x-1 items-start">
+                      <Button type="button" class="bg-sky-500 hover:bg-sky-600 px-2 py-1 text-xs text-white flex space-x-1" @click="openToday(c)">
+                        <ClockIcon class="w-4 h-4" />
+                        <span class="whitespace-nowrap">Today's Slots</span>
+                      </Button>
+                      <Button type="button" class="bg-indigo-500 hover:bg-indigo-600 px-2 py-1 text-xs text-white flex space-x-1" @click="openPreview(c)">
+                        <EyeIcon class="w-4 h-4" />
+                        <span class="whitespace-nowrap">Preview Lineup</span>
+                      </Button>
+                      <Button v-if="permissions.includes('update happy-hour-campaigns')" type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1" @click="openEdit(c)">
+                        <PencilSquareIcon class="w-4 h-4" />
+                        <span>Edit</span>
+                      </Button>
+                      <Button v-if="permissions.includes('delete happy-hour-campaigns')" type="button" class="bg-red-500 hover:bg-red-600 px-2 py-1 text-xs text-white flex space-x-1" @click="destroy(c)">
+                        <TrashIcon class="w-4 h-4" />
+                        <span>Delete</span>
+                      </Button>
+                    </div>
+                  </TableData>
+                </tr>
+                <tr v-if="!campaigns.length">
+                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                    No Results Found
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -248,32 +276,56 @@
       </template>
       <template #default>
         <div v-if="todayCampaign" class="max-h-[70vh] overflow-y-auto">
-          <div v-if="!todayCampaign.today.length" class="text-sm text-gray-500">No slots today.</div>
-          <table v-else class="min-w-full text-xs border">
-            <thead class="bg-gray-50 sticky top-0">
-              <tr class="text-left">
-                <th class="px-2 py-1">Time</th>
-                <th class="px-2 py-1" v-if="todayCampaign.vends.length > 1">Machine</th>
-                <th class="px-2 py-1">SKU</th>
-                <th class="px-2 py-1 text-right">Price</th>
-                <th class="px-2 py-1">Status</th>
-                <th class="px-2 py-1 text-right">Sold</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in todayCampaign.today" :key="s.id" class="border-t"
-                :class="s.live ? 'font-semibold text-rose-700 bg-rose-50' : (s.status === 'scheduled' ? 'text-gray-700' : 'text-gray-400')">
-                <td class="px-2 py-1 whitespace-nowrap">{{ s.starts_at }}–{{ s.ends_at }}</td>
-                <td class="px-2 py-1" v-if="todayCampaign.vends.length > 1">{{ vendCode(todayCampaign, s.vend_id) }}</td>
-                <td class="px-2 py-1">{{ s.product }}</td>
-                <td class="px-2 py-1 text-right whitespace-nowrap">
-                  <span class="line-through text-gray-400 mr-1">{{ money(s.original_price) }}</span>{{ money(s.promo_price) }}
-                </td>
-                <td class="px-2 py-1">{{ s.live ? 'live' : (s.status === 'scheduled' ? 'scheduled' : slotStatusLabels[s.status]) }}</td>
-                <td class="px-2 py-1 text-right">{{ s.units_sold ?? '' }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5">
+            <table class="min-w-full border-separate" style="border-spacing: 0">
+              <thead class="bg-gray-100">
+                <tr class="divide-x divide-gray-200">
+                  <TableHead>#</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead v-if="todayCampaign.vends.length > 1">Machine</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sold</TableHead>
+                </tr>
+              </thead>
+              <tbody class="bg-white">
+                <tr v-for="(s, sIndex) in todayCampaign.today" :key="s.id" class="divide-x divide-y-2 divide-gray-300"
+                  :class="s.live ? 'bg-rose-50' : 'odd:bg-white even:bg-gray-100'">
+                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
+                    {{ sIndex + 1 }}
+                  </TableData>
+                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
+                    <span class="whitespace-nowrap">{{ s.starts_at }}–{{ s.ends_at }}</span>
+                  </TableData>
+                  <TableData v-if="todayCampaign.vends.length > 1" :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
+                    {{ vendCode(todayCampaign, s.vend_id) }}
+                  </TableData>
+                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-left">
+                    {{ s.product }}
+                  </TableData>
+                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-right">
+                    <span class="whitespace-nowrap">
+                      <span class="line-through text-gray-400 mr-1">{{ money(s.original_price) }}</span>{{ money(s.promo_price) }}
+                    </span>
+                  </TableData>
+                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
+                    <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border whitespace-nowrap" :class="slotStatusClass(s)">
+                      {{ slotStatusLabel(s) }}
+                    </span>
+                  </TableData>
+                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
+                    {{ s.units_sold ?? '-' }}
+                  </TableData>
+                </tr>
+                <tr v-if="!todayCampaign.today.length">
+                  <td colspan="7" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
+                    No slots today
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </template>
     </Modal>
@@ -292,36 +344,54 @@
               {{ m.code }}
               <span v-if="!m.supported" class="ml-1 text-xs text-amber-700 font-normal">⚠ app {{ m.apk_version_code ?? '?' }} — no slots until it runs {{ minApkVersion }}+</span>
             </div>
-            <table class="min-w-full text-xs mt-1 border">
-              <thead class="bg-gray-50">
-                <tr class="text-left">
-                  <th class="px-2 py-1">Rank</th>
-                  <th class="px-2 py-1">SKU</th>
-                  <th class="px-2 py-1 text-right">Stock</th>
-                  <th class="px-2 py-1 text-right">Sold / day</th>
-                  <th class="px-2 py-1 text-right">Days of cover</th>
-                  <th class="px-2 py-1 text-right">Price</th>
-                  <th class="px-2 py-1">Why not</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in m.candidates" :key="row.product_id" class="border-t" :class="row.rank ? '' : 'text-gray-400'">
-                  <td class="px-2 py-1 font-semibold">{{ row.rank ?? '—' }}</td>
-                  <td class="px-2 py-1">{{ row.product_code }} {{ row.product_name }}</td>
-                  <td class="px-2 py-1 text-right whitespace-nowrap">
-                    {{ row.qty }}<span v-if="row.capacity"> / {{ row.capacity }} ({{ row.balance_pct }}%)</span>
-                  </td>
-                  <td class="px-2 py-1 text-right">{{ row.avg_daily_sales }}</td>
-                  <td class="px-2 py-1 text-right">{{ row.days_of_cover ?? '∞' }}</td>
-                  <td class="px-2 py-1 text-right whitespace-nowrap">
-                    <span v-if="row.promo_price" class="line-through mr-1">{{ money(row.original_price) }}</span>
-                    {{ money(row.promo_price ?? row.original_price) }}
-                  </td>
-                  <td class="px-2 py-1">{{ row.excluded_reason }}</td>
-                </tr>
-                <tr v-if="!m.candidates.length"><td colspan="7" class="px-2 py-2 text-gray-500">No stock rows on this machine.</td></tr>
-              </tbody>
-            </table>
+            <div class="mt-1 shadow-sm ring-1 ring-black ring-opacity-5">
+              <table class="min-w-full border-separate" style="border-spacing: 0">
+                <thead class="bg-gray-100">
+                  <tr class="divide-x divide-gray-200">
+                    <TableHead>Rank</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Sold / Day</TableHead>
+                    <TableHead>Days of Cover</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Why Not</TableHead>
+                  </tr>
+                </thead>
+                <tbody class="bg-white">
+                  <tr v-for="(row, rowIndex) in m.candidates" :key="row.product_id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100"
+                    :class="row.rank ? '' : 'opacity-60'">
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-center font-semibold">
+                      {{ row.rank ?? '-' }}
+                    </TableData>
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-left">
+                      {{ row.product_code }} {{ row.product_name }}
+                    </TableData>
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-center">
+                      <span class="whitespace-nowrap">{{ row.qty }}<span v-if="row.capacity"> / {{ row.capacity }} ({{ row.balance_pct }}%)</span></span>
+                    </TableData>
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-center">
+                      {{ row.avg_daily_sales }}
+                    </TableData>
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-center">
+                      {{ row.days_of_cover ?? '∞' }}
+                    </TableData>
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-right">
+                      <span class="whitespace-nowrap">
+                        <span v-if="row.promo_price" class="line-through text-gray-400 mr-1">{{ money(row.original_price) }}</span>{{ money(row.promo_price ?? row.original_price) }}
+                      </span>
+                    </TableData>
+                    <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-left">
+                      {{ row.excluded_reason }}
+                    </TableData>
+                  </tr>
+                  <tr v-if="!m.candidates.length">
+                    <td colspan="7" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
+                      No stock rows on this machine
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </template>
@@ -337,7 +407,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { PlusIcon } from '@heroicons/vue/20/solid';
+import { ClockIcon, EyeIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -360,7 +430,7 @@ const dayPresets = [
   { name: 'Weekends', mask: 96 },
 ]
 const statusLabels = { running: 'Running now', scheduled: 'Scheduled', paused: 'Paused', ended: 'Ended' }
-const slotStatusLabels = { ended: 'done', sold_out: 'sold out', cancelled: 'cancelled' }
+const slotStatusLabels = { ended: 'Done', sold_out: 'Sold out', cancelled: 'Cancelled' }
 
 const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
@@ -402,6 +472,20 @@ function statusClass(status) {
     paused: 'bg-gray-100 text-gray-700 border-gray-300',
     ended: 'bg-gray-50 text-gray-400 border-gray-200',
   }[status]
+}
+
+function slotStatusLabel(s) {
+  if (s.live) return 'Live'
+  return s.status === 'scheduled' ? 'Scheduled' : slotStatusLabels[s.status]
+}
+
+function slotStatusClass(s) {
+  if (s.live) return 'bg-rose-100 text-rose-800 border-rose-300'
+  return {
+    scheduled: 'bg-sky-100 text-sky-800 border-sky-300',
+    sold_out: 'bg-amber-50 text-amber-800 border-amber-300',
+    cancelled: 'bg-gray-100 text-gray-500 border-gray-300',
+  }[s.status] ?? 'bg-gray-50 text-gray-500 border-gray-200'
 }
 
 function money(cents) {
