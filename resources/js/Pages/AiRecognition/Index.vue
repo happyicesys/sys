@@ -380,7 +380,10 @@
             <p class="mt-1 text-gray-600">This is sent to Payrallel at once and cannot be undone here.</p>
           </div>
           <p v-if="charge.error" class="text-sm text-red-700">{{ charge.error }}</p>
-          <div class="flex justify-end space-x-2 pt-2">
+          <div v-if="charge.answered" class="flex justify-end pt-2">
+            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50" @click="closeCharge">Close</button>
+          </div>
+          <div v-else class="flex justify-end space-x-2 pt-2">
             <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50" :disabled="charge.sending" @click="charge.step = 1; charge.error = ''">Back</button>
             <button type="button" class="rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               :disabled="charge.sending" @click="submitCharge"
@@ -562,10 +565,10 @@ onMounted(() => {
 
 // Key in charge: amount → confirm → POST. Money is integer cents; the typed text is parsed
 // as a string, never through a float.
-const charge = ref({ open: false, step: 1, row: null, amount: '', cents: 0, error: '', sending: false })
+const charge = ref({ open: false, step: 1, row: null, amount: '', cents: 0, error: '', sending: false, answered: false })
 
 function openCharge(row) {
-  charge.value = { open: true, step: 1, row, amount: '', cents: 0, error: '', sending: false }
+  charge.value = { open: true, step: 1, row, amount: '', cents: 0, error: '', sending: false, answered: false }
 }
 
 function closeCharge() {
@@ -605,8 +608,10 @@ function submitCharge() {
       }
       charge.value.open = false
     },
+    // The server has the final word (refused / unknown / no longer waiting): nothing is resent from here.
     onError: (errors) => {
       charge.value.error = errors.amount_cents || 'The charge was not sent.'
+      charge.value.answered = true
     },
     onFinish: () => {
       charge.value.sending = false

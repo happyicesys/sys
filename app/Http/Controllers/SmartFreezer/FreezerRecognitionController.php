@@ -180,7 +180,10 @@ class FreezerRecognitionController extends Controller
         return match (true) {
             $intent->state === CardPaymentIntent::STATE_VOIDED => back()->with('success', 'Hold released — nothing charged.'),
             $intent->state === CardPaymentIntent::STATE_CAPTURED => back()->with('success', 'Charged '.number_format($intent->captured_cents / 100, 2).' on the T05.'),
-            default => back()->withErrors(['amount_cents' => "The charge of {$amount} was not confirmed: ".($intent->last_error ?? 'see the row').'.']),
+            // Kept on the hold either way: an unknown outcome waits for a person checking Payrallel,
+            // a refusal is retried by card-payments:reconcile every 10 minutes.
+            isset($intent->ai_decision['uncertain']) => back()->withErrors(['amount_cents' => "The charge of {$amount} may have gone through — it is not resent. Check Payrallel's portal."]),
+            default => back()->withErrors(['amount_cents' => "Payrallel refused the charge of {$amount} (".($intent->last_error ?? 'no reason given').'). mark1 keeps the amount and retries every 10 minutes.']),
         };
     }
 

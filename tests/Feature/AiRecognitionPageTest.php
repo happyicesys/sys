@@ -290,6 +290,21 @@ class AiRecognitionPageTest extends TestCase
         $this->assertCount(1, $gateway->callsOf('capture'));
     }
 
+    public function test_a_refused_keyed_in_charge_is_kept_and_retried_not_offered_again(): void
+    {
+        [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
+        $gateway->refuseAbove = 0;
+
+        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])
+            ->assertSessionHasErrors(['amount_cents' => 'Payrallel refused the charge of 4.60 (ai capture: Payrallel capture refused (HTTP 422): increment declined). mark1 keeps the amount and retries every 10 minutes.']);
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
+        $this->assertSame(460, $intent->ai_decision['capture_cents']);
+        $this->actingAs($this->charger())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('recognitions.data.0.card.awaits_person', false));
+    }
+
     public function test_another_operators_charger_cannot_reach_the_hold(): void
     {
         [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
