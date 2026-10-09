@@ -71,7 +71,9 @@ return [
     // A hold still awaiting the AI this long after the door closed is charged in
     // full, so it can never expire uncaptured and hand the goods out free. Brian:
     // "just before hold expiry" — Payrallel says about a month, not per scheme, so
-    // 3 days until they confirm the shortest lifetime.
+    // 3 days until they confirm the shortest lifetime. Only for a session the AI
+    // never answered: an answer without a verdict waits for a person (Brian,
+    // 2026-10-09; AI Recognition → Key in charge).
     'ai_capture_backstop_hours' => (int) env('PAYRALLEL_AI_CAPTURE_BACKSTOP_HOURS', 72),
 
     // Accepted clock skew on device-signed requests (X-Device-Timestamp).

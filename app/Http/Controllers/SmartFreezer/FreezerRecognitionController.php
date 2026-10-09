@@ -10,9 +10,11 @@ use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\SmartFreezer\FreezerClipLinks;
+use App\Services\CardTerminal\CardPaymentService;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Support\VendCode;
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Inertia\Inertia;
@@ -33,6 +35,7 @@ class FreezerRecognitionController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read ai-recognition']);
+        $this->middleware(['permission:charge ai-recognition'])->only('charge');
     }
 
     public function index(Request $request)
@@ -124,6 +127,7 @@ class FreezerRecognitionController extends Controller
                 RecognitionVerdict::MATCH, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::TOOK_LESS,
                 RecognitionVerdict::MIXED, RecognitionVerdict::UNRECOGNISED, RecognitionVerdict::INCOMPLETE,
             ],
+            'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
             'filters' => [
                 'status' => $request->input('status', 'all'),
                 'verdict' => $request->input('verdict', 'all'),
@@ -138,6 +142,46 @@ class FreezerRecognitionController extends Controller
                 'sortBy' => $request->sortBy ?? false,
             ],
         ]);
+    }
+
+    /**
+     * A person keys in the final charge for a T05 hold the AI could not decide (Brian, 2026-10-09).
+     * Only T05 holds come here: NETS and QR sales were charged at the machine, and the AI only
+     * reconciles their stock.
+     */
+    public function charge(Request $request, SmartFreezerRecognition $recognition, CardPaymentService $payments)
+    {
+        $data = $request->validate([
+            'amount_cents' => ['required', 'integer', 'min:0', 'max:100000'],
+        ]);
+        // Viewer ceiling, as on the list: an operator-restricted viewer acts on its own freezers only.
+        if (($operatorId = OperatorVendFilterScope::viewerOperatorId()) !== null
+            && (int) Vend::withoutGlobalScopes()->whereKey($recognition->vend_id)->value('operator_id') !== $operatorId) {
+            abort(404);
+        }
+        $intent = $recognition->session_ref === null ? null : CardPaymentIntent::query()
+            ->where('vend_id', $recognition->vend_id)
+            ->where('session_ref', $recognition->session_ref)
+            ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
+            ->orderByDesc('id')
+            ->first();
+        if ($intent === null) {
+            return back()->withErrors(['amount_cents' => 'No T05 card hold is waiting on this session.']);
+        }
+
+        try {
+            $intent = $payments->chargeByPerson($intent, (int) $data['amount_cents'], $request->user());
+        } catch (DomainException $e) {
+            return back()->withErrors(['amount_cents' => ucfirst($e->getMessage()).'.']);
+        }
+
+        $amount = number_format($data['amount_cents'] / 100, 2);
+
+        return match (true) {
+            $intent->state === CardPaymentIntent::STATE_VOIDED => back()->with('success', 'Hold released — nothing charged.'),
+            $intent->state === CardPaymentIntent::STATE_CAPTURED => back()->with('success', 'Charged '.number_format($intent->captured_cents / 100, 2).' on the T05.'),
+            default => back()->withErrors(['amount_cents' => "The charge of {$amount} was not confirmed: ".($intent->last_error ?? 'see the row').'.']),
+        };
     }
 
     /**
@@ -202,6 +246,12 @@ class FreezerRecognitionController extends Controller
                 'uncertain_cents' => $card->ai_decision['uncertain'] ?? null,
                 'reason' => $card->ai_decision['reason'] ?? null,
                 'error' => $card->last_error,
+                // The AI answered this session without a verdict: the hold stays until a person keys
+                // in the charge (CardPaymentService::chargeByPerson, which re-checks this).
+                'awaits_person' => $card->state === CardPaymentIntent::STATE_AWAITING_AI
+                    && ! isset($card->ai_decision['action']) && ! isset($card->ai_decision['uncertain']) && ! isset($card->ai_decision['inflight'])
+                    && $r->order_status !== null && $r->verdict === null,
+                'by_person' => $card->ai_decision['by_person']['name'] ?? null,
             ] : null,
         ];
     }

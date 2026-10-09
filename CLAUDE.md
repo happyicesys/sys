@@ -1327,7 +1327,15 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   old cart rule, still catches extras; an incomplete result never releases a hold;
   unrecognised / a taken product with no price → cart. No verdict → cart at
   `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
-  expire. `failed` recognitions are not verdicts — they wait for the backstop.
+  expire — but only for a session the AI never answered. **An AI answer without a verdict**
+  (a callback came: `orderStatus` ≠ 0 / "Processed by Human", or the sale never matched) is
+  **never charged on its own** (Brian, 2026-10-09): the hold stays `awaiting_ai` until a person
+  presses **Key in charge** on AI Recognition, keys in the final amount and confirms it twice
+  (`CardPaymentService::chargeByPerson`, permission `charge ai-recognition`: superadmin, admin).
+  0 releases the hold; above the hold is the same one capture with the hold as fallback; the
+  person is kept on `ai_decision.by_person`. These holds are in the 08:30 health email at once —
+  a forgotten one expires with the goods given away. Only T05 holds come here: NETS and QR
+  sales were paid at the machine and the AI only reconciles their stock.
   The decision is made ONCE (`ai_decision`: `capture_cents`, `fallback_cents`; the first
   verdict is final); a refused capture of the hold amount (4xx) is retried every 10 min.
   **A capture whose outcome is unknown is never resent** (a lost answer may already be

@@ -1365,14 +1365,17 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
 
 /*
 | AI Recognition (Transactions menu) — Smart Freezer door sessions put to Zijia's algorithm, with
-| the result and the verdict against the paid sale. Read-only; gated in the controller
-| (permission:read ai-recognition).
+| the result and the verdict against the paid sale. Gated in the controller (permission:read
+| ai-recognition); keying in a T05 charge needs permission:charge ai-recognition.
 */
 Route::middleware(['auth', 'cors'])->get('/ai-recognition', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'index'])
     ->name('ai-recognition');
 // Our own camera-5 door-session recording (smart_freezer_clips): a signed Spaces link, same gate.
 Route::middleware(['auth', 'cors'])->get('/freezer-clips/{clip}', [\App\Http\Controllers\SmartFreezer\FreezerClipController::class, 'show'])
     ->name('freezer-clips.show');
+// A person keys in the final charge for a T05 hold the AI could not decide (permission:charge ai-recognition).
+Route::middleware(['auth', 'cors'])->post('/ai-recognition/{recognition}/charge', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'charge'])
+    ->name('ai-recognition.charge');
 
 /*
 | Card Settlement — upload the acquirer's daily settlement report (NETS

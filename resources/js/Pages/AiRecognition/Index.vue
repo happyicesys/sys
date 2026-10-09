@@ -13,6 +13,9 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <div v-if="$page.props.flash.success" class="mb-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">
+        {{ $page.props.flash.success }}
+      </div>
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <p class="text-xs text-gray-500">
           Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw
@@ -299,6 +302,14 @@
                       <span v-if="row.card.increment_refused" class="text-gray-600 whitespace-nowrap">Payrallel refused the increase; hold charged</span>
                       <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">Not charged yet {{ formatCents(row.card.owed_cents) }}</span>
                       <span v-if="row.card.error" class="text-red-700">{{ row.card.error }}</span>
+                      <span v-if="row.card.by_person" class="text-gray-600 whitespace-nowrap">Keyed in by {{ row.card.by_person }}</span>
+                      <!-- The AI answered without a verdict: the hold waits for a person, never charged on its own. -->
+                      <button v-if="row.card.awaits_person && canCharge" type="button"
+                        class="mx-auto mt-1 inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 whitespace-nowrap"
+                        @click="openCharge(row)"
+                      >
+                        Key in charge
+                      </button>
                     </div>
                   </TableData>
                 </tr>
@@ -314,6 +325,72 @@
         </div>
       </div>
     </div>
+    <Modal :open="charge.open" @modalClose="closeCharge">
+      <template #header>
+        {{ charge.step === 1 ? 'Key in the final charge' : 'Confirm the charge' }}
+      </template>
+      <div v-if="charge.row" class="flex flex-col space-y-3 text-sm">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+          <span class="text-gray-500">Machine</span><span class="font-medium">{{ charge.row.vend_label }}</span>
+          <span class="text-gray-500">Order No</span><span class="font-mono">{{ charge.row.sale ? charge.row.sale.order_id : charge.row.session_ref }}</span>
+          <span class="text-gray-500">Card hold (T05)</span><span class="font-medium">{{ formatCents(charge.row.card.hold_cents) }}</span>
+          <span class="text-gray-500">AI</span><span>{{ charge.row.algorithm_status || '—' }}</span>
+          <span class="text-gray-500">Paid for</span>
+          <span>
+            <span v-for="line in charge.row.purchased" :key="line.product_id || line.name" class="block">{{ line.qty }} × {{ line.name }}</span>
+            <span v-if="!charge.row.purchased.length" class="text-gray-400">—</span>
+          </span>
+        </div>
+
+        <template v-if="charge.step === 1">
+          <p class="text-gray-600">
+            The AI could not judge this session, so the hold is waiting for you. Watch the videos, then key in what the
+            customer should pay. 0 releases the hold.
+          </p>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Final chargeable amount</label>
+            <div class="mt-1 flex items-center space-x-2">
+              <input type="text" inputmode="decimal" v-model="charge.amount" placeholder="0.00" @keyup.enter="nextCharge"
+                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-40 text-sm border-gray-300 rounded-md"
+              />
+              <button type="button" class="text-xs text-blue-600 hover:underline" @click="charge.amount = formatCents(charge.row.card.hold_cents)">
+                Use the hold ({{ formatCents(charge.row.card.hold_cents) }})
+              </button>
+            </div>
+            <p v-if="charge.error" class="mt-1 text-sm text-red-700">{{ charge.error }}</p>
+          </div>
+          <div class="flex justify-end space-x-2 pt-2">
+            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50" @click="closeCharge">Cancel</button>
+            <button type="button" class="rounded-md border border-indigo-600 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" @click="nextCharge">Next</button>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="rounded-md border px-3 py-3" :class="charge.cents === 0 ? 'border-gray-300 bg-gray-50' : 'border-amber-300 bg-amber-50'">
+            <p v-if="charge.cents === 0" class="font-semibold text-gray-800">
+              Release the {{ formatCents(charge.row.card.hold_cents) }} hold — the customer is charged nothing.
+            </p>
+            <p v-else class="font-semibold text-gray-800">
+              Charge {{ formatCents(charge.cents) }} to the customer's card on the T05?
+            </p>
+            <p v-if="charge.cents > charge.row.card.hold_cents" class="mt-1 text-amber-800">
+              This is above the {{ formatCents(charge.row.card.hold_cents) }} hold. Payrallel is asked to raise it; if they refuse,
+              only {{ formatCents(charge.row.card.hold_cents) }} is charged and the rest is recorded as not charged.
+            </p>
+            <p class="mt-1 text-gray-600">This is sent to Payrallel at once and cannot be undone here.</p>
+          </div>
+          <p v-if="charge.error" class="text-sm text-red-700">{{ charge.error }}</p>
+          <div class="flex justify-end space-x-2 pt-2">
+            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50" :disabled="charge.sending" @click="charge.step = 1; charge.error = ''">Back</button>
+            <button type="button" class="rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              :disabled="charge.sending" @click="submitCharge"
+            >
+              {{ charge.sending ? 'Sending…' : (charge.cents === 0 ? 'Release hold' : 'Charge ' + formatCents(charge.cents)) }}
+            </button>
+          </div>
+        </template>
+      </div>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -322,6 +399,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
+import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
@@ -335,6 +413,7 @@ const props = defineProps({
   recognitions: Object,
   statuses: Array,
   verdicts: Array,
+  canCharge: Boolean,
   filters: Object,
 })
 
@@ -417,6 +496,7 @@ function formatCents(cents) {
 // The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).
 function cardLabel(card) {
   if (card.uncertain_cents) return `T05 charge ${formatCents(card.uncertain_cents)} unconfirmed — check Payrallel`
+  if (card.awaits_person) return `T05 hold ${formatCents(card.hold_cents)} · AI gave no verdict — key in the charge`
   if (card.state === 'awaiting_ai') return `T05 hold ${formatCents(card.hold_cents)} · awaiting AI`
   if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} (hold ${formatCents(card.hold_cents)})`
   if (card.state === 'voided') return `T05 hold ${formatCents(card.hold_cents)} released`
@@ -425,6 +505,7 @@ function cardLabel(card) {
 
 function cardBadgeClass(card) {
   if (card.uncertain_cents) return 'bg-red-50 text-red-700 border-red-300'
+  if (card.awaits_person) return 'bg-indigo-50 text-indigo-800 border-indigo-300'
   if (card.state === 'awaiting_ai') return 'bg-amber-50 text-amber-800 border-amber-300'
   if (card.state === 'voided') return 'bg-gray-100 text-gray-700 border-gray-300'
   if (card.owed_cents) return 'bg-red-50 text-red-700 border-red-300'
@@ -478,6 +559,60 @@ onMounted(() => {
   ]
   filters.value.processed_by = processedByOptions.value.find((o) => o.id === filters.value.processed_by) || processedByOptions.value[0]
 })
+
+// Key in charge: amount → confirm → POST. Money is integer cents; the typed text is parsed
+// as a string, never through a float.
+const charge = ref({ open: false, step: 1, row: null, amount: '', cents: 0, error: '', sending: false })
+
+function openCharge(row) {
+  charge.value = { open: true, step: 1, row, amount: '', cents: 0, error: '', sending: false }
+}
+
+function closeCharge() {
+  if (!charge.value.sending) charge.value.open = false
+}
+
+function parseCents(text) {
+  const m = String(text).trim().match(/^(\d{1,6})(?:\.(\d{1,2}))?$/)
+  if (!m) return null
+  return parseInt(m[1], 10) * 100 + parseInt((m[2] || '0').padEnd(2, '0'), 10)
+}
+
+function nextCharge() {
+  const cents = parseCents(charge.value.amount)
+  if (cents === null) {
+    charge.value.error = 'Key in an amount like 7.60 (0 releases the hold).'
+    return
+  }
+  if (cents > 100000) {
+    charge.value.error = 'That is above 1000.00 — check the amount.'
+    return
+  }
+  charge.value.cents = cents
+  charge.value.error = ''
+  charge.value.step = 2
+}
+
+function submitCharge() {
+  charge.value.sending = true
+  router.post(`/ai-recognition/${charge.value.row.id}/charge`, { amount_cents: charge.value.cents }, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: (page) => {
+      if (page.props.errors && page.props.errors.amount_cents) {
+        charge.value.error = page.props.errors.amount_cents
+        return
+      }
+      charge.value.open = false
+    },
+    onError: (errors) => {
+      charge.value.error = errors.amount_cents || 'The charge was not sent.'
+    },
+    onFinish: () => {
+      charge.value.sending = false
+    },
+  })
+}
 
 function onSearchFilterUpdated() {
   router.get('/ai-recognition', {

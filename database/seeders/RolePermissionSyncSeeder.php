@@ -1068,6 +1068,13 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read'],
                 ['superadmin', 'admin', 'supervisor'],
             ],
+            // Key in the final charge of a T05 card hold the AI could not decide — takes money
+            // from a customer's card, so admin only.
+            [
+                'ai-recognition',
+                ['charge'],
+                ['superadmin', 'admin'],
+            ],
 
             // Operator Groups (payout groups) module. Source of truth = migration
             // 2026_07_06_120000_seed_operator_group_permissions.php. Listed here too

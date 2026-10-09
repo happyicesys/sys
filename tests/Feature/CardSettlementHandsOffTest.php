@@ -433,11 +433,17 @@ class CardSettlementHandsOffTest extends TestCase
         $intent(['state' => 'captured', 'owed_cents' => 200, 'last_error' => null, 'ai_decision' => ['increment_refused' => 'HTTP 422']]);
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subDays(3)]);
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour()]); // waiting normally: not listed
+        // The AI answered without a verdict: listed at once, it is never charged on its own.
+        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour(), 'session_ref' => 'SF-1-1-1']);
+        \App\Models\SmartFreezerRecognition::query()->create([
+            'vend_id' => $this->vend->id, 'trade_id' => 'SDK-1', 'session_ref' => 'SF-1-1-1', 'status' => 'failed', 'order_status' => 501,
+        ]);
 
         $section = collect(app(CardSettlementHealthCheck::class)->run())->firstWhere('key', 't05_ai_charges');
 
-        $this->assertCount(3, $section['items']);
+        $this->assertCount(4, $section['items']);
         $this->assertStringContainsString('resolve-ai-charge', $section['items'][0]['text']);
+        $this->assertStringContainsString('key in the charge on AI Recognition', $section['items'][3]['text']);
     }
 
     public function test_the_nightly_repair_releases_lines_whose_swept_test_sale_is_gone(): void

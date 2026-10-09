@@ -10,10 +10,14 @@ use App\Models\SmartFreezerVideo;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Services\CardTerminal\CardPaymentService;
+use App\Services\CardTerminal\Payrallel\PayrallelGateway;
+use App\Services\CardTerminal\TerminalTransaction;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
+use Tests\Support\FakeRemoteCardTerminalGateway;
 use Tests\TestCase;
 
 /** Transactions → AI Recognition (Smart Freezer): /ai-recognition. */
@@ -118,6 +122,7 @@ class AiRecognitionPageTest extends TestCase
                     'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
                     'judged_cents' => 960, 'increment_refused' => true, 'uncertain_cents' => null,
                     'reason' => 'AI judged took_more above the hold: one capture with auth increment', 'error' => 'further charge refused: no',
+                    'awaits_person' => false, 'by_person' => null,
                 ])
                 ->where('recognitions.data.0.card', null));
     }
@@ -219,6 +224,78 @@ class AiRecognitionPageTest extends TestCase
         // Time alone: that time of day on every day.
         $this->assertSame(3, $count(['time_from' => '13:00', 'time_to' => '14:00']));
         $this->actingAs($viewer)->get('/ai-recognition?time_from=25:99')->assertSessionHasErrors('time_from');
+    }
+
+    /** A T05 hold awaiting the AI on 50001, whose session the AI answered with 501 and no verdict. */
+    private function holdTheAiCouldNotDecide(): array
+    {
+        config(['payrallel.min_query_interval_ms' => 0, 'payrallel.mode' => 'preauth', 'payrallel.ai_capture' => true]);
+        $gateway = new FakeRemoteCardTerminalGateway;
+        $this->app->instance(PayrallelGateway::class, $gateway);
+        RemoteCardTerminal::create([
+            'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
+        ]);
+        $payments = $this->app->make(CardPaymentService::class);
+        $intent = $payments->authorize($this->vend, 'SF1', 760);
+        $gateway->answer('50001-SF1', TerminalTransaction::APPROVED);
+        $payments->capture($payments->refresh($intent), 760, 'SF-50001-1791100000-3');
+        $recognition = $this->recognition([
+            'session_ref' => 'SF-50001-1791100000-3', 'status' => SmartFreezerRecognition::STATUS_FAILED, 'order_status' => 501,
+        ]);
+
+        return [$gateway, $recognition];
+    }
+
+    private function charger(int $operatorId = 1): User
+    {
+        Permission::findOrCreate('charge ai-recognition', 'web');
+        $user = $this->viewer($operatorId);
+        $user->givePermissionTo('charge ai-recognition');
+
+        return $user;
+    }
+
+    public function test_a_hold_the_ai_could_not_decide_offers_key_in_charge(): void
+    {
+        $this->holdTheAiCouldNotDecide();
+
+        $this->actingAs($this->charger())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('canCharge', true)
+                ->where('recognitions.data.0.card.state', CardPaymentIntent::STATE_AWAITING_AI)
+                ->where('recognitions.data.0.card.awaits_person', true));
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canCharge', false));
+    }
+
+    public function test_a_person_charges_the_keyed_in_amount_on_the_t05(): void
+    {
+        [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
+
+        $this->actingAs($this->viewer())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])->assertForbidden();
+        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => -1])->assertSessionHasErrors('amount_cents');
+        $this->assertSame([], $gateway->callsOf('capture'));
+
+        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])
+            ->assertSessionHasNoErrors()->assertSessionHas('success');
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
+        $this->assertSame(460, $intent->captured_cents);
+        $this->assertSame([['capture', '50001-SF1', 460]], $gateway->callsOf('capture'));
+
+        // A second press finds nothing waiting.
+        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])
+            ->assertSessionHasErrors('amount_cents');
+        $this->assertCount(1, $gateway->callsOf('capture'));
+    }
+
+    public function test_another_operators_charger_cannot_reach_the_hold(): void
+    {
+        [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
+
+        $this->actingAs($this->charger(2))->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])->assertNotFound();
+        $this->assertSame([], $gateway->callsOf('capture'));
     }
 
     public function test_an_operator_viewer_sees_only_its_own_freezers_and_no_unmatched_sessions(): void

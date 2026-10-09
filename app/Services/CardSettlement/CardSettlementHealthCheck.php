@@ -8,6 +8,7 @@ use App\Models\CardSettlementRow;
 use App\Models\RefundTicket;
 use App\Models\VendTransaction;
 use App\Models\ZijiaSkuNotification;
+use App\Services\CardTerminal\CardPaymentService;
 use App\Services\SmartFreezer\Zijia\ZijiaBarcodeSync;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuApprovalService;
 use Carbon\Carbon;
@@ -199,12 +200,15 @@ class CardSettlementHealthCheck
     /**
      * T05 holds charged by the AI verdict (CardPaymentService::settleAwaitingAi) that need a
      * person: a charge whose outcome is unknown (never resent until resolved), a refused charge
-     * still retrying, money judged but not collected, and holds still waiting after two days
-     * (the backstop charges at 72 h; an uncaptured hold expires and gives the goods away).
+     * still retrying, money judged but not collected, a hold the AI answered without a verdict
+     * (never charged on its own — a person keys in the charge on AI Recognition), and holds still
+     * waiting after two days (the backstop charges at 72 h; an uncaptured hold expires and gives
+     * the goods away).
      */
     protected function t05AiCharges(string $base): array
     {
         $items = [];
+        $payments = app(CardPaymentService::class);
         CardPaymentIntent::query()
             ->with('vend:id,code,code_prefix')
             ->where(fn ($q) => $q->where('state', CardPaymentIntent::STATE_AWAITING_AI)
@@ -212,13 +216,14 @@ class CardSettlementHealthCheck
                     ->where('updated_at', '>=', now()->subDays(14))))
             ->orderBy('id')
             ->get()
-            ->each(function (CardPaymentIntent $i) use (&$items, $base) {
+            ->each(function (CardPaymentIntent $i) use (&$items, $base, $payments) {
                 $decision = (array) $i->ai_decision;
                 $machine = $i->vend?->codeLabel() ?? "vend #{$i->vend_id}";
                 $text = match (true) {
                     isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-ai-charge {$i->reference} --charged|--not-charged`",
                     $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected (Payrallel refused to raise the hold; the hold was charged)',
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
+                    $payments->awaitsPerson($i) => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100).' — the AI gave no verdict; key in the charge on AI Recognition (it is never charged on its own)',
                     $i->door_closed_at && $i->door_closed_at->lt(now()->subDays(2)) => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100).' still waiting for the AI since '.$i->door_closed_at->toDateTimeString(),
                     default => null,
                 };

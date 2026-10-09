@@ -5,6 +5,7 @@ namespace App\Services\CardTerminal;
 use App\Models\CardPaymentIntent;
 use App\Models\RemoteCardTerminal;
 use App\Models\SmartFreezerRecognition;
+use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\HappyHour\HappyHourPricing;
@@ -352,7 +353,8 @@ class CardPaymentService
      * the authorisation on their backend (Brian, 2026-10-04); if they refuse that increase, the hold
      * itself is captured and the rest recorded in `owed_cents`. Nothing taken releases the hold.
      * With no verdict it waits — until `ai_capture_backstop_hours` after the door closed, when the
-     * cart total is charged so the hold cannot expire unpaid.
+     * cart total is charged so the hold cannot expire unpaid. Not when the AI ANSWERED without a
+     * verdict: that hold waits for a person to key in the charge ({@see chargeByPerson}).
      *
      * The decision is made ONCE and kept on the intent (`ai_decision`). The capture is written
      * ahead (`inflight`): an answer that never came (timeout, 5xx, a run that died) is never
@@ -501,6 +503,74 @@ class CardPaymentService
         });
     }
 
+    /**
+     * Is this hold waiting for a person? The AI answered its session (a callback came) without a
+     * verdict, and nothing has been decided or sent yet. Such a hold is never charged on its own.
+     */
+    public function awaitsPerson(CardPaymentIntent $intent): bool
+    {
+        $decision = (array) $intent->ai_decision;
+
+        return $intent->state === CardPaymentIntent::STATE_AWAITING_AI
+            && ! isset($decision['action']) && ! isset($decision['uncertain']) && ! isset($decision['inflight'])
+            && $this->aiAnsweredWithoutVerdict($intent);
+    }
+
+    /**
+     * A person keyed in the final charge for a hold the AI could not decide (AI Recognition page,
+     * Brian, 2026-10-09). 0 releases the hold; above the hold is ONE capture Payrallel raises the
+     * authorisation for, with the hold as the fallback — the same execution as an AI decision, so
+     * the written-ahead capture, the never-resend rule and the 4xx retry all apply.
+     *
+     * @throws DomainException when the hold is not (or no longer) waiting for a person
+     */
+    public function chargeByPerson(CardPaymentIntent $intent, int $cents, User $by): CardPaymentIntent
+    {
+        if ($cents < 0) {
+            throw new DomainException('the charge cannot be negative');
+        }
+
+        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $by) {
+            if (! $this->awaitsPerson($intent)) {
+                throw new DomainException('this hold is no longer waiting for a person — reload the page');
+            }
+            $hold = (int) $intent->amount_cents;
+            $cart = (int) (((array) $intent->ai_decision)['cart_cents'] ?? $hold);
+            $decision = [
+                'cart_cents' => $cart,
+                'action' => $cents === 0 ? AiCaptureDecision::VOID : AiCaptureDecision::CAPTURE,
+                'capture_cents' => $cents,
+                'fallback_cents' => $cents > $hold ? $hold : null,
+                'judged_cents' => $cents,
+                'reason' => $cents === 0
+                    ? "Released by {$by->name} on AI Recognition (the AI gave no verdict)"
+                    : "Keyed in by {$by->name} on AI Recognition (the AI gave no verdict)".($cents > $hold ? ' — above the hold: one capture with auth increment' : ''),
+                'by_person' => ['user_id' => $by->id, 'name' => $by->name],
+                'decided_at' => Carbon::now()->toIso8601String(),
+            ];
+            $intent->update(['ai_decision' => $decision, 'last_error' => null, 'last_queried_at' => null]);
+            $this->events->record('ai.person_decision', ['cart_cents' => $cart, 'hold_cents' => $hold, 'capture_cents' => $cents, 'user_id' => $by->id, 'user' => $by->name],
+                $intent->terminal, $intent->custom_order_id, null, 'warning');
+
+            return $this->settleAwaitingAiLocked($intent);
+        });
+    }
+
+    /** A callback came for this hold's session, and no recognition of it carries a verdict. */
+    private function aiAnsweredWithoutVerdict(CardPaymentIntent $intent): bool
+    {
+        if ($intent->session_ref === null) {
+            return false;
+        }
+        $answered = SmartFreezerRecognition::query()
+            ->where('vend_id', $intent->vend_id)
+            ->where('session_ref', $intent->session_ref)
+            ->whereNotNull('order_status')
+            ->get(['id', 'verdict']);
+
+        return $answered->isNotEmpty() && $answered->every(fn (SmartFreezerRecognition $r) => $r->verdict === null);
+    }
+
     /** A provider refusal while settling: keep the decision, retry in AUTO_CAPTURE_RETRY_MINUTES. */
     private function chargeRefused(CardPaymentIntent $intent, string $what, CardTerminalException $e): CardPaymentIntent
     {
@@ -558,6 +628,13 @@ class CardPaymentService
                 $this->sales->paidUnitPrices($sale),
                 $this->shelfPrices($intent->vend_id, $productIds, $intent->door_closed_at ?? $intent->created_at),
             ), $recognition->id];
+        }
+
+        // The AI answered but gave no verdict (a non-zero orderStatus, or the sale never matched):
+        // the hold stays open for a person to key in the charge (chargeByPerson) — no backstop
+        // (Brian, 2026-10-09). The backstop is only for a session the AI never answered.
+        if ($this->aiAnsweredWithoutVerdict($intent)) {
+            return null;
         }
 
         $hours = (int) config('payrallel.ai_capture_backstop_hours', 72);

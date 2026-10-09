@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CardPaymentIntent;
 use App\Models\RemoteCardTerminal;
 use App\Models\SmartFreezerRecognition;
+use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\CardTerminal\CardPaymentService;
@@ -228,6 +229,91 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
         $this->assertSame(760, $intent->captured_cents);
         $this->assertStringContainsString('no AI verdict', $intent->ai_decision['reason']);
+    }
+
+    /** The AI answered the session (a callback came) but gave no verdict — e.g. orderStatus 501. */
+    private function answeredWithoutVerdict(): SmartFreezerRecognition
+    {
+        return SmartFreezerRecognition::query()->create([
+            'vend_id' => $this->vend->id, 'trade_id' => 'SDK-'.uniqid(), 'session_ref' => self::SESSION,
+            'status' => SmartFreezerRecognition::STATUS_FAILED, 'order_status' => 501,
+            'completed_at' => Carbon::now(), 'callback_verified' => true,
+        ]);
+    }
+
+    public function test_an_ai_answer_without_a_verdict_is_never_charged_on_its_own(): void
+    {
+        config(['payrallel.ai_capture_backstop_hours' => 72]);
+        $this->doorClosed();
+        $this->answeredWithoutVerdict();
+
+        Carbon::setTestNow(Carbon::now()->addHours(200));
+        $this->service->reconcile();
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state, 'no backstop once the AI has answered');
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertTrue($this->service->awaitsPerson($intent));
+    }
+
+    public function test_a_person_keys_in_the_charge_for_a_hold_the_ai_could_not_decide(): void
+    {
+        $this->doorClosed();
+        $this->answeredWithoutVerdict();
+        $by = User::factory()->create(['name' => 'brian']);
+
+        $intent = $this->service->chargeByPerson(CardPaymentIntent::sole(), 460, $by);
+
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
+        $this->assertSame(460, $intent->captured_cents);
+        $this->assertSame([['capture', '50001-SF1', 460]], $this->gateway->callsOf('capture'));
+        $this->assertSame(['user_id' => $by->id, 'name' => 'brian'], $intent->ai_decision['by_person']);
+        $this->assertFalse($this->service->awaitsPerson($intent));
+
+        $this->expectException(DomainException::class);
+        $this->service->chargeByPerson($intent, 460, $by); // never twice
+    }
+
+    public function test_a_person_keying_in_zero_releases_the_hold(): void
+    {
+        $this->doorClosed();
+        $this->answeredWithoutVerdict();
+
+        $intent = $this->service->chargeByPerson(CardPaymentIntent::sole(), 0, User::factory()->create());
+
+        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $intent->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+    }
+
+    public function test_a_person_charge_above_the_hold_falls_back_to_the_hold_when_payrallel_refuses(): void
+    {
+        $this->doorClosed();
+        $this->answeredWithoutVerdict();
+        $this->gateway->refuseAbove = 760;
+
+        $intent = $this->service->chargeByPerson(CardPaymentIntent::sole(), 1000, User::factory()->create());
+
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
+        $this->assertSame([1000, 760], array_column($this->gateway->callsOf('capture'), 2));
+        $this->assertSame(760, $intent->captured_cents);
+        $this->assertSame(240, $intent->owed_cents);
+    }
+
+    public function test_a_person_cannot_charge_a_hold_the_ai_has_not_answered_or_has_judged(): void
+    {
+        $this->doorClosed();
+        $by = User::factory()->create();
+
+        try {
+            $this->service->chargeByPerson(CardPaymentIntent::sole(), 500, $by);
+            $this->fail('no AI answer yet: the backstop still owns this hold');
+        } catch (DomainException) {
+        }
+
+        $this->verdict('match', [1 => 2, 2 => 1]);
+        $this->assertFalse($this->service->awaitsPerson(CardPaymentIntent::sole()));
+        $this->expectException(DomainException::class);
+        $this->service->chargeByPerson(CardPaymentIntent::sole(), 500, $by);
     }
 
     public function test_a_refused_charge_keeps_its_decision_and_retries_later(): void
