@@ -175,6 +175,30 @@ class AiRecognitionPageTest extends TestCase
         $this->assertSame(1, $count(['search' => '2009']));
     }
 
+    public function test_order_status_0_is_processed_by_ai_and_any_other_code_by_a_human(): void
+    {
+        $this->recognition(['status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0])->forceFill(['created_at' => Carbon::parse('2026-10-09 10:00:00')])->save();
+        $this->recognition(['status' => SmartFreezerRecognition::STATUS_FAILED, 'order_status' => 501])->forceFill(['created_at' => Carbon::parse('2026-10-09 09:00:00')])->save();
+        $this->recognition(['status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 401])->forceFill(['created_at' => Carbon::parse('2026-10-09 08:00:00')])->save();
+        $this->recognition(['status' => SmartFreezerRecognition::STATUS_SUBMITTED])->forceFill(['created_at' => Carbon::parse('2026-10-09 07:00:00')])->save();
+
+        $viewer = $this->viewer();
+        $this->actingAs($viewer)->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.processed_by', 'ai')
+                ->where('recognitions.data.1.processed_by', 'human')
+                ->where('recognitions.data.2.processed_by', 'human')
+                ->where('recognitions.data.3.processed_by', null)
+                ->where('filters.processed_by', 'all'));
+
+        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
+        $this->assertSame(4, $count(['processed_by' => 'all']));
+        $this->assertSame(1, $count(['processed_by' => 'ai']));
+        $this->assertSame(2, $count(['processed_by' => 'human']));
+        $this->assertSame(1, $count(['processed_by' => 'none']));
+        $this->actingAs($viewer)->get('/ai-recognition?processed_by=robot')->assertSessionHasErrors('processed_by');
+    }
+
     public function test_machine_id_and_time_filters_narrow_the_list(): void
     {
         $this->recognition()->forceFill(['created_at' => Carbon::parse('2026-09-30 09:15:00')])->save();

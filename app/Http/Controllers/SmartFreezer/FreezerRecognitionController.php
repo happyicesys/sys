@@ -43,6 +43,7 @@ class FreezerRecognitionController extends Controller
             'time_from' => ['nullable', 'date_format:H:i'],
             'time_to' => ['nullable', 'date_format:H:i'],
             'numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/'],
+            'processed_by' => ['nullable', 'in:all,ai,human,none'],
         ]);
 
         $numberPerPage = $request->numberPerPage ?: 100;
@@ -60,6 +61,13 @@ class FreezerRecognitionController extends Controller
                 'all' => $q,
                 'none' => $q->whereNull('verdict'),
                 default => $q->where('verdict', $v),
+            })
+            // Processed by: orderStatus 0 = the AI, any other code = a person (RecognitionResult::processedBy).
+            ->when($request->input('processed_by'), fn ($q, $p) => match ($p) {
+                RecognitionResult::PROCESSED_BY_AI => $q->where('order_status', RecognitionResult::STATUS_NORMAL),
+                RecognitionResult::PROCESSED_BY_HUMAN => $q->where('order_status', '<>', RecognitionResult::STATUS_NORMAL),
+                'none' => $q->whereNull('order_status'),
+                default => $q,
             })
             // A time narrows its date to "from 14:00" / "to 16:30"; with no date it is a time-of-day
             // window over every day (e.g. all door sessions between 12:00 and 14:00).
@@ -119,6 +127,7 @@ class FreezerRecognitionController extends Controller
             'filters' => [
                 'status' => $request->input('status', 'all'),
                 'verdict' => $request->input('verdict', 'all'),
+                'processed_by' => $request->input('processed_by', 'all'),
                 'search' => $request->input('search', ''),
                 'codes' => $request->input('codes', ''),
                 'date_from' => $request->input('date_from', ''),
@@ -153,6 +162,7 @@ class FreezerRecognitionController extends Controller
             'status' => $r->status,
             'status_reason' => $r->status_reason,
             'algorithm_status' => $this->algorithmStatus($r),
+            'processed_by' => RecognitionResult::processedBy($r->order_status === null ? null : (int) $r->order_status),
             'callback_verified' => $r->callback_verified,
             'request_id' => $r->request_id,
             'videos' => $r->videos->flatMap(fn ($v) => (array) $v->video_urls)->unique()->values()->all(),

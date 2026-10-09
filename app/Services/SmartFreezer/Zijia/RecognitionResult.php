@@ -12,6 +12,14 @@ final class RecognitionResult
 {
     public const STATUS_NORMAL = 0;
 
+    /**
+     * Who settled the session (Brian, 2026-10-09): `orderStatus` 0 = the AI answered on its own;
+     * any other code = Zijia's AI could not, so the answer came from a person on their side.
+     */
+    public const PROCESSED_BY_AI = 'ai';
+
+    public const PROCESSED_BY_HUMAN = 'human';
+
     /** `orderStatus` meanings, §6.2. Anything else is shown by its number. */
     private const STATUS_LABELS = [
         0 => 'normal',
@@ -70,6 +78,16 @@ final class RecognitionResult
     public function isNormal(): bool
     {
         return $this->orderStatus === self::STATUS_NORMAL;
+    }
+
+    /** {@see PROCESSED_BY_AI} / {@see PROCESSED_BY_HUMAN}, or null while no result has come back. */
+    public static function processedBy(?int $orderStatus): ?string
+    {
+        if ($orderStatus === null) {
+            return null;
+        }
+
+        return $orderStatus === self::STATUS_NORMAL ? self::PROCESSED_BY_AI : self::PROCESSED_BY_HUMAN;
     }
 
     /** e.g. "recognition error — 503 goods not listed in the model (商品未上架)". */

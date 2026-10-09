@@ -22,7 +22,7 @@
         </p>
 
         <!-- Filters -->
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-3">
+        <div class="grid grid-cols-1 md:grid-cols-7 gap-2 mt-3">
           <div class="md:col-span-2">
             <SearchInput placeholderStr="Order no / device / machine" v-model="filters.search" @keyup.enter="onSearchFilterUpdated()">
               Search
@@ -56,6 +56,22 @@
             <MultiSelect
               v-model="filters.verdict"
               :options="verdictOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Processed By
+            </label>
+            <MultiSelect
+              v-model="filters.processed_by"
+              :options="processedByOptions"
               trackBy="id"
               valueProp="id"
               label="name"
@@ -223,6 +239,11 @@
                       <span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusBadgeClass(row.status)">
                         {{ statusLabels[row.status] || row.status }}
                       </span>
+                      <span v-if="row.processed_by" class="inline-flex w-fit items-center whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-bold border"
+                        :class="processedByBadgeClass(row.processed_by)" :title="processedByTitles[row.processed_by]"
+                      >
+                        {{ processedByLabels[row.processed_by] }}
+                      </span>
                       <span v-if="row.algorithm_status" class="text-xs text-gray-700" title="The AI's own status">AI: {{ row.algorithm_status }}</span>
                       <span v-if="row.status_reason && row.status_reason !== ('algorithm: ' + row.algorithm_status)" class="text-xs text-gray-500">{{ row.status_reason }}</span>
                       <span v-if="row.callback_verified === false" class="text-xs text-red-700">Result signature NOT verified</span>
@@ -334,6 +355,24 @@ const verdictLabels = {
   incomplete: 'Cannot judge',
 }
 
+// orderStatus 0 = the AI answered on its own; any other code = a person at Zijia settled it.
+const processedByLabels = {
+  ai: 'Processed by AI',
+  human: 'Processed by Human',
+}
+
+const processedByTitles = {
+  ai: 'AI status 0 (normal): the AI answered on its own',
+  human: 'AI status not 0: the AI could not answer on its own, so a person settled it',
+}
+
+function processedByBadgeClass(processedBy) {
+  return {
+    ai: 'bg-indigo-50 text-indigo-700 border-indigo-300',
+    human: 'bg-orange-50 text-orange-800 border-orange-300',
+  }[processedBy] || 'bg-gray-100 text-gray-700 border-gray-300'
+}
+
 function statusBadgeClass(status) {
   return {
     pending: 'bg-gray-100 text-gray-700 border-gray-300',
@@ -397,6 +436,7 @@ const filters = ref({
   codes: props.filters.codes || '',
   status: props.filters.status || 'all',
   verdict: props.filters.verdict || 'all',
+  processed_by: props.filters.processed_by || 'all',
   date_from: props.filters.date_from || '',
   date_to: props.filters.date_to || '',
   time_from: props.filters.time_from || '',
@@ -409,6 +449,7 @@ const filters = ref({
 const numberPerPageOptions = ref([])
 const statusOptions = ref([])
 const verdictOptions = ref([])
+const processedByOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -429,6 +470,13 @@ onMounted(() => {
     ...props.verdicts.map((v) => ({ id: v, name: verdictLabels[v] || v })),
   ]
   filters.value.verdict = verdictOptions.value.find((o) => o.id === filters.value.verdict) || verdictOptions.value[0]
+  processedByOptions.value = [
+    { id: 'all', name: 'All' },
+    { id: 'ai', name: 'AI' },
+    { id: 'human', name: 'Human' },
+    { id: 'none', name: 'No result yet' },
+  ]
+  filters.value.processed_by = processedByOptions.value.find((o) => o.id === filters.value.processed_by) || processedByOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
@@ -436,6 +484,7 @@ function onSearchFilterUpdated() {
     ...filters.value,
     status: filters.value.status ? filters.value.status.id : 'all',
     verdict: filters.value.verdict ? filters.value.verdict.id : 'all',
+    processed_by: filters.value.processed_by ? filters.value.processed_by.id : 'all',
     numberPerPage: filters.value.numberPerPage.id,
   }, {
     preserveState: true,
