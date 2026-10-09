@@ -478,8 +478,8 @@ const verdictLabels = {
 
 // orderStatus 0 = the AI answered on its own; any other code = a person at Zijia settled it.
 const processedByLabels = {
-  ai: 'Processed by AI',
-  human: 'Processed by Human',
+  ai: 'AI',
+  human: 'Human',
 }
 
 const processedByTitles = {
@@ -596,8 +596,8 @@ onMounted(() => {
   filters.value.verdict = verdictOptions.value.find((o) => o.id === filters.value.verdict) || verdictOptions.value[0]
   processedByOptions.value = [
     { id: 'all', name: 'All' },
-    { id: 'ai', name: 'AI' },
-    { id: 'human', name: 'Human' },
+    { id: 'ai', name: processedByLabels.ai },
+    { id: 'human', name: processedByLabels.human },
     { id: 'none', name: 'No result yet' },
   ]
   filters.value.processed_by = processedByOptions.value.find((o) => o.id === filters.value.processed_by) || processedByOptions.value[0]

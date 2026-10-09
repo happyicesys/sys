@@ -1265,7 +1265,7 @@ and the verdict against the sale. It reads `smart_freezer_recognitions` only —
 link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
 session matched to no freezer (a supplier test cabinet) only the unrestricted operator.
-Each row is badged **Processed by AI** (`orderStatus` 0) or **Processed by Human** (any other
+Each row is badged **AI** (`orderStatus` 0) or **Human** (any other
 code: Zijia's AI could not answer on its own) — one rule, `RecognitionResult::processedBy()`, which
 the badge and the Processed By filter (`processed_by`: all / ai / human / none) both read (Brian, 2026-10-09).
 
@@ -1328,7 +1328,7 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   unrecognised / a taken product with no price → cart. No verdict → cart at
   `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
   expire — but only for a session the AI never answered. **An AI answer without a verdict**
-  (a callback came: `orderStatus` ≠ 0 / "Processed by Human", or the sale never matched) is
+  (a callback came: `orderStatus` ≠ 0 / the "Human" badge, or the sale never matched) is
   **never charged on its own** (Brian, 2026-10-09): the hold stays `awaiting_ai` until a person
   presses **Key in charge** on AI Recognition, keys in the final amount and confirms it twice
   (`CardPaymentService::chargeByPerson`, permission `charge ai-recognition`: superadmin, admin).
