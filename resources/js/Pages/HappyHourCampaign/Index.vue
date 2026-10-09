@@ -41,7 +41,6 @@
                       <TableHead>When</TableHead>
                       <TableHead>Offer</TableHead>
                       <TableHead>Machines</TableHead>
-                      <TableHead>Today's lineup</TableHead>
                       <TableHead></TableHead>
                     </tr>
                   </thead>
@@ -55,6 +54,9 @@
                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
                           {{ statusLabels[c.status] }}
                         </span>
+                        <div v-for="s in c.today.filter(s => s.live)" :key="s.id" class="mt-1 text-xs font-semibold text-rose-700 whitespace-nowrap">
+                          <span v-if="c.vends.length > 1">{{ vendCode(c, s.vend_id) }} · </span>{{ s.product }} {{ money(s.promo_price) }}
+                        </div>
                       </TableData>
                       <TableData>
                         <div class="text-sm">{{ c.days_label }}, {{ c.window_start }}–{{ c.window_end }}</div>
@@ -80,28 +82,18 @@
                         </div>
                       </TableData>
                       <TableData>
-                        <div v-if="!c.today.length" class="text-xs text-gray-400">No slots today</div>
-                        <div v-for="s in c.today" :key="s.id" class="text-xs whitespace-nowrap"
-                          :class="s.live ? 'font-semibold text-rose-700' : (s.status === 'scheduled' ? 'text-gray-700' : 'text-gray-400')">
-                          <span v-if="c.vends.length > 1">{{ vendCode(c, s.vend_id) }} · </span>
-                          {{ s.starts_at }}–{{ s.ends_at }} {{ s.product }}
-                          <span class="line-through text-gray-400">{{ money(s.original_price) }}</span>
-                          {{ money(s.promo_price) }}
-                          <span v-if="s.live">(live)</span>
-                          <span v-else-if="s.status !== 'scheduled'">({{ slotStatusLabels[s.status] }})</span>
-                          <span v-if="s.units_sold !== null"> · sold {{ s.units_sold }}</span>
-                        </div>
-                      </TableData>
-                      <TableData>
                         <div class="flex flex-col space-y-1">
                           <Button class="bg-sky-500 hover:bg-sky-600 text-white text-xs" @click="openPreview(c)">Preview lineup</Button>
+                          <Button class="bg-white hover:bg-gray-50 text-sky-700 border border-sky-300 text-xs" @click="openToday(c)">
+                            Today's slots ({{ c.today.length }})
+                          </Button>
                           <Button v-if="permissions.includes('update happy-hour-campaigns')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs" @click="openEdit(c)">Edit</Button>
                           <Button v-if="permissions.includes('delete happy-hour-campaigns')" class="bg-red-50 hover:bg-red-100 text-red-700 text-xs" @click="destroy(c)">Delete</Button>
                         </div>
                       </TableData>
                     </tr>
                     <tr v-if="!campaigns.length">
-                      <td colspan="7" class="text-center text-sm text-gray-500 py-6">No Happy Hour campaigns yet.</td>
+                      <td colspan="6" class="text-center text-sm text-gray-500 py-6">No Happy Hour campaigns yet.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -249,6 +241,43 @@
       </template>
     </Modal>
 
+    <!-- Today's slots -->
+    <Modal :open="!!todayCampaign" @modalClose="todayId = null">
+      <template #header>
+        <span>Today's slots · {{ todayCampaign?.name }}</span>
+      </template>
+      <template #default>
+        <div v-if="todayCampaign" class="max-h-[70vh] overflow-y-auto">
+          <div v-if="!todayCampaign.today.length" class="text-sm text-gray-500">No slots today.</div>
+          <table v-else class="min-w-full text-xs border">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr class="text-left">
+                <th class="px-2 py-1">Time</th>
+                <th class="px-2 py-1" v-if="todayCampaign.vends.length > 1">Machine</th>
+                <th class="px-2 py-1">SKU</th>
+                <th class="px-2 py-1 text-right">Price</th>
+                <th class="px-2 py-1">Status</th>
+                <th class="px-2 py-1 text-right">Sold</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in todayCampaign.today" :key="s.id" class="border-t"
+                :class="s.live ? 'font-semibold text-rose-700 bg-rose-50' : (s.status === 'scheduled' ? 'text-gray-700' : 'text-gray-400')">
+                <td class="px-2 py-1 whitespace-nowrap">{{ s.starts_at }}–{{ s.ends_at }}</td>
+                <td class="px-2 py-1" v-if="todayCampaign.vends.length > 1">{{ vendCode(todayCampaign, s.vend_id) }}</td>
+                <td class="px-2 py-1">{{ s.product }}</td>
+                <td class="px-2 py-1 text-right whitespace-nowrap">
+                  <span class="line-through text-gray-400 mr-1">{{ money(s.original_price) }}</span>{{ money(s.promo_price) }}
+                </td>
+                <td class="px-2 py-1">{{ s.live ? 'live' : (s.status === 'scheduled' ? 'scheduled' : slotStatusLabels[s.status]) }}</td>
+                <td class="px-2 py-1 text-right">{{ s.units_sold ?? '' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </Modal>
+
     <!-- Preview lineup -->
     <Modal :open="showPreview" @modalClose="showPreview = false">
       <template #header>
@@ -348,6 +377,8 @@ const selectedMachines = ref([])
 const selectedExcluded = ref([])
 const showPreview = ref(false)
 const preview = ref(null)
+const todayId = ref(null)
+const todayCampaign = computed(() => props.campaigns.find(c => c.id === todayId.value) ?? null)
 
 const unsupportedPicked = computed(() => selectedMachines.value.filter(m => !m.supported).map(m => m.name))
 
@@ -419,6 +450,10 @@ function submit() {
 function destroy(c) {
   if (!confirm(`Delete "${c.name}"? Its remaining slots today stop at once.`)) return
   router.delete(`/happy-hour-campaigns/${c.id}`, { preserveScroll: true })
+}
+
+function openToday(c) {
+  todayId.value = c.id
 }
 
 async function openPreview(c) {
