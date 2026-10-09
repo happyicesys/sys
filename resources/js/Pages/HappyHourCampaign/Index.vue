@@ -270,7 +270,7 @@
     </Modal>
 
     <!-- Today's slots -->
-    <Modal :open="!!todayCampaign" @modalClose="todayId = null">
+    <Modal :open="showToday" @modalClose="showToday = false">
       <template #header>
         <span>Today's slots · {{ todayCampaign?.name }}</span>
       </template>
@@ -448,6 +448,7 @@ const selectedExcluded = ref([])
 const showPreview = ref(false)
 const preview = ref(null)
 const todayId = ref(null)
+const showToday = ref(false)
 const todayCampaign = computed(() => props.campaigns.find(c => c.id === todayId.value) ?? null)
 
 const unsupportedPicked = computed(() => selectedMachines.value.filter(m => !m.supported).map(m => m.name))
@@ -538,6 +539,7 @@ function destroy(c) {
 
 function openToday(c) {
   todayId.value = c.id
+  showToday.value = true
 }
 
 async function openPreview(c) {
