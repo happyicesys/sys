@@ -1489,22 +1489,25 @@ class ProductMappingController extends Controller
             // Replicate the attachments. We copy the underlying file to a new
             // path so the original and the replica stay independent (deleting an
             // attachment hard-deletes its file). The file name (name) and the
-            // price level (type) are carried over.
+            // price level (type) are carried over. The files live on the default
+            // disk (DO Spaces in prod), where upload stored them; a file missing
+            // there is shared as before, and Attachment::deleteFileIfUnshared()
+            // keeps a shared file alive while any row still points at it.
             foreach ($productMapping->attachments as $attachment) {
                 $localUrl = $attachment->local_url;
                 $fullUrl = $attachment->full_url;
 
-                if ($attachment->local_url && Storage::disk('public')->exists($attachment->local_url)) {
+                if ($attachment->local_url && Storage::exists($attachment->local_url)) {
                     $dir = trim(dirname($attachment->local_url), '.');
                     $dir = $dir !== '' ? $dir : 'sys/product-mappings';
                     $extension = pathinfo($attachment->local_url, PATHINFO_EXTENSION);
                     $newFileName = Str::random(40).($extension ? '.'.$extension : '');
                     $newLocalUrl = $dir.'/'.$newFileName;
 
-                    Storage::disk('public')->copy($attachment->local_url, $newLocalUrl);
-
-                    $localUrl = $newLocalUrl;
-                    $fullUrl = Storage::disk('public')->url($newLocalUrl);
+                    if (Storage::copy($attachment->local_url, $newLocalUrl)) {
+                        $localUrl = $newLocalUrl;
+                        $fullUrl = Storage::url($newLocalUrl);
+                    }
                 }
 
                 $replicated->attachments()->create([

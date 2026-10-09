@@ -12,9 +12,9 @@ use App\Models\Operator;
 use App\Models\PayoutGroup;
 use App\Services\Banking\CimbBankDirectory;
 use App\Services\Banking\CimbBulkPaymentFile;
+use App\Support\PayoutFiles;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Site Settlement — batches eligible Site Summary rows (location-fee / commission)
@@ -220,7 +220,7 @@ class CommissionSettlementService
             $content = $file->render();
             $filename = $settlement->reference . '-cimb.txt';
             $path = 'commission-payouts/' . $filename;
-            Storage::disk('local')->put($path, $content);
+            PayoutFiles::put($path, $content);
 
             CommissionSettlementExport::create([
                 'commission_settlement_id' => $settlement->id,

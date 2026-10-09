@@ -1132,9 +1132,7 @@ class RefundController extends Controller
 
     public function downloadBatch(RefundPayoutBatch $batch)
     {
-        abort_unless($batch->csv_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($batch->csv_path), 404);
-
-        return \Illuminate\Support\Facades\Storage::disk('local')->download($batch->csv_path, $batch->reference.'.csv');
+        return \App\Support\PayoutFiles::download($batch->csv_path, $batch->reference.'.csv');
     }
 
     public function viewAttachment(RefundTicket $ticket, RefundTicketAttachment $attachment)

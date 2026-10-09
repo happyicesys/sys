@@ -101,4 +101,11 @@ return [
         'disk' => env('REFUND_ATTACHMENT_DISK', 'local'),
     ],
 
+    // Bank payout files — the refund CIMB/PayNow files, the PayPal worklist and
+    // the commission CIMB file (App\Support\PayoutFiles). Stored PRIVATELY on
+    // DO Spaces, served only through the authed download routes; falls back to
+    // 'local' when the Spaces key/secret are not set. Files written before
+    // 2026-10-09 were moved with: php artisan payout-files:migrate-to-spaces
+    'payout_files_disk' => env('PAYOUT_FILES_DISK', 'digitaloceanspaces'),
+
 ];

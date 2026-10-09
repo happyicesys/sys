@@ -6,7 +6,6 @@ use App\Jobs\Vend\PushApkSettingSync;
 use App\Models\ApkSetting;
 use App\Models\Attachment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class AttachmentController extends Controller
 {
@@ -45,7 +44,7 @@ class AttachmentController extends Controller
         // findOrFail: a double-click or a second tab deleting the same row
         // must 404, not fatal on a null deref.
         $attachment = Attachment::findOrFail($id);
-        Storage::disk('public')->delete($attachment->local_url);
+        $attachment->deleteFileIfUnshared();
 
         $attachment->delete();
 

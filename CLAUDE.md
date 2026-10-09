@@ -36,6 +36,29 @@ Config this repo also sets: `pull.ff only` (no surprise merge commits — decide
 rebase or merge deliberately), `fetch.prune` , `merge.conflictStyle zdiff3`,
 `rerere.enabled`.
 
+## File storage: everything goes to DO Spaces
+
+Prod's default disk is `digitaloceanspaces` (bucket `happyice-space`, sgp1), so
+`storePublicly()`, `Storage::put/url/delete` with no disk name land on Spaces.
+Write new upload code that way — **never name the `public` or `local` disk for an
+uploaded file**: prod has no files there, so `exists()` is false, copies are
+skipped and deletes do nothing (both happened until 2026-10-09).
+
+- **Deleting an `attachments` row goes through `Attachment::deleteFileIfUnshared()`.**
+  Mapping replicate shared files until 2026-10-09 (52 files held by 158 rows in
+  prod), so a file is deleted only when no other row points at it. Rows whose
+  `local_url` holds a full URL (product thumbnails, machine photos) are never
+  deleted from disk.
+- **Private files never get a URL.** Card settlement reports, refund ticket
+  photos and bank payout files sit PRIVATE on Spaces and are served only through
+  their authed routes. Bank payout files (refund CIMB / PayNow CSV / PayPal
+  worklist, commission CIMB) go through `App\Support\PayoutFiles`, which reads
+  Spaces first and falls back to `local` for older files.
+- **Local on purpose:** `storage/app/ota-cache` (the verified APK copy MQTT OTA
+  serves), the customer-summary state JSON, logs and temp files.
+
+Regression coverage: `tests/Feature/SpacesFileStorageTest.php`.
+
 ## Roles and permissions: one file, always
 
 `database/seeders/RolePermissionSyncSeeder.php` is the **single source of truth**.

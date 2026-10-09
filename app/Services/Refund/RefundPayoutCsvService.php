@@ -5,8 +5,8 @@ namespace App\Services\Refund;
 use App\Models\RefundPayoutBatch;
 use App\Models\RefundTicket;
 use App\Services\Refund\BankTemplates\BankTemplateRegistry;
+use App\Support\PayoutFiles;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Builds a bulk PayNow transfer CSV from approved tickets and links them into a
@@ -66,7 +66,7 @@ class RefundPayoutCsvService
             }
 
             $path = 'refund-payouts/' . $batch->reference . '.csv';
-            Storage::disk('local')->put($path, implode("\n", $rows));
+            PayoutFiles::put($path, implode("\n", $rows));
 
             $batch->update([
                 'csv_path' => $path,
@@ -123,7 +123,7 @@ class RefundPayoutCsvService
             $content = $template->generate($tickets, ['batch' => $batch, 'operator' => $operator]);
             $filename = $batch->reference . '-' . $bankKey . '.' . $template->fileExtension();
             $path = 'refund-payouts/' . $filename;
-            Storage::disk('local')->put($path, $content);
+            PayoutFiles::put($path, $content);
 
             $total = 0;
             foreach ($tickets as $ticket) {

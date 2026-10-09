@@ -9,8 +9,8 @@ use App\Models\Operator;
 use App\Models\PayoutGroup;
 use App\Services\Banking\CimbBankDirectory;
 use App\Services\Commission\CommissionSettlementService;
+use App\Support\PayoutFiles;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 /**
@@ -203,9 +203,8 @@ class CommissionSettlementController extends Controller
     public function downloadExport(CommissionSettlement $settlement, CommissionSettlementExport $export)
     {
         abort_unless((int) $export->commission_settlement_id === (int) $settlement->id, 404);
-        abort_unless($export->file_path && Storage::disk('local')->exists($export->file_path), 404);
 
-        return Storage::disk('local')->download($export->file_path, basename($export->file_path));
+        return PayoutFiles::download($export->file_path, basename((string) $export->file_path));
     }
 
     public function markDone(Request $request, CommissionSettlement $settlement)

@@ -9,9 +9,9 @@ use App\Models\RefundSettlementExport;
 use App\Models\RefundSettlementLog;
 use App\Models\RefundTicket;
 use App\Services\Refund\BankTemplates\BankTemplateRegistry;
+use App\Support\PayoutFiles;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 /**
@@ -169,7 +169,7 @@ class RefundSettlementService
 
             $filename = $settlement->reference.'-cimb.'.$template->fileExtension();
             $path = 'refund-payouts/'.$filename;
-            Storage::disk('local')->put($path, $content);
+            PayoutFiles::put($path, $content);
 
             $total = (int) $tickets->sum('payout_amount_cents');
             RefundSettlementExport::create([
@@ -227,9 +227,17 @@ class RefundSettlementService
 
         $filename = $settlement->reference.'-paypal.xlsx';
         $rel = 'refund-payouts/'.$filename;
-        Storage::disk('local')->makeDirectory('refund-payouts');
-        $abs = Storage::disk('local')->path($rel);
-        (new FastExcel(collect($rows)))->export($abs);
+        // FastExcel writes to a filesystem path, so build it in temp and store
+        // the bytes on the payout disk.
+        $base = tempnam(sys_get_temp_dir(), 'refund-paypal-');
+        @unlink($base);
+        $tmp = $base.'.xlsx';
+        try {
+            (new FastExcel(collect($rows)))->export($tmp);
+            PayoutFiles::put($rel, (string) file_get_contents($tmp));
+        } finally {
+            @unlink($tmp);
+        }
 
         return DB::transaction(function () use ($settlement, $tickets, $rel, $filename, $userId, $actorLabel) {
             $total = (int) $tickets->sum('payout_amount_cents');

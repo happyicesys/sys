@@ -8,9 +8,9 @@ use App\Models\RefundPayoutBatch;
 use App\Models\RefundSettlementExport;
 use App\Models\RefundTicket;
 use App\Services\Refund\RefundSettlementService;
+use App\Support\PayoutFiles;
 use App\Support\SgMobile;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 /**
@@ -264,15 +264,14 @@ class RefundSettlementController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return Storage::disk('local')->download($res['path'], $res['filename']);
+        return PayoutFiles::download($res['path'], $res['filename']);
     }
 
     public function downloadExport(RefundPayoutBatch $settlement, RefundSettlementExport $export)
     {
         abort_unless((int) $export->refund_payout_batch_id === (int) $settlement->id, 404);
-        abort_unless($export->file_path && Storage::disk('local')->exists($export->file_path), 404);
 
-        return Storage::disk('local')->download($export->file_path, basename($export->file_path));
+        return PayoutFiles::download($export->file_path, basename((string) $export->file_path));
     }
 
     public function markDone(Request $request, RefundPayoutBatch $settlement)
