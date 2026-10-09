@@ -178,6 +178,41 @@ class HappyHourCampaignTest extends TestCase
         $this->assertSame(3, HappyHourSlot::count(), 'idempotent');
     }
 
+    public function test_a_window_edited_after_todays_slots_ran_is_planned_at_its_new_times(): void
+    {
+        $this->freezer(['A' => [5, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['window_start' => '09:58:00', 'window_end' => '10:18:00', 'slot_minutes' => 10, 'sku_count' => 1]);
+        Carbon::setTestNow('2026-10-09 09:50:00');
+        $this->planner()->run(now());
+        Carbon::setTestNow('2026-10-09 10:20:00');
+        $this->planner()->run(now()); // both morning slots end
+
+        Carbon::setTestNow('2026-10-09 10:37:30');
+        $campaign->update(['window_start' => '10:38:00', 'window_end' => '18:00:00', 'slot_minutes' => 60]);
+        $this->planner()->cancel($campaign, now());
+        $this->planner()->planCampaign($campaign->fresh(), now());
+
+        $this->assertSame('10:38', HappyHourSlot::open()->where('ends_at', '>', now())->orderBy('starts_at')->first()->starts_at->format('H:i'));
+        $this->assertSame(8, HappyHourSlot::open()->where('ends_at', '>', now())->count());
+    }
+
+    public function test_a_price_edit_mid_slot_continues_the_hour_at_the_new_price_from_now(): void
+    {
+        $this->freezer(['A' => [5, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['sku_count' => 1]);
+        $this->planner()->run(now());
+
+        Carbon::setTestNow('2026-10-09 14:25:20');
+        $campaign->update(['discount_pct' => 50]);
+        $this->planner()->cancel($campaign, now());
+        $this->planner()->planCampaign($campaign->fresh(), now());
+
+        $live = HappyHourSlot::open()->where('starts_at', '<=', now())->where('ends_at', '>', now())->first();
+        $this->assertSame(['14:25', '15:00', 200], [$live->starts_at->format('H:i'), $live->ends_at->format('H:i'), $live->promo_price]);
+        $this->planner()->run(now()->addMinute());
+        $this->assertSame(1, HappyHourSlot::open()->where('starts_at', '<', '2026-10-09 15:00:00')->count(), 'no duplicate next minute');
+    }
+
     public function test_a_freezer_on_an_older_app_is_never_given_slots(): void
     {
         $this->freezer(['A' => [5, 10, 4.00, 0]], apk: 29);

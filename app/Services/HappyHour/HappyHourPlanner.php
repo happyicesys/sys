@@ -103,12 +103,14 @@ class HappyHourPlanner
             return [0, 0];
         }
 
+        // Today's slots in any state: a time is planned only while a slot that still offers (or offered)
+        // the price covers it. Matching by time, not position, keeps an edited window from mistaking
+        // this morning's finished slots for its own (2026-10-09, 2009 test).
         $existing = HappyHourSlot::query()
             ->where('happy_hour_campaign_id', $campaign->id)
             ->where('vend_id', $vend->id)
             ->whereDate('slot_date', $now->toDateString())
-            ->get()
-            ->keyBy('position');
+            ->get();
 
         // Every SKU that qualifies now, best first; ranked at most once per machine per run.
         $eligible = null;
@@ -118,13 +120,15 @@ class HappyHourPlanner
 
         $planned = 0;
         foreach ($campaign->slotTimesOn($now) as $time) {
-            if ($time['ends_at']->lte($now) || $existing->has($time['position'])) {
+            if ($time['ends_at']->lte($now) || $this->isCovered($existing, $time, $now)) {
                 continue;
             }
             $picks = array_slice($eligibleOnce(), 0, max(1, $campaign->sku_count));
             if ($picks === []) {
                 break;
             }
+            // A slot time already under way (a mid-slot edit, a sold-out SKU) gets the rest of its time.
+            $time['starts_at'] = $time['starts_at']->max($now->startOfMinute());
             $planned += (int) $this->createSlot($campaign, $vend, $time, $picks[$time['position'] % count($picks)]);
         }
 
@@ -135,6 +139,23 @@ class HappyHourPlanner
         }
 
         return [$planned, $swapped];
+    }
+
+    /**
+     * Whether a slot that has not been cancelled covers the rest of this slot time. An ended slot
+     * counts only for the time it ran, so a cancelled or sold-out slot leaves the remainder free.
+     *
+     * @param  \Illuminate\Support\Collection<int, HappyHourSlot>  $existing
+     * @param  array{position: int, starts_at: CarbonImmutable, ends_at: CarbonImmutable}  $time
+     */
+    private function isCovered($existing, array $time, CarbonImmutable $now): bool
+    {
+        $from = $time['starts_at']->max($now);
+
+        return $existing->contains(fn (HappyHourSlot $s) => $s->status !== HappyHourSlot::STATUS_CANCELLED
+            && $s->status !== HappyHourSlot::STATUS_SOLD_OUT
+            && $s->starts_at->lt($time['ends_at'])
+            && $s->ends_at->gt($from));
     }
 
     /** @param  array{position: int, starts_at: CarbonImmutable, ends_at: CarbonImmutable}  $time */
