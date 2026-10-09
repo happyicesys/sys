@@ -500,6 +500,7 @@ function formatCents(cents) {
 function cardLabel(card) {
   if (card.uncertain_cents) return `T05 charge ${formatCents(card.uncertain_cents)} unconfirmed — check Payrallel`
   if (card.awaits_person) return `T05 hold ${formatCents(card.hold_cents)} · AI gave no verdict — key in the charge`
+  if (card.state === 'awaiting_ai' && card.by_person) return `T05 ${formatCents(card.judged_cents)} keyed in · retrying`
   if (card.state === 'awaiting_ai') return `T05 hold ${formatCents(card.hold_cents)} · awaiting AI`
   if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} (hold ${formatCents(card.hold_cents)})`
   if (card.state === 'voided') return `T05 hold ${formatCents(card.hold_cents)} released`
