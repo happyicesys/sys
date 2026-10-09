@@ -8,7 +8,6 @@ use App\Models\ZijiaSkuApplication;
 use App\Models\ZijiaSkuApplicationEvent;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -20,6 +19,11 @@ use Illuminate\Validation\ValidationException;
  * the draft saved, photos added or removed, the exact envelope sent, their answer, the callback,
  * and what it did to the product's barcode. The barcode itself is only ever set on approval
  * (ZijiaSkuApprovalService) — sending an unapproved barcode makes Zijia reject whole sessions.
+ *
+ * Every photo it sends is square (Zijia, 2026-10-09), padded by ZijiaTrainingPhoto: an upload is
+ * squared as it is saved, a link the draft starts with (the product thumbnail, photos copied from
+ * an earlier or vms4 application) is squared on the next save, and submit refuses any photo that
+ * is still not square — so what the draft shows is exactly what Zijia receives.
  */
 class ZijiaSkuApplicationService
 {
@@ -45,7 +49,10 @@ class ZijiaSkuApplicationService
 
     private const UNIT_ZH = ['g' => '克', 'kg' => '千克', 'ml' => '毫升', 'L' => '升', 'pcs' => '个'];
 
-    public function __construct(private readonly ZijiaAlgorithmClient $client) {}
+    public function __construct(
+        private readonly ZijiaAlgorithmClient $client,
+        private readonly ZijiaTrainingPhoto $photos,
+    ) {}
 
     /** Everything the Product → Edit section needs. */
     public function pageData(Product $product): array
@@ -65,6 +72,10 @@ class ZijiaSkuApplicationService
             'defaults' => $this->defaults($product),
             'categoryOptions' => self::options(self::CATEGORIES),
             'packageTypeOptions' => self::options(self::PACKAGE_TYPES),
+            // PHP drops every file past max_file_uploads from a request without an error, so the
+            // page holds a save to this many new photos.
+            'max_files_per_save' => max(1, (int) ini_get('max_file_uploads') ?: 20),
+            'square_edge' => ZijiaTrainingPhoto::MAX_EDGE,
         ];
     }
 
@@ -111,12 +122,29 @@ class ZijiaSkuApplicationService
      */
     public function saveDraft(Product $product, array $data, array $photos, ?UploadedFile $packageImage, array $removeUrls, ?User $user, bool $startNew = false): ZijiaSkuApplication
     {
-        return DB::transaction(function () use ($product, $data, $photos, $packageImage, $removeUrls, $user, $startNew) {
+        // Refused before any photo is processed (one indexed read, no event log); checked again
+        // under the transaction.
+        $this->assertWritable(ZijiaSkuApplication::query()->where('product_id', $product->id)
+            ->whereIn('status', [ZijiaSkuApplication::STATUS_DRAFT, ZijiaSkuApplication::STATUS_SUBMITTED])
+            ->latest('id')->value('status'), $startNew);
+
+        // Squaring and uploading take ~0.1–0.7 s a photo, so they run before the transaction: a
+        // batch never holds the application row open. Files are content-named, so a retried save
+        // writes the same paths, and a refused one leaves only unreferenced files.
+        $added = [];
+        foreach (self::ANGLES as $angle) {
+            foreach ($photos[$angle] ?? [] as $file) {
+                $added[] = ['angle' => $angle, 'name' => $file->getClientOriginalName()] + $this->photos->storeUpload($file, $product->id);
+            }
+        }
+        if ($packageImage) {
+            $added[] = ['angle' => 'package', 'name' => $packageImage->getClientOriginalName()] + $this->photos->storeUpload($packageImage, $product->id);
+        }
+
+        $app = DB::transaction(function () use ($product, $data, $added, $removeUrls, $user, $startNew) {
             $current = $this->current($product);
             if ($current === null || ! $current->isEditable()) {
-                if ($current !== null && $current->status === ZijiaSkuApplication::STATUS_SUBMITTED && ! $startNew) {
-                    throw ValidationException::withMessages(['application' => 'This product is waiting for Zijia\'s review; it cannot be changed until they answer.']);
-                }
+                $this->assertWritable($current?->status, $startNew);
                 $seed = $current ? $current->only(['sku_name', 'brand_name', 'spec', 'category', 'package_type', 'product_code', 'package_image_url', 'model_pics'])
                     : $this->defaults($product);
                 $current = ZijiaSkuApplication::query()->create($seed + [
@@ -137,17 +165,12 @@ class ZijiaSkuApplicationService
                 $removed = array_merge($removed, array_values(array_diff($pics[$angle], $keep)));
                 $pics[$angle] = $keep;
             }
-            $added = [];
-            foreach (self::ANGLES as $angle) {
-                foreach ($photos[$angle] ?? [] as $file) {
-                    $url = Storage::url($file->storePublicly("sys/zijia-sku/{$product->id}"));
-                    $pics[$angle][] = $url;
-                    $added[] = ['angle' => $angle, 'url' => $url, 'name' => $file->getClientOriginalName()];
+            foreach ($added as $photo) {
+                if ($photo['angle'] === 'package') {
+                    $fields['package_image_url'] = $photo['url'];
+                } elseif (! in_array($photo['url'], $pics[$photo['angle']], true)) {
+                    $pics[$photo['angle']][] = $photo['url'];
                 }
-            }
-            if ($packageImage) {
-                $fields['package_image_url'] = Storage::url($packageImage->storePublicly("sys/zijia-sku/{$product->id}"));
-                $added[] = ['angle' => 'package', 'url' => $fields['package_image_url'], 'name' => $packageImage->getClientOriginalName()];
             }
 
             $current->fill($fields + ['model_pics' => $pics]);
@@ -162,8 +185,77 @@ class ZijiaSkuApplicationService
                 ]));
             }
 
-            return $current->fresh(['events', 'submitter:id,name']);
+            return $current;
         });
+
+        $this->squareCarriedOver($app, $user);
+
+        return $app->fresh(['events', 'submitter:id,name']);
+    }
+
+    /** @param  ?string  $currentStatus  the status of the application current() would show */
+    private function assertWritable(?string $currentStatus, bool $startNew): void
+    {
+        if ($currentStatus === ZijiaSkuApplication::STATUS_SUBMITTED && ! $startNew) {
+            throw ValidationException::withMessages(['application' => 'This product is waiting for Zijia\'s review; it cannot be changed until they answer.']);
+        }
+    }
+
+    /**
+     * Squares every photo on a draft that this service did not square itself — the product
+     * thumbnail a draft starts from, photos copied from an earlier or vms4 application — and swaps
+     * the link in place. A photo that cannot be read keeps its link and blocks the submit
+     * (`missing()`). The work runs outside any transaction; the swap re-reads the row under lock.
+     */
+    private function squareCarriedOver(ZijiaSkuApplication $app, ?User $user): void
+    {
+        if (! $app->isEditable()) {
+            return;
+        }
+        $pending = array_values(array_unique(array_filter(
+            $this->photoUrls($app),
+            fn (string $url) => ! $this->photos->isSquare($url),
+        )));
+        if ($pending === []) {
+            return;
+        }
+
+        $squared = [];
+        $failed = [];
+        foreach ($pending as $url) {
+            ($done = $this->photos->squareUrl($url, $app->product_id)) ? $squared[$url] = $done : $failed[] = $url;
+        }
+
+        if ($squared !== []) {
+            DB::transaction(function () use ($app, $squared) {
+                $row = ZijiaSkuApplication::query()->lockForUpdate()->find($app->id);
+                if ($row === null || ! $row->isEditable()) {
+                    return;
+                }
+                $swap = fn (?string $url) => $url !== null && isset($squared[$url]) ? $squared[$url]['url'] : $url;
+                $pics = array_merge(['high' => [], 'horizontal' => [], 'low' => []], (array) $row->model_pics);
+                foreach (self::ANGLES as $angle) {
+                    $pics[$angle] = array_values(array_unique(array_map($swap, $pics[$angle])));
+                }
+                $row->update(['package_image_url' => $swap($row->package_image_url), 'model_pics' => $pics]);
+            });
+        }
+
+        $this->event($app, 'photos.squared', $user, array_filter([
+            'squared' => array_values(array_map(fn ($from, $done) => ['from_url' => $from, 'url' => $done['url'], 'from' => $done['from'], 'to' => $done['to']], array_keys($squared), $squared)) ?: null,
+            'failed' => $failed ?: null,
+        ]), $failed === [] ? 'info' : 'warning');
+    }
+
+    /** @return list<string> the package photo and every model photo on the application */
+    private function photoUrls(ZijiaSkuApplication $app): array
+    {
+        $pics = array_merge(['high' => [], 'horizontal' => [], 'low' => []], (array) $app->model_pics);
+
+        return array_values(array_filter(
+            array_merge([(string) $app->package_image_url], ...array_map(fn ($angle) => array_values((array) $pics[$angle]), self::ANGLES)),
+            fn ($url) => is_string($url) && $url !== '',
+        ));
     }
 
     /**
@@ -198,6 +290,10 @@ class ZijiaSkuApplicationService
         if (count($pics['high'] ?? []) < 1) {
             $missing['model_pics.high'] = 'At least one top-view model photo is required (Zijia suggests 5–10).';
         }
+        $notSquare = count(array_filter($this->photoUrls($app), fn (string $url) => ! $this->photos->isSquare($url)));
+        if ($notSquare > 0) {
+            $missing['photos.square'] = "{$notSquare} photo(s) could not be made square (1:1), which Zijia requires — remove them and upload again.";
+        }
 
         return $missing;
     }
@@ -208,6 +304,10 @@ class ZijiaSkuApplicationService
         if (! $app->isEditable()) {
             throw ValidationException::withMessages(['application' => "Only a draft can be submitted (this one is {$app->status})."]);
         }
+        // A draft saved before photos were squared, or one whose carried-over photo could not be
+        // read last time: square it now, so nothing that is not 1:1 is ever sent.
+        $this->squareCarriedOver($app, $user);
+        $app->refresh();
         if (($missing = $this->missing($app)) !== []) {
             throw ValidationException::withMessages($missing);
         }

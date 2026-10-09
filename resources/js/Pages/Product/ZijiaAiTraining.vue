@@ -131,11 +131,21 @@
             <img :src="packageImageUrl" class="h-24 w-24 rounded border border-gray-200 object-contain bg-white" alt="" />
           </a>
           <span v-else class="text-xs text-gray-500">None yet — the product photo above is used by default.</span>
-          <input v-if="canEdit" type="file" accept="image/*" @input="form.package_image = $event.target.files[0]" class="text-sm" />
+          <div v-if="form.package_image" class="relative">
+            <img :src="preview(form.package_image)" class="h-24 w-24 rounded border border-emerald-400 object-contain bg-white" alt="" />
+            <span class="absolute bottom-0 left-0 right-0 bg-emerald-600 text-[10px] text-white text-center">new</span>
+          </div>
+          <input v-if="canEdit" type="file" accept="image/jpeg,image/png,image/webp" @input="setPackageImage($event)" class="text-sm" />
         </div>
         <p class="mt-1 text-xs text-gray-500">The pack's main photo (front). Max 5 MB.</p>
         <p class="mt-1 text-xs text-red-600" v-if="err('package_image_url') || err('package_image')">{{ err('package_image_url') || err('package_image') }}</p>
       </div>
+
+      <p class="sm:col-span-6 rounded border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
+        Zijia needs every photo square (1:1). mark1 makes each one square when you save: the whole photo is kept and
+        white space is added to the short side (nothing is cropped or stretched), up to {{ data.square_edge || 2048 }} px.
+        The previews show exactly what is sent — if a pack looks small in its square, take the photo closer.
+      </p>
 
       <!-- Model photos per angle -->
       <div v-for="angle in angles" :key="angle.key" class="sm:col-span-6">
@@ -146,7 +156,7 @@
         <div class="mt-1 flex flex-wrap gap-2">
           <div v-for="url in existing(angle.key)" :key="url" class="relative">
             <a :href="url" target="_blank">
-              <img :src="url" class="h-20 w-20 rounded border object-cover" :class="form.remove.includes(url) ? 'opacity-30 border-red-400' : 'border-gray-200'" alt="" />
+              <img :src="url" class="h-20 w-20 rounded border object-contain bg-white" :class="form.remove.includes(url) ? 'opacity-30 border-red-400' : 'border-gray-200'" alt="" />
             </a>
             <button v-if="canEdit" type="button" @click="toggleRemove(url)"
                     class="absolute -right-1 -top-1 rounded-full bg-white px-1 text-xs border"
@@ -154,12 +164,13 @@
                     :title="form.remove.includes(url) ? 'Keep' : 'Remove'">{{ form.remove.includes(url) ? '↺' : '✕' }}</button>
           </div>
           <div v-for="(file, i) in form.photos[angle.key]" :key="'new-' + i" class="relative">
-            <img :src="preview(file)" class="h-20 w-20 rounded border border-emerald-400 object-cover" alt="" />
+            <img :src="preview(file)" class="h-20 w-20 rounded border border-emerald-400 object-contain bg-white" alt="" />
             <span class="absolute bottom-0 left-0 right-0 bg-emerald-600 text-[10px] text-white text-center">new</span>
           </div>
         </div>
-        <input v-if="canEdit" type="file" accept="image/*" multiple class="mt-1 text-sm" @input="addPhotos(angle.key, $event)" />
+        <input v-if="canEdit" type="file" accept="image/jpeg,image/png,image/webp" multiple class="mt-1 text-sm" @input="addPhotos(angle.key, $event)" />
         <p class="mt-1 text-xs text-red-600" v-if="angle.required && err('model_pics.high')">{{ err('model_pics.high') }}</p>
+        <p class="mt-1 text-xs text-red-600" v-if="photoError(angle.key)">{{ photoError(angle.key) }}</p>
       </div>
 
       <!-- What still blocks submission -->
@@ -170,6 +181,7 @@
         </ul>
       </div>
       <div v-if="err('application')" class="sm:col-span-6 text-sm text-red-600">{{ err('application') }}</div>
+      <div v-if="notice" class="sm:col-span-6 text-sm text-amber-700">{{ notice }}</div>
 
       <div v-if="canEdit" class="sm:col-span-6 flex flex-wrap justify-end gap-2">
         <Button type="button" class="bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed" :disabled="busy" @click="save">
@@ -227,6 +239,10 @@ const app = computed(() => props.data.application);
 const productBarcode = computed(() => props.data.product_barcode || '');
 const busy = ref(false);
 const errors = ref({});
+const notice = ref('');
+// The server's max_file_uploads: PHP silently drops every file past it from one request.
+const maxFiles = computed(() => props.data.max_files_per_save || 20);
+const pendingFiles = computed(() => Object.values(form.value.photos).reduce((n, list) => n + list.length, 0) + (form.value.package_image ? 1 : 0));
 
 const angles = [
   { key: 'high', short: 'top', label: 'Model photos — top view', required: true, hint: 'At least 1; Zijia suggests 5–10, from above like the freezer cameras, different sides and angles, background removed (see an approved product).' },
@@ -252,6 +268,7 @@ const form = ref(blankForm());
 const saved = ref(JSON.stringify(fieldsOf(form.value)));
 watch(() => props.data, () => {
   form.value = blankForm();
+  notice.value = '';
   saved.value = JSON.stringify(fieldsOf(form.value));
 }, { deep: true });
 
@@ -273,8 +290,29 @@ function err(key) {
   return errors.value[key] || null;
 }
 function addPhotos(angle, event) {
-  form.value.photos[angle] = [...form.value.photos[angle], ...Array.from(event.target.files || [])];
+  const picked = Array.from(event.target.files || []);
+  const room = Math.max(0, maxFiles.value - pendingFiles.value);
+  form.value.photos[angle] = [...form.value.photos[angle], ...picked.slice(0, room)];
+  notice.value = picked.length > room
+    ? `Up to ${maxFiles.value} new photos per save — ${picked.length - room} not added. Save these, then add the rest.`
+    : '';
   event.target.value = '';
+}
+function setPackageImage(event) {
+  const file = (event.target.files || [])[0] || null;
+  if (!file) return;
+  if (!form.value.package_image && pendingFiles.value >= maxFiles.value) {
+    notice.value = `Up to ${maxFiles.value} new photos per save — save first, then add the package photo.`;
+  } else {
+    form.value.package_image = file;
+    notice.value = '';
+  }
+  event.target.value = '';
+}
+// Laravel reports a bad file as photos.<angle>.<n>; without this a refused file looked like a save that did nothing.
+function photoError(angle) {
+  const key = Object.keys(errors.value).find(k => k.startsWith(`photos.${angle}.`));
+  return key ? errors.value[key] : null;
 }
 function toggleRemove(url) {
   const i = form.value.remove.indexOf(url);
@@ -330,6 +368,7 @@ const EVENTS = {
   'vms4.updated': 'Updated from vms4 (changed in Zijia\'s portal)',
   'draft.created': 'Draft started',
   'draft.saved': 'Draft saved',
+  'photos.squared': 'Photos made square (1:1) for Zijia',
   'submit.sent': 'Sent to Zijia (sys.sku.sync.put)',
   'submit.accepted': 'Zijia accepted the application for review',
   'submit.refused': 'Zijia did not accept the application',

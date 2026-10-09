@@ -899,6 +899,16 @@ unrecognised). Rules:
   sets it on the product (no library check needed), anything else is library-checked; a rejection
   keeps their `msg`. Submitted = locked; a new application copies the last one (new number).
   Permission `update products`. The barcode is NEVER set at submit — only on approval.
+  **Every photo sent is square (1:1)** (Zijia's rule, 2026-10-09; `ZijiaTrainingPhoto`): PADDED, never
+  cropped or stretched (Brian) — white on a photo (JPEG q90), transparent white on a cut-out (PNG/WebP
+  with alpha → PNG), EXIF rotation applied first, long side capped at 2048 px, never enlarged. Uploads
+  are squared on save (before the DB transaction; original kept under `…/original/`); a link a draft
+  starts with (product thumbnail, photos copied from an earlier / vms4 application) is squared on the
+  next save and again at submit; submit refuses any photo still not square (`missing()['photos.square']`).
+  The folder `sys/zijia-sku/{product}/square/{sha1}` IS the proof (`isSquare()`, no download), so never
+  put a file there by any other route. vms4 mirrors stay as Zijia approved them. Prod PHP's
+  `max_file_uploads` is 20 and drops extra files silently, so the page caps one save at that
+  (`max_files_per_save`). Regression coverage: `tests/Feature/ZijiaTrainingPhotoSquareTest.php`.
   **vms4 mirror** (2026-10-06; `ZijiaLibraryImport`, run by the 3-minute
   `smart-freezer:zijia-barcode-sync` for every smart-freezer planogram product WITH a barcode):
   what a product was approved with in Zijia's vms4 portal is read from their public library by

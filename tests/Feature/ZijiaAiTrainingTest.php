@@ -33,7 +33,13 @@ class ZijiaAiTrainingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake(config('filesystems.default'));
+        Storage::fake(config('filesystems.default'), ['url' => 'https://space.test']);
+        // The product thumbnail a draft starts from is fetched and squared on the first save.
+        Http::preventStrayRequests();
+        $thumb = imagecreatetruecolor(300, 200);
+        ob_start();
+        imagejpeg($thumb);
+        Http::fake(['cdn.test/*' => Http::response((string) ob_get_clean(), 200, ['Content-Type' => 'image/jpeg'])]);
         config(['smart_freezer.zijia.algorithm' => [
             'base_url' => 'https://algo.test', 'app_id' => '1789379222883159', 'app_secret' => self::SECRET,
             'model_ids' => [], 'notify_url' => null, 'auto_submit' => false, 'timeout' => 5,
@@ -61,7 +67,7 @@ class ZijiaAiTrainingTest extends TestCase
         $this->save([
             'sku_name' => 'Basque Cheesecake - Chocolate', 'brand_name' => '其他/其他', 'spec' => '120克',
             'category' => 4, 'package_type' => 3, 'product_code' => '0726436016209',
-            'photos' => ['high' => [UploadedFile::fake()->image('top1.jpg'), UploadedFile::fake()->image('top2.jpg')]],
+            'photos' => ['high' => [UploadedFile::fake()->image('top1.jpg', 40, 30), UploadedFile::fake()->image('top2.jpg', 30, 40)]],
         ])->assertSessionHasNoErrors();
 
         return ZijiaSkuApplication::sole();
@@ -87,7 +93,8 @@ class ZijiaAiTrainingTest extends TestCase
         $this->assertSame(ZijiaSkuApplication::STATUS_DRAFT, $app->status);
         $this->assertSame('0726436016209', $app->product_code);
         $this->assertCount(2, $app->model_pics['high']);
-        $this->assertSame(['draft.created', 'draft.saved'], $app->events()->reorder('id')->pluck('event')->all());
+        // photos.squared: the product thumbnail the draft started with, made 1:1.
+        $this->assertSame(['draft.created', 'draft.saved', 'photos.squared'], $app->events()->reorder('id')->pluck('event')->all());
         $this->assertNull($this->product->fresh()->barcode, 'the barcode waits for Zijia\'s approval');
 
         // Removing a photo is logged too.
@@ -98,11 +105,9 @@ class ZijiaAiTrainingTest extends TestCase
     public function test_missing_required_inputs_are_prompted_and_block_submission(): void
     {
         $this->save(['sku_name' => 'Basque Cheesecake - Chocolate'])->assertSessionHasNoErrors();
-        Http::fake();
-
         $this->actingAs($this->user)->post("/products/{$this->product->id}/ai-training/submit")
             ->assertSessionHasErrors(['package_type', 'product_code', 'model_pics.high']);
-        Http::assertNothingSent();
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'algo.test'));
 
         $this->actingAs($this->user)->get("/products/{$this->product->id}/edit")
             ->assertInertia(fn (AssertableInertia $page) => $page->has('aiTraining.application.missing.package_type'));
@@ -126,7 +131,8 @@ class ZijiaAiTrainingTest extends TestCase
                 && $sku['productCode'] === '0726436016209'
                 && $sku['category'] === 4 && $sku['packageType'] === 3
                 && str_ends_with($sku['callbackUrl'], '/api/smart-freezer/zijia/sku/notify')
-                && $sku['packageImageUrl'] === 'https://cdn.test/sys/products/choc.png'
+                // The product photo, squared (1:1) into our own storage before it is sent.
+                && str_starts_with($sku['packageImageUrl'], "https://space.test/sys/zijia-sku/{$this->product->id}/square/")
                 && count($sku['skuModelPic']['high']) === 2;
         });
         $app->refresh();
