@@ -1265,6 +1265,9 @@ and the verdict against the sale. It reads `smart_freezer_recognitions` only —
 link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
 session matched to no freezer (a supplier test cabinet) only the unrestricted operator.
+Each row is badged **Processed by AI** (`orderStatus` 0) or **Processed by Human** (any other
+code: Zijia's AI could not answer on its own) — one rule, `RecognitionResult::processedBy()`, which
+the badge and the Processed By filter (`processed_by`: all / ai / human / none) both read (Brian, 2026-10-09).
 
 **Sales Transactions → "AI Recognition" column** (`App\Services\SmartFreezer\RecognitionBadges`,
 attached per page in `VendController::transactionIndex` as `ai_recognition`): the verdict (or
