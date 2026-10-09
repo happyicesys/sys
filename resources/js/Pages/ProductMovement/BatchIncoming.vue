@@ -57,6 +57,25 @@
                             </div>
                             <InputError :message="form.errors.remarks" class="mt-2" />
                         </div>
+
+                        <div class="sm:col-span-6">
+                            <label class="block text-sm font-medium text-gray-700">Attachments</label>
+                            <p class="text-xs text-gray-500">Supplier invoice, DO, photos — PDF, image, Excel or Word, up to 20 MB each, {{ MAX_FILES }} files.</p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                                <label class="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                                    <PaperClipIcon class="mr-2 h-4 w-4 text-gray-500" />
+                                    Add files
+                                    <input type="file" multiple class="hidden" :accept="ACCEPT" @change="addFiles">
+                                </label>
+                                <span v-for="(file, i) in form.attachments" :key="i" class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                                    <span class="max-w-[14rem] truncate" :title="file.name">{{ file.name }}</span>
+                                    <button type="button" class="ml-2 text-gray-400 hover:text-red-600" @click="form.attachments.splice(i, 1)">
+                                        <XMarkIcon class="h-4 w-4" />
+                                    </button>
+                                </span>
+                            </div>
+                            <InputError :message="attachmentError" class="mt-2" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -81,7 +100,10 @@
                                         <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500 w-24">Image</th>
                                         <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500 w-32">Code</th>
                                         <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Product Name</th>
-                                        <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500 w-40">Qty (Pieces)</th>
+                                        <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500 w-40">
+                                            Qty (Pieces)
+                                            <div class="font-normal normal-case tracking-normal text-gray-400">negative = deduct</div>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 bg-white">
@@ -97,8 +119,7 @@
                                             <input type="number"
                                                 v-model="form.products[item.index].qty"
                                                 class="shadow-sm focus:ring-green-500 focus:border-green-500 block w-full sm:text-sm border-gray-300 rounded-md text-center font-bold text-gray-900"
-                                                :class="{'bg-green-50 border-green-300': form.products[item.index].qty > 0}"
-                                                min="0"
+                                                :class="{'bg-green-50 border-green-300': form.products[item.index].qty > 0, 'bg-red-50 border-red-300 !text-red-700': form.products[item.index].qty < 0}"
                                                 placeholder="0">
                                         </td>
                                     </tr>
@@ -109,7 +130,7 @@
                                             Total
                                             <span class="ml-2 font-medium normal-case text-gray-500">({{ enteredCount }} {{ enteredCount === 1 ? 'product' : 'products' }})</span>
                                         </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-base font-bold text-gray-900 text-center">{{ totalQty }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-base font-bold text-center" :class="qtyClass(totalQty)">{{ signed(totalQty) }}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -122,7 +143,7 @@
             <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg flex justify-end items-center z-50">
                 <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-end items-center gap-6">
                     <div class="text-sm text-gray-600">
-                        Total: <span class="text-lg font-bold text-gray-900">{{ totalQty }}</span> pcs
+                        Total: <span class="text-lg font-bold" :class="qtyClass(totalQty)">{{ signed(totalQty) }}</span> pcs
                         <span class="text-gray-400">· {{ enteredCount }} {{ enteredCount === 1 ? 'product' : 'products' }}</span>
                     </div>
                     <Button class="inline-flex items-center rounded-md border border-transparent bg-green-600 px-8 py-3 text-base font-bold text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200" @click="submit" :disabled="form.processing">
@@ -143,7 +164,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import InputError from '@/Components/InputError.vue'
 import Button from '@/Components/Button.vue'
-import { ArrowLeftIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/solid'
+import { ArrowLeftIcon, MagnifyingGlassIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import moment from 'moment'
 
 const props = defineProps({
@@ -158,7 +179,26 @@ const form = useForm({
         id: product.id,
         qty: 0,
     })),
+    attachments: [],
 })
+
+const MAX_FILES = 10
+const ACCEPT = '.jpg,.jpeg,.png,.webp,.heic,.heif,.gif,.pdf,.xls,.xlsx,.csv,.doc,.docx'
+
+const addFiles = (event) => {
+    const room = MAX_FILES - form.attachments.length
+    form.attachments.push(...Array.from(event.target.files).slice(0, room))
+    event.target.value = ''
+}
+
+// Laravel reports each file as attachments.0, attachments.1 …
+const attachmentError = computed(() => Object.entries(form.errors)
+    .filter(([key]) => key === 'attachments' || key.startsWith('attachments.'))
+    .map(([, message]) => message)
+    .join(' '))
+
+const signed = (qty) => (qty > 0 ? '+' + qty : String(qty))
+const qtyClass = (qty) => (qty < 0 ? 'text-red-600' : 'text-gray-900')
 
 const searchQuery = ref('')
 

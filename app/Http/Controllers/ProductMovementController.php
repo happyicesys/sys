@@ -7,6 +7,7 @@ use App\Exports\ProductMovementExport;
 use App\Exports\ProductMovementTrackingExport;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
+use App\Models\IncomingBatchAttachment;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItemChannel;
@@ -18,7 +19,9 @@ use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -141,6 +144,8 @@ class ProductMovementController extends Controller
             'products.*.id' => 'required|exists:products,id',
             'products.*.qty' => 'required|integer', // Can be 0 if not selected, but maybe we filter out 0s
             'remarks' => 'nullable|string',
+            'attachments' => 'nullable|array|max:'.IncomingBatchAttachment::MAX_FILES,
+            'attachments.*' => 'file|max:'.IncomingBatchAttachment::MAX_KB.'|mimes:'.IncomingBatchAttachment::MIMES,
         ]);
 
         $batchNumber = $request->batch_number;
@@ -149,7 +154,11 @@ class ProductMovementController extends Controller
 
         $userId = auth()->id();
 
-        DB::transaction(function () use ($request, $batchNumber, $createdAt, $operatorId, $userId) {
+        // Files go up before the rows are written, so a failed upload saves nothing.
+        $files = collect($request->file('attachments', []))
+            ->map(fn (UploadedFile $file) => $this->storeBatchFile($file));
+
+        DB::transaction(function () use ($request, $batchNumber, $createdAt, $operatorId, $userId, $files) {
             foreach ($request->products as $item) {
                 if ($item['qty'] != 0) {
                     ProductMovement::create([
@@ -164,9 +173,58 @@ class ProductMovementController extends Controller
                     ]);
                 }
             }
+
+            foreach ($files as $file) {
+                IncomingBatchAttachment::create($file + ['batch_number' => $batchNumber, 'user_id' => $userId]);
+            }
         });
 
         return redirect()->route('product-movements.index');
+    }
+
+    /** Add files to a batch that already exists (Incoming Batch Detail). */
+    public function storeBatchAttachments(Request $request)
+    {
+        $request->validate([
+            'batch_number' => 'required|string',
+            'attachments' => 'required|array|min:1|max:'.IncomingBatchAttachment::MAX_FILES,
+            'attachments.*' => 'file|max:'.IncomingBatchAttachment::MAX_KB.'|mimes:'.IncomingBatchAttachment::MIMES,
+        ]);
+
+        $exists = ProductMovement::where('batch_number', $request->batch_number)
+            ->where('type', ProductMovement::TYPE_INCOMING)
+            ->exists();
+        abort_unless($exists, 404);
+
+        foreach ($request->file('attachments') as $file) {
+            IncomingBatchAttachment::create($this->storeBatchFile($file) + [
+                'batch_number' => $request->batch_number,
+                'user_id' => auth()->id(),
+            ]);
+        }
+
+        return redirect()->back();
+    }
+
+    public function destroyBatchAttachment(IncomingBatchAttachment $attachment)
+    {
+        Storage::delete($attachment->local_url);
+        $attachment->delete();
+
+        return redirect()->back();
+    }
+
+    private function storeBatchFile(UploadedFile $file): array
+    {
+        $path = $file->storePublicly(IncomingBatchAttachment::DIR);
+
+        return [
+            'local_url' => $path,
+            'full_url' => Storage::url($path),
+            'name' => mb_substr($file->getClientOriginalName(), 0, 255),
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+        ];
     }
 
     public function trackingDetails(Request $request)
@@ -417,6 +475,8 @@ class ProductMovementController extends Controller
             ->selectRaw('MAX(operator_id) as operator_id')
             ->selectRaw('MAX(user_id) as user_id')
             ->selectRaw('MAX(remarks) as remarks')
+            // Signed: a batch keyed in negative (stock sent out / adjusted down) totals below zero.
+            ->selectRaw('SUM(qty) as total_qty')
             ->groupBy('batch_number')
             ->orderByRaw('MAX(created_at) DESC, MAX(id) DESC')
             ->paginate(20)
@@ -427,9 +487,15 @@ class ProductMovementController extends Controller
         $collection = $history->getCollection();
         $operatorsById = Operator::findMany($collection->pluck('operator_id')->filter()->unique())->keyBy('id');
         $usersById = \App\Models\User::findMany($collection->pluck('user_id')->filter()->unique())->keyBy('id');
-        $collection->transform(function ($item) use ($operatorsById, $usersById) {
+        $attachmentsByBatch = IncomingBatchAttachment::whereIn('batch_number', $collection->pluck('batch_number'))
+            ->orderBy('id')
+            ->get(['id', 'batch_number', 'name', 'full_url'])
+            ->groupBy('batch_number');
+        $collection->transform(function ($item) use ($operatorsById, $usersById, $attachmentsByBatch) {
             $item->operator = $operatorsById->get($item->operator_id);
             $item->user = $usersById->get($item->user_id);
+            $item->total_qty = (int) $item->total_qty;
+            $item->attachments = $attachmentsByBatch->get($item->batch_number, collect())->values();
 
             return $item;
         });
@@ -463,6 +529,15 @@ class ProductMovementController extends Controller
         return Inertia::render('ProductMovement/IncomingBatchDetail', [
             'movements' => $movements,
             'metadata' => $metadata,
+            'attachments' => IncomingBatchAttachment::with('user:id,name')
+                ->where('batch_number', $first->batch_number)
+                ->orderBy('id')
+                ->get(),
+            'attachmentLimits' => [
+                'mimes' => IncomingBatchAttachment::MIMES,
+                'max_mb' => IncomingBatchAttachment::MAX_KB / 1024,
+                'max_files' => IncomingBatchAttachment::MAX_FILES,
+            ],
         ]);
     }
 

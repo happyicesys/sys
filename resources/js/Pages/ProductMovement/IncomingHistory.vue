@@ -41,7 +41,9 @@
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Date</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Time</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Input By</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Total Qty</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Remarks</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Attachment</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Action</th>
                             </tr>
                         </thead>
@@ -54,7 +56,20 @@
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ formatDate(batch.created_at) }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ formatTime(batch.created_at) }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ batch.user ? batch.user.name : (batch.operator ? batch.operator.name : '-') }}</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-center font-bold" :class="batch.total_qty < 0 ? 'text-red-600' : 'text-green-700'">
+                                    {{ batch.total_qty > 0 ? '+' + batch.total_qty : batch.total_qty }}
+                                </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center max-w-xs truncate" :title="batch.remarks">{{ batch.remarks || '-' }}</td>
+                                <td class="px-3 py-4 text-sm text-gray-500">
+                                    <div v-if="batch.attachments.length" class="flex flex-col items-start gap-1">
+                                        <a v-for="file in batch.attachments" :key="file.id" :href="file.full_url" target="_blank" rel="noopener"
+                                            class="inline-flex max-w-[12rem] items-center text-indigo-600 hover:text-indigo-900" :title="file.name">
+                                            <PaperClipIcon class="mr-1 h-4 w-4 shrink-0" />
+                                            <span class="truncate">{{ file.name }}</span>
+                                        </a>
+                                    </div>
+                                    <div v-else class="text-center">-</div>
+                                </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">
                                     <!-- Ziggy 1.x only encodeURI()s params, so a "#" in the batch number became a fragment (404). -->
                                     <Link :href="route('product-movements.incoming-batch-detail', encodeURIComponent(batch.batch_number))" class="text-indigo-600 hover:text-indigo-900 font-bold">
@@ -63,7 +78,7 @@
                                 </td>
                             </tr>
                             <tr v-if="history.data.length === 0">
-                                <td colspan="7" class="px-3 py-4 text-sm text-gray-500 text-center">No history records found.</td>
+                                <td colspan="9" class="px-3 py-4 text-sm text-gray-500 text-center">No history records found.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -87,7 +102,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import Button from '@/Components/Button.vue'
 import Paginator from '@/Components/Paginator.vue'
-import { ArrowLeftIcon, ArrowDownTrayIcon, BackspaceIcon } from '@heroicons/vue/24/solid'
+import { ArrowLeftIcon, ArrowDownTrayIcon, BackspaceIcon, PaperClipIcon } from '@heroicons/vue/24/solid'
 import moment from 'moment'
 import { computed } from 'vue'
 
