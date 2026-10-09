@@ -46,6 +46,14 @@ onMounted(() => {
       });
 
       this.on("error", function (file, response) {
+        // Dropzone only reads `.error` off a JSON reply and prints the rest as
+        // "[object Object]"; our controllers answer with `error_message`.
+        const message = response?.error_message ?? response?.message;
+        if (message && file.previewElement) {
+          file.previewElement.querySelectorAll('[data-dz-errormessage]').forEach((node) => {
+            node.textContent = message;
+          });
+        }
         console.error("File upload failed", file, response);
       });
 

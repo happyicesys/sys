@@ -20,14 +20,18 @@ use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Tag;
 use App\Models\Vend;
 use App\Models\VendPrefix;
+use App\Services\ApkMedia\BannerMediaNormalizer;
+use App\Services\ApkMedia\MediaRejected;
 use App\Services\TagBindingService;
 use App\Services\VendJobService;
 use App\Services\VendParameterService;
 use App\Services\VendPricingSourceService;
 use App\ValueObjects\ApkSettingParameters;
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ApkSettingController extends Controller
@@ -540,17 +544,17 @@ class ApkSettingController extends Controller
      * actions above use, so the legacy endpoints the deployed fleet polls
      * (banner-image / banner-video / campaign-*) are untouched by construction.
      */
-    public function uploadMedia(Request $request, $id)
+    public function uploadMedia(Request $request, $id, BannerMediaNormalizer $normalizer)
     {
-        return $this->storeMediaUpload($request, $id, false);
+        return $this->storeMediaUpload($request, $id, false, $normalizer);
     }
 
-    public function uploadCampaignMedia(Request $request, $id)
+    public function uploadCampaignMedia(Request $request, $id, BannerMediaNormalizer $normalizer)
     {
-        return $this->storeMediaUpload($request, $id, true);
+        return $this->storeMediaUpload($request, $id, true, $normalizer);
     }
 
-    private function storeMediaUpload(Request $request, $id, bool $campaign)
+    private function storeMediaUpload(Request $request, $id, bool $campaign, BannerMediaNormalizer $normalizer)
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
@@ -565,20 +569,21 @@ class ApkSettingController extends Controller
         // (finfo says octet-stream) and accepts formats the APK silently skips
         // (webp, mkv) — which would ship as invisible orphans to every machine.
         $ext = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
-        $isImage = in_array($ext, ['gif', 'jpg', 'jpeg', 'bmp', 'png'], true);
-        $isVideo = in_array($ext, ['mp4', 'mov', 'avi', 'wmv'], true);
+        $isImage = in_array($ext, BannerMediaNormalizer::IMAGE_EXTENSIONS, true);
+        $isVideo = in_array($ext, BannerMediaNormalizer::VIDEO_EXTENSIONS, true);
         if (! $isVideo && ! $isImage) {
             return response([
                 'error_message' => 'Unsupported file type .'.$ext.' — machines play jpg/jpeg/png/gif/bmp and mp4/mov/avi/wmv only',
             ], 422);
         }
 
-        // Mirror the caps the per-kind dropzones enforced client-side.
-        $maxBytes = (int) (($isVideo ? 10 : 1.5) * 1024 * 1024);
-        if ($file->getSize() > $maxBytes) {
-            return response([
-                'error_message' => $isVideo ? 'Video exceeds 10 MB' : 'Image exceeds 1.5 MB',
-            ], 422);
+        // Fit it to the machine (960 x 1280, size caps — config/apk_media.php)
+        // before any board downloads it. The extension may change here
+        // (bmp → jpg, mov → mp4); it is always one the APK plays.
+        try {
+            $media = $normalizer->normalize($file, $ext);
+        } catch (MediaRejected $e) {
+            return response(['error_message' => $e->getMessage()], 422);
         }
 
         if ($campaign) {
@@ -591,12 +596,16 @@ class ApkSettingController extends Controller
             $relation = $apkSetting->defaultMedia();
         }
 
-        // storePubliclyAs with the VALIDATED extension: plain storePublicly()
-        // names the file via MIME guessExtension(), which turns an
+        // Stored under the VALIDATED extension: plain storePublicly() would
+        // name the file via MIME guessExtension(), which turns an
         // oddly-containered mp4 (finfo: octet-stream) into "<hash>.bin" — an
         // extension the machine's ImgFilter/VedioFilter silently skips. The
         // extension we validated must be the extension we ship.
-        $storedPath = $file->storePubliclyAs($dir, \Illuminate\Support\Str::random(40).'.'.$ext);
+        try {
+            $storedPath = Storage::putFileAs($dir, new File($media->path), Str::random(40).'.'.$media->ext, 'public');
+        } finally {
+            $media->cleanup();
+        }
         $relation->create([
             'name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
             'type' => $type,

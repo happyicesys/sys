@@ -257,6 +257,12 @@
                 <span class="text-sm text-gray-600">
                   In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
                 </span>
+                <span class="mt-1 text-sm font-medium text-gray-800">
+                  Recommended: 960 W × 1280 H pixels (portrait 3:4, the machine's screen frame) — pictures and videos alike.
+                </span>
+                <span class="text-sm text-gray-600">
+                  Uploads are fitted automatically: resized to fit 960 × 1280, pictures compressed to 1.5 MB or less, videos converted to MP4 of 4 MB or less (keep clips under about 80 s). Other shapes show in full with bars. Animated GIFs are not resized — keep them under 1.5 MB.
+                </span>
               </div>
             </div>
 
@@ -271,7 +277,7 @@
               <DropzoneFileInput
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-media'"
                 :accepted-files="'image/*,video/*'"
-                :max-filesize="10"
+                :max-filesize="500"
                 >
               </DropzoneFileInput>
             </div>
@@ -432,6 +438,12 @@
                 <span class="text-sm text-gray-600">
                   In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
                 </span>
+                <span class="mt-1 text-sm font-medium text-gray-800">
+                  Recommended: 960 W × 1280 H pixels (portrait 3:4, the machine's screen frame) — pictures and videos alike.
+                </span>
+                <span class="text-sm text-gray-600">
+                  Uploads are fitted automatically: resized to fit 960 × 1280, pictures compressed to 1.5 MB or less, videos converted to MP4 of 4 MB or less (keep clips under about 80 s). Other shapes show in full with bars. Animated GIFs are not resized — keep them under 1.5 MB.
+                </span>
               </div>
             </div>
 
@@ -446,7 +458,7 @@
               <DropzoneFileInput
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-media'"
                 :accepted-files="'image/*,video/*'"
-                :max-filesize="10"
+                :max-filesize="500"
                 >
               </DropzoneFileInput>
             </div>
