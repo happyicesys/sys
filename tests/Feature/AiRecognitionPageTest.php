@@ -196,6 +196,12 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.3.processed_by', null)
                 ->where('filters.processed_by', 'all'));
 
+        $this->actingAs($viewer)->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('orderStatusLegend', 7)
+                ->where('orderStatusLegend.0', ['code' => 0, 'label' => 'normal', 'name_zh' => '正常', 'processed_by' => 'ai', 'plain' => 'the AI answered on its own'])
+                ->where('orderStatusLegend.3', ['code' => 502, 'label' => 'unfriendly behaviour', 'name_zh' => '非友好行为', 'processed_by' => 'human', 'plain' => 'the items were handled unusually']));
+
         $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
         $this->assertSame(4, $count(['processed_by' => 'all']));
         $this->assertSame(1, $count(['processed_by' => 'ai']));

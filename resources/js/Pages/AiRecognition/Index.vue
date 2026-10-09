@@ -149,6 +149,44 @@
         </div>
       </div>
 
+      <!-- Legend: Zijia's orderStatus codes (§6.2), what they mean, and who settled the session. -->
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-white rounded-md border px-3 py-2">
+        <button type="button" class="flex w-full items-center justify-between text-sm font-medium text-gray-700" @click="toggleLegend">
+          <span>AI status codes <span class="font-normal text-gray-500">— what "AI: …" in the Status column means</span></span>
+          <span class="text-xs text-blue-600">{{ showLegend ? 'Hide' : 'Show' }}</span>
+        </button>
+        <div v-if="showLegend" class="mt-2 overflow-x-auto">
+          <table class="min-w-full text-xs">
+            <thead>
+              <tr class="text-left text-gray-500">
+                <th class="py-1 pr-3 font-medium">Code</th>
+                <th class="py-1 pr-3 font-medium">Zijia</th>
+                <th class="py-1 pr-3 font-medium">Shown as</th>
+                <th class="py-1 pr-3 font-medium">In plain words</th>
+                <th class="py-1 font-medium">Processed by</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="item in orderStatusLegend" :key="item.code">
+                <td class="py-1 pr-3 font-mono font-semibold">{{ item.code }}</td>
+                <td class="py-1 pr-3 whitespace-nowrap">{{ item.name_zh }}</td>
+                <td class="py-1 pr-3 whitespace-nowrap">{{ item.label }}</td>
+                <td class="py-1 pr-3 text-gray-600">{{ item.plain }}</td>
+                <td class="py-1">
+                  <span class="inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 font-bold border" :class="processedByBadgeClass(item.processed_by)">
+                    {{ processedByLabels[item.processed_by] }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="mt-2 text-xs text-gray-500">
+            A finer reason may follow the dash, e.g. "recognition error — 503 goods not listed in the model (商品未上架)": Zijia's
+            jsOrderStatus, using the same codes. Any code other than 0 leaves a T05 card hold for a person to key in the charge.
+          </p>
+        </div>
+      </div>
+
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
@@ -417,6 +455,7 @@ const props = defineProps({
   statuses: Array,
   verdicts: Array,
   canCharge: Boolean,
+  orderStatusLegend: Array,
   filters: Object,
 })
 
@@ -563,6 +602,19 @@ onMounted(() => {
   ]
   filters.value.processed_by = processedByOptions.value.find((o) => o.id === filters.value.processed_by) || processedByOptions.value[0]
 })
+
+// The legend is open until someone hides it; remembered per browser (storage may be blocked).
+const showLegend = ref(true)
+try {
+  showLegend.value = localStorage.getItem('aiRecognition.legend') !== 'hidden'
+} catch (e) {}
+
+function toggleLegend() {
+  showLegend.value = !showLegend.value
+  try {
+    localStorage.setItem('aiRecognition.legend', showLegend.value ? 'shown' : 'hidden')
+  } catch (e) {}
+}
 
 // Key in charge: amount → confirm → POST. Money is integer cents; the typed text is parsed
 // as a string, never through a float.

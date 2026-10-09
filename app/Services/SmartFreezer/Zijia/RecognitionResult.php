@@ -31,6 +31,17 @@ final class RecognitionResult
         505 => 'unsafe behaviour',
     ];
 
+    /** The same codes in Zijia's own words (§6.2), for the AI Recognition legend. */
+    private const STATUS_NAMES_ZH = [
+        0 => '正常',
+        401 => '视频错误、画面丢失',
+        501 => '识别异常',
+        502 => '非友好行为',
+        503 => '商品未上架',
+        504 => '商品包装未更新',
+        505 => '非安全行为',
+    ];
+
     /**
      * @param  array<string, int>  $items  barcode => units taken
      * @param  int|null  $jsOrderStatus  the finer reason behind `orderStatus` — undocumented, first
@@ -88,6 +99,21 @@ final class RecognitionResult
         }
 
         return $orderStatus === self::STATUS_NORMAL ? self::PROCESSED_BY_AI : self::PROCESSED_BY_HUMAN;
+    }
+
+    /**
+     * Every documented `orderStatus`, for the page legend.
+     *
+     * @return list<array{code: int, label: string, name_zh: string, processed_by: string}>
+     */
+    public static function legend(): array
+    {
+        return array_map(fn (int $code) => [
+            'code' => $code,
+            'label' => self::STATUS_LABELS[$code],
+            'name_zh' => self::STATUS_NAMES_ZH[$code],
+            'processed_by' => self::processedBy($code),
+        ], array_keys(self::STATUS_LABELS));
     }
 
     /** e.g. "recognition error — 503 goods not listed in the model (商品未上架)". */

@@ -93,7 +93,7 @@ class RecognitionBadges
      * Recognition page and in `status_reason`. Keyed by the finer `jsOrderStatus` when the callback
      * carries one, else `orderStatus` (Zijia's §6.2 codes).
      */
-    private const PLAIN_REASONS = [
+    public const PLAIN_REASONS = [
         401 => 'the video was unclear or incomplete',
         501 => 'the camera check could not work it out',
         502 => 'the items were handled unusually',

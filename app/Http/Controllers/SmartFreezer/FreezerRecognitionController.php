@@ -11,6 +11,7 @@ use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\CardTerminal\CardPaymentService;
+use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Support\VendCode;
@@ -128,6 +129,10 @@ class FreezerRecognitionController extends Controller
                 RecognitionVerdict::MIXED, RecognitionVerdict::UNRECOGNISED, RecognitionVerdict::INCOMPLETE,
             ],
             'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
+            // Zijia's orderStatus codes (§6.2) with ops' plain words — the legend above the table.
+            'orderStatusLegend' => array_map(fn (array $l) => $l + [
+                'plain' => RecognitionBadges::PLAIN_REASONS[$l['code']] ?? 'the AI answered on its own',
+            ], RecognitionResult::legend()),
             'filters' => [
                 'status' => $request->input('status', 'all'),
                 'verdict' => $request->input('verdict', 'all'),
