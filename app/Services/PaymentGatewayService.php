@@ -1,25 +1,22 @@
 <?php
 
 namespace App\Services;
+
 use App\Models\OperatorPaymentGateway;
-use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Fiuu;
-use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateways\Midtrans;
+use App\Models\PaymentGateways\Omise;
 use App\Models\Vend;
-use App\Services\ErrorService;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Zxing\QrReader;
+use Intervention\Image\Laravel\Facades\Image;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\HttpClient;
 // use Imagick;
 // use ImagickPixel;
-use Intervention\Image\Laravel\Facades\Image;
+use Zxing\QrReader;
 
 class PaymentGatewayService
 {
@@ -27,7 +24,7 @@ class PaymentGatewayService
 
     public function __construct()
     {
-        $this->errorService = new ErrorService();
+        $this->errorService = new ErrorService;
     }
 
     public function createPaymentQrText(Vend $vend, $params): array
@@ -49,7 +46,7 @@ class PaymentGatewayService
                 if (isset($response['actions']) and isset($response['actions'][0]['url'])) {
                     $isCreateInput = true;
                     $qrCodeUrl = $response['actions'][0]['url'];
-                } else if (isset($response['validation_messages']) or isset($response['status_message'])) {
+                } elseif (isset($response['validation_messages']) or isset($response['status_message'])) {
                     $errorMsg .= 'Error: ';
                     $errorMsg .= isset($response['validation_messages']) ? $response['validation_messages'][0] : $response['status_message'];
                 }
@@ -71,14 +68,14 @@ class PaymentGatewayService
                     if ($response['source']['flow'] == 'offline') {
                         $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
                         $isRequiredDecode = true;
-                    } else if ($response['source']['flow'] == 'redirect') {
+                    } elseif ($response['source']['flow'] == 'redirect') {
                         $qrCodeUrl = $response['authorize_uri'];
                         $isRequiredDecode = false;
                     }
 
-                } else if (isset($response['code']) and isset($response['message'])) {
+                } elseif (isset($response['code']) and isset($response['message'])) {
                     $errorMsg .= 'Error: ';
-                    $errorMsg .= $response['code'] . ' ' . $response['message'];
+                    $errorMsg .= $response['code'].' '.$response['message'];
                 }
                 break;
             case 'fiuu':
@@ -107,7 +104,7 @@ class PaymentGatewayService
                     }
                 }
 
-                if (!$qrCodeText && !$qrCodeUrl) {
+                if (! $qrCodeText && ! $qrCodeUrl) {
                     $errorMsg .= 'Error: Unable to extract Fiuu QR response.';
                     $isCreateInput = false;
                 }
@@ -148,13 +145,13 @@ class PaymentGatewayService
 
         if ($isCreateInput) {
             $vendChannelCodesArr = [];
-            if (isset($params['request']['slotIdList']) && !empty($params['request']['slotIdList'])) {
+            if (isset($params['request']['slotIdList']) && ! empty($params['request']['slotIdList'])) {
                 $vendChannelCodesArr = $params['request']['slotIdList'];
             } else {
                 $vendChannelCodesArr[] = $params['request']['SId'];
             }
 
-            if (!$vendChannelCodesArr) {
+            if (! $vendChannelCodesArr) {
                 $this->errorService->throwErrorWithMqtt('Vend channel(s) is not detect upon request QR code', $vend);
             }
 
@@ -193,13 +190,13 @@ class PaymentGatewayService
 
             return [
                 'paymentGatewayLog' => $paymentGatewayLog,
-                'errorMsg' => null
+                'errorMsg' => null,
             ];
         }
 
         return [
             'paymentGatewayLog' => null,
-            'errorMsg' => $errorMsg
+            'errorMsg' => $errorMsg,
         ];
     }
 
@@ -210,10 +207,10 @@ class PaymentGatewayService
     {
         $paymentGateway = $this->getOperatorPaymentGateway($vend);
         $operatorPaymentGateway = $paymentGateway->getOperatorPaymentGateway();
-        if (!$params['amount']) {
+        if (! $params['amount']) {
             $this->errorService->throwErrorWithMqtt('Amount is not set', $vend);
         }
-        if (!$params['metadata']) {
+        if (! $params['metadata']) {
             $this->errorService->throwErrorWithMqtt('OrderID is not set within metadata', $vend);
         }
 
@@ -243,7 +240,7 @@ class PaymentGatewayService
         $response = $paymentGateway->createPayment($processedParams);
 
         if ($response->failed()) {
-            $this->errorService->throwErrorWithMqtt('Payment creation failed: ' . $response->body(), $vend);
+            $this->errorService->throwErrorWithMqtt('Payment creation failed: '.$response->body(), $vend);
         }
 
         $contentType = $response->header('Content-Type');
@@ -279,11 +276,13 @@ class PaymentGatewayService
                         case 'midtrans':
                             $obj = new Midtrans($operatorPaymentGateway->key1);
                             $obj->setOperatorPaymentGateway($operatorPaymentGateway);
+
                             return $obj;
                             break;
                         case 'omise':
                             $obj = new Omise($operatorPaymentGateway->key1, $operatorPaymentGateway->key2);
                             $obj->setOperatorPaymentGateway($operatorPaymentGateway);
+
                             return $obj;
                             break;
                         case 'fiuu':
@@ -294,6 +293,7 @@ class PaymentGatewayService
                                 $operatorPaymentGateway->type === OperatorPaymentGateway::TYPE_SANDBOX
                             );
                             $obj->setOperatorPaymentGateway($operatorPaymentGateway);
+
                             return $obj;
                             break;
                     }
@@ -433,7 +433,7 @@ class PaymentGatewayService
 
     private function decodeDataUri(string $value): string
     {
-        if (!str_contains($value, ',')) {
+        if (! str_contains($value, ',')) {
             return $value;
         }
 
