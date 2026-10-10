@@ -34,6 +34,10 @@ class PublishDispenseMqttLoop implements ShouldQueue
         $this->qos = $qos;
         $this->topic = $topic;
         $this->attempts = $attempts;
+        // A paid customer is waiting at the machine: queue high, which supervisor-high
+        // picks up the moment it is pushed (it waited 0.5 s p50, 2.9 s max on default).
+        // Set here so the delayed re-sends below go to the same queue.
+        $this->onQueue('high');
     }
 
     /**

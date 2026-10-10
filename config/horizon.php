@@ -180,6 +180,24 @@ return [
             'timeout' => 1200,
             'nice' => 0,
         ],
+        // Payment-path jobs (QR / dispense / purchase confirm / gateway sale) are
+        // pushed to `high` by the app on the normal `redis` connection; this pool
+        // pops the same list through `redis-high` (block_for), so a job starts the
+        // moment it lands. On the shared pool a quiet `high` waited for an idle
+        // worker's 3 s poll: p50 1.7 s, max 2.9 s per job (2026-10-10).
+        // supervisor-1 still serves `high` too, as overflow.
+        'supervisor-high' => [
+            'connection' => 'redis-high',
+            'queue' => ['high'],
+            'balance' => false,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 1200,
+            'nice' => 0,
+        ],
         // Dedicated supervisor for low-priority batch jobs (e.g. DetectTempTrends).
         // Keeps a separate worker pool so low queue is never starved by high/default traffic.
         'supervisor-low' => [
@@ -240,6 +258,11 @@ return [
                 'nice' => 10, // deprioritise CPU-wise vs real-time supervisor
             ],
             'supervisor-cms' => [
+                'maxProcesses' => 2,
+            ],
+            // Two, so one long high job (SyncVendChannels) never parks the next
+            // payment. +2 workers ≈ +2–3 MySQL connections.
+            'supervisor-high' => [
                 'maxProcesses' => 2,
             ],
         ],

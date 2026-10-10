@@ -71,6 +71,21 @@ return [
             'after_commit' => false,
         ],
 
+        // Worker side only, for Horizon's supervisor-high: the same Redis and the
+        // same `queues:high` list, but a BLOCKING pop, so an idle worker wakes the
+        // instant a payment job is pushed instead of after its 3 s sleep. Never
+        // dispatch to it and never give it `default`: a blocking pop on one queue
+        // stalls the queues behind it (why the shared `redis` connection keeps
+        // block_for null). See config/horizon.php.
+        'redis-high' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'high',
+            'retry_after' => 90,
+            'block_for' => 5,
+            'after_commit' => false,
+        ],
+
     ],
 
     /*
