@@ -8,6 +8,7 @@ use App\Models\PaymentGatewayLog;
 use App\Models\Vend;
 use App\Services\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Process;
 use Mockery;
 use Tests\TestCase;
 
@@ -19,6 +20,42 @@ use Tests\TestCase;
 class PaymentQrDecodeTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // No fallback reader unless a test installs one (prod path does not exist here anyway).
+        config(['payment.qr_decoder_python' => '']);
+    }
+
+    /** CRC-16/CCITT-FALSE, as EMVCo tag 63 uses it. */
+    private static function crc(string $data): string
+    {
+        $crc = 0xFFFF;
+        foreach (str_split($data) as $char) {
+            $crc ^= ord($char) << 8;
+            for ($bit = 0; $bit < 8; $bit++) {
+                $crc = ($crc & 0x8000) ? (($crc << 1) ^ 0x1021) & 0xFFFF : ($crc << 1) & 0xFFFF;
+            }
+        }
+
+        return sprintf('%04X', $crc);
+    }
+
+    /** A synthetic PayNow-shaped EMV payload with a correct CRC. */
+    private function emv(): string
+    {
+        $body = '00020101021226330009SG.PAYNOW010120213T00000000Z5204000053037025405'.'5.005802SG5909HAPPY ICE6009SINGAPORE6304';
+
+        return $body.self::crc($body);
+    }
+
+    /** Installs a fake fallback reader that prints $output (exit $exit). */
+    private function fallbackPrints(string $output, int $exit = 0): void
+    {
+        config(['payment.qr_decoder_python' => PHP_BINARY]);
+        Process::fake(['*' => Process::result(output: $output, exitCode: $exit)]);
+    }
 
     private function dataUri(string $png): string
     {
@@ -109,5 +146,53 @@ class PaymentQrDecodeTest extends TestCase
         $this->assertNull($result['paymentGatewayLog']);
         $this->assertNotEmpty($result['errorMsg']);
         $this->assertLessThan(11, microtime(true) - $started);
+    }
+
+    public function test_crc_helper_matches_the_standard_check_value(): void
+    {
+        $this->assertSame('29B1', self::crc('123456789'));
+    }
+
+    public function test_the_fallback_reader_saves_a_qr_the_php_decoder_cannot_read(): void
+    {
+        $this->fallbackPrints($this->emv());
+
+        $result = $this->serviceAnswering($this->dataUri($this->blankPng()))->createPaymentQrText($this->vend(), $this->request($this->vend()));
+
+        $this->assertNull($result['errorMsg']);
+        $this->assertSame($this->emv(), $result['paymentGatewayLog']->qr_text);
+        Process::assertRan(fn ($process) => str_ends_with($process->command[1], 'resources/scripts/qr_decode.py'));
+    }
+
+    public function test_a_misread_failing_its_crc_is_never_sent(): void
+    {
+        $corrupted = substr_replace($this->emv(), 'X', 20, 1);
+        $this->fallbackPrints($corrupted);
+
+        $result = $this->serviceAnswering($this->dataUri($this->blankPng()))->createPaymentQrText($this->vend(), $this->request($this->vend()));
+
+        $this->assertNull($result['paymentGatewayLog']);
+        $this->assertStringStartsWith('Error: QR code could not be read', $result['errorMsg']);
+    }
+
+    public function test_a_failing_fallback_reader_still_ends_in_an_error_not_a_crash(): void
+    {
+        $this->fallbackPrints('', 1);
+
+        $result = $this->serviceAnswering($this->dataUri($this->blankPng()))->createPaymentQrText($this->vend(), $this->request($this->vend()));
+
+        $this->assertNull($result['paymentGatewayLog']);
+        $this->assertNotEmpty($result['errorMsg']);
+    }
+
+    public function test_a_qr_the_php_decoder_reads_never_starts_the_fallback(): void
+    {
+        $this->fallbackPrints($this->emv());
+        $png = file_get_contents(base_path('tests/Support/qr_hello_world.png'));
+
+        $result = $this->serviceAnswering($this->dataUri($png))->createPaymentQrText($this->vend(), $this->request($this->vend()));
+
+        $this->assertSame('Hello world!', $result['paymentGatewayLog']->qr_text);
+        Process::assertNothingRan();
     }
 }

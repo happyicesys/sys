@@ -28,4 +28,12 @@ return [
     /* Seconds allowed for the verification read of GET /charges/{id}. */
     'webhook_verify_timeout' => (int) env('PAYMENT_WEBHOOK_VERIFY_TIMEOUT', 8),
 
+    /*
+    | Fallback QR reader for gateway QR images the PHP decoder cannot read: Omise's PayNow QRs
+    | carry a logo, and since 2026-10-07 a lower-version subset (mostly whole-dollar amounts)
+    | failed every time, sending machines an unpayable QR (~302 customers in 3 days). Python with
+    | zxing-cpp in its own venv (see resources/scripts/qr_decode.py); missing = no fallback.
+    */
+    'qr_decoder_python' => env('QR_DECODER_PYTHON', '/home/forge/.local/qrdecode/bin/python'),
+
 ];

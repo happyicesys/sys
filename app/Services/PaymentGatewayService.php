@@ -10,6 +10,7 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\Vend;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Intervention\Image\Laravel\Facades\Image;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\DomCrawler\Crawler;
@@ -390,11 +391,20 @@ class PaymentGatewayService
                 }
 
                 file_put_contents($tempFile, $content);
-                $text = (new QrReader($tempFile))->text([
-                    'POSSIBLE_FORMATS' => 'QR_CODE',
-                    'TRY_HARDER' => true,
-                ]);
-                if (is_string($text) && $text !== '') {
+                try {
+                    $text = (new QrReader($tempFile))->text([
+                        'POSSIBLE_FORMATS' => 'QR_CODE',
+                        'TRY_HARDER' => true,
+                    ]);
+                } catch (\Throwable $e) {
+                    // The PHP port can crash on a valid image (DivisionByZeroError, 2470); the fallback may still read it.
+                    $text = false;
+                }
+                if (is_string($text) && $text !== '' && $this->isTrustworthyQrText($text)) {
+                    return $text;
+                }
+                $text = $this->readQrTextWithFallback($tempFile);
+                if ($text !== '') {
                     return $text;
                 }
                 Log::warning('QR image decoded to no text', ['attempt' => $attempt]);
@@ -410,6 +420,59 @@ class PaymentGatewayService
         }
 
         return '';
+    }
+
+    /**
+     * The zxing-cpp reader (config payment.qr_decoder_python + resources/scripts/qr_decode.py),
+     * tried when the PHP decoder fails: it reads the logo PayNow QRs the PHP port cannot.
+     * Never throws; '' when the reader is not installed, fails, or returns an untrustworthy text.
+     */
+    private function readQrTextWithFallback(string $imageFile): string
+    {
+        $python = trim((string) config('payment.qr_decoder_python'));
+        if ($python === '' || ! is_executable($python)) {
+            return '';
+        }
+
+        try {
+            $result = Process::timeout(5)->run([$python, resource_path('scripts/qr_decode.py'), $imageFile]);
+        } catch (\Throwable $e) {
+            Log::warning('Fallback QR reader failed to run', ['error' => $e->getMessage()]);
+
+            return '';
+        }
+        $text = $result->successful() ? rtrim($result->output(), "\r\n") : '';
+        if ($text === '' || ! $this->isTrustworthyQrText($text)) {
+            return '';
+        }
+        Log::info('QR image read by the fallback reader');
+
+        return $text;
+    }
+
+    /**
+     * An EMVCo merchant QR (PayNow, QRIS, PromptPay: starts "000201") ends with its own CRC
+     * (tag 63, CRC-16/CCITT-FALSE over everything up to and including "6304"). A misread that
+     * fails it must never reach a customer. Other payloads are taken as read.
+     */
+    private function isTrustworthyQrText(string $text): bool
+    {
+        if (! str_starts_with($text, '000201')) {
+            return true;
+        }
+        if (strlen($text) < 8 || substr($text, -8, 4) !== '6304') {
+            return false;
+        }
+        $crc = 0xFFFF;
+        $data = substr($text, 0, -4);
+        for ($i = 0, $n = strlen($data); $i < $n; $i++) {
+            $crc ^= ord($data[$i]) << 8;
+            for ($bit = 0; $bit < 8; $bit++) {
+                $crc = ($crc & 0x8000) ? (($crc << 1) ^ 0x1021) & 0xFFFF : ($crc << 1) & 0xFFFF;
+            }
+        }
+
+        return strtoupper(substr($text, -4)) === sprintf('%04X', $crc);
     }
 
     /**
