@@ -431,7 +431,7 @@ class CardSettlementHandsOffTest extends TestCase
         ] + ['custom_order_id' => 'o-'.uniqid()]);
         $intent(['state' => 'awaiting_ai', 'ai_decision' => ['action' => 'capture', 'capture_cents' => 760, 'uncertain' => 760]]);
         $intent(['state' => 'captured', 'owed_cents' => 200, 'last_error' => null, 'ai_decision' => ['increment_refused' => 'HTTP 422']]);
-        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subDays(3)]);
+        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subDays(3), 'session_ref' => 'SF-1-0-1']); // the AI never answered
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour()]); // waiting normally: not listed
         // The AI answered without a verdict: listed at once, it is never charged on its own.
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour(), 'session_ref' => 'SF-1-1-1']);
@@ -443,7 +443,8 @@ class CardSettlementHandsOffTest extends TestCase
 
         $this->assertCount(4, $section['items']);
         $this->assertStringContainsString('resolve-ai-charge', $section['items'][0]['text']);
-        $this->assertStringContainsString('key in the charge on AI Recognition', $section['items'][3]['text']);
+        $this->assertStringContainsString('the AI never answered; key in the charge on AI Recognition', $section['items'][2]['text']);
+        $this->assertStringContainsString('the AI gave no verdict; key in the charge on AI Recognition', $section['items'][3]['text']);
     }
 
     public function test_the_nightly_repair_releases_lines_whose_swept_test_sale_is_gone(): void

@@ -20,7 +20,8 @@ use App\Services\SmartFreezer\RecognitionVerdict;
  *                                   otherwise that amount in one capture, above the hold
  *                                   included — with the hold as the fallback if Payrallel
  *                                   refuses the increase (the rest is then recorded as owed)
- *   backstop (no verdict in time) → the cart total
+ *   no verdict                    → nothing on its own; a person keys in the charge
+ *                                   (CardPaymentService::chargeByPerson, Brian 2026-10-10)
  *
  * Valued at the price the customer paid for a product in this sale, else the machine's
  * current price for it. A product seen with no price at all cannot be valued, so the cart
@@ -131,14 +132,6 @@ final class AiCaptureDecision
     private static function positive(mixed $cents): ?int
     {
         return is_numeric($cents) && (int) $cents > 0 ? (int) $cents : null;
-    }
-
-    /** The cart total, when no verdict came before the hold could expire. */
-    public static function backstop(int $holdCents, int $cartCents, int $hours): self
-    {
-        $cart = min($cartCents, $holdCents);
-
-        return self::capture($cart, null, "no AI verdict within {$hours} h: cart total");
     }
 
     /** @return array<string, mixed> what is stored on the intent (`ai_decision`) */

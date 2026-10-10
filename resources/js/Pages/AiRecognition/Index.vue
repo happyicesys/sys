@@ -149,6 +149,28 @@
         </div>
       </div>
 
+      <!-- T05 holds waiting for a person whose session has no row below (Zijia never pushed its videos). -->
+      <div v-if="sessionlessHolds.length" class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-amber-50 rounded-md border border-amber-300 px-3 py-2">
+        <p class="text-sm font-medium text-amber-900">
+          T05 card holds with no AI session ({{ sessionlessHolds.length }})
+          <span class="font-normal">— the AI never received this door session, so nothing is charged until someone keys it in.</span>
+        </p>
+        <div class="mt-2 flex flex-col divide-y divide-amber-200 text-xs">
+          <div v-for="hold in sessionlessHolds" :key="hold.id" class="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5">
+            <span class="font-medium">{{ hold.vend_label }}</span>
+            <span class="font-mono">{{ hold.session_ref }}</span>
+            <span>hold {{ formatCents(hold.hold_cents) }}</span>
+            <span class="text-gray-600">door closed {{ hold.door_closed_at }}</span>
+            <button v-if="canCharge" type="button"
+              class="ml-auto inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 whitespace-nowrap"
+              @click="openCharge(sessionlessRow(hold))"
+            >
+              Key in charge
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Legend: Zijia's orderStatus codes (§6.2), what they mean, and who settled the session. -->
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-white rounded-md border px-3 py-2">
         <button type="button" class="flex w-full items-center justify-between text-sm font-medium text-gray-700" @click="toggleLegend">
@@ -382,8 +404,9 @@
 
         <template v-if="charge.step === 1">
           <p class="text-gray-600">
-            The AI could not judge this session, so the hold is waiting for you. Watch the videos, then key in what the
-            customer should pay. 0 releases the hold.
+            {{ charge.row.card.person_reason === 'ai_no_answer' ? 'The AI never answered this session' : 'The AI could not judge this session' }},
+            so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what
+            the customer should pay. 0 releases the hold.
           </p>
           <div>
             <label class="block text-sm font-medium text-gray-700">Final chargeable amount</label>
@@ -455,6 +478,7 @@ const props = defineProps({
   statuses: Array,
   verdicts: Array,
   canCharge: Boolean,
+  sessionlessHolds: { type: Array, default: () => [] },
   orderStatusLegend: Array,
   filters: Object,
 })
@@ -538,7 +562,7 @@ function formatCents(cents) {
 // The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).
 function cardLabel(card) {
   if (card.uncertain_cents) return `T05 charge ${formatCents(card.uncertain_cents)} unconfirmed — check Payrallel`
-  if (card.awaits_person) return `T05 hold ${formatCents(card.hold_cents)} · AI gave no verdict — key in the charge`
+  if (card.awaits_person) return `T05 hold ${formatCents(card.hold_cents)} · ${card.person_reason === 'ai_no_answer' ? 'AI never answered' : 'AI gave no verdict'} — key in the charge`
   if (card.state === 'awaiting_ai' && card.by_person) return `T05 ${formatCents(card.judged_cents)} keyed in · retrying`
   if (card.state === 'awaiting_ai') return `T05 hold ${formatCents(card.hold_cents)} · awaiting AI`
   if (card.state === 'captured') return `T05 charged ${formatCents(card.captured_cents)} (hold ${formatCents(card.hold_cents)})`
@@ -624,6 +648,18 @@ function openCharge(row) {
   charge.value = { open: true, step: 1, row, amount: '', cents: 0, error: '', sending: false, answered: false }
 }
 
+// A sessionless hold, shaped like a table row for the popup.
+function sessionlessRow(hold) {
+  return {
+    vend_label: hold.vend_label,
+    session_ref: hold.session_ref,
+    sale: null,
+    purchased: [],
+    algorithm_status: 'never answered',
+    card: { id: hold.id, hold_cents: hold.hold_cents, person_reason: hold.person_reason },
+  }
+}
+
 function closeCharge() {
   if (!charge.value.sending) charge.value.open = false
 }
@@ -651,7 +687,7 @@ function nextCharge() {
 
 function submitCharge() {
   charge.value.sending = true
-  router.post(`/ai-recognition/${charge.value.row.id}/charge`, { amount_cents: charge.value.cents }, {
+  router.post(`/ai-recognition/card-holds/${charge.value.row.card.id}/charge`, { amount_cents: charge.value.cents }, {
     preserveScroll: true,
     preserveState: true,
     onSuccess: (page) => {

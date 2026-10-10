@@ -110,7 +110,8 @@ class FreezerRecognitionController extends Controller
             ->mapWithKeys(fn (SmartFreezerRecognition $r) => [$r->id => [(int) $r->vend_id, (string) $r->session_ref]])
             ->all());
 
-        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts) + [
+        $payments = app(CardPaymentService::class);
+        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $payments) + [
             'clips' => $clips[$r->id] ?? [],
         ]);
 
@@ -129,6 +130,7 @@ class FreezerRecognitionController extends Controller
                 RecognitionVerdict::MIXED, RecognitionVerdict::UNRECOGNISED, RecognitionVerdict::INCOMPLETE,
             ],
             'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
+            'sessionlessHolds' => $this->sessionlessHolds($payments, $operatorId),
             // Zijia's orderStatus codes (§6.2) with ops' plain words — the legend above the table.
             'orderStatusLegend' => array_map(fn (array $l) => $l + [
                 'plain' => RecognitionBadges::PLAIN_REASONS[$l['code']] ?? 'the AI answered on its own',
@@ -150,28 +152,19 @@ class FreezerRecognitionController extends Controller
     }
 
     /**
-     * A person keys in the final charge for a T05 hold the AI could not decide (Brian, 2026-10-09).
-     * Only T05 holds come here: NETS and QR sales were charged at the machine, and the AI only
-     * reconciles their stock.
+     * A person keys in the final charge for a T05 hold with no AI verdict (Brian, 2026-10-09; and
+     * 2026-10-10 for a session the AI never answered). Only T05 holds come here: NETS and QR sales
+     * were charged at the machine, and the AI only reconciles their stock.
      */
-    public function charge(Request $request, SmartFreezerRecognition $recognition, CardPaymentService $payments)
+    public function charge(Request $request, CardPaymentIntent $intent, CardPaymentService $payments)
     {
         $data = $request->validate([
             'amount_cents' => ['required', 'integer', 'min:0', 'max:100000'],
         ]);
         // Viewer ceiling, as on the list: an operator-restricted viewer acts on its own freezers only.
         if (($operatorId = OperatorVendFilterScope::viewerOperatorId()) !== null
-            && (int) Vend::withoutGlobalScopes()->whereKey($recognition->vend_id)->value('operator_id') !== $operatorId) {
+            && (int) Vend::withoutGlobalScopes()->whereKey($intent->vend_id)->value('operator_id') !== $operatorId) {
             abort(404);
-        }
-        $intent = $recognition->session_ref === null ? null : CardPaymentIntent::query()
-            ->where('vend_id', $recognition->vend_id)
-            ->where('session_ref', $recognition->session_ref)
-            ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
-            ->orderByDesc('id')
-            ->first();
-        if ($intent === null) {
-            return back()->withErrors(['amount_cents' => 'No T05 card hold is waiting on this session.']);
         }
 
         try {
@@ -197,7 +190,7 @@ class FreezerRecognitionController extends Controller
      * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
      * @param  array<int, Product>  $products  the TRADE products of this page, by id
      */
-    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products): array
+    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products, CardPaymentService $payments): array
     {
         $sale = $r->vendTransaction;
         $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
@@ -242,6 +235,7 @@ class FreezerRecognitionController extends Controller
             ] : null,
             // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
             'card' => $card ? [
+                'id' => $card->id,
                 'state' => $card->state,
                 'hold_cents' => $card->amount_cents,
                 'captured_cents' => $card->captured_cents,
@@ -254,14 +248,45 @@ class FreezerRecognitionController extends Controller
                 'uncertain_cents' => $card->ai_decision['uncertain'] ?? null,
                 'reason' => $card->ai_decision['reason'] ?? null,
                 'error' => $card->last_error,
-                // The AI answered this session without a verdict: the hold stays until a person keys
-                // in the charge (CardPaymentService::chargeByPerson, which re-checks this).
-                'awaits_person' => $card->state === CardPaymentIntent::STATE_AWAITING_AI
-                    && ! isset($card->ai_decision['action']) && ! isset($card->ai_decision['uncertain']) && ! isset($card->ai_decision['inflight'])
-                    && $r->order_status !== null && $r->verdict === null,
+                // No AI verdict: the hold stays until a person keys in the charge
+                // (CardPaymentService::chargeByPerson, which re-checks this).
+                'person_reason' => $reason = ($card->state === CardPaymentIntent::STATE_AWAITING_AI ? $payments->personNeededBecause($card) : null),
+                'awaits_person' => $reason !== null,
                 'by_person' => $card->ai_decision['by_person']['name'] ?? null,
             ] : null,
         ];
+    }
+
+    /**
+     * T05 holds waiting for a person whose door session has no row on this page at all — Zijia
+     * never pushed its videos, so there is nowhere else to key in the charge.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sessionlessHolds(CardPaymentService $payments, ?int $operatorId): array
+    {
+        return CardPaymentIntent::query()
+            ->with('vend:id,code,code_prefix')
+            ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
+            ->whereNotNull('session_ref')
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('smart_freezer_recognitions as r')
+                ->whereColumn('r.vend_id', 'card_payment_intents.vend_id')
+                ->whereColumn('r.session_ref', 'card_payment_intents.session_ref'))
+            ->when($operatorId !== null, fn ($q) => $q->whereIn('vend_id', Vend::withoutGlobalScopes()->select('id')->where('operator_id', $operatorId)))
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (CardPaymentIntent $i) => $payments->awaitsPerson($i))
+            ->map(fn (CardPaymentIntent $i) => [
+                'id' => $i->id,
+                'vend_label' => $i->vend?->codeLabel(),
+                'session_ref' => $i->session_ref,
+                'reference' => $i->reference,
+                'hold_cents' => $i->amount_cents,
+                'door_closed_at' => ($i->door_closed_at ?? $i->updated_at)?->format('Y-m-d H:i:s'),
+                'person_reason' => CardPaymentService::PERSON_AI_NO_ANSWER,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

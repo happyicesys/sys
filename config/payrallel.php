@@ -68,13 +68,13 @@ return [
     */
     'ai_capture' => (bool) env('PAYRALLEL_AI_CAPTURE', true),
 
-    // A hold still awaiting the AI this long after the door closed is charged in
-    // full, so it can never expire uncaptured and hand the goods out free. Brian:
-    // "just before hold expiry" — Payrallel says about a month, not per scheme, so
-    // 3 days until they confirm the shortest lifetime. Only for a session the AI
-    // never answered: an answer without a verdict waits for a person (Brian,
-    // 2026-10-09; AI Recognition → Key in charge).
-    'ai_capture_backstop_hours' => (int) env('PAYRALLEL_AI_CAPTURE_BACKSTOP_HOURS', 72),
+    // A hold with no AI verdict is never charged on its own (Brian, 2026-10-10 —
+    // the old 72 h cart backstop is gone): a person keys in the charge on AI
+    // Recognition. A session the AI answered without a verdict can be keyed in at
+    // once; one the AI never answered only this long after the door closed, so a
+    // late answer is not pre-empted. The 08:30 health email lists every such hold —
+    // an uncaptured hold expires (~a month) and gives the goods away.
+    'ai_person_after_minutes' => (int) env('PAYRALLEL_AI_PERSON_AFTER_MINUTES', 30),
 
     // Accepted clock skew on device-signed requests (X-Device-Timestamp).
     'device_signature_skew_seconds' => (int) env('PAYRALLEL_DEVICE_SIGNATURE_SKEW_SECONDS', 300),

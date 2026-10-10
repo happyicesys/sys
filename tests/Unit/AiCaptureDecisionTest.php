@@ -140,6 +140,5 @@ class AiCaptureDecisionTest extends TestCase
     public function test_the_cart_is_never_charged_above_the_hold(): void
     {
         $this->assertSame(500, D::decide(500, 760, 'match', [], [], [])->captureCents);
-        $this->assertSame(500, D::backstop(500, 760, 72)->captureCents);
     }
 }

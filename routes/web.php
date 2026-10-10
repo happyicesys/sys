@@ -1373,8 +1373,8 @@ Route::middleware(['auth', 'cors'])->get('/ai-recognition', [\App\Http\Controlle
 // Our own camera-5 door-session recording (smart_freezer_clips): a signed Spaces link, same gate.
 Route::middleware(['auth', 'cors'])->get('/freezer-clips/{clip}', [\App\Http\Controllers\SmartFreezer\FreezerClipController::class, 'show'])
     ->name('freezer-clips.show');
-// A person keys in the final charge for a T05 hold the AI could not decide (permission:charge ai-recognition).
-Route::middleware(['auth', 'cors'])->post('/ai-recognition/{recognition}/charge', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'charge'])
+// A person keys in the final charge for a T05 hold with no AI verdict (permission:charge ai-recognition).
+Route::middleware(['auth', 'cors'])->post('/ai-recognition/card-holds/{intent}/charge', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'charge'])
     ->name('ai-recognition.charge');
 
 /*

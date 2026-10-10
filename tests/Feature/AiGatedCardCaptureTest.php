@@ -214,21 +214,33 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame(760, CardPaymentIntent::sole()->captured_cents);
     }
 
-    public function test_no_verdict_is_charged_in_full_at_the_backstop_only(): void
+    public function test_a_session_the_ai_never_answered_is_never_charged_on_its_own(): void
     {
-        config(['payrallel.ai_capture_backstop_hours' => 72]);
+        config(['payrallel.ai_person_after_minutes' => 30]);
         $this->doorClosed();
 
-        Carbon::setTestNow(Carbon::now()->addHours(71));
+        Carbon::setTestNow(Carbon::now()->addMinutes(29));
         $this->service->reconcile();
-        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::sole()->state);
+        $this->assertNull($this->service->personNeededBecause(CardPaymentIntent::sole()), 'the AI still has time to answer');
 
-        Carbon::setTestNow(Carbon::now()->addHours(2));
+        Carbon::setTestNow(Carbon::now()->addDays(10)); // well past the old 72 h backstop
         $this->service->reconcile();
         $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertSame(CardPaymentService::PERSON_AI_NO_ANSWER, $this->service->personNeededBecause($intent));
+    }
+
+    public function test_a_person_keys_in_the_charge_for_a_session_the_ai_never_answered(): void
+    {
+        $this->doorClosed();
+        Carbon::setTestNow(Carbon::now()->addHour());
+
+        $intent = $this->service->chargeByPerson(CardPaymentIntent::sole(), 300, User::factory()->create(['name' => 'brian']));
+
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
-        $this->assertSame(760, $intent->captured_cents);
-        $this->assertStringContainsString('no AI verdict', $intent->ai_decision['reason']);
+        $this->assertSame([['capture', '50001-SF1', 300]], $this->gateway->callsOf('capture'));
+        $this->assertStringContainsString('the AI never answered', $intent->ai_decision['reason']);
     }
 
     /** The AI answered the session (a callback came) but gave no verdict — e.g. orderStatus 501. */
@@ -243,7 +255,6 @@ class AiGatedCardCaptureTest extends TestCase
 
     public function test_an_ai_answer_without_a_verdict_is_never_charged_on_its_own(): void
     {
-        config(['payrallel.ai_capture_backstop_hours' => 72]);
         $this->doorClosed();
         $this->answeredWithoutVerdict();
 
@@ -251,9 +262,9 @@ class AiGatedCardCaptureTest extends TestCase
         $this->service->reconcile();
 
         $intent = CardPaymentIntent::sole();
-        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state, 'no backstop once the AI has answered');
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
         $this->assertSame([], $this->gateway->callsOf('capture'));
-        $this->assertTrue($this->service->awaitsPerson($intent));
+        $this->assertSame(CardPaymentService::PERSON_AI_NO_VERDICT, $this->service->personNeededBecause($intent), 'at once: no grace once the AI answered');
     }
 
     public function test_a_person_keys_in_the_charge_for_a_hold_the_ai_could_not_decide(): void
@@ -299,17 +310,18 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame(240, $intent->owed_cents);
     }
 
-    public function test_a_person_cannot_charge_a_hold_the_ai_has_not_answered_or_has_judged(): void
+    public function test_a_person_cannot_charge_a_hold_the_ai_may_still_answer_or_has_judged(): void
     {
         $this->doorClosed();
         $by = User::factory()->create();
 
         try {
             $this->service->chargeByPerson(CardPaymentIntent::sole(), 500, $by);
-            $this->fail('no AI answer yet: the backstop still owns this hold');
+            $this->fail('the door just closed: the AI still has time to answer');
         } catch (DomainException) {
         }
 
+        Carbon::setTestNow(Carbon::now()->addHour());
         $this->verdict('match', [1 => 2, 2 => 1]);
         $this->assertFalse($this->service->awaitsPerson(CardPaymentIntent::sole()));
         $this->expectException(DomainException::class);

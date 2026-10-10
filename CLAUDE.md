@@ -1325,17 +1325,21 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   AI was asked about count as it saw them, and each unasked paid product (its verdict line
   has `product_id` but no `code`) counts as taken at the price paid — never less than the
   old cart rule, still catches extras; an incomplete result never releases a hold;
-  unrecognised / a taken product with no price → cart. No verdict → cart at
-  `ai_capture_backstop_hours` (72) after the door closed, so the hold cannot
-  expire — but only for a session the AI never answered. **An AI answer without a verdict**
-  (a callback came: `orderStatus` ≠ 0 / the "Human" badge, or the sale never matched) is
-  **never charged on its own** (Brian, 2026-10-09): the hold stays `awaiting_ai` until a person
-  presses **Key in charge** on AI Recognition, keys in the final amount and confirms it twice
-  (`CardPaymentService::chargeByPerson`, permission `charge ai-recognition`: superadmin, admin).
-  0 releases the hold; above the hold is the same one capture with the hold as fallback; the
-  person is kept on `ai_decision.by_person`. These holds are in the 08:30 health email at once —
-  a forgotten one expires with the goods given away. Only T05 holds come here: NETS and QR
-  sales were paid at the machine and the AI only reconciles their stock.
+  unrecognised / a taken product with no price → cart. **No verdict → never charged on its
+  own** (Brian, 2026-10-09 for an AI answer without a verdict — a callback came: `orderStatus`
+  ≠ 0 / the "Human" badge, or the sale never matched; 2026-10-10 for a session the AI never
+  answered — the old 72 h cart backstop and `ai_capture_backstop_hours` are gone). The hold stays
+  `awaiting_ai` until a person presses **Key in charge** on AI Recognition, keys in the final
+  amount and confirms it twice (`CardPaymentService::chargeByPerson`, route
+  `ai-recognition/card-holds/{intent}/charge`, permission `charge ai-recognition`: superadmin,
+  admin). `personNeededBecause()` is the one rule: an answer without a verdict can be keyed in at
+  once; a session the AI never answered only `payrallel.ai_person_after_minutes` (30) after the
+  door closed, so a late answer is not pre-empted. A hold whose session Zijia never pushed has no
+  row on the page, so it is listed above the table ("T05 card holds with no AI session"). 0 releases
+  the hold; above the hold is the same one capture with the hold as fallback; the person is kept
+  on `ai_decision.by_person`. Every such hold is in the 08:30 health email with its age — an
+  uncaptured hold expires (~a month) with the goods given away. Only T05 holds come here: NETS
+  and QR sales were paid at the machine and the AI only reconciles their stock.
   The decision is made ONCE (`ai_decision`: `capture_cents`, `fallback_cents`; the first
   verdict is final); a refused capture of the hold amount (4xx) is retried every 10 min.
   **A capture whose outcome is unknown is never resent** (a lost answer may already be

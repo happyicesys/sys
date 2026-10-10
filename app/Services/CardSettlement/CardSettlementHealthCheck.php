@@ -200,10 +200,9 @@ class CardSettlementHealthCheck
     /**
      * T05 holds charged by the AI verdict (CardPaymentService::settleAwaitingAi) that need a
      * person: a charge whose outcome is unknown (never resent until resolved), a refused charge
-     * still retrying, money judged but not collected, a hold the AI answered without a verdict
-     * (never charged on its own — a person keys in the charge on AI Recognition), and holds still
-     * waiting after two days (the backstop charges at 72 h; an uncaptured hold expires and gives
-     * the goods away).
+     * still retrying, money judged but not collected, and every hold with no AI verdict that is
+     * waiting for a person to key in the charge on AI Recognition — never charged on its own, and
+     * an uncaptured hold expires (~a month) and gives the goods away, so its age is shown.
      */
     protected function t05AiCharges(string $base): array
     {
@@ -223,8 +222,10 @@ class CardSettlementHealthCheck
                     isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-ai-charge {$i->reference} --charged|--not-charged`",
                     $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected (Payrallel refused to raise the hold; the hold was charged)',
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
-                    $payments->awaitsPerson($i) => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100).' — the AI gave no verdict; key in the charge on AI Recognition (it is never charged on its own)',
-                    $i->door_closed_at && $i->door_closed_at->lt(now()->subDays(2)) => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100).' still waiting for the AI since '.$i->door_closed_at->toDateTimeString(),
+                    ($because = $payments->personNeededBecause($i)) !== null => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100)
+                        .' since '.($i->door_closed_at ?? $i->updated_at)->toDateTimeString().' — '
+                        .($because === CardPaymentService::PERSON_AI_NO_ANSWER ? 'the AI never answered' : 'the AI gave no verdict')
+                        .'; key in the charge on AI Recognition (it is never charged on its own)',
                     default => null,
                 };
                 if ($text !== null) {

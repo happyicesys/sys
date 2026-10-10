@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *      └──send failed──▶ error
  *
  *   approved ──door closed + session ref (preauth, ai_capture)──▶ awaiting_ai
- *   awaiting_ai ──AI verdict / backstop / a person's keyed-in charge──▶ captured (the judged
+ *   awaiting_ai ──AI verdict / a person's keyed-in charge (no verdict)──▶ captured (the judged
  *                                          total in one capture, above the hold too) | voided
  *
  * `cancelling` exists because a cancel does not prove the customer did not tap:

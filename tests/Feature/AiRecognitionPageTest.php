@@ -104,7 +104,7 @@ class AiRecognitionPageTest extends TestCase
         $terminal = RemoteCardTerminal::create([
             'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
         ]);
-        CardPaymentIntent::forceCreate([
+        $intent = CardPaymentIntent::forceCreate([
             'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
             'reference' => 'SF1', 'custom_order_id' => '50001-SF1', 'session_ref' => 'SF-50001-1790732333-1',
             'mode' => 'preauth', 'amount_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
@@ -119,10 +119,10 @@ class AiRecognitionPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.1.card', [
-                    'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
+                    'id' => $intent->id, 'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
                     'judged_cents' => 960, 'increment_refused' => true, 'uncertain_cents' => null,
                     'reason' => 'AI judged took_more above the hold: one capture with auth increment', 'error' => 'further charge refused: no',
-                    'awaits_person' => false, 'by_person' => null,
+                    'person_reason' => null, 'awaits_person' => false, 'by_person' => null,
                 ])
                 ->where('recognitions.data.0.card', null));
     }
@@ -252,6 +252,42 @@ class AiRecognitionPageTest extends TestCase
         return [$gateway, $recognition];
     }
 
+    private function chargeUrl(): string
+    {
+        return '/ai-recognition/card-holds/'.CardPaymentIntent::sole()->id.'/charge';
+    }
+
+    public function test_a_hold_the_ai_never_received_is_listed_for_a_person_to_key_in(): void
+    {
+        config(['payrallel.min_query_interval_ms' => 0, 'payrallel.mode' => 'preauth', 'payrallel.ai_capture' => true, 'payrallel.ai_person_after_minutes' => 30]);
+        $gateway = new FakeRemoteCardTerminalGateway;
+        $this->app->instance(PayrallelGateway::class, $gateway);
+        RemoteCardTerminal::create([
+            'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
+        ]);
+        $payments = $this->app->make(CardPaymentService::class);
+        $intent = $payments->authorize($this->vend, 'SF9', 500);
+        $gateway->answer('50001-SF9', TerminalTransaction::APPROVED);
+        $payments->capture($payments->refresh($intent), 500, 'SF-50001-1791200000-9'); // no video push ever came
+
+        $this->actingAs($this->charger())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('sessionlessHolds', 0)); // the AI may still answer
+
+        Carbon::setTestNow(Carbon::now()->addHour());
+        $this->actingAs($this->charger())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('sessionlessHolds', 1)
+                ->where('sessionlessHolds.0.id', $intent->id)
+                ->where('sessionlessHolds.0.hold_cents', 500)
+                ->where('sessionlessHolds.0.person_reason', CardPaymentService::PERSON_AI_NO_ANSWER));
+        $this->actingAs($this->charger(2))->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('sessionlessHolds', 0)); // another operator's freezer
+
+        $this->actingAs($this->charger())->post($this->chargeUrl(), ['amount_cents' => 500])->assertSessionHasNoErrors();
+        $this->assertSame([['capture', '50001-SF9', 500]], $gateway->callsOf('capture'));
+        Carbon::setTestNow();
+    }
+
     private function charger(int $operatorId = 1): User
     {
         Permission::findOrCreate('charge ai-recognition', 'web');
@@ -278,11 +314,11 @@ class AiRecognitionPageTest extends TestCase
     {
         [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
 
-        $this->actingAs($this->viewer())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])->assertForbidden();
-        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => -1])->assertSessionHasErrors('amount_cents');
+        $this->actingAs($this->viewer())->post($this->chargeUrl(), ['amount_cents' => 460])->assertForbidden();
+        $this->actingAs($this->charger())->post($this->chargeUrl(), ['amount_cents' => -1])->assertSessionHasErrors('amount_cents');
         $this->assertSame([], $gateway->callsOf('capture'));
 
-        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])
+        $this->actingAs($this->charger())->post($this->chargeUrl(), ['amount_cents' => 460])
             ->assertSessionHasNoErrors()->assertSessionHas('success');
 
         $intent = CardPaymentIntent::sole();
@@ -291,7 +327,7 @@ class AiRecognitionPageTest extends TestCase
         $this->assertSame([['capture', '50001-SF1', 460]], $gateway->callsOf('capture'));
 
         // A second press finds nothing waiting.
-        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])
+        $this->actingAs($this->charger())->post($this->chargeUrl(), ['amount_cents' => 460])
             ->assertSessionHasErrors('amount_cents');
         $this->assertCount(1, $gateway->callsOf('capture'));
     }
@@ -301,7 +337,7 @@ class AiRecognitionPageTest extends TestCase
         [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
         $gateway->refuseAbove = 0;
 
-        $this->actingAs($this->charger())->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])
+        $this->actingAs($this->charger())->post($this->chargeUrl(), ['amount_cents' => 460])
             ->assertSessionHasErrors(['amount_cents' => 'Payrallel refused the charge of 4.60 (ai capture: Payrallel capture refused (HTTP 422): increment declined). mark1 keeps the amount and retries every 10 minutes.']);
 
         $intent = CardPaymentIntent::sole();
@@ -315,7 +351,7 @@ class AiRecognitionPageTest extends TestCase
     {
         [$gateway, $recognition] = $this->holdTheAiCouldNotDecide();
 
-        $this->actingAs($this->charger(2))->post("/ai-recognition/{$recognition->id}/charge", ['amount_cents' => 460])->assertNotFound();
+        $this->actingAs($this->charger(2))->post($this->chargeUrl(), ['amount_cents' => 460])->assertNotFound();
         $this->assertSame([], $gateway->callsOf('capture'));
     }
 
