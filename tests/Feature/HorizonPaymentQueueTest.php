@@ -23,6 +23,8 @@ class HorizonPaymentQueueTest extends TestCase
         $this->assertSame('redis-high', $high->connection);
         $this->assertSame('high', $high->queue);
         $this->assertSame(2, $high->maxProcesses);
+        // Horizon autoscales even a balance=false pool between min and max; min = max keeps both.
+        $this->assertSame(2, $high->minProcesses);
         $this->assertSame(1, $high->maxTries);
 
         $command = $high->toWorkerCommand();

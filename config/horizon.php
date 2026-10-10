@@ -262,7 +262,11 @@ return [
             ],
             // Two, so one long high job (SyncVendChannels) never parks the next
             // payment. +2 workers ≈ +2–3 MySQL connections.
+            // min = max: Horizon still autoscales a balance=false pool between the two, and
+            // idled it down to 1, so a busy worker sent payment jobs back to the 3 s poll
+            // (purchase confirm p90 1.6 s, max 2.8 s on 2026-10-10 evening).
             'supervisor-high' => [
+                'minProcesses' => 2,
                 'maxProcesses' => 2,
             ],
         ],

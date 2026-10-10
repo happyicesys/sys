@@ -11,6 +11,7 @@ use App\Models\Vend;
 use App\Services\ErrorService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Zxing\QrReader;
 use Symfony\Component\BrowserKit\HttpBrowser;
@@ -116,41 +117,11 @@ class PaymentGatewayService
         // dd($qrCodeUrl, $isCreateInput, $isRequiredDecode, $isResizeImage);
         $img = false;
         if ($isRequiredDecode) {
-            $tempFile = tempnam(sys_get_temp_dir(), 'qr_');
-
-            if ($isResizeImage) {
-                $content = $qrCodeUrl;
-                if ($this->isDataUri($qrCodeUrl)) {
-                    $content = $this->decodeDataUri($qrCodeUrl);
-                } elseif (filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
-                    $content = file_get_contents($qrCodeUrl);
-                }
-
-                $image = Image::read($content);
-                $image->resize(150, 150);
-                file_put_contents($tempFile, $image->toPng());
-            } else {
-                if ($this->isDataUri($qrCodeUrl)) {
-                    $binary = $this->decodeDataUri($qrCodeUrl);
-                    file_put_contents($tempFile, $binary);
-                } else {
-                    file_put_contents($tempFile, file_get_contents($qrCodeUrl));
-                }
-            }
-
-            try {
-                $qrCodeReader = new QrReader($tempFile);
-                $qrCodeText = $qrCodeReader->text([
-                    'POSSIBLE_FORMATS' => 'QR_CODE',
-                    'TRY_HARDER' => true,
-                ]);
-            } catch (\Exception $e) {
-                // Log error or handle it if necessary, but keep flow going
-                // For now, we just leave qrCodeText as empty string if it fails
-            }
-
-            if (file_exists($tempFile)) {
-                @unlink($tempFile);
+            $qrCodeText = $this->readQrText($qrCodeUrl, $isResizeImage);
+            if ($qrCodeText === '' && $isCreateInput) {
+                // Never record or send a blank QR: tell the machine, so the customer taps again.
+                $errorMsg .= 'Error: QR code could not be read, please try again';
+                $isCreateInput = false;
             }
         } else {
             switch ($operatorPaymentGateway->paymentGateway->name) {
@@ -389,6 +360,70 @@ class PaymentGatewayService
         }
 
         return null;
+    }
+
+    /**
+     * Reads the payment text out of the gateway's QR image (downloaded, or unpacked from a data
+     * URI). Two attempts: a truncated download or a TLS hiccup is usually fine the second time.
+     * Every failure is caught — the decoder can throw Errors (DivisionByZeroError on a corrupt
+     * image, 2470 on 2026-10-10) that `catch (\Exception)` let escape and abort the REQQR.
+     *
+     * @return string the QR payload, or '' when it could not be read
+     */
+    private function readQrText(string $qrCodeUrl, bool $resize): string
+    {
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $tempFile = tempnam(sys_get_temp_dir(), 'qr_');
+            try {
+                if ($this->isDataUri($qrCodeUrl)) {
+                    $content = $this->decodeDataUri($qrCodeUrl);
+                } elseif (! $resize || filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
+                    $content = $this->downloadQrImage($qrCodeUrl);
+                } else {
+                    $content = $qrCodeUrl;
+                }
+
+                if ($resize) {
+                    $image = Image::read($content);
+                    $image->resize(150, 150);
+                    $content = (string) $image->toPng();
+                }
+
+                file_put_contents($tempFile, $content);
+                $text = (new QrReader($tempFile))->text([
+                    'POSSIBLE_FORMATS' => 'QR_CODE',
+                    'TRY_HARDER' => true,
+                ]);
+                if (is_string($text) && $text !== '') {
+                    return $text;
+                }
+                Log::warning('QR image decoded to no text', ['attempt' => $attempt]);
+            } catch (\Throwable $e) {
+                Log::warning('QR image could not be read', [
+                    'attempt' => $attempt,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                ]);
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Times out after 5 s: this runs inside the MQTT subscriber, where PHP's default 60 s socket
+     * timeout would hold up every machine's frames behind one slow download.
+     */
+    private function downloadQrImage(string $url): string
+    {
+        $body = file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 5]]));
+        if ($body === false || $body === '') {
+            throw new \RuntimeException('QR image download returned nothing');
+        }
+
+        return $body;
     }
 
     private function isDataUri(string $value): bool
