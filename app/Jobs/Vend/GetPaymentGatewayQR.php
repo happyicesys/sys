@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Jobs\PublishMqtt;
 use App\Models\Vend;
+use App\Services\Mqtt\MqttPublisher;
 use App\Services\PaymentGatewayService;
 use App\Services\RunningNumberService;
 use Illuminate\Bus\Queueable;
@@ -11,6 +12,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class GetPaymentGatewayQR
 // implements ShouldQueue
@@ -39,9 +42,15 @@ class GetPaymentGatewayQR
      * Execute the job. Services are resolved here rather than built in the
      * constructor and carried on the job.
      *
+     * Not ShouldQueue: it runs inside the MQTT subscriber as the REQQR arrives,
+     * and replies inline on the process's persistent publisher. The reply used
+     * to go through a queued PublishMqtt on `high`, where it waited 1.7 s
+     * (p50, max 2.9 s) for an idle worker's 3 s poll — most of the 2–4 s a
+     * customer waited for the QR (2009, 2026-10-10).
+     *
      * @return void
      */
-    public function handle(PaymentGatewayService $paymentGatewayService, RunningNumberService $runningNumberService)
+    public function handle(PaymentGatewayService $paymentGatewayService, RunningNumberService $runningNumberService, MqttPublisher $publisher)
     {
         $originalInput = $this->originalInput;
         $vend = $this->vend;
@@ -65,19 +74,35 @@ class GetPaymentGatewayQR
         ]);
 
         if ($response['errorMsg']) {
-            PublishMqtt::dispatch('CM'.$vend->code, $response['errorMsg'])->onQueue('high');
-            // $this->mqttService->publish('CM'.$vend->code, $response['errorMsg']);
+            $this->reply($publisher, 'CM'.$vend->code, $response['errorMsg']);
         }
 
         if ($response['paymentGatewayLog']) {
             $encodeMsg = base64_encode('QRCODE'.$response['paymentGatewayLog']->qr_text.','.$orderId);
-            PublishMqtt::dispatch('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg)->onQueue('high');
-            // $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
+            $this->reply($publisher, 'CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
         }
 
         // }else {
         //     $this->mqttService->publish('CM'.$vend->code, 'This vending channel is not available');
         //     throw new \Exception('This vending channel is not available', 404);
         // }
+    }
+
+    /**
+     * Sends the reply now; if the inline publish fails (the publisher already
+     * reconnected and retried once), hands it to the queue so the customer
+     * still gets it, only later.
+     */
+    private function reply(MqttPublisher $publisher, string $topic, string $message): void
+    {
+        try {
+            $publisher->publish($topic, $message);
+        } catch (Throwable $e) {
+            Log::warning('QR reply: inline publish failed, queueing it', [
+                'topic' => $topic,
+                'error' => $e->getMessage(),
+            ]);
+            PublishMqtt::dispatch($topic, $message)->onQueue('high');
+        }
     }
 }
