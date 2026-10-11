@@ -977,6 +977,15 @@ photo. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
 **Happy Hour campaigns** (Brian, 2026-10-09; Machine Management → Happy Hour Campaign, permission
 `happy-hour-campaigns`: superadmin, admin).
 
+Operator isolation (2026-10-12): `happy_hour_campaigns.operator_id` is the OWNER (the creator's operator;
+backfilled from `created_by`, else HIPL). `OperatorHappyHourCampaignScope` (global) shows an operator-restricted
+viewer only its own operator's campaigns — every route, since update / destroy / preview reach them by id. Owner
+only, never "has one of my machines": a HIPL campaign may span operators and editing it would re-price theirs.
+The page lists only the viewer's machines (and products, through a hand-applied boundary on the raw `vends` join),
+and a save never unbinds a machine the viewer cannot see. The overlap check, the minute planner and the Sales
+Transactions badge read every campaign (`withoutGlobalScope`). Regression coverage:
+`tests/Feature/HappyHourOperatorScopeTest.php`.
+
 What a campaign is:
 - A scheduled percentage discount on a smart freezer's slowest movers, one SKU per slot.
 - Settings: days, hours, active dates, duration per SKU, how many SKUs take turns, discount %, stock floor %,

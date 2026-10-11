@@ -3,6 +3,7 @@
 namespace App\Services\HappyHour;
 
 use App\Models\HappyHourCampaign;
+use App\Models\Scopes\OperatorHappyHourCampaignScope;
 
 /**
  * One machine, one Happy Hour at a time: two active campaigns may share a machine only if their
@@ -22,7 +23,8 @@ final class HappyHourOverlap
             return [];
         }
 
-        return HappyHourCampaign::query()->active()
+        // Every operator's campaigns: a clash with one the viewer cannot see is still a clash.
+        return HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
             ->whereHas('vends', fn ($q) => $q->whereIn('vends.id', $vendIds))
             ->with(['vends' => fn ($q) => $q->whereIn('vends.id', $vendIds)])

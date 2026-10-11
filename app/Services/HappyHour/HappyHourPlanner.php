@@ -5,6 +5,7 @@ namespace App\Services\HappyHour;
 use App\Jobs\NudgeFreezerMenu;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
+use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use App\Models\Vend;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -42,7 +43,7 @@ class HappyHourPlanner
         $now = CarbonImmutable::instance($now);
         $stats = ['closed' => $this->closeEnded($now), 'sold_out' => $this->endSoldOut($now), 'planned' => 0, 'swapped' => 0];
 
-        HappyHourCampaign::query()->active()->with('vends')->get()
+        HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()->with('vends')->get()
             ->each(function (HappyHourCampaign $campaign) use ($now, &$stats) {
                 foreach ($campaign->vends as $vend) {
                     try {

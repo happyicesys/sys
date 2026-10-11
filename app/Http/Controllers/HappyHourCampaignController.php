@@ -6,6 +6,7 @@ use App\Http\Requests\HappyHour\HappyHourCampaignRequest;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
 use App\Models\Product;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourPricing;
@@ -39,7 +40,9 @@ class HappyHourCampaignController extends Controller
     {
         $now = Carbon::now();
         $campaigns = HappyHourCampaign::query()
-            ->with('vends:id,code,code_prefix,machine_type,is_active,apk_version_code')
+            // Only the viewer's own machines are listed (a HIPL campaign may span operators).
+            ->with(['vends' => fn ($q) => $this->visibleVends($q)
+                ->select('vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type', 'vends.is_active', 'vends.apk_version_code')])
             ->orderByDesc('is_active')->orderByDesc('id')
             ->get();
         // Only the slot each machine is running now (the Status column); one per machine at most.
@@ -47,6 +50,7 @@ class HappyHourCampaignController extends Controller
             ->open()
             ->with('product:id,code,name')
             ->whereIn('happy_hour_campaign_id', $campaigns->pluck('id'))
+            ->whereIn('vend_id', $campaigns->flatMap(fn ($c) => $c->vends->pluck('id'))->unique()->values())
             ->where('starts_at', '<=', $now)
             ->where('ends_at', '>', $now)
             ->orderBy('vend_id')
@@ -67,6 +71,8 @@ class HappyHourCampaignController extends Controller
         $campaign = DB::transaction(function () use ($request) {
             $campaign = HappyHourCampaign::create([
                 ...$this->fields($request),
+                // The owner (OperatorHappyHourCampaignScope): the creator's operator, HIPL when unset.
+                'operator_id' => (int) auth()->user()->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID,
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
             ]);
@@ -117,7 +123,7 @@ class HappyHourCampaignController extends Controller
     public function preview(Request $request, int $id, HappyHourRanker $ranker): JsonResponse
     {
         $campaign = HappyHourCampaign::findOrFail($id);
-        $vends = $campaign->vends()
+        $vends = $this->visibleVends($campaign->vends())
             ->when($request->filled('vend_id'), fn ($q) => $q->where('vends.id', (int) $request->input('vend_id')))
             ->get();
         $now = Carbon::now();
@@ -133,6 +139,17 @@ class HappyHourCampaignController extends Controller
                 'candidates' => array_map(fn ($c) => $c->toArray(), $ranker->rank($campaign, $vend, $now)),
             ])->values(),
         ]);
+    }
+
+    /**
+     * The viewer's own machines among a campaign's (`campaign->vends()` drops Vend's global scopes):
+     * HIPL sees every machine, an operator-restricted viewer only its operator's.
+     */
+    private function visibleVends($query)
+    {
+        $operatorId = OperatorVendFilterScope::viewerOperatorId();
+
+        return $query->when($operatorId, fn ($q) => $q->where('vends.operator_id', $operatorId));
     }
 
     /**
@@ -167,7 +184,12 @@ class HappyHourCampaignController extends Controller
     private function syncVends(HappyHourCampaign $campaign, array $vendIds): array
     {
         $before = $campaign->vends()->pluck('vends.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
-        $after = collect($vendIds)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+        // The form only lists the viewer's machines, so a machine it cannot see stays bound: an
+        // operator's save must never take another operator's freezer out of a campaign.
+        $visible = $this->visibleVends($campaign->vends())->pluck('vends.id')->map(fn ($id) => (int) $id)->all();
+        $after = collect($vendIds)->map(fn ($id) => (int) $id)
+            ->merge(array_diff($before, $visible))
+            ->unique()->sort()->values()->all();
         if ($before === $after) {
             return [];
         }
@@ -264,6 +286,8 @@ class HappyHourCampaignController extends Controller
         $ids = DB::table('vend_channels')
             ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
             ->where('vends.machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+            // A raw join reaches vends with no global scope: apply the viewer boundary by hand.
+            ->when(OperatorVendFilterScope::viewerOperatorId(), fn ($q, $operatorId) => $q->where('vends.operator_id', $operatorId))
             ->whereNotNull('vend_channels.product_id')
             ->distinct()
             ->pluck('vend_channels.product_id');

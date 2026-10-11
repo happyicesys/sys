@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class HappyHourCampaign extends Model
 {
     use SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new OperatorHappyHourCampaignScope);
+    }
 
     public const RULE_DAYS_OF_COVER = 'days_of_cover';
 
@@ -38,7 +44,7 @@ class HappyHourCampaign extends Model
     public const WEEKENDS = 0b1100000;
 
     protected $fillable = [
-        'name', 'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end',
+        'name', 'operator_id', 'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end',
         'slot_minutes', 'sku_count', 'selection_rule', 'lookback_days', 'discount_pct',
         'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'excluded_product_ids',
         'created_by', 'updated_by',

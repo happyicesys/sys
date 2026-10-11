@@ -3,6 +3,7 @@
 namespace App\Services\HappyHour;
 
 use App\Models\HappyHourSlot;
+use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Support\DispenseVerdict;
@@ -97,7 +98,8 @@ final class HappyHourSales
         }
 
         return HappyHourSlot::query()
-            ->with(['campaign' => fn ($q) => $q->withTrashed()->select('id', 'name')])
+            // The name of whichever campaign priced the sale, even another operator's or a deleted one.
+            ->with(['campaign' => fn ($q) => $q->withTrashed()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->select('id', 'name')])
             ->whereIn('id', $ids)
             ->get(['id', 'happy_hour_campaign_id', 'starts_at', 'ends_at', 'original_price', 'promo_price', 'discount_pct'])
             ->mapWithKeys(fn (HappyHourSlot $s) => [$s->id => [
