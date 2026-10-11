@@ -6,16 +6,20 @@ use App\Jobs\NudgeFreezerMenu;
 use App\Models\Customer;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\User;
 use App\Models\Vend;
+use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourPricing;
 use App\Services\HappyHour\HappyHourRanker;
+use App\Services\HappyHour\HappyHourSales;
+use App\Services\VendTransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -358,12 +362,92 @@ class HappyHourCampaignTest extends TestCase
                 ->where('campaigns.0.vends.0.apk_version_code', 30)
                 ->where('campaigns.0.vends.0.supported', true));
 
-        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/preview")->assertOk()
+        // The Status column carries only the slot running now.
+        $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(fn ($page) => $page->where('campaigns.1.id', $campaign->id)
+                ->has('campaigns.1.live', 1)
+                ->where('campaigns.1.live.0.promo_price', 200)
+                ->has('campaigns.0.live', 0));
+
+        // A machine chip ranks just that machine.
+        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/preview?vend_id={$this->vend->id}")->assertOk()
+            ->assertJsonCount(1, 'machines')
             ->assertJsonPath('machines.0.candidates.0.rank', 1);
+        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/preview?vend_id=999999")->assertOk()
+            ->assertJsonCount(0, 'machines');
 
         $this->actingAs($user)->delete("/happy-hour-campaigns/{$campaign->id}")->assertRedirect();
         $this->assertSame(0, HappyHourSlot::where('happy_hour_campaign_id', $campaign->id)->where('starts_at', '>', now())->count());
         $this->assertSoftDeleted($campaign);
+    }
+
+    public function test_a_sale_at_the_promo_price_inside_its_slot_is_tagged_and_counted(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [9, 10, 3.00, 9]]);
+        $this->campaign(['sku_count' => 1]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $slot = HappyHourSlot::where('position', 0)->firstOrFail();
+        $a = $this->products['A']->id;
+        $b = $this->products['B']->id;
+
+        $promo = $this->sale($a, 240, '2026-10-09 14:10:00');
+        $full = $this->sale($a, 400, '2026-10-09 14:11:00');             // full price: not Happy Hour
+        $other = $this->sale($b, 300, '2026-10-09 14:12:00');            // another SKU
+        $late = $this->sale($a, 240, '2026-10-09 15:03:00');             // cart from the slot's last minute, paid after it
+        $stray = $this->sale($a, 240, '2026-10-09 13:40:00');            // same cents, but long before the slot
+        $basket = $this->basket([[$a, 240], [$b, 300]], '2026-10-09 14:20:00');
+
+        $this->assertSame($slot->id, $promo->fresh()->happy_hour_slot_id);
+        $this->assertNull($full->fresh()->happy_hour_slot_id);
+        $this->assertNull($other->fresh()->happy_hour_slot_id);
+        $this->assertSame($slot->id, $late->fresh()->happy_hour_slot_id);
+        $this->assertNull($stray->fresh()->happy_hour_slot_id);
+        $this->assertSame($slot->id, $basket->fresh()->happy_hour_slot_id, 'the header says the basket holds a promo unit');
+        $this->assertSame([$slot->id, null], DB::table('vend_transaction_items')->where('vend_transaction_id', $basket->id)
+            ->orderBy('id')->pluck('happy_hour_slot_id')->map(fn ($v) => $v === null ? null : (int) $v)->all());
+
+        // The slot's 15:00 close counts the tagged single sales and the basket's promo line.
+        Carbon::setTestNow('2026-10-09 15:00:00');
+        $this->planner()->run(now());
+        $slot->refresh();
+        $this->assertSame(HappyHourSlot::STATUS_ENDED, $slot->status);
+        $this->assertSame([3, 720], [$slot->units_sold, $slot->revenue_cents]);
+
+        // A TRADE landing after the close re-opens the totals and the next run recounts.
+        $this->sale($a, 240, '2026-10-09 14:59:30');
+        $this->assertNull($slot->fresh()->units_sold);
+        Carbon::setTestNow('2026-10-09 15:01:00');
+        $this->planner()->run(now());
+        $this->assertSame([4, 960, 640], [$slot->fresh()->units_sold, $slot->fresh()->revenue_cents, $slot->fresh()->discount_cents]);
+    }
+
+    public function test_the_trade_ingest_tags_a_freezer_sale_made_at_the_promo_price(): void
+    {
+        PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);
+        VendChannelError::firstOrCreate(['code' => 0], ['desc' => 'No Malfunction (0)']);
+        $this->freezer(['A' => [9, 10, 4.00, 0]]);
+        $this->campaign(['sku_count' => 1]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $slot = HappyHourSlot::firstOrFail();
+        $a = $this->products['A']->id;
+
+        Carbon::setTestNow('2026-10-09 14:05:00');
+        $trade = fn (string $orderId, int $cents) => app(VendTransactionService::class)->create($this->vend->fresh(), [
+            // As the freezer sends it (prod 2026-10-09): header Price in dollars, each unit's Price in cents.
+            'ORDRID' => $orderId, 'PAY_TYPE' => 0, 'TIME' => now()->format('Y-m-d H:i:s'), 'SErr' => 0, 'SId' => 11,
+            'Price' => number_format($cents / 100, 2, '.', ''), 'TXN_SRC' => 0,
+            'transf_info' => [['SId' => 11, 'SErr' => 0, 'Price' => $cents, 'goods_id' => $a]],
+        ]);
+        $trade('26100914050050001', 240);
+        $trade('26100914050150001', 400);
+
+        $this->assertSame(
+            ['26100914050050001' => $slot->id, '26100914050150001' => null],
+            VendTransaction::withoutGlobalScopes()->orderBy('id')->get(['order_id', 'happy_hour_slot_id'])
+                ->mapWithKeys(fn ($t) => [$t->order_id => $t->happy_hour_slot_id === null ? null : (int) $t->happy_hour_slot_id])->all()
+        );
     }
 
     /** @param  array<string, mixed>  $overrides */
@@ -379,15 +463,37 @@ class HappyHourCampaignTest extends TestCase
         ], $overrides);
     }
 
-    private function sale(int $productId, int $cents, string $at): void
+    /** A single sale as the freezer's TRADE writes it — the header row only, no item row — then tagged. */
+    private function sale(int $productId, int $cents, string $at): VendTransaction
     {
         $id = DB::table('vend_transactions')->insertGetId([
             'vend_id' => $this->vend->id, 'order_id' => 'HH-'.uniqid(), 'transaction_datetime' => $at, 'amount' => $cents,
+            'product_id' => $productId, 'qty' => 1, 'is_multiple' => 0,
             'settlement_status' => VendTransaction::SETTLEMENT_SETTLED, 'created_at' => $at, 'updated_at' => $at,
         ]);
-        DB::table('vend_transaction_items')->insert([
-            'vend_transaction_id' => $id, 'product_id' => $productId, 'unit_price_amount' => $cents, 'created_at' => $at,
+        $sale = VendTransaction::withoutGlobalScopes()->findOrFail($id);
+        app(HappyHourSales::class)->tag($this->vend, $sale);
+
+        return $sale;
+    }
+
+    /** A multiple purchase: header + one item row per unit, then tagged. @param list<array{0: int, 1: int}> $units */
+    private function basket(array $units, string $at): VendTransaction
+    {
+        $id = DB::table('vend_transactions')->insertGetId([
+            'vend_id' => $this->vend->id, 'order_id' => 'HH-'.uniqid(), 'transaction_datetime' => $at,
+            'amount' => array_sum(array_column($units, 1)), 'qty' => count($units), 'is_multiple' => 1,
+            'settlement_status' => VendTransaction::SETTLEMENT_SETTLED, 'created_at' => $at, 'updated_at' => $at,
         ]);
+        foreach ($units as [$productId, $cents]) {
+            DB::table('vend_transaction_items')->insert([
+                'vend_transaction_id' => $id, 'product_id' => $productId, 'unit_price_amount' => $cents, 'created_at' => $at,
+            ]);
+        }
+        $sale = VendTransaction::withoutGlobalScopes()->findOrFail($id);
+        app(HappyHourSales::class)->tag($this->vend, $sale);
+
+        return $sale;
     }
 
     private function codeOf(int $productId): string

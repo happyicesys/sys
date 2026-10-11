@@ -6,8 +6,6 @@ use App\Jobs\NudgeFreezerMenu;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
 use App\Models\Vend;
-use App\Models\VendTransaction;
-use App\Support\DispenseVerdict;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -307,32 +305,24 @@ class HappyHourPlanner
         return $ended;
     }
 
-    /** Records each finished slot's units, takings and discount given, from the settled sales in it. */
+    /**
+     * Records each finished slot's units, takings and discount from the settled sales tagged with
+     * it (`HappyHourSales`). A TRADE tagged after this clears `units_sold` again, so it is recounted.
+     */
     private function closeEnded(CarbonImmutable $now): int
     {
         $slots = HappyHourSlot::query()
             ->whereNull('units_sold')
             ->where('ends_at', '<=', $now)
             ->get();
+        $sales = app(HappyHourSales::class);
         foreach ($slots as $slot) {
-            $sales = DB::table('vend_transaction_items as i')
-                ->join('vend_transactions as t', 't.id', '=', 'i.vend_transaction_id')
-                ->where('t.vend_id', $slot->vend_id)
-                ->where('t.transaction_datetime', '>=', $slot->starts_at)
-                ->where('t.transaction_datetime', '<', $slot->ends_at)
-                ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
-                ->where('i.product_id', $slot->product_id)
-                ->where(fn ($q) => $q->whereNull('i.vend_channel_error_code')->orWhereIn('i.vend_channel_error_code', DispenseVerdict::SALE_CODES))
-                ->where(fn ($q) => $q->whereNull('i.is_refunded')->orWhere('i.is_refunded', 0))
-                ->selectRaw('COUNT(*) AS units, COALESCE(SUM(i.unit_price_amount), 0) AS revenue')
-                ->first();
-            $units = (int) ($sales->units ?? 0);
-            $revenue = (int) ($sales->revenue ?? 0);
+            $result = $sales->results($slot);
             $slot->update([
                 'status' => $slot->status === HappyHourSlot::STATUS_SCHEDULED ? HappyHourSlot::STATUS_ENDED : $slot->status,
-                'units_sold' => $units,
-                'revenue_cents' => $revenue,
-                'discount_cents' => max(0, $units * $slot->original_price - $revenue),
+                'units_sold' => $result['units'],
+                'revenue_cents' => $result['revenue'],
+                'discount_cents' => $result['discount'],
             ]);
         }
 

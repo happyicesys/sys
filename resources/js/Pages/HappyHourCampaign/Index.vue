@@ -46,7 +46,6 @@
                   <TableHead>Discount</TableHead>
                   <TableHead>Skip When</TableHead>
                   <TableHead>Machines</TableHead>
-                  <TableHead>Today's Slots</TableHead>
                   <TableHead>Action</TableHead>
                 </tr>
               </thead>
@@ -63,7 +62,7 @@
                     <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
                       {{ statusLabels[c.status] }}
                     </span>
-                    <div v-for="s in c.today.filter(s => s.live)" :key="s.id" class="mt-1 text-xs font-semibold text-rose-700 whitespace-nowrap">
+                    <div v-for="s in c.live" :key="s.id" class="mt-1 text-xs font-semibold text-gray-900 whitespace-nowrap">
                       <span v-if="c.vends.length > 1">{{ vendCode(c, s.vend_id) }} · </span>{{ s.product }} {{ money(s.promo_price) }}
                     </div>
                   </TableData>
@@ -89,27 +88,16 @@
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <div class="flex flex-wrap justify-center gap-1">
-                      <span v-for="v in c.vends" :key="v.id"
-                        class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border"
+                      <button v-for="v in c.vends" :key="v.id" type="button" @click="openPreview(c, v)"
+                        class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border hover:ring-2 hover:ring-indigo-300"
                         :class="v.supported ? 'bg-gray-50 text-gray-800 border-gray-300' : 'bg-amber-50 text-amber-800 border-amber-300'"
-                        v-tooltip="unsupportedTooltip(v)">
-                        {{ v.code }}<span v-if="!v.supported" class="cursor-help">&nbsp;⚠</span>
-                      </span>
+                        v-tooltip="unsupportedTooltip(v) ?? 'Show the lineup now'">
+                        {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
+                      </button>
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
-                    {{ c.today.length }}
-                  </TableData>
-                  <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <div class="flex justify-center space-x-1 items-start">
-                      <Button type="button" class="bg-sky-500 hover:bg-sky-600 px-2 py-1 text-xs text-white flex space-x-1" @click="openToday(c)">
-                        <ClockIcon class="w-4 h-4" />
-                        <span class="whitespace-nowrap">Today's Slots</span>
-                      </Button>
-                      <Button type="button" class="bg-indigo-500 hover:bg-indigo-600 px-2 py-1 text-xs text-white flex space-x-1" @click="openPreview(c)">
-                        <EyeIcon class="w-4 h-4" />
-                        <span class="whitespace-nowrap">Preview Lineup</span>
-                      </Button>
                       <Button v-if="permissions.includes('update happy-hour-campaigns')" type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1" @click="openEdit(c)">
                         <PencilSquareIcon class="w-4 h-4" />
                         <span>Edit</span>
@@ -122,7 +110,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!campaigns.length">
-                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     No Results Found
                   </td>
                 </tr>
@@ -179,13 +167,14 @@
               <p v-if="form.errors.sku_count" class="text-red-600 text-xs mt-1">{{ form.errors.sku_count }}</p>
             </div>
 
-            <div class="md:col-span-3">
+            <div :class="form.selection_rule === 'days_of_cover' ? 'md:col-span-3' : 'md:col-span-6'">
               <label class="block text-sm font-medium text-gray-700">Pick SKUs by</label>
               <select v-model="form.selection_rule" :class="inputClass">
                 <option v-for="r in rules" :key="r.id" :value="r.id">{{ r.name }}</option>
               </select>
             </div>
-            <div class="md:col-span-3">
+            <!-- Only days of cover reads past sales; balance % ranks the live stock at pick time. -->
+            <div class="md:col-span-3" v-if="form.selection_rule === 'days_of_cover'">
               <label class="block text-sm font-medium text-gray-700">Sales look back (days)</label>
               <input v-model.number="form.lookback_days" type="number" min="1" max="90" :class="inputClass" />
             </div>
@@ -270,80 +259,18 @@
       </template>
     </Modal>
 
-    <!-- Today's slots -->
-    <Modal :open="showToday" @modalClose="showToday = false">
-      <template #header>
-        <span>Today's slots · {{ todayCampaign?.name }}</span>
-      </template>
-      <template #default>
-        <div v-if="todayCampaign" class="max-h-[70vh] overflow-y-auto">
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-            <table class="min-w-full border-separate" style="border-spacing: 0">
-              <thead class="bg-gray-100">
-                <tr class="divide-x divide-gray-200">
-                  <TableHead>#</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead v-if="todayCampaign.vends.length > 1">Machine</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sold</TableHead>
-                </tr>
-              </thead>
-              <tbody class="bg-white">
-                <tr v-for="(s, sIndex) in todayCampaign.today" :key="s.id" class="divide-x divide-y-2 divide-gray-300"
-                  :class="s.live ? 'bg-rose-50' : 'odd:bg-white even:bg-gray-100'">
-                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
-                    {{ sIndex + 1 }}
-                  </TableData>
-                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
-                    <span class="whitespace-nowrap">{{ s.starts_at }}–{{ s.ends_at }}</span>
-                  </TableData>
-                  <TableData v-if="todayCampaign.vends.length > 1" :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
-                    {{ vendCode(todayCampaign, s.vend_id) }}
-                  </TableData>
-                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-left">
-                    {{ s.product }}
-                  </TableData>
-                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-right">
-                    <span class="whitespace-nowrap">
-                      <span class="line-through text-gray-400 mr-1">{{ money(s.original_price) }}</span>{{ money(s.promo_price) }}
-                    </span>
-                  </TableData>
-                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
-                    <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border whitespace-nowrap" :class="slotStatusClass(s)">
-                      {{ slotStatusLabel(s) }}
-                    </span>
-                  </TableData>
-                  <TableData :currentIndex="sIndex" :totalLength="todayCampaign.today.length" inputClass="text-center">
-                    {{ s.units_sold ?? '-' }}
-                  </TableData>
-                </tr>
-                <tr v-if="!todayCampaign.today.length">
-                  <td colspan="7" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
-                    No slots today
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </template>
-    </Modal>
-
     <!-- Preview lineup -->
     <Modal :open="showPreview" @modalClose="showPreview = false">
       <template #header>
-        <span>Lineup now · {{ preview?.campaign }}</span>
+        <span>Lineup now · {{ previewTitle }}</span>
       </template>
       <template #default>
         <div v-if="!preview" class="text-sm text-gray-500">Loading…</div>
         <div v-else class="space-y-4 max-h-[70vh] overflow-y-auto">
           <p class="text-xs text-gray-500">As ranked at {{ preview.at }}. Each slot is ranked again as it comes up, so this order moves with the stock.</p>
           <div v-for="m in preview.machines" :key="m.vend_id">
-            <div class="font-semibold text-sm">
-              {{ m.code }}
-              <span v-if="!m.supported" class="ml-1 text-xs text-amber-700 font-normal">⚠ app {{ m.apk_version_code ?? '?' }} — no slots until it runs {{ minApkVersion }}+</span>
+            <div v-if="!m.supported" class="text-xs text-amber-700">
+              ⚠ app {{ m.apk_version_code ?? '?' }} — no slots until it runs {{ minApkVersion }}+
             </div>
             <div class="mt-1 shadow-sm ring-1 ring-black ring-opacity-5">
               <table class="min-w-full border-separate" style="border-spacing: 0">
@@ -408,7 +335,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { ClockIcon, EyeIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -431,7 +358,6 @@ const dayPresets = [
   { name: 'Weekends', mask: 96 },
 ]
 const statusLabels = { running: 'Running now', scheduled: 'Scheduled', paused: 'Paused', ended: 'Ended' }
-const slotStatusLabels = { ended: 'Done', sold_out: 'Sold out', cancelled: 'Cancelled' }
 
 const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
@@ -448,9 +374,7 @@ const selectedMachines = ref([])
 const selectedExcluded = ref([])
 const showPreview = ref(false)
 const preview = ref(null)
-const todayId = ref(null)
-const showToday = ref(false)
-const todayCampaign = computed(() => props.campaigns.find(c => c.id === todayId.value) ?? null)
+const previewTitle = ref('')
 
 // Hover on a ⚠ machine chip: why it gets no Happy Hour slots, and what changes that.
 // Same shape as ProductMapping's long tooltips: floating-vue sets no max-width, so the width is an
@@ -486,25 +410,11 @@ function ruleLabel(id) {
 
 function statusClass(status) {
   return {
-    running: 'bg-rose-100 text-rose-800 border-rose-300',
+    running: 'bg-green-100 text-green-800 border-green-300',
     scheduled: 'bg-sky-100 text-sky-800 border-sky-300',
     paused: 'bg-gray-100 text-gray-700 border-gray-300',
     ended: 'bg-gray-50 text-gray-400 border-gray-200',
   }[status]
-}
-
-function slotStatusLabel(s) {
-  if (s.live) return 'Live'
-  return s.status === 'scheduled' ? 'Scheduled' : slotStatusLabels[s.status]
-}
-
-function slotStatusClass(s) {
-  if (s.live) return 'bg-rose-100 text-rose-800 border-rose-300'
-  return {
-    scheduled: 'bg-sky-100 text-sky-800 border-sky-300',
-    sold_out: 'bg-amber-50 text-amber-800 border-amber-300',
-    cancelled: 'bg-gray-100 text-gray-500 border-gray-300',
-  }[s.status] ?? 'bg-gray-50 text-gray-500 border-gray-200'
 }
 
 function money(cents) {
@@ -555,15 +465,12 @@ function destroy(c) {
   router.delete(`/happy-hour-campaigns/${c.id}`, { preserveScroll: true })
 }
 
-function openToday(c) {
-  todayId.value = c.id
-  showToday.value = true
-}
-
-async function openPreview(c) {
+// A machine chip opens that machine's ranking right now (what the next slot would pick from).
+async function openPreview(c, v) {
   preview.value = null
+  previewTitle.value = `${v.code} · ${c.name}`
   showPreview.value = true
-  const { data } = await axios.get(`/happy-hour-campaigns/${c.id}/preview`)
+  const { data } = await axios.get(`/happy-hour-campaigns/${c.id}/preview`, { params: { vend_id: v.id } })
   preview.value = data
 }
 </script>

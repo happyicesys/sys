@@ -4032,7 +4032,8 @@ class VendController extends Controller
                     'vend_transactions.items_json',
                     'vend_transactions.meta_json',
                     'vend_transactions.vend_transaction_json',
-                    'vend_transactions.label_json'
+                    'vend_transactions.label_json',
+                    'vend_transactions.happy_hour_slot_id'
                 )
                 ->orderBy($qualifiedSortKey, $sortDir)
                 ->get();
@@ -4183,6 +4184,18 @@ class VendController extends Controller
         $aiBadges = app(\App\Services\SmartFreezer\RecognitionBadges::class)->forSales($records);
         foreach ($records as $record) {
             $record->ai_recognition = $aiBadges[$record->id] ?? null;
+        }
+
+        // "Happy Hour" badge in Price Type: the slot that priced the sale (single) or the line
+        // (multiple), tagged at ingest by HappyHourSales. One slot lookup for the page.
+        $hhSlotIds = $records->pluck('happy_hour_slot_id')
+            ->merge($records->flatMap(fn ($r) => $r->vendTransactionItems->pluck('happy_hour_slot_id')));
+        $hhBadges = app(\App\Services\HappyHour\HappyHourSales::class)->badges($hhSlotIds);
+        foreach ($records as $record) {
+            $record->happy_hour = $record->is_multiple ? null : ($hhBadges[$record->happy_hour_slot_id] ?? null);
+            foreach ($record->vendTransactionItems as $item) {
+                $item->happy_hour = $hhBadges[$item->happy_hour_slot_id] ?? null;
+            }
         }
 
         // Per-item "Refund Request" badge placement for MULTIPLE-purchase

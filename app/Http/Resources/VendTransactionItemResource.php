@@ -49,6 +49,8 @@ class VendTransactionItemResource extends JsonResource
             'refund_request_is_dropped' => (bool) ($this->refund_request_is_dropped ?? false),
             'product' => ProductResource::make($this->whenLoaded('product')),
             'product_id' => $this->product_id,
+            // Happy Hour slot that priced this line — set per page in VendController::transactionIndex.
+            'happy_hour' => $this->happy_hour ?? null,
             // "Access Product(s)": a mixed basket is shown whole on purpose, but a
             // partner must not read a competitor's COST price out of it. This is
             // the same value ExportVendTransactionCsv::maskedUnitCost blanks in

@@ -114,6 +114,9 @@ class VendTransactionResource extends JsonResource
             // day in Singapore, not an instant to be shown in the viewer's zone.
             // Re-projecting it into another timezone would move the date.
             'ai_recognition' => $this->ai_recognition ?? null,
+            // Happy Hour slot that priced this single sale (HappyHourSales::badges); null on a
+            // multiple purchase, whose promo lines carry it on their item rows.
+            'happy_hour' => $this->happy_hour ?? null,
             'settlement_payout_date' => $this->settlement_payout_date ?? null,
             'settlement_gateway' => $this->settlement_gateway ?? null,
             'settlement_payout_note' => $this->settlement_payout_note ?? null,

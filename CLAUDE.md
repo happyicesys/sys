@@ -980,7 +980,10 @@ photo. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
 What a campaign is:
 - A scheduled percentage discount on a smart freezer's slowest movers, one SKU per slot.
 - Settings: days, hours, active dates, duration per SKU, how many SKUs take turns, discount %, stock floor %,
-  minimum units, price rounding, exclusions, allow below cost.
+  minimum units, price rounding, exclusions, allow below cost. Sales look back (days) only feeds days of cover,
+  so the form shows it only for that rule.
+- The page's Status column shows the slot running now; clicking a machine chip opens that machine's lineup
+  ranked at this moment (`preview?vend_id=`). There is no per-day slot list any more (Brian, 2026-10-11).
 
 `HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute, and once
 on each save. It:
@@ -993,7 +996,7 @@ on each save. It:
 2. freezes each slot's product and both prices (integer cents, Site tier, rounded down to the step);
 3. swaps a SKU that no longer qualifies as its slot starts;
 4. ends a slot early when its SKU sells out;
-5. records units / takings / discount from settled sales when the slot closes.
+5. records units / takings / discount when the slot closes, from the settled sales TAGGED with it (below).
 
 Exclusion rules:
 - The stock floor % applies only where Real Capacity is set; most freezer SKUs have none, which is why minimum
@@ -1011,7 +1014,23 @@ Machines and the freezer:
 
 Where the promo price applies:
 - An AI-judged extra unit taken during a slot is valued at the promo price (`CardPaymentService::shelfPrices`).
-- Nothing else in sale ingest changes: the freezer's TRADE already carries the promo unit price.
+- The freezer's TRADE carries the promo unit price but NOT the slot.
+
+Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_transactions` AND
+`vend_transaction_items`, written only by `HappyHourSales::tag()`, called from both TRADE ingest paths
+(pre-created gateway row and fresh create) once the items exist, freezers only, never throws.
+- A line is the slot's when the same machine sold the slot's product at EXACTLY its promo price within the
+  slot ± `happy_hour.sale_grace_seconds` (300; a cart from the last minute is paid after the slot). Price is
+  the proof, time only picks between slots. Tagged once, so a later campaign edit never re-attributes a sale.
+- A single sale (`is_multiple = 0`) is its header row only — the freezer writes NO item row for it (prod
+  2026-10: 15 sales, 6 items). A multiple purchase is tagged per promo item AND on its header ("includes a
+  promo unit"; one slot per machine at a time).
+- No index and no FK on purpose (INSTANT add on the 4.7M-row table): every reader goes through
+  `(vend_id, transaction_datetime)` first — `HappyHourSales::results()` searches the slot ± grace.
+- A TRADE tagged after its slot was totalled clears the slot's `units_sold`; the minute run recounts.
+- Sales Transactions shows "★ HH −n%" in Price Type (`HappyHourBadge.vue`; header for a single sale, the item
+  row for a basket), one slot lookup per page.
+- Forward-only: sales before the column existed are untagged (none had sold at a promo price by 2026-10-11).
 
 A save never errors on a planning hiccup; the minute run catches up. Regression coverage:
 `tests/Feature/HappyHourCampaignTest.php`.

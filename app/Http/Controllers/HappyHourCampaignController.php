@@ -13,6 +13,7 @@ use App\Services\HappyHour\HappyHourRanker;
 use App\Services\UserLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -36,16 +37,19 @@ class HappyHourCampaignController extends Controller
 
     public function index(): Response
     {
-        $today = Carbon::today();
+        $now = Carbon::now();
         $campaigns = HappyHourCampaign::query()
             ->with('vends:id,code,code_prefix,machine_type,is_active,apk_version_code')
             ->orderByDesc('is_active')->orderByDesc('id')
             ->get();
+        // Only the slot each machine is running now (the Status column); one per machine at most.
         $slots = HappyHourSlot::query()
+            ->open()
             ->with('product:id,code,name')
             ->whereIn('happy_hour_campaign_id', $campaigns->pluck('id'))
-            ->whereDate('slot_date', $today)
-            ->orderBy('starts_at')
+            ->where('starts_at', '<=', $now)
+            ->where('ends_at', '>', $now)
+            ->orderBy('vend_id')
             ->get()
             ->groupBy('happy_hour_campaign_id');
 
@@ -106,16 +110,22 @@ class HappyHourCampaignController extends Controller
         return back()->with('success', "Happy Hour \"{$campaign->name}\" deleted.");
     }
 
-    /** "Preview lineup": per bound machine, every SKU with its rank or the reason it is left out. */
-    public function preview(int $id, HappyHourRanker $ranker): JsonResponse
+    /**
+     * "Lineup now" (a machine chip on the page): every SKU with its rank or the reason it is left
+     * out. `vend_id` ranks just that machine; without it, every bound machine.
+     */
+    public function preview(Request $request, int $id, HappyHourRanker $ranker): JsonResponse
     {
-        $campaign = HappyHourCampaign::with('vends')->findOrFail($id);
+        $campaign = HappyHourCampaign::findOrFail($id);
+        $vends = $campaign->vends()
+            ->when($request->filled('vend_id'), fn ($q) => $q->where('vends.id', (int) $request->input('vend_id')))
+            ->get();
         $now = Carbon::now();
 
         return response()->json([
             'campaign' => $campaign->name,
             'at' => $now->toDateTimeString(),
-            'machines' => $campaign->vends->map(fn (Vend $vend) => [
+            'machines' => $vends->map(fn (Vend $vend) => [
                 'vend_id' => $vend->id,
                 'code' => $vend->codeLabel(),
                 'supported' => HappyHourPricing::supports($vend),
@@ -169,7 +179,7 @@ class HappyHourCampaignController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function campaignPayload(HappyHourCampaign $c, $todaySlots): array
+    private function campaignPayload(HappyHourCampaign $c, $liveSlots): array
     {
         $now = Carbon::now();
 
@@ -202,7 +212,7 @@ class HappyHourCampaignController extends Controller
                 'apk_version_code' => $v->apk_version_code,
             ])->values(),
             'status' => $this->status($c, $now),
-            'today' => $todaySlots->map(fn (HappyHourSlot $s) => [
+            'live' => $liveSlots->map(fn (HappyHourSlot $s) => [
                 'id' => $s->id,
                 'vend_id' => $s->vend_id,
                 'starts_at' => $s->starts_at->format('H:i'),
@@ -211,10 +221,6 @@ class HappyHourCampaignController extends Controller
                 'product_code' => $s->product?->code,
                 'original_price' => $s->original_price,
                 'promo_price' => $s->promo_price,
-                'status' => $s->status,
-                'live' => $s->status === HappyHourSlot::STATUS_SCHEDULED && $s->starts_at->lte($now) && $s->ends_at->gt($now),
-                'units_sold' => $s->units_sold,
-                'discount_cents' => $s->discount_cents,
             ])->values(),
         ];
     }

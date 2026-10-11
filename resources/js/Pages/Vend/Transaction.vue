@@ -871,6 +871,7 @@
                                     </span>
                                 </div>
                             </div>
+                            <HappyHourBadge :hh="vendTransaction.happy_hour" :exponent="operatorCountry.currency_exponent" />
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -1141,6 +1142,7 @@
                             <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
+                            <HappyHourBadge :hh="vendTransactionItem.happy_hour" :exponent="operatorCountry.currency_exponent" />
                         </TableData>
                         <!-- Payment Status: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
@@ -1244,6 +1246,7 @@
 </style>
 
 <script setup>
+import HappyHourBadge from '@/Components/HappyHourBadge.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';

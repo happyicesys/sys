@@ -244,6 +244,9 @@ class VendTransactionService
         // once-at-settle dispatches here, then stop (the fresh-create
         // post-processing below must NOT run — it would re-create items).
         if ($wasPreCreatedUpdate) {
+            // Items were rebuilt inside the ingest transaction, so the sale is whole here.
+            app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction);
+
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
             // Hand to the refund/void path ONLY when the row ended up PENDING:
@@ -320,6 +323,8 @@ class VendTransactionService
                 }
             }
 
+            // Smart freezer: which Happy Hour slot priced this sale (needs the items above).
+            app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction);
         }
 
         if ($processedInput['dcvendUserID']) {

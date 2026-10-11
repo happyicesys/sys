@@ -14,4 +14,9 @@ return [
     // The menu carries open slots ending within this many hours (in practice the live one and the
     // next), so a freezer switches slots on its own clock.
     'menu_horizon_hours' => 24,
+
+    // A sale is tagged with the slot that priced it when its unit price equals the slot's promo
+    // price and its TRADE time falls inside the slot, give or take this many seconds — a cart
+    // started in the slot's last minute is paid just after it ends.
+    'sale_grace_seconds' => 300,
 ];
