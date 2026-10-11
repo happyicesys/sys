@@ -92,8 +92,8 @@
                       <span v-for="v in c.vends" :key="v.id"
                         class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border"
                         :class="v.supported ? 'bg-gray-50 text-gray-800 border-gray-300' : 'bg-amber-50 text-amber-800 border-amber-300'"
-                        :title="v.supported ? '' : 'Not on app ' + minApkVersion + '+ (or inactive): no slots until it updates'">
-                        {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
+                        v-tooltip="unsupportedTooltip(v)">
+                        {{ v.code }}<span v-if="!v.supported" class="cursor-help">&nbsp;⚠</span>
                       </span>
                     </div>
                   </TableData>
@@ -451,6 +451,18 @@ const preview = ref(null)
 const todayId = ref(null)
 const showToday = ref(false)
 const todayCampaign = computed(() => props.campaigns.find(c => c.id === todayId.value) ?? null)
+
+// Hover on a ⚠ machine chip: why it gets no Happy Hour slots, and what changes that.
+const unsupportedTooltip = (v) => {
+  if (v.supported) return null
+  if (!v.is_active) {
+    return `${v.code} is inactive, so Happy Hour never runs on it. Set it active in Machine Settings and it joins this campaign.`
+  }
+  const app = v.apk_version_code ?? 'unknown'
+  return `${v.code} runs freezer app ${app}. Happy Hour needs app ${props.minApkVersion}+, so no slots are planned `
+    + `for it and it keeps selling at the normal price. It joins this campaign by itself once it updates `
+    + `to app ${props.minApkVersion} or later — nothing to change here.`
+}
 
 const unsupportedPicked = computed(() => selectedMachines.value.filter(m => !m.supported).map(m => m.name))
 

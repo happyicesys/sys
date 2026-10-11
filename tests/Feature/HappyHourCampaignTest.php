@@ -352,6 +352,12 @@ class HappyHourCampaignTest extends TestCase
         $this->actingAs($user)->post('/happy-hour-campaigns', $this->form(['name' => 'Evening', 'window_start' => '18:00', 'window_end' => '20:00']))
             ->assertSessionHasNoErrors();
 
+        // The machine chips carry what the ⚠ tooltip explains for a machine that cannot run it.
+        $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(fn ($page) => $page->where('campaigns.0.vends.0.is_active', true)
+                ->where('campaigns.0.vends.0.apk_version_code', 30)
+                ->where('campaigns.0.vends.0.supported', true));
+
         $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/preview")->assertOk()
             ->assertJsonPath('machines.0.candidates.0.rank', 1);
 

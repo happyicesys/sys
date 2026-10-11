@@ -197,6 +197,9 @@ class HappyHourCampaignController extends Controller
                 'id' => $v->id,
                 'code' => $v->codeLabel(),
                 'supported' => HappyHourPricing::supports($v),
+                // For the ⚠ tooltip: why an unsupported machine gets no slots.
+                'is_active' => (bool) $v->is_active,
+                'apk_version_code' => $v->apk_version_code,
             ])->values(),
             'status' => $this->status($c, $now),
             'today' => $todaySlots->map(fn (HappyHourSlot $s) => [
