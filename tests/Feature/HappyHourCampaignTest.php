@@ -24,8 +24,8 @@ use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
- * Happy Hour campaigns: ranking (days of cover, ties by qty), exclusions, the planned schedule
- * (slot duration, rank order, sold-out swap and early end), slot results, the freezer menu field,
+ * Happy Hour campaigns: ranking (days of cover, balance %, ties by qty), exclusions, the schedule
+ * (each slot picked just in time from live stock, top SKUs taking turns, sold-out swap and early end), slot results, the freezer menu field,
  * the AI-charge price and the campaign page.
  */
 class HappyHourCampaignTest extends TestCase
@@ -157,25 +157,52 @@ class HappyHourCampaignTest extends TestCase
         $this->assertTrue(app(HappyHourRanker::class)->rank($campaign, $this->vend, now())[0]->isEligible());
     }
 
-    public function test_the_day_is_planned_before_the_window_one_sku_per_slot_in_rank_order_cycling(): void
+    public function test_each_slot_is_picked_just_before_it_starts_from_live_stock_and_the_top_skus_take_turns(): void
     {
-        $this->freezer(['A' => [5, 10, 4.00, 0], 'B' => [4, 10, 4.00, 7], 'C' => [6, 10, 4.00, 28]]);
-        $campaign = $this->campaign(['slot_minutes' => 90]);
+        // Balance %: A 50, B 80, C 60.
+        $this->freezer(['A' => [5, 10, 4.00, 0], 'B' => [8, 10, 4.00, 7], 'C' => [6, 10, 4.00, 28]]);
+        $this->campaign(['slot_minutes' => 90, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT]);
+        $slots = fn () => HappyHourSlot::orderBy('starts_at')->get()
+            ->map(fn ($s) => $s->starts_at->format('H:i').'-'.$s->ends_at->format('H:i').' '.$this->codeOf($s->product_id))->all();
 
-        Carbon::setTestNow('2026-10-09 13:40:00');
+        Carbon::setTestNow('2026-10-09 13:57:00');
         $this->planner()->run(now());
-        $this->assertSame(0, HappyHourSlot::count(), 'too early: the lineup is picked 10 minutes before the window');
+        $this->assertSame(0, HappyHourSlot::count(), 'too early: a slot is picked 2 minutes before it starts');
 
-        Carbon::setTestNow('2026-10-09 13:55:00');
+        Carbon::setTestNow('2026-10-09 13:58:00');
         $this->planner()->run(now());
-        $slots = HappyHourSlot::orderBy('starts_at')->get();
-        $this->assertSame(['14:00-15:30', '15:30-17:00', '17:00-18:00'], $slots->map(fn ($s) => $s->starts_at->format('H:i').'-'.$s->ends_at->format('H:i'))->all());
-        $this->assertSame(['A', 'B', 'A'], $slots->map(fn ($s) => $this->codeOf($s->product_id))->all(), 'top 2 only, cycling');
-        $this->assertSame([400, 240, 40], [$slots[0]->original_price, $slots[0]->promo_price, $slots[0]->discount_pct]);
+        $this->assertSame(['14:00-15:30 B'], $slots(), 'only the slot coming up, highest balance first');
+        $first = HappyHourSlot::firstOrFail();
+        $this->assertSame([400, 240, 40, 80.0], [$first->original_price, $first->promo_price, $first->discount_pct, $first->qty_at_pick / $first->capacity_at_pick * 100]);
         Queue::assertPushed(NudgeFreezerMenu::class, fn ($job) => $job->vendId === $this->vend->id);
+        $this->planner()->run(now()->addMinute());
+        $this->assertSame(1, HappyHourSlot::count(), 'idempotent');
 
+        // B sells down to 20% during its slot: the next pick follows the stock of that moment.
+        DB::table('vend_channels')->where('product_id', $this->products['B']->id)->update(['qty' => 2]);
+        Carbon::setTestNow('2026-10-09 15:28:00');
         $this->planner()->run(now());
-        $this->assertSame(3, HappyHourSlot::count(), 'idempotent');
+        Carbon::setTestNow('2026-10-09 16:58:00');
+        $this->planner()->run(now());
+
+        // Top 2 now are C (60%) and A (50%); C just ran, so A takes its turn.
+        $this->assertSame(['14:00-15:30 B', '15:30-17:00 C', '17:00-18:00 A'], $slots());
+    }
+
+    public function test_one_sku_count_repeats_the_best_sku_of_each_moment(): void
+    {
+        $this->freezer(['A' => [5, 10, 4.00, 0], 'B' => [8, 10, 4.00, 7]]);
+        $this->campaign(['sku_count' => 1, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT]);
+
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        Carbon::setTestNow('2026-10-09 14:58:00');
+        $this->planner()->run(now());
+        DB::table('vend_channels')->where('product_id', $this->products['B']->id)->update(['qty' => 4]);
+        Carbon::setTestNow('2026-10-09 15:58:00');
+        $this->planner()->run(now());
+
+        $this->assertSame(['B', 'B', 'A'], HappyHourSlot::orderBy('starts_at')->pluck('product_id')->map(fn ($id) => $this->codeOf($id))->all());
     }
 
     public function test_a_window_edited_after_todays_slots_ran_is_planned_at_its_new_times(): void
@@ -193,7 +220,10 @@ class HappyHourCampaignTest extends TestCase
         $this->planner()->planCampaign($campaign->fresh(), now());
 
         $this->assertSame('10:38', HappyHourSlot::open()->where('ends_at', '>', now())->orderBy('starts_at')->first()->starts_at->format('H:i'));
-        $this->assertSame(8, HappyHourSlot::open()->where('ends_at', '>', now())->count());
+        $this->assertSame(1, HappyHourSlot::open()->where('ends_at', '>', now())->count(), 'later slots are picked as they come up');
+        Carbon::setTestNow('2026-10-09 11:36:00');
+        $this->planner()->run(now());
+        $this->assertSame('11:38', HappyHourSlot::open()->orderByDesc('starts_at')->value('starts_at')->format('H:i'));
     }
 
     public function test_a_price_edit_mid_slot_continues_the_hour_at_the_new_price_from_now(): void
@@ -227,6 +257,9 @@ class HappyHourCampaignTest extends TestCase
     {
         $this->freezer(['A' => [5, 10, 4.00, 0], 'B' => [4, 10, 4.00, 7], 'C' => [6, 10, 4.00, 28]]);
         $this->campaign(['sku_count' => 3]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        Carbon::setTestNow('2026-10-09 14:58:00');
         $this->planner()->run(now());
         $this->assertSame('B', $this->codeOf(HappyHourSlot::where('position', 1)->value('product_id')));
 
@@ -236,8 +269,8 @@ class HappyHourCampaignTest extends TestCase
         $this->planner()->run(now());
 
         $slot = HappyHourSlot::where('position', 1)->first();
-        // A and C both hold later slots today, so the best-ranked qualifying SKU (A) takes it.
-        $this->assertSame('A', $this->codeOf($slot->product_id));
+        // A ran the slot before, so the next qualifying SKU in turn (C) takes it.
+        $this->assertSame('C', $this->codeOf($slot->product_id));
         $this->assertNotNull($slot->checked_at);
     }
 
@@ -245,6 +278,7 @@ class HappyHourCampaignTest extends TestCase
     {
         $this->freezer(['A' => [5, 10, 4.00, 0]]);
         $this->campaign(['sku_count' => 1]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
         $this->planner()->run(now());
 
         Carbon::setTestNow('2026-10-09 14:20:00');
@@ -269,10 +303,11 @@ class HappyHourCampaignTest extends TestCase
     {
         $this->freezer(['A' => [5, 10, 4.00, 0], 'B' => [4, 10, 2.80, 7]]);
         $this->campaign(['sku_count' => 1]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
         $this->planner()->run(now());
 
         $rows = collect($this->getJson('/api/vends/50001/menu')->assertOk()->json())->keyBy('product_code');
-        $this->assertCount(4, $rows['A']['happy_hour']);
+        $this->assertCount(1, $rows['A']['happy_hour']);
         $this->assertSame([240, 400, 40], [$rows['A']['happy_hour'][0]['price'], $rows['A']['happy_hour'][0]['original_price'], $rows['A']['happy_hour'][0]['discount_pct']]);
         $this->assertSame('2026-10-09T14:00:00+08:00', $rows['A']['happy_hour'][0]['starts_at']);
         $this->assertSame([], $rows['B']['happy_hour']);
@@ -294,15 +329,22 @@ class HappyHourCampaignTest extends TestCase
         Carbon::setTestNow('2026-10-09 14:30:00');
         $this->actingAs($user)->post('/happy-hour-campaigns', $this->form())->assertSessionHasNoErrors();
         $campaign = HappyHourCampaign::firstOrFail();
-        $this->assertSame(4, HappyHourSlot::count(), 'planned on save, live slot included');
+        $this->assertSame(1, HappyHourSlot::count(), 'the live slot is planned on save');
         $live = HappyHourSlot::where('position', 0)->first();
 
         $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['name' => 'Renamed']))->assertSessionHasNoErrors();
         $this->assertSame(HappyHourSlot::STATUS_SCHEDULED, $live->fresh()->status);
 
+        // Two price edits in the same minute as the slot began: the slot is replaced, never lost.
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['discount_pct' => 45]))->assertSessionHasNoErrors();
+        $this->assertNull($live->fresh(), 'a slot under a minute old is replaced');
+        $this->assertSame(220, HappyHourSlot::open()->where('ends_at', '>', now())->value('promo_price'));
+
+        Carbon::setTestNow('2026-10-09 14:34:00');
+        $live = HappyHourSlot::open()->firstOrFail();
         $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['discount_pct' => 50]))->assertSessionHasNoErrors();
         $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $live->fresh()->status, 'a price change ends the live slot');
-        $this->assertSame(200, HappyHourSlot::open()->where('starts_at', '>', now())->value('promo_price'), 'and re-plans at 50% off');
+        $this->assertSame(200, HappyHourSlot::open()->where('ends_at', '>', now())->value('promo_price'), 'and re-plans the rest of it at 50% off');
 
         // A second campaign may not take the same machine at overlapping times.
         $this->actingAs($user)->post('/happy-hour-campaigns', $this->form(['name' => 'Clash', 'window_start' => '17:00', 'window_end' => '20:00']))

@@ -16,9 +16,10 @@
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <p class="text-xs text-gray-500">
           During a campaign's hours each machine shows one discounted SKU at a time on its welcome screen
-          (Happy Hour page) and charges the promo price for it. The SKUs are picked automatically about
-          10 minutes before the window opens: the slowest movers first ("days of cover" = stock ÷ daily sales;
-          a tie goes to the higher stock), one SKU per slot, in rank order. A SKU that sells out ends its slot early.
+          (Happy Hour page) and charges the promo price for it. Each slot's SKU is picked about 2 minutes before
+          the slot starts, from that machine's stock at that moment — by default the highest stock balance %
+          (qty ÷ capacity; a tie goes to the higher stock) — and the top SKUs (the number set below) take turns, slot by slot.
+          A SKU that sells out ends its slot early.
           Only freezers on app {{ minApkVersion }} or later can run it.
         </p>
 
@@ -338,7 +339,7 @@
       <template #default>
         <div v-if="!preview" class="text-sm text-gray-500">Loading…</div>
         <div v-else class="space-y-4 max-h-[70vh] overflow-y-auto">
-          <p class="text-xs text-gray-500">As ranked at {{ preview.at }}. Rank 1 takes the first slot, rank 2 the next…</p>
+          <p class="text-xs text-gray-500">As ranked at {{ preview.at }}. Each slot is ranked again as it comes up, so this order moves with the stock.</p>
           <div v-for="m in preview.machines" :key="m.vend_id">
             <div class="font-semibold text-sm">
               {{ m.code }}
@@ -435,7 +436,7 @@ const slotStatusLabels = { ended: 'Done', sold_out: 'Sold out', cancelled: 'Canc
 const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
   window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4,
-  selection_rule: 'days_of_cover', lookback_days: 14, discount_pct: 40,
+  selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
   min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false,
   excluded_product_ids: [], vend_ids: [],
 })

@@ -984,9 +984,12 @@ What a campaign is:
 
 `HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute, and once
 on each save. It:
-1. picks a day's lineup 10 min before the window: `HappyHourRanker`, days of cover = stock ÷ average daily sales
-   from `vend_product_records`, where nothing sold = first and a tie goes to the higher qty. Rank 1 takes slot 1,
-   cycling through the top N;
+1. picks each slot's SKU **just in time**, `lead_minutes` (2) before the slot starts, from that machine's live
+   stock (Brian, 2026-10-11 — never a whole day ahead): `HappyHourRanker`, default rule highest balance %
+   (qty ÷ Real Capacity; unknown capacity last), or days of cover (stock ÷ average daily sales from
+   `vend_product_records`, nothing sold = first); a tie goes to the higher qty. The top `sku_count` of the
+   ranking AT THAT MOMENT take turns: the best one that did not hold one of the previous `sku_count − 1` slots
+   (`nextInTurn`); with 1 the best SKU of each moment repeats;
 2. freezes each slot's product and both prices (integer cents, Site tier, rounded down to the step);
 3. swaps a SKU that no longer qualifies as its slot starts;
 4. ends a slot early when its SKU sells out;
@@ -1001,8 +1004,10 @@ Machines and the freezer:
 - One machine, one campaign at a time: overlap is refused on save, and unique `(vend_id, starts_at)` is the backstop.
 - Only freezers reporting `apk_version_code` ≥ `config('happy_hour.min_freezer_apk_version')` (30) get slots.
   An older app would show the full price while mark1 believed in a discount.
-- `/menu` rows carry `happy_hour` (smart mappings; that product's open slots in the next 24 h, ISO times with
-  offset). The freezer switches on its own clock, and each slot write nudges it (`NudgeFreezerMenu`).
+- `/menu` rows carry `happy_hour` (smart mappings; that product's open slots in the next 24 h — in practice the
+  live one and the next — ISO times with offset). The freezer switches on its own clock, and each slot write
+  nudges it (`NudgeFreezerMenu`). A cancel deletes a slot under a minute old, so a second save in the same
+  minute can re-take that start time (unique per machine).
 
 Where the promo price applies:
 - An AI-judged extra unit taken during a slot is valued at the promo price (`CardPaymentService::shelfPrices`).

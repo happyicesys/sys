@@ -26,8 +26,8 @@ class HappyHourCampaign extends Model
     public const RULE_RANDOM = 'random';
 
     public const RULES = [
-        self::RULE_DAYS_OF_COVER => 'Most days of cover (stock ÷ daily sales)',
         self::RULE_BALANCE_PCT => 'Highest stock balance % (qty ÷ capacity)',
+        self::RULE_DAYS_OF_COVER => 'Most days of cover (stock ÷ daily sales)',
         self::RULE_RANDOM => 'Random (fixed per machine per day)',
     ];
 

@@ -21,14 +21,15 @@ use Illuminate\Support\Facades\Log;
  *
  *  1. closes slots whose time is over and records what they sold;
  *  2. ends a live slot early when its SKU has sold out (the screen must not advertise an empty basket);
- *  3. about `lead_minutes` before a day's window, picks the lineup — rank 1 takes the first slot,
- *     rank 2 the next, cycling when the window holds more slots than `sku_count` — and freezes each
- *     slot's product and prices;
- *  4. as each slot starts, re-checks its SKU and swaps in the next-ranked one if it no longer
+ *  3. picks each slot's SKU just in time — `lead_minutes` before the slot starts, from that machine's
+ *     stock at that moment (Brian, 2026-10-11: "derived in real time ... based on each of the vends
+ *     during that moment"), taking turns among the top `sku_count` of the live ranking — and freezes
+ *     the slot's product and prices;
+ *  4. as each slot starts, re-checks its SKU and swaps in the next one in turn if it no longer
  *     qualifies.
  *
- * Every change nudges the freezer to re-read its menu, which carries the slots ahead of time; the
- * freezer switches between them on its own clock.
+ * Every change nudges the freezer to re-read its menu, which carries the live and the next slot;
+ * the freezer switches between them on its own clock.
  */
 class HappyHourPlanner
 {
@@ -73,8 +74,8 @@ class HappyHourPlanner
     }
 
     /**
-     * Takes a campaign's schedule back: slots not yet started are deleted, a live one ends now
-     * (status cancelled; its sales are still recorded when it closes).
+     * Takes a campaign's schedule back: slots not yet started (or started under a minute ago) are
+     * deleted, a live one ends now (status cancelled; its sales are still recorded when it closes).
      *
      * @param  list<int>|null  $vendIds  null = every machine
      */
@@ -85,7 +86,9 @@ class HappyHourPlanner
             ->when($vendIds !== null, fn ($q) => $q->whereIn('vend_id', $vendIds));
 
         $touched = $scope()->open()->where('ends_at', '>', $now)->distinct()->pluck('vend_id')->all();
-        $scope()->open()->where('starts_at', '>', $now)->delete();
+        // Not started, or started under a minute ago: removed, so the replacement can take that start
+        // time (unique per machine) — two saves in one minute otherwise left the machine with no slot.
+        $scope()->open()->where('starts_at', '>', $now->copy()->subMinute())->delete();
         $scope()->open()->where('starts_at', '<=', $now)->where('ends_at', '>', $now)
             ->update(['ends_at' => $now, 'status' => HappyHourSlot::STATUS_CANCELLED]);
 
@@ -99,7 +102,7 @@ class HappyHourPlanner
             return [0, 0];
         }
         [$windowStart, $windowEnd] = $campaign->windowOn($now);
-        if ($now->lt($windowStart->subMinutes((int) config('happy_hour.lead_minutes', 10))) || $now->gte($windowEnd)) {
+        if ($now->lt($windowStart->subMinutes($this->leadMinutes())) || $now->gte($windowEnd)) {
             return [0, 0];
         }
 
@@ -119,17 +122,25 @@ class HappyHourPlanner
         };
 
         $planned = 0;
+        $horizon = $now->addMinutes($this->leadMinutes());
         foreach ($campaign->slotTimesOn($now) as $time) {
             if ($time['ends_at']->lte($now) || $this->isCovered($existing, $time, $now)) {
                 continue;
             }
-            $picks = array_slice($eligibleOnce(), 0, max(1, $campaign->sku_count));
-            if ($picks === []) {
+            // Just in time: a later slot is picked when it comes up, from the stock it will see then.
+            if ($time['starts_at']->gt($horizon)) {
+                break;
+            }
+            $pick = $this->nextInTurn($campaign, $eligibleOnce(), $existing, $time['starts_at']);
+            if ($pick === null) {
                 break;
             }
             // A slot time already under way (a mid-slot edit, a sold-out SKU) gets the rest of its time.
             $time['starts_at'] = $time['starts_at']->max($now->startOfMinute());
-            $planned += (int) $this->createSlot($campaign, $vend, $time, $picks[$time['position'] % count($picks)]);
+            if ($this->createSlot($campaign, $vend, $time, $pick)) {
+                $planned++;
+                $existing = $existing->push(HappyHourSlot::query()->where('vend_id', $vend->id)->where('starts_at', $time['starts_at'])->first());
+            }
         }
 
         $swapped = $this->checkStartingSlot($campaign, $vend, $now, $eligibleOnce);
@@ -139,6 +150,36 @@ class HappyHourPlanner
         }
 
         return [$planned, $swapped];
+    }
+
+    private function leadMinutes(): int
+    {
+        return max(1, (int) config('happy_hour.lead_minutes', 2));
+    }
+
+    /**
+     * The SKU whose turn it is: the best of the live top `sku_count` that did not hold one of today's
+     * last `sku_count - 1` slots before this one, so the top SKUs take turns while each turn still
+     * follows the stock of the moment. With one SKU (or nothing else qualifying) the best one repeats.
+     *
+     * @param  list<HappyHourCandidate>  $eligible  best first
+     * @param  \Illuminate\Support\Collection<int, HappyHourSlot>  $existing  today's slots on this machine
+     */
+    private function nextInTurn(HappyHourCampaign $campaign, array $eligible, $existing, CarbonImmutable $startsAt, ?int $skipSlotId = null): ?HappyHourCandidate
+    {
+        $top = array_slice($eligible, 0, max(1, $campaign->sku_count));
+        if ($top === []) {
+            return null;
+        }
+        $recent = $existing
+            ->filter(fn (?HappyHourSlot $s) => $s !== null && $s->id !== $skipSlotId
+                && $s->status !== HappyHourSlot::STATUS_CANCELLED && $s->starts_at->lt($startsAt))
+            ->sortByDesc(fn (HappyHourSlot $s) => $s->starts_at->getTimestamp())
+            ->take(count($top) - 1)
+            ->pluck('product_id')
+            ->all();
+
+        return collect($top)->first(fn (HappyHourCandidate $c) => ! in_array($c->productId, $recent, true)) ?? $top[0];
     }
 
     /**
@@ -199,8 +240,8 @@ class HappyHourPlanner
     }
 
     /**
-     * As a slot starts (within the minute), its SKU must still qualify; otherwise the best-ranked SKU
-     * not already on today's later slots takes its place, else any qualifying one, else it is cancelled.
+     * As a slot starts (within the minute), its SKU must still qualify; otherwise the next SKU in turn
+     * takes its place (see nextInTurn), else it is cancelled.
      */
     private function checkStartingSlot(HappyHourCampaign $campaign, Vend $vend, CarbonImmutable $now, \Closure $eligibleOnce): int
     {
@@ -226,14 +267,12 @@ class HappyHourPlanner
             return 0;
         }
 
-        $taken = HappyHourSlot::query()->open()
+        $today = HappyHourSlot::query()
+            ->where('happy_hour_campaign_id', $campaign->id)
             ->where('vend_id', $vend->id)
-            ->where('id', '!=', $slot->id)
-            ->where('ends_at', '>', $now)
-            ->pluck('product_id')
-            ->all();
-        $picks = array_slice($eligible, 0, max(1, $campaign->sku_count));
-        $replacement = collect($picks)->first(fn ($c) => ! in_array($c->productId, $taken, true)) ?? ($picks[0] ?? null);
+            ->whereDate('slot_date', $slot->slot_date)
+            ->get();
+        $replacement = $this->nextInTurn($campaign, $eligible, $today, CarbonImmutable::instance($slot->starts_at), $slot->id);
         if ($replacement === null) {
             $slot->update(['status' => HappyHourSlot::STATUS_CANCELLED, 'checked_at' => $now, 'ends_at' => $now->max($slot->starts_at)]);
 
