@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Schema;
  *
  * Nullable, appended last, no default, no index and no foreign key: on MySQL 8 that is an INSTANT
  * add on the 4.7M-row `vend_transactions` (no table copy, no lock), and every reader reaches these
- * rows through the existing (vend_id, transaction_datetime) index first. The slot row it points at
- * is never hard-deleted once a sale can carry it (campaigns are soft-deleted).
+ * rows through the existing (vend_id, transaction_datetime) index first. Campaigns are soft-deleted,
+ * so slot rows stay; the one exception is HappyHourPlanner::cancel() removing a slot that began under a
+ * minute ago, which leaves a sale made in that minute pointing at no slot (no badge, not counted).
  */
 return new class extends Migration
 {
