@@ -453,15 +453,20 @@ const showToday = ref(false)
 const todayCampaign = computed(() => props.campaigns.find(c => c.id === todayId.value) ?? null)
 
 // Hover on a ⚠ machine chip: why it gets no Happy Hour slots, and what changes that.
+// Same shape as ProductMapping's long tooltips: floating-vue sets no max-width, so the width is an
+// inline style on the content (a utility class loses to its own `max-width: inherit`).
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
+
 const unsupportedTooltip = (v) => {
   if (v.supported) return null
-  if (!v.is_active) {
-    return `${v.code} is inactive, so Happy Hour never runs on it. Set it active in Machine Settings and it joins this campaign.`
-  }
-  const app = v.apk_version_code ?? 'unknown'
-  return `${v.code} runs freezer app ${app}. Happy Hour needs app ${props.minApkVersion}+, so no slots are planned `
-    + `for it and it keeps selling at the normal price. It joins this campaign by itself once it updates `
-    + `to app ${props.minApkVersion} or later — nothing to change here.`
+  const code = escapeHtml(v.code)
+  const min = props.minApkVersion
+  const body = !v.is_active
+    ? `<strong>${code} is inactive.</strong><br>Happy Hour never runs on an inactive machine. Set it active in Machine Settings and it joins this campaign.`
+    : `<strong>${code} runs freezer app ${escapeHtml(v.apk_version_code ?? 'unknown')}.</strong><br>`
+      + `Happy Hour needs app ${min} or later, so no slots are planned for it and it keeps selling at the normal price.<br>`
+      + `It joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`
+  return { content: `<div style="max-width:20rem;text-align:left;line-height:1.35;">${body}</div>`, html: true }
 }
 
 const unsupportedPicked = computed(() => selectedMachines.value.filter(m => !m.supported).map(m => m.name))
