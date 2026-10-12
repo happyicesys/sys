@@ -3255,6 +3255,18 @@ class VendController extends Controller
             return (int) $a->code <=> (int) $b->code;
         })->values();
 
+        // Big-board vending app 315+ only (HappyHourEligibility): each row also carries the product's
+        // welcome sketch and its Happy Hour slots priced for that channel. Every other machine gets
+        // exactly the payload it always had.
+        $happyHourVending = \App\Services\HappyHour\HappyHourEligibility::supportsVending($vend);
+        $welcomeSketches = collect();
+        $happyHourSlots = collect();
+        if ($happyHourVending) {
+            $channelProductIds = $sortedVendChannels->pluck('product_id')->filter()->unique()->values();
+            $welcomeSketches = \App\Models\ProductWelcomeSketch::query()->whereIn('product_id', $channelProductIds)->get()->keyBy('product_id');
+            $happyHourSlots = \App\Services\HappyHour\HappyHourPricing::openSlotsByProduct($vend, now());
+        }
+
         $dataArr = [];
 
         foreach ($sortedVendChannels as $vendChannel) {
@@ -3282,6 +3294,18 @@ class VendController extends Controller
                     'name' => $tb->tag?->name,
                 ])->toArray() ?? [],
             ];
+
+            if ($happyHourVending) {
+                $data['welcome_sketch'] = \App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::menuUrl(
+                    $welcomeSketches->get($vendChannel->product_id)
+                );
+                // The price this row's screen shows: server price when the machine follows it (the
+                // APK prefers it when > 0), else the channel's board price.
+                $data['happy_hour'] = \App\Services\HappyHour\HappyHourPricing::channelSlots(
+                    $vendChannel->product_id ? $happyHourSlots->get($vendChannel->product_id, []) : [],
+                    (int) $serverPrice > 0 ? (int) $serverPrice : (int) $vendChannel->amount,
+                );
+            }
 
             if ($product?->translated_names_json) {
                 foreach ($product->translated_names_json as $lang => $value) {

@@ -265,8 +265,13 @@ class ProductWelcomeSketchService
             ->where('vends.is_active', 1)
             ->where('vend_channels.product_id', $product->id)
             ->distinct()
-            ->pluck('vends.id');
-        foreach ($vendIds as $vendId) {
+            ->pluck('vends.id')
+            // A big-board vending app 315+ carrying it re-reads `/thumbnails` (HAPPYHOUR frame) too.
+            ->merge(self::welcomeVendingVends()->filter(fn ($v) => \App\Services\HappyHour\HappyHourEligibility::supportsVending($v))
+                ->pluck('id')->intersect(
+                    \Illuminate\Support\Facades\DB::table('vend_channels')->where('product_id', $product->id)->distinct()->pluck('vend_id')
+                ));
+        foreach ($vendIds->unique() as $vendId) {
             if (\Illuminate\Support\Facades\Cache::add("welcome-sketch-nudge:{$vendId}", true, self::NUDGE_DELAY_SECONDS)) {
                 \App\Jobs\NudgeFreezerMenu::dispatch((int) $vendId)->delay(now()->addSeconds(self::NUDGE_DELAY_SECONDS))->afterCommit();
             }
@@ -292,9 +297,52 @@ class ProductWelcomeSketchService
     }
 
     /**
+     * Active vending machines that show the welcome scene, or can: big board on app 315+
+     * (HappyHourEligibility — the screen that runs Happy Hour's page 2), or on a UI Setting with
+     * `enableWelcomeScene` on. Light columns only; eligibility is decided in PHP, in one place.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Vend>
+     */
+    public static function welcomeVendingVends()
+    {
+        $sceneOn = \Illuminate\Support\Facades\DB::table('apk_setting_vend as sv')
+            ->join('apk_settings as s', 's.id', '=', 'sv.apk_setting_id')
+            ->where('s.settings_parameter_json->enableWelcomeScene', 'true')
+            ->pluck('sv.vend_id')->map(fn ($id) => (int) $id)->all();
+
+        return \App\Models\Vend::withoutGlobalScopes()
+            ->where('machine_type', \App\Models\Vend::MACHINE_TYPE_VENDING_MACHINE)
+            ->where('is_active', 1)
+            ->get(['id', 'machine_type', 'is_active', 'apk_version_code', 'apk_ver_json'])
+            ->filter(fn ($v) => in_array($v->id, $sceneOn, true) || \App\Services\HappyHour\HappyHourEligibility::supportsVending($v))
+            ->values();
+    }
+
+    /** @return \Illuminate\Support\Collection<int, int> products on those vending machines' channels */
+    public static function welcomeVendingProductIds()
+    {
+        $vendIds = self::welcomeVendingVends()->pluck('id');
+        if ($vendIds->isEmpty()) {
+            return collect();
+        }
+
+        return \Illuminate\Support\Facades\DB::table('vend_channels')
+            ->whereIn('vend_id', $vendIds)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id);
+    }
+
+    /**
      * Hourly sweep: every smart-freezer product with a photo and no drawing gets one queued — so a
      * product put on a freezer's mapping is drawn without anyone editing it. Products whose photo
      * already failed are not retried until the photo changes or someone presses Draw.
+     *
+     * Then the products of the vending machines that show the welcome scene
+     * (welcomeVendingProductIds), at most `happy_hour.vending_sketch_sweep_limit` per run: each is a
+     * paid draw holding a `low` worker for up to 150 s, so a backlog (~80 on 2026-10-12) is spread
+     * over the hours instead of landing on the queue at once. Freezer products are never held back.
      *
      * @return list<int> product ids queued
      */
@@ -304,20 +352,28 @@ class ProductWelcomeSketchService
             return [];
         }
         $queued = [];
+        $freezerIds = self::freezerProductIds();
+        $vendingIds = self::welcomeVendingProductIds()->diff($freezerIds);
+        $vendingBudget = max(0, (int) config('happy_hour.vending_sketch_sweep_limit', 6));
         $products = Product::withoutGlobalScopes()->with(['thumbnail', 'welcomeSketch'])
-            ->whereIn('id', self::freezerProductIds())->orderBy('id')->get();
+            ->whereIn('id', $freezerIds->merge($vendingIds)->unique()->values())->orderBy('id')->get();
+        $vendingOnly = array_flip($vendingIds->all());
+        // Freezer products first (unlimited, as before), then the vending ones within the budget.
+        $products = $products->sortBy(fn (Product $p) => isset($vendingOnly[$p->id]) ? 1 : 0, SORT_REGULAR)->values();
         foreach ($products as $product) {
             $sketch = $product->welcomeSketch;
             if ($this->photoUrl($product) === null || ($sketch?->hasDrawing() && ! $this->upgradable($sketch))) {
                 continue;
             }
-            if ($dryRun) {
-                $queued[] = $product->id;
-
+            $isVendingOnly = isset($vendingOnly[$product->id]);
+            if ($isVendingOnly && $vendingBudget < 1) {
                 continue;
             }
-            if ($this->requestAfterSave($product, null, 'freezer_sweep') !== null) {
+            // Only a draw actually queued spends the vending budget (a photo that already failed
+            // is skipped by requestAfterSave and must not starve the others hour after hour).
+            if ($dryRun || $this->requestAfterSave($product, null, $isVendingOnly ? 'vending_sweep' : 'freezer_sweep') !== null) {
                 $queued[] = $product->id;
+                $vendingBudget -= $isVendingOnly ? 1 : 0;
             }
         }
 

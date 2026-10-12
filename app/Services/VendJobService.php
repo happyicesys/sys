@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\PublishMqtt;
 use App\Models\Vend;
 use App\Models\VendJob;
+use App\Services\HappyHour\HappyHourEligibility;
 
 class VendJobService
 {
@@ -150,20 +151,48 @@ class VendJobService
             return false;
         }
 
-        $fid = 1;
-        $content = base64_encode(json_encode([
-            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
-            'time' => now()->timestamp,
-            'action' => '',
-            'mid' => $vendModel->code,
-        ]));
-        $contentLength = strlen($content);
-        $key = $vendModel->private_key ?: config('vend.private_key');
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-        PublishMqtt::dispatch('CM'.$vendModel->code, $fid.','.$contentLength.','.$content.','.$md5, 1)
-            ->onQueue('high');
+        $this->publishBareFrame($vendModel, 'TYPESYNCAPICHANNELSLOTLIST');
 
         return true;
+    }
+
+    /**
+     * The lightweight Happy Hour nudge for a big-board vending machine on app 315+: `HAPPYHOUR`, on
+     * which the APK re-reads the `/thumbnails` JSON only (its `happy_hour` slots and welcome
+     * sketches) — never TYPESYNCAPICHANNELSLOTLIST, which re-downloads every channel image over a
+     * metered SIM (apk/mark1-apk/UNRELEASED_V315.md). Older builds route the unknown type to
+     * OtherMessage (harmless), but it is only sent where HappyHourEligibility says the app reads it.
+     * Same envelope, QoS 1 and `high` queue as the menu nudge; no VendJob row (the APK sends no ack).
+     *
+     * @param  int|Vend  $vend
+     * @return bool true when a nudge was published
+     */
+    public function nudgeHappyHourToVend($vend): bool
+    {
+        $vendModel = $vend instanceof Vend ? $vend : Vend::withoutGlobalScopes()->find($vend);
+        if (! $vendModel || ! HappyHourEligibility::supportsVending($vendModel)) {
+            return false;
+        }
+        $this->publishBareFrame($vendModel, 'HAPPYHOUR');
+
+        return true;
+    }
+
+    /** `{"Type":…,"time":…,"action":"","mid":<code>}` on CM<code>, signed with the vend's key, QoS 1. */
+    private function publishBareFrame(Vend $vend, string $type): void
+    {
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => $type,
+            'time' => now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend->private_key ?: config('vend.private_key');
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5, 1)
+            ->onQueue('high');
     }
 }

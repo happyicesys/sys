@@ -11,10 +11,15 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Tells one smart freezer to re-read its `/menu` (the same TYPESYNCAPICHANNELSLOTLIST nudge a mapping
- * change sends), so a new or redrawn welcome sketch reaches the screen without a reboot.
- * ProductWelcomeSketchService dispatches it delayed and debounced per freezer, so a batch of sketches
- * finishing together costs the freezer one menu fetch.
+ * Tells one machine to re-read the menu that carries its Happy Hour slots and welcome sketches, so a
+ * slot change or a new or redrawn sketch reaches the screen without a reboot:
+ *  - a smart freezer: `/menu`, via the same TYPESYNCAPICHANNELSLOTLIST nudge a mapping change sends
+ *    (unchanged);
+ *  - a big-board vending machine on app 315+ (HappyHourEligibility): the lightweight `HAPPYHOUR`
+ *    frame, on which it re-reads `/thumbnails` JSON only — never the menu frame, which makes a vending
+ *    board re-download every image. Any other machine gets nothing.
+ * The planner and ProductWelcomeSketchService dispatch it delayed and debounced per machine, so a
+ * batch of changes finishing together costs one fetch.
  */
 class NudgeFreezerMenu implements ShouldQueue
 {
@@ -28,8 +33,13 @@ class NudgeFreezerMenu implements ShouldQueue
     public function handle(VendJobService $vendJobs): void
     {
         $vend = Vend::withoutGlobalScopes()->find($this->vendId);
-        if ($vend !== null && $vend->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER && $vend->is_active) {
+        if ($vend === null || ! $vend->is_active) {
+            return;
+        }
+        if ($vend->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER) {
             $vendJobs->syncChannelSlotListToVend($vend);
+        } elseif ($vend->machine_type === Vend::MACHINE_TYPE_VENDING_MACHINE) {
+            $vendJobs->nudgeHappyHourToVend($vend);
         }
     }
 }

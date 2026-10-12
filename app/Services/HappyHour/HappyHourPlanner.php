@@ -27,8 +27,13 @@ use Illuminate\Support\Facades\Log;
  *  4. as each slot starts, re-checks its SKU and swaps in the next one in turn if it no longer
  *     qualifies.
  *
- * Every change nudges the freezer to re-read its menu, which carries the live and the next slot;
- * the freezer switches between them on its own clock.
+ * Every change nudges the machine to re-read its menu (a freezer's `/menu`, a vending board's
+ * `/thumbnails` — NudgeFreezerMenu picks the frame), which carries the live and the next slot; the
+ * machine switches between them on its own clock.
+ *
+ * Failsafe (HappyHourPause): a machine whose UI Setting has a live campaign gets no slot, and a slot
+ * already live there ends at the next minute run; Happy Hour resumes by itself once the campaign
+ * ends or is unbound. The pause is read once per run for every bound machine (one query).
  */
 class HappyHourPlanner
 {
@@ -37,25 +42,31 @@ class HappyHourPlanner
 
     public function __construct(private readonly HappyHourRanker $ranker) {}
 
-    /** @return array{closed: int, sold_out: int, planned: int, swapped: int} */
+    /** @return array{closed: int, sold_out: int, paused: int, paused_machines: int, planned: int, swapped: int} */
     public function run(CarbonInterface $now): array
     {
         $now = CarbonImmutable::instance($now);
-        $stats = ['closed' => $this->closeEnded($now), 'sold_out' => $this->endSoldOut($now), 'planned' => 0, 'swapped' => 0];
+        $stats = [
+            'closed' => $this->closeEnded($now), 'sold_out' => $this->endSoldOut($now), 'paused' => $this->endPaused($now),
+            'paused_machines' => 0, 'planned' => 0, 'swapped' => 0,
+        ];
 
-        HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()->with('vends')->get()
-            ->each(function (HappyHourCampaign $campaign) use ($now, &$stats) {
-                foreach ($campaign->vends as $vend) {
-                    try {
-                        [$planned, $swapped] = $this->planVend($campaign, $vend, $now);
-                        $stats['planned'] += $planned;
-                        $stats['swapped'] += $swapped;
-                    } catch (\Throwable $e) {
-                        // One machine's bad data must never stop the other machines' schedules.
-                        report($e);
-                    }
+        $campaigns = HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()->with('vends')->get();
+        $paused = HappyHourPause::forVends($campaigns->flatMap(fn ($c) => $c->vends->pluck('id')), $now);
+        $stats['paused_machines'] = count($paused);
+
+        $campaigns->each(function (HappyHourCampaign $campaign) use ($now, $paused, &$stats) {
+            foreach ($campaign->vends as $vend) {
+                try {
+                    [$planned, $swapped] = $this->planVend($campaign, $vend, $now, $paused);
+                    $stats['planned'] += $planned;
+                    $stats['swapped'] += $swapped;
+                } catch (\Throwable $e) {
+                    // One machine's bad data must never stop the other machines' schedules.
+                    report($e);
                 }
-            });
+            }
+        });
 
         return $stats;
     }
@@ -67,8 +78,10 @@ class HappyHourPlanner
             return;
         }
         $now = CarbonImmutable::instance($now);
-        foreach ($campaign->vends()->get() as $vend) {
-            $this->planVend($campaign, $vend, $now);
+        $vends = $campaign->vends()->get();
+        $paused = HappyHourPause::forVends($vends->pluck('id'), $now);
+        foreach ($vends as $vend) {
+            $this->planVend($campaign, $vend, $now, $paused);
         }
     }
 
@@ -94,8 +107,11 @@ class HappyHourPlanner
         $this->nudge($touched);
     }
 
-    /** @return array{0: int, 1: int} slots planned, slots swapped */
-    private function planVend(HappyHourCampaign $campaign, Vend $vend, CarbonImmutable $now): array
+    /**
+     * @param  array<int, mixed>  $paused  HappyHourPause::forVends() of this run: such a machine gets no slot
+     * @return array{0: int, 1: int} slots planned, slots swapped
+     */
+    private function planVend(HappyHourCampaign $campaign, Vend $vend, CarbonImmutable $now, array $paused = []): array
     {
         if (! HappyHourPricing::supports($vend) || ! $campaign->runsOn($now)) {
             return [0, 0];
@@ -104,6 +120,14 @@ class HappyHourPlanner
         if ($now->lt($windowStart->subMinutes($this->leadMinutes())) || $now->gte($windowEnd)) {
             return [0, 0];
         }
+        if (isset($paused[$vend->id])) {
+            $this->rememberPause([$vend->id], $now);
+
+            return [0, 0];
+        }
+        // A slot time that began while the machine was paused is not resumed part-way: Happy Hour
+        // comes back at the next slot (Brian, 2026-10-12).
+        $pausedAt = Cache::get(self::pausedAtKey($vend->id));
 
         // Today's slots in any state: a time is planned only while a slot that still offers (or offered)
         // the price covers it. Matching by time, not position, keeps an edited window from mistaking
@@ -129,6 +153,9 @@ class HappyHourPlanner
             }
             $covering = $this->covering($existing, $time, $now);
             if ($covering->count() >= $perSlot) {
+                continue;
+            }
+            if ($pausedAt !== null && $time['starts_at']->lt($now) && $time['starts_at']->timestamp <= (int) $pausedAt) {
                 continue;
             }
             // Just in time: a later slot is picked when it comes up, from the stock it will see then.
@@ -322,13 +349,21 @@ class HappyHourPlanner
             ->where('starts_at', '<=', $now)
             ->where('ends_at', '>', $now)
             ->get(['id', 'vend_id', 'product_id']);
+        if ($live->isEmpty()) {
+            return 0;
+        }
+        // One stock read for every live slot (a fleet of vending machines runs ~one slot each).
+        $stock = DB::table('vend_channels')
+            ->whereIn('vend_id', $live->pluck('vend_id')->unique()->values())
+            ->whereIn('product_id', $live->pluck('product_id')->unique()->values())
+            ->where('is_active', 1)
+            ->groupBy('vend_id', 'product_id')
+            ->selectRaw('vend_id, product_id, SUM(GREATEST(qty, 0)) AS qty')
+            ->get()
+            ->mapWithKeys(fn ($row) => ["{$row->vend_id}:{$row->product_id}" => (int) $row->qty]);
         $ended = 0;
         foreach ($live as $slot) {
-            $qty = (int) DB::table('vend_channels')
-                ->where('vend_id', $slot->vend_id)
-                ->where('product_id', $slot->product_id)
-                ->where('is_active', 1)
-                ->sum(DB::raw('GREATEST(qty, 0)'));
+            $qty = $stock["{$slot->vend_id}:{$slot->product_id}"] ?? 0;
             if ($qty < 1) {
                 HappyHourSlot::whereKey($slot->id)->update(['ends_at' => $now, 'status' => HappyHourSlot::STATUS_SOLD_OUT]);
                 $this->nudge([$slot->vend_id]);
@@ -337,6 +372,38 @@ class HappyHourPlanner
         }
 
         return $ended;
+    }
+
+    /**
+     * The failsafe, every minute: a machine whose UI Setting campaign went live has its Happy Hour taken
+     * back at once — a live slot ends now (cancelled; its sales are still recorded when it closes), one
+     * picked but not started is removed — and the machine is nudged, so it drops the promo within about
+     * a minute. Only machines with an open slot are checked (one query).
+     */
+    private function endPaused(CarbonImmutable $now): int
+    {
+        $open = HappyHourSlot::query()->open()->where('ends_at', '>', $now)->get(['id', 'vend_id', 'starts_at']);
+        if ($open->isEmpty()) {
+            return 0;
+        }
+        $paused = array_keys(HappyHourPause::forVends($open->pluck('vend_id'), $now));
+        if ($paused === []) {
+            return 0;
+        }
+        $slots = $open->whereIn('vend_id', $paused);
+        $notStarted = $slots->filter(fn (HappyHourSlot $s) => $s->starts_at->gt($now))->pluck('id')->all();
+        $live = $slots->filter(fn (HappyHourSlot $s) => $s->starts_at->lte($now))->pluck('id')->all();
+        if ($notStarted !== []) {
+            HappyHourSlot::whereIn('id', $notStarted)->delete();
+        }
+        if ($live !== []) {
+            HappyHourSlot::whereIn('id', $live)->update(['ends_at' => $now, 'status' => HappyHourSlot::STATUS_CANCELLED]);
+        }
+        $this->rememberPause($paused, $now);
+        Log::info('happy hour paused by a live UI Setting campaign', ['vends' => $paused, 'slots_ended' => count($live), 'slots_removed' => count($notStarted)]);
+        $this->nudge($paused);
+
+        return $slots->count();
     }
 
     /**
@@ -361,6 +428,19 @@ class HappyHourPlanner
         }
 
         return $slots->count();
+    }
+
+    private static function pausedAtKey(int $vendId): string
+    {
+        return "happy-hour-paused-at:{$vendId}";
+    }
+
+    /** @param  list<int>  $vendIds */
+    private function rememberPause(array $vendIds, CarbonImmutable $now): void
+    {
+        foreach ($vendIds as $vendId) {
+            Cache::put(self::pausedAtKey((int) $vendId), $now->timestamp, $now->addDay());
+        }
     }
 
     /** @param  list<int>  $vendIds */

@@ -66,6 +66,26 @@
             </div>
 
             <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Bear welcome screen
+              </label>
+              <span class="text-sm text-gray-600">
+                (APK 315+: the bear welcome scene replaces the banner on the idle screen; display only)
+              </span>
+              <MultiSelect
+                v-model="form.enableWelcomeScene"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
               <FormInput v-model="form.poweredBy">
                 <div class="flex flex-col space-y-1">
                   <span class="text-base">
@@ -1556,6 +1576,9 @@ onMounted(() => {
     bannerKind: promoBannerKindOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.bannerKind.toString()
     ),
+    enableWelcomeScene: booleanStrictOptions.value.find(
+      option => option.id == String(props.apkSetting.data.settings_parameter_json.enableWelcomeScene ?? 'false')
+    ),
     enableDebugMode: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enableDebugMode.toString()
     ),
@@ -1633,6 +1656,7 @@ function getDefaultForm() {
     labelPromoEndDate: '',
 
     bannerKind: '',
+    enableWelcomeScene: '',
     supportContactNum: '',
     poweredBy: '',
 
@@ -1671,6 +1695,7 @@ function submit() {
             enableDiscount03: form.value.enableDiscount03?.id,
             enableLabelPromo: form.value.enableLabelPromo?.id,
             bannerKind: form.value.bannerKind?.id,
+            enableWelcomeScene: form.value.enableWelcomeScene?.id,
             enableDebugMode: form.value.enableDebugMode?.id,
             headerTextStartDate: form.value.headerTextStartDate != 'Invalid date' ? form.value.headerTextStartDate : null,
             headerTextEndDate: form.value.headerTextEndDate != 'Invalid date' ? form.value.headerTextEndDate : null,

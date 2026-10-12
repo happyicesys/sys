@@ -9,6 +9,9 @@
         <span class="ml-2 align-middle inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-sky-100 text-sky-800 border-sky-300">
           Smart Freezer
         </span>
+        <span class="ml-1 align-middle inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-violet-100 text-violet-800 border-violet-300">
+          Vending {{ minVendingApkVersion }}+
+        </span>
       </h2>
     </template>
 
@@ -20,7 +23,11 @@
           the slot starts, from that machine's stock at that moment — by default the highest stock balance %
           (qty ÷ capacity; a tie goes to the higher stock) — and the top SKUs (the number set below) take turns, slot by slot.
           A SKU that sells out ends its slot early.
-          Only freezers on app {{ minApkVersion }} or later can run it.
+          Only freezers on app {{ minApkVersion }} or later and touchscreen vending machines (big board) on app
+          {{ minVendingApkVersion }} or later can run it. On a vending machine the promo price applies to orders placed
+          on the screen only (keypad, cash and coin stay at the machine price), and a machine whose UI Setting has a
+          live campaign pauses Happy Hour (<ExclamationCircleIcon class="inline w-3.5 h-3.5 text-orange-600 -mt-0.5" />)
+          until that campaign ends or is removed.
         </p>
 
         <div class="flex justify-end mt-3" v-if="permissions.includes('create happy-hour-campaigns')">
@@ -103,9 +110,10 @@
                     <div class="flex flex-wrap justify-center gap-1">
                       <button v-for="v in c.vends" :key="v.id" type="button" @click="openPreview(c, v)"
                         class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border hover:ring-2 hover:ring-indigo-300"
-                        :class="v.supported ? 'bg-gray-50 text-gray-800 border-gray-300' : 'bg-amber-50 text-amber-800 border-amber-300'"
-                        v-tooltip="unsupportedTooltip(v) ?? 'Show the lineup now'">
+                        :class="chipClass(v)"
+                        v-tooltip="unsupportedTooltip(v) ?? pausedTooltip(v) ?? 'Show the lineup now'">
                         {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
+                        <ExclamationCircleIcon v-else-if="v.paused" class="ml-0.5 w-3.5 h-3.5 text-orange-600" aria-label="Happy Hour paused" />
                       </button>
                     </div>
                   </TableData>
@@ -157,9 +165,13 @@
             <div class="md:col-span-6">
               <label class="block text-sm font-medium text-gray-700">Machines</label>
               <MultiSelect v-model="selectedMachines" :options="machines" mode="tags" trackBy="id" valueProp="id" label="name"
-                placeholder="Smart freezers" open-direction="bottom" class="mt-1" />
+                placeholder="Smart freezers / vending machines" open-direction="bottom" class="mt-1" />
               <p class="text-xs text-gray-500 mt-1" v-if="unsupportedPicked.length">
-                ⚠ {{ unsupportedPicked.join(', ') }}: not on app {{ minApkVersion }}+ yet — kept, but no slots until it updates.
+                ⚠ {{ unsupportedPicked.join(', ') }}: cannot run Happy Hour yet — kept, but no slots until it can.
+              </p>
+              <p v-for="m in pausedPicked" :key="m.id" class="text-xs text-orange-700 mt-1 flex items-start gap-1">
+                <ExclamationCircleIcon class="w-4 h-4 shrink-0" />
+                <span>{{ m.paused }}</span>
               </p>
               <p v-if="form.errors.vend_ids" class="text-red-600 text-xs mt-1">{{ form.errors.vend_ids }}</p>
             </div>
@@ -288,7 +300,11 @@
           <p class="text-xs text-gray-500">As ranked at {{ preview.at }}. Each slot is ranked again as it comes up, so this order moves with the stock.</p>
           <div v-for="m in preview.machines" :key="m.vend_id">
             <div v-if="!m.supported" class="text-xs text-amber-700">
-              ⚠ app {{ m.apk_version_code ?? '?' }} — no slots until it runs {{ minApkVersion }}+
+              ⚠ {{ m.unsupported_reason ?? `app ${m.apk_version_code ?? '?'} — no slots until it runs ${minApkVersion}+` }}
+            </div>
+            <div v-else-if="m.paused" class="text-xs text-orange-700 flex items-start gap-1">
+              <ExclamationCircleIcon class="w-4 h-4 shrink-0" />
+              <span>{{ m.paused }}</span>
             </div>
             <div class="mt-1 shadow-sm ring-1 ring-black ring-opacity-5">
               <table class="min-w-full border-separate" style="border-spacing: 0">
@@ -353,7 +369,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ExclamationCircleIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -364,6 +380,7 @@ const props = defineProps({
   products: Array,
   rules: Array,
   minApkVersion: Number,
+  minVendingApkVersion: Number,
 })
 
 const permissions = computed(() => usePage().props.auth?.permissions ?? [])
@@ -399,19 +416,35 @@ const previewTitle = ref('')
 // inline style on the content (a utility class loses to its own `max-width: inherit`).
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
 
+const tooltipBox = (body) => ({ content: `<div style="max-width:20rem;text-align:left;line-height:1.35;">${body}</div>`, html: true })
+
 const unsupportedTooltip = (v) => {
   if (v.supported) return null
   const code = escapeHtml(v.code)
+  if (!v.is_active) {
+    return tooltipBox(`<strong>${code} is inactive.</strong><br>Happy Hour never runs on an inactive machine. Set it active in Machine Settings and it joins this campaign.`)
+  }
+  if (v.machine_type === 'vending_machine') {
+    const min = props.minVendingApkVersion
+    return tooltipBox(`<strong>${code}: ${escapeHtml(v.unsupported_reason ?? 'cannot run Happy Hour')}.</strong><br>`
+      + `Happy Hour runs on the big touchscreen board on app ${min} or later, so no slots are planned for it and it keeps selling at the normal price.<br>`
+      + `A big board joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`)
+  }
   const min = props.minApkVersion
-  const body = !v.is_active
-    ? `<strong>${code} is inactive.</strong><br>Happy Hour never runs on an inactive machine. Set it active in Machine Settings and it joins this campaign.`
-    : `<strong>${code} runs freezer app ${escapeHtml(v.apk_version_code ?? 'unknown')}.</strong><br>`
-      + `Happy Hour needs app ${min} or later, so no slots are planned for it and it keeps selling at the normal price.<br>`
-      + `It joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`
-  return { content: `<div style="max-width:20rem;text-align:left;line-height:1.35;">${body}</div>`, html: true }
+  return tooltipBox(`<strong>${code} runs freezer app ${escapeHtml(v.apk_version_code ?? 'unknown')}.</strong><br>`
+    + `Happy Hour needs app ${min} or later, so no slots are planned for it and it keeps selling at the normal price.<br>`
+    + `It joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`)
 }
 
+// The failsafe: a live UI Setting campaign on the machine pauses Happy Hour there (server-written text).
+const pausedTooltip = (v) => v.paused ? tooltipBox(escapeHtml(v.paused)) : null
+
+const chipClass = (v) => !v.supported
+  ? 'bg-amber-50 text-amber-800 border-amber-300'
+  : (v.paused ? 'bg-orange-50 text-orange-800 border-orange-300' : 'bg-gray-50 text-gray-800 border-gray-300')
+
 const unsupportedPicked = computed(() => selectedMachines.value.filter(m => !m.supported).map(m => m.name))
+const pausedPicked = computed(() => selectedMachines.value.filter(m => m.supported && m.paused))
 
 const slotSummary = computed(() => {
   const [h1, m1] = (form.window_start || '0:0').split(':').map(Number)

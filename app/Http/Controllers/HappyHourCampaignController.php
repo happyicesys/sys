@@ -8,8 +8,9 @@ use App\Models\HappyHourSlot;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Services\HappyHour\HappyHourEligibility;
+use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
-use App\Services\HappyHour\HappyHourPricing;
 use App\Services\HappyHour\HappyHourRanker;
 use App\Services\UserLogger;
 use Illuminate\Http\JsonResponse;
@@ -21,9 +22,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Machine Management → Happy Hour Campaign. CRUD on campaigns and their machines; every save hands
- * the schedule to HappyHourPlanner at once (cancel what no longer applies, plan what does), so the
- * freezers hear about it within seconds instead of at the next minute's run.
+ * Machine Management → Happy Hour Campaign. CRUD on campaigns and their machines (smart freezers, and
+ * big-board vending machines on app 315+); every save hands the schedule to HappyHourPlanner at once
+ * (cancel what no longer applies, plan what does), so the machines hear about it within seconds
+ * instead of at the next minute's run.
  */
 class HappyHourCampaignController extends Controller
 {
@@ -42,7 +44,7 @@ class HappyHourCampaignController extends Controller
         $campaigns = HappyHourCampaign::query()
             // Only the viewer's own machines are listed (a HIPL campaign may span operators).
             ->with(['vends' => fn ($q) => $this->visibleVends($q)
-                ->select('vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type', 'vends.is_active', 'vends.apk_version_code')])
+                ->select('vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type', 'vends.is_active', 'vends.apk_version_code', 'vends.apk_ver_json')])
             ->orderByDesc('is_active')->orderByDesc('id')
             ->get();
         // Only the slot each machine is running now (the Status column); one per machine at most.
@@ -57,12 +59,18 @@ class HappyHourCampaignController extends Controller
             ->get()
             ->groupBy('happy_hour_campaign_id');
 
+        $machines = $this->machineOptions($now);
+        // The failsafe (a live UI Setting campaign pauses Happy Hour on a machine), for the chips' icon.
+        $boundVends = $campaigns->flatMap(fn ($c) => $c->vends);
+        $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
+
         return Inertia::render('HappyHourCampaign/Index', [
-            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect())))->values(),
-            'machines' => $this->machineOptions(),
-            'products' => $this->productOptions(),
+            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused))->values(),
+            'machines' => $machines,
+            'products' => $this->productOptions(collect($machines)->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
             'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
-            'minApkVersion' => (int) config('happy_hour.min_freezer_apk_version', 30),
+            'minApkVersion' => HappyHourEligibility::minFreezerApk(),
+            'minVendingApkVersion' => HappyHourEligibility::minVendingApk(),
         ]);
     }
 
@@ -127,6 +135,7 @@ class HappyHourCampaignController extends Controller
             ->when($request->filled('vend_id'), fn ($q) => $q->where('vends.id', (int) $request->input('vend_id')))
             ->get();
         $now = Carbon::now();
+        $paused = HappyHourPause::forVends($vends->pluck('id'), $now, $vends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
         return response()->json([
             'campaign' => $campaign->name,
@@ -134,7 +143,9 @@ class HappyHourCampaignController extends Controller
             'machines' => $vends->map(fn (Vend $vend) => [
                 'vend_id' => $vend->id,
                 'code' => $vend->codeLabel(),
-                'supported' => HappyHourPricing::supports($vend),
+                'supported' => HappyHourEligibility::supports($vend),
+                'unsupported_reason' => HappyHourEligibility::reason($vend),
+                'paused' => $paused[$vend->id]['message'] ?? null,
                 'apk_version_code' => $vend->apk_version_code,
                 'candidates' => array_map(fn ($c) => $c->toArray(), $ranker->rank($campaign, $vend, $now)),
             ])->values(),
@@ -200,8 +211,11 @@ class HappyHourCampaignController extends Controller
         return array_values(array_diff($before, $after));
     }
 
-    /** @return array<string, mixed> */
-    private function campaignPayload(HappyHourCampaign $c, $liveSlots): array
+    /**
+     * @param  array<int, array{message: string}>  $paused  HappyHourPause::forVends()
+     * @return array<string, mixed>
+     */
+    private function campaignPayload(HappyHourCampaign $c, $liveSlots, array $paused = []): array
     {
         $now = Carbon::now();
 
@@ -229,10 +243,14 @@ class HappyHourCampaignController extends Controller
             'vends' => $c->vends->map(fn (Vend $v) => [
                 'id' => $v->id,
                 'code' => $v->codeLabel(),
-                'supported' => HappyHourPricing::supports($v),
+                'machine_type' => $v->machine_type,
+                'supported' => HappyHourEligibility::supports($v),
                 // For the ⚠ tooltip: why an unsupported machine gets no slots.
                 'is_active' => (bool) $v->is_active,
                 'apk_version_code' => $v->apk_version_code,
+                'unsupported_reason' => HappyHourEligibility::reason($v),
+                // For the ! icon: a live UI Setting campaign pauses Happy Hour here (HappyHourPause).
+                'paused' => $paused[$v->id]['message'] ?? null,
             ])->values(),
             'status' => $this->status($c, $now),
             'live' => $liveSlots->map(fn (HappyHourSlot $s) => [
@@ -266,27 +284,50 @@ class HappyHourCampaignController extends Controller
         return 'scheduled';
     }
 
-    /** Smart freezers the viewer can see (Vend's operator scope applies), with app-version readiness. */
-    private function machineOptions(): array
+    /**
+     * The machines the viewer can see (Vend's operator scope applies) that may join a campaign: every
+     * smart freezer, with app-version readiness, and the vending machines that can run it — big board,
+     * app 315+, active (HappyHourEligibility) — plus any vending machine already in a campaign, so an
+     * edit never drops one that has since become ineligible. A vending machine whose UI Setting has a
+     * live campaign is offered with the pause warning (warn, never block).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function machineOptions(Carbon $now): array
     {
-        return Vend::query()
-            ->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
-            ->orderBy('code')
-            ->get(['id', 'code', 'code_prefix', 'machine_type', 'is_active', 'apk_version_code'])
-            ->map(fn (Vend $v) => [
-                'id' => $v->id,
-                'name' => $v->codeLabel().($v->is_active ? '' : ' (inactive)'),
-                'apk_version_code' => $v->apk_version_code,
-                'supported' => HappyHourPricing::supports($v),
-            ])->values()->all();
+        $columns = ['id', 'code', 'code_prefix', 'machine_type', 'is_active', 'apk_version_code', 'apk_ver_json'];
+        $freezers = Vend::query()->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)->get($columns);
+        $bound = DB::table('happy_hour_campaign_vend')->distinct()->pluck('vend_id')->map(fn ($id) => (int) $id)->all();
+        $vending = Vend::query()->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)
+            ->where(fn ($q) => $q->where('is_active', 1)->orWhereIn('id', $bound))
+            ->get($columns)
+            ->filter(fn (Vend $v) => HappyHourEligibility::supportsVending($v) || in_array($v->id, $bound, true));
+        $machines = $freezers->concat($vending)->sortBy('code')->values();
+        $paused = HappyHourPause::forVends($machines->pluck('id'), $now, $machines->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
+
+        return $machines->map(fn (Vend $v) => [
+            'id' => $v->id,
+            'name' => $v->codeLabel().($v->is_active ? '' : ' (inactive)'),
+            'machine_type' => $v->machine_type,
+            'apk_version_code' => $v->apk_version_code,
+            'supported' => HappyHourEligibility::supports($v),
+            'unsupported_reason' => HappyHourEligibility::reason($v),
+            'paused' => $paused[$v->id]['message'] ?? null,
+        ])->values()->all();
     }
 
-    /** Products on any smart freezer's planogram, for the exclusion picker. */
-    private function productOptions(): array
+    /**
+     * Products on any smart freezer's planogram or on the offered vending machines, for the exclusion
+     * picker.
+     *
+     * @param  list<int>  $vendingIds
+     */
+    private function productOptions(array $vendingIds = []): array
     {
         $ids = DB::table('vend_channels')
             ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
-            ->where('vends.machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+            ->where(fn ($q) => $q->where('vends.machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+                ->when($vendingIds !== [], fn ($q) => $q->orWhereIn('vends.id', $vendingIds)))
             // A raw join reaches vends with no global scope: apply the viewer boundary by hand.
             ->when(OperatorVendFilterScope::viewerOperatorId(), fn ($q, $operatorId) => $q->where('vends.operator_id', $operatorId))
             ->whereNotNull('vend_channels.product_id')

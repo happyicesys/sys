@@ -96,8 +96,10 @@ class Kernel extends ConsoleKernel
         // Freezer product barcodes from Zijia's SKU library (unique exact name match only) until
         // Zijia offers an approval callback — a product with no barcode is never sent to their AI.
         $schedule->command('smart-freezer:zijia-barcode-sync')->cron('*/3 * * * *')->withoutOverlapping(5);
-        // Freezer welcome sketches: draw one for any smart-freezer product that has a photo and
-        // none yet (e.g. just added to a mapping). Inert without OPENAI_API_KEY.
+        // Welcome sketches: draw one for any smart-freezer product that has a photo and none yet
+        // (e.g. just added to a mapping), then — at most happy_hour.vending_sketch_sweep_limit a run —
+        // for products on vending machines that show the welcome scene (big board app 315+, or a UI
+        // Setting with enableWelcomeScene). Inert without OPENAI_API_KEY and rembg.
         $schedule->command('products:welcome-sketches --missing-freezer')->hourlyAt(17)->withoutOverlapping(30);
         // Ingest the regional rainfall snapshot (data.gov.sg refreshes every 5 min);
         // idempotent, so overlap-guarded re-runs never double-insert. Gated by

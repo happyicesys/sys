@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
 class ProductWelcomeSketchesCommand extends Command
 {
     protected $signature = 'products:welcome-sketches
-        {--missing-freezer : queue every smart-freezer product that has a photo and no sketch}
+        {--missing-freezer : queue every smart-freezer product that has a photo and no sketch, then a few welcome-scene vending products}
         {--product=* : product id(s) to draw a new album version for, from their current photo}
         {--recover : add earlier drawings found in storage to their product album}
         {--dry-run : list what would be queued, send nothing}';

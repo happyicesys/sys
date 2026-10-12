@@ -4,8 +4,10 @@ namespace App\Http\Requests\HappyHour;
 
 use App\Models\HappyHourCampaign;
 use App\Models\Vend;
+use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourOverlap;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -63,10 +65,11 @@ class HappyHourCampaignRequest extends FormRequest
                 return;
             }
             $vendIds = array_map('intval', (array) $this->input('vend_ids', []));
-            $freezers = Vend::query()->whereIn('id', $vendIds)
-                ->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)->pluck('id')->all();
-            if (count($freezers) !== count($vendIds)) {
-                $validator->errors()->add('vend_ids', 'Only smart freezers you can see can take part in Happy Hour.');
+            if (count($this->allowedVendIds($vendIds)) !== count($vendIds)) {
+                $validator->errors()->add('vend_ids', sprintf(
+                    'Only smart freezers and touchscreen vending machines (big board, app %d+) you can see can take part in Happy Hour.',
+                    HappyHourEligibility::minVendingApk(),
+                ));
 
                 return;
             }
@@ -77,5 +80,34 @@ class HappyHourCampaignRequest extends FormRequest
                 $validator->errors()->add('vend_ids', $message);
             }
         }];
+    }
+
+    /**
+     * The requested machines that may be in a campaign, among those the viewer can see (Vend's
+     * operator scope): any smart freezer (an old app only waits for slots), a vending machine that
+     * can run Happy Hour (HappyHourEligibility), or one already in THIS campaign — an edit must not
+     * fail because a bound machine went inactive. A paused machine (live UI Setting campaign) is
+     * allowed: the page warns, it never blocks.
+     *
+     * @param  list<int>  $vendIds
+     * @return list<int>
+     */
+    private function allowedVendIds(array $vendIds): array
+    {
+        if ($vendIds === []) {
+            return [];
+        }
+        $bound = $this->route('id')
+            ? DB::table('happy_hour_campaign_vend')->where('happy_hour_campaign_id', (int) $this->route('id'))
+                ->pluck('vend_id')->map(fn ($id) => (int) $id)->all()
+            : [];
+
+        return Vend::query()->whereIn('id', $vendIds)
+            ->whereIn('machine_type', [Vend::MACHINE_TYPE_SMART_FREEZER, Vend::MACHINE_TYPE_VENDING_MACHINE])
+            ->get(['id', 'machine_type', 'is_active', 'apk_version_code', 'apk_ver_json'])
+            ->filter(fn (Vend $v) => $v->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER
+                || HappyHourEligibility::supportsVending($v)
+                || in_array($v->id, $bound, true))
+            ->pluck('id')->all();
     }
 }

@@ -122,6 +122,11 @@ final class ApkSettingParameters implements JsonSerializable
         'labelPromoEndDate' => ['default' => null, 'type' => self::TYPE_DATE, 'group' => 'promotion', 'label' => 'Label Promo End Date'],
 
         'bannerKind' => ['default' => 'picture', 'type' => self::TYPE_ENUM, 'group' => 'branding', 'label' => 'Background Video/Picture', 'options' => ['video', 'picture', 'mixed']],
+        // 2026-10-12 (mark1-apk 315+): the bear welcome scene replaces the banner in the idle
+        // screen's 3:4 frame. Display only — Happy Hour pricing never depends on it. Older APKs
+        // ignore the key (Gson drops unknown JSON). Also widens the hourly welcome-sketch sweep to
+        // the products of the machines it is on (ProductWelcomeSketchService).
+        'enableWelcomeScene' => ['default' => 'false', 'type' => self::TYPE_BOOL, 'group' => 'branding', 'label' => 'Bear welcome screen'],
         // Default corrected 2026-08-13: 23 of 33 production rows and the
         // deployed devices carry 85488897; 87188597 was the stale old number.
         // Existing rows are untouched (the key exists on all of them).

@@ -15,7 +15,7 @@ class HappyHourRunCommand extends Command
 {
     protected $signature = 'happy-hour:run';
 
-    protected $description = 'Plan, check and close Happy Hour slots for smart freezers';
+    protected $description = 'Plan, check and close Happy Hour slots (smart freezers, touchscreen vending machines)';
 
     public function handle(HappyHourPlanner $planner): int
     {

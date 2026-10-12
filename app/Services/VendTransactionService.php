@@ -244,8 +244,9 @@ class VendTransactionService
         // once-at-settle dispatches here, then stop (the fresh-create
         // post-processing below must NOT run — it would re-create items).
         if ($wasPreCreatedUpdate) {
-            // Items were rebuilt inside the ingest transaction, so the sale is whole here.
-            app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction);
+            // Items were rebuilt inside the ingest transaction, so the sale is whole here. The frame
+            // goes along: a vending TRADE names its Happy Hour lines in `HH`.
+            app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction, is_array($input) ? $input : null);
 
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
@@ -323,8 +324,9 @@ class VendTransactionService
                 }
             }
 
-            // Smart freezer: which Happy Hour slot priced this sale (needs the items above).
-            app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction);
+            // Which Happy Hour slot priced this sale (needs the items above): a freezer by price, a
+            // vending touchscreen sale by the frame's `HH` list.
+            app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction, is_array($input) ? $input : null);
         }
 
         if ($processedInput['dcvendUserID']) {

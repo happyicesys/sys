@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\DB;
  * Shortlists and ranks one freezer's SKUs for a campaign: which products are worth discounting now,
  * best first, and why each of the others is left out. Reads only — stock from `vend_channels`
  * (mark1's ledger; capacity = Real Capacity), recent sales from `vend_product_records` (daily, up to
- * yesterday), prices in the Site's tier exactly as the freezer menu does, unit cost from `unit_costs`.
+ * yesterday), unit cost from `unit_costs`. Price: a freezer's is the Site's tier exactly as its menu
+ * shows it; a vending machine's is what its screen shows — the VMC board price
+ * (`vend_channels.amount`), or the Site tier where the machine follows server price (`/thumbnails`
+ * `server_price`, which the APK prefers when set).
  *
  * Ties are broken by the higher on-hand qty (Brian, 2026-10-09), then product id, so a ranking is
  * deterministic.
@@ -27,7 +30,10 @@ class HappyHourRanker
             ->where('is_active', 1)
             ->whereNotNull('product_id')
             ->groupBy('product_id')
-            ->selectRaw('product_id, SUM(GREATEST(qty, 0)) AS qty, SUM(GREATEST(capacity, 0)) AS capacity')
+            // board_price: the highest priced channel of the SKU (a vending machine may hold one SKU in
+            // two channels at different board prices; the slot records the highest, and each channel's
+            // own promo price is worked out from its own price on `/thumbnails`).
+            ->selectRaw('product_id, SUM(GREATEST(qty, 0)) AS qty, SUM(GREATEST(capacity, 0)) AS capacity, MAX(CASE WHEN amount > 0 THEN amount END) AS board_price')
             ->get()
             ->keyBy('product_id');
         if ($stock->isEmpty()) {
@@ -36,7 +42,9 @@ class HappyHourRanker
 
         $productIds = $stock->keys()->map(fn ($id) => (int) $id)->all();
         $products = Product::query()->whereIn('id', $productIds)->get(['id', 'code', 'name'])->keyBy('id');
-        $prices = $this->prices($vend, $productIds);
+        $prices = $vend->machine_type === Vend::MACHINE_TYPE_VENDING_MACHINE
+            ? $this->vendingPrices($vend, $productIds, $stock)
+            : $this->prices($vend, $productIds);
         $costs = $this->unitCosts($productIds);
         [$sold, $days] = $this->recentSales($vend, $productIds, $campaign->lookback_days, $now);
         $excluded = array_flip($campaign->excludedProductIds());
@@ -131,6 +139,34 @@ class HappyHourRanker
             ->pluck('amount', 'product_id')
             ->map(fn ($cents) => (int) $cents)
             ->all();
+    }
+
+    /**
+     * A vending machine's price per product, as its screen shows it: the Site tier where the machine
+     * follows server price and the product has one (the APK prefers `server_price` when it is > 0),
+     * else the board price of its channels — 287 of 294 touchscreen machines sell at the board price
+     * (2026-10-12), and the tier alone would leave every one of their SKUs without a price.
+     *
+     * @param  list<int>  $productIds
+     * @param  \Illuminate\Support\Collection<int|string, object>  $stock  the grouped vend_channels rows
+     * @return array<int, int>
+     */
+    private function vendingPrices(Vend $vend, array $productIds, $stock): array
+    {
+        $prices = [];
+        foreach ($productIds as $productId) {
+            $board = (int) ($stock[$productId]->board_price ?? 0);
+            if ($board > 0) {
+                $prices[$productId] = $board;
+            }
+        }
+        foreach ($this->prices($vend, $productIds) as $productId => $cents) {
+            if ($cents > 0) {
+                $prices[$productId] = $cents;
+            }
+        }
+
+        return $prices;
     }
 
     /**

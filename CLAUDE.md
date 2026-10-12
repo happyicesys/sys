@@ -1049,13 +1049,46 @@ Machines and the freezer:
   nudges it (`NudgeFreezerMenu`). A cancel deletes a slot under a minute old, so a second save in the same
   minute can re-take that start time (unique per machine).
 
+Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`, built on branch
+`vending-happy-hour`):
+- **Who:** `App\Services\HappyHour\HappyHourEligibility` is the ONE gate (`HappyHourPricing::supports()`
+  delegates to it): freezer app ≥ `min_freezer_apk_version` (30), or a vending machine on the BIG board at
+  `Vend::reportedApkVersion()` ≥ `min_vending_apk_version` (315), never the ZC-83A small-board family
+  (the board the `vending_small` OTA channel claims). Never widen the freezer number to vending.
+- **Price:** the ranker prices a vending SKU at what its screen shows — the highest board price
+  (`vend_channels.amount`) of its active channels, or the Site tier where the machine follows server
+  price and the product has one. The slot records that; `/thumbnails` re-prices each row from its own
+  channel price with the campaign's rounding (`HappyHourPricing::channelSlots`).
+- **`/thumbnails`** rows gain `welcome_sketch` and `happy_hour` (`slot_id`, ISO `starts_at`/`ends_at`,
+  `price`, `original_price` = that row's price, `discount_pct`, `rank`) for eligible machines only; every
+  other machine's payload is byte-identical.
+- **Nudge:** `NudgeFreezerMenu` sends an eligible vending board the lightweight `HAPPYHOUR` frame
+  (`VendJobService::nudgeHappyHourToVend`, re-reads `/thumbnails` JSON only) — never
+  TYPESYNCAPICHANNELSLOTLIST, which re-downloads every image. Freezers keep the menu frame.
+- **Failsafe — a UI Setting campaign beats Happy Hour, per machine** (`HappyHourPause`): a `campaigns`
+  row with `is_active`, started (or no start) and `end_at` null or ≥ today, bound through
+  `apk_setting_campaign` to the machine's UI Setting (`apk_setting_vend`). The planner gives such a
+  machine no slot, ends a live one at the next minute run (cancelled, nudged), and resumes at the NEXT
+  slot once the campaign ends or is unbound (a slot time that began while paused is not resumed
+  part-way; `happy-hour-paused-at:{vend}` cache). The campaign page shows an exclamation icon with the
+  reason on the chip and warns (never blocks) in the form.
+- **Tagging:** a vending sale is NEVER tagged by price (its own label/bundle/P2 discounts can hit the same
+  figure). A 315 touchscreen TRADE carries `"HH": [{"SId": <channel>, "HHId": <slot>}]`; a line is
+  tagged only when its channel is named there, the slot is this machine's (and the line's product), and
+  the sale is inside the slot ± grace. Malformed entries are ignored; keypad TRADEs carry no `HH`. A
+  board-price machine's slot discount is each line's channel price less what it took.
+- **Sketches:** the hourly sweep also draws products on vending machines that show the welcome scene
+  (eligible, or a UI Setting with `enableWelcomeScene` = Bear welcome screen), at most
+  `happy_hour.vending_sketch_sweep_limit` (6) new draws a run; freezer products are never held back.
+Regression coverage: `tests/Feature/HappyHourVendingTest.php`.
+
 Where the promo price applies:
 - An AI-judged extra unit taken during a slot is valued at the promo price (`CardPaymentService::shelfPrices`).
 - The freezer's TRADE carries the promo unit price but NOT the slot.
 
 Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_transactions` AND
 `vend_transaction_items`, written only by `HappyHourSales::tag()`, called from both TRADE ingest paths
-(pre-created gateway row and fresh create) once the items exist, freezers only, never throws.
+(pre-created gateway row and fresh create) once the items exist, never throws — a freezer by price (below), a vending machine by its `HH` list (above).
 - A line is the slot's when the same machine sold the slot's product at EXACTLY its promo price within the
   slot ± `happy_hour.sale_grace_seconds` (300; a cart from the last minute is paid after the slot). Price is
   the proof, time only picks between slots. Tagged once, so a later campaign edit never re-attributes a sale.
