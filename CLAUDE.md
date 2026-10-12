@@ -449,6 +449,17 @@ Regression coverage: `tests/Unit/SaleStatusTest.php`,
 `tests/Feature/TransactionIndexDispenseFilterTest.php`,
 `tests/Feature/TransactionIndexStatusColumnsTest.php`.
 
+## Selling prices: never edited in place, so each row records who set it
+
+Product → Edit changes an RP by deleting its `selling_prices` row and adding a new one. So a row's
+`created_at` IS when that price was set, `created_by` who set it and `previous_amount` (cents) the
+same RP's price before it (2026-10-12). `ProductController::update` writes both on every add, through
+`App\Services\Product\SellingPriceHistory::previousAmount()`; rows from before the audit log
+(2026-07-18) stay NULL — `SellingPriceAuthorBackfillSeeder` filled the 147 that the log covers. The
+page's "Show price history" is read from `user_logs` by the same class (a delete + re-add of an RP =
+one change). A new writer of `selling_prices` must set both columns the same way. Regression coverage:
+`tests/Feature/SellingPriceHistoryTest.php`.
+
 ## Per-field attribution on Machine Settings: every editable field carries one
 
 Setting/Edit shows "who last changed this, and when" under each control
