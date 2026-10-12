@@ -506,6 +506,9 @@
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                               Ref Price Type
                             </th>
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                              Last Updated
+                            </th>
                             <th></th>
                           </tr>
                         </thead>
@@ -520,6 +523,17 @@
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                               {{ sellingPrice.type }}
                             </td>
+                            <!-- When this RP was set and by whom; "was" = the price it replaced. -->
+                            <td class="whitespace-nowrap py-4 px-3 text-xs text-center text-gray-600">
+                              <template v-if="sellingPrice.id">
+                                <div>{{ auditTime(sellingPrice.set_at) }}</div>
+                                <div class="text-blue-600 italic">{{ sellingPrice.set_by || 'not recorded' }}</div>
+                                <div v-if="sellingPrice.previous_amount !== null && sellingPrice.previous_amount !== undefined" class="text-gray-400">
+                                  was {{ priceMoney(sellingPrice.previous_amount) }}
+                                </div>
+                              </template>
+                              <span v-else-if="!sellingPrice.id" class="text-amber-600">not saved yet</span>
+                            </td>
                             <td class="whitespace-nowrap py-4 text-sm text-center">
                               <Button
                                 class="bg-red-400 hover:bg-red-500 text-white"
@@ -530,13 +544,45 @@
                             </td>
                           </tr>
                           <tr v-if="!sellingPrices.length">
-                            <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
+                            <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
                               No Results Found
                             </td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
+                <!-- Every change to this product's selling prices, newest first (user_logs, since 2026-07-18). -->
+                <div class="mt-3" v-if="priceHistory.length">
+                  <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-800" @click="showPriceHistory = !showPriceHistory">
+                    {{ showPriceHistory ? 'Hide' : 'Show' }} price history ({{ priceHistory.length }})
+                  </button>
+                  <div v-if="showPriceHistory" class="mt-2 overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">When</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Ref Price Type</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Change</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">By</th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(h, hIndex) in priceHistory" :key="hIndex" :class="hIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap px-3 py-2 text-xs text-center text-gray-700">{{ auditTime(h.at) }}</td>
+                          <td class="whitespace-nowrap px-3 py-2 text-xs text-center font-semibold text-gray-900">{{ h.type_name }}</td>
+                          <td class="whitespace-nowrap px-3 py-2 text-xs text-center">
+                            <span v-if="h.kind === 'changed'">
+                              <span class="text-gray-400">{{ priceMoney(h.from) }}</span> → <span class="font-semibold text-gray-900">{{ priceMoney(h.to) }}</span>
+                            </span>
+                            <span v-else-if="h.kind === 'added'" class="text-green-700">added {{ priceMoney(h.to) }}</span>
+                            <span v-else class="text-red-600">removed {{ priceMoney(h.from) }}</span>
+                          </td>
+                          <td class="whitespace-nowrap px-3 py-2 text-xs text-center text-blue-600 italic">{{ h.by || '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
@@ -715,6 +761,7 @@ const props = defineProps({
     measurementUnitOptions: Object,
     priceTypeOptions: Object,
     product: Object,
+    sellingPriceHistory: { type: Array, default: () => [] },
     uoms: Object,
     type: String,
     operatorOptions: Object,
@@ -755,6 +802,18 @@ const priceTypeOptions = ref([]);
 const product = ref([]);
 const productTagOptions = ref([]);
 const sellingPrices = ref([]);
+const showPriceHistory = ref(false);
+const priceHistory = computed(() => props.sellingPriceHistory ?? []);
+
+function auditTime(iso) {
+  return iso ? moment(iso).format('DD MMM YY, h:mm a') : '';
+}
+
+function priceMoney(cents) {
+  if (cents === null || cents === undefined) return '';
+  const exp = operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent;
+  return (cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: exp, maximumFractionDigits: exp });
+}
 // CityBox owns this SKU (their catalog created it, code = their product id), so a
 // chiller charges whatever their API reports and Selling Price(s) is hidden. Unit
 // Cost stays: that one is ours and still drives COGS/GP.

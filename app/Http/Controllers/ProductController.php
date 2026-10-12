@@ -987,6 +987,10 @@ class ProductController extends Controller
                         $product->sellingPrices()->create([
                             'amount' => $sellingPrice['amount'],
                             'type' => $sellingPrice['type'],
+                            // Who set it, and the RP's price before (the page deletes, then adds).
+                            'created_by' => auth()->id(),
+                            'previous_amount' => app(\App\Services\Product\SellingPriceHistory::class)
+                                ->previousAmount($product->id, (int) $sellingPrice['type']),
                         ]);
                         $priceAdded = true;
                     }
@@ -1189,7 +1193,7 @@ class ProductController extends Controller
             'latestUnitCost',
             'operator',
             'productUoms.uom',
-            'sellingPrices',
+            'sellingPrices.creator:id,name',
             'tagBindings.tag',
             'thumbnail',
             'unitCosts' => function ($query) {
@@ -1230,6 +1234,9 @@ class ProductController extends Controller
                     ->get()
             ),
             'product' => ProductResource::make($product),
+            // Selling Price(s): every change, newest first, from user_logs (each row carries its own
+            // set at / by / previous price).
+            'sellingPriceHistory' => app(\App\Services\Product\SellingPriceHistory::class)->forProduct($product),
             // Smart Freezer AI Training: this product's modelling application to Zijia and its log.
             'aiTraining' => app(\App\Services\SmartFreezer\Zijia\ZijiaSkuApplicationService::class)->pageData($product),
             // Freezer welcome sketch: the drawing the freezer's welcome scene drops for this product.

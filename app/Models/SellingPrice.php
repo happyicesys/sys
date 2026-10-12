@@ -11,9 +11,13 @@ class SellingPrice extends Model
     use HasFactory;
 
     const TYPE_1 = 1;
+
     const TYPE_2 = 2;
+
     const TYPE_3 = 3;
+
     const TYPE_4 = 4;
+
     const TYPE_5 = 5;
 
     const TYPE_MAPPINGS = [
@@ -26,6 +30,8 @@ class SellingPrice extends Model
 
     protected $fillable = [
         'amount',
+        'created_by',
+        'previous_amount',
         'product_id',
         'type',
     ];
@@ -44,6 +50,12 @@ class SellingPrice extends Model
     }
 
     // relationships
+    /** Who set this price (null: set before the audit log began, or by a script). */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

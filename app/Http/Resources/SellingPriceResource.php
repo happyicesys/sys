@@ -21,6 +21,10 @@ class SellingPriceResource extends JsonResource
             'product' => $this->whenLoaded('product'),
             'type' => $this->type,
             'type_name' => SellingPrice::TYPE_MAPPINGS[$this->type] ?? 'Unknown',
+            // When this price was set (rows are never edited in place), by whom, and what it replaced.
+            'set_at' => $this->created_at?->toIso8601String(),
+            'set_by' => $this->whenLoaded('creator', fn () => $this->creator?->name),
+            'previous_amount' => $this->previous_amount,
         ];
     }
 }
