@@ -960,7 +960,18 @@ unrecognised). Rules:
 
 **Freezer welcome sketches** (Brian, 2026-10-08). The freezer's welcome scene drops a hand-drawn
 sketch of each mapped product; mark1 owns them, not the APK. `ProductWelcomeSketchService` is the only
-writer of `product_welcome_sketches` (one row per product), served on `/api/vends/{code}/menu` as
+writer of `product_welcome_sketches` (one LIVE row per product) and its album
+`product_welcome_sketch_versions` (2026-10-12, Brian: "save to an album to let us shortlist and select"):
+every drawing, cut-out, upload and seed is kept as a version; the live row carries a copy of the picked one
+(`version_id`) so the menu still reads one row. **A person's Draw (1–4 at once, at most 4 in flight per product)
+never replaces the live drawing** — it waits in the album until someone presses Use (`selected_by` /
+`selected_at`), except a product with no drawing yet takes the first one that finishes. Automatic draws (new
+photo, freezer sweep) still go live, unless the live drawing is curated: seed, upload, or a person's pick.
+Product → Edit drives it over JSON (`ProductWelcomeSketchController`: show / regenerate {count} / upload /
+versions/{id}/select | shortlist | DELETE) so an unsaved product form is never reloaded; the live drawing cannot
+be deleted, and a file is removed only when no other entry shares its content-hash path. Redraws before
+2026-10-12 left their files on Spaces: `products:welcome-sketches --recover [--dry-run]` turns them into
+`recovered` album entries (seed art recognised by hash). Served on `/api/vends/{code}/menu` as
 `welcome_sketch` — smart mappings only, `?v=` versioned, null = the freezer drops the photo; vending
 menus are byte-for-byte unchanged. Sources: **seed** (the approved set in
 `resources/welcome-sketches/{product code}.webp`, `ProductWelcomeSketchSeeder`, idempotent, never over an
@@ -974,10 +985,10 @@ outline + soft shadow. A cut-out made only because no key was set is upgraded to
 `OPENAI_API_KEY` exists (next save / hourly sweep). Automatic drawing is queued (`GenerateProductWelcomeSketch`, `low`, one try) when a
 product is created with a photo, gets a new photo, or is a freezer product saved without a sketch, and by
 the hourly `products:welcome-sketches --missing-freezer` sweep (a product just added to a mapping). Rules:
-each paid call happens once (pending → generating claim; redis `retry_after` is shorter than a generation),
-a failed photo is not re-paid until the photo changes or someone presses Regenerate, a pending/generating
-row older than 15 min is abandoned, a redraw only replaces the drawing when it succeeds, and seed/upload art
-is never redrawn automatically. Images are trimmed, ≤ 512 px, transparent WebP under
+each paid call happens once (the version's pending → generating claim; redis `retry_after` is shorter than a
+generation), a photo already drawn or failed is not re-paid automatically until the photo changes, a
+pending/generating version older than 15 min is abandoned, a failed draw never touches the live drawing, and
+curated art (seed / upload / a person's pick) is never redrawn automatically. Images are trimmed, ≤ 512 px, transparent WebP under
 `sys/products/{id}/welcome-sketch/`. A freezer re-reads `/menu` only on boot or a nudge, so every stored
 sketch nudges the active freezers carrying that product (`NudgeFreezerMenu`, 90 s delay, debounced per
 freezer). The model prompt forbids text not printed on the product (it invented labels on plain bars,

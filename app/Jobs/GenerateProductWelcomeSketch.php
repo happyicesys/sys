@@ -10,9 +10,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Redraws one product's welcome sketch (ProductWelcomeSketchService::generate). One try: each call
- * is a paid image request, and the service's pending → generating claim makes a redelivery
- * (redis retry_after is shorter than a generation) a no-op.
+ * Draws one album entry of a product's welcome sketch (ProductWelcomeSketchService::generate). One
+ * try: each call is a paid image request, and the service's pending → generating claim makes a
+ * redelivery (redis retry_after is shorter than a generation) a no-op.
  */
 class GenerateProductWelcomeSketch implements ShouldQueue
 {
@@ -22,13 +22,13 @@ class GenerateProductWelcomeSketch implements ShouldQueue
 
     public int $timeout = 200;
 
-    public function __construct(public readonly int $sketchId)
+    public function __construct(public readonly int $versionId)
     {
         $this->onQueue('low');
     }
 
     public function handle(ProductWelcomeSketchService $sketches): void
     {
-        $sketches->generate($this->sketchId);
+        $sketches->generate($this->versionId);
     }
 }

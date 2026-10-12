@@ -5,6 +5,7 @@ namespace App\Services\Products\WelcomeSketch;
 use App\Jobs\GenerateProductWelcomeSketch;
 use App\Models\Product;
 use App\Models\ProductWelcomeSketch;
+use App\Models\ProductWelcomeSketchVersion;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -13,35 +14,50 @@ use Imagick;
 use Throwable;
 
 /**
- * The only writer of `product_welcome_sketches` (Brian, 2026-10-08): the drawing a smart freezer's
- * welcome scene drops for a product instead of its catalog photo, served to the freezer on
- * `/api/vends/{code}/menu` as `welcome_sketch`.
+ * The only writer of `product_welcome_sketches` and its album `product_welcome_sketch_versions`
+ * (Brian, 2026-10-08 / 2026-10-12): the drawing a smart freezer's welcome scene drops for a product
+ * instead of its catalog photo, served to the freezer on `/api/vends/{code}/menu` as `welcome_sketch`.
+ *
+ * Every drawing is kept as a version in the product's album; the live row points at the one the
+ * freezers drop (`version_id`). What goes live:
  *
  *  - Seed: the approved hand-checked set in resources/welcome-sketches/{product code}.webp
- *    (ProductWelcomeSketchSeeder).
+ *    (ProductWelcomeSketchSeeder) — live at once.
  *  - Automatic: saving a product with a new photo queues a redraw by the image model
- *    (SketchGenerator, inert until OPENAI_API_KEY is set). Only a `generated` or `cutout` sketch is
- *    redrawn automatically; seed and upload art is kept until someone presses Regenerate.
+ *    (SketchGenerator, inert until OPENAI_API_KEY is set). It goes live unless the live drawing is
+ *    curated (seed, upload, or a person's pick from the album).
+ *  - Draw (a person on Product → Edit, 1–MAX_PER_DRAW at a time): the drawings wait in the album and
+ *    go live only when someone presses Use — or at once when the product has no drawing yet.
  *  - Cut-out: when no image model is configured, or its drawing fails, the photo's background is
  *    removed by rembg (CutoutMaker, open source, on our server) and finished as a white-outlined
  *    sticker. A cut-out made only because no model was configured is upgraded to a real sketch once
  *    one is (the next save or the hourly sweep).
- *  - Upload: a person replaces it on Product → Edit.
+ *  - Upload: a person's own drawing on Product → Edit — live at once.
  *
- * A redraw in progress or a failed one keeps the previous drawing on the freezer; the photo is the
+ * A redraw in progress or a failed one keeps the live drawing on the freezer; the photo is the
  * fallback only when a product has never had one. Every image is stored trimmed, at most
- * `max_px` on its longest side, as transparent WebP under sys/products/{id}/welcome-sketch/.
+ * `max_px` on its longest side, as transparent WebP under sys/products/{id}/welcome-sketch/, named
+ * by its content hash.
  */
 class ProductWelcomeSketchService
 {
     /** Approved sketches sent as the style to copy (resources/welcome-sketches). */
     public const STYLE_REFERENCES = ['U-11', 'CC-01', 'U-89'];
 
-    /** A pending/generating row untouched this long was abandoned; a new request may replace it. */
+    /** A pending/generating version untouched this long was abandoned; a new request may replace it. */
     public const STALE_MINUTES = 15;
 
     /** A freezer is nudged to re-read its menu this long after its first new sketch (debounce). */
     public const NUDGE_DELAY_SECONDS = 90;
+
+    /** Drawings one press of Draw may ask for (each is a paid image request). */
+    public const MAX_PER_DRAW = 4;
+
+    /** Drawings of one product queued or being drawn at once. */
+    public const MAX_IN_FLIGHT = 4;
+
+    /** Album entries sent to Product → Edit, newest first. */
+    public const ALBUM_LIMIT = 80;
 
     public function __construct(
         private readonly SketchGenerator $generator,
@@ -54,12 +70,18 @@ class ProductWelcomeSketchService
         return $this->generator->isConfigured() || $this->cutouts->isAvailable();
     }
 
-    /** A cut-out made only because no model was configured, now that one is. */
-    private function upgradable(ProductWelcomeSketch $sketch): bool
+    /**
+     * A cut-out made only because no model was configured, now that one is — and nothing was tried
+     * since (a later attempt, failed or waiting in the album, settles it).
+     */
+    private function upgradable(?ProductWelcomeSketch $live): bool
     {
-        return $sketch->source === ProductWelcomeSketch::SOURCE_CUTOUT
-            && $sketch->last_error === null
-            && $this->generator->isConfigured();
+        return $live !== null
+            && $live->source === ProductWelcomeSketch::SOURCE_CUTOUT
+            && $live->last_error === null
+            && $this->generator->isConfigured()
+            && ! ProductWelcomeSketchVersion::query()->where('product_id', $live->product_id)
+                ->where('id', '>', (int) $live->version_id)->exists();
     }
 
     public static function seedDirectory(): string
@@ -75,11 +97,11 @@ class ProductWelcomeSketchService
     }
 
     /**
-     * Product saved on create / Product → Edit: queue a redraw when the photo is new to the sketch.
-     * Never touches seed or uploaded art, never queues twice, never queues without a photo or a
-     * configured image service.
+     * Product saved on create / Product → Edit: queue a redraw when the photo is new to the album.
+     * Never touches curated art, never queues twice, never queues without a photo or a configured
+     * image service, never re-pays for a photo already drawn (or already failed).
      */
-    public function requestAfterSave(Product $product, ?int $userId, string $reason = 'photo_saved'): ?ProductWelcomeSketch
+    public function requestAfterSave(Product $product, ?int $userId, string $reason = 'photo_saved'): ?ProductWelcomeSketchVersion
     {
         if (! config('smart_freezer.welcome_sketch.auto_generate', true) || ! $this->canDraw()) {
             return null;
@@ -88,25 +110,26 @@ class ProductWelcomeSketchService
         if ($photo === null) {
             return null;
         }
-        $sketch = ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
-        if ($sketch !== null) {
-            if ($sketch->isCurated()) {
-                return null;
-            }
-            if (self::inFlight($sketch)) {
-                return null;
-            }
-            // Drawn from this very photo already (ready, or failed on it — Regenerate retries that).
-            if ($sketch->source_photo_url === $photo && ! $this->upgradable($sketch)) {
-                return null;
-            }
+        $live = ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
+        if ($live?->isCurated() || $this->inFlightCount($product->id) > 0) {
+            return null;
+        }
+        $triedThisPhoto = ProductWelcomeSketchVersion::query()->where('product_id', $product->id)
+            ->where('source_photo_url', $photo)->exists();
+        if ($triedThisPhoto && ! $this->upgradable($live)) {
+            return null;
         }
 
         return $this->queue($product, $reason, $userId);
     }
 
-    /** Regenerate on Product → Edit: redraw from the current photo, whatever the sketch's source. */
-    public function regenerate(Product $product, ?int $userId): ProductWelcomeSketch
+    /**
+     * Draw on Product → Edit: $count new drawings from the current photo, into the album. They go
+     * live only when someone picks one — or the first to finish, when the product has none.
+     *
+     * @return list<ProductWelcomeSketchVersion>
+     */
+    public function regenerate(Product $product, ?int $userId, int $count = 1): array
     {
         if (! $this->canDraw()) {
             throw new SketchGenerationException('Nothing can draw sketches on this server (no OPENAI_API_KEY and no rembg).');
@@ -114,12 +137,119 @@ class ProductWelcomeSketchService
         if ($this->photoUrl($product) === null) {
             throw new SketchGenerationException('Add a product photo first — the sketch is drawn from it.');
         }
-        $current = ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
-        if ($current !== null && self::inFlight($current)) {
-            return $current;
+        $count = max(1, min(self::MAX_PER_DRAW, $count));
+        $busy = $this->inFlightCount($product->id);
+        if ($busy + $count > self::MAX_IN_FLIGHT) {
+            throw new SketchGenerationException($busy > 0
+                ? "Already drawing {$busy} — wait for them to finish (at most ".self::MAX_IN_FLIGHT.' at once).'
+                : 'At most '.self::MAX_IN_FLIGHT.' drawings at once.');
         }
 
-        return $this->queue($product, 'regenerate', $userId);
+        $versions = [];
+        for ($i = 0; $i < $count; $i++) {
+            $versions[] = $this->queue($product, ProductWelcomeSketchVersion::REASON_MANUAL, $userId);
+        }
+
+        return $versions;
+    }
+
+    /** Use this drawing: the freezers drop it from now on, and automation leaves it alone. */
+    public function select(Product $product, int $versionId, ?int $userId): ProductWelcomeSketch
+    {
+        $version = $this->versionOf($product, $versionId);
+        if (! $version->isReady()) {
+            throw new SketchGenerationException('Only a finished drawing can be used.');
+        }
+
+        return $this->promote($version, $userId);
+    }
+
+    public function shortlist(Product $product, int $versionId, bool $on): ProductWelcomeSketchVersion
+    {
+        $version = $this->versionOf($product, $versionId);
+        $version->update(['shortlisted_at' => $on ? ($version->shortlisted_at ?? now()) : null]);
+
+        return $version;
+    }
+
+    /**
+     * Remove a drawing from the album (never the live one). Its file goes too unless another entry
+     * holds the same image (paths are content hashes).
+     */
+    public function deleteVersion(Product $product, int $versionId): void
+    {
+        $version = $this->versionOf($product, $versionId);
+        $live = ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
+        if ($live !== null && (int) $live->version_id === $version->id) {
+            throw new SketchGenerationException('This is the drawing on the freezers — use another one first.');
+        }
+        $path = $version->path;
+        $version->delete();
+        if ($path !== null && $path !== ''
+            && ! ProductWelcomeSketchVersion::query()->where('path', $path)->exists()
+            && ! ProductWelcomeSketch::query()->where('path', $path)->exists()) {
+            Storage::delete($path);
+        }
+    }
+
+    /**
+     * Earlier drawings still in storage but in no album (every redraw before 2026-10-12 replaced
+     * the live one and left its file behind): each becomes an album entry, `recovered`. A file that
+     * is the product's approved seed art comes back as seed.
+     *
+     * @return int entries added
+     */
+    public function recoverStored(Product $product, bool $dryRun = false): int
+    {
+        $known = ProductWelcomeSketchVersion::query()->where('product_id', $product->id)->pluck('path')->filter()->flip();
+        $seedPath = null;
+        $seedFile = self::seedDirectory().'/'.$product->code.'.webp';
+        if ($product->code && is_file($seedFile)) {
+            try {
+                $webp = self::normalise((string) file_get_contents($seedFile), (int) config('smart_freezer.welcome_sketch.max_px', 512));
+                $seedPath = "sys/products/{$product->id}/welcome-sketch/".substr(hash('sha256', $webp), 0, 16).'.webp';
+            } catch (SketchGenerationException) {
+                $seedPath = null;
+            }
+        }
+
+        $added = 0;
+        foreach (Storage::files("sys/products/{$product->id}/welcome-sketch") as $path) {
+            if (! str_ends_with($path, '.webp') || $known->has($path)) {
+                continue;
+            }
+            $added++;
+            if ($dryRun) {
+                continue;
+            }
+            $at = \Illuminate\Support\Carbon::createFromTimestamp(Storage::lastModified($path));
+            $version = new ProductWelcomeSketchVersion([
+                'product_id' => $product->id,
+                'status' => ProductWelcomeSketch::STATUS_READY,
+                'source' => $path === $seedPath ? ProductWelcomeSketch::SOURCE_SEED : ProductWelcomeSketch::SOURCE_GENERATED,
+                'path' => $path,
+                'url' => Storage::url($path),
+                'reason' => ProductWelcomeSketchVersion::REASON_RECOVERED,
+                'generated_at' => $at,
+            ]);
+            $version->created_at = $at;
+            $version->save();
+        }
+
+        return $added;
+    }
+
+    private function versionOf(Product $product, int $versionId): ProductWelcomeSketchVersion
+    {
+        return ProductWelcomeSketchVersion::query()->where('product_id', $product->id)->findOrFail($versionId);
+    }
+
+    private function inFlightCount(int $productId): int
+    {
+        return ProductWelcomeSketchVersion::query()->where('product_id', $productId)
+            ->whereIn('status', [ProductWelcomeSketch::STATUS_PENDING, ProductWelcomeSketch::STATUS_GENERATING])
+            ->where('updated_at', '>', now()->subMinutes(self::STALE_MINUTES))
+            ->count();
     }
 
     /**
@@ -164,7 +294,7 @@ class ProductWelcomeSketchService
     /**
      * Hourly sweep: every smart-freezer product with a photo and no drawing gets one queued — so a
      * product put on a freezer's mapping is drawn without anyone editing it. Products whose photo
-     * already failed are not retried until the photo changes or someone presses Regenerate.
+     * already failed are not retried until the photo changes or someone presses Draw.
      *
      * @return list<int> product ids queued
      */
@@ -195,40 +325,42 @@ class ProductWelcomeSketchService
     }
 
     /** Queued or being drawn, and not abandoned (a worker killed mid-call leaves `generating`). */
-    public static function inFlight(ProductWelcomeSketch $sketch): bool
+    public static function inFlight(ProductWelcomeSketchVersion $version): bool
     {
-        return in_array($sketch->status, [ProductWelcomeSketch::STATUS_PENDING, ProductWelcomeSketch::STATUS_GENERATING], true)
-            && $sketch->updated_at !== null && $sketch->updated_at->gt(now()->subMinutes(self::STALE_MINUTES));
+        return in_array($version->status, [ProductWelcomeSketch::STATUS_PENDING, ProductWelcomeSketch::STATUS_GENERATING], true)
+            && $version->updated_at !== null && $version->updated_at->gt(now()->subMinutes(self::STALE_MINUTES));
     }
 
-    private function queue(Product $product, string $reason, ?int $userId): ProductWelcomeSketch
+    private function queue(Product $product, string $reason, ?int $userId): ProductWelcomeSketchVersion
     {
-        $sketch = ProductWelcomeSketch::query()->firstOrNew(['product_id' => $product->id]);
-        $sketch->fill([
+        $version = ProductWelcomeSketchVersion::query()->create([
+            'product_id' => $product->id,
             'status' => ProductWelcomeSketch::STATUS_PENDING,
             'reason' => $reason,
             'requested_by' => $userId,
-            'last_error' => null,
-        ])->save();
-        GenerateProductWelcomeSketch::dispatch($sketch->id)->afterCommit();
+            // The photo it is drawn from, so a save meanwhile does not queue the same photo again.
+            'source_photo_url' => $this->photoUrl($product),
+        ]);
+        GenerateProductWelcomeSketch::dispatch($version->id)->afterCommit();
 
-        return $sketch;
+        return $version;
     }
 
     /**
-     * The job: claim the row (pending → generating, so a redelivered job never pays twice), redraw
-     * the CURRENT photo, store it, mark it ready. A failure keeps the previous drawing.
+     * The job: claim the version (pending → generating, so a redelivered job never pays twice),
+     * redraw the CURRENT photo, store it, mark it ready, then put it live if it is due (promoteIfDue).
+     * A failure is kept on the version; the live drawing is untouched.
      */
-    public function generate(int $sketchId): void
+    public function generate(int $versionId): void
     {
-        $claimed = ProductWelcomeSketch::query()->whereKey($sketchId)
+        $claimed = ProductWelcomeSketchVersion::query()->whereKey($versionId)
             ->where('status', ProductWelcomeSketch::STATUS_PENDING)
             ->update(['status' => ProductWelcomeSketch::STATUS_GENERATING, 'updated_at' => now()]);
         if ($claimed === 0) {
             return;
         }
-        $sketch = ProductWelcomeSketch::query()->findOrFail($sketchId);
-        $product = Product::withoutGlobalScopes()->with('thumbnail')->find($sketch->product_id);
+        $version = ProductWelcomeSketchVersion::query()->findOrFail($versionId);
+        $product = Product::withoutGlobalScopes()->with('thumbnail')->find($version->product_id);
 
         try {
             if ($product === null) {
@@ -242,10 +374,11 @@ class ProductWelcomeSketchService
             if ($this->generator->isConfigured()) {
                 try {
                     $drawing = $this->generator->generate($photo, (string) $product->name, $this->styleReferences());
-                    $this->store($sketch, $product, $drawing, ProductWelcomeSketch::SOURCE_GENERATED, $origin + [
+                    $this->storeVersion($version, $product, $drawing, ProductWelcomeSketch::SOURCE_GENERATED, $origin + [
                         'model' => $this->generator->model(),
                     ]);
-                    Log::info('Welcome sketch generated', ['product_id' => $product->id, 'sketch_id' => $sketch->id]);
+                    Log::info('Welcome sketch generated', ['product_id' => $product->id, 'version_id' => $version->id]);
+                    $this->promoteIfDue($version);
 
                     return;
                 } catch (SketchGenerationException $e) {
@@ -258,62 +391,98 @@ class ProductWelcomeSketchService
             // Free fallback: the photo cut out and finished as a sticker. `last_error` keeps why the
             // model was not used (null = no model configured, so it is upgraded once one is).
             $sticker = self::sticker($this->cutouts->cutout($photo), (int) config('smart_freezer.welcome_sketch.max_px', 512));
-            $this->store($sketch, $product, $sticker, ProductWelcomeSketch::SOURCE_CUTOUT, $origin + [
+            $this->storeVersion($version, $product, $sticker, ProductWelcomeSketch::SOURCE_CUTOUT, $origin + [
                 'model' => $this->cutouts->name(),
+                'last_error' => $modelError !== null ? 'Image model failed, used the photo cut-out: '.mb_substr($modelError, 0, 900) : null,
             ]);
-            if ($modelError !== null) {
-                $sketch->update(['last_error' => 'Image model failed, used the photo cut-out: '.mb_substr($modelError, 0, 900)]);
-            }
-            Log::info('Welcome sketch cut out', ['product_id' => $product->id, 'sketch_id' => $sketch->id, 'model_error' => $modelError]);
+            Log::info('Welcome sketch cut out', ['product_id' => $product->id, 'version_id' => $version->id, 'model_error' => $modelError]);
+            $this->promoteIfDue($version);
         } catch (Throwable $e) {
-            $sketch->update([
+            $version->update([
                 'status' => ProductWelcomeSketch::STATUS_FAILED,
                 'last_error' => mb_substr($e->getMessage(), 0, 1000),
-                // Remember which photo failed, so saving the product again does not re-pay for it.
-                'source_photo_url' => $product !== null ? $this->photoUrl($product) : $sketch->source_photo_url,
+                'source_photo_url' => $product !== null ? ($this->photoUrl($product) ?? $version->source_photo_url) : $version->source_photo_url,
             ]);
-            Log::warning('Welcome sketch failed', ['sketch_id' => $sketch->id, 'error' => $e->getMessage()]);
+            Log::warning('Welcome sketch failed', ['version_id' => $version->id, 'error' => $e->getMessage()]);
         }
     }
 
-    /** A person's own drawing from Product → Edit; kept until replaced or regenerated. */
-    public function storeUpload(Product $product, UploadedFile $file, ?int $userId): ProductWelcomeSketch
+    /**
+     * A finished drawing goes live when the product has none, or — when an automatic request
+     * asked for it — unless a person's pick or approved art is live. A person's Draw waits in the
+     * album.
+     */
+    private function promoteIfDue(ProductWelcomeSketchVersion $version): void
     {
-        $sketch = ProductWelcomeSketch::query()->firstOrNew(['product_id' => $product->id]);
-        $sketch->requested_by = $userId;
-        $sketch->reason = 'upload';
-
-        return $this->store($sketch, $product, (string) file_get_contents($file->getRealPath()), ProductWelcomeSketch::SOURCE_UPLOAD, [
-            'model' => null, 'source_photo_url' => null, 'source_photo_hash' => null,
-        ]);
+        $live = ProductWelcomeSketch::query()->where('product_id', $version->product_id)->first();
+        $due = $live === null || ! $live->hasDrawing()
+            || ($version->reason !== ProductWelcomeSketchVersion::REASON_MANUAL && ! $live->isCurated());
+        if ($due) {
+            $this->promote($version, null);
+        }
     }
 
-    /** The approved set (ProductWelcomeSketchSeeder). Never overwrites a person's upload. */
+    /** Put a version live: copy it onto the product's live row and tell its freezers. */
+    private function promote(ProductWelcomeSketchVersion $version, ?int $selectedBy): ProductWelcomeSketch
+    {
+        $live = ProductWelcomeSketch::query()->firstOrNew(['product_id' => $version->product_id]);
+        $live->fill([
+            'version_id' => $version->id,
+            'status' => ProductWelcomeSketch::STATUS_READY,
+            'source' => $version->source,
+            'path' => $version->path,
+            'url' => $version->url,
+            'source_photo_url' => $version->source_photo_url,
+            'source_photo_hash' => $version->source_photo_hash,
+            'model' => $version->model,
+            'reason' => $version->reason,
+            'last_error' => $version->last_error,
+            'requested_by' => $version->requested_by,
+            'selected_by' => $selectedBy,
+            'selected_at' => $selectedBy !== null ? now() : null,
+            'generated_at' => $version->generated_at ?? now(),
+        ])->save();
+        if ($version->product !== null) {
+            $this->nudgeFreezers($version->product);
+        }
+
+        return $live;
+    }
+
+    /** A person's own drawing from Product → Edit: into the album and live at once. */
+    public function storeUpload(Product $product, UploadedFile $file, ?int $userId): ProductWelcomeSketch
+    {
+        $version = new ProductWelcomeSketchVersion(['product_id' => $product->id, 'reason' => 'upload', 'requested_by' => $userId]);
+        $this->storeVersion($version, $product, (string) file_get_contents($file->getRealPath()), ProductWelcomeSketch::SOURCE_UPLOAD, []);
+
+        return $this->promote($version, $userId);
+    }
+
+    /** The approved set (ProductWelcomeSketchSeeder). Never over an upload or a person's pick. */
     public function seed(Product $product, string $bytes): ?ProductWelcomeSketch
     {
-        $sketch = ProductWelcomeSketch::query()->firstOrNew(['product_id' => $product->id]);
-        if ($sketch->exists && $sketch->source === ProductWelcomeSketch::SOURCE_UPLOAD) {
+        $live = ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
+        if ($live !== null && ($live->source === ProductWelcomeSketch::SOURCE_UPLOAD || $live->selected_by !== null)) {
             return null;
         }
         $hash = hash('sha256', $bytes);
-        if ($sketch->exists && $sketch->source === ProductWelcomeSketch::SOURCE_SEED && $sketch->source_photo_hash === $hash && $sketch->url) {
+        if ($live !== null && $live->source === ProductWelcomeSketch::SOURCE_SEED && $live->source_photo_hash === $hash && $live->url) {
             return null; // already seeded with this exact file
         }
-        $sketch->reason = 'seed';
+        $version = new ProductWelcomeSketchVersion(['product_id' => $product->id, 'reason' => 'seed']);
+        $this->storeVersion($version, $product, $bytes, ProductWelcomeSketch::SOURCE_SEED, ['source_photo_hash' => $hash]);
 
-        return $this->store($sketch, $product, $bytes, ProductWelcomeSketch::SOURCE_SEED, [
-            'model' => null, 'source_photo_url' => null, 'source_photo_hash' => $hash,
-        ]);
+        return $this->promote($version, null);
     }
 
     /** @param  array<string, mixed>  $extra */
-    private function store(ProductWelcomeSketch $sketch, Product $product, string $bytes, string $source, array $extra): ProductWelcomeSketch
+    private function storeVersion(ProductWelcomeSketchVersion $version, Product $product, string $bytes, string $source, array $extra): ProductWelcomeSketchVersion
     {
         $webp = self::normalise($bytes, (int) config('smart_freezer.welcome_sketch.max_px', 512));
         $path = "sys/products/{$product->id}/welcome-sketch/".substr(hash('sha256', $webp), 0, 16).'.webp';
         Storage::put($path, $webp, 'public');
 
-        $sketch->fill($extra + [
+        $version->fill($extra + [
             'product_id' => $product->id,
             'status' => ProductWelcomeSketch::STATUS_READY,
             'source' => $source,
@@ -322,9 +491,9 @@ class ProductWelcomeSketchService
             'last_error' => null,
             'generated_at' => now(),
         ])->save();
-        $this->nudgeFreezers($product);
+        $version->setRelation('product', $product);
 
-        return $sketch;
+        return $version;
     }
 
     /**
@@ -443,29 +612,59 @@ class ProductWelcomeSketchService
         return $sketch->url.(str_contains($sketch->url, '?') ? '&' : '?').'v='.(optional($sketch->generated_at)->timestamp ?? 0);
     }
 
-    /** @return array<string, mixed> Product → Edit "Freezer welcome sketch" section */
+    /** @return array<string, mixed> Product → Edit "Freezer welcome sketch" section and its album */
     public function pageData(Product $product): array
     {
-        $sketch = ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
+        $photo = $this->photoUrl($product);
+        $live = ProductWelcomeSketch::query()->with('selector:id,name')->where('product_id', $product->id)->first();
+        $hasLive = $live !== null && $live->hasDrawing();
+        $liveVersionId = $hasLive && $live->version_id !== null ? (int) $live->version_id : null;
+        $versions = ProductWelcomeSketchVersion::query()->with('requester:id,name')
+            ->where('product_id', $product->id)
+            ->orderByRaw('COALESCE(generated_at, created_at) DESC')->orderByDesc('id')
+            ->limit(self::ALBUM_LIMIT)->get();
+        $iso = fn ($at) => optional($at)->toIso8601String();
 
         return [
             'configured' => $this->canDraw(),
             'ai_configured' => $this->generator->isConfigured(),
             'cutout_available' => $this->cutouts->isAvailable(),
             'auto_generate' => (bool) config('smart_freezer.welcome_sketch.auto_generate', true),
-            'has_photo' => $this->photoUrl($product) !== null,
-            'sketch' => $sketch === null ? null : [
-                'status' => $sketch->status,
-                'source' => $sketch->source,
-                'url' => self::menuUrl($sketch),
-                'model' => $sketch->model,
-                'reason' => $sketch->reason,
-                'last_error' => $sketch->last_error,
-                'generated_at' => optional($sketch->generated_at)->toIso8601String(),
-                'updated_at' => optional($sketch->updated_at)->toIso8601String(),
-                'photo_changed' => in_array($sketch->source, [ProductWelcomeSketch::SOURCE_GENERATED, ProductWelcomeSketch::SOURCE_CUTOUT], true)
-                    && $sketch->source_photo_url !== null && $sketch->source_photo_url !== $this->photoUrl($product),
+            'has_photo' => $photo !== null,
+            'photo_url' => $photo,
+            'max_per_draw' => self::MAX_PER_DRAW,
+            'max_in_flight' => self::MAX_IN_FLIGHT,
+            'in_flight' => $this->inFlightCount($product->id),
+            'live' => ! $hasLive ? null : [
+                'version_id' => $liveVersionId,
+                'source' => $live->source,
+                'url' => self::menuUrl($live),
+                'model' => $live->model,
+                'last_error' => $live->last_error,
+                'generated_at' => $iso($live->generated_at),
+                'selected_by' => $live->selector?->name,
+                'selected_at' => $iso($live->selected_at),
+                'curated' => $live->isCurated(),
+                'photo_changed' => in_array($live->source, [ProductWelcomeSketch::SOURCE_GENERATED, ProductWelcomeSketch::SOURCE_CUTOUT], true)
+                    && $live->source_photo_url !== null && $live->source_photo_url !== $photo,
             ],
+            'versions' => $versions->map(fn (ProductWelcomeSketchVersion $v) => [
+                'id' => $v->id,
+                // pending / generating / ready / failed, and `abandoned` for a draw a dead worker left.
+                'status' => in_array($v->status, [ProductWelcomeSketch::STATUS_PENDING, ProductWelcomeSketch::STATUS_GENERATING], true)
+                    && ! self::inFlight($v) ? 'abandoned' : $v->status,
+                'source' => $v->source,
+                'url' => $v->url,
+                'model' => $v->model,
+                'reason' => $v->reason,
+                'last_error' => $v->last_error,
+                'at' => $iso($v->generated_at ?? $v->created_at),
+                'requested_by' => $v->requester?->name,
+                'shortlisted' => $v->shortlisted_at !== null,
+                'is_live' => $v->id === $liveVersionId,
+                // null = not known (an upload, seed art, or a drawing recovered from storage).
+                'from_current_photo' => $v->source_photo_url === null ? null : $v->source_photo_url === $photo,
+            ])->values()->all(),
         ];
     }
 }

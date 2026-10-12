@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\ProductWelcomeSketch;
+use App\Models\ProductWelcomeSketchVersion;
 use App\Models\User;
 use App\Models\Vend;
 use App\Services\Products\WelcomeSketch\CutoutMaker;
@@ -26,8 +27,9 @@ use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
- * Freezer welcome sketches (2026-10-08): seeded approved art, automatic drawing on product save,
- * Regenerate / Upload on Product → Edit, the hourly freezer sweep, and `welcome_sketch` on /menu.
+ * Freezer welcome sketches (2026-10-08) and their album (2026-10-12): seeded approved art, automatic
+ * drawing on product save, Draw / Use / Star / Delete / Upload on Product → Edit, the hourly freezer
+ * sweep, recovering earlier drawings from storage, and `welcome_sketch` on /menu.
  */
 class ProductWelcomeSketchTest extends TestCase
 {
@@ -104,10 +106,15 @@ class ProductWelcomeSketchTest extends TestCase
     private function runQueued(): void
     {
         Queue::assertPushed(GenerateProductWelcomeSketch::class, function (GenerateProductWelcomeSketch $job) {
-            $this->service()->generate($job->sketchId);
+            $this->service()->generate($job->versionId);
 
             return true;
         });
+    }
+
+    private function live(Product $product): ?ProductWelcomeSketch
+    {
+        return ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
     }
 
     public function test_the_approved_set_is_stored_on_its_products_once_and_never_over_an_upload(): void
@@ -122,6 +129,7 @@ class ProductWelcomeSketchTest extends TestCase
         $sketch = ProductWelcomeSketch::query()->where('product_id', $cornetto->id)->sole();
         $this->assertSame([ProductWelcomeSketch::STATUS_READY, ProductWelcomeSketch::SOURCE_SEED], [$sketch->status, $sketch->source]);
         Storage::assertExists($sketch->path);
+        $this->assertSame($sketch->path, ProductWelcomeSketchVersion::query()->findOrFail($sketch->version_id)->path, 'the seed is in the album too');
         // U-79 has two products: the one on a freezer gets the drawing.
         $this->assertNotNull($freezerCookies->welcomeSketch()->first());
         $this->assertNull($otherCookies->welcomeSketch()->first());
@@ -130,6 +138,7 @@ class ProductWelcomeSketchTest extends TestCase
         $this->travel(5)->minutes();
         $this->seed(ProductWelcomeSketchSeeder::class);
         $this->assertTrue($sketch->fresh()->updated_at->equalTo($before), 'an unchanged file is not stored again');
+        $this->assertSame(1, ProductWelcomeSketchVersion::query()->where('product_id', $cornetto->id)->count());
 
         $this->service()->storeUpload($cornetto, UploadedFile::fake()->createWithContent('mine.png', self::png(300, 300)), $this->user->id);
         $this->seed(ProductWelcomeSketchSeeder::class);
@@ -137,51 +146,113 @@ class ProductWelcomeSketchTest extends TestCase
         $this->assertSame(0, $this->generator->calls, 'seeding never calls the image service');
     }
 
-    public function test_saving_a_new_photo_draws_a_trimmed_transparent_sketch_once(): void
+    public function test_saving_a_new_photo_draws_a_trimmed_transparent_sketch_once_and_puts_it_live(): void
     {
         $product = $this->product('NEW-1');
 
-        $sketch = $this->service()->requestAfterSave($product, $this->user->id, 'created');
-        $this->assertSame(ProductWelcomeSketch::STATUS_PENDING, $sketch->status);
+        $version = $this->service()->requestAfterSave($product, $this->user->id, 'created');
+        $this->assertSame(ProductWelcomeSketch::STATUS_PENDING, $version->status);
         $this->runQueued();
 
-        $sketch->refresh();
+        $version->refresh();
         $this->assertSame([ProductWelcomeSketch::STATUS_READY, ProductWelcomeSketch::SOURCE_GENERATED, 'fake-model'],
-            [$sketch->status, $sketch->source, $sketch->model]);
-        $this->assertSame('https://cdn.test/sys/products/p.png', $sketch->source_photo_url);
+            [$version->status, $version->source, $version->model]);
+        $this->assertSame('https://cdn.test/sys/products/p.png', $version->source_photo_url);
+        $live = $this->live($product);
+        $this->assertSame([$version->id, $version->path, null], [(int) $live->version_id, $live->path, $live->selected_by], 'the first drawing goes live by itself');
         $image = new Imagick;
-        $image->readImageBlob(Storage::get($sketch->path));
+        $image->readImageBlob(Storage::get($version->path));
         $this->assertSame('WEBP', $image->getImageFormat());
         $this->assertLessThanOrEqual(512, max($image->getImageWidth(), $image->getImageHeight()));
         $this->assertLessThan($image->getImageHeight(), $image->getImageWidth(), 'the transparent margin was trimmed');
         $this->assertSame(3, $this->generator->lastReferences, 'approved sketches sent as the style');
 
         // A redelivered job and a second save of the same photo cost nothing.
-        $this->service()->generate($sketch->id);
+        $this->service()->generate($version->id);
         $this->assertNull($this->service()->requestAfterSave($product, null));
         $this->assertSame(1, $this->generator->calls);
     }
 
-    public function test_a_failure_keeps_the_previous_drawing_and_is_not_retried_for_the_same_photo(): void
+    public function test_a_failure_keeps_the_live_drawing_and_is_not_retried_for_the_same_photo(): void
     {
         $product = $this->product('NEW-2');
         $this->service()->requestAfterSave($product, null);
         $this->runQueued();
-        $url = $product->welcomeSketch()->first()->url;
+        $url = $this->live($product)->url;
 
         $product->thumbnail()->update(['full_url' => 'https://cdn.test/sys/products/new.png']);
         $this->generator->fail = 'content policy';
-        $sketch = $this->service()->requestAfterSave($product->fresh(), null, 'photo_saved');
-        $this->service()->generate($sketch->id);
+        $version = $this->service()->requestAfterSave($product->fresh(), null, 'photo_saved');
+        $this->service()->generate($version->id);
 
-        $sketch->refresh();
-        $this->assertSame(ProductWelcomeSketch::STATUS_FAILED, $sketch->status);
-        $this->assertStringContainsString('content policy', $sketch->last_error);
-        $this->assertSame($url, $sketch->url, 'the freezer keeps the previous drawing');
+        $version->refresh();
+        $this->assertSame(ProductWelcomeSketch::STATUS_FAILED, $version->status);
+        $this->assertStringContainsString('content policy', $version->last_error);
+        $this->assertSame($url, $this->live($product)->url, 'the freezer keeps the live drawing');
         $this->assertNull($this->service()->requestAfterSave($product->fresh(), null), 'the failed photo is not re-paid on every save');
     }
 
-    public function test_approved_and_uploaded_art_is_never_redrawn_automatically_but_regenerate_does(): void
+    public function test_a_new_photo_redraws_an_automatic_live_drawing(): void
+    {
+        $product = $this->product('NEW-7');
+        $this->service()->requestAfterSave($product, null);
+        $this->runQueued();
+        $first = $this->live($product)->version_id;
+
+        $product->thumbnail()->update(['full_url' => 'https://cdn.test/sys/products/new.png']);
+        $this->generator->image = self::png(900, 700);
+        $version = $this->service()->requestAfterSave($product->fresh(), null, 'photo_saved');
+        $this->service()->generate($version->id);
+
+        $this->assertSame($version->id, (int) $this->live($product)->version_id, 'nobody picked the old one, so the new photo replaces it');
+        $this->assertNotSame($first, $version->id);
+        $this->assertSame(2, ProductWelcomeSketchVersion::query()->where('product_id', $product->id)->count(), 'the old drawing stays in the album');
+    }
+
+    public function test_draw_waits_in_the_album_until_a_person_uses_one(): void
+    {
+        $product = $this->product('A-1');
+        $vend = $this->onFreezer($product);
+        $this->service()->requestAfterSave($product, null, 'freezer_product');
+        $this->runQueued();
+        $live = $this->live($product);
+
+        $this->generator->image = self::png(700, 900);
+        $drawn = $this->service()->regenerate($product, $this->user->id, 2);
+        $this->assertCount(2, $drawn);
+        foreach ($drawn as $version) {
+            $this->service()->generate($version->id);
+        }
+        $this->assertSame($live->version_id, $this->live($product)->version_id, 'Draw never replaces the live drawing by itself');
+        $this->assertSame(3, ProductWelcomeSketchVersion::query()->where('product_id', $product->id)->where('status', 'ready')->count());
+
+        Queue::fake();
+        \Illuminate\Support\Facades\Cache::flush(); // past the first drawing's 90 s nudge debounce
+        $picked = $drawn[1]->fresh();
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/versions/{$picked->id}/select")
+            ->assertOk()->assertJsonPath('live.version_id', $picked->id)->assertJsonPath('live.selected_by', $this->user->name);
+        $now = $this->live($product);
+        $this->assertSame([$picked->path, $this->user->id], [$now->path, $now->selected_by]);
+        Queue::assertPushed(\App\Jobs\NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id);
+        $row = collect($this->getJson("/api/vends/{$vend->code}/menu")->json())->firstWhere('product_code', 'A-1');
+        $this->assertStringContainsString($picked->path, $row['welcome_sketch'], 'the freezer gets the picked drawing');
+
+        // A person's pick is never replaced automatically, even by a new photo.
+        $product->thumbnail()->update(['full_url' => 'https://cdn.test/sys/products/new.png']);
+        $this->assertNull($this->service()->requestAfterSave($product->fresh(), null, 'photo_saved'));
+    }
+
+    public function test_draw_from_an_empty_album_goes_live_when_it_finishes(): void
+    {
+        $product = $this->product('A-2');
+        [$version] = $this->service()->regenerate($product, $this->user->id);
+        $this->service()->generate($version->id);
+
+        $this->assertSame($version->id, (int) $this->live($product)->version_id, 'a product with no drawing gets the first one at once');
+        $this->assertNull($this->live($product)->selected_by);
+    }
+
+    public function test_approved_and_uploaded_art_is_never_redrawn_automatically(): void
     {
         $product = $this->product('U-01');
         $this->service()->seed($product, self::png(400, 400));
@@ -190,9 +261,11 @@ class ProductWelcomeSketchTest extends TestCase
         $this->assertNull($this->service()->requestAfterSave($product->fresh(), null));
         Queue::assertNothingPushed();
 
-        $this->service()->regenerate($product->fresh(), $this->user->id);
+        [$version] = $this->service()->regenerate($product->fresh(), $this->user->id);
         $this->runQueued();
-        $this->assertSame(ProductWelcomeSketch::SOURCE_GENERATED, $product->welcomeSketch()->first()->source);
+        $this->assertSame(ProductWelcomeSketch::SOURCE_SEED, $this->live($product)->source, 'the drawing waits in the album');
+        $this->service()->select($product, $version->id, $this->user->id);
+        $this->assertSame(ProductWelcomeSketch::SOURCE_GENERATED, $this->live($product)->source);
     }
 
     public function test_nothing_is_queued_without_an_image_service_or_a_photo(): void
@@ -211,13 +284,15 @@ class ProductWelcomeSketchTest extends TestCase
     public function test_an_abandoned_drawing_does_not_block_a_new_request(): void
     {
         $product = $this->product('NEW-6');
-        $sketch = $this->service()->requestAfterSave($product, null);
-        ProductWelcomeSketch::query()->whereKey($sketch->id)->update(['status' => ProductWelcomeSketch::STATUS_GENERATING]);
+        $version = $this->service()->requestAfterSave($product, null);
+        ProductWelcomeSketchVersion::query()->whereKey($version->id)->update(['status' => ProductWelcomeSketch::STATUS_GENERATING]);
         $product->thumbnail()->update(['full_url' => 'https://cdn.test/sys/products/new.png']);
 
         $this->assertNull($this->service()->requestAfterSave($product->fresh(), null), 'still being drawn');
         $this->travel(16)->minutes();
         $this->assertNotNull($this->service()->requestAfterSave($product->fresh(), null), 'a worker killed mid-call is not waited on forever');
+        $this->actingAs($this->user)->getJson("/products/{$product->id}/welcome-sketch")
+            ->assertOk()->assertJsonPath('versions.1.status', 'abandoned')->assertJsonPath('in_flight', 1);
     }
 
     public function test_product_edit_queues_a_drawing_only_for_a_new_photo_or_a_freezer_product_without_one(): void
@@ -230,28 +305,93 @@ class ProductWelcomeSketchTest extends TestCase
         $this->onFreezer($freezer);
         $this->actingAs($this->user)->post("/products/{$freezer->id}/update", ['code' => 'F-1', 'name' => 'Freezer item', 'operator_id' => 1]);
         Queue::assertPushed(GenerateProductWelcomeSketch::class, 1);
-        $this->assertSame('freezer_product', $freezer->welcomeSketch()->first()->reason);
+        $this->assertSame('freezer_product', ProductWelcomeSketchVersion::query()->where('product_id', $freezer->id)->sole()->reason);
     }
 
-    public function test_regenerate_and_upload_from_product_edit(): void
+    public function test_draw_and_upload_from_product_edit(): void
     {
         $product = $this->product('E-1');
 
-        $this->actingAs($this->user)->post("/products/{$product->id}/welcome-sketch/regenerate")->assertSessionHasNoErrors();
-        Queue::assertPushed(GenerateProductWelcomeSketch::class, 1);
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/regenerate", ['count' => 3])
+            ->assertOk()->assertJsonPath('in_flight', 3)->assertJsonCount(3, 'versions');
+        Queue::assertPushed(GenerateProductWelcomeSketch::class, 3);
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/regenerate", ['count' => 2])
+            ->assertStatus(422)->assertJsonPath('message', 'Already drawing 3 — wait for them to finish (at most 4 at once).');
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/regenerate", ['count' => 9])
+            ->assertStatus(422)->assertJsonValidationErrors('count');
 
-        $this->actingAs($this->user)->post("/products/{$product->id}/welcome-sketch", [
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch", [
             'welcome_sketch' => UploadedFile::fake()->createWithContent('mine.png', self::png(300, 300)),
-        ])->assertSessionHasNoErrors();
-        $this->assertSame(ProductWelcomeSketch::SOURCE_UPLOAD, $product->welcomeSketch()->first()->source);
+        ])->assertOk()->assertJsonPath('live.source', 'upload');
+        $this->assertSame(ProductWelcomeSketch::SOURCE_UPLOAD, $this->live($product)->source);
+        $this->assertSame($this->user->id, $this->live($product)->selected_by);
 
-        $this->actingAs($this->user)->post("/products/{$product->id}/welcome-sketch", [
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch", [
             'welcome_sketch' => UploadedFile::fake()->create('mine.pdf', 10, 'application/pdf'),
-        ])->assertSessionHasErrors('welcome_sketch');
+        ])->assertStatus(422)->assertJsonValidationErrors('welcome_sketch');
 
         $viewer = User::factory()->create(['operator_id' => 1]);
         $viewer->givePermissionTo(Permission::findOrCreate('read products', 'web'));
-        $this->actingAs($viewer)->post("/products/{$product->id}/welcome-sketch/regenerate")->assertForbidden();
+        $this->actingAs($viewer)->getJson("/products/{$product->id}/welcome-sketch")->assertOk()->assertJsonPath('live.source', 'upload');
+        $this->actingAs($viewer)->postJson("/products/{$product->id}/welcome-sketch/regenerate")->assertForbidden();
+        $version = ProductWelcomeSketchVersion::query()->where('product_id', $product->id)->first();
+        $this->actingAs($viewer)->postJson("/products/{$product->id}/welcome-sketch/versions/{$version->id}/select")->assertForbidden();
+        $this->actingAs($viewer)->deleteJson("/products/{$product->id}/welcome-sketch/versions/{$version->id}")->assertForbidden();
+    }
+
+    public function test_star_and_delete_in_the_album(): void
+    {
+        $product = $this->product('D-1');
+        $other = $this->product('D-2');
+        $this->service()->requestAfterSave($product, null);
+        $this->runQueued();
+        $liveId = (int) $this->live($product)->version_id;
+        $this->generator->image = self::png(600, 900);
+        [$extra] = $this->service()->regenerate($product, null);
+        $this->service()->generate($extra->id);
+        $extra->refresh();
+        // Same image twice (paths are content hashes): deleting one keeps the file for the other.
+        $twin = ProductWelcomeSketchVersion::query()->create($extra->only(['product_id', 'status', 'source', 'path', 'url']));
+
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/versions/{$extra->id}/shortlist", ['shortlisted' => true])
+            ->assertOk();
+        $this->assertNotNull($extra->fresh()->shortlisted_at);
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/versions/{$extra->id}/shortlist", ['shortlisted' => false]);
+        $this->assertNull($extra->fresh()->shortlisted_at);
+
+        $this->actingAs($this->user)->deleteJson("/products/{$product->id}/welcome-sketch/versions/{$liveId}")
+            ->assertStatus(422)->assertJsonPath('message', 'This is the drawing on the freezers — use another one first.');
+        $this->actingAs($this->user)->deleteJson("/products/{$other->id}/welcome-sketch/versions/{$extra->id}")->assertNotFound();
+
+        $this->actingAs($this->user)->deleteJson("/products/{$product->id}/welcome-sketch/versions/{$twin->id}")->assertOk();
+        Storage::assertExists($extra->path);
+        $this->actingAs($this->user)->deleteJson("/products/{$product->id}/welcome-sketch/versions/{$extra->id}")
+            ->assertOk()->assertJsonCount(1, 'versions');
+        Storage::assertMissing($extra->path);
+        Storage::assertExists($this->live($product)->path);
+    }
+
+    public function test_earlier_drawings_left_in_storage_are_recovered_into_the_album(): void
+    {
+        $product = $this->product('U-01');
+        $this->service()->requestAfterSave($product, null);
+        $this->runQueued();
+        $dir = "sys/products/{$product->id}/welcome-sketch";
+        Storage::put("{$dir}/aaaaaaaaaaaaaaaa.webp", 'old drawing');
+        Storage::put("{$dir}/notes.txt", 'not a drawing');
+        // The approved seed art for U-01, stored as the seeder would have.
+        $seedWebp = ProductWelcomeSketchService::normalise((string) file_get_contents(ProductWelcomeSketchService::seedDirectory().'/U-01.webp'), 512);
+        $seedPath = "{$dir}/".substr(hash('sha256', $seedWebp), 0, 16).'.webp';
+        Storage::put($seedPath, $seedWebp);
+
+        $this->artisan('products:welcome-sketches --recover --dry-run')->expectsOutputToContain('Would recover: 2')->assertSuccessful();
+        $this->assertSame(1, ProductWelcomeSketchVersion::query()->count());
+        $this->artisan('products:welcome-sketches --recover')->expectsOutputToContain('Recovered: 2')->assertSuccessful();
+        $this->artisan('products:welcome-sketches --recover')->expectsOutputToContain('Recovered: 0')->assertSuccessful();
+
+        $recovered = ProductWelcomeSketchVersion::query()->where('reason', ProductWelcomeSketchVersion::REASON_RECOVERED)->get()->keyBy('path');
+        $this->assertSame(['generated', 'seed'], [$recovered["{$dir}/aaaaaaaaaaaaaaaa.webp"]->source, $recovered[$seedPath]->source]);
+        $this->assertSame(ProductWelcomeSketch::SOURCE_GENERATED, $this->live($product)->source, 'recovering never changes the live drawing');
     }
 
     public function test_the_hourly_sweep_draws_freezer_products_that_have_none(): void
@@ -277,7 +417,7 @@ class ProductWelcomeSketchTest extends TestCase
         $this->service()->requestAfterSave($product, null, 'created');
         $this->runQueued();
 
-        $sketch = $product->welcomeSketch()->first();
+        $sketch = $this->live($product);
         $this->assertSame([ProductWelcomeSketch::STATUS_READY, ProductWelcomeSketch::SOURCE_CUTOUT, 'rembg:fake', null],
             [$sketch->status, $sketch->source, $sketch->model, $sketch->last_error]);
         $this->assertSame(0, $this->generator->calls);
@@ -292,9 +432,11 @@ class ProductWelcomeSketchTest extends TestCase
         // A key is added: the cut-out is upgraded to a real sketch on the next save / sweep.
         $this->generator->configured = true;
         $this->artisan('products:welcome-sketches --missing-freezer')->assertSuccessful(); // not on a freezer: untouched
-        $this->assertNotNull($this->service()->requestAfterSave($product->fresh(), null));
-        $this->service()->generate($sketch->id);
+        $upgrade = $this->service()->requestAfterSave($product->fresh(), null);
+        $this->assertNotNull($upgrade);
+        $this->service()->generate($upgrade->id);
         $this->assertSame(ProductWelcomeSketch::SOURCE_GENERATED, $sketch->fresh()->source);
+        $this->assertNull($this->service()->requestAfterSave($product->fresh(), null), 'upgraded once');
     }
 
     public function test_a_failed_drawing_falls_back_to_the_cut_out_and_says_why(): void
@@ -306,7 +448,7 @@ class ProductWelcomeSketchTest extends TestCase
         $this->service()->requestAfterSave($product, null);
         $this->runQueued();
 
-        $sketch = $product->welcomeSketch()->first();
+        $sketch = $this->live($product);
         $this->assertSame([ProductWelcomeSketch::STATUS_READY, ProductWelcomeSketch::SOURCE_CUTOUT], [$sketch->status, $sketch->source]);
         $this->assertStringContainsString('rate limited', $sketch->last_error);
         $this->assertNull($this->service()->requestAfterSave($product->fresh(), null), 'a model failure on this photo is not re-paid on every save');
@@ -373,6 +515,9 @@ class FakeSketchGenerator implements SketchGenerator
 
     public ?string $fail = null;
 
+    /** What the next drawing returns (a different image = a different stored file). */
+    public ?string $image = null;
+
     public function isConfigured(): bool
     {
         return $this->configured;
@@ -391,7 +536,7 @@ class FakeSketchGenerator implements SketchGenerator
             throw new SketchGenerationException($this->fail);
         }
 
-        return ProductWelcomeSketchTest::png();
+        return $this->image ?? ProductWelcomeSketchTest::png();
     }
 }
 

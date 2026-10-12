@@ -799,11 +799,20 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:update products')->whereNumber('id');
         Route::post('/{id}/ai-training/submit', [\App\Http\Controllers\SmartFreezer\ZijiaAiTrainingController::class, 'submit'])
             ->middleware('can:update products')->whereNumber('id');
-        // Freezer welcome sketch: redraw from the photo, or upload a drawing.
+        // Freezer welcome sketch album: draw versions from the photo, shortlist, pick the live one,
+        // delete, or upload a drawing (JSON).
+        Route::get('/{id}/welcome-sketch', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'show'])
+            ->middleware('can:read products')->whereNumber('id');
         Route::post('/{id}/welcome-sketch/regenerate', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'regenerate'])
             ->middleware('can:update products')->whereNumber('id');
         Route::post('/{id}/welcome-sketch', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'upload'])
             ->middleware('can:update products')->whereNumber('id');
+        Route::post('/{id}/welcome-sketch/versions/{versionId}/select', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'select'])
+            ->middleware('can:update products')->whereNumber(['id', 'versionId']);
+        Route::post('/{id}/welcome-sketch/versions/{versionId}/shortlist', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'shortlist'])
+            ->middleware('can:update products')->whereNumber(['id', 'versionId']);
+        Route::delete('/{id}/welcome-sketch/versions/{versionId}', [\App\Http\Controllers\ProductWelcomeSketchController::class, 'destroy'])
+            ->middleware('can:update products')->whereNumber(['id', 'versionId']);
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
         Route::delete('/unit-costs/{unitCostId}', [ProductController::class, 'deleteUnitCost']);
