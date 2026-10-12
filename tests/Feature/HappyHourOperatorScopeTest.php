@@ -71,7 +71,7 @@ class HappyHourOperatorScopeTest extends TestCase
         return array_merge([
             'name' => 'Clear slow movers', 'is_active' => true, 'starts_on' => null, 'ends_on' => null,
             'days_mask' => HappyHourCampaign::EVERY_DAY, 'window_start' => '14:00', 'window_end' => '18:00',
-            'slot_minutes' => 60, 'sku_count' => 2, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT,
+            'slot_minutes' => 60, 'sku_count' => 2, 'skus_per_slot' => 1, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT,
             'lookback_days' => 14, 'discount_pct' => 30, 'min_balance_pct' => 15, 'min_qty' => 2,
             'price_step_cents' => 10, 'allow_below_cost' => false, 'excluded_product_ids' => [], 'vend_ids' => $vendIds,
         ], $overrides);

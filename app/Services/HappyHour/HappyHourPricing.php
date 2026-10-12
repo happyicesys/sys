@@ -79,6 +79,9 @@ final class HappyHourPricing
                 'price' => $s->promo_price,
                 'original_price' => $s->original_price,
                 'discount_pct' => $s->discount_pct,
+                // Its place in the live ranking when picked (1 = best): with several SKUs on offer at
+                // once, the one a single-SKU display should feature.
+                'rank' => $s->rank,
             ])->values()->all())
             ->all();
     }

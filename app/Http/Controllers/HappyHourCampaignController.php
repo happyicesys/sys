@@ -30,7 +30,7 @@ class HappyHourCampaignController extends Controller
     /** Fields whose change re-plans the schedule (a rename does not). */
     private const SCHEDULE_FIELDS = [
         'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end', 'slot_minutes',
-        'sku_count', 'selection_rule', 'lookback_days', 'discount_pct', 'min_balance_pct', 'min_qty',
+        'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct', 'min_balance_pct', 'min_qty',
         'price_step_cents', 'allow_below_cost', 'excluded_product_ids',
     ];
 
@@ -217,6 +217,7 @@ class HappyHourCampaignController extends Controller
             'window_end' => substr((string) $c->window_end, 0, 5),
             'slot_minutes' => $c->slot_minutes,
             'sku_count' => $c->sku_count,
+            'skus_per_slot' => $c->skus_per_slot,
             'selection_rule' => $c->selection_rule,
             'lookback_days' => $c->lookback_days,
             'discount_pct' => $c->discount_pct,

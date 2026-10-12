@@ -450,13 +450,80 @@ class HappyHourCampaignTest extends TestCase
         );
     }
 
+    public function test_two_skus_at_a_time_run_together_and_the_groups_take_turns(): void
+    {
+        // Balance %: A 90, B 80, C 70, D 60, E 50 (E is outside the top 4).
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [8, 10, 4.00, 0], 'C' => [7, 10, 4.00, 0], 'D' => [6, 10, 4.00, 0], 'E' => [5, 10, 4.00, 0]]);
+        $this->campaign(['sku_count' => 4, 'skus_per_slot' => 2, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT]);
+        $at = fn (string $hhmm) => HappyHourSlot::where('starts_at', "2026-10-09 {$hhmm}:00")->orderBy('rank')->get()
+            ->map(fn ($s) => $this->codeOf($s->product_id))->all();
+
+        foreach (['13:58', '14:58', '15:58', '16:58'] as $minute) {
+            Carbon::setTestNow("2026-10-09 {$minute}:00");
+            $this->planner()->run(now());
+            $this->planner()->run(now()->addMinute()); // idempotent, and each starting SKU is checked
+        }
+
+        $this->assertSame(['A', 'B'], $at('14:00'));
+        $this->assertSame(['C', 'D'], $at('15:00'));
+        $this->assertSame(['A', 'B'], $at('16:00'), 'back to the first group');
+        $this->assertSame(['C', 'D'], $at('17:00'));
+        $this->assertSame(8, HappyHourSlot::count());
+
+        // Both SKUs of the live slot are on the menu at the promo price, each with its rank.
+        Carbon::setTestNow('2026-10-09 16:30:00');
+        $rows = collect($this->getJson('/api/vends/50001/menu')->assertOk()->json())->keyBy('product_code');
+        $live = fn (string $code) => collect($rows[$code]['happy_hour'])->first(fn ($s) => $s['starts_at'] === '2026-10-09T16:00:00+08:00');
+        $this->assertSame([240, 1], [$live('A')['price'], $live('A')['rank']]);
+        $this->assertSame([240, 2], [$live('B')['price'], $live('B')['rank']]);
+        $this->assertNull($live('C'));
+
+        // A sale of either is the slot's own.
+        $slotB = HappyHourSlot::where('starts_at', '2026-10-09 16:00:00')->where('product_id', $this->products['B']->id)->firstOrFail();
+        $this->assertSame($slotB->id, $this->sale($this->products['B']->id, 240, '2026-10-09 16:20:00')->fresh()->happy_hour_slot_id);
+    }
+
+    public function test_a_sku_that_stops_qualifying_as_its_group_starts_is_replaced_by_one_not_already_on_offer(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [8, 10, 4.00, 0], 'C' => [7, 10, 4.00, 0], 'D' => [6, 10, 4.00, 0]]);
+        $this->campaign(['sku_count' => 4, 'skus_per_slot' => 2, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+
+        // A sells down to one unit before 14:00: its place goes to C (the best not already on offer).
+        DB::table('vend_channels')->where('product_id', $this->products['A']->id)->update(['qty' => 1]);
+        Carbon::setTestNow('2026-10-09 14:00:00');
+        $this->planner()->run(now());
+
+        $group = HappyHourSlot::where('starts_at', '2026-10-09 14:00:00')->get();
+        $this->assertEqualsCanonicalizing(['B', 'C'], $group->map(fn ($s) => $this->codeOf($s->product_id))->all());
+        $this->assertTrue($group->every(fn ($s) => $s->checked_at !== null));
+
+        // B sells out mid-slot: it ends, and D fills its place for the rest of the hour.
+        DB::table('vend_channels')->where('product_id', $this->products['B']->id)->update(['qty' => 0]);
+        Carbon::setTestNow('2026-10-09 14:20:00');
+        $this->planner()->run(now());
+        $this->assertSame(HappyHourSlot::STATUS_SOLD_OUT, $group->firstWhere('product_id', $this->products['B']->id)->fresh()->status);
+        $open = HappyHourSlot::open()->where('starts_at', '<=', now())->where('ends_at', '>', now())->get();
+        $this->assertEqualsCanonicalizing(['C', 'D'], $open->map(fn ($s) => $this->codeOf($s->product_id))->all());
+    }
+
+    public function test_at_the_same_time_cannot_exceed_the_total(): void
+    {
+        $this->freezer(['A' => [5, 10, 4.00, 0]]);
+        $user = User::factory()->create(['operator_id' => 1]);
+        $user->givePermissionTo(Permission::findOrCreate('create happy-hour-campaigns', 'web'));
+        $this->actingAs($user)->post('/happy-hour-campaigns', $this->form(['sku_count' => 2, 'skus_per_slot' => 3]))
+            ->assertSessionHasErrors('skus_per_slot');
+    }
+
     /** @param  array<string, mixed>  $overrides */
     private function form(array $overrides = []): array
     {
         return array_merge([
             'name' => 'Clear slow movers', 'is_active' => true, 'starts_on' => null, 'ends_on' => null,
             'days_mask' => HappyHourCampaign::EVERY_DAY, 'window_start' => '14:00', 'window_end' => '18:00',
-            'slot_minutes' => 60, 'sku_count' => 2, 'selection_rule' => HappyHourCampaign::RULE_DAYS_OF_COVER,
+            'slot_minutes' => 60, 'sku_count' => 2, 'skus_per_slot' => 1, 'selection_rule' => HappyHourCampaign::RULE_DAYS_OF_COVER,
             'lookback_days' => 14, 'discount_pct' => 40, 'min_balance_pct' => 15, 'min_qty' => 2,
             'price_step_cents' => 10, 'allow_below_cost' => false, 'excluded_product_ids' => [],
             'vend_ids' => [$this->vend->id],

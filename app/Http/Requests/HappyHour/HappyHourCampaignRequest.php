@@ -30,6 +30,8 @@ class HappyHourCampaignRequest extends FormRequest
             'window_end' => ['required', 'date_format:H:i', 'after:window_start'],
             'slot_minutes' => ['required', 'integer', 'min:5', 'max:720'],
             'sku_count' => ['required', 'integer', 'min:1', 'max:30'],
+            // How many of them are on offer together in one slot.
+            'skus_per_slot' => ['required', 'integer', 'min:1', 'max:10', 'lte:sku_count'],
             'selection_rule' => ['required', Rule::in(array_keys(HappyHourCampaign::RULES))],
             'lookback_days' => ['required', 'integer', 'min:1', 'max:90'],
             'discount_pct' => ['required', 'integer', 'min:1', 'max:90'],
@@ -50,6 +52,7 @@ class HappyHourCampaignRequest extends FormRequest
         return [
             'window_end.after' => 'Hours To must be after Hours From (a window cannot run past midnight).',
             'days_mask.min' => 'Pick at least one day.',
+            'skus_per_slot.lte' => 'SKUs at the same time cannot be more than the SKUs taking turns.',
         ];
     }
 

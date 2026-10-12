@@ -999,9 +999,13 @@ on each save. It:
 1. picks each slot's SKU **just in time**, `lead_minutes` (2) before the slot starts, from that machine's live
    stock (Brian, 2026-10-11 — never a whole day ahead): `HappyHourRanker`, default rule highest balance %
    (qty ÷ Real Capacity; unknown capacity last), or days of cover (stock ÷ average daily sales from
-   `vend_product_records`, nothing sold = first); a tie goes to the higher qty. The top `sku_count` of the
-   ranking AT THAT MOMENT take turns: the best one that did not hold one of the previous `sku_count − 1` slots
-   (`nextInTurn`); with 1 the best SKU of each moment repeats;
+   `vend_product_records`, nothing sold = first); a tie goes to the higher qty. The top `sku_count` ("Total
+   SKUs") of the ranking AT THAT MOMENT take turns, `skus_per_slot` ("At the same time", Brian 2026-10-12) of
+   them together: each slot time takes the best ones that were not in today's last `sku_count − skus_per_slot`
+   SKU-slots (`nextInTurn`) — 4 total, 2 at a time runs ranks 1+2, then 3+4, then 1+2 again; with 1 total the
+   best SKU of each moment repeats. Each SKU of a group is its own `happy_hour_slots` row (same start, unique
+   `(vend_id, starts_at, product_id)`), so sold-out, swap, sale tagging and totals all work per SKU: a SKU that
+   stops qualifying as the group starts, or sells out mid-slot, is replaced by the best one not already on offer;
 2. freezes each slot's product and both prices (integer cents, Site tier, rounded down to the step);
 3. swaps a SKU that no longer qualifies as its slot starts;
 4. ends a slot early when its SKU sells out;
@@ -1017,7 +1021,9 @@ Machines and the freezer:
 - Only freezers reporting `apk_version_code` ≥ `config('happy_hour.min_freezer_apk_version')` (30) get slots.
   An older app would show the full price while mark1 believed in a discount.
 - `/menu` rows carry `happy_hour` (smart mappings; that product's open slots in the next 24 h — in practice the
-  live one and the next — ISO times with offset). The freezer switches on its own clock, and each slot write
+  live one and the next — ISO times with offset, and the slot's `rank` at pick time). With several SKUs at once,
+  freezer app 30/31 prices and badges each of them but its welcome Happy Hour page and guess game feature only the
+  FIRST promo product in menu order (`indexOfFirst { it.promo != null }`); `rank` is there for it to feature rank 1. The freezer switches on its own clock, and each slot write
   nudges it (`NudgeFreezerMenu`). A cancel deletes a slot under a minute old, so a second save in the same
   minute can re-take that start time (unique per machine).
 

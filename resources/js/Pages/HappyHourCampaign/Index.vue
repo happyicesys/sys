@@ -42,7 +42,7 @@
                   <TableHead>Status</TableHead>
                   <TableHead>Days</TableHead>
                   <TableHead>Hours</TableHead>
-                  <TableHead>Per SKU</TableHead>
+                  <TableHead>Per Slot</TableHead>
                   <TableHead>Discount</TableHead>
                   <TableHead>Skip When</TableHead>
                   <TableHead>Machines</TableHead>
@@ -77,7 +77,9 @@
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <span class="whitespace-nowrap">{{ c.slot_minutes }} min</span>
-                    <div class="text-xs font-normal text-gray-500 whitespace-nowrap">top {{ c.sku_count }} SKUs</div>
+                    <div class="text-xs font-normal text-gray-500 whitespace-nowrap">
+                      <span v-if="c.skus_per_slot > 1">{{ c.skus_per_slot }} at a time · </span>top {{ c.sku_count }} SKUs
+                    </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <span class="font-semibold text-rose-600">−{{ c.discount_pct }}%</span>
@@ -157,14 +159,19 @@
               <p v-if="form.errors.discount_pct" class="text-red-600 text-xs mt-1">{{ form.errors.discount_pct }}</p>
             </div>
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Duration per SKU (minutes)</label>
+              <label class="block text-sm font-medium text-gray-700">Duration per slot (minutes)</label>
               <input v-model.number="form.slot_minutes" type="number" min="5" max="720" step="5" :class="inputClass" />
               <p v-if="form.errors.slot_minutes" class="text-red-600 text-xs mt-1">{{ form.errors.slot_minutes }}</p>
             </div>
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">How many SKUs take turns</label>
+            <div class="md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700">Total SKUs</label>
               <input v-model.number="form.sku_count" type="number" min="1" max="30" :class="inputClass" />
               <p v-if="form.errors.sku_count" class="text-red-600 text-xs mt-1">{{ form.errors.sku_count }}</p>
+            </div>
+            <div class="md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700">At the same time</label>
+              <input v-model.number="form.skus_per_slot" type="number" min="1" :max="Math.min(10, form.sku_count || 1)" :class="inputClass" />
+              <p v-if="form.errors.skus_per_slot" class="text-red-600 text-xs mt-1">{{ form.errors.skus_per_slot }}</p>
             </div>
 
             <div :class="form.selection_rule === 'days_of_cover' ? 'md:col-span-3' : 'md:col-span-6'">
@@ -361,7 +368,7 @@ const statusLabels = { running: 'Running now', scheduled: 'Scheduled', paused: '
 
 const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
-  window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4,
+  window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4, skus_per_slot: 1,
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
   min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false,
   excluded_product_ids: [], vend_ids: [],
@@ -401,8 +408,22 @@ const slotSummary = computed(() => {
   const minutes = (h2 * 60 + m2) - (h1 * 60 + m1)
   if (minutes <= 0 || !form.slot_minutes) return ''
   const slots = Math.ceil(minutes / form.slot_minutes)
-  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; the top ${form.sku_count} SKU${form.sku_count === 1 ? '' : 's'} take turns, at ${form.discount_pct}% off.`
+  const total = form.sku_count || 1
+  const together = Math.min(form.skus_per_slot || 1, total)
+  const turns = together > 1
+    ? `${together} SKUs at a time from the top ${total} (ranks ${groupsLabel(total, together)} …)`
+    : `the top ${total} SKU${total === 1 ? '' : 's'} take turns`
+  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; ${turns}, at ${form.discount_pct}% off.`
 })
+
+// "1+2, 3+4, then 1+2 again" for 4 SKUs, 2 at a time (the first full loop).
+function groupsLabel(total, together) {
+  const groups = []
+  for (let i = 0; i < total; i += together) {
+    groups.push(Array.from({ length: Math.min(together, total - i) }, (_, k) => i + k + 1).join('+'))
+  }
+  return groups.join(', ') + ', then ' + groups[0] + ' again'
+}
 
 function ruleLabel(id) {
   return props.rules.find(r => r.id === id)?.name ?? id
