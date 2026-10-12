@@ -62,8 +62,19 @@
                     <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
                       {{ statusLabels[c.status] }}
                     </span>
-                    <div v-for="s in c.live" :key="s.id" class="mt-1 text-xs font-semibold text-gray-900 whitespace-nowrap">
-                      <span v-if="c.vends.length > 1">{{ vendCode(c, s.vend_id) }} · </span>{{ s.product }} {{ money(s.promo_price) }}
+                    <!-- What is on offer right now, one box per machine (Brian, 2026-10-12: a flat list mixed the machines). -->
+                    <div v-for="g in liveByMachine(c)" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-bold text-amber-900">{{ g.code }}</span>
+                        <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
+                      </div>
+                      <div v-for="s in g.slots" :key="s.id" class="flex items-baseline justify-between gap-2 text-xs text-gray-900">
+                        <span class="font-semibold truncate max-w-[14rem]" :title="s.product">{{ s.product }}</span>
+                        <span class="whitespace-nowrap">
+                          <span class="text-gray-400 line-through mr-1">{{ money(s.original_price) }}</span>
+                          <span class="font-bold text-red-600">{{ money(s.promo_price) }}</span>
+                        </span>
+                      </div>
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
@@ -444,6 +455,20 @@ function money(cents) {
 
 function vendCode(c, vendId) {
   return c.vends.find(v => v.id === vendId)?.code ?? vendId
+}
+
+// Live slots grouped per machine, in the campaign's machine order; each group shows its own hours.
+function liveByMachine(c) {
+  const groups = new Map()
+  for (const s of c.live ?? []) {
+    if (!groups.has(s.vend_id)) groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), from: s.starts_at, to: s.ends_at, slots: [] })
+    const g = groups.get(s.vend_id)
+    g.slots.push(s)
+    if (s.starts_at < g.from) g.from = s.starts_at
+    if (s.ends_at > g.to) g.to = s.ends_at
+  }
+  const order = c.vends.map(v => v.id)
+  return [...groups.values()].sort((a, b) => order.indexOf(a.vendId) - order.indexOf(b.vendId))
 }
 
 function toggleDay(i) {
