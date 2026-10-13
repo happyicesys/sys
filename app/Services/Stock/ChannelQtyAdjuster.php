@@ -28,8 +28,10 @@ use Illuminate\Support\Facades\Log;
  *
  *  - **Smart Freezer** — `vend_channels.qty` IS the stock (FreezerStockLedger), so the row is
  *    set directly. Stock In / sales keep moving it relative to the new figure.
- *  - **Smart Chiller** — CityBox owns the number and the minute poll re-reads it, so a local
- *    write alone would be gone within a minute. The new figure is sent through
+ *  - **Smart Chiller** — the number is OUR ledger since 2026-10-13 (ChillerStockLedger), and
+ *    CityBox keeps its own count for their AI. Both are set: the figure the person saw is checked
+ *    against OUR row (with the ledger off, against CityBox's live count as before), our row takes
+ *    the new figure, and the new figure is sent through
  *    `device_stock_submit` on the machine's latest door-open session (a stale one is accepted,
  *    see DepartedSkuSync), then read back and mirrored. The payload is the FULL live list with
  *    one line changed, never that line alone: what CityBox does to products left out of a
@@ -141,9 +143,14 @@ class ChannelQtyAdjuster
             }
 
             // Their live list omits a SKU they hold none of.
-            $before = isset($live[$slot->cityboxProductId]) ? $live[$slot->cityboxProductId]->quantity : 0;
-            $this->assertUnmoved($before, $expectedQty, 'CityBox');
-            $this->assertChanged($before, $qty);
+            $theirs = isset($live[$slot->cityboxProductId]) ? $live[$slot->cityboxProductId]->quantity : 0;
+            $ledger = \App\Services\Citybox\ChillerStockLedger::enabled();
+            $before = $ledger ? (int) $channel->fresh()->qty : $theirs;
+            $this->assertUnmoved($before, $expectedQty, $ledger ? 'The system' : 'CityBox');
+            // With the ledger on, a figure equal to ours may still be news to CityBox: send it.
+            if (! $ledger || $theirs === $qty) {
+                $this->assertChanged($before, $qty);
+            }
 
             $counts = [];
             foreach ($live as $cityboxId => $line) {
@@ -170,11 +177,13 @@ class ChannelQtyAdjuster
                 Log::warning('Citybox qty adjust: read-back failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
             }
 
-            $channel->update(['qty' => $readBack ?? $qty]);
+            // Our ledger takes the person's figure; with the ledger off, what CityBox read back.
+            $channel->update(['qty' => $ledger ? $qty : ($readBack ?? $qty)]);
             $log = $this->record($vend, $channel, $before, $qty, $readBack, $msgId, $by);
 
             if ($lines !== null) {
                 $this->stock->applyStockOnly($vend, $lines);
+                // Prices and labels only: one SKU was counted, the rest keep our ledger.
                 $this->stock->pushChannels($vend, $lines, null, force: true);
             }
 

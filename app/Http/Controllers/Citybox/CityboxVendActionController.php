@@ -77,6 +77,14 @@ class CityboxVendActionController extends Controller
         // CityBox name/thumbnail per channel: match by product via the catalog, else by the snapshot's layer/order.
         $catalog = \App\Models\CityboxProduct::whereIn('product_id', $channels->pluck('product_id')->filter())->get()->keyBy('product_id');
 
+        // Their live count per SKU, from the pull above — shown beside our ledger, never over it.
+        $liveByCityboxId = [];
+        foreach ((array) ($status['stock'] ?? []) as $row) {
+            if (is_array($row) && isset($row['product_id'])) {
+                $liveByCityboxId[(int) $row['product_id']] = (int) ($row['quantity'] ?? 0);
+            }
+        }
+
         $layers = [];
         foreach (range(1, 5) as $l) {
             $layers[$l] = ['layer' => $l, 'channels' => [], 'qty' => 0, 'capacity' => 0];
@@ -102,6 +110,7 @@ class CityboxVendActionController extends Controller
                 'citybox_name' => $cb?->name,
                 'thumbnail' => $cb?->img_url,
                 'mapped' => $ch->product_id !== null,
+                'citybox_qty' => $cb ? ($liveByCityboxId[(int) $cb->citybox_product_id] ?? 0) : null,
             ];
             $layers[$layer]['qty'] += (int) $ch->qty;
             $layers[$layer]['capacity'] += (int) $ch->capacity;
@@ -174,6 +183,9 @@ class CityboxVendActionController extends Controller
             'unrecognisable' => $poll->unrecognisableSlots($vend),
             'off_planogram' => $offPlanogram,
             'off_planogram_qty' => array_sum(array_column($offPlanogram, 'qty')),
+            // Qty above is OUR ledger (orders + Stock In); citybox_qty per channel is their count.
+            'stock_ledger' => \App\Services\Citybox\ChillerStockLedger::enabled(),
+            'stock_check' => $status['stock_check'] ?? null,
         ]);
     }
 

@@ -26,6 +26,9 @@ use Illuminate\Support\Collection;
  *   error_code = 0 (chillers have no per-channel motor faults)
  * A SKU in the cabinet that our mapping does not carry gets no row; the
  * overview lists it as off-planogram.
+ *
+ * $seedOnly (chiller stock ledger, 2026-10-13): every entry is flagged `qty_seed_only`, and
+ * SyncVendChannels then writes qty only into a row that has no ledger yet — the rest keep ours.
  */
 class ChannelFrameAdapter
 {
@@ -34,7 +37,7 @@ class ChannelFrameAdapter
      * @param  array<int,ChillerSlot>  $slots  keyed by product id
      * @param  array<int,array{price:int,active:int}>  $fallbackPrices  by CityBox product id, cents
      */
-    public function toFrame(Collection $stock, array $slots, ?string $label = null, array $fallbackPrices = []): ChannelFrame
+    public function toFrame(Collection $stock, array $slots, ?string $label = null, array $fallbackPrices = [], bool $seedOnly = false): ChannelFrame
     {
         $live = $stock->keyBy(fn (ChillerStockLine $l) => (int) $l->cityboxProductId);
 
@@ -51,7 +54,7 @@ class ChannelFrameAdapter
                 'amount' => $line?->effectivePriceCents() ?? ($fallbackPrices[$slot->cityboxProductId]['active'] ?? 0),
                 'amount2' => $line?->priceCents ?? ($fallbackPrices[$slot->cityboxProductId]['price'] ?? 0),
                 'error_code' => 0,
-            ];
+            ] + ($seedOnly ? ['qty_seed_only' => true] : []);
         }
         usort($channels, fn ($a, $b) => [$a['channel_code'], $a['suffix'] ?? ''] <=> [$b['channel_code'], $b['suffix'] ?? '']);
 

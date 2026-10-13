@@ -70,6 +70,8 @@ class CityboxRestockVisitTest extends TestCase
         $this->vend->refresh();
         // Bring channels into existence via a poll
         app(CityboxOpenapiSync::class)->syncAll();
+        // The driver's before-restock photo, which Open Door needs (CityboxRestockPhotoTest covers the gate).
+        $this->item->attachments()->create(['type' => OpsJobItem::PHOTO_RESTOCK_BEFORE, 'full_url' => 'https://spaces/before.jpg', 'local_url' => 'sys/before.jpg']);
         foreach (VendChannel::where('vend_id', $this->vend->id)->get() as $vc) {
             OpsJobItemChannel::create(['ops_job_id' => $this->job->id, 'ops_job_item_id' => $this->item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => $vc->code, 'vend_code' => $this->vend->code, 'product_id' => $vc->product_id ?? 1, 'qty' => $vc->qty, 'capacity' => $vc->capacity, 'picked_qty' => 0]);
         }
@@ -304,7 +306,8 @@ class CityboxRestockVisitTest extends TestCase
         // ONE row whatever its codes, so the item's single row speaks for the whole SKU.
         \App\Models\ProductMappingItem::create(['product_mapping_id' => $this->vend->product_mapping_id, 'channel_code' => '103', 'product_id' => \App\Models\Product::where('code', '90338')->value('id')]);
         $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 8, 'layer' => 1, 'price' => '0.12']]);
-        app(CityboxOpenapiSync::class)->syncAll();
+        // A count that replaces our ledger (as a Stock In's read-back does) — the scheduled poll only checks it.
+        app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($this->vend->fresh(), absolute: true);
         $suntory = VendChannel::where('vend_id', $this->vend->id)->where('is_active', true)->where('code', 101)->get();
         $this->assertCount(1, $suntory);
         $this->assertSame([8, 10], [(int) $suntory[0]->qty, (int) $suntory[0]->capacity], 'whole live qty, summed capacity');

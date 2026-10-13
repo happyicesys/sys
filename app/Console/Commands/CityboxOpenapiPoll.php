@@ -26,8 +26,12 @@ class CityboxOpenapiPoll extends Command
             return self::SUCCESS;
         }
 
-        PollCityboxOpenapi::dispatch();
-        $this->info('Citybox openapi poll dispatched.');
+        // Live stock / state / signal per device on the stock-check minutes only; the fleet
+        // status (one call) every minute.
+        $every = max(1, (int) config('citybox.stock_check_every_minutes', 10));
+        $withStock = now()->minute % $every === 0;
+        PollCityboxOpenapi::dispatch($withStock);
+        $this->info('Citybox openapi poll dispatched'.($withStock ? ' (with stock check).' : '.'));
 
         return self::SUCCESS;
     }

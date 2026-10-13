@@ -384,15 +384,17 @@ class CityboxChannelsTest extends TestCase
         $this->gw->seedStock('E1', [['id' => 90338, 'name' => 'Suntory', 'qty' => 9, 'layer' => 1, 'price' => '2.50']]);
         $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
         $suntory = collect($r['layers'][0]['channels'])->firstWhere('code', 101);
-        $this->assertSame(9, $suntory['qty'], 'the overview shows the LIVE qty, not the last poll');
-        $this->assertSame(250, $suntory['amount_cents']);
+        // Stock is our ledger (2026-10-13): their live count is shown beside it, never over it.
+        $this->assertSame(2, $suntory['qty'], 'our ledger');
+        $this->assertSame(9, $suntory['citybox_qty'], 'their LIVE count, from the pull the overview just ran');
+        $this->assertSame(250, $suntory['amount_cents'], 'price still follows their live read');
         $this->assertTrue($r['refreshed']);
 
         // Their fleet call stops knowing the device: the last sync still renders.
         unset($this->gw->devices['E1']);
         $r = $this->actingAs($user)->getJson("/vends/{$this->vend->id}/citybox-planogram")->assertOk()->json();
         $this->assertFalse($r['refreshed']);
-        $this->assertSame(9, collect($r['layers'][0]['channels'])->firstWhere('code', 101)['qty']);
+        $this->assertSame(9, collect($r['layers'][0]['channels'])->firstWhere('code', 101)['citybox_qty']);
     }
 
     public function test_planogram_endpoint_is_403_for_a_non_chiller(): void

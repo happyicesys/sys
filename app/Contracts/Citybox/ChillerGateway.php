@@ -5,6 +5,8 @@ namespace App\Contracts\Citybox;
 use App\Enums\Citybox\DeviceState;
 use App\Services\Citybox\DTO\ChillerCatalogItem;
 use App\Services\Citybox\DTO\ChillerDevice;
+use App\Services\Citybox\DTO\ChillerOrder;
+use App\Services\Citybox\DTO\ChillerPriceGroupRow;
 use App\Services\Citybox\DTO\ChillerStockLine;
 use App\Services\Citybox\DTO\RestockSession;
 use App\Services\Citybox\DTO\StockCount;
@@ -39,4 +41,19 @@ interface ChillerGateway
 
     /** Overwrite the device's stock with absolute counts. Requires the session's msg_id. */
     public function submitCount(RestockSession $session, StockCount $count): void;
+
+    /** @return Collection<int, ChillerOrder> the orders of one ORDER day (Y-m-d), paid and refund statuses */
+    public function orders(string $date): Collection;
+
+    /** @return Collection<int, ChillerPriceGroupRow> every active price group, one row per group × product */
+    public function priceGroups(): Collection;
+
+    /** Raw signal reading for one device (scale: config citybox.signal_max). */
+    public function signalStrength(string $deviceId): int;
+
+    /**
+     * Send one restock photo's URL. $kind = 'before' | 'after'. Throws when the supplier has no
+     * such endpoint (CityBox: not delivered yet).
+     */
+    public function submitRestockPhoto(string $deviceId, ?string $msgId, ?string $openLogId, string $kind, string $url, \DateTimeInterface $takenAt): void;
 }

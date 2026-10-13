@@ -449,8 +449,35 @@
                   </div>
                 </div>
               </div>
-              <div class="sm:col-span-6 text-sm text-gray-500 text-center" v-if="form.id && isCityboxOwned">
-                Set in the CityBox portal — a chiller charges the price their API reports, so a price keyed here would be read by nothing.
+              <!-- CityBox-owned SKU: its prices are their price groups (OPS Pro 价格组), read-only here.
+                   A group named RP1–RP5 is also that RP's selling price (CityboxPriceGroupSync). -->
+              <div class="sm:col-span-6" v-if="form.id && isCityboxOwned">
+                <p class="text-sm text-gray-500 text-center">
+                  Set in the CityBox portal (OPS Pro → price groups). A group named RP1–RP5 is that Ref Price Type here. A chiller still charges the price its machine reports.
+                </p>
+                <div class="mt-3 overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg" v-if="cityboxPriceGroups.length">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">CityBox price group</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Ref Price Type</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Amount</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Synced</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                      <tr v-for="(group, groupIndex) in cityboxPriceGroups" :key="group.group_id" :class="groupIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <td class="whitespace-nowrap px-3 py-2 text-sm text-center text-gray-900">{{ group.group_name }}</td>
+                        <td class="whitespace-nowrap px-3 py-2 text-sm text-center font-semibold" :class="group.type ? 'text-gray-900' : 'text-gray-400'">
+                          {{ group.type ? 'RP' + group.type : 'not an RP' }}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-2 text-sm text-center font-semibold text-gray-900">{{ priceMoney(group.price_cents) }}</td>
+                        <td class="whitespace-nowrap px-3 py-2 text-xs text-center text-gray-500">{{ auditTime(group.synced_at) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p v-else class="mt-2 text-xs text-gray-400 text-center">This product is in no CityBox price group.</p>
               </div>
               <div class="sm:col-span-3" v-if="form.id && !isCityboxOwned">
                 <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
@@ -553,8 +580,9 @@
                     </div>
                   </div>
                 </div>
+              </div>
                 <!-- Every change to this product's selling prices, newest first (user_logs, since 2026-07-18). -->
-                <div class="mt-3" v-if="priceHistory.length">
+                <div class="sm:col-span-6" v-if="form.id && priceHistory.length">
                   <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-800" @click="showPriceHistory = !showPriceHistory">
                     {{ showPriceHistory ? 'Hide' : 'Show' }} price history ({{ priceHistory.length }})
                   </button>
@@ -585,7 +613,6 @@
                     </table>
                   </div>
                 </div>
-              </div>
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -762,6 +789,7 @@ const props = defineProps({
     priceTypeOptions: Object,
     product: Object,
     sellingPriceHistory: { type: Array, default: () => [] },
+    cityboxPriceGroups: { type: Array, default: () => [] },
     uoms: Object,
     type: String,
     operatorOptions: Object,
@@ -804,6 +832,7 @@ const productTagOptions = ref([]);
 const sellingPrices = ref([]);
 const showPriceHistory = ref(false);
 const priceHistory = computed(() => props.sellingPriceHistory ?? []);
+const cityboxPriceGroups = computed(() => props.cityboxPriceGroups ?? []);
 
 function auditTime(iso) {
   return iso ? moment(iso).format('DD MMM YY, h:mm a') : '';

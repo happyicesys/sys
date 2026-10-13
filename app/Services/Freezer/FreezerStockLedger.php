@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * A Smart Freezer's stock, per SKU: in on Stock In, out on each sale.
  *
- * A vending machine's `vend_channels.qty` is whatever its VMC last reported, and a CityBox chiller's
- * is CityBox's `device_product` qty. A freezer reports neither, so mark1 keeps the count itself
+ * A vending machine's `vend_channels.qty` is whatever its VMC last reported. A freezer reports
+ * nothing, so mark1 keeps the count itself (a CityBox chiller does the same since 2026-10-13, from
+ * CityBox's orders — ChillerStockLedger)
  * (FreezerChannelSync already carries it across mapping changes, but until 2026-09-30 nothing wrote
  * it: 50001 stocked 3 cheesecakes in job 58533 and still read 0).
  *

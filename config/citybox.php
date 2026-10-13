@@ -23,7 +23,29 @@ return [
         'timeout' => env('CITYBOX_OPENAPI_TIMEOUT', 10),
         // Attempts on connection/timeout errors only (their API blips briefly a few times a day).
         'retries' => env('CITYBOX_OPENAPI_RETRIES', 3),
+        // Before/after restock photo endpoint — not delivered yet (asked 2026-10-13). Null = photos
+        // are kept in mark1 only; set the path once CityBox ships it and the push switches on.
+        'restock_photo_path' => env('CITYBOX_RESTOCK_PHOTO_PATH'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chiller stock = OUR ledger (Brian, 2026-10-13)
+    |--------------------------------------------------------------------------
+    | vend_channels.qty for a chiller moves by CityBox's own ORDERS (order_list) and by the
+    | driver's Stock In count, like a freezer's. Their live `device_product` count no longer
+    | overwrites it; the periodic read only CHECKS it (stock_check on citybox_status_json).
+    | false = the old behaviour: every poll mirrors their count.
+    */
+    'stock_ledger' => env('CITYBOX_STOCK_LEDGER', true),
+    // Minutes between live stock checks (device_product + device state + signal, per device).
+    // The fleet status (one box_list call) still runs every minute.
+    'stock_check_every_minutes' => (int) env('CITYBOX_STOCK_CHECK_MINUTES', 10),
+    // signal_strength's scale is unconfirmed (asked 2026-10-13); their example is 80 → 0-100.
+    'signal_max' => (int) env('CITYBOX_SIGNAL_MAX', 100),
+    // A chiller stop's Open Door needs a before-restock photo first (Brian, 2026-10-13: "we locally
+    // control and detect"). Only before Stock In — a later re-open is never blocked.
+    'require_before_photo' => (bool) env('CITYBOX_REQUIRE_BEFORE_PHOTO', true),
 
     /*
     |--------------------------------------------------------------------------

@@ -48,6 +48,8 @@
         <Badge v-if="status.recoveredAt" title="Last back online" :sub="status.recoveredAt" :cls="active ? 'bg-gray-100' : 'bg-gray-200 text-gray-400'" />
         <Badge v-if="machine.lastOpen" title="Last door open" :sub="machine.lastOpen.at + (machine.lastOpen.source ? ' · ' + sourceLabel(machine.lastOpen.source) : '')" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" tip="Last ops door-open through ConnectVend" />
         <Badge v-if="machine.poll" title="Last poll" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU, ' + machine.poll.duration_ms + ' ms' : 'failed')" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
+        <Badge v-if="signal" :title="'Signal ' + signal.bars" :sub="signal.at ? shortAgo(signal.at) : ''" :cls="active ? signal.cls : 'bg-gray-200 text-gray-400'" :tip="signal.tip" />
+        <Badge v-if="stockCheck.count" :title="stockCheck.count + ' SKU differ from CityBox'" :sub="stockCheck.at ? 'checked ' + shortAgo(stockCheck.at) : ''" :cls="active ? 'bg-amber-200' : 'bg-gray-200 text-gray-400'" :tip="stockCheck.tip" />
       </div>
     </TableData>
 
@@ -198,6 +200,8 @@
         <Badge :title="machine.stateLabel" :sub="machine.stateAt ? shortAgo(machine.stateAt) : 'not polled'" :cls="active ? machine.stateBadge : 'bg-gray-200 text-gray-400'" tip="Live session state (get_device_status_new)" />
         <Badge v-if="machine.lastOpen" title="Last door open" :sub="machine.lastOpen.at" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" />
         <Badge v-if="machine.poll" title="Last poll" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU' : 'failed')" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
+        <Badge v-if="signal" :title="'Signal ' + signal.bars" :sub="signal.at ? shortAgo(signal.at) : ''" :cls="active ? signal.cls : 'bg-gray-200 text-gray-400'" :tip="signal.tip" />
+        <Badge v-if="stockCheck.count" :title="stockCheck.count + ' SKU differ from CityBox'" :sub="stockCheck.at ? 'checked ' + shortAgo(stockCheck.at) : ''" :cls="active ? 'bg-amber-200' : 'bg-gray-200 text-gray-400'" :tip="stockCheck.tip" />
       </div>
     </TableData>
 
@@ -307,6 +311,7 @@
 
 <script setup>
 import { vendCodeLabel } from '@/utils/vendCode'
+import { signalBadgeClass, signalBars } from '@/constants/internetLink'
 import { computed, defineComponent, h } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { ArrowPathIcon, EllipsisHorizontalCircleIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
@@ -390,6 +395,27 @@ const machine = computed(() => {
     stockRows: stock.map(p => ({ id: Number(p.product_id), name: p.name || '', qty: Number(p.quantity ?? 0), layer: Number(p.layer ?? 0) })),
     lastOpen: j.last_ops_open && j.last_ops_open.at ? j.last_ops_open : null,
     poll: j.poll && j.poll.at ? j.poll : null,
+  }
+})
+
+// CityBox's signal reading (signal_strength), promoted onto the vend's internet_* columns like a
+// SIM's, so it reads on the same 5-bar scale as every other machine.
+const signal = computed(() => {
+  const j = props.vend.citybox_status_json || {}
+  if (!j.signal || j.signal.value === undefined || j.signal.value === null) return null
+  const link = { internet_source: 'telco', internet_signal: Number(j.signal.value), internet_signal_max: Number(j.signal.max || 100) }
+  return { bars: signalBars(link), cls: signalBadgeClass(link), at: j.signal.at || null, tip: 'CityBox signal ' + j.signal.value + ' of ' + (j.signal.max || 100) }
+})
+
+// Our stock ledger vs their live count (StockPollService::checkLedger). Only differences that
+// survived a whole check interval count — one fresh order sits between their count and our pull.
+const stockCheck = computed(() => {
+  const c = (props.vend.citybox_status_json || {}).stock_check || {}
+  const real = (c.differs || []).filter(d => d.confirmed)
+  return {
+    count: real.length,
+    at: c.at || null,
+    tip: real.map(d => (d.label || d.product_id) + ': ours ' + d.ours + ', CityBox ' + d.theirs + ' (since ' + d.since + ')').join('\n'),
   }
 })
 

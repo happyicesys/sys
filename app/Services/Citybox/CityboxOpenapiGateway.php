@@ -7,6 +7,8 @@ use App\Enums\Citybox\DeviceState;
 use App\Exceptions\CityboxApiException;
 use App\Services\Citybox\DTO\ChillerCatalogItem;
 use App\Services\Citybox\DTO\ChillerDevice;
+use App\Services\Citybox\DTO\ChillerOrder;
+use App\Services\Citybox\DTO\ChillerPriceGroupRow;
 use App\Services\Citybox\DTO\ChillerStockLine;
 use App\Services\Citybox\DTO\RestockSession;
 use App\Services\Citybox\DTO\StockCount;
@@ -80,5 +82,37 @@ class CityboxOpenapiGateway implements ChillerGateway
     public function submitCount(RestockSession $session, StockCount $count): void
     {
         $this->client->deviceStockSubmit($session->deviceId, $session->msgId, $count->toApiRows());
+    }
+
+    public function orders(string $date): Collection
+    {
+        return collect($this->client->orderList($date))->map(fn ($r) => ChillerOrder::fromApi((array) $r));
+    }
+
+    public function priceGroups(): Collection
+    {
+        return collect($this->client->priceGroupList())->map(fn ($r) => ChillerPriceGroupRow::fromApi((array) $r));
+    }
+
+    public function signalStrength(string $deviceId): int
+    {
+        $body = $this->client->signalStrength($deviceId);
+        if (! isset($body['signalStrength']) || ! is_numeric($body['signalStrength'])) {
+            throw new CityboxApiException('Citybox signal_strength returned no signalStrength');
+        }
+
+        return (int) $body['signalStrength'];
+    }
+
+    public function submitRestockPhoto(string $deviceId, ?string $msgId, ?string $openLogId, string $kind, string $url, \DateTimeInterface $takenAt): void
+    {
+        $this->client->restockPhotoSubmit(array_filter([
+            'device_id' => $deviceId,
+            'msg_id' => $msgId,
+            'open_log_id' => $openLogId,
+            'type' => $kind,
+            'img_url' => $url,
+            'shot_time' => $takenAt->format('Y-m-d H:i:s'),
+        ], fn ($v) => $v !== null && $v !== ''));
     }
 }

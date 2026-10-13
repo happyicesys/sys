@@ -557,6 +557,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{id}/citybox-open-door', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'openDoor'])->name('ops-job-items.citybox-open-door');
         Route::post('/items/{id}/citybox-retry-submit', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'retrySubmit'])->name('ops-job-items.citybox-retry-submit');
         Route::get('/items/{id}/citybox-door-opens', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'doorOpens'])->name('ops-job-items.citybox-door-opens');
+        // Before/after restock photos on a chiller stop (2026-10-13): before gates Open Door.
+        Route::post('/items/{id}/restock-photos', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'storeRestockPhoto'])->name('ops-job-items.restock-photos.store');
+        Route::delete('/items/{id}/restock-photos/{attachmentId}', [\App\Http\Controllers\Citybox\CityboxOpsJobItemController::class, 'destroyRestockPhoto'])->name('ops-job-items.restock-photos.destroy');
         // Smart Freezer driver door on an item — same driver-level rule, inside the controller.
         Route::post('/items/{id}/freezer-open-door', [\App\Http\Controllers\SmartFreezer\FreezerOpsJobItemController::class, 'openDoor'])->name('ops-job-items.freezer-open-door');
         Route::get('/items/{id}/freezer-open-door/{cmdId}', [\App\Http\Controllers\SmartFreezer\FreezerOpsJobItemController::class, 'doorStatus'])->name('ops-job-items.freezer-door-status');

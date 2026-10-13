@@ -80,6 +80,42 @@ class OpenapiClient
         ], fn ($v) => $v !== null));
     }
 
+    /**
+     * Orders of one day (2026-10-13 doc): their `date` is the ORDER day, and a past day keeps
+     * changing (late pay-later capture, refunds), so callers re-pull a rolling window.
+     * Only paid / refund statuses come back (1, 3, 4 seen); unpaid ones are filtered out.
+     */
+    public function orderList(string $date): array
+    {
+        return $this->post('api/Openapi/order_list', ['date' => $date]);
+    }
+
+    /** Active price groups, flat: one row per group × product (group_id, group_name, price, product_id, img_url). */
+    public function priceGroupList(): array
+    {
+        return $this->post('api/Openapi/price_group_list', []);
+    }
+
+    /** {signalStrength:int} for one device. Answered 设备不存在 for every device on 2026-10-13 (asked). */
+    public function signalStrength(string $deviceId): array
+    {
+        return $this->post('api/Openapi/signal_strength', ['device_id' => $deviceId]);
+    }
+
+    /**
+     * Before/after restock photo — NOT delivered by CityBox yet (asked 2026-10-13). The path and
+     * the field names follow our proposal and are config, so switching it on is an .env change.
+     */
+    public function restockPhotoSubmit(array $params): array
+    {
+        $path = config('citybox.openapi.restock_photo_path');
+        if (! $path) {
+            throw new CityboxApiException('Citybox restock photo endpoint is not configured (CITYBOX_RESTOCK_PHOTO_PATH)');
+        }
+
+        return $this->post($path, $params);
+    }
+
     // ── ops write endpoints ────────────────────────────────────────────────
 
     /**

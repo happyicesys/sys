@@ -83,6 +83,8 @@
                   :offline-since="opsJobItem.vend?.citybox_status_json?.heartbeat_last_offline"
                   source="ops_job_item_page"
                   label="Open Door (Restock)"
+                  :disabled="needsBeforePhoto"
+                  :disabled-reason="needsBeforePhoto ? 'Take the before restock photo first' : ''"
                   @opened="reloadDoorOpens"
                 />
                 <!-- Smart Freezer: the same driver door-open (FREEZERCTL unlock). -->
@@ -139,6 +141,64 @@
                 </Menu>
               </div>
             </div>
+
+            <!-- Smart Chiller (CityBox) restock photos (2026-10-13): BEFORE unlocks Open Door, AFTER
+                 follows Stock In. Kept on the item; their URLs go to CityBox once it can take them. -->
+            <div v-if="opsJobItem.is_citybox_chiller" class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="rounded-md border p-2" :class="restockPhotos.before.length ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50'">
+                <div class="text-sm font-semibold text-gray-900">1. Before restock photo <span class="text-xs font-normal text-gray-600">补货前照片</span></div>
+                <div class="text-xs text-amber-800 mb-1" v-if="needsBeforePhoto">Take it before opening — Open Door unlocks once it is in.</div>
+                <StopAttachmentSlot
+                  :files="restockPhotos.before"
+                  :uploadUrl="restockPhotoUrl"
+                  :extraFields="{ slot: 'before' }"
+                  :deleteUrl="file => restockPhotoUrl + '/' + file.id"
+                  :editable="opsJobItem.status < 4"
+                  accept="image/*"
+                  capture="environment"
+                  @changed="applyRestockPhotos"
+                />
+              </div>
+              <div class="rounded-md border p-2" :class="restockPhotos.after.length ? 'border-green-200 bg-green-50' : (opsJobItem.status >= 3 ? 'border-red-300 bg-red-50' : 'border-gray-200')">
+                <div class="text-sm font-semibold text-gray-900">2. After restock photo <span class="text-xs font-normal text-gray-600">补货后照片</span></div>
+                <div class="text-xs mb-1" :class="opsJobItem.status >= 3 ? 'text-red-700' : 'text-gray-500'" v-if="!restockPhotos.after.length">
+                  {{ opsJobItem.status >= 3 ? 'Missing — take it now.' : 'Take it after the stock is in.' }}
+                </div>
+                <StopAttachmentSlot
+                  :files="restockPhotos.after"
+                  :uploadUrl="restockPhotoUrl"
+                  :extraFields="{ slot: 'after' }"
+                  :deleteUrl="file => restockPhotoUrl + '/' + file.id"
+                  :editable="opsJobItem.status < 4"
+                  accept="image/*"
+                  capture="environment"
+                  @changed="applyRestockPhotos"
+                />
+              </div>
+            </div>
+            <Teleport to="body">
+              <Modal :open="afterPhotoPrompt" @modalClose="afterPhotoPrompt = false">
+                <template #header>
+                  <span class="font-semibold text-black">Stocked in — now the AFTER photo</span>
+                </template>
+                <template #default>
+                  <p class="text-sm text-gray-700 mb-3">Take one photo of the restocked chiller, door open, every layer in view. 补货后照片</p>
+                  <StopAttachmentSlot
+                    :files="restockPhotos.after"
+                    :uploadUrl="restockPhotoUrl"
+                    :extraFields="{ slot: 'after' }"
+                    :deleteUrl="file => restockPhotoUrl + '/' + file.id"
+                    :editable="true"
+                    accept="image/*"
+                    capture="environment"
+                    @changed="data => { applyRestockPhotos(data); if (data?.after?.length) afterPhotoPrompt = false }"
+                  />
+                  <div class="mt-4 flex justify-end">
+                    <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="afterPhotoPrompt = false">Later</Button>
+                  </div>
+                </template>
+              </Modal>
+            </Teleport>
 
             <!-- Smart Chiller (CityBox) visit status (design §6b.4 / §8b) -->
             <div v-if="opsJobItem.is_citybox_chiller" class="mb-3 space-y-2">
@@ -1747,6 +1807,8 @@ import UploadFileInput from '@/Components/UploadFileInput.vue';
 import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';
 import FreezerOpenDoorButton from '@/Components/FreezerOpenDoorButton.vue';
 import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
+import Modal from '@/Components/Modal.vue';
+import StopAttachmentSlot from '@/Pages/OpsJob/Stops/StopAttachmentSlot.vue';
 import axios from 'axios';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, PlusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
@@ -1864,9 +1926,22 @@ onMounted(() => {
   loadingData()
 })
 
+// Restock photos (CityBox chiller): before gates Open Door until Stock In; after is asked for at Stock In.
+const restockPhotos = ref({ before: [], after: [] })
+const afterPhotoPrompt = ref(false)
+const restockPhotoUrl = computed(() => '/ops-jobs/items/' + opsJobItem.value.id + '/restock-photos')
+const needsBeforePhoto = computed(() => !!opsJobItem.value.is_citybox_chiller && opsJobItem.value.status < 3 && !restockPhotos.value.before.length)
+
+function applyRestockPhotos(data) {
+  if (data && Array.isArray(data.before) && Array.isArray(data.after)) {
+    restockPhotos.value = data
+  }
+}
+
 function loadingData() {
   opsJobItem.value = props.opsJobItem.data
   vend.value = props.opsJobItem.data.vend
+  applyRestockPhotos(props.opsJobItem.data.restock_photos)
 
   form.value = opsJobItem.value ? useForm({
     ...opsJobItem.value,
@@ -2457,6 +2532,10 @@ function onConfirmClicked() {
         preserveState: true,
         onSuccess: page => {
           loadingData()
+          // Just stocked in a chiller: ask for the after photo while the driver is still at it.
+          if (opsJobItem.value.is_citybox_chiller && opsJobItem.value.status >= 3 && !restockPhotos.value.after.length) {
+            afterPhotoPrompt.value = true
+          }
         }
       })
     }

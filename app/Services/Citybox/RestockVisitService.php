@@ -37,6 +37,9 @@ use Illuminate\Support\Facades\Log;
  */
 class RestockVisitService
 {
+    /** A poll older than this before the Stock In click is not "just before" it any more. */
+    private const BEFORE_POLL_MAX_AGE_MINUTES = 3;
+
     public const MAX_SUBMIT_ATTEMPTS = 5;
 
     public function __construct(
@@ -257,6 +260,8 @@ class RestockVisitService
         if ($mode === 'revert') {
             $this->markSubmit($item, 'reverted', null);
             $this->clearAfter($item); // the After column described a stock-in that no longer stands
+            // CityBox holds the pre-restock count again; so must our ledger (ChillerStockLedger).
+            $this->stock->rebuildChannels($vend, absolute: true);
             Log::info('Citybox stock reverted to pre-restock count', ['ops_job_item_id' => $item->id, 'vend_id' => $vend->id, 'products' => count($counts)]);
 
             return true;
@@ -283,8 +288,8 @@ class RestockVisitService
     }
 
     /**
-     * Before Refill for a chiller: the last CityBox minute-poll snapshot taken
-     * before the Stock In click (never the door-open frame — Brian, 2026-09-03:
+     * Before Refill for a chiller: CityBox's count just before the Stock In click — the last
+     * poll inside BEFORE_POLL_MAX_AGE_MINUTES, else a fresh read (never the door-open frame — Brian, 2026-09-03:
      * "before the latest stock-in click"). Written onto the item's own
      * vend_channel_records row (created here, linked by vend_channel_record_id)
      * so the ops page reads it like a VMC B frame, without the ±30 min matching.
@@ -295,15 +300,26 @@ class RestockVisitService
             $at = $item->completed_at ?? now();
             $poll = CityboxInventoryPoll::where('vend_id', $vend->id)
                 ->whereNull('error')->where('polled_at', '<=', $at)
+                ->where('polled_at', '>=', $at->copy()->subMinutes(self::BEFORE_POLL_MAX_AGE_MINUTES))
                 ->orderByDesc('polled_at')->first();
-            if (! $poll) {
-                return;
+            if ($poll) {
+                $channels = $this->snapshotToChannels($poll->snapshot_json ?? [], $slots);
+                $before = ['channels' => $channels, 'label' => 'B', 'source' => 'citybox_poll', 'poll_id' => $poll->id];
+                $beforeAt = $poll->polled_at;
+            } else {
+                // The stock check reads every 10 min, so the last poll may be stale. Read now
+                // instead: still before our submit, and CityBox's count does not move while the
+                // driver holds the door (only a stock submit or a customer's order changes it).
+                $live = $this->gateway->deviceStock((string) $vend->citybox_equipment_id)
+                    ->mapWithKeys(fn ($l) => [(int) $l->cityboxProductId => (int) $l->quantity])->all();
+                $channels = $this->slotsToChannels($slots, fn ($slot) => (int) ($live[$slot->cityboxProductId] ?? 0));
+                $before = ['channels' => $channels, 'label' => 'B', 'source' => 'citybox_pull'];
+                $beforeAt = now();
             }
-            $channels = $this->snapshotToChannels($poll->snapshot_json ?? [], $slots);
             $record = $this->itemRecord($item, $vend);
             $record->fill([
-                'before_data_json' => ['channels' => $channels, 'label' => 'B', 'source' => 'citybox_poll', 'poll_id' => $poll->id],
-                'before_data_created_at' => $poll->polled_at,
+                'before_data_json' => $before,
+                'before_data_created_at' => $beforeAt,
                 'before_label' => 'B',
             ])->save();
             $this->writeVmcQty($item, $channels, 'vmc_before_qty');
@@ -316,9 +332,11 @@ class RestockVisitService
     private function captureAfter(OpsJobItem $item, Vend $vend, array $slots): void
     {
         try {
+            $readAt = now();
             $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
             $this->stock->applyStockOnly($vend, $lines);
-            $this->stock->pushChannels($vend, $lines, 'A', force: true);
+            // The driver's count, as CityBox now holds it: the one read that REPLACES our ledger.
+            $this->stock->pushChannels($vend, $lines, 'A', force: true, absolute: true, readAt: $readAt);
 
             $live = $lines->mapWithKeys(fn ($l) => [(int) $l->cityboxProductId => (int) $l->quantity])->all();
             $channels = $this->slotsToChannels($slots, fn ($slot) => (int) ($live[$slot->cityboxProductId] ?? 0));

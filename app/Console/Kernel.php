@@ -25,13 +25,21 @@ class Kernel extends ConsoleKernel
         // CityBox-Openapi (governs since 2026-08-14): status + live stock for
         // linked Smart Chiller vends. No-op until CITYBOX_OPENAPI_ENABLED and a
         // chiller carries a citybox_equipment_id (guards inside the command).
-        // Every minute (Brian, 2026-08-20 — was 3 min): measured cost is light
-        // (~55–130 ms per device call, sequential; design §9b) and Brian wants a
-        // fresher mirror. Still a stock MIRROR, not a sales feed — nothing is
-        // lost at any cadence; ops-job pick qty for chillers must read the
-        // snapshot's synced_at and treat it as an estimate; the driver's
-        // on-site count via device_stock_submit is the source of truth anyway.
+        // Fleet status (one box_list call) every minute; the per-device live
+        // stock read only every citybox.stock_check_every_minutes (10) since
+        // 2026-10-13 — chiller stock is OUR ledger now (orders + Stock In), and
+        // their count only checks it (ChillerStockLedger).
         $schedule->command('citybox:openapi-poll')->everyMinute();
+        // CityBox orders → sales + the chiller stock ledger (Brian, 2026-10-13).
+        // Pulled, never pushed to us; a past day keeps changing (pay-later
+        // capture up to 14 days late, refunds), so three windows. Each run is a
+        // unique queued job; one call per day, unchanged orders cost nothing.
+        $schedule->command('citybox:pull-orders')->everyMinute();
+        $schedule->command('citybox:pull-orders --days=3')->hourlyAt(7);
+        // Before the 02:00 dirty-day rollup rebuild picks up what this moved.
+        $schedule->command('citybox:pull-orders --days=31')->dailyAt('01:20');
+        // Their price groups → citybox_price_groups + RP rows on CityBox-owned products.
+        $schedule->command('citybox:sync-price-groups')->hourlyAt(17);
         // Remote-terminal card attempts (smart-freezer Payrallel rail): resolve what the
         // device stopped polling and void approvals no door will follow. A no-op
         // (one indexed query) while nothing is open.

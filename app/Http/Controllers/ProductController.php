@@ -1174,7 +1174,12 @@ class ProductController extends Controller
     {
         $sellingPrice = SellingPrice::findOrFail($sellingPriceId);
         // SellingPrice has no scope of its own; go through a visible product.
-        Product::findOrFail($sellingPrice->product_id);
+        $product = Product::with('cityboxProducts:id,product_id,citybox_product_id')->findOrFail($sellingPrice->product_id);
+        // A CityBox-owned SKU's RP rows are their price groups (CityboxPriceGroupSync); the next sync
+        // would put a deleted one straight back.
+        if ($product->isCityboxOwned()) {
+            return redirect()->back()->withErrors(['selling_price' => 'This price comes from a CityBox price group — change it in the CityBox portal.']);
+        }
         $sellingPrice->delete();
 
         PushMappingMenuSync::scheduleForProduct($sellingPrice->product_id, serverPriceOnly: true);
@@ -1237,6 +1242,8 @@ class ProductController extends Controller
             // Selling Price(s): every change, newest first, from user_logs (each row carries its own
             // set at / by / previous price).
             'sellingPriceHistory' => app(\App\Services\Product\SellingPriceHistory::class)->forProduct($product),
+            // A CityBox-owned SKU's prices are their price groups (read-only, CityboxPriceGroupSync).
+            'cityboxPriceGroups' => $product->isCityboxOwned() ? \App\Services\Citybox\CityboxPriceGroupSync::sourcesFor($product) : [],
             // Smart Freezer AI Training: this product's modelling application to Zijia and its log.
             'aiTraining' => app(\App\Services\SmartFreezer\Zijia\ZijiaSkuApplicationService::class)->pageData($product),
             // Freezer welcome sketch: the drawing the freezer's welcome scene drops for this product.

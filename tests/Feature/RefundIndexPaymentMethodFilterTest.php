@@ -225,6 +225,7 @@ class RefundIndexPaymentMethodFilterTest extends TestCase
                 ->where('filters.paymentMethods', ['cc:Nets', (string) $this->paynow->id])
                 // Payrallel (T05) is seeded by its migration (2026-10-03) — every company is offered.
                 ->where('cardTerminalOptions.data', ['Nets', 'Payrallel (T05)'])
-                ->has('paymentMethods.data', 2));
+                // + the four CityBox methods (900–903) its migration seeds (2026-10-13).
+                ->has('paymentMethods.data', 6));
     }
 }

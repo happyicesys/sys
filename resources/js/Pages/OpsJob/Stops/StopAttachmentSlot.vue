@@ -26,7 +26,7 @@
     >
       <CameraIcon class="h-6 w-6" />
       <span class="text-[10px] leading-tight">{{ uploading ? 'Uploading…' : 'Add' }}</span>
-      <input type="file" class="hidden" accept="image/*,video/*,application/pdf" :disabled="uploading" @change="upload" />
+      <input type="file" class="hidden" :accept="accept" :capture="capture || undefined" :disabled="uploading" @change="upload" />
     </label>
   </div>
   <div class="text-xs text-red-600 mt-1" v-if="error">{{ error }}</div>
@@ -45,6 +45,9 @@ const props = defineProps({
   deleteUrl: Function, // (file) => url
   extraFields: { type: Object, default: () => ({}) },
   editable: Boolean,
+  accept: { type: String, default: 'image/*,video/*,application/pdf' },
+  // 'environment' opens the phone's back camera straight away (restock photos); null = camera or gallery.
+  capture: { type: String, default: null },
 })
 const emit = defineEmits(['changed'])
 

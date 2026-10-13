@@ -10,11 +10,12 @@ use App\Models\CityboxStockMovement;
 use App\Models\Vend;
 use App\Services\Citybox\DTO\ChillerDevice;
 use App\Services\Citybox\DTO\ChillerStockLine;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * STOCK half of the 3-min poll (design §5b). Per linked vend:
+ * STOCK half of the poll (design §5b), every citybox.stock_check_every_minutes. Per linked vend:
  *   1. read device_product (live qty)
  *   2. write ONE citybox_inventory_polls row (what we saw — or the error)
  *   3. diff against the previous successful poll → citybox_stock_movements
@@ -25,7 +26,12 @@ use Illuminate\Support\Facades\DB;
  * A failed stock read still writes a poll row (with `error`, no snapshot) so
  * gaps are visible, keeps the vend's previous snapshot, and produces NO
  * movements — the next successful poll diffs against the last GOOD one.
- * Step 5 adds the SyncVendChannels dispatch here.
+ *
+ * Since 2026-10-13 the chiller's qty is OUR ledger (ChillerStockLedger): their live count seeds a
+ * row with no ledger yet and is otherwise only compared (checkLedger → `stock_check` on
+ * citybox_status_json). It still sets prices and labels on every read. An ABSOLUTE write —
+ * their count replaces ours — happens only for a count we know is the truth: the Stock In's A
+ * frame, an Undo Stock In's revert, and a chiller's very first read.
  */
 class StockPollService
 {
@@ -99,6 +105,7 @@ class StockPollService
 
         $durationMs = (int) ((hrtime(true) - $t0) / 1e6);
         $snapshot = $this->snapshot($lines);
+        $this->readSignal($vend, $online);
 
         return DB::transaction(function () use ($vend, $device, $startedAt, $lines, $snapshot, $durationMs, $state) {
             $previous = CityboxInventoryPoll::previousFor($vend->id);
@@ -123,7 +130,12 @@ class StockPollService
             $this->mirrorOntoVend($vend, $snapshot);
             $this->mirrorHealthOntoVend($vend, $state, $poll);
             $this->catalog->noteSeenOnDevice($lines);
-            $this->pushChannels($vend, $lines);
+            // The first read seeds the ledger through a queued frame: nothing to compare against yet.
+            $seeding = ChillerStockLedger::enabled() && ChillerStockLedger::baselineAt($vend) === null;
+            $this->pushChannels($vend, $lines, readAt: $startedAt);
+            if (! $seeding) {
+                $this->checkLedger($vend, $lines, $startedAt);
+            }
 
             return $poll;
         });
@@ -172,8 +184,13 @@ class StockPollService
      * vend is pending (§6.1) — step 6 sets that flag; until then it is never
      * set, so this always runs.
      */
-    public function pushChannels(Vend $vend, Collection $lines, ?string $label = null, bool $force = false): void
+    public function pushChannels(Vend $vend, Collection $lines, ?string $label = null, bool $force = false, bool $absolute = false, ?CarbonInterface $readAt = null): void
     {
+        // Their count replaces ours only when asked, when the ledger is off (the old mirror), or
+        // when this chiller has no ledger yet (its first read after the switch seeds it).
+        $ledger = ChillerStockLedger::enabled();
+        $absolute = $absolute || ! $ledger || ChillerStockLedger::baselineAt($vend) === null;
+
         // $force: the visit's own B/A frames must always land — the pending
         // guard exists to stop the SCHEDULED poll writing pre-restock numbers.
         if (! $force && $this->submitPendingFor($vend)) {
@@ -194,11 +211,98 @@ class StockPollService
 
             return;
         }
-        $frame = $this->adapter->toFrame($lines, $slots, $label, $this->fallbackPrices($vend, $slots));
+        $frame = $this->adapter->toFrame($lines, $slots, $label, $this->fallbackPrices($vend, $slots), seedOnly: ! $absolute);
         if ($frame->isEmpty()) {
             return;
         }
         \App\Jobs\Vend\SyncVendChannels::dispatch($frame->toArray(), $vend)->onQueue('high');
+        if ($ledger && $absolute) {
+            // Orders taken up to the moment their count was READ are inside it.
+            ChillerStockLedger::markBaseline($vend, $readAt ?? now(), $label ? 'frame '.$label : 'read');
+        }
+    }
+
+    /**
+     * Compare our ledger with their live count, per SKU on our planogram, and keep the result on
+     * citybox_status_json.stock_check — the dashboard badge and the overview read it. A difference
+     * already present at the previous check is `confirmed` (one fresh order can sit between their
+     * count and our next order pull for a minute; a difference that survives a whole check
+     * interval is real: an unpaid take-first-pay-later order, a miscount, shrinkage). Nothing is
+     * written to vend_channels here. Paused while a Stock In push is pending.
+     */
+    public function checkLedger(Vend $vend, Collection $lines, CarbonInterface $at): void
+    {
+        if (! ChillerStockLedger::enabled() || ChillerStockLedger::baselineAt($vend) === null) {
+            return;
+        }
+        $json = $vend->citybox_status_json ?? [];
+        $previous = collect($json['stock_check']['differs'] ?? [])->keyBy('product_id');
+
+        if ($this->submitPendingFor($vend)) {
+            $json['stock_check'] = ['at' => $at->toDateTimeString(), 'paused' => 'restock_pending', 'differs' => $previous->values()->all()];
+            $vend->forceFill(['citybox_status_json' => $json])->save();
+
+            return;
+        }
+
+        $live = $lines->mapWithKeys(fn (ChillerStockLine $l) => [(int) $l->cityboxProductId => max(0, $l->quantity)])->all();
+        $slots = $this->channelMap->forVend($vend);
+        $ours = \App\Models\VendChannel::where('vend_id', $vend->id)->where('is_active', true)
+            ->whereIn('product_id', array_keys($slots))->get(['product_id', 'qty', 'code', 'suffix'])->keyBy('product_id');
+
+        $differs = [];
+        foreach ($slots as $productId => $slot) {
+            $row = $ours->get($productId);
+            if (! $row) {
+                continue; // a row the frame is still seeding
+            }
+            $theirs = $live[$slot->cityboxProductId] ?? 0;
+            if ((int) $row->qty === $theirs) {
+                continue;
+            }
+            $before = $previous->get($productId);
+            $differs[] = [
+                'product_id' => (int) $productId,
+                'label' => $row->label,
+                'ours' => (int) $row->qty,
+                'theirs' => $theirs,
+                'since' => $before['since'] ?? $at->toDateTimeString(),
+                'confirmed' => $before !== null,
+            ];
+        }
+
+        $json['stock_check'] = ['at' => $at->toDateTimeString(), 'checked' => count($slots), 'differs' => $differs];
+        $vend->forceFill(['citybox_status_json' => $json])->save();
+    }
+
+    /**
+     * Their signal reading (signal_strength), into the same columns a vending machine's SIM
+     * reading uses so every existing signal pill shows it, and onto citybox_status_json. Their
+     * API answered 设备不存在 for every device on 2026-10-13 (asked); a failure only records itself.
+     */
+    private function readSignal(Vend $vend, bool $online): void
+    {
+        if (! $online) {
+            return;
+        }
+        $json = $vend->citybox_status_json ?? [];
+        try {
+            $value = $this->gateway->signalStrength((string) $vend->citybox_equipment_id);
+        } catch (\Throwable $e) {
+            $json['signal'] = array_merge($json['signal'] ?? [], ['error' => mb_substr($e->getMessage(), 0, 160), 'error_at' => now()->toDateTimeString()]);
+            $vend->forceFill(['citybox_status_json' => $json])->save();
+
+            return;
+        }
+        $max = max(1, (int) config('citybox.signal_max', 100));
+        $json['signal'] = ['value' => $value, 'max' => $max, 'at' => now()->toDateTimeString()];
+        $vend->forceFill([
+            'citybox_status_json' => $json,
+            'internet_source' => 'telco',
+            'internet_signal' => max(0, min($value, $max)),
+            'internet_signal_max' => $max,
+            'internet_updated_at' => now(),
+        ])->save();
     }
 
     /**
@@ -235,12 +339,13 @@ class StockPollService
      * SubmitCityboxCount sends the counts. Best-effort; the scheduled poll does the
      * same within minutes.
      */
-    public function rebuildChannels(Vend $vend): void
+    public function rebuildChannels(Vend $vend, bool $absolute = false): void
     {
         try {
+            $readAt = now();
             $lines = $this->gateway->deviceStock((string) $vend->citybox_equipment_id);
             $this->applyStockOnly($vend, $lines);
-            $this->pushChannels($vend, $lines, null, force: true);
+            $this->pushChannels($vend, $lines, null, force: true, absolute: $absolute, readAt: $readAt);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Citybox channel rebuild failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
         }

@@ -7,6 +7,8 @@ use App\Enums\Citybox\DeviceState;
 use App\Exceptions\CityboxApiException;
 use App\Services\Citybox\DTO\ChillerCatalogItem;
 use App\Services\Citybox\DTO\ChillerDevice;
+use App\Services\Citybox\DTO\ChillerOrder;
+use App\Services\Citybox\DTO\ChillerPriceGroupRow;
 use App\Services\Citybox\DTO\ChillerStockLine;
 use App\Services\Citybox\DTO\RestockSession;
 use App\Services\Citybox\DTO\StockCount;
@@ -46,6 +48,24 @@ class FakeChillerGateway implements ChillerGateway
 
     /** @var array<int,array{device:string,msgId:string,rows:array}> */
     public array $submits = [];
+
+    /** @var array<string,array[]> order day (Y-m-d) => order_list rows (their raw shape) */
+    public array $orderRows = [];
+
+    /** @var array<int,string> days whose order_list call fails */
+    public array $orderErrors = [];
+
+    /** @var array[] price_group_list rows */
+    public array $priceGroupRows = [];
+
+    /** @var array<string,int> equipment_id => signalStrength; absent = their 设备不存在 */
+    public array $signals = [];
+
+    /** @var array<int,array{device:string,msgId:?string,openLogId:?string,kind:string,url:string}> */
+    public array $photoSubmits = [];
+
+    /** Mirror CityBox before their photo endpoint exists. */
+    public bool $photoEndpointMissing = false;
 
     private int $openSeq = 0;
 
@@ -156,6 +176,64 @@ class FakeChillerGateway implements ChillerGateway
         $this->states[$deviceId] = 'OPENING';
 
         return new RestockSession($deviceId, $msgId, (string) (70 + $this->openSeq), CarbonImmutable::now());
+    }
+
+    public function orders(string $date): Collection
+    {
+        if (in_array($date, $this->orderErrors, true)) {
+            throw new CityboxApiException('Citybox openapi api/Openapi/order_list unreachable after retries');
+        }
+
+        return collect($this->orderRows[$date] ?? [])->map(fn ($r) => ChillerOrder::fromApi($r));
+    }
+
+    /**
+     * A real order_list row. $lines: [[citybox product id, qty, price '1.70'], …].
+     *
+     * @param  array<int,array{0:int,1:int,2:string}>  $lines
+     */
+    public function seedOrder(string $date, int $id, string $eq, array $lines, int $status = 1, string $time = '10:00:00', ?string $paidAt = null, string $pay = 'CARD'): self
+    {
+        $products = [];
+        $total = 0;
+        foreach ($lines as [$pid, $qty, $price]) {
+            $cents = \App\Services\Citybox\CityboxMoney::toCents($price) * $qty;
+            $total += $cents;
+            $products[] = ['product_id' => (string) $pid, 'product_name' => 'P'.$pid, 'price' => $price, 'qty' => (string) $qty, 'total_money' => number_format($cents / 100, 2, '.', '')];
+        }
+        $money = number_format($total / 100, 2, '.', '');
+        $this->orderRows[$date] = array_values(array_filter($this->orderRows[$date] ?? [], fn ($r) => (int) $r['id'] !== $id));
+        $this->orderRows[$date][] = [
+            'id' => (string) $id, 'order_name' => 'VI'.$id, 'device_id' => $eq, 'device_name' => 'SG'.$eq,
+            'qty' => (string) array_sum(array_column($lines, 1)), 'money' => $money, 'good_money' => $money,
+            'order_time' => $date.' '.$time, 'pay_succ_time' => $paidAt ?? ($date.' '.$time),
+            'refer' => 'icb_antom', 'refer_type' => $pay === 'CARD' ? '2' : '6', 'order_status' => (string) $status,
+            'order_product' => $products, 'transaction' => $pay,
+        ];
+
+        return $this;
+    }
+
+    public function priceGroups(): Collection
+    {
+        return collect($this->priceGroupRows)->map(fn ($r) => ChillerPriceGroupRow::fromApi($r));
+    }
+
+    public function signalStrength(string $deviceId): int
+    {
+        if (! isset($this->signals[$deviceId])) {
+            throw new CityboxApiException('Citybox openapi api/Openapi/signal_strength failed: code 400 — 设备不存在', 400);
+        }
+
+        return $this->signals[$deviceId];
+    }
+
+    public function submitRestockPhoto(string $deviceId, ?string $msgId, ?string $openLogId, string $kind, string $url, \DateTimeInterface $takenAt): void
+    {
+        if ($this->photoEndpointMissing) {
+            throw new CityboxApiException('Citybox restock photo endpoint is not configured (CITYBOX_RESTOCK_PHOTO_PATH)');
+        }
+        $this->photoSubmits[] = ['device' => $deviceId, 'msgId' => $msgId, 'openLogId' => $openLogId, 'kind' => $kind, 'url' => $url];
     }
 
     public function submitCount(RestockSession $session, StockCount $count): void

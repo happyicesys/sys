@@ -93,6 +93,12 @@ final class AutoRefundSource
      */
     public const RETAINED_CREDIT_REVEND = 'retained_credit_revend';
 
+    /**
+     * CityBox refunded a chiller order (their order_list status 4 — Brian, 2026-10-13). The money
+     * was collected and returned by CityBox (Antom); mark1 only records their verdict.
+     */
+    public const CITYBOX_REFUNDED = 'citybox_refunded';
+
     /** Our own server decided and called the refund, with no human involved. */
     public const TRIGGER_SERVER = 'server';
 
@@ -114,7 +120,7 @@ final class AutoRefundSource
     {
         return match ($source) {
             self::OMISE_NO_DISPENSE, self::OMISE_STALE_APPROVE, self::OMISE_TRADE_FAIL => self::TRIGGER_SERVER,
-            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL => self::TRIGGER_ADMIN,
+            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL, self::CITYBOX_REFUNDED => self::TRIGGER_ADMIN,
             self::OMISE_DISPUTE => self::TRIGGER_CUSTOMER,
             default => null,
         };
@@ -129,6 +135,7 @@ final class AutoRefundSource
         self::OMISE_EXTERNAL => 'Omise: refunded at the gateway by an admin (dashboard), not from mark1',
         self::OMISE_DISPUTE => 'Omise: refunded after a dispute or chargeback the customer raised',
         self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
+        self::CITYBOX_REFUNDED => 'CityBox: refunded by CityBox (their order list)',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal — inferred at TRADE time (legacy, unconfirmed)',
         self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',
         self::SETTLEMENT_REPORT_NOT_CAPTURED => 'NA in NETS — failed card sale never captured (terminal voided before batch)',

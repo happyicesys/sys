@@ -28,6 +28,7 @@ class AutoRefundTriggerTest extends TestCase
             'staff ran the refund command' => [AutoRefundSource::OMISE_MANUAL, AutoRefundSource::TRIGGER_ADMIN],
             'refunded on the Omise dashboard / dispute' => [AutoRefundSource::OMISE_EXTERNAL, AutoRefundSource::TRIGGER_ADMIN],
             'refunded at Midtrans' => [AutoRefundSource::MIDTRANS_EXTERNAL, AutoRefundSource::TRIGGER_ADMIN],
+            'refunded by CityBox' => [AutoRefundSource::CITYBOX_REFUNDED, AutoRefundSource::TRIGGER_ADMIN],
             'customer raised a chargeback' => [AutoRefundSource::OMISE_DISPUTE, AutoRefundSource::TRIGGER_CUSTOMER],
             'NETS reversal line' => [AutoRefundSource::SETTLEMENT_REPORT_REVERSAL, null],
             'NETS never captured it' => [AutoRefundSource::SETTLEMENT_REPORT_NOT_CAPTURED, null],

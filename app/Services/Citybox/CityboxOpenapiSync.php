@@ -24,10 +24,10 @@ class CityboxOpenapiSync
     /**
      * @return array{equipment:int,matched:int,missing:array,unknown:array,stock_errors:array}
      */
-    public function syncAll(): array
+    public function syncAll(bool $withStock = true): array
     {
         $fleet = $this->devices->syncFleet();
-        $stockErrors = $this->stock->pollAll($fleet['vends'], $fleet['devices']);
+        $stockErrors = $withStock ? $this->stock->pollAll($fleet['vends'], $fleet['devices']) : [];
 
         return [
             'equipment' => $fleet['devices']->count(),

@@ -8,9 +8,10 @@
     layer digit of the channel code, joined to the CityBox catalog for
     name/thumbnail. Layers run 1 → 5 top to bottom (Brian, 2026-09-10 — the
     order their OPS Pro lists them in).
-    Capacity here IS CityBox's par (their portal is the planogram source of
-    truth); qty is refreshed live when this popup opens, and by the per-minute
-    poll in between. Nothing is editable from this popup.
+    Capacity is ours (mapping / chiller_slot_qty). Qty is OUR ledger since
+    2026-10-13 (CityBox orders + Stock In counts); opening this popup pulls
+    CityBox live, and a SKU where their count differs shows "CityBox n"
+    under ours. Nothing is editable from this popup.
   -->
   <Teleport to="body">
     <Modal :open="showModal" @modalClose="onModalClose">
@@ -37,6 +38,7 @@
                 <span :class="data.online ? 'text-green-700' : 'text-red-600'">{{ data.online ? 'online' : ('offline' + (data.offline_since ? ' since ' + data.offline_since : '')) }}</span>
                 <span class="text-gray-400">·</span>
                 <span class="text-gray-500">stock as of {{ data.synced_at || '—' }}</span>
+                <span v-if="data.stock_ledger" class="text-gray-500" title="Qty moves by CityBox orders and Stock In counts; their live count only checks it.">· our ledger</span>
                 <!-- Opening this overview pulls CityBox live; say so when that pull failed
                      (offline chiller / API blip) so nobody reads stale numbers as live. -->
                 <span v-if="data.refreshed === false" class="text-amber-700" :title="data.refresh_error">· live refresh failed — showing last sync</span>
@@ -135,6 +137,12 @@
                       </span>
                       <span class="text-xs tabular-nums" :class="disabled(ch) ? 'text-gray-400' : 'text-gray-600'">S${{ (ch.amount_cents / 100).toFixed(2) }}</span>
                     </div>
+                    <!-- Our ledger vs CityBox's own count, from the pull this popup just ran. -->
+                    <span v-if="data.stock_ledger && !ch.off_plan && ch.citybox_qty !== null && ch.citybox_qty !== undefined && ch.citybox_qty !== ch.qty"
+                      class="mt-1 text-[10px] font-semibold text-amber-700"
+                      title="Our count moves by CityBox orders and Stock In; theirs by their own AI. A gap that lasts is an unpaid order, a miscount or shrinkage.">
+                      CityBox {{ ch.citybox_qty }}
+                    </span>
                     <span v-if="disabled(ch) && !ch.off_plan" class="mt-1 text-[10px] text-gray-500">disabled in CityBox</span>
                     <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
                   </div>

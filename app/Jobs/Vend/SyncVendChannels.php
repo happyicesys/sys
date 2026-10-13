@@ -104,8 +104,16 @@ class SyncVendChannels implements ShouldQueue
 
                     $stockEvent = null;
 
+                    // A CityBox chiller keeps its own ledger (ChillerStockLedger): the scheduled frame
+                    // carries THEIR count only to seed a row that has no ledger yet — new, or coming
+                    // back from retirement. A live row's qty is never overwritten (the write would
+                    // undo an order deducted since their count was read).
+                    if (! empty($channel['qty_seed_only']) && $prevVendChannel && $prevVendChannel->is_active) {
+                        unset($data['qty']);
+                    }
+
                     // Check condition and add qty_sold_at only if the condition meets
-                    if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
+                    if (array_key_exists('qty', $data) && $prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
                         $occurredAt = Carbon::now();
                         $data['qty_sold_at'] = $occurredAt;
                         $data['qty_restocked_at'] = null;
@@ -118,7 +126,7 @@ class SyncVendChannels implements ShouldQueue
                         ];
                     }
 
-                    if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
+                    if (array_key_exists('qty', $data) && $prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
                         $occurredAt = Carbon::now();
                         $data['qty_restocked_at'] = $occurredAt;
                         $data['qty_sold_at'] = null;

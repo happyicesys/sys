@@ -203,9 +203,16 @@ frame, so skipping it left the kiosk stale until a reboot.
 their catalog sync created, so `products.code` IS the `citybox_product_id`
 (`Product::isCityboxOwned()`) — is priced by their portal: channel amounts come
 from their API through `ChillerPlanogram` / `ChannelFrameAdapter`, never from
-`selling_prices`. So Product → Edit hides the Selling Price(s) block for one and
-`ProductController@update` refuses the write, the same way OpsJob → Edit Item
-already suppresses the RP label for a chiller. **Unit Cost is NOT affected** —
+`selling_prices`. Their **price groups** (OPS Pro 价格组, `price_group_list`) are
+mirrored hourly into `citybox_price_groups` by `CityboxPriceGroupSync`, and a group
+NAMED RP1–RP5 is written onto that RP's `selling_prices` row of every owned product
+(delete + add, `previous_amount`, a `user_logs` pair "CityBox price group", source
+`citybox-sync`) — Brian, 2026-10-13. So for an owned product Product → Edit shows
+those groups READ-ONLY, `ProductController@update` refuses a price and
+`deleteSellingPrice` refuses a delete (the next sync would put it back), the same
+way OpsJob → Edit Item already suppresses the RP label for a chiller. Which group a
+chiller is on is not in their API yet, so the charged price stays their live one.
+Regression coverage: `tests/Feature/CityboxPriceGroupSyncTest.php`. **Unit Cost is NOT affected** —
 that one is ours and still drives COGS/GP, and every CB product is missing it
 today. A product a human mapped by hand to a CityBox SKU keeps its own code, is
 not "owned", and keeps its selling prices — it may also sell in vending
@@ -1308,6 +1315,59 @@ rather than adding a new `if (citybox)` somewhere else:
   shortcut. An unbound chiller cannot join an ops job (`ops_job_items.customer_id`
   is NOT NULL) — intended. Manual create (`SettingController::store`) never makes
   a chiller. Regression coverage: `tests/Feature/CityboxProvisioningTest.php`.
+- **Their orders are our chiller sales, and they move our stock** (Brian, 2026-10-13;
+  `citybox/OPENAPI_REPLY_PLAN_2026-10-13.md`). `order_list` is a PULL by ORDER day —
+  no callback — and a past day keeps changing (pay-later captured up to 14 days late,
+  refunds 1 → 3 → 4), so `citybox:pull-orders` runs every minute (today), hourly (3
+  days) and 01:20 (31 days), each a unique queued job; one call per day, an unchanged
+  order (payload hash) costs one bulk `last_seen_at` update. `CityboxOrderSync` mirrors
+  each order into `citybox_orders` / `citybox_order_items`, then:
+  - **`CityboxOrderProjector`** writes ONE `vend_transactions` row per order —
+    `order_id` = their order number, `transaction_datetime` = when the money came in,
+    one unit = product on the row, more = `is_multiple` + one item row PER UNIT, unit
+    cost / GST / GP as the TRADE ingest, payment method `Citybox - Card / Apple Pay /
+    TNG / Other` (codes 900–903, never Card Terminal — card settlement keys on code 1),
+    Site frozen at the first projection. Status 1 and 3 (refund applied) are sales; 4 is
+    `is_refunded` + REFUNDED + `auto_refund_source = citybox_refunded` through
+    `markAutoRefundedByCharge`. A test-rig amount (`ODD_TRANSACTION_AMOUNTS`) is never
+    projected (`skip:test_amount`) or the 23:59 sweep and the next pull would fight. A day
+    the sale lands on or leaves is dirtied for the 02:00 rollup rebuild, so every sales /
+    GP / product report picks chillers up with no report change.
+  - **`ChillerStockLedger`**: a chiller's `vend_channels.qty` is OUR ledger now, like a
+    freezer's. Absolute counts set it — the Stock In A-frame read-back, an Undo Stock In's
+    revert, a hand overwrite, the chiller's first read — each recording the vend's
+    `stock_baseline_at` (when their count was READ). Each order takes its units off ONCE
+    (`stock_deducted_json` per product, so a corrected / cancelled order moves only the
+    difference), unless taken at or before the baseline (already inside that count) or
+    corrected after a newer count. A refund returns money, not goods: stock stays out.
+    A pay-later order is in `order_list` only once paid (`order_not_pay` carries no
+    lines), so its goods leave the ledger late.
+  - **Their live count only checks ours.** `device_product` / device state / signal are
+    read every `citybox.stock_check_every_minutes` (10), not every minute (fleet status,
+    one `box_list` call, still is). The scheduled frame flags `qty_seed_only`, so
+    `SyncVendChannels` writes qty only into a row with no ledger yet (new, or back from
+    retirement) — never over a live row, or a deduction made after their read would be
+    lost. `StockPollService::checkLedger` keeps the per-SKU gap on
+    `citybox_status_json.stock_check` (`confirmed` = still there a check later); the
+    dashboard row badges it and the overview shows "CityBox n" under our qty.
+  `CITYBOX_STOCK_LEDGER=false` restores the old mirror. Regression coverage:
+  `tests/Feature/CityboxOrderSyncTest.php`.
+- **Restock photos gate the door** (Brian, 2026-10-13: "we locally control and
+  detect"). On a chiller stop the driver takes a BEFORE photo, and
+  `CityboxOpsJobItemController::openDoor` refuses until it exists — only before Stock
+  In (`config('citybox.require_before_photo')`); after Stock In the item page asks for
+  the AFTER photo. They are `attachments` in `OpsJobItem::PHOTO_RESTOCK_BEFORE / _AFTER`
+  (types 11/12, `RestockPhotoService` the only writer: upright, ≤ 1600 px JPEG, public on
+  Spaces), split out of the generic item attachments by `OpsJobItemResource`
+  (`restock_photos`). Once both exist their URLs go to CityBox
+  (`PushCityboxRestockPhotos`, `citybox_photo_push_*`) — inert until CityBox ships the
+  endpoint and `CITYBOX_RESTOCK_PHOTO_PATH` is set. Regression coverage:
+  `tests/Feature/CityboxRestockPhotoTest.php`.
+- **Signal** comes from their `signal_strength` in the stock check, onto the same
+  `vends.internet_*` columns a SIM reading uses (max `citybox.signal_max`, 100) and
+  `citybox_status_json.signal`, so the existing 5-bar pill reads it with no query change.
+  Their API answered 设备不存在 for every device on 2026-10-13; a failure only records
+  `signal.error`.
 - **Their status is a separate layer, not our Status.** `ChillerStatus`
   (`Vend::chillerStatus()`) is their ops status / online / heartbeat, built
   from the last poll on the row and shown read-only. mark1's Status
@@ -1372,9 +1432,9 @@ never on "not a vending machine" at the call site.
   basket does not need 11A/11B). `assertValidChannelCode` keeps freezer codes
   whole numbers; the APK constraint (`MqttPaymentClient.slotIds` drops a
   non-digit slot from the REQQR list) is a second reason, not the only one.
-  Sales still resolve the channel from the frame's `SId`; resolving chiller
-  sales by product waits until CityBox delivers their order callback — until
-  then there are no chiller sales in mark1 to resolve (Brian, 2026-09-24).
+  Freezer sales still resolve the channel from the frame's `SId`; chiller sales
+  (CityBox orders, pulled since 2026-10-13) resolve it by PRODUCT — the SKU's row,
+  else 0 for an off-planogram SKU (`CityboxOrderProjector`).
 - Only an EXACT repeat of a code is refused (`assertUniqueChannelCode`, and the
   red cell + blocked Save in the editor). "102" and "102A" may coexist (Brian,
   2026-09-23): they are distinct rows under the unique index, distinct labels
@@ -1392,14 +1452,16 @@ product, the SKU's first row Adjusts, later facings show "same stock as 101" rea
 Both draw `Components/StockQtyInline.vue` over `composables/useStockQty.js`. `App\Services\Stock\ChannelQtyAdjuster`
 is the only writer, and every applied change is a `vend_channel_qty_adjustments` row
 (who, when, before → after), shown on the row as "brian · 260930 11:03 pm (3 → 7)".
-Freezer: sets `vend_channels.qty` (our ledger). Chiller: sends the new figure to CityBox
-through `device_stock_submit` on the machine's LAST door-open session, as the FULL live
-list with one line changed (a partial stocktake is unproven), reads it back, mirrors it;
-no door-open ever from mark1 = refused. Vending machine: refused — its VMC's next
-CHANNEL frame would overwrite it. Every overwrite carries the qty the person saw and is
-refused if the machine moved since (a sale, a Stock In). A chiller DECREASE made here is
-recorded by the next minute poll as a `sale` movement in `citybox_stock_movements`
-(no door-open window) — nothing reads that table yet. Regression coverage:
+Freezer: sets `vend_channels.qty` (our ledger). Chiller: sets our ledger too
+(ChillerStockLedger, 2026-10-13) AND sends the new figure to CityBox through
+`device_stock_submit` on the machine's LAST door-open session, as the FULL live list with
+one line changed (a partial stocktake is unproven), and reads it back; no door-open ever
+from mark1 = refused. Vending machine: refused — its VMC's next CHANNEL frame would
+overwrite it. Every overwrite carries the qty the person saw and is refused if the machine
+moved since (a sale, a Stock In) — for a chiller compared with OUR ledger, so a count that
+differs from CityBox's can still be corrected (with `CITYBOX_STOCK_LEDGER=false`, with
+theirs). A chiller DECREASE made here is recorded by the next stock check as a `sale`
+movement in `citybox_stock_movements` (no door-open window) — nothing reads that table yet. Regression coverage:
 `tests/Feature/VendStockQtyAdjustTest.php`.
 
 ## APK OTA: nudges and the updater's own report

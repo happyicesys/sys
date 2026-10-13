@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * One CityBox-Openapi poll sweep (box_list + device_product per linked vend).
- * Dispatched every minute by citybox:openapi-poll. ShouldBeUnique stops
+ * One CityBox-Openapi poll sweep: box_list, plus device_product / state / signal per
+ * linked vend on stock-check minutes. Dispatched every minute by citybox:openapi-poll. ShouldBeUnique stops
  * sweeps stacking when their API is slow. Fleet-level anomalies are logged
  * only when the set CHANGES — never every tick.
  */
@@ -24,9 +24,12 @@ class PollCityboxOpenapi implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 55; // just under the 1-min schedule
 
+    /** $withStock: also read every device's live stock, state and signal (the stock check). */
+    public function __construct(public bool $withStock = true) {}
+
     public function handle(CityboxOpenapiSync $sync): void
     {
-        $summary = $sync->syncAll();
+        $summary = $sync->syncAll($this->withStock);
 
         $this->logOnChange('citybox:openapi:last_unknown', $summary['unknown'],
             fn ($ids) => Log::notice('Citybox openapi poll: unimported equipment seen', ['equipment_ids' => $ids]));

@@ -455,10 +455,10 @@ class Product extends Model
     /**
      * A product the CityBox catalog sync created and owns: its code IS their
      * product id. Their portal is master for these — name, thumbnail, price and
-     * the active flag all follow it — so mark1-side SELLING prices carry no
-     * meaning (chiller channel amounts come from their API via ChillerPlanogram
-     * / ChannelFrameAdapter, never from selling_prices). Unit cost is unaffected:
-     * that is ours, and it still drives COGS/GP.
+     * the active flag all follow it. Their RP-named price groups are written onto
+     * selling_prices by CityboxPriceGroupSync (read-only in mark1); a chiller still
+     * charges the live price their API reports (ChannelFrameAdapter). Unit cost is
+     * unaffected: that is ours, and it still drives COGS/GP.
      *
      * Same ownership test CatalogSyncService::applyStatusToProducts() uses before
      * flipping is_active, so a product a human mapped BY HAND to a CityBox SKU

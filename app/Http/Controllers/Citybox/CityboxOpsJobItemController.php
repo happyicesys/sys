@@ -8,6 +8,7 @@ use App\Jobs\SubmitCityboxCount;
 use App\Models\CityboxDoorOpenLog;
 use App\Models\OpsJobItem;
 use App\Models\Vend;
+use App\Services\Citybox\RestockPhotoService;
 use App\Services\Citybox\RestockVisitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +33,11 @@ class CityboxOpsJobItemController extends Controller
     public function openDoor(Request $request, int $id, RestockVisitService $visits): RedirectResponse
     {
         $item = $this->chillerItemOr403($request, $id);
+
+        // Before-restock photo first (Brian, 2026-10-13). Checked here, not trusted to the page.
+        if (RestockPhotoService::blocksOpenDoor($item)) {
+            return redirect()->back()->withErrors(['citybox' => 'Take the BEFORE restock photo first — then Open Door.']);
+        }
 
         // A phone double-tap must not fire the door twice.
         $key = "citybox:open:{$item->id}";
@@ -69,6 +75,28 @@ class CityboxOpsJobItemController extends Controller
         SubmitCityboxCount::dispatch($item->id)->onQueue('high');
 
         return redirect()->back()->with('success', 'Re-pushing your count to CityBox…');
+    }
+
+    /** Upload one before/after restock photo; answers the item's photo slots. */
+    public function storeRestockPhoto(Request $request, int $id, RestockPhotoService $photos): JsonResponse
+    {
+        $item = $this->chillerItemOr403($request, $id);
+        $data = $request->validate([
+            'slot' => ['required', 'in:'.implode(',', array_keys(RestockPhotoService::SLOTS))],
+            'file' => ['required', 'file', 'mimetypes:image/jpeg,image/png,image/webp,image/heic,image/heif', 'max:20480'],
+        ], ['file.mimetypes' => 'A restock photo must be a picture (JPEG, PNG, WebP or HEIC).']);
+
+        $photos->store($item, $data['slot'], $request->file('file'));
+
+        return response()->json($photos->payload($item));
+    }
+
+    public function destroyRestockPhoto(Request $request, int $id, int $attachmentId, RestockPhotoService $photos): JsonResponse
+    {
+        $item = $this->chillerItemOr403($request, $id);
+        $photos->delete($item, $attachmentId);
+
+        return response()->json($photos->payload($item));
     }
 
     /** Door-open history for the item's vend (the collapsible list under the button). */

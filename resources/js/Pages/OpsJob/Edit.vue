@@ -583,7 +583,7 @@
                                       </div>
                                   </div>
                                   <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
-                                  :class="[row.attachments && row.attachments.length ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
+                                  :class="[(row.attachments && row.attachments.length) || row.restock_photos?.after?.length ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
                                   v-if="row.status >= 3"
                                   >
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
@@ -857,7 +857,13 @@
                                   :offline-since="row.vend?.citybox_status_json?.heartbeat_last_offline"
                                   source="ops_job_page"
                                   compact
+                                  :disabled="row.status < 3 && !(row.restock_photos?.before?.length)"
+                                  :disabled-reason="row.status < 3 && !(row.restock_photos?.before?.length) ? 'Take the before restock photo first (open the item)' : ''"
                                 />
+                                <div class="text-[10px] mt-0.5 space-x-1">
+                                  <span :class="row.restock_photos?.before?.length ? 'text-green-700' : 'text-amber-700'">📷 Before {{ row.restock_photos?.before?.length ? '✓' : '—' }}</span>
+                                  <span :class="row.restock_photos?.after?.length ? 'text-green-700' : (row.status >= 3 ? 'text-red-600 font-semibold' : 'text-gray-500')">After {{ row.restock_photos?.after?.length ? '✓' : '—' }}</span>
+                                </div>
                                 <div class="text-[10px] mt-0.5" v-if="row.citybox_submit_status === 'failed'"><span class="text-amber-700 font-semibold">CityBox push failed</span></div>
                                 <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok' && row.status >= 3"><span class="text-green-700">Count pushed</span></div>
                                 <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'reverted'"><span class="text-gray-600">Count reverted</span></div>

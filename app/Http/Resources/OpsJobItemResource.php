@@ -36,7 +36,10 @@ class OpsJobItemResource extends JsonResource
             'acc_vend_transactions_cashless_amount' => isset($this->acc_vend_transactions_cashless_amount) ? $this->acc_vend_transactions_cashless_amount / 100 : 0,
             'acc_vend_transactions_promo_amount' => isset($this->acc_vend_transactions_promo_amount) ? $this->acc_vend_transactions_promo_amount / 100 : 0,
             'acc_vend_transactions_count' => isset($this->acc_vend_transactions_count) ? $this->acc_vend_transactions_count : 0,
-            'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
+            // Restock photos have their own slots on a chiller stop (RestockPhotoService); the
+            // generic list stays the generic uploads.
+            'attachments' => AttachmentResource::collection($this->whenLoaded('attachments', fn () => $this->attachments->reject(fn ($a) => in_array((int) $a->type, \App\Models\OpsJobItem::RESTOCK_PHOTO_TYPES, true))->values())),
+            'restock_photos' => $this->whenLoaded('attachments', fn () => \App\Services\Citybox\RestockPhotoService::payloadFrom($this->attachments)),
             'cash_amount' => isset($this->cash_amount) ? $this->cash_amount : null,
             'cashless_amount' => $this->cashless_amount,
             'cms_transaction_at' => isset($this->cms_transaction_at) ? $this->cms_transaction_at->format('ymd h:i a (D)') : '',
@@ -141,6 +144,7 @@ class OpsJobItemResource extends JsonResource
             'citybox_submit_status' => $this->citybox_submit_status ?? null,
             'citybox_submitted_at' => isset($this->citybox_submitted_at) ? \Carbon\Carbon::parse($this->citybox_submitted_at)->format('ymd h:i a (D)') : null,
             'citybox_submit_error' => $this->citybox_submit_error ?? null,
+            'citybox_photo_push_status' => $this->citybox_photo_push_status ?? null,
             'vend_channel_record_id' => $this->vend_channel_record_id,
             'vendChannelRecord' => VendChannelRecordResource::make($this->whenLoaded('vendChannelRecord')),
             'verified_at' => isset($this->verified_at) ? $this->verified_at->format('ymd h:i a (D)') : '',

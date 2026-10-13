@@ -140,6 +140,17 @@ class OpsJobItem extends Model
         return $this->morphMany(Attachment::class, 'modelable')->oldest();
     }
 
+    /**
+     * Before/after restock photos of a CityBox chiller stop (2026-10-13), kept as attachments in
+     * these `attachments.type` slots; the generic item upload writes type NULL. RestockPhotoService
+     * is their only writer.
+     */
+    public const PHOTO_RESTOCK_BEFORE = 11;
+
+    public const PHOTO_RESTOCK_AFTER = 12;
+
+    public const RESTOCK_PHOTO_TYPES = [self::PHOTO_RESTOCK_BEFORE, self::PHOTO_RESTOCK_AFTER];
+
     public function cmsTransactionBy()
     {
         return $this->belongsTo(User::class, 'cms_transaction_by');

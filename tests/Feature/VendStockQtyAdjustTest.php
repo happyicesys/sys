@@ -212,8 +212,43 @@ class VendStockQtyAdjustTest extends TestCase
         $this->assertSame(0, VendChannelQtyAdjustment::count());
     }
 
-    public function test_a_chiller_overwrite_is_refused_when_citybox_moved_since_the_page_loaded(): void
+    public function test_a_chiller_overwrite_is_refused_when_our_ledger_moved_since_the_page_loaded(): void
     {
+        $vend = $this->chiller();
+        $lemon = $this->row($vend, 90339);
+        // A CityBox order took one off our ledger after the page loaded.
+        $lemon->update(['qty' => 2]);
+
+        $this->actingAs($this->user())
+            ->postJson("/vends/{$vend->id}/stock-qty/{$lemon->id}", ['qty' => 7, 'expected_qty' => 3])
+            ->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'The system now shows 2, not 3'));
+
+        $this->assertSame([], $this->gw->submits);
+    }
+
+    public function test_a_chiller_overwrite_corrects_our_ledger_even_when_citybox_disagrees(): void
+    {
+        // The reason to overwrite by hand: ours says 3, CityBox says 2, the shelf holds 5.
+        $vend = $this->chiller();
+        $lemon = $this->row($vend, 90339);
+        $this->gw->seedStock('E1', [
+            ['id' => 90338, 'name' => 'Suntory', 'qty' => 4, 'layer' => 1],
+            ['id' => 90339, 'name' => 'Lemon', 'qty' => 2, 'layer' => 1],
+        ]);
+
+        $this->actingAs($this->user())
+            ->postJson("/vends/{$vend->id}/stock-qty/{$lemon->id}", ['qty' => 5, 'expected_qty' => 3])
+            ->assertOk();
+
+        $this->assertSame(5, (int) $lemon->fresh()->qty);
+        $this->assertSame(5, $this->liveQty(90339), 'CityBox is told the same figure');
+        $this->assertSame(4, (int) $this->row($vend, 90338)->qty, 'the other SKU keeps our ledger');
+    }
+
+    public function test_with_the_ledger_off_a_chiller_overwrite_is_refused_when_citybox_moved(): void
+    {
+        config(['citybox.stock_ledger' => false]);
         $vend = $this->chiller();
         $lemon = $this->row($vend, 90339);
         // A customer took one; the minute poll has not mirrored it yet.
