@@ -114,6 +114,8 @@ class VendTransactionResource extends JsonResource
             // day in Singapore, not an instant to be shown in the viewer's zone.
             // Re-projecting it into another timezone would move the date.
             'ai_recognition' => $this->ai_recognition ?? null,
+            // Our own camera-5 recording(s) of the sale's door session (FreezerClipLinks).
+            'door_clips' => $this->door_clips ?? null,
             // Happy Hour slot that priced this single sale (HappyHourSales::badges); null on a
             // multiple purchase, whose promo lines carry it on their item rows.
             'happy_hour' => $this->happy_hour ?? null,

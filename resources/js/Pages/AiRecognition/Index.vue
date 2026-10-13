@@ -208,7 +208,13 @@
                       >
                         ▶ {{ videoLabel(url, urlIndex) }}
                       </a>
-                      <span v-if="!row.videos.length" class="text-gray-400">—</span>
+                      <a v-for="clip in row.clips" :key="'clip-' + clip.id" :href="clip.url" target="_blank" rel="noopener noreferrer"
+                        class="text-emerald-700 hover:underline whitespace-nowrap"
+                        title="Our own recording (not sent to the AI), from payment until the door closed"
+                      >
+                        ▶ Ours · Cam {{ clip.camera_id }}<span v-if="clip.seconds !== null"> · {{ clip.seconds }}s</span>
+                      </a>
+                      <span v-if="!row.videos.length && !row.clips.length" class="text-gray-400">—</span>
                       <span v-if="row.pushes > 1" class="text-gray-400" title="Zijia pushed this session more than once">{{ row.pushes }} pushes</span>
                     </div>
                   </TableData>

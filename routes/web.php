@@ -1359,6 +1359,9 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
 */
 Route::middleware(['auth', 'cors'])->get('/ai-recognition', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'index'])
     ->name('ai-recognition');
+// Our own camera-5 door-session recording (smart_freezer_clips): a signed Spaces link, same gate.
+Route::middleware(['auth', 'cors'])->get('/freezer-clips/{clip}', [\App\Http\Controllers\SmartFreezer\FreezerClipController::class, 'show'])
+    ->name('freezer-clips.show');
 
 /*
 | Card Settlement — upload the acquirer's daily settlement report (NETS

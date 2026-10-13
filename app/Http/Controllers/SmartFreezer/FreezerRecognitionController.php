@@ -9,6 +9,7 @@ use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Support\VendCode;
@@ -91,7 +92,15 @@ class FreezerRecognitionController extends Controller
         $cards = $this->cardCharges($page->getCollection());
         $purchasedProducts = $this->purchasedProducts($page->getCollection());
 
-        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts));
+        // Our own camera-5 recordings of the same door sessions (smart_freezer_clips), by session ref.
+        $clips = app(FreezerClipLinks::class)->linksFor($page->getCollection()
+            ->filter(fn (SmartFreezerRecognition $r) => $r->vend_id && $r->session_ref)
+            ->mapWithKeys(fn (SmartFreezerRecognition $r) => [$r->id => [(int) $r->vend_id, (string) $r->session_ref]])
+            ->all());
+
+        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts) + [
+            'clips' => $clips[$r->id] ?? [],
+        ]);
 
         return Inertia::render('AiRecognition/Index', [
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.

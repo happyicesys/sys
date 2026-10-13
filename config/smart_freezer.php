@@ -39,6 +39,32 @@ return [
     | Generate with: php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
     | Keep it in .env only.
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Our own door-session recordings (camera 5)
+    |--------------------------------------------------------------------------
+    | The freezer app records camera 5 from payment until the door closes (max 5 min), shrinks it to
+    | 640x360 H.264 and uploads one mp4 per sale (FreezerClipStore, `smart_freezer_clips`). Private on
+    | the default disk; viewed through /freezer-clips/{clip} (permission read ai-recognition).
+    */
+    'clips' => [
+        // 5 min at ~500 kbps is ~19 MB; the cap leaves room for a busier scene.
+        'max_bytes' => (int) env('FREEZER_CLIP_MAX_BYTES', 40 * 1024 * 1024),
+        // Duration is read from the file when ffprobe is present, else the device's figure is kept.
+        'ffprobe_bin' => env('FREEZER_CLIP_FFPROBE', '/usr/bin/ffprobe'),
+        // How long a viewer's signed Spaces link lives.
+        'link_minutes' => (int) env('FREEZER_CLIP_LINK_MINUTES', 30),
+        // The switch the freezer reads (GET /api/v1/vends/{code}/clips/settings, every 30 min): the camera
+        // to record, 0 = recording off everywhere — turns it off with no OTA. FREEZER_CLIP_VENDS narrows
+        // it to a comma list of machine codes (empty = every smart freezer); "2009:3" also picks that
+        // machine's camera.
+        'camera' => (int) env('FREEZER_CLIP_CAMERA', 5),
+        'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_CLIP_VENDS', ''))))),
+        // One host recording per piece; the app chains pieces until the door closes, capped at max.
+        'segment_ms' => (int) env('FREEZER_CLIP_SEGMENT_MS', 10000),
+        'max_ms' => (int) env('FREEZER_CLIP_MAX_MS', 300000),
+    ],
+
     'zijia' => [
         'video_webhook_token' => env('ZIJIA_VIDEO_WEBHOOK_TOKEN'),
         // Product approval callback (算法服务接口文档 §7) is unsigned plain JSON: once set, its URL

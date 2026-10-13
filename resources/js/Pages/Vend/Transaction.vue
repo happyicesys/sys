@@ -1013,6 +1013,17 @@
                                     {{ formatDuration(vendTransaction.ai_recognition.total_seconds) }}
                                 </span>
                             </div>
+                            <!-- Our own recording of the door session (camera 5), uploaded by the
+                                 freezer after the door closed — for our records, not for the AI. -->
+                            <div v-if="vendTransaction.door_clips && permissions.includes('read ai-recognition')"
+                                class="flex flex-col items-center mt-0.5">
+                                <a v-for="clip in vendTransaction.door_clips" :key="clip.id" :href="clip.url"
+                                    target="_blank" rel="noopener noreferrer"
+                                    class="text-[10px] text-blue-600 hover:underline whitespace-nowrap"
+                                    title="Our camera recording of this door visit">
+                                    ▶ Cam {{ clip.camera_id }}<span v-if="clip.seconds !== null"> · {{ formatDuration(clip.seconds) }}</span>
+                                </a>
+                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.vend_channel_error_desc && vendTransaction.vend_channel_error_code != 0 && vendTransaction.vend_channel_error_code != 6">

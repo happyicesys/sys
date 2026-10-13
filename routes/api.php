@@ -46,6 +46,14 @@ Route::prefix('v1')->group(function () {
     Route::post('/vends/{code}/photos', [\App\Http\Controllers\FreezerControlController::class, 'uploadPhoto']);
     Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
 
+    // Device -> mark1 upload of our own door-session recording (smart freezer camera 5). Signed by
+    // the machine: the signature covers the path (session + camera) and the whole mp4 body.
+    Route::get('/vends/{code}/clips/settings', [\App\Http\Controllers\Api\V1\FreezerClipController::class, 'settings'])
+        ->middleware(['throttle:device-card', 'device.signed']);
+    Route::post('/vends/{code}/clips/{sessionRef}/{camera}', [\App\Http\Controllers\Api\V1\FreezerClipController::class, 'store'])
+        ->where(['sessionRef' => 'SF-[0-9]+-[0-9]+-[0-9]+', 'camera' => '[0-9]'])
+        ->middleware(['throttle:device-card', 'device.signed']);
+
     // Device -> mark1 card rail for a machine on a remote (cloud) terminal — the smart
     // freezer's Payrallel rail. Moves money, so every call is signed by the machine.
     Route::prefix('/vends/{code}/card')

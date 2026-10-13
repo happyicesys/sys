@@ -4206,8 +4206,12 @@ class VendController extends Controller
         // CityBox chiller's, when it has one). Two indexed lookups for the page — nothing is
         // stored on vend_transactions; see RecognitionBadges.
         $aiBadges = app(\App\Services\SmartFreezer\RecognitionBadges::class)->forSales($records);
+        // Our own camera-5 recording of the same door session (smart_freezer_clips), shown in that
+        // cell as a play link: one indexed lookup for the page, matched by SFREF like the badge.
+        $doorClips = app(\App\Services\SmartFreezer\FreezerClipLinks::class)->forSales($records);
         foreach ($records as $record) {
             $record->ai_recognition = $aiBadges[$record->id] ?? null;
+            $record->door_clips = $doorClips[$record->id] ?? null;
         }
 
         // "Happy Hour" badge in Price Type: the slot that priced the sale (single) or the line
