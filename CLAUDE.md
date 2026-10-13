@@ -1114,7 +1114,9 @@ A save never errors on a planning hiccup; the minute run catches up. Regression 
 
 **Our own door recordings — camera 5** (Brian, 2026-10-13: "for our own records"). Zijia's push only
 ever carries cameras 3 and 4, so the freezer app (v33+, `data/clip/`) records camera 5 itself through
-the host's `takeVideo`: from payment success until the door closes + 3 s (max 5 min), shrinks it to
+the host's `takeVideo`: from the door unlocking until it closes + 3 s (max 5 min) — not from payment:
+the host grabs its cameras for its own order video while the door opens, and on a shared camera ours
+gets nothing (bench 2009, 2026-10-13) — shrinks it to
 640×360 H.264 and uploads one mp4 per sale to `POST /api/v1/vends/{code}/clips/{SFREF}/{camera}`
 (signed like the card rail, raw mp4 body). `FreezerClipStore` is the only writer of
 `smart_freezer_clips` — private on Spaces under `freezer-videos/{vend}/`, one row per (machine, session,
@@ -1124,7 +1126,9 @@ Zijia's metered AI. The switch is `GET …/clips/settings` (`smart_freezer.clips
 freezer re-reads it every 30 min and records nothing until mark1 has answered once. Shown as "▶ Cam 5" in
 the Sales Transactions AI Recognition cell and "▶ Ours · Cam 5" on AI Recognition (`FreezerClipLinks`,
 by SFREF), played through `/freezer-clips/{clip}` (permission `read ai-recognition` + operator
-boundary → a 30-min signed Spaces link). Regression coverage: `tests/Feature/FreezerClipTest.php`.
+boundary → a 30-min signed Spaces link). Remote control op `clip` {cameraId, seconds 3–60} (app 33+,
+refused mid-sale) records a camera check under `SF-<code>-<epoch>-0`; the panel timeline links it.
+Regression coverage: `tests/Feature/FreezerClipTest.php`, `tests/Feature/FreezerRemoteControlTest.php`.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
