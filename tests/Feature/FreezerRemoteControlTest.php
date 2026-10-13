@@ -532,6 +532,28 @@ class FreezerRemoteControlTest extends TestCase
         $this->get($row['attachment']['url'])->assertOk()->assertHeader('Content-Type', 'image/jpeg');
     }
 
+    public function test_a_camera_clip_needs_app_33_and_links_the_uploaded_clip(): void
+    {
+        $vend = $this->freezer(['apk_version_code' => 32]);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'clip', 'args' => ['cameraId' => 5]])->assertStatus(422);
+
+        $vend->forceFill(['apk_version_code' => 33])->save();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'clip', 'args' => ['cameraId' => 5, 'seconds' => 61]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'clip', 'args' => ['cameraId' => 5]])->assertStatus(202);
+        $cmd = FreezerControlCommand::latest('id')->first();
+        $this->assertEqualsCanonicalizing(['cameraId' => 5, 'seconds' => 10], $cmd->args);
+
+        $ref = "SF-{$vend->code}-1791880000-0";
+        $this->ack($vend, ['cmdId' => $cmd->cmd_id, 'op' => 'clip', 'result' => 'ok', 'msg' => "recording camera 5 for 10 s as {$ref}; the clip uploads when done"]);
+        $row = fn () => collect($this->getJson("/vends/{$vend->id}/freezer-controls")->assertOk()->json('commands'))->firstWhere('id', $cmd->id);
+        $this->assertNull($row()['attachment'], 'no link until the clip has arrived');
+
+        $clip = \App\Models\SmartFreezerClip::create([
+            'vend_id' => $vend->id, 'session_ref' => $ref, 'camera_id' => 5, 'path' => "freezer-videos/{$vend->id}/{$ref}-cam5.mp4", 'bytes' => 1,
+        ]);
+        $this->assertSame(['type' => 'video', 'url' => route('freezer-clips.show', $clip->id)], $row()['attachment']);
+    }
+
     public function test_mains_and_camera_events_file_as_timeline_rows(): void
     {
         $vend = $this->freezer(['apk_version_code' => 14]);

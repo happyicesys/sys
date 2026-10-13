@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\FreezerControlCommand;
 use App\Models\FreezerSetpointSchedule;
+use App\Models\SmartFreezerClip;
 use App\Models\Vend;
 use App\Services\Freezer\FreezerControlService;
 use App\Services\Freezer\FreezerPhotoThumbnail;
@@ -65,6 +66,8 @@ class FreezerControlController extends Controller
             $periodic = json_decode($periodic, true);
         }
 
+        $clipLinks = $this->clipLinks($vend, $commands);
+
         return response()->json([
             'supported' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE,
             'is_online' => (bool) $vend->is_online,
@@ -84,6 +87,8 @@ class FreezerControlController extends Controller
             'supported_delta' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DELTA,
             // The fan is the lid demister, kept on by the app (APK 22).
             'supported_demist_fan' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DEMIST_FAN,
+            // Camera clip check (APK 33): records and uploads one of our own door clips.
+            'supported_clip' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_CLIP,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,
@@ -121,12 +126,44 @@ class FreezerControlController extends Controller
                 'has_log' => $c->response_log !== null && $c->response_log !== '',
                 'log_scope' => $c->log_scope,
                 'log_file' => $c->log_path ? ['lines' => $c->log_lines, 'url' => route('vends.freezer-controls.log', [$vend->id, $c->id])] : null,
-                'attachment' => $c->attachment_path ? ['type' => $c->attachment_type, 'url' => route('vends.freezer-controls.attachment', [$vend->id, $c->id])] : null,
+                'attachment' => $c->attachment_path
+                    ? ['type' => $c->attachment_type, 'url' => route('vends.freezer-controls.attachment', [$vend->id, $c->id])]
+                    : ($clipLinks[$c->id] ?? null),
                 'requested_by' => $c->requested_by_name,
                 'requested_at' => $c->created_at?->toIso8601String(),
                 'responded_at' => $c->responded_at?->toIso8601String(),
             ])->values(),
         ]);
+    }
+
+    /**
+     * A `clip` command's video arrives later as an upload (`smart_freezer_clips`), filed under the ref
+     * the device named in its answer ("… as SF-50001-1791880000-0 …"). One lookup for the page.
+     *
+     * @return array<int, array{type: string, url: string}> command id => link to the clip
+     */
+    private function clipLinks(Vend $vend, $commands): array
+    {
+        $refs = [];
+        foreach ($commands as $c) {
+            if ($c->op === 'clip' && preg_match('/\bSF-\d+-\d+-0\b/', (string) $c->response_msg, $m)) {
+                $refs[$c->id] = $m[0];
+            }
+        }
+        if ($refs === []) {
+            return [];
+        }
+        $clips = SmartFreezerClip::query()->where('vend_id', $vend->id)->whereIn('session_ref', array_values($refs))
+            ->get(['id', 'session_ref'])->keyBy('session_ref');
+
+        $out = [];
+        foreach ($refs as $commandId => $ref) {
+            if ($clip = $clips->get($ref)) {
+                $out[$commandId] = ['type' => 'video', 'url' => route('freezer-clips.show', $clip->id)];
+            }
+        }
+
+        return $out;
     }
 
     /**

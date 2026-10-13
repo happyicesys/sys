@@ -40,6 +40,8 @@ class FreezerControlService
         'fanmode',
         // APK v22
         'delta',
+        // APK v33
+        'clip',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
@@ -68,6 +70,21 @@ class FreezerControlService
     public const DELTA_OPS = ['delta'];
 
     public const MIN_APK_VERSION_CODE_DELTA = 22;
+
+    /**
+     * `clip` needs APK 33: record N seconds from a camera and upload it as one of our own door clips
+     * (`smart_freezer_clips`, session ref `SF-<code>-<epoch s>-0`) — the camera-5 check. The device
+     * refuses it while a sale owns the cabinet, so a sale's own clip is never cut short.
+     */
+    public const CLIP_OPS = ['clip'];
+
+    public const MIN_APK_VERSION_CODE_CLIP = 33;
+
+    public const CLIP_SECONDS_DEFAULT = 10;
+
+    public const CLIP_SECONDS_MIN = 3;
+
+    public const CLIP_SECONDS_MAX = 60;
 
     /**
      * From APK 22 the AG-325's fan output is run as the demister fan above the glass lid: the app keeps
@@ -305,6 +322,7 @@ class FreezerControlService
     public static function minApkVersionFor(string $op): int
     {
         return match (true) {
+            in_array($op, self::CLIP_OPS, true) => self::MIN_APK_VERSION_CODE_CLIP,
             in_array($op, self::DELTA_OPS, true) => self::MIN_APK_VERSION_CODE_DELTA,
             in_array($op, self::THERMOSTAT_MODE_OPS, true) => self::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
             in_array($op, self::BATCH2_OPS, true) => self::MIN_APK_VERSION_CODE_BATCH2,
@@ -323,6 +341,7 @@ class FreezerControlService
             'status', 'lock', 'unlock', 'selfcheck', 'restart', 'reboot' => [],
             'photo' => $this->cameraId($args['cameraId'] ?? 0),
             'beep' => $this->beepSeconds($args['seconds'] ?? self::BEEP_SECONDS_DEFAULT),
+            'clip' => $this->cameraId($args['cameraId'] ?? null) + $this->clipSeconds($args['seconds'] ?? self::CLIP_SECONDS_DEFAULT),
             'diag' => array_key_exists($args['probe'] ?? '', self::DIAG_PROBES)
                 ? ['probe' => $args['probe']]
                 : throw ValidationException::withMessages(['args.probe' => 'Choose one of the listed diagnostics.']),
@@ -347,6 +366,15 @@ class FreezerControlService
     {
         if (! is_int($seconds) || $seconds < 1 || $seconds > self::BEEP_SECONDS_MAX) {
             throw ValidationException::withMessages(['args.seconds' => 'Beep for 1 to '.self::BEEP_SECONDS_MAX.' seconds.']);
+        }
+
+        return ['seconds' => $seconds];
+    }
+
+    private function clipSeconds(mixed $seconds): array
+    {
+        if (! is_int($seconds) || $seconds < self::CLIP_SECONDS_MIN || $seconds > self::CLIP_SECONDS_MAX) {
+            throw ValidationException::withMessages(['args.seconds' => 'Record '.self::CLIP_SECONDS_MIN.' to '.self::CLIP_SECONDS_MAX.' seconds.']);
         }
 
         return ['seconds' => $seconds];
