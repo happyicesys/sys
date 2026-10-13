@@ -1461,6 +1461,18 @@ on server price. A new write path that changes what a machine shows calls
 `PushMappingMenuSync::schedule()` / `scheduleForProduct()`. Regression coverage:
 `tests/Feature/MappingMenuAutoPushTest.php`.
 
+## Nightly stock count: a lost night is estimated, never re-run
+
+`save:today-stock-count` (23:59) snapshots every machine's live `vend_channels` into
+`stock_counts` / `stock_count_items` (the "Stock Count Dashboard"; unrelated to ops-job
+`stock_checks`). Because it reads LIVE stock, **never run `save:stock-count <past date>`**:
+it stamps today's stock on that date. A night that lost its items is estimated with
+`stock-count:reconstruct-day <date>` (preview, `--backtest`, `--apply`; only fills headers
+with no items, `qty_warehouse` NULL). The CMS warehouse list is fetched once per run
+(`StockCountWarehouseQty`), and a CMS outage costs only `qty_warehouse` (NULL = unknown,
+not 0), never the machine qty. 2026-09-21 is the one reconstructed day:
+`STOCK_COUNT_RECONSTRUCTION_2026-09-21.md`.
+
 ## Ops job stops: four kinds of row, one registry
 
 An ops job (a driver-day) carries four row types: `ops_job_items` (machine
