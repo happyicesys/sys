@@ -44,15 +44,17 @@ class ReconstructStockCountDayTest extends TestCase
         DB::table('ops_job_items')->insert(['ops_job_id' => $job, 'vend_id' => $vendId, 'customer_id' => 1, 'status' => $status, 'updated_by' => 1]);
     }
 
-    /** A = no visit on 21; B = refilled on 21; C = 21 already has items. */
+    /** A = no visit on 21, visit on 22; B = refilled on 21; C = 21 already has items; D = no visits. */
     private function fleet(): array
     {
-        [$a, $b, $c] = [701, 702, 703];
+        [$a, $b, $c, $d] = [701, 702, 703, 704];
 
-        // A: P1 10 -> sells 4 on 21; P2 3 untouched; P3 appears only on 22 (no visit on 21, so not there yet).
+        // A: P1 10 -> sells 4 on 21; P2 3 untouched; P3 arrives at the 22 visit (not there on 21);
+        // P6 leaves at the 22 visit (still there on 21).
         $a20 = $this->header($a, 20);
         $this->item($a20, 1, 10, 2000, 80);
         $this->item($a20, 2, 3, 600, 50);
+        $this->item($a20, 6, 2, 300, 70);
         $a22 = $this->header($a, 22);
         $this->item($a22, 1, 5, 1000, 80);
         $this->item($a22, 2, 3, 600, 50);
@@ -60,6 +62,17 @@ class ReconstructStockCountDayTest extends TestCase
         $this->sold($a, 1, '2026-09-21', 4);
         $this->sold($a, 1, '2026-09-22', 1);
         $this->visit($a, '2026-09-21', 99); // cancelled job: not a visit
+        $this->visit($a, '2026-09-22');
+
+        // D: no visit either day. P7 added outside any job (only on 22) was there on 21;
+        // P8 gone by 22 with no visit went on 21.
+        $d20 = $this->header($d, 20);
+        $this->item($d20, 1, 4, 800, 80);
+        $this->item($d20, 8, 5, 500, 30);
+        $d22 = $this->header($d, 22);
+        $this->item($d22, 1, 4, 800, 80);
+        $this->item($d22, 7, 3, 300, 40);
+        $this->sold($d, 7, '2026-09-22', 2);
 
         // B: refilled on 21, P1 9 at end of 22 after selling 1; P4 arrived with the refill; P5 removed at it.
         $b20 = $this->header($b, 20);
@@ -78,7 +91,7 @@ class ReconstructStockCountDayTest extends TestCase
         $c21 = $this->header($c, 21);
         $this->item($c21, 1, 7, 1400, 80);
 
-        return ['a' => $this->header($a, 21), 'b' => $this->header($b, 21), 'c' => $c21];
+        return ['a' => $this->header($a, 21), 'b' => $this->header($b, 21), 'c' => $c21, 'd' => $this->header($d, 21)];
     }
 
     private function itemsOf(int $stockCountId)
@@ -103,7 +116,8 @@ class ReconstructStockCountDayTest extends TestCase
         $this->artisan('stock-count:reconstruct-day', ['date' => '2026-09-21', '--apply' => true])->assertSuccessful();
 
         $a = $this->itemsOf($h['a']);
-        $this->assertSame([1, 2], $a->keys()->sort()->values()->all(), 'P3 had no visit to arrive with');
+        $this->assertSame([1, 2, 6], $a->keys()->sort()->values()->all(), 'P3 came at the 22 visit, P6 left at it');
+        $this->assertSame(2, (int) $a[6]->qty_vend);
         $this->assertSame(6, (int) $a[1]->qty_vend);            // 10 - 4 sold
         $this->assertSame(1200, (int) $a[1]->stock_value_amount); // 6 x 200 per unit
         $this->assertSame(480, (int) $a[1]->stock_cost_amount);   // 6 x 80
@@ -115,6 +129,10 @@ class ReconstructStockCountDayTest extends TestCase
         $this->assertSame([1, 4], $b->keys()->sort()->values()->all(), 'P5 left at the refill, P4 came with it');
         $this->assertSame(10, (int) $b[1]->qty_vend);           // 9 + 1 sold on 22
         $this->assertSame(6, (int) $b[4]->qty_vend);
+
+        $d = $this->itemsOf($h['d']);
+        $this->assertSame([1, 7], $d->keys()->sort()->values()->all(), 'P7 was added outside a job, P8 went on 21');
+        $this->assertSame(5, (int) $d[7]->qty_vend);            // 3 + 2 sold on 22
 
         $this->assertCount(1, $this->itemsOf($h['c']));
         $this->assertSame(50, (int) $this->itemsOf($h['c'])[1]->qty_warehouse, 'a header with items is never touched');

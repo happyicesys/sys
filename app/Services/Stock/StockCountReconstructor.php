@@ -18,13 +18,20 @@ use Illuminate\Support\Facades\DB;
  *   visits on both / one side     the side that exists, D+1 first
  *
  * sold = gp_metrics.success_count; a visit = a completed ops_job_item
- * (status >= 3, <> 99) on a job dated that day. A product is carried on D when
- * it is on both sides, or on D-1 with no visit on D (nothing could have taken
- * it off), or on D+1 with a visit on D (it arrived with the refill).
+ * (status >= 3, <> 99) on a job dated that day. Which products the machine
+ * carried on D (measured on 09-17, 09-23 and 10-06):
  *
- * Backtested against real days (2026-10-13): 09-17 98.2% of rows exact, fleet
- * total -0.14%; 09-23 95.3% exact, total -0.06%. Warehouse qty cannot be
- * estimated (CMS keeps no history), so it is left NULL.
+ *   on both sides                       yes
+ *   on D-1 only                         yes if no visit on D and (a visit on
+ *                                       D+1 took it off, or there is no D+1
+ *                                       snapshot); else it went on D
+ *   on D+1 only                         yes if a visit on D brought it, or no
+ *                                       visit on D+1 could have (it was added
+ *                                       outside a job), or D-1 has no snapshot
+ *
+ * Visits on both D and D+1: qty(D-1) - sold(D) measured closer than the next
+ * side. Warehouse qty cannot be estimated (CMS keeps no history): NULL.
+ * Score any real day with `stock-count:reconstruct-day <date> --backtest`.
  */
 class StockCountReconstructor
 {
@@ -58,7 +65,10 @@ class StockCountReconstructor
             foreach (array_unique(array_merge(array_keys($before), array_keys($after))) as $productId) {
                 $b = $before[$productId] ?? null;
                 $a = $after[$productId] ?? null;
-                if (! (($b && $a) || ($b && ! $visit) || ($a && $visit))) {
+                $carried = ($b && $a)
+                    || ($b && ! $visit && ($visitNext || ! isset($next[$vendId])))
+                    || ($a && ($visit || ! $visitNext || ! isset($prev[$vendId])));
+                if (! $carried) {
                     continue;
                 }
 
@@ -69,10 +79,10 @@ class StockCountReconstructor
                     [$qty, $case, $source] = [max(0, $b->qty - $sold), self::CASE_NO_VISIT, $b];
                 } elseif ($visit && ! $visitNext && $a) {
                     [$qty, $case, $source] = [$a->qty + $soldAfter, self::CASE_REFILLED, $a];
-                } elseif ($a) {
-                    [$qty, $case, $source] = [$a->qty + $soldAfter, self::CASE_FALLBACK, $a];
-                } else {
+                } elseif ($b) {
                     [$qty, $case, $source] = [max(0, $b->qty - $sold), self::CASE_FALLBACK, $b];
+                } else {
+                    [$qty, $case, $source] = [$a->qty + $soldAfter, self::CASE_FALLBACK, $a];
                 }
 
                 // Per-unit value and cost come from the snapshot the qty came
