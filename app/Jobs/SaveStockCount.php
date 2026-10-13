@@ -15,6 +15,7 @@ class SaveStockCount implements ShouldQueue
     use Queueable;
 
     protected $date;
+
     protected $vendID;
 
     public function __construct($date, $vendID)
@@ -26,7 +27,9 @@ class SaveStockCount implements ShouldQueue
     public function handle(StockCountWarehouseQty $warehouse): void
     {
         $vend = Vend::with(['customer', 'productMapping'])->find($this->vendID);
-        if (!$vend || !$vend->customer || !$vend->productMapping) return;
+        if (! $vend || ! $vend->customer || ! $vend->productMapping) {
+            return;
+        }
 
         $dateObj = Carbon::parse($this->date);
 
@@ -38,12 +41,12 @@ class SaveStockCount implements ShouldQueue
                 $dateObj->copy()->endOfDay(),
             ])
             ->get();
-        $cashSalesCents    = (int) $vendTransactions->where('payment_method_id', 1)->sum('amount');
-        $cashlessSalesCents= (int) $vendTransactions->where('payment_method_id', '!=', 1)->sum('amount');
+        $cashSalesCents = (int) $vendTransactions->where('payment_method_id', 1)->sum('amount');
+        $cashlessSalesCents = (int) $vendTransactions->where('payment_method_id', '!=', 1)->sum('amount');
 
         // Coin float (decide if this is cents or a coin count — here we assume *cents*)
         $coinFloatCents = 0;
-        if (!empty($vend->parameter_json)) {
+        if (! empty($vend->parameter_json)) {
             $param = is_array($vend->parameter_json) ? $vend->parameter_json : json_decode($vend->parameter_json, true);
             if (isset($param['CoinCnt'])) {
                 $coinFloatCents = (int) $param['CoinCnt']; // if this is a COUNT, convert to RM before set or store to another column
@@ -54,26 +57,28 @@ class SaveStockCount implements ShouldQueue
         $stockCount = StockCount::updateOrCreate(
             [
                 'vend_id' => $this->vendID,
-                'day'     => $dateObj->day,
-                'month'   => $dateObj->month,
-                'year'    => $dateObj->year,
+                'day' => $dateObj->day,
+                'month' => $dateObj->month,
+                'year' => $dateObj->year,
             ],
             [
-                'cash_sales_amount'     => $cashSalesCents,
+                'cash_sales_amount' => $cashSalesCents,
                 'cashless_sales_amount' => $cashlessSalesCents,
-                'coin_float_amount'     => $coinFloatCents,
-                'customer_id'           => $vend->customer_id ?? null,
-                'location_type_id'      => $vend->location_type_id ?? null,
-                'operator_id'           => $vend->operator_id ?? null,
-                'product_mapping_id'    => $vend->product_mapping_id ?? null,
-                'vend_code'             => $vend->vend_code ?? null,
-                'vend_contract_id'      => $vend->vend_contract_id ?? null,
-                'vend_model_id'         => $vend->vend_model_id ?? null,
-                'vend_prefix_id'        => $vend->vend_prefix_id ?? null,
+                'coin_float_amount' => $coinFloatCents,
+                'customer_id' => $vend->customer_id ?? null,
+                'location_type_id' => $vend->location_type_id ?? null,
+                'operator_id' => $vend->operator_id ?? null,
+                'product_mapping_id' => $vend->product_mapping_id ?? null,
+                'vend_code' => $vend->vend_code ?? null,
+                'vend_contract_id' => $vend->vend_contract_id ?? null,
+                'vend_model_id' => $vend->vend_model_id ?? null,
+                'vend_prefix_id' => $vend->vend_prefix_id ?? null,
             ]
         );
 
-        if (!$stockCount) return;
+        if (! $stockCount) {
+            return;
+        }
 
         // CMS available qty (code => qty), shared by the whole run. Null = CMS
         // unreachable: the machine qty is still saved, warehouse qty stays NULL
@@ -128,23 +133,23 @@ class SaveStockCount implements ShouldQueue
 
             // cost = latest_unit_cost × (sum channel qty + warehouse qty)
             $unitCostCents = (int) ($row->unit_cost_cents ?? 0);
-            $stockCost     = $unitCostCents * (int) $row->qty_vend;
+            $stockCost = $unitCostCents * (int) $row->qty_vend;
 
             $stockCount->stockCountItems()->updateOrCreate(
                 ['product_id' => (int) $row->product_id],
                 [
-                    'product_id'         => (int) $row->product_id,
-                    'qty_vend'           => (int) $row->qty_vend,
-                    'qty_warehouse'      => $qtyWarehouse,
+                    'product_id' => (int) $row->product_id,
+                    'qty_vend' => (int) $row->qty_vend,
+                    'qty_warehouse' => $qtyWarehouse,
                     'stock_value_amount' => (int) $row->value_cents,  // machine value only
-                    'stock_cost_amount'  => (int) $stockCost,         // total cost (machine+WH)
+                    'stock_cost_amount' => (int) $stockCost,         // total cost (machine+WH)
                     'unit_cost_amount' => (int) $unitCostCents, // latest unit cost
                 ]
             );
         }
 
         // Optional cleanup unchanged…
-        if (!empty($seen)) {
+        if (! empty($seen)) {
             $stockCount->stockCountItems()->whereNotIn('product_id', $seen)->delete();
         }
     }

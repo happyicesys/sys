@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Vend;
 use App\Jobs\SaveStockCount;
+use App\Models\Vend;
 use App\Services\Stock\StockCountWarehouseQty;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class SaveStockCountWithDate extends Command
 {
@@ -34,7 +34,8 @@ class SaveStockCountWithDate extends Command
         try {
             $date = Carbon::parse($dateInput)->toDateString();
         } catch (\Exception $e) {
-            $this->error("Invalid date format. Please use Y-m-d (e.g. 2025-08-16).");
+            $this->error('Invalid date format. Please use Y-m-d (e.g. 2025-08-16).');
+
             return;
         }
 

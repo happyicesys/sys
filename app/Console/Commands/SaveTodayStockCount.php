@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Vend;
 use App\Jobs\SaveStockCount;
+use App\Models\Vend;
 use App\Services\Stock\StockCountWarehouseQty;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class SaveTodayStockCount extends Command
 {

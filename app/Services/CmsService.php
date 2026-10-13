@@ -1,25 +1,25 @@
 <?php
 
 namespace App\Services;
-use Carbon\Carbon;
+
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class CmsService
 {
-
     const AVAILABLE_PCS_ENDPOINT = '/api/items/available-pcs';
 
     public function getCMSQtyAvailableApi()
     {
         $url = config('app.cms_url');
 
-        if (!$url) {
+        if (! $url) {
             return [];
         }
 
         $url .= self::AVAILABLE_PCS_ENDPOINT;
         $response = Http::get($url);
+
         return $response ? $response->json() : [];
     }
 
@@ -32,7 +32,7 @@ class CmsService
     public function fetchQtyAvailableByCode(int $tries = 1, int $sleepMs = 0): ?array
     {
         $url = config('app.cms_url');
-        if (!$url) {
+        if (! $url) {
             return [];
         }
 
@@ -40,15 +40,17 @@ class CmsService
             $response = Http::connectTimeout(10)
                 ->timeout(30)
                 ->retry($tries, $sleepMs, throw: false)
-                ->get($url . self::AVAILABLE_PCS_ENDPOINT);
+                ->get($url.self::AVAILABLE_PCS_ENDPOINT);
         } catch (\Throwable $e) {
             Log::warning('cms available-pcs unreachable', ['error' => $e->getMessage()]);
+
             return null;
         }
 
         $rows = $response->successful() ? $response->json() : null;
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             Log::warning('cms available-pcs bad response', ['status' => $response->status()]);
+
             return null;
         }
 
@@ -76,11 +78,11 @@ class CmsService
     public function getPersonOweSummary($personId)
     {
         $url = config('app.cms_url');
-        if (!$url || !$personId) {
+        if (! $url || ! $personId) {
             return null;
         }
 
-        $endpoint = rtrim($url, '/') . '/api/person/' . $personId . '/owe-summary';
+        $endpoint = rtrim($url, '/').'/api/person/'.$personId.'/owe-summary';
         // Match the SSL-verify gating used elsewhere when talking to CMS:
         // verify certs in production, skip in local/staging self-signed setups.
         $verify = app()->environment('production');
@@ -94,7 +96,7 @@ class CmsService
             return null;
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return null;
         }
 
