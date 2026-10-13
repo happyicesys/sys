@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\StockCount;
 use App\Models\Vend;
-use App\Services\CmsService;
+use App\Services\Stock\StockCountWarehouseQty;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,21 +14,16 @@ class SaveStockCount implements ShouldQueue
 {
     use Queueable;
 
-    /** @var CmsService */
-    protected $cmsService;
-
     protected $date;
     protected $vendID;
 
     public function __construct($date, $vendID)
     {
-        // Correct spelling and assign once
-        $this->cmsService = new CmsService();
         $this->date = $date;
         $this->vendID = $vendID;
     }
 
-    public function handle(): void
+    public function handle(StockCountWarehouseQty $warehouse): void
     {
         $vend = Vend::with(['customer', 'productMapping'])->find($this->vendID);
         if (!$vend || !$vend->customer || !$vend->productMapping) return;
@@ -80,12 +75,10 @@ class SaveStockCount implements ShouldQueue
 
         if (!$stockCount) return;
 
-        // Pull CMS available qty once (code => qty)
-        $cmsList = $this->cmsService->getCMSQtyAvailableApi() ?: [];
-        $cmsQtyByCode = [];
-        foreach ($cmsList as $row) {
-            if (isset($row['code'])) $cmsQtyByCode[$row['code']] = (int) ($row['qty'] ?? 0);
-        }
+        // CMS available qty (code => qty), shared by the whole run. Null = CMS
+        // unreachable: the machine qty is still saved, warehouse qty stays NULL
+        // (see StockCountWarehouseQty — 2026-09-21 lost a whole day to this).
+        $cmsQtyByCode = $warehouse->forDate($this->date);
 
         // Build per-product aggregates + not-yet-synced picked qty
         $perProducts = DB::table('vend_channels as vc')
@@ -128,9 +121,10 @@ class SaveStockCount implements ShouldQueue
             $seen[] = (int) $row->product_id;
 
             // warehouse qty once per product
-            $cmsAvailable = $cmsQtyByCode[$row->code] ?? 0;
             // $qtyWarehouse = max(0, (int) $cmsAvailable - (int) $row->not_yet_sync_qty);
-            $qtyWarehouse = max(0, (int) $cmsAvailable);
+            $qtyWarehouse = $cmsQtyByCode === null
+                ? null
+                : max(0, (int) ($cmsQtyByCode[$row->code] ?? 0));
 
             // cost = latest_unit_cost × (sum channel qty + warehouse qty)
             $unitCostCents = (int) ($row->unit_cost_cents ?? 0);
@@ -141,7 +135,7 @@ class SaveStockCount implements ShouldQueue
                 [
                     'product_id'         => (int) $row->product_id,
                     'qty_vend'           => (int) $row->qty_vend,
-                    'qty_warehouse'      => (int) $qtyWarehouse,
+                    'qty_warehouse'      => $qtyWarehouse,
                     'stock_value_amount' => (int) $row->value_cents,  // machine value only
                     'stock_cost_amount'  => (int) $stockCost,         // total cost (machine+WH)
                     'unit_cost_amount' => (int) $unitCostCents, // latest unit cost

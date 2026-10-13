@@ -3,6 +3,7 @@
 namespace App\Services;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CmsService
 {
@@ -20,6 +21,45 @@ class CmsService
         $url .= self::AVAILABLE_PCS_ENDPOINT;
         $response = Http::get($url);
         return $response ? $response->json() : [];
+    }
+
+    /**
+     * CMS available pcs as [product code => qty], or null when CMS could not
+     * be read (connect timeout, non-2xx, unparseable body). Never throws, so
+     * a CMS outage cannot take a caller's own work down with it.
+     * An unset CMS URL returns [] (nothing to read), as getCMSQtyAvailableApi does.
+     */
+    public function fetchQtyAvailableByCode(int $tries = 1, int $sleepMs = 0): ?array
+    {
+        $url = config('app.cms_url');
+        if (!$url) {
+            return [];
+        }
+
+        try {
+            $response = Http::connectTimeout(10)
+                ->timeout(30)
+                ->retry($tries, $sleepMs, throw: false)
+                ->get($url . self::AVAILABLE_PCS_ENDPOINT);
+        } catch (\Throwable $e) {
+            Log::warning('cms available-pcs unreachable', ['error' => $e->getMessage()]);
+            return null;
+        }
+
+        $rows = $response->successful() ? $response->json() : null;
+        if (!is_array($rows)) {
+            Log::warning('cms available-pcs bad response', ['status' => $response->status()]);
+            return null;
+        }
+
+        $qtyByCode = [];
+        foreach ($rows as $row) {
+            if (isset($row['code'])) {
+                $qtyByCode[$row['code']] = (int) ($row['qty'] ?? 0);
+            }
+        }
+
+        return $qtyByCode;
     }
 
     /**

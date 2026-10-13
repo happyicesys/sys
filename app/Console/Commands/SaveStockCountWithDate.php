@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Vend;
 use App\Jobs\SaveStockCount;
+use App\Services\Stock\StockCountWarehouseQty;
 use Carbon\Carbon;
 
 class SaveStockCountWithDate extends Command
@@ -35,6 +36,11 @@ class SaveStockCountWithDate extends Command
         } catch (\Exception $e) {
             $this->error("Invalid date format. Please use Y-m-d (e.g. 2025-08-16).");
             return;
+        }
+
+        // One CMS fetch for the whole run; the jobs read it from the cache.
+        if (! app(StockCountWarehouseQty::class)->prime($date)) {
+            $this->warn('CMS warehouse qty unreachable; jobs will retry it, else save machine qty only.');
         }
 
         $vends = Vend::where('is_active', true)->has('customer')->pluck('id');

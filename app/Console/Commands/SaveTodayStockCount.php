@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Vend;
 use App\Jobs\SaveStockCount;
+use App\Services\Stock\StockCountWarehouseQty;
 use Carbon\Carbon;
 
 class SaveTodayStockCount extends Command
@@ -29,6 +30,11 @@ class SaveTodayStockCount extends Command
     public function handle()
     {
         $today = Carbon::today()->toDateString();
+
+        // One CMS fetch for the whole run; the jobs read it from the cache.
+        if (! app(StockCountWarehouseQty::class)->prime($today)) {
+            $this->warn('CMS warehouse qty unreachable; jobs will retry it, else save machine qty only.');
+        }
 
         $vends = Vend::where('is_active', true)->has('customer')->pluck('id');
 
