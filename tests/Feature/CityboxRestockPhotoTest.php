@@ -22,7 +22,8 @@ use Tests\TestCase;
 /**
  * Before/after restock photos on a CityBox chiller stop (Brian, 2026-10-13): the before photo
  * unlocks Open Door (mark1 checks it), the after photo is asked for after Stock In, both stay on
- * the item, and their URLs go to CityBox once their endpoint exists.
+ * the item, and their URLs go to CityBox once their endpoint exists. A Smart Freezer stop takes
+ * the same two photos the same way, kept in mark1 only (no supplier API).
  */
 class CityboxRestockPhotoTest extends TestCase
 {
@@ -120,6 +121,54 @@ class CityboxRestockPhotoTest extends TestCase
         $data = \App\Http\Resources\OpsJobItemResource::make($this->item->fresh()->load(['attachments', 'vend']))->resolve();
         $this->assertCount(1, $data['attachments']);
         $this->assertCount(1, $data['restock_photos']['before']);
+    }
+
+    private function freezerItem(): OpsJobItem
+    {
+        $freezer = Vend::create(['code' => 50091, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1, 'customer_id' => $this->item->customer_id]);
+        $freezer->forceFill(['apk_version_code' => 23, 'is_online' => 1])->save();
+
+        return OpsJobItem::create(['ops_job_id' => $this->item->ops_job_id, 'vend_id' => $freezer->id, 'customer_id' => $this->item->customer_id, 'status' => OpsJob::STATUS_PICKED]);
+    }
+
+    public function test_a_freezer_stop_takes_the_same_photos_and_its_door_waits_for_the_before_one(): void
+    {
+        Queue::fake([PushCityboxRestockPhotos::class, \App\Jobs\PublishMqtt::class]);
+        $item = $this->freezerItem();
+
+        $this->actingAs($this->driver)->postJson("/ops-jobs/items/{$item->id}/freezer-open-door")
+            ->assertStatus(422)->assertJsonPath('message', 'Take the BEFORE restock photo first — then Open Door.');
+
+        $this->actingAs($this->driver)->post("/ops-jobs/items/{$item->id}/restock-photos", [
+            'slot' => 'before', 'file' => UploadedFile::fake()->image('IMG_1.jpg', 2000, 1500),
+        ], ['Accept' => 'application/json'])->assertOk()->assertJsonCount(1, 'before');
+
+        $this->actingAs($this->driver)->postJson("/ops-jobs/items/{$item->id}/freezer-open-door")->assertOk();
+    }
+
+    public function test_a_freezer_stops_photos_never_go_to_citybox(): void
+    {
+        config(['citybox.openapi.restock_photo_path' => 'api/Openapi/restock_photo_submit']);
+        $item = $this->freezerItem();
+        foreach (['before', 'after'] as $slot) {
+            $this->actingAs($this->driver)->post("/ops-jobs/items/{$item->id}/restock-photos", [
+                'slot' => $slot, 'file' => UploadedFile::fake()->image($slot.'.jpg'),
+            ], ['Accept' => 'application/json'])->assertOk();
+        }
+
+        Queue::assertNotPushed(PushCityboxRestockPhotos::class);
+        $this->assertSame(2, $item->attachments()->whereIn('type', OpsJobItem::RESTOCK_PHOTO_TYPES)->count(), 'kept as the job\'s own record');
+        $this->assertNull($item->fresh()->citybox_photo_push_status);
+    }
+
+    public function test_a_vending_machine_stop_has_no_restock_photos(): void
+    {
+        $vm = Vend::create(['code' => 9601, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE, 'is_active' => 1, 'operator_id' => 1]);
+        $item = OpsJobItem::create(['ops_job_id' => $this->item->ops_job_id, 'vend_id' => $vm->id, 'customer_id' => $this->item->customer_id, 'status' => OpsJob::STATUS_PICKED]);
+
+        $this->actingAs($this->driver)->post("/ops-jobs/items/{$item->id}/restock-photos", [
+            'slot' => 'before', 'file' => UploadedFile::fake()->image('x.jpg'),
+        ], ['Accept' => 'application/json'])->assertForbidden();
     }
 
     public function test_photos_go_to_citybox_only_once_their_endpoint_exists_and_both_are_in(): void

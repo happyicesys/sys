@@ -1353,15 +1353,18 @@ rather than adding a new `if (citybox)` somewhere else:
   `CITYBOX_STOCK_LEDGER=false` restores the old mirror. Regression coverage:
   `tests/Feature/CityboxOrderSyncTest.php`.
 - **Restock photos gate the door** (Brian, 2026-10-13: "we locally control and
-  detect"). On a chiller stop the driver takes a BEFORE photo, and
-  `CityboxOpsJobItemController::openDoor` refuses until it exists — only before Stock
-  In (`config('citybox.require_before_photo')`); after Stock In the item page asks for
-  the AFTER photo. They are `attachments` in `OpsJobItem::PHOTO_RESTOCK_BEFORE / _AFTER`
-  (types 11/12, `RestockPhotoService` the only writer: upright, ≤ 1600 px JPEG, public on
-  Spaces), split out of the generic item attachments by `OpsJobItemResource`
-  (`restock_photos`). Once both exist their URLs go to CityBox
-  (`PushCityboxRestockPhotos`, `citybox_photo_push_*`) — inert until CityBox ships the
-  endpoint and `CITYBOX_RESTOCK_PHOTO_PATH` is set. Regression coverage:
+  detect") — on a chiller stop AND a Smart Freezer stop (same day: "store in local as a
+  record in ops job"). The driver takes a BEFORE photo, and the door controller
+  (`CityboxOpsJobItemController::openDoor`, `FreezerOpsJobItemController::openDoor`)
+  refuses until it exists — only before Stock In (`config('citybox.require_before_photo')`);
+  after Stock In the item page asks for the AFTER photo. They are `attachments` in
+  `OpsJobItem::PHOTO_RESTOCK_BEFORE / _AFTER` (types 11/12, `RestockPhotoService` the only
+  writer: upright, ≤ 1600 px JPEG, public on Spaces; routes in `RestockPhotoController`,
+  `RestockPhotoService::appliesTo` = which machine kinds), split out of the generic item
+  attachments by `OpsJobItemResource` (`restock_photos`). Only a CHILLER's go further: once
+  both exist their URLs go to CityBox (`PushCityboxRestockPhotos`, `citybox_photo_push_*`) —
+  inert until CityBox ships the endpoint and `CITYBOX_RESTOCK_PHOTO_PATH` is set. A freezer
+  has no supplier API; its photos are the job's own record. Regression coverage:
   `tests/Feature/CityboxRestockPhotoTest.php`.
 - **Signal** comes from their `signal_strength` in the stock check, onto the same
   `vends.internet_*` columns a SIM reading uses (max `citybox.signal_max`, 100) and

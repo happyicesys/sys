@@ -46,6 +46,8 @@ class FreezerOpsJobDoorTest extends TestCase
         $this->driver = User::factory()->create();
         $this->job = OpsJob::create(['code' => 900200, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $this->driver->id, 'operator_id' => 1]);
         $this->item = OpsJobItem::create(['ops_job_id' => $this->job->id, 'vend_id' => $this->vend->id, 'customer_id' => $customer->id, 'status' => OpsJob::STATUS_PICKED]);
+        // The driver's before-restock photo, which Open Door needs (CityboxRestockPhotoTest covers the gate).
+        $this->item->attachments()->create(['type' => OpsJobItem::PHOTO_RESTOCK_BEFORE, 'full_url' => 'https://spaces/before.jpg', 'local_url' => 'sys/before.jpg']);
     }
 
     public function test_assigned_driver_opens_the_door_with_an_unlock_command_and_others_cannot(): void

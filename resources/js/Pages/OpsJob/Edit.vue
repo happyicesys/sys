@@ -876,7 +876,13 @@
                                   :customer-name="row.customer?.name"
                                   :offline="row.vend ? !row.vend.is_online : false"
                                   compact
+                                  :disabled="row.status < 3 && !(row.restock_photos?.before?.length)"
+                                  :disabled-reason="row.status < 3 && !(row.restock_photos?.before?.length) ? 'Take the before restock photo first (open the item)' : ''"
                                 />
+                                <div class="text-[10px] mt-0.5 space-x-1">
+                                  <span :class="row.restock_photos?.before?.length ? 'text-green-700' : 'text-amber-700'">📷 Before {{ row.restock_photos?.before?.length ? '✓' : '—' }}</span>
+                                  <span :class="row.restock_photos?.after?.length ? 'text-green-700' : (row.status >= 3 ? 'text-red-600 font-semibold' : 'text-gray-500')">After {{ row.restock_photos?.after?.length ? '✓' : '—' }}</span>
+                                </div>
                               </div>
                               <Button
                                 class="bg-blue-500 hover:bg-blue-600 text-white"

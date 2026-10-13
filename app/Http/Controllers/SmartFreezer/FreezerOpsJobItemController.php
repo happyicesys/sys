@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FreezerControlCommand;
 use App\Models\OpsJobItem;
 use App\Models\Vend;
+use App\Services\Citybox\RestockPhotoService;
 use App\Services\Freezer\FreezerControlService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,11 @@ class FreezerOpsJobItemController extends Controller
     {
         $item = $this->freezerItemOr403($request, $id);
         $vend = $item->vend;
+
+        // Before-restock photo first (Brian, 2026-10-13), as on a chiller. Checked here, not trusted to the page.
+        if (RestockPhotoService::blocksOpenDoor($item)) {
+            return response()->json(['message' => 'Take the BEFORE restock photo first — then Open Door.'], 422);
+        }
 
         if ((int) $vend->apk_version_code < FreezerControlService::minApkVersionFor('unlock')) {
             return response()->json(['message' => 'This freezer\'s app is too old to open the door remotely.'], 422);

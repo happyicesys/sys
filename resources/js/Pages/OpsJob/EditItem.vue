@@ -94,6 +94,8 @@
                   :machine-code="opsJobItem.vend?.code"
                   :customer-name="opsJobItem.customer?.name"
                   :offline="opsJobItem.vend ? !opsJobItem.vend.is_online : false"
+                  :disabled="needsBeforePhoto"
+                  :disabled-reason="needsBeforePhoto ? 'Take the before restock photo first' : ''"
                   label="Open Door (Restock)"
                 />
                 <Menu as="div" class="relative inline-block text-left" v-if="permissions.includes('admin-access operations') && opsJobItem.status == 1">
@@ -142,9 +144,10 @@
               </div>
             </div>
 
-            <!-- Smart Chiller (CityBox) restock photos (2026-10-13): BEFORE unlocks Open Door, AFTER
-                 follows Stock In. Kept on the item; their URLs go to CityBox once it can take them. -->
-            <div v-if="opsJobItem.is_citybox_chiller" class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Restock photos on a smart machine (2026-10-13): BEFORE unlocks Open Door, AFTER follows
+                 Stock In. Kept on the item as the job's record; a chiller's also go to CityBox once
+                 it can take them, a freezer's stay in mark1. -->
+            <div v-if="hasRestockPhotos" class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="rounded-md border p-2" :class="restockPhotos.before.length ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50'">
                 <div class="text-sm font-semibold text-gray-900">1. Before restock photo <span class="text-xs font-normal text-gray-600">补货前照片</span></div>
                 <div class="text-xs text-amber-800 mb-1" v-if="needsBeforePhoto">Take it before opening — Open Door unlocks once it is in.</div>
@@ -182,7 +185,7 @@
                   <span class="font-semibold text-black">Stocked in — now the AFTER photo</span>
                 </template>
                 <template #default>
-                  <p class="text-sm text-gray-700 mb-3">Take one photo of the restocked chiller, door open, every layer in view. 补货后照片</p>
+                  <p class="text-sm text-gray-700 mb-3">Take one photo of the restocked {{ opsJobItem.is_smart_freezer ? 'freezer' : 'chiller' }}, door open, every {{ opsJobItem.is_smart_freezer ? 'basket' : 'layer' }} in view. 补货后照片</p>
                   <StopAttachmentSlot
                     :files="restockPhotos.after"
                     :uploadUrl="restockPhotoUrl"
@@ -1926,11 +1929,12 @@ onMounted(() => {
   loadingData()
 })
 
-// Restock photos (CityBox chiller): before gates Open Door until Stock In; after is asked for at Stock In.
+// Restock photos (CityBox chiller, Smart Freezer): before gates Open Door until Stock In; after is asked for at Stock In.
 const restockPhotos = ref({ before: [], after: [] })
 const afterPhotoPrompt = ref(false)
 const restockPhotoUrl = computed(() => '/ops-jobs/items/' + opsJobItem.value.id + '/restock-photos')
-const needsBeforePhoto = computed(() => !!opsJobItem.value.is_citybox_chiller && opsJobItem.value.status < 3 && !restockPhotos.value.before.length)
+const hasRestockPhotos = computed(() => !!(opsJobItem.value.is_citybox_chiller || opsJobItem.value.is_smart_freezer))
+const needsBeforePhoto = computed(() => hasRestockPhotos.value && opsJobItem.value.status < 3 && !restockPhotos.value.before.length)
 
 function applyRestockPhotos(data) {
   if (data && Array.isArray(data.before) && Array.isArray(data.after)) {
@@ -2532,8 +2536,8 @@ function onConfirmClicked() {
         preserveState: true,
         onSuccess: page => {
           loadingData()
-          // Just stocked in a chiller: ask for the after photo while the driver is still at it.
-          if (opsJobItem.value.is_citybox_chiller && opsJobItem.value.status >= 3 && !restockPhotos.value.after.length) {
+          // Just stocked in a chiller or freezer: ask for the after photo while the driver is still at it.
+          if (hasRestockPhotos.value && opsJobItem.value.status >= 3 && !restockPhotos.value.after.length) {
             afterPhotoPrompt.value = true
           }
         }

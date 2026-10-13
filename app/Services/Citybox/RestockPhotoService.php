@@ -6,6 +6,7 @@ use App\Jobs\PushCityboxRestockPhotos;
 use App\Models\Attachment;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
+use App\Models\Vend;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -14,11 +15,13 @@ use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 
 /**
- * Before/after restock photos on a CityBox chiller stop (Brian, 2026-10-13). The driver takes the
- * BEFORE photo, which unlocks Open Door (checked here, in mark1 — CityboxOpsJobItemController);
- * after Stock In the page asks for the AFTER photo. Both stay on the item, shown in the job, and
- * once both exist their URLs go to CityBox (PushCityboxRestockPhotos) — inert until CityBox ships
- * the endpoint (config citybox.openapi.restock_photo_path).
+ * Before/after restock photos on a smart machine's stop (Brian, 2026-10-13): a CityBox chiller and,
+ * the same day, a Smart Freezer. The driver takes the BEFORE photo, which unlocks Open Door
+ * (checked in mark1 — CityboxOpsJobItemController / FreezerOpsJobItemController); after Stock In
+ * the page asks for the AFTER photo. Both stay on the item as the job's record. Only a CHILLER's
+ * go further: once both exist their URLs go to CityBox (PushCityboxRestockPhotos) — inert until
+ * CityBox ships the endpoint (config citybox.openapi.restock_photo_path). A freezer has no such
+ * API; its photos are mark1's own record.
  *
  * Stored as attachments in OpsJobItem::PHOTO_RESTOCK_* slots on the default disk (DO Spaces in
  * prod), public, because CityBox needs a URL it can fetch. A phone photo is 3–12 MB; every upload
@@ -54,7 +57,7 @@ class RestockPhotoService
             'desc' => 'restock:'.$slot,
         ]);
 
-        $this->pushIfReady($item->fresh());
+        $this->pushIfReady($item->fresh('vend'));
 
         return $attachment;
     }
@@ -64,6 +67,12 @@ class RestockPhotoService
         $attachment = $item->attachments()->whereIn('type', OpsJobItem::RESTOCK_PHOTO_TYPES)->findOrFail($attachmentId);
         $attachment->deleteFileIfUnshared();
         $attachment->delete();
+    }
+
+    /** The machine kinds whose stops carry restock photos. */
+    public static function appliesTo(?Vend $vend): bool
+    {
+        return $vend !== null && (($vend->isSmartChiller() && $vend->citybox_equipment_id) || $vend->isSmartFreezer());
     }
 
     public static function hasBefore(OpsJobItem $item): bool
@@ -101,7 +110,8 @@ class RestockPhotoService
     /** Both photos in and CityBox has the endpoint → send them (once per new photo set). */
     public function pushIfReady(OpsJobItem $item): void
     {
-        if (! config('citybox.openapi.restock_photo_path')) {
+        // CityBox's API only: a freezer's photos stay in mark1.
+        if (! $item->vend?->isSmartChiller() || ! config('citybox.openapi.restock_photo_path')) {
             return;
         }
         $photos = $this->payload($item);
