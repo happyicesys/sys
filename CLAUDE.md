@@ -975,7 +975,9 @@ never replaces the live drawing** — it waits in the album until someone presse
 `selected_at`), except a product with no drawing yet takes the first one that finishes. Automatic draws (new
 photo, freezer sweep) still go live, unless the live drawing is curated: seed, upload, or a person's pick.
 Product → Edit drives it over JSON (`ProductWelcomeSketchController`: show / regenerate {count} / upload /
-versions/{id}/select | shortlist | DELETE) so an unsaved product form is never reloaded; the live drawing cannot
+versions/{id}/select | shortlist | DELETE) so an unsaved product form is never reloaded. A Draw may carry a
+person's **instructions** (2026-10-14, ≤ 1000 chars) — appended after the fixed prompt and ranked above it, kept on
+that album entry (`product_welcome_sketch_versions.instructions`); automatic draws never carry any; the live drawing cannot
 be deleted, and a file is removed only when no other entry shares its content-hash path. Redraws before
 2026-10-12 left their files on Spaces: `products:welcome-sketches --recover [--dry-run]` turns them into
 `recovered` album entries (seed art recognised by hash). Served on `/api/vends/{code}/menu` as

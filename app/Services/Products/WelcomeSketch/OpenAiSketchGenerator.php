@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * OpenAI image edit (`POST /images/edits`): the product photo first, then approved sketches as the
- * style to copy, asking for one transparent-background drawing. Key: services.openai.api_key
+ * style to copy, asking for one transparent-background drawing; a person's Draw may add
+ * instructions, appended after the fixed rules and ranked above them. Key: services.openai.api_key
  * (OPENAI_API_KEY); model/quality: smart_freezer.welcome_sketch.
  */
 class OpenAiSketchGenerator implements SketchGenerator
@@ -40,8 +41,15 @@ TXT;
         return (string) config('smart_freezer.welcome_sketch.model', 'gpt-image-1');
     }
 
-    public function generate(string $photo, string $productName, array $styleReferences): string
+    public function generate(string $photo, string $productName, array $styleReferences, ?string $instructions = null): string
     {
+        $prompt = self::PROMPT;
+        $instructions = trim((string) $instructions);
+        if ($instructions !== '') {
+            $prompt .= "\nExtra instructions from our team for THIS drawing — follow them, and where they conflict with the rules above, they win:\n{$instructions}";
+        }
+        $prompt .= "\nWhat the product is (for reference only — do not write this on it): {$productName}.";
+
         $request = Http::withToken((string) config('services.openai.api_key'))
             ->timeout((int) config('smart_freezer.welcome_sketch.timeout_seconds', 150))
             ->attach('image[]', $photo, 'product.png');
@@ -52,7 +60,7 @@ TXT;
         try {
             $response = $request->post(rtrim((string) config('services.openai.base_uri', 'https://api.openai.com/v1'), '/').'/images/edits', [
                 'model' => $this->model(),
-                'prompt' => self::PROMPT."\nWhat the product is (for reference only — do not write this on it): {$productName}.",
+                'prompt' => $prompt,
                 'background' => 'transparent',
                 'output_format' => 'png',
                 'size' => '1024x1024',

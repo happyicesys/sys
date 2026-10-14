@@ -48,6 +48,24 @@
       </div>
     </div>
 
+    <div v-if="canUpdate && state.ai_configured && state.has_photo" class="mt-3">
+      <label for="welcome-sketch-instructions" class="flex items-baseline justify-between gap-2 text-xs font-semibold text-gray-700">
+        <span>Instructions for the next drawing <span class="font-normal text-gray-500">(optional)</span></span>
+        <span class="font-normal text-gray-400">{{ instructions.length }} / {{ maxInstructions }}</span>
+      </label>
+      <textarea
+        id="welcome-sketch-instructions"
+        v-model="instructions"
+        rows="2"
+        :maxlength="maxInstructions"
+        class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+        placeholder="e.g. Text on the bar exactly “ICE BALL”, nothing else. No bite taken out. Keep the wooden stick."
+      ></textarea>
+      <p class="mt-1 text-[11px] text-gray-500">
+        Sent with the drawings you make next and kept on each one in the album, so you can see what it was asked. Leave blank for the standard drawing.
+      </p>
+    </div>
+
     <div v-if="!state.configured" class="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
       Automatic drawing is off on this server (no image service key and no background remover). You can still upload a sketch.
     </div>
@@ -188,7 +206,10 @@
               </div>
             </div>
             <div class="mt-1 flex items-center justify-between gap-1 text-[11px] leading-4 text-gray-500">
-              <span class="truncate" :title="metaTitle(v)">{{ shortTime(v.at) }} · {{ sourceShort(v) }}</span>
+              <span class="flex min-w-0 items-center gap-1" :title="metaTitle(v)">
+                <span class="truncate">{{ shortTime(v.at) }} · {{ sourceShort(v) }}</span>
+                <ChatBubbleBottomCenterTextIcon v-if="v.instructions" class="h-3.5 w-3.5 shrink-0 text-indigo-500" aria-label="Drawn with instructions" />
+              </span>
               <button
                 v-if="canUpdate && !v.is_live && !isPending(v)"
                 type="button"
@@ -250,6 +271,18 @@
               <dl class="space-y-1">
                 <div v-if="viewing.model"><dt class="inline text-gray-400">Model </dt><dd class="inline">{{ viewing.model }}</dd></div>
                 <div v-if="viewing.requested_by"><dt class="inline text-gray-400">By </dt><dd class="inline">{{ viewing.requested_by }}</dd></div>
+                <div v-if="viewing.instructions" class="rounded bg-indigo-50 p-2 text-indigo-900">
+                  <dt class="font-semibold">Instructions</dt>
+                  <dd class="mt-0.5 whitespace-pre-line">{{ viewing.instructions }}</dd>
+                  <button
+                    v-if="canUpdate && state.ai_configured"
+                    type="button"
+                    class="mt-1 text-[11px] font-semibold text-indigo-700 underline hover:text-indigo-900"
+                    @click="reuseInstructions(viewing)"
+                  >
+                    Use these for the next drawing
+                  </button>
+                </div>
                 <div v-if="viewing.from_current_photo !== null">
                   <dd v-if="viewing.from_current_photo">From the current photo</dd>
                   <dd v-else class="text-amber-700">From an earlier photo</dd>
@@ -306,7 +339,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import {
-  ArrowUpTrayIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ExclamationTriangleIcon,
+  ArrowUpTrayIcon, ChatBubbleBottomCenterTextIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ExclamationTriangleIcon,
   SparklesIcon, StarIcon as StarSolidIcon, TrashIcon, XMarkIcon,
 } from '@heroicons/vue/20/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline';
@@ -323,12 +356,15 @@ const busy = ref(false);
 const error = ref(null);
 const filter = ref('all');
 const drawCount = ref(1);
+// Starts from what the last person's Draw asked, so a drawing can be refined step by step.
+const instructions = ref(props.data.last_instructions ?? '');
 const viewingId = ref(null);
 const albumLimit = 80;
 
 // A product save reloads the page props: take the server's state.
 watch(() => props.data, (data) => { state.value = data; });
 
+const maxInstructions = computed(() => state.value.max_instructions || 1000);
 const canUpdate = computed(() => (page.props.auth?.permissions ?? []).includes('update products'));
 const live = computed(() => state.value.live);
 const versions = computed(() => state.value.versions ?? []);
@@ -367,7 +403,8 @@ function sourceShort(v) {
   return { seed: 'approved', generated: 'drawn', cutout: 'cut-out', upload: 'uploaded' }[v.source] ?? '';
 }
 function metaTitle(v) {
-  return [sourceLabel(v.source), formatTime(v.at), v.model, v.requested_by && `by ${v.requested_by}`].filter(Boolean).join(' · ');
+  return [sourceLabel(v.source), formatTime(v.at), v.model, v.requested_by && `by ${v.requested_by}`, v.instructions && `“${v.instructions}”`]
+    .filter(Boolean).join(' · ');
 }
 function formatTime(iso) {
   return iso ? new Date(iso).toLocaleString() : '';
@@ -400,8 +437,15 @@ async function call(method, url, payload, successMessage) {
 
 function draw() {
   const n = drawCount.value;
-  call('post', `${base.value}/regenerate`, { count: n },
+  const asked = state.value.ai_configured ? instructions.value.trim() : '';
+  call('post', `${base.value}/regenerate`, { count: n, instructions: asked || null },
     n === 1 ? 'Drawing — it appears in the album in about a minute.' : `Drawing ${n} — they appear in the album in a minute or two.`);
+}
+
+function reuseInstructions(v) {
+  instructions.value = v.instructions ?? '';
+  closeViewer();
+  toast.info('Instructions copied — press Draw to use them.');
 }
 
 function upload(event) {

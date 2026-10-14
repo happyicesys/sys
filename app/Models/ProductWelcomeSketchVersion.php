@@ -26,7 +26,7 @@ class ProductWelcomeSketchVersion extends Model
 
     protected $fillable = [
         'product_id', 'status', 'source', 'path', 'url', 'source_photo_url', 'source_photo_hash',
-        'model', 'reason', 'last_error', 'requested_by', 'generated_at', 'shortlisted_at',
+        'model', 'reason', 'instructions', 'last_error', 'requested_by', 'generated_at', 'shortlisted_at',
     ];
 
     protected $casts = [

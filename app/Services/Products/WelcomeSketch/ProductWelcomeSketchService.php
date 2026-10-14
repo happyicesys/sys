@@ -59,6 +59,9 @@ class ProductWelcomeSketchService
     /** Album entries sent to Product → Edit, newest first. */
     public const ALBUM_LIMIT = 80;
 
+    /** Longest extra instructions a Draw may carry (characters). */
+    public const MAX_INSTRUCTIONS = 1000;
+
     public function __construct(
         private readonly SketchGenerator $generator,
         private readonly CutoutMaker $cutouts,
@@ -126,10 +129,12 @@ class ProductWelcomeSketchService
     /**
      * Draw on Product → Edit: $count new drawings from the current photo, into the album. They go
      * live only when someone picks one — or the first to finish, when the product has none.
+     * $instructions (optional) go to the image model with these drawings only, and stay on each
+     * album entry so the page can show what it was asked.
      *
      * @return list<ProductWelcomeSketchVersion>
      */
-    public function regenerate(Product $product, ?int $userId, int $count = 1): array
+    public function regenerate(Product $product, ?int $userId, int $count = 1, ?string $instructions = null): array
     {
         if (! $this->canDraw()) {
             throw new SketchGenerationException('Nothing can draw sketches on this server (no OPENAI_API_KEY and no rembg).');
@@ -147,7 +152,7 @@ class ProductWelcomeSketchService
 
         $versions = [];
         for ($i = 0; $i < $count; $i++) {
-            $versions[] = $this->queue($product, ProductWelcomeSketchVersion::REASON_MANUAL, $userId);
+            $versions[] = $this->queue($product, ProductWelcomeSketchVersion::REASON_MANUAL, $userId, $instructions);
         }
 
         return $versions;
@@ -393,12 +398,14 @@ class ProductWelcomeSketchService
             && $version->updated_at !== null && $version->updated_at->gt(now()->subMinutes(self::STALE_MINUTES));
     }
 
-    private function queue(Product $product, string $reason, ?int $userId): ProductWelcomeSketchVersion
+    private function queue(Product $product, string $reason, ?int $userId, ?string $instructions = null): ProductWelcomeSketchVersion
     {
+        $instructions = trim((string) $instructions);
         $version = ProductWelcomeSketchVersion::query()->create([
             'product_id' => $product->id,
             'status' => ProductWelcomeSketch::STATUS_PENDING,
             'reason' => $reason,
+            'instructions' => $instructions !== '' ? mb_substr($instructions, 0, self::MAX_INSTRUCTIONS) : null,
             'requested_by' => $userId,
             // The photo it is drawn from, so a save meanwhile does not queue the same photo again.
             'source_photo_url' => $this->photoUrl($product),
@@ -435,7 +442,7 @@ class ProductWelcomeSketchService
             $modelError = null;
             if ($this->generator->isConfigured()) {
                 try {
-                    $drawing = $this->generator->generate($photo, (string) $product->name, $this->styleReferences());
+                    $drawing = $this->generator->generate($photo, (string) $product->name, $this->styleReferences(), $version->instructions);
                     $this->storeVersion($version, $product, $drawing, ProductWelcomeSketch::SOURCE_GENERATED, $origin + [
                         'model' => $this->generator->model(),
                     ]);
@@ -697,6 +704,11 @@ class ProductWelcomeSketchService
             'max_per_draw' => self::MAX_PER_DRAW,
             'max_in_flight' => self::MAX_IN_FLIGHT,
             'in_flight' => $this->inFlightCount($product->id),
+            'max_instructions' => self::MAX_INSTRUCTIONS,
+            // What the last person's Draw asked for, to start the next one from.
+            'last_instructions' => ProductWelcomeSketchVersion::query()->where('product_id', $product->id)
+                ->where('reason', ProductWelcomeSketchVersion::REASON_MANUAL)
+                ->latest('id')->value('instructions'),
             'live' => ! $hasLive ? null : [
                 'version_id' => $liveVersionId,
                 'source' => $live->source,
@@ -719,6 +731,7 @@ class ProductWelcomeSketchService
                 'url' => $v->url,
                 'model' => $v->model,
                 'reason' => $v->reason,
+                'instructions' => $v->instructions,
                 'last_error' => $v->last_error,
                 'at' => $iso($v->generated_at ?? $v->created_at),
                 'requested_by' => $v->requester?->name,

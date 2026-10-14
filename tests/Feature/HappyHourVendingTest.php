@@ -552,7 +552,7 @@ class HappyHourVendingTest extends TestCase
                 return 'fake';
             }
 
-            public function generate(string $photo, string $productName, array $styleReferences): string
+            public function generate(string $photo, string $productName, array $styleReferences, ?string $instructions = null): string
             {
                 return '';
             }

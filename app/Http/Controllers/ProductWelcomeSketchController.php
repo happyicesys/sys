@@ -27,10 +27,13 @@ class ProductWelcomeSketchController extends Controller
     {
         $data = $request->validate([
             'count' => ['nullable', 'integer', 'min:1', 'max:'.ProductWelcomeSketchService::MAX_PER_DRAW],
+            'instructions' => ['nullable', 'string', 'max:'.ProductWelcomeSketchService::MAX_INSTRUCTIONS],
         ]);
         $product = $this->product($productId);
 
-        return $this->run($product, fn () => $this->sketches->regenerate($product, $request->user()?->id, (int) ($data['count'] ?? 1)));
+        return $this->run($product, fn () => $this->sketches->regenerate(
+            $product, $request->user()?->id, (int) ($data['count'] ?? 1), $data['instructions'] ?? null,
+        ));
     }
 
     public function upload(Request $request, int $productId): JsonResponse

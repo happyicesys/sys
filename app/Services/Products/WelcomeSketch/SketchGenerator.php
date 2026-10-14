@@ -17,9 +17,10 @@ interface SketchGenerator
     /**
      * @param  string  $photo  the product photo's bytes
      * @param  list<string>  $styleReferences  bytes of approved sketches to copy the style from
+     * @param  string|null  $instructions  a person's extra instructions for this drawing
      * @return string the sketch's image bytes (transparent background)
      *
      * @throws SketchGenerationException
      */
-    public function generate(string $photo, string $productName, array $styleReferences): string;
+    public function generate(string $photo, string $productName, array $styleReferences, ?string $instructions = null): string;
 }

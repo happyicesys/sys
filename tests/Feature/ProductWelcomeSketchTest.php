@@ -252,6 +252,48 @@ class ProductWelcomeSketchTest extends TestCase
         $this->assertNull($this->live($product)->selected_by);
     }
 
+    public function test_a_draw_carries_a_persons_instructions_to_the_model_and_keeps_them_on_the_album_entry(): void
+    {
+        $product = $this->product('I-1');
+
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/regenerate", [
+            'count' => 2, 'instructions' => '  Text exactly ICE BALL, nothing else. No bite.  ',
+        ])->assertOk()
+            ->assertJsonPath('last_instructions', 'Text exactly ICE BALL, nothing else. No bite.')
+            ->assertJsonPath('versions.0.instructions', 'Text exactly ICE BALL, nothing else. No bite.');
+        $this->runQueued();
+        $this->assertSame('Text exactly ICE BALL, nothing else. No bite.', $this->generator->lastInstructions);
+
+        // Blank = none; too long is refused; an automatic redraw never carries any.
+        $this->actingAs($this->user)->postJson("/products/{$product->id}/welcome-sketch/regenerate", ['instructions' => str_repeat('x', 1001)])
+            ->assertStatus(422)->assertJsonValidationErrors('instructions');
+        Queue::fake();
+        [$plain] = $this->service()->regenerate($product, $this->user->id, 1, '   ');
+        $this->assertNull($plain->instructions);
+        $this->service()->generate($plain->id);
+        $this->assertNull($this->generator->lastInstructions);
+
+        $freezerItem = $this->product('I-2');
+        $this->onFreezer($freezerItem);
+        $auto = $this->service()->requestAfterSave($freezerItem, null, 'freezer_product');
+        $this->assertNull($auto->instructions);
+    }
+
+    public function test_the_openai_prompt_ranks_a_persons_instructions_above_the_fixed_rules(): void
+    {
+        config(['services.openai.api_key' => 'sk-test']);
+        Http::swap(new \Illuminate\Http\Client\Factory); // past setUp's catch-all photo fake
+        Http::fake(['*/images/edits' => Http::response(['data' => [['b64_json' => base64_encode(self::png())]]])]);
+        $generator = new \App\Services\Products\WelcomeSketch\OpenAiSketchGenerator;
+
+        $generator->generate(self::png(), 'Ice Ball Red Grape', [], 'Keep the wooden stick.');
+        $generator->generate(self::png(), 'Ice Ball Red Grape', []);
+
+        $prompts = collect(Http::recorded())->map(fn ($pair) => collect($pair[0]->data())->firstWhere('name', 'prompt')['contents'] ?? null)->values();
+        $this->assertStringContainsString("they win:\nKeep the wooden stick.\nWhat the product is", $prompts[0]);
+        $this->assertStringNotContainsString('Extra instructions', $prompts[1]);
+    }
+
     public function test_approved_and_uploaded_art_is_never_redrawn_automatically(): void
     {
         $product = $this->product('U-01');
@@ -513,6 +555,8 @@ class FakeSketchGenerator implements SketchGenerator
 
     public int $lastReferences = 0;
 
+    public ?string $lastInstructions = null;
+
     public ?string $fail = null;
 
     /** What the next drawing returns (a different image = a different stored file). */
@@ -528,10 +572,11 @@ class FakeSketchGenerator implements SketchGenerator
         return 'fake-model';
     }
 
-    public function generate(string $photo, string $productName, array $styleReferences): string
+    public function generate(string $photo, string $productName, array $styleReferences, ?string $instructions = null): string
     {
         $this->calls++;
         $this->lastReferences = count($styleReferences);
+        $this->lastInstructions = $instructions;
         if ($this->fail !== null) {
             throw new SketchGenerationException($this->fail);
         }
