@@ -576,9 +576,15 @@ class HappyHourVendingTest extends TestCase
         });
         config(['happy_hour.vending_sketch_sweep_limit' => 2]);
 
-        $this->vending(2245, [11 => ['A', 160, 9, 10], 12 => ['B', 160, 9, 10], 13 => ['C', 160, 9, 10]]);
+        $inCampaign = $this->vending(2245, [11 => ['A', 160, 9, 10], 12 => ['B', 160, 9, 10], 13 => ['C', 160, 9, 10]]);
+        $this->campaign([$inCampaign]);                                   // no UI Setting: served the bear
         $scene = $this->vending(2246, [21 => ['D', 160, 9, 10]], 220);    // old app, but its UI Setting shows the scene
         $this->vending(2247, [31 => ['E', 160, 9, 10]], 220);             // neither: never drawn
+        $this->vending(2248, [41 => ['F', 160, 9, 10]]);                  // app 315+ alone (2026-10-14): bear off, never drawn
+        DB::table('vend_channels')->insert([                              // a retired channel on a scene machine: not drawn
+            'vend_id' => $scene->id, 'code' => 22, 'product_id' => Product::forceCreate(['code' => 'G', 'name' => 'Old', 'operator_id' => 1])->id,
+            'amount' => 160, 'qty' => 0, 'capacity' => 10, 'is_active' => 0,
+        ]);
         $settingId = DB::table('apk_settings')->insertGetId([
             'name' => 'Scene on', 'settings_parameter_json' => json_encode(['enableWelcomeScene' => 'true']), 'operator_id' => 1,
             'created_at' => now(), 'updated_at' => now(),

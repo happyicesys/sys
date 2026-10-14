@@ -73,6 +73,23 @@ final class HappyHourWelcomeFallback
             });
     }
 
+    /**
+     * Machines in an active Happy Hour campaign that have no UI Setting - the ones this class may
+     * serve the bear to (eligibility still decides per machine). One query, for the sketch sweep.
+     *
+     * @return list<int>
+     */
+    public static function campaignVendIdsWithoutUiSetting(): array
+    {
+        return \Illuminate\Support\Facades\DB::table('happy_hour_campaign_vend as cv')
+            ->join('happy_hour_campaigns as c', 'c.id', '=', 'cv.happy_hour_campaign_id')
+            ->where('c.is_active', true)
+            ->whereNull('c.deleted_at')
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('apk_setting_vend')->whereColumn('apk_setting_vend.vend_id', 'cv.vend_id'))
+            ->distinct()
+            ->pluck('cv.vend_id')->map(fn ($id) => (int) $id)->all();
+    }
+
     private static function inActiveCampaign(Vend $vend): bool
     {
         return HappyHourCampaign::query()

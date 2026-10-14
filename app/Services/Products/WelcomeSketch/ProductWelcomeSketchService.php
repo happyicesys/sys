@@ -297,9 +297,12 @@ class ProductWelcomeSketchService
     }
 
     /**
-     * Active vending machines that show the welcome scene, or can: big board on app 315+
-     * (HappyHourEligibility — the screen that runs Happy Hour's page 2), or on a UI Setting with
-     * `enableWelcomeScene` on. Light columns only; eligibility is decided in PHP, in one place.
+     * Active vending machines that SHOW the welcome scene - the only ones whose screen ever loads a
+     * sketch: on a UI Setting with `enableWelcomeScene` on, or served the bear by
+     * HappyHourWelcomeFallback (eligible, in an active Happy Hour campaign, no UI Setting).
+     * Merely being able to (app 315+) is not enough (2026-10-14: with the whole big-board fleet
+     * on 316 that would have paid to draw every vending product for screens that never show it).
+     * Light columns only; eligibility is decided in PHP, in one place.
      *
      * @return \Illuminate\Support\Collection<int, \App\Models\Vend>
      */
@@ -309,10 +312,12 @@ class ProductWelcomeSketchService
             ->join('apk_settings as s', 's.id', '=', 'sv.apk_setting_id')
             ->where('s.settings_parameter_json->enableWelcomeScene', 'true')
             ->pluck('sv.vend_id')->map(fn ($id) => (int) $id)->all();
+        $fallback = \App\Services\HappyHour\HappyHourWelcomeFallback::campaignVendIdsWithoutUiSetting();
 
         return \App\Models\Vend::withoutGlobalScopes()
             ->where('machine_type', \App\Models\Vend::MACHINE_TYPE_VENDING_MACHINE)
             ->where('is_active', 1)
+            ->whereIn('id', array_values(array_unique([...$sceneOn, ...$fallback])))
             ->get(['id', 'machine_type', 'is_active', 'apk_version_code', 'apk_ver_json'])
             ->filter(fn ($v) => in_array($v->id, $sceneOn, true) || \App\Services\HappyHour\HappyHourEligibility::supportsVending($v))
             ->values();
@@ -328,6 +333,7 @@ class ProductWelcomeSketchService
 
         return \Illuminate\Support\Facades\DB::table('vend_channels')
             ->whereIn('vend_id', $vendIds)
+            ->where('is_active', 1) // a retired channel's product is never on the screen
             ->whereNotNull('product_id')
             ->distinct()
             ->pluck('product_id')

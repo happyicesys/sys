@@ -1091,8 +1091,10 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
   When it leaves the campaign, the next fetch gets the defaults with the bear OFF once (cache
   `hh-welcome-fallback:{vend}`), then 400 again. A bound UI Setting always wins. Campaign
   store/update/delete sends TYPESYNCSETTINGSPARAM to its unbound machines so it applies at once.
-- **Sketches:** the hourly sweep also draws products on vending machines that show the welcome scene
-  (eligible, or a UI Setting with `enableWelcomeScene` = Bear welcome screen), at most
+- **Sketches:** the hourly sweep also draws products on vending machines that SHOW the welcome scene
+  (a UI Setting with `enableWelcomeScene` = Bear welcome screen, or served the bear by
+  `HappyHourWelcomeFallback`; being on app 315+ alone is NOT enough since 2026-10-14 — the whole fleet
+  on 316 would have paid to draw every vending product; active channels only), at most
   `happy_hour.vending_sketch_sweep_limit` (6) new draws a run; freezer products are never held back.
 Regression coverage: `tests/Feature/HappyHourVendingTest.php`.
 
