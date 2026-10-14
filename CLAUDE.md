@@ -1053,8 +1053,13 @@ every ACTIVE machine of that kind of the campaign OWNER's operator that can run 
 315) and leaving when it stops. `HappyHourMachineGroups` is the only writer of `happy_hour_campaign_vend`: it
 materialises members there with `via_group` (NULL = picked by hand), on every save and in the minute planner
 (`followGroups`, which cancels a leaver's slots and nudges the bear fallback), so every pivot reader keeps
-working. A machine another active campaign holds at overlapping times is never taken; the same group on two
-overlapping campaigns of one owner is refused on save. The form's picker shows hand-picked machines only.
+working. **Picked by name beats a group** (Brian, 2026-10-14): a machine another campaign IN FORCE (on, inside
+its active dates — `HappyHourCampaign::inForce`) picked by hand leaves every group campaign for as long as that
+campaign is in force — the WHOLE machine, whatever the hours (Brian's choice) — and rejoins when it is paused,
+ended or deleted; save and delete call `HappyHourPlanner::followGroups` so the handover is immediate, and the
+group campaign's row lists it as "2031 → <campaign>". Clashes on save are only equal-priority ones: two
+campaigns naming the same machine at overlapping hours, or the same group on two overlapping campaigns of one
+owner. The form's picker shows hand-picked machines only.
 Regression coverage: `tests/Feature/HappyHourMachineGroupsTest.php`.
 
 Machines and the freezer:

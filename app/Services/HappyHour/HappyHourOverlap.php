@@ -23,11 +23,13 @@ final class HappyHourOverlap
             return [];
         }
 
-        // Every operator's campaigns: a clash with one the viewer cannot see is still a clash.
+        // Every operator's campaigns: a clash with one the viewer cannot see is still a clash. Only a
+        // machine the other campaign ALSO picked by name clashes: one it holds through a group gives
+        // way to a pick by name (HappyHourMachineGroups).
         return HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
-            ->whereHas('vends', fn ($q) => $q->whereIn('vends.id', $vendIds))
-            ->with(['vends' => fn ($q) => $q->whereIn('vends.id', $vendIds)])
+            ->whereHas('vends', fn ($q) => $q->whereIn('vends.id', $vendIds)->whereNull('happy_hour_campaign_vend.via_group'))
+            ->with(['vends' => fn ($q) => $q->whereIn('vends.id', $vendIds)->wherePivotNull('via_group')])
             ->get()
             ->filter(fn (HappyHourCampaign $other) => self::meets($data, $other))
             ->map(fn (HappyHourCampaign $other) => sprintf(
@@ -40,8 +42,8 @@ final class HappyHourOverlap
     }
 
     /**
-     * The machines among $vendIds that another active campaign already holds at overlapping times —
-     * the ones a live group must not take (a machine runs one campaign at a time; first come keeps it).
+     * The machines among $vendIds that another active campaign already holds THROUGH A GROUP at
+     * overlapping times — the ones a live group must not take (first come keeps it).
      *
      * @param  array<string, mixed>  $data
      * @param  list<int>  $vendIds
@@ -53,10 +55,12 @@ final class HappyHourOverlap
             return [];
         }
 
+        // Group-held rows only: a machine another campaign picked by name is HappyHourMachineGroups'
+        // in-force rule (it leaves the group only once that campaign is in force).
         return HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
-            ->whereHas('vends', fn ($q) => $q->whereIn('vends.id', $vendIds))
-            ->with(['vends' => fn ($q) => $q->whereIn('vends.id', $vendIds)->select('vends.id')])
+            ->whereHas('vends', fn ($q) => $q->whereIn('vends.id', $vendIds)->whereNotNull('happy_hour_campaign_vend.via_group'))
+            ->with(['vends' => fn ($q) => $q->whereIn('vends.id', $vendIds)->wherePivotNotNull('via_group')->select('vends.id')])
             ->get()
             ->filter(fn (HappyHourCampaign $other) => self::meets($data, $other))
             ->flatMap(fn (HappyHourCampaign $other) => $other->vends->pluck('id'))

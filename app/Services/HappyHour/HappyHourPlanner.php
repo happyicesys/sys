@@ -75,12 +75,14 @@ class HappyHourPlanner
     /**
      * Live groups ("All VM - Big Board", "All Smart Freezers") follow their members before planning: a
      * machine that now qualifies joins, one that stopped leaves with its slots taken back. Never stops
-     * the run.
+     * the run. Also called right after a campaign save or delete, so a machine picked by name leaves
+     * (or rejoins) a group campaign at once.
      *
      * @return array{0: int, 1: int} machines joined, machines left
      */
-    private function followGroups(CarbonImmutable $now): array
+    public function followGroups(CarbonInterface $now): array
     {
+        $now = CarbonImmutable::instance($now);
         try {
             $changes = app(HappyHourMachineGroups::class)->syncActive();
         } catch (\Throwable $e) {

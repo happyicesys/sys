@@ -87,6 +87,16 @@ class HappyHourCampaign extends Model
         return $query->where('is_active', true);
     }
 
+    /** Switched on and inside its active dates on $date (days and hours aside). */
+    public function scopeInForce(Builder $query, CarbonInterface $date): Builder
+    {
+        $day = $date->toDateString();
+
+        return $query->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('starts_on')->orWhere('starts_on', '<=', $day))
+            ->where(fn ($q) => $q->whereNull('ends_on')->orWhere('ends_on', '>=', $day));
+    }
+
     /**
      * Whether the machine is in an ACTIVE (not deleted) campaign, whoever owns it - read from the
      * pivot with no scope, since terminals call with no user. One indexed query.

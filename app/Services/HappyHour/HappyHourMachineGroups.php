@@ -20,7 +20,11 @@ use Illuminate\Support\Facades\DB;
  * Members are materialised into `happy_hour_campaign_vend` with `via_group` set, so the planner, the
  * overlap check, /thumbnails and the bear fallback read one pivot as before. This class is the only
  * writer of the pivot: `apply()` sets hand-picked rows (`via_group` NULL) + current group members,
- * called on every campaign save and, for active campaigns with a group, by the minute planner. A
+ * called on every campaign save and, for active campaigns with a group, by the minute planner.
+ *
+ * Picked by name beats a group (Brian, 2026-10-14): a machine another campaign IN FORCE (on, inside
+ * its dates) picked by hand leaves the group for as long as that campaign is in force — the whole
+ * machine, whatever the hours — and comes back when it is paused, ended or deleted. Otherwise a
  * machine another active campaign holds at overlapping times is skipped (first come keeps it).
  */
 final class HappyHourMachineGroups
@@ -53,7 +57,7 @@ final class HappyHourMachineGroups
         $hand = array_values(array_unique(array_map('intval', $handIds
             ?? array_keys(array_filter($current, fn ($group) => $group === null)))));
 
-        $members = array_diff_key($this->members($campaign), array_flip($hand));
+        $members = array_diff_key($this->members($campaign), array_flip($hand), $this->pickedByNameElsewhere($campaign));
         // A machine joining now must not already run another campaign at overlapping times.
         $joining = array_values(array_diff(array_keys($members), array_keys($current)));
         foreach (HappyHourOverlap::takenVendIds($this->schedule($campaign), $joining, $campaign->id) as $taken) {
@@ -144,6 +148,40 @@ final class HappyHourMachineGroups
             });
 
         return $members;
+    }
+
+    /**
+     * Machines another campaign in force today picked by hand — they outrank this campaign's groups.
+     *
+     * @return array<int, string> vend id => that campaign's name
+     */
+    public function pickedByNameElsewhere(HappyHourCampaign $campaign): array
+    {
+        if ((array) $campaign->machine_groups === []) {
+            return [];
+        }
+        $inForce = HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)
+            ->inForce(now())->whereKeyNot($campaign->id)->pluck('name', 'id');
+        if ($inForce->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('happy_hour_campaign_vend')
+            ->whereIn('happy_hour_campaign_id', $inForce->keys())
+            ->whereNull('via_group')
+            ->get(['vend_id', 'happy_hour_campaign_id'])
+            ->mapWithKeys(fn ($row) => [(int) $row->vend_id => $inForce[$row->happy_hour_campaign_id]])
+            ->all();
+    }
+
+    /**
+     * For the page: the group members this campaign gives up to a campaign that picked them by name.
+     *
+     * @return array<int, string> vend id => that campaign's name
+     */
+    public function overridden(HappyHourCampaign $campaign): array
+    {
+        return array_intersect_key($this->pickedByNameElsewhere($campaign), $this->members($campaign));
     }
 
     /** The campaign's schedule in the shape HappyHourOverlap compares. @return array<string, mixed> */

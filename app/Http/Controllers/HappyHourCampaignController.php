@@ -91,6 +91,8 @@ class HappyHourCampaignController extends Controller
 
             return $campaign;
         });
+        // A machine picked by name leaves any group campaign now, before this one plans it.
+        $this->followGroups();
         $this->planNow($campaign);
         HappyHourWelcomeFallback::nudgeUnbound($this->memberIds($campaign));
 
@@ -115,6 +117,8 @@ class HappyHourCampaignController extends Controller
                 $this->planner->cancel($campaign, $now, $removed);
             }
         });
+        // Picked by name now (or no longer): group campaigns give the machine up / take it back now.
+        $this->followGroups();
         $this->planNow($campaign->fresh());
         // Machines added, kept or taken out: those without a UI Setting re-read /parameters, so
         // the bear comes on or goes off now (HappyHourWelcomeFallback).
@@ -129,6 +133,8 @@ class HappyHourCampaignController extends Controller
         $members = $this->memberIds($campaign);
         $this->planner->cancel($campaign, Carbon::now());
         $campaign->delete();
+        // Its machines picked by name go back to any group campaign that covers them.
+        $this->followGroups();
         HappyHourWelcomeFallback::nudgeUnbound($members);
 
         return back()->with('success', "Happy Hour \"{$campaign->name}\" deleted.");
@@ -183,6 +189,30 @@ class HappyHourCampaignController extends Controller
     {
         return DB::table('happy_hour_campaign_vend')->where('happy_hour_campaign_id', $campaign->id)
             ->pluck('vend_id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /** @return list<array{code: string, by: string}> */
+    private function overridden(HappyHourCampaign $c): array
+    {
+        $byVend = app(HappyHourMachineGroups::class)->overridden($c);
+        if ($byVend === []) {
+            return [];
+        }
+
+        return $this->visibleVends(Vend::withoutGlobalScopes()->whereIn('vends.id', array_keys($byVend)))
+            ->orderBy('code')->get(['id', 'code', 'code_prefix'])
+            ->map(fn (Vend $v) => ['code' => $v->codeLabel(), 'by' => $byVend[$v->id]])
+            ->values()->all();
+    }
+
+    /** Group campaigns follow their members now; a hiccup here waits for the minute run. */
+    private function followGroups(): void
+    {
+        try {
+            $this->planner->followGroups(Carbon::now());
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -264,6 +294,8 @@ class HappyHourCampaignController extends Controller
             'allow_below_cost' => $c->allow_below_cost,
             'excluded_product_ids' => $c->excludedProductIds(),
             'machine_groups' => array_values((array) $c->machine_groups),
+            // Group members another campaign picked by name — they run that one while it is in force.
+            'overridden' => $this->overridden($c),
             'vends' => $c->vends->map(fn (Vend $v) => [
                 'id' => $v->id,
                 // NULL = picked by hand; else the live group it joined through.

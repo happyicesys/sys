@@ -115,6 +115,11 @@
                         {{ groupLabel(g) }} · {{ c.vends.filter(v => v.via_group === g).length }}
                       </span>
                     </div>
+                    <!-- Picked by name in another campaign: that one wins while it is in force. -->
+                    <div v-for="o in c.overridden" :key="o.code" class="text-xs text-gray-500 mb-1 whitespace-nowrap"
+                      v-tooltip="`Picked by name in “${o.by}”, which takes priority over this campaign's group while it is on`">
+                      <span class="line-through">{{ o.code }}</span> → {{ o.by }}
+                    </div>
                     <div class="flex flex-wrap justify-center gap-1">
                       <button v-for="v in shownVends(c)" :key="v.id" type="button" @click="openPreview(c, v)"
                         class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border hover:ring-2 hover:ring-indigo-300"

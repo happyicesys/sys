@@ -158,33 +158,52 @@ class HappyHourMachineGroupsTest extends TestCase
         $this->assertSame([$big => HappyHourMachineGroups::VENDING_BIG_BOARD], $this->members($campaign));
     }
 
-    public function test_a_group_never_takes_a_machine_another_campaign_holds_and_two_groups_clash(): void
+    public function test_a_machine_picked_by_name_leaves_the_group_campaign_while_that_campaign_is_in_force(): void
     {
-        $held = $this->vending(2031, 315);
-        $free = $this->vending(2003, 315);
+        $picked = $this->vending(2031, 315);
+        $other = $this->vending(2003, 315);
         $admin = $this->admin();
-        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Bench only', 'vend_ids' => [$held], 'window_start' => '19:00', 'window_end' => '20:00']))
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'All VM', 'window_start' => '00:00', 'window_end' => '23:59',
+            'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasNoErrors();
+        $all = HappyHourCampaign::where('name', 'All VM')->firstOrFail();
+        $this->assertSame([$picked, $other], array_keys($this->members($all)));
+        DB::table('vend_channels')->insert(['vend_id' => $picked, 'code' => 11, 'product_id' => 1, 'amount' => 200, 'qty' => 5, 'capacity' => 10, 'is_active' => 1]);
+        $live = HappyHourSlot::create([
+            'happy_hour_campaign_id' => $all->id, 'vend_id' => $picked, 'product_id' => 1, 'slot_date' => '2026-10-14',
+            'position' => 0, 'starts_at' => '2026-10-14 08:30:00', 'ends_at' => '2026-10-14 09:30:00',
+            'original_price' => 200, 'promo_price' => 140, 'discount_pct' => 30, 'rank' => 1,
+        ]);
+
+        // A new entry names 2031 at overlapping hours: no clash — the name wins, for the whole machine.
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Bench 2031', 'vend_ids' => [$picked], 'discount_pct' => 50]))
             ->assertSessionHasNoErrors();
-        $bench = HappyHourCampaign::where('name', 'Bench only')->firstOrFail();
+        $bench = HappyHourCampaign::where('name', 'Bench 2031')->firstOrFail();
+        $this->assertSame([$other], array_keys($this->members($all)), 'left the group campaign at once');
+        $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $live->fresh()->status, "and the group campaign's live slot there ended");
+        $this->assertSame([$picked => null], $this->members($bench));
+        $this->actingAs($admin)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(fn ($page) => $page->where('campaigns', fn ($campaigns) => collect($campaigns)->firstWhere('name', 'All VM')['overridden']
+                === [['code' => '2031', 'by' => 'Bench 2031']]));
 
-        // A group campaign at other hours takes both; at overlapping hours the held one is refused on save.
-        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'All day', 'window_start' => '10:00', 'window_end' => '20:00',
-            'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasErrors('vend_ids');
+        // Two campaigns naming the same machine at overlapping hours have no winner: still refused.
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Twin pick', 'vend_ids' => [$picked]]))
+            ->assertSessionHasErrors('vend_ids');
 
-        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Afternoon', 'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))
+        // Paused: 2031 goes back to the group campaign.
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$bench->id}", $this->form(['name' => 'Bench 2031', 'vend_ids' => [$picked], 'is_active' => false]))
             ->assertSessionHasNoErrors();
-        $afternoon = HappyHourCampaign::where('name', 'Afternoon')->firstOrFail();
-        $this->assertSame([$held, $free], array_keys($this->members($afternoon)));
+        $this->assertSame([$picked, $other], array_keys($this->members($all)));
 
-        // The bench campaign moves into the afternoon: its own machine is fine, and the minute run never
-        // hands a held machine to a second campaign.
-        $bench->update(['window_start' => '15:00:00', 'window_end' => '16:00:00']);
-        DB::table('happy_hour_campaign_vend')->where('happy_hour_campaign_id', $afternoon->id)->where('vend_id', $held)->delete();
-        app(HappyHourMachineGroups::class)->syncActive();
-        $this->assertSame([$free], array_keys($this->members($afternoon)), 'held by the bench campaign at overlapping times');
+        // Switched on again but starting tomorrow: the group keeps it until then, then the minute run hands it over.
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$bench->id}", $this->form(['name' => 'Bench 2031', 'vend_ids' => [$picked], 'starts_on' => '2026-10-15']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame([$picked, $other], array_keys($this->members($all)), 'not in force yet');
+        Carbon::setTestNow('2026-10-15 00:01:00');
+        app(HappyHourPlanner::class)->run(now());
+        $this->assertSame([$other], array_keys($this->members($all)));
 
-        // The same group twice at overlapping hours is refused even with no members yet.
-        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Twin', 'window_start' => '17:00', 'window_end' => '19:00',
+        // The same group on two campaigns at overlapping hours is still refused, even with no members.
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Twin group',
             'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasErrors('machine_groups');
     }
 

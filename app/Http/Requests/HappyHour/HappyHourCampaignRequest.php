@@ -86,12 +86,11 @@ class HappyHourCampaignRequest extends FormRequest
             $ignoreId = $this->route('id') ? (int) $this->route('id') : null;
             $groups = array_values((array) $this->input('machine_groups', []));
             $operatorId = $this->ownerOperatorId();
-            // The group's current members count as picked machines for the clash check...
-            $members = array_keys(app(HappyHourMachineGroups::class)->membersFor($groups, $operatorId));
-            foreach (HappyHourOverlap::conflicts($data, array_values(array_unique([...$vendIds, ...$members])), $ignoreId) as $message) {
+            // Machines picked by name clash only with another campaign that picked them by name too; a
+            // group never clashes with a pick (the pick wins) — only with the same group elsewhere.
+            foreach (HappyHourOverlap::conflicts($data, $vendIds, $ignoreId) as $message) {
                 $validator->errors()->add('vend_ids', $message);
             }
-            // ...and the same group on another campaign clashes even before it has a member.
             foreach (HappyHourOverlap::groupConflicts($data, $groups, $operatorId, $ignoreId) as $message) {
                 $validator->errors()->add('machine_groups', $message);
             }
