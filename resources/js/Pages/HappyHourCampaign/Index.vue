@@ -107,13 +107,25 @@
                     <div class="whitespace-nowrap">or &lt; {{ c.min_qty }} units</div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <!-- Live groups first: their members join and leave by themselves. -->
+                    <div v-if="c.machine_groups.length" class="flex flex-wrap justify-center gap-1 mb-1">
+                      <span v-for="g in c.machine_groups" :key="g"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold border bg-indigo-50 text-indigo-800 border-indigo-300"
+                        v-tooltip="groupTooltip(c, g)">
+                        {{ groupLabel(g) }} · {{ c.vends.filter(v => v.via_group === g).length }}
+                      </span>
+                    </div>
                     <div class="flex flex-wrap justify-center gap-1">
-                      <button v-for="v in c.vends" :key="v.id" type="button" @click="openPreview(c, v)"
+                      <button v-for="v in shownVends(c)" :key="v.id" type="button" @click="openPreview(c, v)"
                         class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border hover:ring-2 hover:ring-indigo-300"
                         :class="chipClass(v)"
                         v-tooltip="unsupportedTooltip(v) ?? pausedTooltip(v) ?? 'Show the lineup now'">
                         {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
                         <ExclamationCircleIcon v-else-if="v.paused" class="ml-0.5 w-3.5 h-3.5 text-orange-600" aria-label="Happy Hour paused" />
+                      </button>
+                      <button v-if="c.vends.length > shownVends(c).length || expanded[c.id]" type="button"
+                        class="text-xs text-indigo-600 hover:text-indigo-800 underline" @click="expanded[c.id] = !expanded[c.id]">
+                        {{ expanded[c.id] ? 'show less' : `+${c.vends.length - shownVends(c).length} more` }}
                       </button>
                     </div>
                   </TableData>
@@ -163,7 +175,22 @@
             </div>
 
             <div class="md:col-span-6">
-              <label class="block text-sm font-medium text-gray-700">Machines</label>
+              <label class="block text-sm font-medium text-gray-700">Machine groups</label>
+              <div class="mt-1 flex flex-wrap gap-x-5 gap-y-1">
+                <label v-for="g in machineGroups" :key="g.id" class="inline-flex items-center space-x-2 text-sm text-gray-700">
+                  <input type="checkbox" :value="g.id" v-model="form.machine_groups" class="rounded border-gray-300" />
+                  <span>{{ g.name }}</span>
+                </label>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Every one of your operator's machines of that kind that can run Happy Hour — now, and each new one as it qualifies
+                (a big board joins when it reaches app {{ minVendingApkVersion }}). No need to pick them below.
+              </p>
+              <p v-if="form.errors.machine_groups" class="text-red-600 text-xs mt-1">{{ form.errors.machine_groups }}</p>
+            </div>
+
+            <div class="md:col-span-6">
+              <label class="block text-sm font-medium text-gray-700">{{ form.machine_groups.length ? 'Other machines' : 'Machines' }}</label>
               <MultiSelect v-model="selectedMachines" :options="machines" mode="tags" trackBy="id" valueProp="id" label="name"
                 placeholder="Smart freezers / vending machines" open-direction="bottom" class="mt-1" />
               <p class="text-xs text-gray-500 mt-1" v-if="unsupportedPicked.length">
@@ -381,6 +408,7 @@ const props = defineProps({
   rules: Array,
   minApkVersion: Number,
   minVendingApkVersion: Number,
+  machineGroups: { type: Array, default: () => [] },
 })
 
 const permissions = computed(() => usePage().props.auth?.permissions ?? [])
@@ -399,7 +427,7 @@ const blank = () => ({
   window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4, skus_per_slot: 1,
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
   min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false,
-  excluded_product_ids: [], vend_ids: [],
+  excluded_product_ids: [], vend_ids: [], machine_groups: [],
 })
 
 const form = useForm(blank())
@@ -410,6 +438,18 @@ const selectedExcluded = ref([])
 const showPreview = ref(false)
 const preview = ref(null)
 const previewTitle = ref('')
+// Campaigns whose machine chips are all shown (a live group can hold every big board).
+const expanded = ref({})
+const CHIP_LIMIT = 12
+
+const groupLabel = (id) => props.machineGroups.find(g => g.id === id)?.name ?? id
+const groupTooltip = (c, g) => `${groupLabel(g)}: ${c.vends.filter(v => v.via_group === g).length} machine(s) now — joins and leaves by itself`
+// Hand-picked machines always; a group's members up to the limit unless expanded.
+function shownVends(c) {
+  if (expanded.value[c.id]) return c.vends
+  const hand = c.vends.filter(v => !v.via_group)
+  return [...hand, ...c.vends.filter(v => v.via_group).slice(0, Math.max(0, CHIP_LIMIT - hand.length))]
+}
 
 // Hover on a ⚠ machine chip: why it gets no Happy Hour slots, and what changes that.
 // Same shape as ProductMapping's long tooltips: floating-vue sets no max-width, so the width is an
@@ -524,7 +564,9 @@ function openEdit(c) {
     ...blank(),
     ...Object.fromEntries(Object.keys(blank()).filter(k => k in c).map(k => [k, c[k]])),
   })
-  selectedMachines.value = props.machines.filter(m => c.vends.some(v => v.id === m.id))
+  form.machine_groups = [...(c.machine_groups ?? [])]
+  // Only hand-picked machines go in the picker; a group's members follow the group.
+  selectedMachines.value = props.machines.filter(m => c.vends.some(v => v.id === m.id && !v.via_group))
   selectedExcluded.value = props.products.filter(p => c.excluded_product_ids.includes(p.id))
   showForm.value = true
 }

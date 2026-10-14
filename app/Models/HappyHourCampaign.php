@@ -46,7 +46,7 @@ class HappyHourCampaign extends Model
     protected $fillable = [
         'name', 'operator_id', 'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end',
         'slot_minutes', 'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct',
-        'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'excluded_product_ids',
+        'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'excluded_product_ids', 'machine_groups',
         'created_by', 'updated_by',
     ];
 
@@ -65,12 +65,15 @@ class HappyHourCampaign extends Model
         'price_step_cents' => 'integer',
         'allow_below_cost' => 'boolean',
         'excluded_product_ids' => 'array',
+        'machine_groups' => 'array',
     ];
 
     public function vends(): BelongsToMany
     {
         return $this->belongsToMany(Vend::class, 'happy_hour_campaign_vend')
             ->withoutGlobalScopes()
+            // NULL = picked by hand; a group key = joined through that live group (HappyHourMachineGroups).
+            ->withPivot('via_group')
             ->withTimestamps();
     }
 

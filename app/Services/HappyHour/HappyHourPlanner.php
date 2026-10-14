@@ -42,14 +42,15 @@ class HappyHourPlanner
 
     public function __construct(private readonly HappyHourRanker $ranker) {}
 
-    /** @return array{closed: int, sold_out: int, paused: int, paused_machines: int, planned: int, swapped: int} */
+    /** @return array{closed: int, sold_out: int, paused: int, group_joined: int, group_left: int, paused_machines: int, planned: int, swapped: int} */
     public function run(CarbonInterface $now): array
     {
         $now = CarbonImmutable::instance($now);
         $stats = [
             'closed' => $this->closeEnded($now), 'sold_out' => $this->endSoldOut($now), 'paused' => $this->endPaused($now),
-            'paused_machines' => 0, 'planned' => 0, 'swapped' => 0,
+            'group_joined' => 0, 'group_left' => 0, 'paused_machines' => 0, 'planned' => 0, 'swapped' => 0,
         ];
+        [$stats['group_joined'], $stats['group_left']] = $this->followGroups($now);
 
         $campaigns = HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()->with('vends')->get();
         $paused = HappyHourPause::forVends($campaigns->flatMap(fn ($c) => $c->vends->pluck('id')), $now);
@@ -69,6 +70,40 @@ class HappyHourPlanner
         });
 
         return $stats;
+    }
+
+    /**
+     * Live groups ("All VM - Big Board", "All Smart Freezers") follow their members before planning: a
+     * machine that now qualifies joins, one that stopped leaves with its slots taken back. Never stops
+     * the run.
+     *
+     * @return array{0: int, 1: int} machines joined, machines left
+     */
+    private function followGroups(CarbonImmutable $now): array
+    {
+        try {
+            $changes = app(HappyHourMachineGroups::class)->syncActive();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [0, 0];
+        }
+        $joined = $left = 0;
+        foreach ($changes as $campaignId => $change) {
+            if ($change['removed'] !== []) {
+                $campaign = HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->find($campaignId);
+                $campaign && $this->cancel($campaign, $now, $change['removed']);
+            }
+            // The bear comes on / goes off on a machine with no UI Setting.
+            HappyHourWelcomeFallback::nudgeUnbound([...$change['added'], ...$change['removed']]);
+            $joined += count($change['added']);
+            $left += count($change['removed']);
+        }
+        if ($joined || $left) {
+            Log::info('happy hour groups followed', ['changes' => $changes]);
+        }
+
+        return [$joined, $left];
     }
 
     /** Plans every bound machine of one campaign at once (after a save), instead of waiting a minute. */

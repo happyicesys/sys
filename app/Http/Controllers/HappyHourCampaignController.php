@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourEligibility;
+use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourRanker;
@@ -72,6 +73,7 @@ class HappyHourCampaignController extends Controller
             'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
             'minApkVersion' => HappyHourEligibility::minFreezerApk(),
             'minVendingApkVersion' => HappyHourEligibility::minVendingApk(),
+            'machineGroups' => collect(HappyHourMachineGroups::GROUPS)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
         ]);
     }
 
@@ -201,6 +203,7 @@ class HappyHourCampaignController extends Controller
     {
         $data = $request->safe()->except('vend_ids');
         $data['excluded_product_ids'] = array_values(array_map('intval', $data['excluded_product_ids'] ?? [])) ?: null;
+        $data['machine_groups'] = array_values(array_unique($data['machine_groups'] ?? [])) ?: null;
         // Stored as TIME ("14:00:00"); match it so an unchanged window is not seen as an edit.
         $data['window_start'] .= ':00';
         $data['window_end'] .= ':00';
@@ -214,21 +217,21 @@ class HappyHourCampaignController extends Controller
      */
     private function syncVends(HappyHourCampaign $campaign, array $vendIds): array
     {
-        $before = $campaign->vends()->pluck('vends.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+        // Hand-picked rows only: a live group's members are HappyHourMachineGroups' to keep.
+        $before = $campaign->vends()->wherePivotNull('via_group')->pluck('vends.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
         // The form only lists the viewer's machines, so a machine it cannot see stays bound: an
         // operator's save must never take another operator's freezer out of a campaign.
-        $visible = $this->visibleVends($campaign->vends())->pluck('vends.id')->map(fn ($id) => (int) $id)->all();
+        $visible = $this->visibleVends($campaign->vends()->wherePivotNull('via_group'))->pluck('vends.id')->map(fn ($id) => (int) $id)->all();
         $after = collect($vendIds)->map(fn ($id) => (int) $id)
             ->merge(array_diff($before, $visible))
             ->unique()->sort()->values()->all();
-        if ($before === $after) {
-            return [];
+        $result = app(HappyHourMachineGroups::class)->apply($campaign, $after);
+        if ($before !== $after) {
+            // A pivot write fires no model event, so the audit trail is written by hand.
+            UserLogger::recordChanges($campaign, ['vend_ids' => [$before, $after]]);
         }
-        $campaign->vends()->sync($after);
-        // A pivot sync fires no model event, so the audit trail is written by hand.
-        UserLogger::recordChanges($campaign, ['vend_ids' => [$before, $after]]);
 
-        return array_values(array_diff($before, $after));
+        return $result['removed'];
     }
 
     /**
@@ -260,8 +263,11 @@ class HappyHourCampaignController extends Controller
             'price_step_cents' => $c->price_step_cents,
             'allow_below_cost' => $c->allow_below_cost,
             'excluded_product_ids' => $c->excludedProductIds(),
+            'machine_groups' => array_values((array) $c->machine_groups),
             'vends' => $c->vends->map(fn (Vend $v) => [
                 'id' => $v->id,
+                // NULL = picked by hand; else the live group it joined through.
+                'via_group' => $v->pivot?->via_group,
                 'code' => $v->codeLabel(),
                 'machine_type' => $v->machine_type,
                 'supported' => HappyHourEligibility::supports($v),

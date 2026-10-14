@@ -1047,6 +1047,16 @@ Exclusion rules:
   units exists.
 - A promo below the current unit cost is excluded unless the campaign allows it.
 
+Machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" (`machine_groups`) are LIVE —
+every ACTIVE machine of that kind of the campaign OWNER's operator that can run Happy Hour now
+(`HappyHourEligibility`; never a sibling operator's, Brian), joining as it qualifies (a big board on reaching
+315) and leaving when it stops. `HappyHourMachineGroups` is the only writer of `happy_hour_campaign_vend`: it
+materialises members there with `via_group` (NULL = picked by hand), on every save and in the minute planner
+(`followGroups`, which cancels a leaver's slots and nudges the bear fallback), so every pivot reader keeps
+working. A machine another active campaign holds at overlapping times is never taken; the same group on two
+overlapping campaigns of one owner is refused on save. The form's picker shows hand-picked machines only.
+Regression coverage: `tests/Feature/HappyHourMachineGroupsTest.php`.
+
 Machines and the freezer:
 - One machine, one campaign at a time: overlap is refused on save, and unique `(vend_id, starts_at)` is the backstop.
 - Only freezers reporting `apk_version_code` ≥ `config('happy_hour.min_freezer_apk_version')` (30) get slots.

@@ -1,0 +1,201 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\HappyHourCampaign;
+use App\Models\HappyHourSlot;
+use App\Models\User;
+use App\Models\Vend;
+use App\Services\HappyHour\HappyHourMachineGroups;
+use App\Services\HappyHour\HappyHourPlanner;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Spatie\Permission\Models\Permission;
+use Tests\TestCase;
+
+/**
+ * Live machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" bind every
+ * machine of that kind of the campaign OWNER's operator that can run Happy Hour, and follow it — a big
+ * board joins when it reaches app 315, a deactivated one leaves with its slots. Hand-picked machines
+ * are untouched, and a machine another campaign holds is never taken.
+ */
+class HappyHourMachineGroupsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const OTHER = 27;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Queue::fake();
+        Carbon::setTestNow('2026-10-14 09:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
+    private function freezer(int $code, int $apk, int $operatorId = 1): int
+    {
+        return DB::table('vends')->insertGetId([
+            'code' => $code, 'operator_id' => $operatorId, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER,
+            'is_active' => 1, 'apk_version_code' => $apk, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    private function vending(int $code, int $apk, string $deviceType = 'ZC-328', int $operatorId = 1, bool $active = true): int
+    {
+        return DB::table('vends')->insertGetId([
+            'code' => $code, 'operator_id' => $operatorId, 'machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE,
+            'is_active' => $active ? 1 : 0, 'apk_version_code' => $apk,
+            'apk_ver_json' => json_encode(['apkver' => $apk, 'buildtime' => '2026-10-12', 'deviceType' => $deviceType]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    private function admin(int $operatorId = 1): User
+    {
+        $user = User::factory()->create(['operator_id' => $operatorId]);
+        foreach (['read', 'create', 'update', 'delete'] as $action) {
+            $user->givePermissionTo(Permission::findOrCreate("{$action} happy-hour-campaigns", 'web'));
+        }
+
+        return $user;
+    }
+
+    /** @param  array<string, mixed>  $overrides */
+    private function form(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => 'Everywhere', 'is_active' => true, 'starts_on' => null, 'ends_on' => null,
+            'days_mask' => HappyHourCampaign::EVERY_DAY, 'window_start' => '14:00', 'window_end' => '18:00',
+            'slot_minutes' => 60, 'sku_count' => 2, 'skus_per_slot' => 1, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT,
+            'lookback_days' => 14, 'discount_pct' => 30, 'min_balance_pct' => 15, 'min_qty' => 2,
+            'price_step_cents' => 10, 'allow_below_cost' => false, 'excluded_product_ids' => [], 'vend_ids' => [],
+            'machine_groups' => [],
+        ], $overrides);
+    }
+
+    /** @return array<int, ?string> vend id => via_group */
+    private function members(HappyHourCampaign $campaign): array
+    {
+        return DB::table('happy_hour_campaign_vend')->where('happy_hour_campaign_id', $campaign->id)->orderBy('vend_id')
+            ->pluck('via_group', 'vend_id')->mapWithKeys(fn ($g, $id) => [(int) $id => $g])->all();
+    }
+
+    public function test_a_group_binds_the_owners_eligible_machines_and_follows_them(): void
+    {
+        $freezer = $this->freezer(50001, 30);
+        $oldFreezer = $this->freezer(50002, 20);              // app too old: not yet
+        $bigReady = $this->vending(2031, 315);
+        $bigOld = $this->vending(2844, 220);                  // joins when it reaches 315
+        $this->vending(2638, 315, 'ZC-83A');                  // small board: never
+        $this->vending(2900, 315, 'ZC-328', 1, false);        // inactive: never
+        $this->vending(4101, 315, 'ZC-328', self::OTHER);     // another operator: never (Brian)
+        $hand = $this->vending(2003, 315);
+
+        $this->actingAs($this->admin())->post('/happy-hour-campaigns', $this->form([
+            'machine_groups' => [HappyHourMachineGroups::SMART_FREEZER, HappyHourMachineGroups::VENDING_BIG_BOARD],
+            'vend_ids' => [$hand],
+        ]))->assertSessionHasNoErrors();
+        $campaign = HappyHourCampaign::firstOrFail();
+
+        $this->assertEquals([
+            $freezer => HappyHourMachineGroups::SMART_FREEZER,
+            $bigReady => HappyHourMachineGroups::VENDING_BIG_BOARD,
+            $hand => null, // hand-picked stays hand-picked even though the group would cover it
+        ], $this->members($campaign));
+
+        // 2844 updates to 315, 50002 to app 30; 2031 is retired with a live slot on it.
+        DB::table('vends')->where('id', $bigOld)->update(['apk_version_code' => 315, 'apk_ver_json' => json_encode(['apkver' => 315, 'deviceType' => 'ZC-328'])]);
+        DB::table('vends')->where('id', $oldFreezer)->update(['apk_version_code' => 30]);
+        DB::table('vends')->where('id', $bigReady)->update(['is_active' => 0]);
+        DB::table('vend_channels')->insert(['vend_id' => $bigReady, 'code' => 11, 'product_id' => 1, 'amount' => 200, 'qty' => 5, 'capacity' => 10, 'is_active' => 1]);
+        $slot = HappyHourSlot::create([
+            'happy_hour_campaign_id' => $campaign->id, 'vend_id' => $bigReady, 'product_id' => 1, 'slot_date' => '2026-10-14',
+            'position' => 0, 'starts_at' => '2026-10-14 08:30:00', 'ends_at' => '2026-10-14 09:30:00',
+            'original_price' => 200, 'promo_price' => 140, 'discount_pct' => 30, 'rank' => 1,
+        ]);
+
+        app(HappyHourPlanner::class)->run(now());
+
+        $members = $this->members($campaign);
+        $this->assertSame(HappyHourMachineGroups::VENDING_BIG_BOARD, $members[$bigOld] ?? 'missing', 'joined on reaching 315');
+        $this->assertSame(HappyHourMachineGroups::SMART_FREEZER, $members[$oldFreezer] ?? 'missing');
+        $this->assertArrayNotHasKey($bigReady, $members, 'left when deactivated');
+        $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $slot->fresh()->status, 'and its live slot ended');
+        $this->assertNull($members[$hand]);
+
+        // Unticking the groups keeps only the hand-picked machine.
+        $this->actingAs($this->admin())->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['vend_ids' => [$hand]]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame([$hand => null], $this->members($campaign));
+    }
+
+    public function test_the_page_shows_groups_and_keeps_group_members_out_of_the_hand_picker(): void
+    {
+        $big = $this->vending(2031, 315);
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('campaigns.0.machine_groups', [HappyHourMachineGroups::VENDING_BIG_BOARD])
+                ->where('campaigns.0.vends.0.id', $big)
+                ->where('campaigns.0.vends.0.via_group', HappyHourMachineGroups::VENDING_BIG_BOARD)
+                ->where('machineGroups.0.name', 'All VM - Big Board'));
+
+        // Saving the form again (no hand-picked machines) leaves the group member in place.
+        $campaign = HappyHourCampaign::firstOrFail();
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD], 'name' => 'Renamed']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame([$big => HappyHourMachineGroups::VENDING_BIG_BOARD], $this->members($campaign));
+    }
+
+    public function test_a_group_never_takes_a_machine_another_campaign_holds_and_two_groups_clash(): void
+    {
+        $held = $this->vending(2031, 315);
+        $free = $this->vending(2003, 315);
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Bench only', 'vend_ids' => [$held], 'window_start' => '19:00', 'window_end' => '20:00']))
+            ->assertSessionHasNoErrors();
+        $bench = HappyHourCampaign::where('name', 'Bench only')->firstOrFail();
+
+        // A group campaign at other hours takes both; at overlapping hours the held one is refused on save.
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'All day', 'window_start' => '10:00', 'window_end' => '20:00',
+            'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasErrors('vend_ids');
+
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Afternoon', 'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))
+            ->assertSessionHasNoErrors();
+        $afternoon = HappyHourCampaign::where('name', 'Afternoon')->firstOrFail();
+        $this->assertSame([$held, $free], array_keys($this->members($afternoon)));
+
+        // The bench campaign moves into the afternoon: its own machine is fine, and the minute run never
+        // hands a held machine to a second campaign.
+        $bench->update(['window_start' => '15:00:00', 'window_end' => '16:00:00']);
+        DB::table('happy_hour_campaign_vend')->where('happy_hour_campaign_id', $afternoon->id)->where('vend_id', $held)->delete();
+        app(HappyHourMachineGroups::class)->syncActive();
+        $this->assertSame([$free], array_keys($this->members($afternoon)), 'held by the bench campaign at overlapping times');
+
+        // The same group twice at overlapping hours is refused even with no members yet.
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form(['name' => 'Twin', 'window_start' => '17:00', 'window_end' => '19:00',
+            'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasErrors('machine_groups');
+    }
+
+    public function test_an_operator_restricted_admin_s_group_covers_only_its_own_machines(): void
+    {
+        $this->vending(2031, 315);
+        $theirs = $this->vending(4101, 315, 'ZC-328', self::OTHER);
+
+        $this->actingAs($this->admin(self::OTHER))->post('/happy-hour-campaigns', $this->form(['machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([$theirs => HappyHourMachineGroups::VENDING_BIG_BOARD], $this->members(HappyHourCampaign::withoutGlobalScopes()->firstOrFail()));
+    }
+}

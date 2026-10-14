@@ -3,8 +3,10 @@
 namespace App\Http\Requests\HappyHour;
 
 use App\Models\HappyHourCampaign;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourEligibility;
+use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourOverlap;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +47,9 @@ class HappyHourCampaignRequest extends FormRequest
             'excluded_product_ids.*' => ['integer', 'exists:products,id'],
             'vend_ids' => ['nullable', 'array'],
             'vend_ids.*' => ['integer', 'distinct'],
+            // Live groups (HappyHourMachineGroups): the owner's machines of that kind, joining as they qualify.
+            'machine_groups' => ['nullable', 'array'],
+            'machine_groups.*' => ['string', 'distinct', Rule::in(array_keys(HappyHourMachineGroups::GROUPS))],
         ];
     }
 
@@ -76,10 +81,29 @@ class HappyHourCampaignRequest extends FormRequest
             if (! $this->boolean('is_active')) {
                 return;
             }
-            foreach (HappyHourOverlap::conflicts($this->validated(), $vendIds, $this->route('id') ? (int) $this->route('id') : null) as $message) {
+            // Read once: validated() throws as soon as an error has been added below.
+            $data = $this->validated();
+            $ignoreId = $this->route('id') ? (int) $this->route('id') : null;
+            $groups = array_values((array) $this->input('machine_groups', []));
+            $operatorId = $this->ownerOperatorId();
+            // The group's current members count as picked machines for the clash check...
+            $members = array_keys(app(HappyHourMachineGroups::class)->membersFor($groups, $operatorId));
+            foreach (HappyHourOverlap::conflicts($data, array_values(array_unique([...$vendIds, ...$members])), $ignoreId) as $message) {
                 $validator->errors()->add('vend_ids', $message);
             }
+            // ...and the same group on another campaign clashes even before it has a member.
+            foreach (HappyHourOverlap::groupConflicts($data, $groups, $operatorId, $ignoreId) as $message) {
+                $validator->errors()->add('machine_groups', $message);
+            }
         }];
+    }
+
+    /** Whose machines a live group covers: the campaign's owner (OperatorHappyHourCampaignScope). */
+    private function ownerOperatorId(): int
+    {
+        $owner = $this->route('id') ? HappyHourCampaign::query()->whereKey((int) $this->route('id'))->value('operator_id') : null;
+
+        return (int) ($owner ?: auth()->user()?->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID);
     }
 
     /**

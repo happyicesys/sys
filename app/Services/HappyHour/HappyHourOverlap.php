@@ -39,6 +39,59 @@ final class HappyHourOverlap
             ->all();
     }
 
+    /**
+     * The machines among $vendIds that another active campaign already holds at overlapping times —
+     * the ones a live group must not take (a machine runs one campaign at a time; first come keeps it).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<int>  $vendIds
+     * @return list<int>
+     */
+    public static function takenVendIds(array $data, array $vendIds, ?int $ignoreId): array
+    {
+        if ($vendIds === []) {
+            return [];
+        }
+
+        return HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->whereHas('vends', fn ($q) => $q->whereIn('vends.id', $vendIds))
+            ->with(['vends' => fn ($q) => $q->whereIn('vends.id', $vendIds)->select('vends.id')])
+            ->get()
+            ->filter(fn (HappyHourCampaign $other) => self::meets($data, $other))
+            ->flatMap(fn (HappyHourCampaign $other) => $other->vends->pluck('id'))
+            ->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * Another active campaign of the same owner with the same live group at overlapping times — refused
+     * even before the group has a member (both would claim every machine that joins later).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<string>  $groups
+     * @return list<string>
+     */
+    public static function groupConflicts(array $data, array $groups, int $operatorId, ?int $ignoreId): array
+    {
+        if ($groups === []) {
+            return [];
+        }
+
+        return HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->where('operator_id', $operatorId)
+            ->whereNotNull('machine_groups')
+            ->get()
+            ->filter(fn (HappyHourCampaign $other) => array_intersect($groups, (array) $other->machine_groups) !== []
+                && self::meets($data, $other))
+            ->map(fn (HappyHourCampaign $other) => sprintf(
+                '%s is already in "%s" at overlapping times.',
+                implode(' / ', array_map(fn ($g) => HappyHourMachineGroups::label($g), array_values(array_intersect($groups, (array) $other->machine_groups)))),
+                $other->name,
+            ))
+            ->values()->all();
+    }
+
     /** @param  array<string, mixed>  $data */
     private static function meets(array $data, HappyHourCampaign $other): bool
     {
