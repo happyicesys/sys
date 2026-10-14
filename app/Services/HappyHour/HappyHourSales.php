@@ -143,6 +143,8 @@ final class HappyHourSales
                 'slot_id' => $s->id,
                 'campaign' => $s->campaign?->name,
                 'discount_pct' => $s->discount_pct,
+                // The Campaign Label(s) chip: "HH 30%" (CampaignLabelFilter owns the wording).
+                'label' => \App\Support\Sales\CampaignLabelFilter::happyHourLabel((int) $s->discount_pct),
                 'original_price' => $s->original_price,
                 'promo_price' => $s->promo_price,
                 'slot' => $s->starts_at->format('H:i').'–'.$s->ends_at->format('H:i'),

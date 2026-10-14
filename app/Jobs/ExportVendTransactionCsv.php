@@ -235,6 +235,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
                     DB::raw('vend_transactions.label_json AS label_ids_json'),
+                    'vend_transactions.happy_hour_slot_id',
                 ])
                 ->orderBy('vend_transactions.id')
                 ->chunk(500, function ($transactions) use ($stream) {
@@ -296,6 +297,9 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 return $carry;
                             }, []);
 
+                    // Happy Hour is a campaign label too: "HH 30%" per slot, one query per chunk.
+                    $hhLabels = \App\Support\Sales\CampaignLabelFilter::happyHourLabels($transactions->pluck('happy_hour_slot_id'));
+
                     foreach ($transactions as $txn) {
                         // Normalize label values for this txn (could be ints or strings)
                         $vals = is_array($txn->label_ids_json)
@@ -312,6 +316,9 @@ class ExportVendTransactionCsv implements ShouldQueue
 
                             return $t->name ?? $t->slug ?? (string) $v;
                         })->implode(', ');
+                        if (isset($hhLabels[(int) $txn->happy_hour_slot_id])) {
+                            $labelStr = implode(', ', array_filter([$hhLabels[(int) $txn->happy_hour_slot_id], $labelStr]));
+                        }
 
                         // existing JSON parsing
                         $txn_json = is_array($txn->vend_transaction_json)

@@ -871,7 +871,6 @@
                                     </span>
                                 </div>
                             </div>
-                            <HappyHourBadge :hh="vendTransaction.happy_hour" :exponent="operatorCountry.currency_exponent" />
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -1117,8 +1116,11 @@
                         :totalLength="vendTransactions.length"
                         inputClass="text-left"
                         >
-                        <template v-if="normalizedLabels(vendTransaction).length">
+                        <!-- Happy Hour is a campaign label too (CampaignLabelFilter): its chip leads. A basket
+                             carries it on the item row that was discounted, not here. -->
+                        <template v-if="vendTransaction.happy_hour || normalizedLabels(vendTransaction).length">
                             <div class="flex flex-wrap gap-1">
+                            <HappyHourBadge :hh="vendTransaction.happy_hour" :exponent="operatorCountry.currency_exponent" />
                             <div
                                 v-for="tag in normalizedLabels(vendTransaction)"
                                 :key="(tag.id ?? tag.slug ?? tag) + '-' + vendTransaction.id"
@@ -1153,7 +1155,6 @@
                             <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
-                            <HappyHourBadge :hh="vendTransactionItem.happy_hour" :exponent="operatorCountry.currency_exponent" />
                         </TableData>
                         <!-- Payment Status: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
@@ -1219,6 +1220,13 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransaction.interface_type }}
+                        </TableData>
+                        <!-- Member ID / HID Card ID / Voucher: header-level only -->
+                        <TableData v-for="n in 3" :key="'pad-' + n" :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="bg-gray-100">
+                        </TableData>
+                        <!-- Campaign Label(s): this line's Happy Hour -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-left bg-gray-100">
+                            <HappyHourBadge :hh="vendTransactionItem.happy_hour" :exponent="operatorCountry.currency_exponent" />
                         </TableData>
                       </tr>
                     </template>
@@ -1286,6 +1294,7 @@ const props = defineProps({
     locationTypeOptions: Object,
     paymentMethods: Object,
     tagOptions: Object,
+    happyHourLabelOptions: { type: Array, default: () => [] },
     vends: Object,
     vendTransactions: Object,
     totals: [Object, Array],
@@ -1489,6 +1498,8 @@ onMounted(() => {
     tagOptions.value = [
         { id: 'all', name: 'All' },       // default
         { id: 'any', name: 'Any' },
+        // Happy Hour first: "★ Happy Hour (all)", then "★ HH 30%" per discount (CampaignLabelFilter).
+        ...props.happyHourLabelOptions,
         ...props.tagOptions.data.map(t => ({ id: t.id, name: t.name }))
     ];
     vendContractOptions.value = [

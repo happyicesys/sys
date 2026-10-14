@@ -1133,8 +1133,13 @@ Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_tra
 - No index and no FK on purpose (INSTANT add on the 4.7M-row table): every reader goes through
   `(vend_id, transaction_datetime)` first — `HappyHourSales::results()` searches the slot ± grace.
 - A TRADE tagged after its slot was totalled clears the slot's `units_sold`; the minute run recounts.
-- Sales Transactions shows "★ HH −n%" in Price Type (`HappyHourBadge.vue`; header for a single sale, the item
-  row for a basket), one slot lookup per page.
+- **Happy Hour is a campaign label** (Brian, 2026-10-15): Sales Transactions shows "★ HH 30%" in Campaign Label(s)
+  (`HappyHourBadge.vue`; the sale row for a single sale, the item row for a basket), one slot lookup per page.
+  `App\Support\Sales\CampaignLabelFilter` is the one definition of a sale's labels: the filter (request key `tag`:
+  `all` / `any` = a product label OR Happy Hour / `hh` / `hh:<pct>` / a product tag id-name-slug), its options
+  (`happyHourOptions()`: "★ Happy Hour (all)" + one "★ HH n%" per discount a slot ran at) and the "HH n%" wording the
+  grid and both CSV exports + the Excel export put in Campaign Labels. Regression coverage:
+  `tests/Feature/TransactionIndexHappyHourBadgeTest.php`.
 - Forward-only: sales before the column existed are untagged (none had sold at a promo price by 2026-10-11).
 
 A save never errors on a planning hiccup; the minute run catches up. Regression coverage:

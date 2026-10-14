@@ -1050,52 +1050,8 @@ class VendTransaction extends Model
                     });
                 });
             })
-            ->when($request->filled('tag') && $request->tag !== 'all', function ($q) use ($request) {
-                if ($request->tag === 'any') {
-                    // any label at all
-                    $q->whereRaw('JSON_LENGTH(COALESCE(vend_transactions.label_json, JSON_ARRAY())) > 0');
-                } else {
-                    // Match transactions whose label_json contains either the tag id, name, or slug
-                    // Prefer simple JSON contains, then fall back to JSON_TABLE join for cross-representation matching
-                    $tag = trim((string) $request->tag);
-                    $isNumeric = is_numeric($tag);
-
-                    $q->where(function ($sub) use ($isNumeric, $tag) {
-                        if ($isNumeric) {
-                            // Direct id stored in JSON array
-                            $sub->whereJsonContains('vend_transactions.label_json', (int) $tag);
-                        } else {
-                            // Direct name/slug stored in JSON array
-                            $sub->whereJsonContains('vend_transactions.label_json', $tag);
-                        }
-
-                        // Cross-match via tags table (handles when JSON stores name but filter is id, or vice versa)
-                        if ($isNumeric) {
-                            $where = 't.id = ?';
-                            $bindings = [(int) $tag];
-                        } else {
-                            $where = 't.name = ? OR t.slug = ?';
-                            $bindings = [$tag, $tag];
-                        }
-
-                        $sub->orWhereRaw(
-                            "EXISTS (\n".
-                            "  SELECT 1\n".
-                            "  FROM JSON_TABLE(\n".
-                            "         COALESCE(vend_transactions.label_json, JSON_ARRAY()),\n".
-                            "         '$[*]' COLUMNS(\n".
-                            "           tag_id BIGINT PATH '$',\n".
-                            "           tag_name VARCHAR(255) PATH '$'\n".
-                            "         )\n".
-                            "       ) jt\n".
-                            "  JOIN tags t ON (t.id = jt.tag_id OR t.name = jt.tag_name)\n".
-                            "  WHERE {$where}\n".
-                            ')',
-                            $bindings
-                        );
-                    });
-                }
-            })
+            // Campaign Label(s): product labels and Happy Hour, one definition (CampaignLabelFilter).
+            ->when($request->filled('tag') && is_scalar($request->tag), fn ($q) => \App\Support\Sales\CampaignLabelFilter::apply($q, (string) $request->tag))
             ->when($request->vendContracts, function ($query, $search) {
                 if (! in_array('all', $search)) {
                     $query->whereIn('vend_transactions.vend_contract_id', $search);

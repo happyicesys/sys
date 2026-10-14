@@ -4630,6 +4630,8 @@ class VendController extends Controller
                 $vendTransactions
             ),
             'tagOptions' => ['data' => $tagOptions],
+            // Happy Hour is a campaign label too ("HH 30%"): its options sit beside the product labels.
+            'happyHourLabelOptions' => \App\Support\Sales\CampaignLabelFilter::happyHourOptions(),
             'totals' => $totals,
             'vendChannelErrors' => ['data' => $vendChannelErrors],
             'vendContractOptions' => ['data' => $vendContractOptions],
@@ -4909,8 +4911,12 @@ class VendController extends Controller
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_channel_errors.code AS vend_channel_error_code',
                 DB::raw('vend_transactions.label_json AS label_ids_json'),
+                'vend_transactions.happy_hour_slot_id',
             ])
             ->chunk(500, function ($transactions) use (&$data, $excelAllowedProductIds) {
+                // Happy Hour is a campaign label too: "HH 30%" per slot, one query per chunk.
+                $hhLabels = \App\Support\Sales\CampaignLabelFilter::happyHourLabels($transactions->pluck('happy_hour_slot_id'));
+
                 // 1) Collect all tag IDs used in this chunk
                 $tagIds = $transactions->pluck('label_ids_json')
                     ->filter()
@@ -4942,6 +4948,9 @@ class VendController extends Controller
 
                         return $t->name ?? $t->slug ?? (string) $id;
                     })->implode(', ');
+                    if (isset($hhLabels[(int) $txn->happy_hour_slot_id])) {
+                        $labelStr = implode(', ', array_filter([$hhLabels[(int) $txn->happy_hour_slot_id], $labelStr]));
+                    }
 
                     $txn_json = is_array($txn->vend_transaction_json) ? $txn->vend_transaction_json : json_decode($txn->vend_transaction_json, true);
                     $main_amount = $txn->amount / 100;

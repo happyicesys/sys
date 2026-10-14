@@ -1,12 +1,13 @@
 <template>
   <span v-if="hh" v-tooltip="tooltip"
     class="inline-flex items-center rounded px-1 py-0.5 text-xs font-semibold border whitespace-nowrap bg-amber-100 text-amber-800 border-amber-300 cursor-help">
-    ★ HH −{{ hh.discount_pct }}%
+    ★ {{ hh.label ?? `HH ${hh.discount_pct}%` }}
   </span>
 </template>
 
 <script setup>
-// The Happy Hour slot that priced a sale or a line (HappyHourSales::badges, tagged at ingest).
+// The Happy Hour slot that priced a sale or a line (HappyHourSales::badges, tagged at ingest) —
+// a Campaign Label(s) chip, "★ HH 30%".
 import { computed } from 'vue'
 
 const props = defineProps({
