@@ -149,11 +149,13 @@ const navigation = computed(() => [
             {name: 'Machines View', href: '/vends', permission: 'read machine-view'},
             {name: 'Machines Settings', href: '/settings', permission: 'read machine-settings'},
             {name: 'Machine Alert Parameters', href: '/machine-alert-parameters', permission: 'read machine-alert-parameters'},
+            // Happy Hour sits directly above UI Setting on purpose: it is the default, and a UI Setting
+            // campaign bound to a machine overrides it (HappyHourPause) - the menu reads in that order.
+            {name: 'Happy Hour Campaign', href: '/happy-hour-campaigns', permission: 'read happy-hour-campaigns'},
             {name: 'UI Setting (Marketing & Campaign Remote Setting)', href: '/apk-settings', permission: 'read apk-settings'},
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
             {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
-            {name: 'Happy Hour Campaign', href: '/happy-hour-campaigns', permission: 'read happy-hour-campaigns'},
             {name: 'APK OTA Updates', href: '/apk-releases', permission: 'read apk-releases'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]
