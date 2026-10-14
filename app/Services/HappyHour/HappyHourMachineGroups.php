@@ -73,7 +73,8 @@ final class HappyHourMachineGroups
             }
             foreach ($want as $vendId => $group) {
                 if (! array_key_exists($vendId, $current)) {
-                    DB::table('happy_hour_campaign_vend')->insert([
+                    // OrIgnore: a save and the minute run may add the same member at once (unique pair).
+                    DB::table('happy_hour_campaign_vend')->insertOrIgnore([
                         'happy_hour_campaign_id' => $campaign->id, 'vend_id' => $vendId, 'via_group' => $group,
                         'created_at' => $now, 'updated_at' => $now,
                     ]);

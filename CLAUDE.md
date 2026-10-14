@@ -1063,7 +1063,7 @@ owner. The form's picker shows hand-picked machines only.
 Regression coverage: `tests/Feature/HappyHourMachineGroupsTest.php`.
 
 Machines and the freezer:
-- One machine, one campaign at a time: overlap is refused on save, and unique `(vend_id, starts_at)` is the backstop.
+- One machine, one campaign at a time: overlap is refused on save, and unique `(vend_id, starts_at, product_id)` is the backstop.
 - Only freezers reporting `apk_version_code` ≥ `config('happy_hour.min_freezer_apk_version')` (30) get slots.
   An older app would show the full price while mark1 believed in a discount.
 - `/menu` rows carry `happy_hour` (smart mappings; that product's open slots in the next 24 h — in practice the
