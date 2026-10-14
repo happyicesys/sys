@@ -81,16 +81,24 @@
                   never show - and the disabled state is exactly when the operator
                   needs to read why.
                 -->
-                <span class="inline-block" v-tooltip="screenshotTooltip">
-                  <Button
-                    type="button"
-                    class="!text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                    :disabled="screenshotBusy || !screenshotSupported"
-                    @click="openScreenshot()"
-                  >
-                    <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
-                    {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
-                  </Button>
+                <span class="inline-flex items-center gap-1">
+                  <span class="inline-block" v-tooltip="screenshotTooltip">
+                    <Button
+                      type="button"
+                      class="!text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      :disabled="screenshotBusy || !screenshotSupported"
+                      @click="openScreenshot()"
+                    >
+                      <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
+                      {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
+                    </Button>
+                  </span>
+                  <ExclamationCircleIcon
+                    v-if="!screenshotSupported"
+                    class="w-5 h-5 text-amber-500 cursor-help"
+                    aria-label="Why View Screen is unavailable"
+                    v-tooltip="screenshotUnavailableReason"
+                  />
                 </span>
               </div>
             </div>
@@ -1875,14 +1883,29 @@
       <div v-if="screenshotState === 'pending'" class="py-16 flex flex-col items-center text-gray-600">
         <ArrowPathIcon class="w-10 h-10 animate-spin text-sky-500" />
         <p class="mt-4 text-base">Asking the machine...</p>
-        <p class="mt-1 text-sm text-gray-400">Nothing appears on the machine's own screen.</p>
+        <p class="mt-1 text-sm text-gray-400 text-center max-w-md">
+          Nothing appears on the machine's own screen. If someone is using it, it waits until they finish (up to a minute).
+        </p>
+      </div>
+
+      <div v-else-if="screenshotState === 'busy'" class="py-16 flex flex-col items-center text-gray-600">
+        <ExclamationCircleIcon class="w-10 h-10 text-amber-500" />
+        <p class="mt-4 text-base">The machine is in use, so no screenshot was taken.</p>
+        <p v-if="screenshotMessage" class="mt-1 text-sm text-gray-500 text-center max-w-md">{{ screenshotMessage }}</p>
+        <p class="mt-1 text-sm text-gray-400 text-center max-w-md">A sale is never interrupted. Try again in a minute.</p>
+      </div>
+
+      <div v-else-if="screenshotState === 'failed'" class="py-16 flex flex-col items-center text-gray-600">
+        <ExclamationCircleIcon class="w-10 h-10 text-red-500" />
+        <p class="mt-4 text-base">No screenshot.</p>
+        <p v-if="screenshotMessage" class="mt-1 text-sm text-gray-500 text-center max-w-md">{{ screenshotMessage }}</p>
       </div>
 
       <div v-else-if="screenshotState === 'timeout'" class="py-16 flex flex-col items-center text-gray-600">
         <ExclamationCircleIcon class="w-10 h-10 text-amber-500" />
         <p class="mt-4 text-base">The machine did not answer.</p>
         <p class="mt-1 text-sm text-gray-400 text-center max-w-md">
-          It may be offline, or on a build that does not support screen capture yet.
+          It may be offline or on a weak connection. Check that it is online and try again.
         </p>
       </div>
 
@@ -1898,7 +1921,7 @@
       </div>
 
       <div class="mt-5 flex justify-end w-full">
-        <Button type="button" :disabled="screenshotBusy" @click="openScreenshot()">
+        <Button type="button" :disabled="screenshotBusy || !screenshotSupported" @click="openScreenshot()">
           <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
           Capture again
         </Button>
@@ -1966,6 +1989,8 @@ const props = defineProps({
     versionOptions: [Array, Object],
     // ChillerStatus::toArray() — null for anything but a Smart Chiller.
     chillerStatus: Object,
+    // null = this machine answers "View Screen"; else why not (ScreenshotEligibility).
+    screenshotUnavailableReason: { type: String, default: null },
     chillerUnrecognisable: { type: Array, default: () => [] },
     chillerUnrecognisableUpcoming: { type: Array, default: () => [] },
   })
@@ -2184,44 +2209,22 @@ const toast = useToast()
 // POSTs the image back, and we poll until it lands. Nothing is persisted: the
 // server holds the bytes in cache for 10 minutes and serves them through a
 // permission-checked endpoint.
-// Oldest APK build that answers the SCREENSHOT frame. Older builds drop it on
-// the floor (CvMqttService default -> OtherMessage -> a local log line), so the
-// operator would sit through the full 120 s wait for nothing. A NULL
-// apk_version_code means the machine has never checked in with OTA at all,
-// i.e. a pre-301 build - treated as unsupported. Bump this when the handler
-// actually ships in a build.
-//
-// A Smart Freezer runs its own APK (sg.mark1.freezer) on its own versionCode line,
-// restarted at 11 on 2026-09-14, so it gets its own floor: the SCREENSHOT handler
-// first ships in freezer build 12. It captures its own window with PixelCopy
-// (release builds keep FLAG_SECURE, which blocks screencap). Chillers have no APK
-// of ours and never show the button.
-const SCREENSHOT_MIN_APK_VERSION = 301
-const SMART_FREEZER_SCREENSHOT_MIN_APK_VERSION = 12
+// Which machines answer the SCREENSHOT frame is decided server-side, once
+// (App\Support\ScreenshotEligibility: big board app 317+, freezer app 12+, never
+// a small board or a chiller), and arrives as a reason string - null = supported.
+// The server refuses an unsupported machine with the same text.
+const screenshotUnavailableReason = computed(() => props.screenshotUnavailableReason || null)
 
-const screenshotMinApkVersion = computed(() =>
-  isSmartFreezer.value ? SMART_FREEZER_SCREENSHOT_MIN_APK_VERSION : SCREENSHOT_MIN_APK_VERSION
-)
+const screenshotSupported = computed(() => !screenshotUnavailableReason.value)
 
-const screenshotSupported = computed(() => {
-  const v = Number(props.vend?.apk_version_code)
-  return Number.isFinite(v) && v >= screenshotMinApkVersion.value
-})
-
-const screenshotTooltip = computed(() => {
-  if (screenshotSupported.value) {
-    return 'Ask this machine for one screenshot of what it is showing right now. The machine shows nothing while it is taken.'
-  }
-  const v = props.vend?.apk_version_code
-  if (v === null || v === undefined || v === '') {
-    return `Screen capture needs APK v${screenshotMinApkVersion.value} or newer. This machine has never reported its APK version (pre-OTA build) - update the APK first.`
-  }
-  return `Screen capture needs APK v${screenshotMinApkVersion.value} or newer. This machine is on v${v} - update the APK first.`
-})
+const screenshotTooltip = computed(() => screenshotSupported.value
+  ? 'Ask this machine for one screenshot of what it is showing right now. It waits until nobody is using the machine (up to a minute), and nothing appears on its screen.'
+  : screenshotUnavailableReason.value)
 
 const screenshotModalOpen = ref(false)
 const screenshotBusy = ref(false)
-const screenshotState = ref('idle')   // idle | pending | ready | timeout
+const screenshotState = ref('idle')   // idle | pending | ready | busy | failed | timeout
+const screenshotMessage = ref(null)   // the machine's own reason on busy / failed
 const screenshotUrl = ref(null)
 const screenshotCapturedAt = ref(null)
 let screenshotPoll = null
@@ -2251,6 +2254,7 @@ function openScreenshot() {
 
   screenshotModalOpen.value = true
   screenshotState.value = 'pending'
+  screenshotMessage.value = null
   screenshotUrl.value = null
   screenshotBusy.value = true
 
@@ -2271,6 +2275,12 @@ function openScreenshot() {
         screenshotState.value = 'idle'
         screenshotModalOpen.value = false
         toast.info(msg || 'Give the machine a few seconds before asking again.')
+        return
+      }
+      if (e?.response?.status === 422) {
+        // Not supported (old build, small board) - the button's hover says the same.
+        screenshotState.value = 'failed'
+        screenshotMessage.value = msg || 'This machine cannot take a screenshot.'
         return
       }
       screenshotState.value = 'timeout'
@@ -2304,6 +2314,12 @@ function pollScreenshot() {
         screenshotUrl.value = data.image_url
         screenshotCapturedAt.value = data.captured_at
         screenshotState.value = 'ready'
+      } else if (data.status === 'busy' || data.status === 'failed') {
+        // The machine answered, but without a picture - say why instead of timing out.
+        stopScreenshotPoll()
+        screenshotBusy.value = false
+        screenshotMessage.value = data.message || null
+        screenshotState.value = data.status
       } else if (data.status === 'timeout') {
         stopScreenshotPoll()
         screenshotBusy.value = false

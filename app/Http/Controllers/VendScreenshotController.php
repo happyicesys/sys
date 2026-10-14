@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
 use App\Models\Vend;
+use App\Support\ScreenshotEligibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -21,10 +22,16 @@ use Illuminate\Support\Str;
  * ----
  *   1. operator clicks   -> request()  publishes a SCREENSHOT frame on CM<code>
  *                           carrying a single-use token
- *   2. device captures   -> execShellCmd("screencap -p ...") — silent by
- *                           construction: no flash, no shutter, no notification
- *   3. device uploads    -> upload()   validates the token, holds the bytes
- *   4. UI polls          -> latest()   says when it has landed
+ *   2. device captures   -> only once the machine is idle (no sale, payment
+ *                           screen or dispense in flight), silently: no flash,
+ *                           no shutter, no notification. Big board 317+
+ *                           (ScreenshotCoordinator: root `screencap`, else its
+ *                           own window); freezer 12+ (its own window).
+ *   3. device uploads    -> upload()   validates the token, holds the bytes —
+ *                           or, when it cannot, says why: `busy` (still in use
+ *                           after 60 s) / `failed`, so the operator is told
+ *                           instead of waiting out the token
+ *   4. UI polls          -> latest()   pending / ready / busy / failed / timeout
  *   5. UI renders        -> image()    streams the bytes back, permission-checked
  *
  * NOTHING IS STORED. No migration, no S3 object, no file on disk you have to
@@ -59,8 +66,17 @@ class VendScreenshotController extends Controller
     /** How long a delivered image stays viewable before it evaporates. */
     private const RESULT_TTL_SECONDS = 600;
 
-    /** Refuse a second request for the same machine inside this window. */
-    private const COOLDOWN_SECONDS = 5;
+    /**
+     * Refuse a second request for the same machine inside this window. A capture costs the
+     * board a few seconds of CPU and a cellular upload; repeated clicks must not stack them.
+     */
+    private const COOLDOWN_SECONDS = 20;
+
+    /** What the machine may say instead of sending a picture. */
+    private const DEVICE_STATUSES = ['busy', 'failed'];
+
+    /** Longest reason kept from the machine (it is shown to the operator as text). */
+    private const REASON_MAX = 190;
 
     /**
      * Hard ceiling on what we will hold in the cache. The device is asked for a
@@ -74,8 +90,10 @@ class VendScreenshotController extends Controller
      */
     public function request(Request $httpRequest, Vend $vend)
     {
-        if (empty($vend->code)) {
-            return response()->json(['status' => 'error', 'message' => 'This machine has no code.'], 422);
+        // The one rule the page's disabled button also shows: a board that cannot answer
+        // would only leave the operator on a 2-minute timeout.
+        if (($why = ScreenshotEligibility::reason($vend)) !== null) {
+            return response()->json(['status' => 'unsupported', 'message' => $why], 422);
         }
 
         if (Cache::get($this->key('cooldown', $vend))) {
@@ -96,7 +114,9 @@ class VendScreenshotController extends Controller
         Cache::forget($this->key('meta', $vend));
         Cache::put($this->key('pending', $vend), Carbon::now()->timestamp, self::TOKEN_TTL_SECONDS);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $this->screenshotFrame($vend, $token))->onQueue('high');
+        // `default`, not `high` (payment frames, served first) and not `low` (one worker shared
+        // with 150 s image-model calls and OTA pieces, which could outlast the token).
+        PublishMqtt::dispatch('CM'.$vend->code, $this->screenshotFrame($vend, $token))->onQueue('default');
 
         // Audit. The screen can show a customer's QR payment or member details, so
         // every capture is attributable to a named human.
@@ -120,6 +140,14 @@ class VendScreenshotController extends Controller
     public function latest(Request $httpRequest, Vend $vend)
     {
         $meta = Cache::get($this->key('meta', $vend));
+
+        if (is_array($meta) && in_array($meta['status'] ?? null, self::DEVICE_STATUSES, true)) {
+            return response()->json([
+                'status' => $meta['status'],
+                'message' => $meta['reason'] ?? null,
+                'answered_at' => $meta['captured_at'] ?? null,
+            ]);
+        }
 
         if (is_array($meta)) {
             return response()->json([
@@ -149,7 +177,7 @@ class VendScreenshotController extends Controller
         $meta = Cache::get($this->key('meta', $vend));
         $encoded = Cache::get($this->key('result', $vend));
 
-        if (! is_array($meta) || ! $encoded) {
+        if (! is_array($meta) || ! $encoded || isset($meta['status'])) {
             abort(404, 'No screen capture is being held for this machine.');
         }
 
@@ -180,7 +208,10 @@ class VendScreenshotController extends Controller
     public function upload(Request $httpRequest, $code)
     {
         $httpRequest->validate([
-            'file' => 'required|file|max:8192',
+            // A picture, or (big board 317+) the reason there is none.
+            'file' => 'required_without:status|file|max:8192',
+            'status' => 'nullable|string|in:'.implode(',', self::DEVICE_STATUSES),
+            'reason' => 'nullable|string|max:1000',
             'token' => 'required|string',
         ]);
 
@@ -204,6 +235,21 @@ class VendScreenshotController extends Controller
         // Burn it. One token, one image — a replayed upload cannot overwrite a
         // later capture, and a leaked token is worthless the moment it is used.
         Cache::forget($this->key('token', $vend));
+
+        if (! $httpRequest->hasFile('file')) {
+            $status = (string) $httpRequest->input('status');
+            $reason = mb_substr(trim((string) $httpRequest->input('reason', '')), 0, self::REASON_MAX);
+            Cache::put($this->key('meta', $vend), [
+                'status' => $status,
+                'reason' => $reason !== '' ? $reason : null,
+                'captured_at' => Carbon::now()->toDateTimeString(),
+            ], self::RESULT_TTL_SECONDS);
+            Cache::forget($this->key('pending', $vend));
+
+            Log::info('Machine screen capture not taken', ['vend_code' => $code, 'status' => $status, 'reason' => $reason]);
+
+            return response()->json(['ok' => true]);
+        }
 
         $file = $httpRequest->file('file');
         $size = (int) $file->getSize();

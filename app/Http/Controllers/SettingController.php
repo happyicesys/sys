@@ -53,6 +53,7 @@ use App\Models\VendSerialNumber;
 use App\Models\VendSticker;
 use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\VendParameterService;
+use App\Support\ScreenshotEligibility;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
@@ -372,9 +373,9 @@ class SettingController extends Controller
                 'vends.vend_prefix_id',
                 'vends.vend_serial_number_id',
                 'vends.vend_vend_config_version',
-                // Last APK versionCode the machine reported via OTA check-in — the
-                // Setting/Edit "View Screen" gate (SCREENSHOT_MIN_APK_VERSION) reads
-                // it; without it in this select the button was always disabled.
+                // Last APK versionCode the machine reported via OTA check-in. (The
+                // "View Screen" gate is decided server-side from $vendInit now —
+                // `screenshotUnavailableReason`, ScreenshotEligibility.)
                 'vends.apk_version_code',
                 'vend_configs.name AS vend_config_name',
                 'vend_models.name AS vend_model_name',
@@ -474,6 +475,9 @@ class SettingController extends Controller
         // back), so an empty list would null hidden columns on save — and crash on
         // vend_config_version for a chiller that still carries a config chart.
         return Inertia::render('Setting/Edit', [
+            // "View Screen": null when this machine answers a SCREENSHOT frame, else why not —
+            // the button is disabled with this text (ScreenshotEligibility, the one rule).
+            'screenshotUnavailableReason' => $vendInit ? ScreenshotEligibility::reason($vendInit) : 'Machine not found.',
             // CityBox-side status layer (their ops status / heartbeat / online),
             // read from the last poll on the row — no API call. Null for other kinds.
             'chillerStatus' => $vend->chillerStatus()?->toArray(),
