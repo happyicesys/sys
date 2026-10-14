@@ -2,17 +2,22 @@
   <!--
     CityBox Smart Chiller row for the two machine indexes, cell-for-cell under
     the SAME column headers as a vending machine (Brian, 2026-09-02): a column
-    that has no meaning for a chiller (temperature, modem, coin, APK, mark1
-    sales…) is rendered EMPTY; a column that does keeps the vending cell's
+    that has no meaning for a chiller (temperature, modem, coin, APK…) is
+    rendered EMPTY; a column that does keeps the vending cell's
     format. Multi-root component: one <TableData> per header cell, so the
     page just swaps this in for the vending cells after "#".
 
-    page="customers" → Vend/CustomerIndex (Operation Dashboard)
+    page="customers" → Vend/CustomerIndex (Operation Dashboard), drawn in two parts:
+                        part="lead" (Machine ID … Stock) and part="tail" (Machine
+                        Status … Operator). The cells between them — Sales(qty), jobs,
+                        routes, Lifetime / earnings, Contract — are the page's own
+                        vending cells: since 2026-10-13 a chiller's CityBox orders are
+                        vend_transactions, so its Site rollups are real (Brian, 2026-10-14).
     page="index"     → Vend/Index
   -->
 
-  <!-- ══════════ Operation Dashboard (Vend/CustomerIndex) ══════════ -->
-  <template v-if="page === 'customers'">
+  <!-- ══════════ Operation Dashboard (Vend/CustomerIndex): lead ══════════ -->
+  <template v-if="page === 'customers' && part === 'lead'">
     <!-- Machine ID · Setting Chart · Prefix · Product Mapping · Site · Postcode · Ref Price · Campaign -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1 max-w-[150px]">
@@ -108,43 +113,10 @@
         </div>
       </div>
     </TableData>
+  </template>
 
-    <!-- Sales(qty) — no mark1 sales for a chiller (their app sells) -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="!isDriver"></TableData>
-
-    <!-- Last Job -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="indexType === 'customers' && !isDriver">
-      <JobCell :item="vend.lastOpsJobItem" />
-    </TableData>
-
-    <!-- Upcoming Job -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="indexType === 'customers' && !isDriver">
-      <JobCell :item="vend.nextOpsJobItem" />
-    </TableData>
-
-    <!-- Refilling Routes: zone · preferred days · frequency -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="indexType === 'customers' && !isDriver">
-      <span :class="active ? 'text-gray-900' : 'text-gray-400'">
-        <div class="flex flex-col space-y-2">
-          <span>{{ vend.zone_name }}</span>
-          <div class="flex flex-col space-y-1" v-if="vend.preferred_visit_days_json">
-            <span v-for="(day, i) in DAYS" :key="i">
-              <span v-if="vend.preferred_visit_days_json[i] == true" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">{{ day }}</span>
-            </span>
-          </div>
-          <span>{{ vend.frequency_per_week_status_name }}</span>
-        </div>
-      </span>
-    </TableData>
-
-    <!-- Lifetime Sales · Begin Dt · Contract dates … → only the begin date applies -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="!isDriver">
-      <span :class="active ? 'text-gray-900' : 'text-gray-400'" v-if="vend.begin_date">{{ vend.begin_date }}</span>
-    </TableData>
-
-    <!-- Contract Type · Loc Fees … — site commercial terms, edited on the Site page -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="!isDriver"></TableData>
-
+  <!-- ══════════ Operation Dashboard (Vend/CustomerIndex): tail ══════════ -->
+  <template v-else-if="page === 'customers' && part === 'tail'">
     <!-- Machine Status: HTTP/MQTT/SIM/Modem → CityBox online + their ops status -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="!isDriver">
       <div class="flex flex-col space-y-1">
@@ -174,7 +146,7 @@
   </template>
 
   <!-- ══════════ Vend/Index ══════════ -->
-  <template v-else>
+  <template v-else-if="page === 'index'">
     <!-- Machine ID · Setting Chart · Prefix · Product Mapping · Site · Ref Price -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1">
@@ -324,6 +296,7 @@ const props = defineProps({
   vendIndex: { type: Number, required: true },
   totalLength: { type: Number, required: true },
   page: { type: String, required: true },          // 'customers' | 'index'
+  part: { type: String, default: 'lead' },         // page="customers" only: 'lead' | 'tail'
   indexType: { type: String, default: null },
   isDriver: { type: Boolean, default: false },
   currencySymbol: { type: String, default: 'S$' },
@@ -337,8 +310,6 @@ const settingsHref = computed(() => '/settings/vend/' + vendId.value + '/update'
 const active = computed(() => !!(props.vend.is_active || props.vend.is_testing))
 const mappingName = computed(() => props.vend.productMapping?.name ?? props.vend.vend?.productMapping?.name ?? props.vend.product_mapping_name ?? null)
 const mappingId = computed(() => props.vend.productMapping?.id ?? props.vend.vend?.productMapping?.id ?? props.vend.product_mapping_id ?? null)
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 // Vocabularies mirror the PHP enums (DeviceOpsStatus / DeviceState / DeviceType); ChillerStatus is the source.
 const OPS_LABELS = { 0: 'Banned (禁运)', 1: 'Running (启运)', 98: 'Being removed (撤机中)', 99: 'Removed (已撤机)' }
@@ -518,25 +489,6 @@ const MachineBadge = defineComponent({
     const label = v.is_sold ? 'Sold' : (v.is_testing ? 'Testing' : ((v.vend_is_active ?? v.is_active) ? 'Active' : (v.is_disposed ? 'Disposed' : 'Not Active')))
     return h('div', { class: ['inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full', cls] },
       [h('div', { class: 'flex flex-col' }, [h('span', { class: 'font-bold' }, 'Machine'), h('span', label)])])
-  },
-})
-
-const JobCell = defineComponent({
-  props: { item: Object },
-  setup: (p) => () => {
-    const it = p.item
-    if (!it) return null
-    const job = it.opsJob || {}
-    const diffCls = (job.date_diff_count < 1 && job.date_diff_count > 0) ? 'bg-green-200' : ((job.date_diff_count > -1 && job.date_diff_count < 0) ? 'bg-yellow-200' : (job.date_diff_count > 10 ? 'bg-red-300' : ''))
-    return h('div', { class: 'flex flex-col space-y-1 max-w-28 mx-auto' }, [
-      it.sequence ? h('span', { class: 'font-semibold' }, '(' + it.sequence + ')') : null,
-      h('a', { href: '/ops-jobs/items/' + it.id + '/edit', title: 'Open this ops job item' },
-        [h('div', { class: 'inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300' },
-          [h('span', { class: 'text-blue-800 underline' }, it.ref_id)])]),
-      job.deliveredBy ? h('span', job.deliveredBy.name) : null,
-      job.date_formatted ? h('span', job.date_formatted) : null,
-      job.date_diff_human ? h('div', { class: ['inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900', diffCls] }, job.date_diff_human) : null,
-    ])
   },
 })
 

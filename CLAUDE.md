@@ -1396,6 +1396,19 @@ rather than adding a new `if (citybox)` somewhere else:
     lost. `StockPollService::checkLedger` keeps the per-SKU gap on
     `citybox_status_json.stock_check` (`confirmed` = still there a check later); the
     dashboard row badges it and the overview shows "CityBox n" under our qty.
+  - **The Operation Dashboard shows them like any machine's** (Brian, 2026-10-14).
+    `SmartChillerRowCells` draws only the chiller's own cells (`part="lead"`: ID →
+    Stock; `part="tail"`: Machine Status → Operator); Sales(qty), Last / Upcoming Job,
+    Refilling Routes, Lifetime / Accumulated VendEarning and Contract / L30d earning are
+    the page's shared cells — they read Site rollups, which the projector already feeds.
+    Never blank them for a chiller again.
+  - **A stop's "Transaction S$ (Qty)" counts a chiller's sales by PAY time.**
+    `OpsJobItemSalesWindow` (the only writer of `ops_job_items.acc_total_*`) places a
+    vending sale by `created_at` as always, a chiller's by `transaction_datetime` — its
+    `created_at` is the pull (the 10-13 backfill created every earlier order that day).
+    Late orders keep landing in closed windows, so `ops-jobs:recompute-sales-window`
+    re-counts chiller stops of the last 31 days at 01:50, after the 01:20 pull.
+    Regression coverage: `tests/Feature/OpsJobItemSalesWindowTest.php`.
   `CITYBOX_STOCK_LEDGER=false` restores the old mirror. Regression coverage:
   `tests/Feature/CityboxOrderSyncTest.php`.
 - **Restock photos gate the door** (Brian, 2026-10-13: "we locally control and

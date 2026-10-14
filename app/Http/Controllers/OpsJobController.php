@@ -27,7 +27,6 @@ use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelRecord;
-use App\Models\VendTransaction;
 use App\Services\MapService;
 use App\Services\OpsJobService;
 use App\Services\ProductMappingService;
@@ -927,38 +926,9 @@ class OpsJobController extends Controller
                     ]);
                 }
 
-                // get previous opsJobItem of same vend, then return the completed_at
-                $previousOpsJobItem = OpsJobItem::where('vend_id', $opsJobItem->vend_id)
-                    ->where('id', '<', $opsJobItem->id)
-                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
-                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
-                    ->orderBy('id', 'desc')
-                    ->first();
-
-                if ($previousOpsJobItem) {
-                    $vendTransactions = VendTransaction::query()
-                        ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
-                        ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
-                        ->where('vend_transactions.created_at', '>=', $previousOpsJobItem->completed_at)
-                        ->where('vend_transactions.created_at', '<=', $opsJobItem->completed_at)
-                        ->where('vend_transactions.vend_id', $opsJobItem->vend_id)
-                        ->isSuccessful()
-                        ->selectRaw('SUM(vend_transactions.amount) as total_amount')
-                        ->selectRaw('COUNT(*) as total_count')
-                        ->selectRaw('SUM(CASE WHEN payment_methods.code = 0 THEN vend_transactions.amount ELSE 0 END) as total_cash_amount')
-                        ->selectRaw('SUM(CASE WHEN payment_methods.code <> 0 THEN vend_transactions.amount ELSE 0 END) as total_cashless_amount')
-                        ->selectRaw('SUM(vend_channels.amount - vend_transactions.amount) as total_promo_amount')
-                        ->first();
-
-                    $opsJobItem->update([
-                        'previous_ops_job_item_id' => $previousOpsJobItem->id,
-                        'acc_total_amount' => $vendTransactions->total_amount,
-                        'acc_total_cash_amount' => $vendTransactions->total_cash_amount,
-                        'acc_total_cashless_amount' => $vendTransactions->total_cashless_amount,
-                        'acc_total_promo_amount' => $vendTransactions->total_promo_amount,
-                        'acc_total_count' => $vendTransactions->total_count,
-                    ]);
-                }
+                // Sales since the machine's previous completed stop (acc_total_*).
+                // A chiller's sales are placed by pay time, not pull time — see the class.
+                app(\App\Services\Sales\OpsJobItemSalesWindow::class)->apply($opsJobItem);
 
                 // search for B and A vend channel records within 30 mins. Not for a Smart
                 // Freezer: it sends no REFILL frames, and the lookup is by SITE, so a vending

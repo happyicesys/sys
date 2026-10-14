@@ -38,6 +38,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('citybox:pull-orders --days=3')->hourlyAt(7);
         // Before the 02:00 dirty-day rollup rebuild picks up what this moved.
         $schedule->command('citybox:pull-orders --days=31')->dailyAt('01:20');
+        // A chiller stop's "Transaction S$ (Qty)" is written when the driver completes it,
+        // but its orders keep arriving afterwards (pay-later): recount after that pull.
+        $schedule->command('ops-jobs:recompute-sales-window')->dailyAt('01:50')->withoutOverlapping();
         // Their price groups → citybox_price_groups + RP rows on CityBox-owned products.
         $schedule->command('citybox:sync-price-groups')->hourlyAt(17);
         // Remote-terminal card attempts (smart-freezer Payrallel rail): resolve what the

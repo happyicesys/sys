@@ -1421,10 +1421,10 @@
 							</div>
 						</div>
 					</TableData>
-					<!-- Smart Chiller (CityBox): rendered cell-for-cell under the same headers; columns
-					     that mean nothing for a chiller (temp, modem, APK, mark1 sales) stay empty.
-					     Vending / freezer rows are untouched below. -->
-					<SmartChillerRowCells v-if="isChiller(vend)" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="customers" :indexType="indexType" :isDriver="roles.includes('operator_driver')" :currencySymbol="operatorCountry.currency_symbol" @overview="onChannelOverviewClicked" />
+					<!-- Smart Chiller (CityBox): its machine cells (ID, telemetry, inventory, error, stock)
+					     and status cells (status, payment device, operator) are its own; the money and
+					     ops cells between them are shared with every machine below. -->
+					<SmartChillerRowCells v-if="isChiller(vend)" part="lead" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="customers" :indexType="indexType" :isDriver="roles.includes('operator_driver')" :currencySymbol="operatorCountry.currency_symbol" @overview="onChannelOverviewClicked" />
 					<template v-else>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1 max-w-[150px]">
@@ -2072,6 +2072,10 @@
 							</span>
 						</div>
 					</TableData>
+					</template>
+					<!-- Sales(qty) → Contract Type: the SAME cells for every machine kind. A chiller's
+					     CityBox orders are vend_transactions since 2026-10-13, so its Site rollups,
+					     ops-job sales and earnings are real; these cells read only Site-level data. -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<a
 						v-if="vend.vendTransactionTotalsJson && 'today_amount' in vend.vendTransactionTotalsJson"
@@ -2796,6 +2800,8 @@
 							</div>
 						</div>
 					</TableData>
+					<SmartChillerRowCells v-if="isChiller(vend)" part="tail" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="customers" :indexType="indexType" :isDriver="roles.includes('operator_driver')" :currencySymbol="operatorCountry.currency_symbol" />
+					<template v-else>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div
