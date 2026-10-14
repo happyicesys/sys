@@ -13,7 +13,10 @@
                         routes, Lifetime / earnings, Contract — are the page's own
                         vending cells: since 2026-10-13 a chiller's CityBox orders are
                         vend_transactions, so its Site rollups are real (Brian, 2026-10-14).
-    page="index"     → Vend/Index
+    page="index"     → Vend/Index (Machines), in three parts: part="lead" (Machine ID …
+                        Balance Stock), part="status" (Machine Status, Payment Device) and
+                        part="tail" (Firmware / Operator, Actions); Sales(qty) and Last
+                        Visited / Avg Per Day between them are the page's own cells.
   -->
 
   <!-- ══════════ Operation Dashboard (Vend/CustomerIndex): lead ══════════ -->
@@ -145,8 +148,8 @@
     </TableData>
   </template>
 
-  <!-- ══════════ Vend/Index ══════════ -->
-  <template v-else-if="page === 'index'">
+  <!-- ══════════ Vend/Index: lead (Machine ID … Balance Stock) ══════════ -->
+  <template v-else-if="page === 'index' && part === 'lead'">
     <!-- Machine ID · Setting Chart · Prefix · Product Mapping · Site · Ref Price -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1">
@@ -231,9 +234,10 @@
       </div>
     </TableData>
 
-    <!-- Sales(qty) -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center"></TableData>
+  </template>
 
+  <!-- ══════════ Vend/Index: status (Machine Status · Payment Device) ══════════ -->
+  <template v-else-if="page === 'index' && part === 'status'">
     <!-- Machine Status -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
       <div class="flex flex-col space-y-1">
@@ -245,18 +249,10 @@
 
     <!-- Payment Device -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center"></TableData>
+  </template>
 
-    <!-- Last Visited (customers view) -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="indexType === 'customers'"></TableData>
-
-    <!-- Avg Per Day (Last 30d) — mark1 sales only -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center"></TableData>
-
-    <!-- Postcode (customers view) -->
-    <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="indexType === 'customers'">
-      <span :class="active ? 'text-gray-900' : 'text-gray-400'">{{ vend.postcode }}</span>
-    </TableData>
-
+  <!-- ══════════ Vend/Index: tail (Firmware / Operator · Actions) ══════════ -->
+  <template v-else-if="page === 'index' && part === 'tail'">
     <!-- Firmware / LCD / Operator — only the operator and the CityBox model apply -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
       <div class="flex flex-col space-y-1" :class="active ? 'text-gray-900' : 'text-gray-400'">
@@ -296,7 +292,7 @@ const props = defineProps({
   vendIndex: { type: Number, required: true },
   totalLength: { type: Number, required: true },
   page: { type: String, required: true },          // 'customers' | 'index'
-  part: { type: String, default: 'lead' },         // page="customers" only: 'lead' | 'tail'
+  part: { type: String, default: 'lead' },         // customers: 'lead' | 'tail'; index: 'lead' | 'status' | 'tail'
   indexType: { type: String, default: null },
   isDriver: { type: Boolean, default: false },
   currencySymbol: { type: String, default: 'S$' },

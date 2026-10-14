@@ -729,10 +729,10 @@
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             {{ vends.meta.from + vendIndex }}
           </TableData>
-          <!-- Smart Chiller (CityBox): rendered cell-for-cell under the same headers; columns
-               that mean nothing for a chiller (temp, modem, APK, mark1 sales) stay empty.
-               Vending / freezer rows are untouched below. -->
-          <SmartChillerRowCells v-if="isChiller(vend)" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="index" :indexType="indexType" :currencySymbol="operatorCountry.currency_symbol" @overview="onChannelOverviewClicked" />
+          <!-- Smart Chiller (CityBox): its machine cells come from SmartChillerRowCells in three
+               parts (lead / status / tail); the sales cells between them are shared with every
+               machine below. -->
+          <SmartChillerRowCells v-if="isChiller(vend)" part="lead" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="index" :indexType="indexType" :currencySymbol="operatorCountry.currency_symbol" @overview="onChannelOverviewClicked" />
           <template v-else>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <div class="flex flex-col space-y-1">
@@ -1115,6 +1115,9 @@
               </span>
             </div>
           </TableData>
+          </template>
+          <!-- Sales(qty): the SAME cell for every machine kind — a chiller's CityBox orders are
+               vend_transactions since 2026-10-13, so its Site rollup is real. -->
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <span
             v-if="vend.vendTransactionTotalsJson && 'today_amount' in vend.vendTransactionTotalsJson"
@@ -1158,6 +1161,8 @@
                 {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
             </span>
           </TableData>
+          <SmartChillerRowCells v-if="isChiller(vend)" part="status" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="index" :indexType="indexType" :currencySymbol="operatorCountry.currency_symbol" />
+          <template v-else>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-1">
               <div
@@ -1306,6 +1311,8 @@
               </div>
             </div>
           </TableData>
+          </template>
+          <!-- Last Visited + Avg Per Day / Lifetime / Begin Dt: shared, Site-level sales rollups. -->
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
             <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                 {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
@@ -1351,6 +1358,8 @@
               </span>
             </div>
           </TableData>
+          <SmartChillerRowCells v-if="isChiller(vend)" part="tail" :vend="vend" :vendIndex="vendIndex" :totalLength="vends.length" page="index" :indexType="indexType" :currencySymbol="operatorCountry.currency_symbol" />
+          <template v-else>
           <!-- Firmware / LCD / Operator merged cell -->
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-1" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">

@@ -1401,7 +1401,9 @@ rather than adding a new `if (citybox)` somewhere else:
     Stock; `part="tail"`: Machine Status → Operator); Sales(qty), Last / Upcoming Job,
     Refilling Routes, Lifetime / Accumulated VendEarning and Contract / L30d earning are
     the page's shared cells — they read Site rollups, which the projector already feeds.
-    Never blank them for a chiller again.
+    The Machines page (Vend/Index) is split the same way (`lead` / `status` / `tail`
+    around the shared Sales(qty) and Last Visited / Avg Per Day cells). Never blank
+    them for a chiller again.
   - **A stop's "Transaction S$ (Qty)" counts a chiller's sales by PAY time.**
     `OpsJobItemSalesWindow` (the only writer of `ops_job_items.acc_total_*`) places a
     vending sale by `created_at` as always, a chiller's by `transaction_datetime` — its
