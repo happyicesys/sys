@@ -12,6 +12,7 @@ use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourRanker;
+use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\UserLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -89,6 +90,7 @@ class HappyHourCampaignController extends Controller
             return $campaign;
         });
         $this->planNow($campaign);
+        HappyHourWelcomeFallback::nudgeUnbound($this->memberIds($campaign));
 
         return back()->with('success', "Happy Hour \"{$campaign->name}\" saved.");
     }
@@ -97,6 +99,7 @@ class HappyHourCampaignController extends Controller
     {
         $campaign = HappyHourCampaign::findOrFail($id);
         $now = Carbon::now();
+        $membersBefore = $this->memberIds($campaign);
 
         DB::transaction(function () use ($request, $campaign, $now) {
             $campaign->fill([...$this->fields($request), 'updated_by' => auth()->id()]);
@@ -111,6 +114,9 @@ class HappyHourCampaignController extends Controller
             }
         });
         $this->planNow($campaign->fresh());
+        // Machines added, kept or taken out: those without a UI Setting re-read /parameters, so
+        // the bear comes on or goes off now (HappyHourWelcomeFallback).
+        HappyHourWelcomeFallback::nudgeUnbound([...$membersBefore, ...$this->memberIds($campaign)]);
 
         return back()->with('success', "Happy Hour \"{$campaign->name}\" updated.");
     }
@@ -118,8 +124,10 @@ class HappyHourCampaignController extends Controller
     public function destroy(int $id): RedirectResponse
     {
         $campaign = HappyHourCampaign::findOrFail($id);
+        $members = $this->memberIds($campaign);
         $this->planner->cancel($campaign, Carbon::now());
         $campaign->delete();
+        HappyHourWelcomeFallback::nudgeUnbound($members);
 
         return back()->with('success', "Happy Hour \"{$campaign->name}\" deleted.");
     }
@@ -161,6 +169,18 @@ class HappyHourCampaignController extends Controller
         $operatorId = OperatorVendFilterScope::viewerOperatorId();
 
         return $query->when($operatorId, fn ($q) => $q->where('vends.operator_id', $operatorId));
+    }
+
+    /**
+     * Every machine in the campaign, whoever can see it (the pivot read directly: the Vend scope
+     * would hide another operator's machine from this viewer).
+     *
+     * @return list<int>
+     */
+    private function memberIds(HappyHourCampaign $campaign): array
+    {
+        return DB::table('happy_hour_campaign_vend')->where('happy_hour_campaign_id', $campaign->id)
+            ->pluck('vend_id')->map(fn ($id) => (int) $id)->all();
     }
 
     /**

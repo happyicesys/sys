@@ -1084,6 +1084,13 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
   tagged only when its channel is named there, the slot is this machine's (and the line's product), and
   the sale is inside the slot ± grace. Malformed entries are ignored; keypad TRADEs carry no `HH`. A
   board-price machine's slot discount is each line's channel price less what it took.
+- **The bear without a UI Setting** (Brian, 2026-10-14; `HappyHourWelcomeFallback`): an eligible big board
+  in an ACTIVE Happy Hour campaign with NO UI Setting gets, from `/parameters`, the schema DEFAULTS
+  (`ApkSettingParameters::defaults()`) + `enableWelcomeScene = true` instead of the usual 400. It must be
+  the complete payload: the APK writes every field it receives, so a partial one would reset the rest.
+  When it leaves the campaign, the next fetch gets the defaults with the bear OFF once (cache
+  `hh-welcome-fallback:{vend}`), then 400 again. A bound UI Setting always wins. Campaign
+  store/update/delete sends TYPESYNCSETTINGSPARAM to its unbound machines so it applies at once.
 - **Sketches:** the hourly sweep also draws products on vending machines that show the welcome scene
   (eligible, or a UI Setting with `enableWelcomeScene` = Bear welcome screen), at most
   `happy_hour.vending_sketch_sweep_limit` (6) new draws a run; freezer products are never held back.

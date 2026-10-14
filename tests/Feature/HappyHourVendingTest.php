@@ -28,6 +28,7 @@ use App\Services\Products\WelcomeSketch\ProductWelcomeSketchService;
 use App\Services\Products\WelcomeSketch\SketchGenerator;
 use App\Services\VendJobService;
 use App\Services\VendTransactionService;
+use App\ValueObjects\ApkSettingParameters;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -614,6 +615,86 @@ class HappyHourVendingTest extends TestCase
 
         DB::table('apk_settings')->where('id', $settingId)->update(['settings_parameter_json' => json_encode(['enableWelcomeScene' => true])]);
         $this->assertSame('true', $this->getJson('/api/vends/2245/parameters/315')->json('enableWelcomeScene'));
+    }
+
+    public function test_an_unbound_happy_hour_machine_gets_the_default_settings_with_the_bear_on(): void
+    {
+        $vend = $this->vending(2245, []);
+        $this->getJson('/api/vends/2245/parameters/315')->assertStatus(400); // no UI Setting, no campaign: as before
+
+        $campaign = $this->campaign([$vend]);
+        $params = $this->getJson('/api/vends/2245/parameters/315')->assertOk()->json();
+        $this->assertSame('true', $params['enableWelcomeScene']);
+        // A COMPLETE payload: the APK writes every field it receives, so a partial one would reset the rest.
+        foreach (ApkSettingParameters::defaults()->toArray() as $key => $default) {
+            $this->assertArrayHasKey($key, $params, "default {$key} is served");
+            if ($key !== 'enableWelcomeScene' && $key !== 'selectedPricingSource') {
+                $this->assertSame($default, $params[$key], "{$key} is the schema default");
+            }
+        }
+        $this->assertSame([], $params['campaigns'], 'no UI Setting campaigns');
+
+        // Leaving the campaign turns the scene off ONCE, then the machine is unbound as before.
+        $campaign->update(['is_active' => false]);
+        $this->assertSame('false', $this->getJson('/api/vends/2245/parameters/315')->assertOk()->json('enableWelcomeScene'));
+        $this->getJson('/api/vends/2245/parameters/315')->assertStatus(400);
+    }
+
+    public function test_the_fallback_needs_an_eligible_board_and_never_overrides_a_bound_ui_setting(): void
+    {
+        $old = $this->vending(2246, [], 314);
+        $small = $this->vending(2247, [], 315, 'ZC-83A');
+        $bound = $this->vending(2248, []);
+        $this->campaign([$old, $small, $bound]);
+        $this->getJson('/api/vends/2246/parameters/314')->assertStatus(400);
+        $this->getJson('/api/vends/2247/parameters/315')->assertStatus(400);
+
+        $settingId = DB::table('apk_settings')->insertGetId([
+            'name' => 'Bear off', 'settings_parameter_json' => json_encode(['enableWelcomeScene' => 'false', 'poweredBy' => 'Ours']),
+            'operator_id' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('apk_setting_vend')->insert(['apk_setting_id' => $settingId, 'vend_id' => $bound->id]);
+        $params = $this->getJson('/api/vends/2248/parameters/315')->assertOk()->json();
+        $this->assertSame(['false', 'Ours'], [$params['enableWelcomeScene'], $params['poweredBy']], 'the UI Setting wins');
+    }
+
+    public function test_saving_or_deleting_a_campaign_tells_its_unbound_machines_to_reread_settings(): void
+    {
+        $unbound = $this->vending(2245, [11 => ['A', 160, 9, 10]]);
+        $bound = $this->vending(2246, [11 => ['A', 160, 9, 10]]);
+        $settingId = DB::table('apk_settings')->insertGetId([
+            'name' => 'Has one', 'settings_parameter_json' => json_encode([]), 'operator_id' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('apk_setting_vend')->insert(['apk_setting_id' => $settingId, 'vend_id' => $bound->id]);
+        $user = User::factory()->create(['operator_id' => 1]);
+        foreach (['read', 'create', 'update', 'delete'] as $action) {
+            $user->givePermissionTo(Permission::findOrCreate("{$action} happy-hour-campaigns", 'web'));
+        }
+        $form = fn (array $ids) => [
+            'name' => 'Vending HH', 'is_active' => true, 'starts_on' => null, 'ends_on' => null, 'days_mask' => 127,
+            'window_start' => '14:00', 'window_end' => '18:00', 'slot_minutes' => 60, 'sku_count' => 1, 'skus_per_slot' => 1,
+            'selection_rule' => 'balance_pct', 'lookback_days' => 14, 'discount_pct' => 40, 'min_balance_pct' => 15,
+            'min_qty' => 2, 'price_step_cents' => 10, 'allow_below_cost' => false, 'excluded_product_ids' => [], 'vend_ids' => $ids,
+        ];
+        $settingsSyncs = function (): array {
+            $topics = [];
+            foreach (Queue::pushed(PublishMqtt::class) as $job) {
+                [$topic, $wire] = (fn () => [$this->topic, $this->message])->call($job);
+                [, , $b64] = explode(',', $wire);
+                if ((json_decode(base64_decode($b64), true)['Type'] ?? null) === 'TYPESYNCSETTINGSPARAM') {
+                    $topics[] = $topic;
+                }
+            }
+
+            return $topics;
+        };
+
+        $this->actingAs($user)->post('/happy-hour-campaigns', $form([$unbound->id, $bound->id]))->assertSessionHasNoErrors();
+        $this->assertSame(['CM2245'], $settingsSyncs(), 'only the machine with no UI Setting is told');
+
+        $campaign = HappyHourCampaign::firstOrFail();
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $form([$bound->id]))->assertSessionHasNoErrors();
+        $this->assertSame(['CM2245', 'CM2245'], $settingsSyncs(), 'taken out: told again, so the bear goes off');
     }
 
     /** A vending single sale (header only), tagged as the ingest does. */

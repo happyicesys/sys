@@ -91,6 +91,7 @@ use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\Payout\SettlementPayoutResolver;
 use App\Services\CmsService;
 use App\Services\CustomerSummaryAggregator;
+use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\MqttService;
@@ -3754,7 +3755,11 @@ class VendController extends Controller
             ])
             ->first();
 
-        if (! $apkSetting) {
+        // 2026-10-14 (Brian): a Happy Hour machine with no UI Setting still gets the bear -
+        // the schema defaults + enableWelcomeScene, never a partial payload (the APK writes every
+        // field it receives). See HappyHourWelcomeFallback; every other unbound machine: 400.
+        $fallbackParams = $apkSetting ? null : HappyHourWelcomeFallback::parametersFor($vend);
+        if (! $apkSetting && $fallbackParams === null) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters not found',
@@ -3784,15 +3789,13 @@ class VendController extends Controller
             })
             ->exists();
 
-        if ($apkSetting->campaignItems) {
-            $campaignItems = $apkSetting->campaignItems;
-        }
+        $campaignItems = collect($apkSetting?->campaignItems ?? []);
 
-        $campaignBindings = collect($apkSetting->campaigns)->filter(function ($campaign) {
+        $campaignBindings = collect($apkSetting?->campaigns)->filter(function ($campaign) {
             return (bool) ($campaign->is_active ?? false);
         });
 
-        $settingsParams = $apkSetting->settings_parameter_json ?? [];
+        $settingsParams = $fallbackParams ?? $apkSetting->settings_parameter_json ?? [];
         if (! is_array($settingsParams)) {
             $settingsParams = (array) $settingsParams;
         }
