@@ -84,6 +84,20 @@ class HappyHourCampaign extends Model
         return $query->where('is_active', true);
     }
 
+    /**
+     * Whether the machine is in an ACTIVE (not deleted) campaign, whoever owns it - read from the
+     * pivot with no scope, since terminals call with no user. One indexed query.
+     */
+    public static function hasActiveFor(int $vendId): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('happy_hour_campaign_vend as cv')
+            ->join('happy_hour_campaigns as c', 'c.id', '=', 'cv.happy_hour_campaign_id')
+            ->where('cv.vend_id', $vendId)
+            ->where('c.is_active', true)
+            ->whereNull('c.deleted_at')
+            ->exists();
+    }
+
     /** Whether the campaign runs at all on this calendar day (date range + weekday). */
     public function runsOn(CarbonInterface $day): bool
     {

@@ -623,6 +623,21 @@ class HappyHourVendingTest extends TestCase
         $this->assertSame('true', $this->getJson('/api/vends/2245/parameters/315')->json('enableWelcomeScene'));
     }
 
+    public function test_thumbnails_carry_the_happy_hour_key_only_while_the_machine_is_in_an_active_campaign(): void
+    {
+        $vend = $this->vending(2245, [11 => ['A', 160, 9, 10]]);
+        $row = $this->getJson('/api/vends/2245/thumbnails')->assertOk()->json()[0];
+        $this->assertArrayHasKey('welcome_sketch', $row, 'app 315+ still gets its sketch');
+        // APK 316 re-reads this feed on every MQTT reconnect only when the key is there.
+        $this->assertArrayNotHasKey('happy_hour', $row, 'no campaign: no key, so no reconnect re-reads');
+
+        $campaign = $this->campaign([$vend]);
+        $this->assertSame([], $this->getJson('/api/vends/2245/thumbnails')->json()[0]['happy_hour'], 'in a campaign: the key, even with no slot yet');
+
+        $campaign->update(['is_active' => false]);
+        $this->assertArrayNotHasKey('happy_hour', $this->getJson('/api/vends/2245/thumbnails')->json()[0]);
+    }
+
     public function test_an_unbound_happy_hour_machine_gets_the_default_settings_with_the_bear_on(): void
     {
         $vend = $this->vending(2245, []);

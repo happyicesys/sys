@@ -3,7 +3,6 @@
 namespace App\Services\HappyHour;
 
 use App\Models\HappyHourCampaign;
-use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use App\Models\Vend;
 use App\Services\VendJobService;
 use App\ValueObjects\ApkSettingParameters;
@@ -92,11 +91,7 @@ final class HappyHourWelcomeFallback
 
     private static function inActiveCampaign(Vend $vend): bool
     {
-        return HappyHourCampaign::query()
-            ->withoutGlobalScope(OperatorHappyHourCampaignScope::class) // the terminal calls with no user
-            ->active()
-            ->whereHas('vends', fn ($q) => $q->where('vends.id', $vend->id))
-            ->exists();
+        return HappyHourCampaign::hasActiveFor($vend->id);
     }
 
     /** @return array<string, mixed> */

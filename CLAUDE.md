@@ -1066,9 +1066,11 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
   (`vend_channels.amount`) of its active channels, or the Site tier where the machine follows server
   price and the product has one. The slot records that; `/thumbnails` re-prices each row from its own
   channel price with the campaign's rounding (`HappyHourPricing::channelSlots`).
-- **`/thumbnails`** rows gain `welcome_sketch` and `happy_hour` (`slot_id`, ISO `starts_at`/`ends_at`,
-  `price`, `original_price` = that row's price, `discount_pct`, `rank`) for eligible machines only; every
-  other machine's payload is byte-identical.
+- **`/thumbnails`** rows gain `welcome_sketch` for eligible machines, and `happy_hour` (`slot_id`, ISO
+  `starts_at`/`ends_at`, `price`, `original_price` = that row's price, `discount_pct`, `rank`; `[]` when
+  none) only while the machine is in an ACTIVE campaign (`HappyHourCampaign::hasActiveFor`, 2026-10-14):
+  APK 316 re-reads this feed on every MQTT reconnect only when it sees the key. Every other machine's
+  payload is byte-identical.
 - **Nudge:** `NudgeFreezerMenu` sends an eligible vending board the lightweight `HAPPYHOUR` frame
   (`VendJobService::nudgeHappyHourToVend`, re-reads `/thumbnails` JSON only) — never
   TYPESYNCAPICHANNELSLOTLIST, which re-downloads every image. Freezers keep the menu frame.

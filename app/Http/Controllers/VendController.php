@@ -3257,14 +3257,19 @@ class VendController extends Controller
         })->values();
 
         // Big-board vending app 315+ only (HappyHourEligibility): each row also carries the product's
-        // welcome sketch and its Happy Hour slots priced for that channel. Every other machine gets
-        // exactly the payload it always had.
+        // welcome sketch. The `happy_hour` key (its slots priced for that channel, [] when none) is
+        // sent only while the machine is in an ACTIVE campaign (2026-10-14): APK 316 re-reads this
+        // feed on every MQTT reconnect only when it sees the key, so the ~175 boards outside any
+        // campaign do not. Every other machine gets exactly the payload it always had.
         $happyHourVending = \App\Services\HappyHour\HappyHourEligibility::supportsVending($vend);
+        $happyHourCampaign = $happyHourVending && \App\Models\HappyHourCampaign::hasActiveFor($vend->id);
         $welcomeSketches = collect();
         $happyHourSlots = collect();
         if ($happyHourVending) {
             $channelProductIds = $sortedVendChannels->pluck('product_id')->filter()->unique()->values();
             $welcomeSketches = \App\Models\ProductWelcomeSketch::query()->whereIn('product_id', $channelProductIds)->get()->keyBy('product_id');
+        }
+        if ($happyHourCampaign) {
             $happyHourSlots = \App\Services\HappyHour\HappyHourPricing::openSlotsByProduct($vend, now());
         }
 
@@ -3300,6 +3305,8 @@ class VendController extends Controller
                 $data['welcome_sketch'] = \App\Services\Products\WelcomeSketch\ProductWelcomeSketchService::menuUrl(
                     $welcomeSketches->get($vendChannel->product_id)
                 );
+            }
+            if ($happyHourCampaign) {
                 // The price this row's screen shows: server price when the machine follows it (the
                 // APK prefers it when > 0), else the channel's board price.
                 $data['happy_hour'] = \App\Services\HappyHour\HappyHourPricing::channelSlots(
