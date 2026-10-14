@@ -1035,7 +1035,7 @@ on each save. It:
    best SKU of each moment repeats. Each SKU of a group is its own `happy_hour_slots` row (same start, unique
    `(vend_id, starts_at, product_id)`), so sold-out, swap, sale tagging and totals all work per SKU: a SKU that
    stops qualifying as the group starts, or sells out mid-slot, is replaced by the best one not already on offer;
-2. freezes each slot's product and both prices (integer cents, Site tier, rounded down to the step);
+2. freezes each slot's product and both prices (integer cents, Site tier, rounded UP to the step since 2026-10-14 `72f1b9f0cd` — Brian: ceiling, not floor; if rounding up would remove the discount it rounds down; screens advertise the campaign's own %);
 3. swaps a SKU that no longer qualifies as its slot starts;
 4. ends a slot early when its SKU sells out;
 5. records units / takings / discount when the slot closes, from the settled sales TAGGED with it (below).
