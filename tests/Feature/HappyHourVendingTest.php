@@ -213,7 +213,7 @@ class HappyHourVendingTest extends TestCase
         $campaign = $this->campaign([$vend]);
 
         $ranked = collect(app(HappyHourRanker::class)->rank($campaign, $vend, now()))->keyBy(fn ($c) => $c->productCode);
-        $this->assertSame([160, 90], [$ranked['A']->originalPrice, $ranked['A']->promoPrice], 'the highest board price of the SKU');
+        $this->assertSame([160, 100], [$ranked['A']->originalPrice, $ranked['A']->promoPrice], 'the highest board price of the SKU; 96¢ rounds up');
         $this->assertSame(9, $ranked['A']->qty, 'stock is summed over both channels');
         $this->assertSame([200, 120], [$ranked['B']->originalPrice, $ranked['B']->promoPrice]);
         $this->assertSame('No selling price for this Site', $ranked['C']->excludedReason, 'a channel at 0¢ has no price');
@@ -368,9 +368,9 @@ class HappyHourVendingTest extends TestCase
         $rows = collect($this->getJson('/api/vends/2245/thumbnails')->assertOk()->json())->keyBy('channel_code');
         $this->assertSame([[
             'slot_id' => $slot->id, 'starts_at' => '2026-10-09T14:00:00+08:00', 'ends_at' => '2026-10-09T15:00:00+08:00',
-            'price' => 90, 'original_price' => 160, 'discount_pct' => 40, 'rank' => 1,
+            'price' => 100, 'original_price' => 160, 'discount_pct' => 40, 'rank' => 1,
         ]], $rows[11]['happy_hour']);
-        $this->assertSame([80, 140], [$rows[12]['happy_hour'][0]['price'], $rows[12]['happy_hour'][0]['original_price']], '40% of its own 140¢, rounded down to 10¢');
+        $this->assertSame([90, 140], [$rows[12]['happy_hour'][0]['price'], $rows[12]['happy_hour'][0]['original_price']], '40% of its own 140¢ (84¢), rounded up to 10¢');
         $this->assertSame([], $rows[21]['happy_hour']);
         $this->assertSame('https://cdn.test/sketch-a.webp?v='.Carbon::parse('2026-10-09 10:00:00')->timestamp, $rows[11]['welcome_sketch']);
         $this->assertNull($rows[21]['welcome_sketch']);

@@ -11,13 +11,22 @@ use Carbon\CarbonInterface;
 final class HappyHourPricing
 {
     /**
-     * The original price less the discount, rounded DOWN to the campaign's price step (10¢ = $2.40,
-     * not $2.43). Null when the discount does not produce a price between 1¢ and the original.
+     * The original price less the discount, rounded UP to the campaign's price step (Brian,
+     * 2026-10-14: "round up 10 cents, ceiling instead of floor"): 30% off $2.50 = $1.75 → $1.80.
+     * The screens still advertise the campaign's own % ("30% off"), whatever the rounding does.
+     * Where rounding up would leave no discount at all (30% off 30¢ = 21¢ → 30¢), it rounds down
+     * instead, so a machine in the campaign always gets a real deal. Null when no price between
+     * 1¢ and the original exists.
      */
     public static function promoPrice(int $original, int $discountPct, int $stepCents): ?int
     {
         $step = max(1, $stepCents);
-        $promo = intdiv(intdiv($original * (100 - $discountPct), 100), $step) * $step;
+        $exact = $original * (100 - $discountPct); // hundredths of a cent, so no early truncation
+        $unit = 100 * $step;
+        $promo = intdiv($exact + $unit - 1, $unit) * $step;
+        if ($promo >= $original) {
+            $promo = intdiv($exact, $unit) * $step;
+        }
 
         return $promo >= 1 && $promo < $original ? $promo : null;
     }

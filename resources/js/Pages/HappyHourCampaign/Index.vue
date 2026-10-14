@@ -219,7 +219,7 @@
               <input v-model.number="form.min_qty" type="number" min="1" max="999" :class="inputClass" />
             </div>
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Round promo price down to</label>
+              <label class="block text-sm font-medium text-gray-700">Round promo price up to</label>
               <select v-model.number="form.price_step_cents" :class="inputClass">
                 <option :value="1">1¢</option>
                 <option :value="5">5¢</option>

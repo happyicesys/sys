@@ -115,13 +115,18 @@ class HappyHourCampaignTest extends TestCase
         return app(HappyHourPlanner::class);
     }
 
-    public function test_promo_price_rounds_down_to_the_price_step_and_never_reaches_zero_or_the_original(): void
+    public function test_promo_price_rounds_up_to_the_price_step_and_never_reaches_zero_or_the_original(): void
     {
-        $this->assertSame(240, HappyHourPricing::promoPrice(400, 40, 10));
-        $this->assertSame(160, HappyHourPricing::promoPrice(280, 40, 10), '$1.68 rounds down to $1.60');
+        $this->assertSame(240, HappyHourPricing::promoPrice(400, 40, 10), 'exact: no rounding');
+        $this->assertSame(170, HappyHourPricing::promoPrice(280, 40, 10), '$1.68 rounds up to $1.70');
+        $this->assertSame(180, HappyHourPricing::promoPrice(250, 30, 10), '30% off $2.50 = $1.75 rounds up to $1.80');
         $this->assertSame(168, HappyHourPricing::promoPrice(280, 40, 1));
-        $this->assertNull(HappyHourPricing::promoPrice(11, 40, 10), '6.6¢ rounds to 0: no promo');
-        $this->assertSame(90, HappyHourPricing::promoPrice(100, 5, 10), '95¢ rounds down to 90¢');
+        $this->assertSame(169, HappyHourPricing::promoPrice(281, 40, 1), '168.6¢ rounds up to 169¢, not down to 168¢');
+        $this->assertSame(150, HappyHourPricing::promoPrice(220, 32, 50), '$1.496 rounds up to $1.50 at 50¢');
+        $this->assertSame(20, HappyHourPricing::promoPrice(30, 30, 10), '21¢ would round up to the full 30¢: rounds down to 20¢ instead');
+        $this->assertSame(90, HappyHourPricing::promoPrice(100, 5, 10), '95¢ would round up to the full $1: rounds down to 90¢');
+        $this->assertSame(10, HappyHourPricing::promoPrice(11, 40, 10), '6.6¢ rounds up to 10¢, still under 11¢');
+        $this->assertNull(HappyHourPricing::promoPrice(5, 40, 10), '3¢: 10¢ is over the price and 0¢ is no price');
     }
 
     public function test_days_of_cover_ranks_unsold_stock_first_ties_go_to_the_higher_qty_and_exclusions_say_why(): void
@@ -133,7 +138,7 @@ class HappyHourCampaignTest extends TestCase
             'IDLE-B' => [5, 0, 2.80, 0],   // capacity never measured: the % floor cannot apply
             'LOW' => [1, 2, 2.80, 0],      // under the 2-unit minimum
             'FLOOR' => [2, 20, 2.80, 0],   // 10% ≤ 15% floor
-            'FREE' => [9, 10, 0.11, 0],    // 40% of 11¢ rounds to nothing
+            'FREE' => [9, 10, 0.05, 0],    // 40% off 5¢ has no price: 10¢ is over it, 0¢ is nothing
         ]);
         $campaign = $this->campaign();
 
