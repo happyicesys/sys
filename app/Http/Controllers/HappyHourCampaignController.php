@@ -46,7 +46,10 @@ class HappyHourCampaignController extends Controller
         $campaigns = HappyHourCampaign::query()
             // Only the viewer's own machines are listed (a HIPL campaign may span operators).
             ->with(['vends' => fn ($q) => $this->visibleVends($q)
-                ->select('vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type', 'vends.is_active', 'vends.apk_version_code', 'vends.apk_ver_json')])
+                ->select('vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type', 'vends.is_active', 'vends.apk_version_code', 'vends.apk_ver_json',
+                    'vends.customer_id', 'vends.is_using_server_price')
+                // The Status box names each machine's Site and the RP it sells at (Brian, 2026-10-15).
+                ->with('customer:id,name,selling_price_type')])
             ->orderByDesc('is_active')->orderByDesc('id')
             ->get();
         // Only the slot each machine is running now (the Status column); one per machine at most.
@@ -58,8 +61,9 @@ class HappyHourCampaignController extends Controller
             ->where('starts_at', '<=', $now)
             ->where('ends_at', '>', $now)
             ->orderBy('vend_id')
-            ->get()
-            ->groupBy('happy_hour_campaign_id');
+            ->get();
+        $stock = $this->liveStock($slots);
+        $slots = $slots->groupBy('happy_hour_campaign_id');
 
         $machines = $this->machineOptions($now);
         // The failsafe (a live UI Setting campaign pauses Happy Hour on a machine), for the chips' icon.
@@ -67,7 +71,7 @@ class HappyHourCampaignController extends Controller
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
         return Inertia::render('HappyHourCampaign/Index', [
-            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused))->values(),
+            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock))->values(),
             'machines' => $machines,
             'products' => $this->productOptions(collect($machines)->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
             'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
@@ -268,7 +272,10 @@ class HappyHourCampaignController extends Controller
      * @param  array<int, array{message: string}>  $paused  HappyHourPause::forVends()
      * @return array<string, mixed>
      */
-    private function campaignPayload(HappyHourCampaign $c, $liveSlots, array $paused = []): array
+    /**
+     * @param  array<string, array{qty: int, capacity: ?int}>  $stock  "vend:product" => on hand now (liveStock)
+     */
+    private function campaignPayload(HappyHourCampaign $c, $liveSlots, array $paused = [], array $stock = []): array
     {
         $now = Carbon::now();
 
@@ -301,6 +308,9 @@ class HappyHourCampaignController extends Controller
                 // NULL = picked by hand; else the live group it joined through.
                 'via_group' => $v->pivot?->via_group,
                 'code' => $v->codeLabel(),
+                'site' => $v->customer?->name,
+                // The Site's tier when the machine sells at server price; null = it sells at the board price.
+                'rp' => ($rp = $v->serverPriceType()) ? "RP{$rp}" : null,
                 'machine_type' => $v->machine_type,
                 'supported' => HappyHourEligibility::supports($v),
                 // For the ⚠ tooltip: why an unsupported machine gets no slots.
@@ -320,8 +330,37 @@ class HappyHourCampaignController extends Controller
                 'product_code' => $s->product?->code,
                 'original_price' => $s->original_price,
                 'promo_price' => $s->promo_price,
+                // On hand now / capacity, summed over the SKU's active channels — what the ranker reads.
+                'qty' => $stock["{$s->vend_id}:{$s->product_id}"]['qty'] ?? null,
+                'capacity' => $stock["{$s->vend_id}:{$s->product_id}"]['capacity'] ?? null,
             ])->values(),
         ];
+    }
+
+    /**
+     * On-hand qty and capacity of each live slot's SKU on its machine, in one query: the same sums over
+     * active channels HappyHourRanker ranks by (a vending SKU may sit in several channels).
+     *
+     * @return array<string, array{qty: int, capacity: ?int}> "vend:product" => stock
+     */
+    private function liveStock($slots): array
+    {
+        if ($slots->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('vend_channels')
+            ->whereIn('vend_id', $slots->pluck('vend_id')->unique()->values())
+            ->whereIn('product_id', $slots->pluck('product_id')->unique()->values())
+            ->where('is_active', 1)
+            ->groupBy('vend_id', 'product_id')
+            ->selectRaw('vend_id, product_id, SUM(GREATEST(qty, 0)) AS qty, SUM(GREATEST(capacity, 0)) AS capacity')
+            ->get()
+            ->mapWithKeys(fn ($row) => ["{$row->vend_id}:{$row->product_id}" => [
+                'qty' => (int) $row->qty,
+                'capacity' => (int) $row->capacity > 0 ? (int) $row->capacity : null,
+            ]])
+            ->all();
     }
 
     private function status(HappyHourCampaign $c, Carbon $now): string

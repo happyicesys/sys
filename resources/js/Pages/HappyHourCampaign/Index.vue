@@ -72,11 +72,24 @@
                     <!-- What is on offer right now, one box per machine (Brian, 2026-10-12: a flat list mixed the machines). -->
                     <div v-for="g in liveByMachine(c)" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
                       <div class="flex items-center justify-between gap-2">
-                        <span class="text-xs font-bold text-amber-900">{{ g.code }}</span>
+                        <span class="text-xs min-w-0">
+                          <!-- The machine on the Operation Dashboard, in a new tab. -->
+                          <a
+                            :href="'/vends/customers?codes=' + encodeURIComponent(g.code) + '&autoload=true'"
+                            target="_blank"
+                            class="font-bold text-blue-700 hover:underline"
+                          >{{ g.code }}</a>
+                          <span v-if="g.site || g.rp" class="ml-1 text-gray-700" :title="g.rp ? '' : 'Sells at the board price'">
+                            {{ g.site }}<template v-if="g.site && g.rp"> · </template>{{ g.rp }}
+                          </span>
+                        </span>
                         <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
                       </div>
                       <div v-for="s in g.slots" :key="s.id" class="flex items-baseline justify-between gap-2 text-xs text-gray-900">
-                        <span class="font-semibold truncate max-w-[14rem]" :title="s.product">{{ s.product }}</span>
+                        <span class="truncate max-w-[16rem]" :title="s.product">
+                          <span class="font-semibold">{{ s.product }}</span>
+                          <span v-if="s.qty !== null" class="ml-1 text-gray-600" title="On hand now / capacity">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
+                        </span>
                         <span class="whitespace-nowrap">
                           <span class="text-gray-400 line-through mr-1">{{ money(s.original_price) }}</span>
                           <span class="font-bold text-red-600">{{ money(s.promo_price) }}</span>
@@ -539,7 +552,10 @@ function vendCode(c, vendId) {
 function liveByMachine(c) {
   const groups = new Map()
   for (const s of c.live ?? []) {
-    if (!groups.has(s.vend_id)) groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), from: s.starts_at, to: s.ends_at, slots: [] })
+    if (!groups.has(s.vend_id)) {
+      const vend = c.vends.find(v => v.id === s.vend_id)
+      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, rp: vend?.rp ?? null, from: s.starts_at, to: s.ends_at, slots: [] })
+    }
     const g = groups.get(s.vend_id)
     g.slots.push(s)
     if (s.starts_at < g.from) g.from = s.starts_at

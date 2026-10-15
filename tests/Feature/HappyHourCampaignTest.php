@@ -367,11 +367,18 @@ class HappyHourCampaignTest extends TestCase
                 ->where('campaigns.0.vends.0.apk_version_code', 30)
                 ->where('campaigns.0.vends.0.supported', true));
 
-        // The Status column carries only the slot running now.
+        // The Status column carries only the slot running now, with the machine's Site + RP and the SKU's
+        // stock on hand / capacity (Brian, 2026-10-15).
+        $liveSlot = HappyHourSlot::open()->where('starts_at', '<=', now())->where('ends_at', '>', now())->firstOrFail();
+        $onHand = DB::table('vend_channels')->where('vend_id', $this->vend->id)->where('product_id', $liveSlot->product_id)->first();
         $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
             ->assertInertia(fn ($page) => $page->where('campaigns.1.id', $campaign->id)
                 ->has('campaigns.1.live', 1)
                 ->where('campaigns.1.live.0.promo_price', 200)
+                ->where('campaigns.1.live.0.qty', (int) $onHand->qty)
+                ->where('campaigns.1.live.0.capacity', (int) $onHand->capacity)
+                ->where('campaigns.1.vends.0.site', 'Site')
+                ->where('campaigns.1.vends.0.rp', 'RP2')
                 ->has('campaigns.0.live', 0));
 
         // A machine chip ranks just that machine.
