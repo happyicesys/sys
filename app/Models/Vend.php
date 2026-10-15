@@ -1252,6 +1252,10 @@ class Vend extends Model
                     $query->where('vends.is_testing', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 }
             })
+            // "Is Server Price?" (Machine Settings index): server = follows the Site's RP, machine = board price.
+            ->when(in_array($request->input('is_server_price'), ['server', 'machine'], true), function ($query) use ($request) {
+                $query->where('vends.is_using_server_price', $request->input('is_server_price') === 'server');
+            })
             ->when($request->status, function ($query, $search) {
                 // dd('here', $search, $request->all(), $query->toSql());
                 if ($search != 'all') {

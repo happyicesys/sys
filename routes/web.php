@@ -153,7 +153,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/upload-media', [ApkSettingController::class, 'uploadMedia']);
         Route::post('/{id}/upload-campaign-media', [ApkSettingController::class, 'uploadCampaignMedia']);
         Route::delete('/unbind-vend/{vendId}', [ApkSettingController::class, 'unbindVend']);
-        Route::post('/vends/{vendId}/pricing-source', [ApkSettingController::class, 'updateVendPricingSource']);
         Route::delete('/{id}', [ApkSettingController::class, 'destroy']);
     });
 
@@ -336,6 +335,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/upload-photos', [CustomerController::class, 'uploadPhoto']);
         Route::post('/{id}/upload-contracts', [CustomerController::class, 'uploadContract']);
         Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
+        // "Is Server Price?" of a machine bound to this Site — the same switch as Setting/Edit (one column).
+        Route::post('/{id}/vends/{vendId}/pricing-source', [CustomerController::class, 'updateVendPricingSource'])
+            ->name('customers.vends.pricing-source');
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
         Route::post('/{id}/disconnect-cms', [CustomerController::class, 'disconnectCms']);
         // Customer-level notes — edited inline on the Customer Summary page

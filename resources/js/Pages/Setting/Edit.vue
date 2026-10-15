@@ -732,7 +732,7 @@
             </div>
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Is Using Server Price?
+                  Is Server Price?
                 </label>
                 <MultiSelect
                   v-model="form.is_using_server_price"
@@ -748,17 +748,13 @@
                 >
                 </MultiSelect>
                 <p v-if="isSmartFreezer" class="mt-1 text-xs text-gray-500">
-                  Smart Freezer always follows the Site's pricing — it has no machine price.
+                  A Smart Freezer always uses Server Price — it has no machine price.
                 </p>
-                <!-- The RP tier is the Site's (Customer edit → Ref Price Type); the machine
-                     only chooses whether to follow it. No per-machine RP override. -->
-                <p class="mt-1 text-xs text-blue-600">
-                  <template v-if="siteSellingPriceType">
-                    Site's pricing is <span class="font-semibold text-blue-800">RP{{ siteSellingPriceType }}</span> — change it in the Site (Customer) edit page.
-                  </template>
-                  <template v-else>
-                    No Site bound / no Ref Price Type on the Site — the machine falls back to machine price until one is set.
-                  </template>
+                <!-- Server Price = the Site's Reference Price Type (Site edit page, which carries the same
+                     switch — one column on the machine, so the two pages always agree). Only the case that
+                     needs action is spelled out. -->
+                <p v-if="!siteSellingPriceType" class="mt-1 text-xs text-amber-700">
+                  No Site bound / no Reference Price Type on the Site — the machine uses its machine price until one is set.
                 </p>
                 <FieldAudit :entry="fieldAudit.is_using_server_price" />
                 <div class="text-sm text-red-600" v-if="form.errors.is_using_server_price">
@@ -2215,8 +2211,8 @@ watch(
 // Pricing source per machine. The tier (RP1–RP5) is never chosen here — it is
 // the Site's selling_price_type; the machine only follows it or not.
 const serverPriceOptions = ref([
-  {id: 'false', value: 'No, use machine price'},
-  {id: 'true', value: "Yes, follow Site's pricing"},
+  {id: 'true', value: 'Server Price'},
+  {id: 'false', value: 'Machine Price'},
 ])
 const siteSellingPriceType = computed(() => props.vend?.selling_price_type ?? props.vend?.customer?.selling_price_type ?? null)
 const simcardOptions = ref([])

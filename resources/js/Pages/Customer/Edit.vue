@@ -1375,6 +1375,26 @@
                     </a>
                   </div>
                 </div>
+                <!-- "Is Server Price?" — the same per-machine switch as Machine Settings (one column on the
+                     machine), saved at once. Server Price = this Site's Reference Price Type. -->
+                <div class="sm:col-span-6" v-if="pricingMachineRows.length">
+                  <label class="flex justify-start text-sm font-medium text-gray-700"> Is Server Price? </label>
+                  <div v-for="m in pricingMachineRows" :key="m.id" class="mt-1 flex flex-wrap items-center gap-2">
+                    <span v-if="pricingMachineRows.length > 1" class="text-sm font-medium text-gray-700 w-16">{{ m.code }}</span>
+                    <select
+                      :value="m.is_using_server_price ? 'true' : 'false'"
+                      :disabled="m.saving || m.machine_type === 'smart_freezer' || !permissions.includes('update customers')"
+                      @change="setMachinePricingSource(m, $event.target.value === 'true')"
+                      class="rounded-md border-gray-300 text-sm py-1.5 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500 disabled:opacity-50"
+                    >
+                      <option value="true">Server Price</option>
+                      <option value="false">Machine Price</option>
+                    </select>
+                    <span class="text-xs text-gray-500">
+                      {{ m.machine_type === 'smart_freezer' ? 'A Smart Freezer always uses Server Price.' : 'Saves at once — the same setting as Machine Settings.' }}
+                    </span>
+                  </div>
+                </div>
                 <div class="sm:col-span-6" v-if="!customer.vend">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Machine ID# </label>
                   <MultiSelect
@@ -1768,6 +1788,8 @@ const props = defineProps({
   // Site status change history (newest first) for the Status History popup.
   statusHistory: { type: Array, default: () => [] },
   sellingPriceTypeOptions: [Array, Object],
+  // "Is Server Price?" per machine bound to this Site (CustomerController::edit).
+  pricingMachines: { type: Array, default: () => [] },
   type: String,
   zoneOptions: Object,
   // Existing Site Group names for this operator — drives the datalist on the
@@ -1918,6 +1940,24 @@ const bankOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
 const profile = usePage().props.auth.profile;
 const toast = useToast();
+
+// "Is Server Price?" rows; each change saves at once (CustomerController::updateVendPricingSource).
+const pricingMachineRows = ref((props.pricingMachines || []).map(m => ({ ...m, saving: false })));
+async function setMachinePricingSource(m, on) {
+  const previous = m.is_using_server_price;
+  m.is_using_server_price = on;
+  m.saving = true;
+  try {
+    const { data } = await axios.post(`/customers/${props.customer.id}/vends/${m.id}/pricing-source`, { is_using_server_price: on });
+    m.is_using_server_price = data.is_using_server_price;
+    toast.success(`${m.code}: ${on ? 'Server Price' : 'Machine Price'}`);
+  } catch (e) {
+    m.is_using_server_price = previous;
+    toast.error(e?.response?.data?.message || 'Could not change the pricing.');
+  } finally {
+    m.saving = false;
+  }
+}
 const vendChannels = ref([]);
 const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);

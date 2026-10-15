@@ -811,6 +811,11 @@ class Customer extends Model
                     }
                 }
             })
+            // "Is Server Price?": a Site whose bound machine follows its RP (server) or sells at the board
+            // price (machine). whereHas keeps the viewer's machine boundary (Vend's global scopes).
+            ->when(in_array($request->input('is_server_price'), ['server', 'machine'], true), function ($query) use ($request) {
+                $query->whereHas('vends', fn ($q) => $q->where('vends.is_using_server_price', $request->input('is_server_price') === 'server'));
+            })
             ->when($request->is_cms, function ($query, $search) {
                 if ($search != 'all') {
                     $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);

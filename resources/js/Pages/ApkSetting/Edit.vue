@@ -111,18 +111,18 @@
             </div>
 
             <!-- Pricing source is decided PER MACHINE (vends.is_using_server_price), not per
-                 setting: this setting is shared by every bound machine while "follow the
-                 Site's pricing" depends on each machine's Site. The wire value
-                 (selectedPricingSource) is derived from the machine at /parameters.
-                 Set it in the bound-machines table below or in Machine Settings. -->
+                 setting: this setting is shared by every bound machine while Server Price depends
+                 on each machine's Site. The wire value (selectedPricingSource) is derived from the
+                 machine at /parameters. Set it on Machine Settings → Edit or the Site edit page
+                 (Brian, 2026-10-15) — this page only shows it. -->
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Pricing Source
               </label>
               <p class="text-sm text-gray-600 mt-1">
-                Set per machine — see the <span class="font-semibold">Server Price</span> column in the bound machines list below
-                (also on Machine Settings → Edit). <span class="font-semibold">Yes</span> = prices follow the Site's Ref Price Type (RP1–RP5 from the Site edit page);
-                <span class="font-semibold">No</span> = machine (VMC board) price.
+                Set per machine on Machine Settings → Edit or the Site edit page; the bound machines list below shows it.
+                <span class="font-semibold">Server Price</span> = the Site's Reference Price Type;
+                <span class="font-semibold">Machine Price</span> = the machine (VMC board) price.
               </p>
             </div>
 
@@ -1301,22 +1301,14 @@
                           </div>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 text-center">
-                          <!-- Saves immediately (own route), independent of the main Save button. -->
-                          <select
-                            :value="vend.is_using_server_price ? 'true' : 'false'"
-                            :disabled="pricingSourceSaving[vend.id] || vend.machine_type === 'smart_freezer'"
-                            @change="setVendPricingSource(vend, $event.target.value === 'true')"
-                            class="rounded-md border-gray-300 text-sm py-1 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500 disabled:opacity-50"
-                          >
-                            <option value="false">No, use machine price</option>
-                            <option value="true">Yes, follow Site's pricing</option>
-                          </select>
-                          <div class="mt-1 text-xs">
-                            <span v-if="vend.customer?.selling_price_type" :class="vend.is_using_server_price ? 'text-emerald-700 font-semibold' : 'text-gray-500'">
-                              Site RP{{ vend.customer.selling_price_type }}
-                            </span>
-                            <span v-else class="text-gray-400">no Site RP</span>
-                          </div>
+                          <!-- Read-only (Brian, 2026-10-15): changed on Machine Settings → Edit or the Site edit page. -->
+                          <a
+                            :href="'/settings/vend/' + vend.id + '/update'"
+                            target="_blank"
+                            class="hover:underline"
+                            :class="vend.is_using_server_price ? 'text-emerald-700 font-semibold' : 'text-gray-700'"
+                            title="Change it on Machine Settings → Edit"
+                          >{{ vend.is_using_server_price ? 'Server Price' : 'Machine Price' }}</a>
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
@@ -2072,30 +2064,5 @@ function unbindVendItem(vend) {
   unbindedVendOptions.value.sort((a, b) => a.code - b.code)
 }
 
-// Per-machine "Is Using Server Price?" — same field as Machine Settings → Edit.
-// Posts straight away (the main Save only writes this setting's own parameters),
-// and the server nudges the terminal to re-read settings + menu.
-const pricingSourceSaving = ref({})
-function setVendPricingSource(vend, on) {
-  const previous = vend.is_using_server_price
-  vend.is_using_server_price = on
-  pricingSourceSaving.value[vend.id] = true
-  router.post('/apk-settings/vends/' + vend.id + '/pricing-source', {
-    is_using_server_price: on,
-  }, {
-    preserveScroll: true,
-    preserveState: true,
-    onSuccess: () => {
-      toast.success('Machine ' + vendCodeLabel(vend) + ': ' + (on ? "now follows the Site's pricing" : 'now uses machine price'))
-    },
-    onError: () => {
-      vend.is_using_server_price = previous
-      toast.error('Could not update pricing source for machine ' + vendCodeLabel(vend))
-    },
-    onFinish: () => {
-      pricingSourceSaving.value[vend.id] = false
-    },
-  })
-}
 
 </script>

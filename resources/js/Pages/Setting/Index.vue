@@ -139,6 +139,22 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
+              Is Server Price?
+            </label>
+            <MultiSelect
+                v-model="filters.is_server_price"
+                :options="serverPriceFilterOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
                 Location Type
             </label>
             <MultiSelect
@@ -994,6 +1010,7 @@ const filters = ref({
     sortKey: '',
     sortBy: false,
     status: '',
+    is_server_price: '',
     numberPerPage: '',
     visited: true,
   })
@@ -1027,6 +1044,12 @@ const filters = ref({
   const vendPrefixOptions = ref([])
   const operatorOptions = ref([])
   const now = ref(moment().format('HH:mm:ss'))
+  // vends.is_using_server_price (Vend::scopeFilterIndex `is_server_price`). Server Price = the Site's RP.
+  const serverPriceFilterOptions = ref([
+    {id: 'all', value: 'All'},
+    {id: 'server', value: 'Server Price'},
+    {id: 'machine', value: 'Machine Price'},
+  ])
   const statusOptions = ref([
     {id: 'all', value: 'All'},
     {id: 'factory', value: 'Factory (JB)'},
@@ -1129,6 +1152,7 @@ onMounted(() => {
     // filters.value.is_testing = booleanOptions.value[2]
     filters.value.key_id = keyOptions.value[0]
     filters.value.status = statusOptions.value[2]
+    filters.value.is_server_price = serverPriceFilterOptions.value[0]
     filters.value.cashless_terminal_id = cashlessTerminalOptions.value[0]
     filters.value.simcard_id = simcardOptions.value[0]
     // filters.value.vend_config_id = vendConfigOptions.value[0]
@@ -1176,6 +1200,7 @@ function onSearchFilterUpdated() {
       selling_price_type: filters.value.selling_price_type.id,
       simcard_id: filters.value.simcard_id.id,
       status: filters.value.status.id,
+      is_server_price: filters.value.is_server_price?.id,
       vendConfigs: filters.value.vendConfigs.map((vendConfig) => { return vendConfig.id }),
       vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
       // vend_config_id: filters.value.vend_config_id.id,

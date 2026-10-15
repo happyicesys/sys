@@ -191,15 +191,24 @@ old rows normalize and Gson keeps a schema-complete payload). `/thumbnails` and
 `/menu` carry `server_price` only while the flag is on.
 
 Every write path goes through `VendPricingSourceService` (or nudges via it):
-Machine Settings save, the per-machine column on APK Settings → Edit, and a Site
-RP change — each tells the terminal to re-read settings **and** re-fetch its
-menu. Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
+Machine Settings save, the per-machine "Is Server Price?" switch on the Site edit
+page (`CustomerController::updateVendPricingSource`, `update customers`, saves at
+once), and a Site RP change — each tells the terminal to re-read settings **and**
+re-fetch its menu. Both switches write the one column, so the two pages always
+agree, and the save is in `user_logs`, so Setting/Edit's "last changed" names a
+change made from the Site page too. **The UI Setting page only SHOWS it** (Brian,
+2026-10-15): its per-machine dropdown and the unprotected
+`/apk-settings/vends/{id}/pricing-source` route are gone. Wording everywhere is
+"Server Price" / "Machine Price" (Server Price = the Site's RP, so the RP is not
+repeated). The Machine Settings index and the Site index filter on it (request
+`is_server_price` = server / machine, in `Vend::scopeFilterIndex` and
+`Customer::scopeFilterIndex`). Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
 
 **A Smart Freezer has no choice: always Yes** (Brian, 2026-09-14). The freezer
 APK has no board price and drops every menu row without `server_price`, so No
 means an empty kiosk (50001 was created that way). `Vend::requiresServerPrice()`
 plus a `saving` hook on `Vend` force the flag on every write — creation,
-Machine Settings, API — and the APK Settings toggle refuses No with an error.
+Machine Settings, API — and the Site page switch refuses No with an error.
 The selector is locked in Setting/Edit and APK Settings → Edit. The menu nudge
 (`VendJobService::syncChannelSlotListToVend`) reaches freezers too — only
 chillers are skipped; the freezer APK re-fetches `/menu` only on boot or on that
@@ -1099,13 +1108,15 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
 - **Nudge:** `NudgeFreezerMenu` sends an eligible vending board the lightweight `HAPPYHOUR` frame
   (`VendJobService::nudgeHappyHourToVend`, re-reads `/thumbnails` JSON only) — never
   TYPESYNCAPICHANNELSLOTLIST, which re-downloads every image. Freezers keep the menu frame.
-- **Failsafe — a UI Setting campaign beats Happy Hour, per machine** (`HappyHourPause`): a `campaigns`
-  row with `is_active`, started (or no start) and `end_at` null or ≥ today, bound through
-  `apk_setting_campaign` to the machine's UI Setting (`apk_setting_vend`). The planner gives such a
-  machine no slot, ends a live one at the next minute run (cancelled, nudged), and resumes at the NEXT
-  slot once the campaign ends or is unbound (a slot time that began while paused is not resumed
-  part-way; `happy-hour-paused-at:{vend}` cache). The campaign page shows an exclamation icon with the
-  reason on the chip and warns (never blocks) in the form.
+- **Failsafe — any UI Setting beats Happy Hour, per machine** (`HappyHourPause`; Brian, 2026-10-15,
+  widening 10-12's "only while the UI Setting has a live campaign"): a machine with ANY `apk_setting_vend`
+  row runs its UI Setting only, whether it joined through a group or was picked by name. A live campaign
+  on that UI Setting is only named in the message. The planner gives such a machine no slot, ends a live
+  one at the next minute run (cancelled, nudged), and resumes at the NEXT slot once the machine is
+  unbound (a slot time that began while paused is not resumed part-way; `happy-hour-paused-at:{vend}`
+  cache). The campaign page shows an exclamation icon with the reason on the chip and warns (never
+  blocks) in the form. So Happy Hour runs only on machines with no UI Setting (freezers, and big boards
+  served the bear by `HappyHourWelcomeFallback` = the HappyIce default UI Setting + bear, Brian's choice).
 - **Tagging:** a vending sale is NEVER tagged by price (its own label/bundle/P2 discounts can hit the same
   figure). A 315 touchscreen TRADE carries `"HH": [{"SId": <channel>, "HHId": <slot>}]`; a line is
   tagged only when its channel is named there, the slot is this machine's (and the line's product), and

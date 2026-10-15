@@ -84,7 +84,7 @@ class CustomerController extends Controller
         $this->middleware(['permission:update customers'])->only([
             'update', 'bindVend', 'uploadAttachment', 'uploadPhoto', 'uploadContract',
             'storeScheduledContract', 'cancelScheduledContract', 'disconnectCms',
-            'updateLocFeeRemarks', 'syncCmsInvoice', 'syncCmsInvoicesBulk',
+            'updateLocFeeRemarks', 'syncCmsInvoice', 'syncCmsInvoicesBulk', 'updateVendPricingSource',
         ]);
         // Site Note + Ops Note are ALSO edited inline (ungated textareas) on the
         // full Operation Dashboard, which `read vend-customers` roles without
@@ -5025,6 +5025,33 @@ class CustomerController extends Controller
      * user) lets the Vue page refresh the "last updated by" line without
      * a full router reload.
      */
+    /**
+     * "Is Server Price?" of a machine bound to this Site (Brian, 2026-10-15): the same per-machine switch as
+     * Setting/Edit — one column, `vends.is_using_server_price`, so the two pages are always in sync. Saved at
+     * once through VendPricingSourceService, which tells the machine; the save lands in user_logs, so
+     * Setting/Edit's "last changed" names whoever flipped it here. Server Price = the Site's RP.
+     */
+    public function updateVendPricingSource(Request $request, $id, $vendId)
+    {
+        $request->validate(['is_using_server_price' => 'required|boolean']);
+
+        $customer = Customer::findOrFail($id);
+        // Vend's operator scope applies: a Site page never reaches another operator's machine.
+        $vend = Vend::query()->where('customer_id', $customer->id)->findOrFail($vendId);
+        $on = $request->boolean('is_using_server_price');
+
+        if ($vend->isSmartChiller()) {
+            return response()->json(['message' => 'A Smart Chiller is priced by CityBox, not by this switch.'], 422);
+        }
+        if ($vend->requiresServerPrice() && ! $on) {
+            return response()->json(['message' => 'A Smart Freezer always uses Server Price.'], 422);
+        }
+
+        $this->vendPricingSourceService->setUsingServerPrice($vend, $on);
+
+        return response()->json(['is_using_server_price' => $vend->usesServerPrice()]);
+    }
+
     public function updateNotes(Request $request, $customerId)
     {
         $customer = Customer::findOrFail($customerId);
@@ -5608,6 +5635,16 @@ class CustomerController extends Controller
                 ->orderBy('code')
                 ->get(),
             'customer' => $customer,
+            // "Is Server Price?" per machine bound to this Site (one machine almost always; one Site has three).
+            'pricingMachines' => $customer ? Vend::query()->where('customer_id', $customer->id)->orderBy('code')
+                ->get(['id', 'code', 'code_prefix', 'machine_type', 'is_using_server_price'])
+                ->reject(fn (Vend $v) => $v->isSmartChiller())
+                ->map(fn (Vend $v) => [
+                    'id' => $v->id,
+                    'code' => $v->codeLabel(),
+                    'machine_type' => $v->machine_type,
+                    'is_using_server_price' => $v->usesServerPrice(),
+                ])->values() : [],
             'statusHistory' => $statusHistory,
             'type' => 'update',
             'zoneOptions' => $optionsService->zones(),

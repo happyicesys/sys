@@ -61,6 +61,21 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
+              Is Server Price?
+            </label>
+            <MultiSelect
+              v-model="filters.is_server_price"
+              :options="serverPriceFilterOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
               Contract Attachment?
             </label>
             <MultiSelect
@@ -853,6 +868,7 @@ const filters = ref({
   contract_attachment: '',
   frequency_per_week_status: '',
   is_binded_vend: '',
+  is_server_price: '',
   location_types: [],
   name: '',
   operators: [],
@@ -878,6 +894,12 @@ const loading = ref(false);
 const dayOptions = ref([]);
 const showModal = ref(false);
 const booleanOptions = ref([]);
+// A Site whose bound machine uses Server Price (= this Site's RP) or Machine Price (Customer::scopeFilterIndex).
+const serverPriceFilterOptions = ref([
+  { id: 'all', value: 'All' },
+  { id: 'server', value: 'Server Price' },
+  { id: 'machine', value: 'Machine Price' },
+]);
 // Dedicated options for the "Contract Attachment?" filter so its Yes/No labels
 // stay independent of the shared booleanOptions set.
 const contractAttachmentOptions = ref([]);
@@ -996,6 +1018,7 @@ onMounted(() => {
   filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0];
   filters.value.status = statusOptions.value.filter((s) => s.id === 2 || s.id === 3);
   filters.value.is_binded_vend = booleanOptions.value[0];
+  filters.value.is_server_price = serverPriceFilterOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
   filters.value.contract_attachment = contractAttachmentOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')].filter(Boolean);
@@ -1069,6 +1092,7 @@ function onSearchFilterUpdated() {
       contract_attachment: filters.value.contract_attachment?.id,
       frequency_per_week_status: filters.value.frequency_per_week_status.id,
       is_binded_vend: filters.value.is_binded_vend.id,
+      is_server_price: filters.value.is_server_price?.id,
       is_cms: filters.value.is_cms.id,
       status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
       location_types: filters.value.location_types.map((locationType) => locationType.id),
@@ -1115,6 +1139,7 @@ function onExportExcelClicked() {
       contract_attachment: filters.value.contract_attachment?.id,
       frequency_per_week_status: filters.value.frequency_per_week_status?.id,
       is_binded_vend: filters.value.is_binded_vend?.id,
+      is_server_price: filters.value.is_server_price?.id,
       is_cms: filters.value.is_cms?.id,
       status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
       location_types: filters.value.location_types.map((locationType) => locationType.id),

@@ -16,6 +16,7 @@ use App\Services\VendPricingSourceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -166,22 +167,44 @@ class VendServerPriceSourceTest extends TestCase
         Queue::assertPushed(PublishMqtt::class, 2); // unchanged → silent
     }
 
-    public function test_apk_settings_page_toggle_writes_the_machine_and_nudges_it(): void
+    public function test_the_ui_setting_page_no_longer_changes_pricing(): void
+    {
+        // Brian, 2026-10-15: Server Price is set on Machine Settings → Edit or the Site edit page only.
+        $vend = $this->makeVend(9915, usesServerPrice: false);
+        $this->actingAs($this->machineEditor())
+            ->post('/apk-settings/vends/'.$vend->id.'/pricing-source', ['is_using_server_price' => true])
+            ->assertNotFound();
+        $this->assertFalse($vend->fresh()->usesServerPrice());
+    }
+
+    public function test_the_site_page_switch_writes_the_machine_nudges_it_and_is_the_same_value_as_machine_settings(): void
     {
         Queue::fake();
-        $vend = $this->makeVend(9915, usesServerPrice: false);
+        $vend = $this->makeVend(9917, usesServerPrice: false);
         $user = $this->machineEditor();
+        $user->givePermissionTo(Permission::findOrCreate('update customers', 'web'));
 
         $this->actingAs($user)
-            ->post('/apk-settings/vends/'.$vend->id.'/pricing-source', ['is_using_server_price' => true])
-            ->assertRedirect();
-
-        $this->assertTrue($vend->fresh()->usesServerPrice());
+            ->postJson("/customers/{$vend->customer_id}/vends/{$vend->id}/pricing-source", ['is_using_server_price' => true])
+            ->assertOk()->assertJsonPath('is_using_server_price', true);
+        $this->assertTrue($vend->fresh()->usesServerPrice(), 'one column: Machine Settings shows Server Price now');
         Queue::assertPushed(PublishMqtt::class, 2);
 
         $this->actingAs($user)
-            ->post('/apk-settings/vends/'.$vend->id.'/pricing-source', ['is_using_server_price' => 'nope'])
-            ->assertSessionHasErrors('is_using_server_price');
+            ->postJson("/customers/{$vend->customer_id}/vends/{$vend->id}/pricing-source", ['is_using_server_price' => 'nope'])
+            ->assertUnprocessable();
+
+        // Another Site's machine is not reachable through this Site.
+        $other = $this->makeVend(9918, usesServerPrice: false);
+        $this->actingAs($user)
+            ->postJson("/customers/{$vend->customer_id}/vends/{$other->id}/pricing-source", ['is_using_server_price' => true])
+            ->assertNotFound();
+
+        // Without `update customers` the switch is refused.
+        $this->actingAs(User::factory()->create(['operator_id' => 1]))
+            ->postJson("/customers/{$vend->customer_id}/vends/{$vend->id}/pricing-source", ['is_using_server_price' => false])
+            ->assertForbidden();
+        $this->assertTrue($vend->fresh()->usesServerPrice());
     }
 
     public function test_machine_settings_save_persists_the_switch_and_nudges_the_terminal(): void
@@ -362,10 +385,11 @@ class VendServerPriceSourceTest extends TestCase
 
         $user = User::factory()->create();
 
-        // APK Settings toggle: refused with a visible error, value unchanged.
+        // Site page switch: refused with a visible error, value unchanged.
+        $user->givePermissionTo(Permission::findOrCreate('update customers', 'web'));
         $this->actingAs($user)
-            ->post('/apk-settings/vends/'.$vend->id.'/pricing-source', ['is_using_server_price' => false])
-            ->assertSessionHasErrors('is_using_server_price');
+            ->postJson("/customers/{$vend->customer_id}/vends/{$vend->id}/pricing-source", ['is_using_server_price' => false])
+            ->assertUnprocessable()->assertJsonPath('message', 'A Smart Freezer always uses Server Price.');
         $this->assertTrue($vend->fresh()->usesServerPrice());
 
         // Machine Settings save posting No: persisted as Yes.
@@ -386,5 +410,25 @@ class VendServerPriceSourceTest extends TestCase
         $vend->is_using_server_price = false;
         $vend->save();
         $this->assertTrue($vend->fresh()->usesServerPrice());
+    }
+
+    public function test_the_index_filters_split_server_price_from_machine_price(): void
+    {
+        $server = $this->makeVend(9941, usesServerPrice: true);
+        $machine = $this->makeVend(9942, usesServerPrice: false);
+        $filter = fn (string $value) => \Illuminate\Http\Request::create('/', 'GET', ['is_server_price' => $value]);
+        $ids = [$server->id, $machine->id];
+
+        // Machine Settings index (Vend::scopeFilterIndex).
+        $vends = fn (string $v) => Vend::query()->filterIndex($filter($v))->whereIn('vends.id', $ids)->pluck('vends.id')->all();
+        $this->assertSame([$server->id], $vends('server'));
+        $this->assertSame([$machine->id], $vends('machine'));
+        $this->assertEqualsCanonicalizing($ids, $vends('all'));
+
+        // Site index (Customer::scopeFilterIndex): the Site of a machine with that pricing.
+        $sites = fn (string $v) => Customer::query()->filterIndex($filter($v))
+            ->whereIn('customers.id', [$server->customer_id, $machine->customer_id])->pluck('customers.id')->all();
+        $this->assertSame([$server->customer_id], $sites('server'));
+        $this->assertSame([$machine->customer_id], $sites('machine'));
     }
 }
