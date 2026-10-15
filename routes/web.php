@@ -1073,7 +1073,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->name('vends.freezer-controls.attachment')->middleware('can:read machine-settings');
 
         // Remote screen capture — Setting > Edit > "View Screen". ONE frame per
-        // deliberate click; nothing is stored (see VendScreenshotController).
+        // deliberate click; the newest five per machine are kept privately as
+        // history (see VendScreenshotController).
         // Permission is enforced in the controller, and re-checked on every
         // image() fetch, because a machine screen can show a customer's QR
         // payment or member details.
@@ -1087,6 +1088,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // here instead of from a public Spaces URL.
         Route::get('/{vend}/screenshot/image', [VendScreenshotController::class, 'image'])
             ->name('vends.screenshot.image')
+            ->middleware('can:update machine-settings');
+        Route::get('/{vend}/screenshots', [VendScreenshotController::class, 'history'])
+            ->name('vends.screenshot.history')
+            ->middleware('can:update machine-settings');
+        Route::get('/{vend}/screenshots/{screenshot}', [VendScreenshotController::class, 'historyImage'])
+            ->name('vends.screenshot.history.image')
             ->middleware('can:update machine-settings');
         // Operations > Dashboard (Lite) — glance view of the same Operation
         // Dashboard rows for retail operators: identity, temperatures,

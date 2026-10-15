@@ -70,9 +70,9 @@
               </div>
               <!--
                 Remote screen capture. ONE frame per click - no streaming, and the
-                machine shows nothing at all while it is taken. Nothing is stored:
-                the image is held in the server cache for 10 minutes and served
-                back through a permission-checked endpoint, never a public URL.
+                machine shows nothing at all while it is taken. The machine's last
+                five pictures are kept privately as history (older ones deleted) and
+                served through a permission-checked endpoint, never a public URL.
               -->
               <div class="mt-2" v-if="(isVendingMachine || isSmartFreezer) && vend && vend.code && permissions.includes('update machine-settings')">
                 <!--
@@ -1916,8 +1916,28 @@
           class="max-h-[70vh] w-auto rounded border border-gray-300 shadow-sm"
         />
         <p class="mt-3 text-xs text-gray-500">
-          Captured {{ screenshotCapturedAt }} - held for 10 minutes, then discarded. Not stored.
+          Captured {{ screenshotCapturedAt }}<template v-if="screenshotViewingId"> (from history)</template> - only this machine's last {{ screenshotHistoryKeep }} pictures are kept; older ones are deleted.
         </p>
+      </div>
+
+      <!-- History: the machine's last five pictures (VendScreenshotHistory), each served through
+           the same permission-checked route as the live one. -->
+      <div v-if="screenshotHistory.length" class="mt-5 w-full border-t border-gray-200 pt-3">
+        <p class="mb-2 text-xs font-medium text-gray-600">Last {{ screenshotHistoryKeep }} pictures</p>
+        <div class="flex gap-2 overflow-x-auto pb-1">
+          <button
+            v-for="shot in screenshotHistory"
+            :key="shot.id"
+            type="button"
+            class="flex-none flex flex-col items-center rounded border p-1"
+            :class="screenshotViewingId === shot.id ? 'border-sky-500 ring-1 ring-sky-500' : 'border-gray-200 hover:border-gray-400'"
+            @click="viewScreenshotFromHistory(shot)"
+          >
+            <img :src="shot.image_url" loading="lazy" alt="" class="h-24 w-auto rounded" />
+            <span class="mt-1 text-[11px] text-gray-600">{{ shot.captured_at }}</span>
+            <span v-if="shot.requested_by" class="text-[11px] text-gray-400">{{ shot.requested_by }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="mt-5 flex justify-end w-full">
@@ -2206,9 +2226,9 @@ const toast = useToast()
 // ── Remote screen capture ────────────────────────────────────────────────────
 // One frame per click. The server publishes a SCREENSHOT frame on the machine's
 // MQTT command topic with a single-use token, the machine captures silently and
-// POSTs the image back, and we poll until it lands. Nothing is persisted: the
-// server holds the bytes in cache for 10 minutes and serves them through a
-// permission-checked endpoint.
+// POSTs the image back, and we poll until it lands. The live picture is held in
+// cache for 10 minutes; the machine's last five are also kept privately as history
+// (VendScreenshotHistory). Both are served through permission-checked endpoints.
 // Which machines answer the SCREENSHOT frame is decided server-side, once
 // (App\Support\ScreenshotEligibility: big board app 317+, freezer app 12+, never
 // a small board or a chiller), and arrives as a reason string - null = supported.
@@ -2227,14 +2247,55 @@ const screenshotState = ref('idle')   // idle | pending | ready | busy | failed 
 const screenshotMessage = ref(null)   // the machine's own reason on busy / failed
 const screenshotUrl = ref(null)
 const screenshotCapturedAt = ref(null)
+const screenshotHistory = ref([])     // newest first, at most screenshotHistoryKeep
+const screenshotHistoryKeep = ref(5)
+const screenshotViewingId = ref(null) // a history picture shown in the big frame
 let screenshotPoll = null
 let screenshotDeadline = 0
+// Every second: each poll is one cache read, and a 2 s interval cost the operator ~1 s on average
+// once the picture had landed.
+const SCREENSHOT_POLL_MS = 1000
 
 function stopScreenshotPoll() {
   if (screenshotPoll) {
-    clearInterval(screenshotPoll)
+    clearTimeout(screenshotPoll)
     screenshotPoll = null
   }
+}
+
+// Chained, not setInterval: a slow answer never stacks a second request behind it.
+function scheduleScreenshotPoll() {
+  stopScreenshotPoll()
+  screenshotPoll = setTimeout(pollScreenshot, SCREENSHOT_POLL_MS)
+}
+
+function loadScreenshotHistory(newerThan = null, retries = 2) {
+  if (!props.vend || !props.vend.id) {
+    return
+  }
+  axios.get(`/vends/${props.vend.id}/screenshots`)
+    .then(({ data }) => {
+      screenshotHistoryKeep.value = data.keep || 5
+      screenshotHistory.value = data.items || []
+      // The server answers the live view first and files the history copy just after, so a
+      // fetch right on "ready" can miss the newest one: look again shortly.
+      const newest = screenshotHistory.value[0]?.captured_at
+      if (newerThan && (!newest || newest < newerThan) && retries > 0 && screenshotModalOpen.value) {
+        setTimeout(() => loadScreenshotHistory(newerThan, retries - 1), 1500)
+      }
+    })
+    .catch(() => {})
+}
+
+function viewScreenshotFromHistory(shot) {
+  if (screenshotBusy.value) {
+    return
+  }
+  screenshotViewingId.value = shot.id
+  screenshotUrl.value = shot.image_url
+  screenshotCapturedAt.value = shot.captured_at
+  screenshotMessage.value = null
+  screenshotState.value = 'ready'
 }
 
 function closeScreenshot() {
@@ -2245,6 +2306,8 @@ function closeScreenshot() {
   // is done looking at it.
   screenshotUrl.value = null
   screenshotState.value = 'idle'
+  screenshotHistory.value = []
+  screenshotViewingId.value = null
 }
 
 function openScreenshot() {
@@ -2256,15 +2319,16 @@ function openScreenshot() {
   screenshotState.value = 'pending'
   screenshotMessage.value = null
   screenshotUrl.value = null
+  screenshotViewingId.value = null
   screenshotBusy.value = true
+  loadScreenshotHistory()
 
   axios.post(`/vends/${props.vend.id}/screenshot`)
     .then(() => {
       // Give the machine two minutes: the MQTT round trip plus a capture and an
       // upload over cellular. The server's token expires on the same schedule.
       screenshotDeadline = Date.now() + 120000
-      stopScreenshotPoll()
-      screenshotPoll = setInterval(pollScreenshot, 2000)
+      scheduleScreenshotPoll()
     })
     .catch((e) => {
       screenshotBusy.value = false
@@ -2289,7 +2353,7 @@ function openScreenshot() {
 }
 
 // A modal left open while the operator navigates away would otherwise leave
-// setInterval running against a dead component.
+// the poll timer running against a dead component.
 onUnmounted(() => {
   stopScreenshotPoll()
 })
@@ -2308,12 +2372,17 @@ function pollScreenshot() {
 
   axios.get(`/vends/${props.vend.id}/screenshot`)
     .then(({ data }) => {
+      // Closed while this poll was in flight: nothing to show, nothing to reschedule.
+      if (!screenshotModalOpen.value) {
+        return
+      }
       if (data.status === 'ready') {
         stopScreenshotPoll()
         screenshotBusy.value = false
         screenshotUrl.value = data.image_url
         screenshotCapturedAt.value = data.captured_at
         screenshotState.value = 'ready'
+        loadScreenshotHistory(data.captured_at)
       } else if (data.status === 'busy' || data.status === 'failed') {
         // The machine answered, but without a picture - say why instead of timing out.
         stopScreenshotPoll()
@@ -2324,8 +2393,9 @@ function pollScreenshot() {
         stopScreenshotPoll()
         screenshotBusy.value = false
         screenshotState.value = 'timeout'
+      } else if (data.status === 'pending') {
+        scheduleScreenshotPoll()
       }
-      // 'pending' -> keep waiting
     })
     .catch(() => {
       stopScreenshotPoll()

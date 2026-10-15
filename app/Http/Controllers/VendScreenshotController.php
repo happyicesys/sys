@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
 use App\Models\Vend;
+use App\Models\VendScreenshot;
+use App\Services\Screenshot\VendScreenshotHistory;
 use App\Support\ScreenshotEligibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -34,23 +37,20 @@ use Illuminate\Support\Str;
  *   4. UI polls          -> latest()   pending / ready / busy / failed / timeout
  *   5. UI renders        -> image()    streams the bytes back, permission-checked
  *
- * NOTHING IS STORED. No migration, no S3 object, no file on disk you have to
- * remember to delete. The image lives in the cache under a per-machine key with a
- * 10-minute TTL and then evaporates on its own.
+ * THE LIVE VIEW IS CACHE-ONLY. The image the operator is waiting for lives in the
+ * cache under a per-machine key with a 10-minute TTL and is served by image(),
+ * which re-checks permission on every fetch — never a public Spaces URL.
  *
- * That is deliberate, and it is stronger than "write to Spaces then clean up
- * later" on two counts:
- *   - a public Spaces URL is guessable and shareable FOREVER once it leaks; the
- *     image() endpoint re-checks permission on every single fetch
- *   - there is no orphan-cleanup job to write, schedule, or forget to run
+ * HISTORY: THE LAST FIVE (Brian, 2026-10-15: "save the last five pictures as
+ * history; if more than five, delete"). Each delivered picture is also kept by
+ * VendScreenshotHistory — private on the default disk (DO Spaces in prod), a
+ * `vend_screenshots` row naming who clicked — and a machine is pruned to its
+ * newest five, file and row, on every save. So there is no cleanup job, and a
+ * screen that showed a customer's QR payment or member details stays at most five
+ * clicks deep. History images are served only by historyImage(), with the same
+ * permission check as the live one.
  *
- * A machine screen can show a customer's QR payment or member details. It is
- * personal-data-adjacent, so the correct lifetime is "as long as the operator is
- * looking at it", not "until someone prunes the bucket". If a screenshot ever
- * needs to be attached to a support ticket, the operator can save the image from
- * the modal — an explicit human act, which is the right place for that decision.
- *
- * Permission is enforced by `can:update machine-settings` on the three web routes
+ * Permission is enforced by `can:update machine-settings` on the web routes
  * (the house pattern - see the rest of routes/web.php), so it ships without a
  * seeder run. A dedicated `view machine-screen` would be tighter, since screens
  * carry customer-visible data, but needs RolePermissionSyncSeeder + db:seed.
@@ -107,6 +107,8 @@ class VendScreenshotController extends Controller
 
         Cache::put($this->key('token', $vend), $token, self::TOKEN_TTL_SECONDS);
         Cache::put($this->key('cooldown', $vend), 1, self::COOLDOWN_SECONDS);
+        // Who asked, for the history row — the device's upload carries no user.
+        Cache::put($this->key('requester', $vend), $httpRequest->user()?->id, self::TOKEN_TTL_SECONDS);
         // Clear BOTH halves of the previous capture. latest() checks meta first,
         // so leaving meta behind made the UI answer "ready" instantly with the
         // image from the LAST request - the operator would never see the new one.
@@ -282,6 +284,16 @@ class VendScreenshotController extends Controller
 
         Cache::forget($this->key('pending', $vend));
 
+        // After the live view is answered: a Spaces hiccup must never cost the operator the picture.
+        try {
+            app(VendScreenshotHistory::class)->store(
+                $vend, $bytes, $info['mime'] ?? 'image/jpeg', $info[0] ?? null, $info[1] ?? null,
+                Cache::pull($this->key('requester', $vend)),
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Machine screen capture not kept in history', ['vend_code' => $code, 'error' => $e->getMessage()]);
+        }
+
         Log::info('Machine screen capture delivered', [
             'vend_code' => $code,
             'bytes' => $size,
@@ -289,6 +301,42 @@ class VendScreenshotController extends Controller
         ]);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * The machine's last five pictures, newest first, for the modal's history strip.
+     */
+    public function history(Vend $vend, VendScreenshotHistory $history)
+    {
+        return response()->json([
+            'keep' => VendScreenshotHistory::KEEP,
+            'items' => $history->recent($vend)->map(fn (VendScreenshot $shot) => [
+                'id' => $shot->id,
+                'captured_at' => $shot->captured_at?->toDateTimeString(),
+                'bytes' => $shot->bytes,
+                'requested_by' => $shot->requester?->name,
+                'image_url' => route('vends.screenshot.history.image', ['vend' => $vend->id, 'screenshot' => $shot->id]),
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * One history picture. Private on Spaces, so it is streamed through here (permission
+     * re-checked on every fetch), never linked.
+     */
+    public function historyImage(Vend $vend, VendScreenshot $screenshot)
+    {
+        abort_unless((int) $screenshot->vend_id === (int) $vend->id, 404);
+
+        $disk = Storage::disk();
+        abort_unless($disk->exists($screenshot->path), 404, 'This picture is no longer held.');
+
+        return $disk->response($screenshot->path, 'vend-'.$vend->codeLabel().'-screen-'.$screenshot->id.'.'.pathinfo($screenshot->path, PATHINFO_EXTENSION), [
+            'Content-Type' => $screenshot->mime,
+            // Never let this sit in a shared proxy or the browser's disk cache.
+            'Cache-Control' => 'no-store, private, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ], 'inline');
     }
 
     /* ---------------------------------------------------------------- helpers */
