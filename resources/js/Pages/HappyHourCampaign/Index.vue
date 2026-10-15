@@ -101,12 +101,14 @@
                         </span>
                         <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
                       </div>
-                      <div v-for="s in g.slots" :key="s.id" class="flex items-baseline justify-between gap-2 text-xs text-gray-900">
-                        <span class="truncate max-w-[16rem]" :title="s.product">
-                          <span class="font-semibold">{{ s.product }}</span>
-                          <span v-if="s.qty !== null" class="ml-1 text-gray-600" title="On hand now / capacity">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
+                      <div v-for="s in g.slots" :key="s.id" class="flex items-baseline gap-2 text-xs text-gray-900">
+                        <!-- Only the name shortens (… with the full name on hover); qty/capacity and the prices
+                             never shrink, so a long SKU name can no longer push them out of the box. -->
+                        <span class="min-w-0 flex-1 flex items-baseline gap-1">
+                          <span class="font-semibold truncate" :title="s.product">{{ s.product }}</span>
+                          <span v-if="s.qty !== null" class="shrink-0 text-gray-600" title="On hand now / capacity">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
                         </span>
-                        <span class="whitespace-nowrap">
+                        <span class="shrink-0 whitespace-nowrap">
                           <span class="text-gray-400 line-through mr-1">{{ money(s.original_price) }}</span>
                           <span class="font-bold text-red-600">{{ money(s.promo_price) }}</span>
                         </span>
