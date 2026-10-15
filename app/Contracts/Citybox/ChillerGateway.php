@@ -51,9 +51,6 @@ interface ChillerGateway
     /** Raw signal reading for one device (scale: config citybox.signal_max). */
     public function signalStrength(string $deviceId): int;
 
-    /**
-     * Send one restock photo's URL. $kind = 'before' | 'after'. Throws when the supplier has no
-     * such endpoint (CityBox: not delivered yet).
-     */
-    public function submitRestockPhoto(string $deviceId, ?string $msgId, ?string $openLogId, string $kind, string $url, \DateTimeInterface $takenAt): void;
+    /** One restock visit's before + after photo URLs, tied to that visit's door-open msg_id. */
+    public function submitRestockPhotos(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): void;
 }

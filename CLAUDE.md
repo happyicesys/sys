@@ -1436,9 +1436,11 @@ rather than adding a new `if (citybox)` somewhere else:
   writer: upright, ≤ 1600 px JPEG, public on Spaces; routes in `RestockPhotoController`,
   `RestockPhotoService::appliesTo` = which machine kinds), split out of the generic item
   attachments by `OpsJobItemResource` (`restock_photos`). Only a CHILLER's go further: once
-  both exist their URLs go to CityBox (`PushCityboxRestockPhotos`, `citybox_photo_push_*`) —
-  inert until CityBox ships the endpoint and `CITYBOX_RESTOCK_PHOTO_PATH` is set. A freezer
-  has no supplier API; its photos are the job's own record. Regression coverage:
+  the stop is stocked in and both exist, the latest before + after URL go to CityBox in ONE
+  `deliver_pic_submit` call with the visit's door-open `msg_id` (2026-10-15;
+  `PushCityboxRestockPhotos`, `citybox_photo_push_*`, shown under the photo boxes), triggered
+  at Stock In or by a photo taken after it; `CITYBOX_RESTOCK_PHOTO_PUSH=false` keeps them in
+  mark1. A freezer has no supplier API; its photos are the job's own record. Regression coverage:
   `tests/Feature/CityboxRestockPhotoTest.php`.
 - **Signal** comes from their `signal_strength` in the stock check, onto the same
   `vends.internet_*` columns a SIM reading uses (max `citybox.signal_max`, 100) and

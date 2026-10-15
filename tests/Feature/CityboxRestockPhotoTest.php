@@ -148,8 +148,8 @@ class CityboxRestockPhotoTest extends TestCase
 
     public function test_a_freezer_stops_photos_never_go_to_citybox(): void
     {
-        config(['citybox.openapi.restock_photo_path' => 'api/Openapi/restock_photo_submit']);
         $item = $this->freezerItem();
+        $item->forceFill(['status' => OpsJob::STATUS_DELIVERED])->saveQuietly();
         foreach (['before', 'after'] as $slot) {
             $this->actingAs($this->driver)->post("/ops-jobs/items/{$item->id}/restock-photos", [
                 'slot' => $slot, 'file' => UploadedFile::fake()->image($slot.'.jpg'),
@@ -171,18 +171,61 @@ class CityboxRestockPhotoTest extends TestCase
         ], ['Accept' => 'application/json'])->assertForbidden();
     }
 
-    public function test_photos_go_to_citybox_only_once_their_endpoint_exists_and_both_are_in(): void
+    public function test_photos_go_to_citybox_after_stock_in_in_one_call_with_the_visit_session(): void
     {
+        // Both photos before Stock In: nothing is sent — the "after" is not final yet.
         $this->upload('before');
         $this->upload('after');
         Queue::assertNotPushed(PushCityboxRestockPhotos::class);
 
-        config(['citybox.openapi.restock_photo_path' => 'api/Openapi/restock_photo_submit']);
-        $this->upload('after');
+        // Stock In completes the set: one push, for this item.
+        $this->item->forceFill(['citybox_msg_id' => 'sg-visit-1'])->saveQuietly();
+        $this->item->update(['status' => OpsJob::STATUS_DELIVERED, 'completed_at' => now()]);
         Queue::assertPushed(PushCityboxRestockPhotos::class, fn ($job) => $job->opsJobItemId === $this->item->id);
 
         (new PushCityboxRestockPhotos($this->item->id))->handle($this->gw, app(\App\Services\Citybox\RestockPhotoService::class));
-        $this->assertSame(['before', 'after', 'after'], array_column($this->gw->photoSubmits, 'kind'));
+        $sent = collect($this->gw->photoSubmits)->sole();
+        $photos = Attachment::orderBy('id')->get();
+        $this->assertSame(['E1', 'sg-visit-1', $photos[0]->full_url, $photos[1]->full_url], [$sent['device'], $sent['msgId'], $sent['before'], $sent['after']]);
         $this->assertSame('ok', $this->item->fresh()->citybox_photo_push_status);
+    }
+
+    public function test_an_after_photo_taken_after_stock_in_sends_the_latest_pair(): void
+    {
+        $this->upload('before');
+        $this->item->forceFill(['status' => OpsJob::STATUS_DELIVERED, 'citybox_msg_id' => 'sg-visit-2'])->saveQuietly();
+        Queue::assertNotPushed(PushCityboxRestockPhotos::class);
+
+        $this->upload('after');
+        Queue::assertPushed(PushCityboxRestockPhotos::class);
+        $this->upload('after'); // a retake replaces the after photo that is sent
+        (new PushCityboxRestockPhotos($this->item->id))->handle($this->gw, app(\App\Services\Citybox\RestockPhotoService::class));
+        $this->assertSame(Attachment::where('type', OpsJobItem::PHOTO_RESTOCK_AFTER)->latest('id')->value('full_url'), collect($this->gw->photoSubmits)->sole()['after']);
+    }
+
+    public function test_a_refused_photo_submit_is_recorded_on_the_item(): void
+    {
+        $this->upload('before');
+        $this->upload('after');
+        $this->item->forceFill(['status' => OpsJob::STATUS_DELIVERED, 'citybox_msg_id' => 'sg-stale'])->saveQuietly();
+        $this->gw->failPhotoSubmit = 'Citybox openapi api/Openapi/deliver_pic_submit failed: code 400 — 查无此msg_id';
+
+        try {
+            (new PushCityboxRestockPhotos($this->item->id))->handle($this->gw, app(\App\Services\Citybox\RestockPhotoService::class));
+            $this->fail('the job rethrows so the queue retries');
+        } catch (\App\Exceptions\CityboxApiException) {
+        }
+        $item = $this->item->fresh();
+        $this->assertSame('failed', $item->citybox_photo_push_status);
+        $this->assertStringContainsString('查无此msg_id', $item->citybox_photo_push_error);
+    }
+
+    public function test_the_switch_keeps_photos_in_mark1_only(): void
+    {
+        config(['citybox.openapi.restock_photo_push' => false]);
+        $this->upload('before');
+        $this->item->forceFill(['status' => OpsJob::STATUS_DELIVERED])->saveQuietly();
+        $this->upload('after');
+        Queue::assertNotPushed(PushCityboxRestockPhotos::class);
     }
 }

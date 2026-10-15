@@ -103,17 +103,23 @@ class OpenapiClient
     }
 
     /**
-     * Before/after restock photo — NOT delivered by CityBox yet (asked 2026-10-13). The path and
-     * the field names follow our proposal and are config, so switching it on is an .env change.
+     * Before/after restock photos of one visit (补货照片提交, deliver_pic_submit, 2026-10-15): the
+     * door-open msg_id plus both photo URLs in ONE call; CityBox writes a deliver_record. Their
+     * refusals (查无此msg_id, 没有此设备权限, 提交失败 …) come back as code 400 and throw.
      */
-    public function restockPhotoSubmit(array $params): array
+    public function deliverPicSubmit(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): array
     {
-        $path = config('citybox.openapi.restock_photo_path');
-        if (! $path) {
-            throw new CityboxApiException('Citybox restock photo endpoint is not configured (CITYBOX_RESTOCK_PHOTO_PATH)');
+        $body = $this->post('api/Openapi/deliver_pic_submit', [
+            'device_id' => $deviceId,
+            'msg_id' => $msgId,
+            'first_deliver_online_pic' => $beforeUrl,
+            'deliver_online_pic' => $afterUrl,
+        ]);
+        if (! ($body['status'] ?? false)) {
+            throw new CityboxApiException('Citybox restock photo submit failed: '.($body['message'] ?? 'unknown'));
         }
 
-        return $this->post($path, $params);
+        return $body;
     }
 
     // ── ops write endpoints ────────────────────────────────────────────────

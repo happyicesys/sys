@@ -179,6 +179,13 @@
                 />
               </div>
             </div>
+            <!-- A chiller's photos also go to CityBox after Stock In (deliver_pic_submit). -->
+            <div v-if="opsJobItem.is_citybox_chiller && opsJobItem.citybox_photo_push_status" class="-mt-1 mb-3 text-xs"
+              :class="{ 'text-green-700': opsJobItem.citybox_photo_push_status === 'ok', 'text-sky-700': opsJobItem.citybox_photo_push_status === 'pending', 'text-amber-700': opsJobItem.citybox_photo_push_status === 'failed' }">
+              <template v-if="opsJobItem.citybox_photo_push_status === 'ok'">Photos sent to CityBox at {{ opsJobItem.citybox_photo_pushed_at }}.</template>
+              <template v-else-if="opsJobItem.citybox_photo_push_status === 'pending'">Sending photos to CityBox…</template>
+              <template v-else>Photos not sent to CityBox: {{ opsJobItem.citybox_photo_push_error }}</template>
+            </div>
             <Teleport to="body">
               <Modal :open="afterPhotoPrompt" @modalClose="afterPhotoPrompt = false">
                 <template #header>

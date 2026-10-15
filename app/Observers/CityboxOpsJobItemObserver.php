@@ -33,6 +33,8 @@ class CityboxOpsJobItemObserver
             $item->forceFill(['citybox_submit_status' => 'pending', 'citybox_submit_error' => null])->saveQuietly();
             // 5 s: after the controller's channel loop has committed actual_qty.
             SubmitCityboxCount::dispatch($item->id)->delay(now()->addSeconds(5))->onQueue('high');
+            // The visit's before/after photos, if both are in already (else the upload sends them).
+            app(\App\Services\Citybox\RestockPhotoService::class)->pushIfReady($item->setRelation('vend', $vend));
         } catch (\Throwable $e) {
             Log::warning('CityboxOpsJobItemObserver: could not queue count submit for ops_job_item '.$item->id.': '.$e->getMessage());
         }

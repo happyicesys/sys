@@ -61,11 +61,11 @@ class FakeChillerGateway implements ChillerGateway
     /** @var array<string,int> equipment_id => signalStrength; absent = their 设备不存在 */
     public array $signals = [];
 
-    /** @var array<int,array{device:string,msgId:?string,openLogId:?string,kind:string,url:string}> */
+    /** @var array<int,array{device:string,msgId:string,before:string,after:string}> */
     public array $photoSubmits = [];
 
-    /** Mirror CityBox before their photo endpoint exists. */
-    public bool $photoEndpointMissing = false;
+    /** Set to make deliver_pic_submit refuse, as CityBox does for an unknown msg_id. */
+    public ?string $failPhotoSubmit = null;
 
     private int $openSeq = 0;
 
@@ -228,12 +228,12 @@ class FakeChillerGateway implements ChillerGateway
         return $this->signals[$deviceId];
     }
 
-    public function submitRestockPhoto(string $deviceId, ?string $msgId, ?string $openLogId, string $kind, string $url, \DateTimeInterface $takenAt): void
+    public function submitRestockPhotos(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): void
     {
-        if ($this->photoEndpointMissing) {
-            throw new CityboxApiException('Citybox restock photo endpoint is not configured (CITYBOX_RESTOCK_PHOTO_PATH)');
+        if ($this->failPhotoSubmit !== null) {
+            throw new CityboxApiException($this->failPhotoSubmit, 400);
         }
-        $this->photoSubmits[] = ['device' => $deviceId, 'msgId' => $msgId, 'openLogId' => $openLogId, 'kind' => $kind, 'url' => $url];
+        $this->photoSubmits[] = ['device' => $deviceId, 'msgId' => $msgId, 'before' => $beforeUrl, 'after' => $afterUrl];
     }
 
     public function submitCount(RestockSession $session, StockCount $count): void

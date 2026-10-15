@@ -23,9 +23,9 @@ return [
         'timeout' => env('CITYBOX_OPENAPI_TIMEOUT', 10),
         // Attempts on connection/timeout errors only (their API blips briefly a few times a day).
         'retries' => env('CITYBOX_OPENAPI_RETRIES', 3),
-        // Before/after restock photo endpoint — not delivered yet (asked 2026-10-13). Null = photos
-        // are kept in mark1 only; set the path once CityBox ships it and the push switches on.
-        'restock_photo_path' => env('CITYBOX_RESTOCK_PHOTO_PATH'),
+        // Send a chiller visit's before/after restock photos to CityBox (deliver_pic_submit,
+        // delivered 2026-10-15). false = keep them in mark1 only.
+        'restock_photo_push' => (bool) env('CITYBOX_RESTOCK_PHOTO_PUSH', true),
     ],
 
     /*

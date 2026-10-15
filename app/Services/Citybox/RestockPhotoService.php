@@ -19,9 +19,10 @@ use Intervention\Image\Laravel\Facades\Image;
  * the same day, a Smart Freezer. The driver takes the BEFORE photo, which unlocks Open Door
  * (checked in mark1 — CityboxOpsJobItemController / FreezerOpsJobItemController); after Stock In
  * the page asks for the AFTER photo. Both stay on the item as the job's record. Only a CHILLER's
- * go further: once both exist their URLs go to CityBox (PushCityboxRestockPhotos) — inert until
- * CityBox ships the endpoint (config citybox.openapi.restock_photo_path). A freezer has no such
- * API; its photos are mark1's own record.
+ * go further: once the stop is stocked in and both exist, the latest before + after URL go to
+ * CityBox in one deliver_pic_submit call with the visit's door-open msg_id
+ * (PushCityboxRestockPhotos, 2026-10-15). A freezer has no such API; its photos are mark1's own
+ * record.
  *
  * Stored as attachments in OpsJobItem::PHOTO_RESTOCK_* slots on the default disk (DO Spaces in
  * prod), public, because CityBox needs a URL it can fetch. A phone photo is 3–12 MB; every upload
@@ -107,18 +108,35 @@ class RestockPhotoService
         return self::payloadFrom($item->attachments()->whereIn('type', OpsJobItem::RESTOCK_PHOTO_TYPES)->get());
     }
 
-    /** Both photos in and CityBox has the endpoint → send them (once per new photo set). */
+    /**
+     * Send a chiller visit's photos once it is stocked in and both exist — called on each photo
+     * upload and at Stock In (CityboxOpsJobItemObserver), whichever completes the set. A newer
+     * photo after a send sends again (CityBox keeps one record per submit).
+     */
     public function pushIfReady(OpsJobItem $item): void
     {
         // CityBox's API only: a freezer's photos stay in mark1.
-        if (! $item->vend?->isSmartChiller() || ! config('citybox.openapi.restock_photo_path')) {
+        if (! $item->vend?->isSmartChiller() || ! $item->vend->citybox_equipment_id
+            || ! config('citybox.openapi.enabled') || ! config('citybox.openapi.restock_photo_push')) {
             return;
+        }
+        if ((int) $item->status < (int) OpsJob::STATUS_DELIVERED) {
+            return; // not stocked in yet: the "after" is not final
         }
         $photos = $this->payload($item);
         if ($photos['before'] === [] || $photos['after'] === []) {
             return;
         }
         $item->forceFill(['citybox_photo_push_status' => 'pending', 'citybox_photo_push_error' => null])->saveQuietly();
-        PushCityboxRestockPhotos::dispatch($item->id)->onQueue('default');
+        // After the count submit (5 s), which may fill in the visit's msg_id.
+        PushCityboxRestockPhotos::dispatch($item->id)->delay(now()->addSeconds(15))->onQueue('default');
+    }
+
+    /** @return array{before: ?string, after: ?string} the latest photo URL of each slot */
+    public function latestUrls(OpsJobItem $item): array
+    {
+        $photos = $this->payload($item);
+
+        return ['before' => end($photos['before'])['full_url'] ?? null, 'after' => end($photos['after'])['full_url'] ?? null];
     }
 }

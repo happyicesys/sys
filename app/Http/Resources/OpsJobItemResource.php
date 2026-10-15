@@ -145,6 +145,8 @@ class OpsJobItemResource extends JsonResource
             'citybox_submitted_at' => isset($this->citybox_submitted_at) ? \Carbon\Carbon::parse($this->citybox_submitted_at)->format('ymd h:i a (D)') : null,
             'citybox_submit_error' => $this->citybox_submit_error ?? null,
             'citybox_photo_push_status' => $this->citybox_photo_push_status ?? null,
+            'citybox_photo_pushed_at' => isset($this->citybox_photo_pushed_at) ? \Carbon\Carbon::parse($this->citybox_photo_pushed_at)->format('ymd h:i a (D)') : null,
+            'citybox_photo_push_error' => $this->citybox_photo_push_error ?? null,
             'vend_channel_record_id' => $this->vend_channel_record_id,
             'vendChannelRecord' => VendChannelRecordResource::make($this->whenLoaded('vendChannelRecord')),
             'verified_at' => isset($this->verified_at) ? $this->verified_at->format('ymd h:i a (D)') : '',

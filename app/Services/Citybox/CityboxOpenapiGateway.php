@@ -104,15 +104,8 @@ class CityboxOpenapiGateway implements ChillerGateway
         return (int) $body['signalStrength'];
     }
 
-    public function submitRestockPhoto(string $deviceId, ?string $msgId, ?string $openLogId, string $kind, string $url, \DateTimeInterface $takenAt): void
+    public function submitRestockPhotos(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): void
     {
-        $this->client->restockPhotoSubmit(array_filter([
-            'device_id' => $deviceId,
-            'msg_id' => $msgId,
-            'open_log_id' => $openLogId,
-            'type' => $kind,
-            'img_url' => $url,
-            'shot_time' => $takenAt->format('Y-m-d H:i:s'),
-        ], fn ($v) => $v !== null && $v !== ''));
+        $this->client->deliverPicSubmit($deviceId, $msgId, $beforeUrl, $afterUrl);
     }
 }
