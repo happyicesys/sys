@@ -46,7 +46,18 @@
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Status</TableHead>
+                  <!-- Status: the live boxes sort by Machine ID or Site Name (Brian, 2026-10-15); a second click flips the order. -->
+                  <TableHead>
+                    <div>Status</div>
+                    <div class="mt-1 flex justify-center gap-3 font-normal">
+                      <button v-for="k in liveSortKeys" :key="k.id" type="button" class="inline-flex items-center text-blue-600 hover:text-blue-800" @click="sortLive(k.id)">
+                        {{ k.name }}
+                        <ChevronUpIcon v-if="liveSort.key === k.id && liveSort.asc" class="w-3.5 h-3.5" />
+                        <ChevronDownIcon v-else-if="liveSort.key === k.id" class="w-3.5 h-3.5" />
+                        <ChevronUpDownIcon v-else class="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </div>
+                  </TableHead>
                   <TableHead>Days</TableHead>
                   <TableHead>Hours</TableHead>
                   <TableHead>Per Slot</TableHead>
@@ -66,11 +77,17 @@
                     <div class="text-xs font-normal text-gray-500">{{ ruleLabel(c.selection_rule) }}</div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
-                    <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
-                      {{ statusLabels[c.status] }}
-                    </span>
+                    <div class="flex items-center justify-center gap-2">
+                      <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusClass(c.status)">
+                        {{ statusLabels[c.status] }}
+                      </span>
+                      <!-- How many machines have a slot on offer right now = the boxes below. -->
+                      <span v-if="liveGroups[c.id].length" class="text-xs font-semibold text-gray-700 whitespace-nowrap">
+                        Total {{ liveGroups[c.id].length }} machine{{ liveGroups[c.id].length === 1 ? '' : 's' }}
+                      </span>
+                    </div>
                     <!-- What is on offer right now, one box per machine (Brian, 2026-10-12: a flat list mixed the machines). -->
-                    <div v-for="g in liveByMachine(c)" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
+                    <div v-for="g in liveGroups[c.id]" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
                       <div class="flex items-center justify-between gap-2">
                         <span class="text-xs min-w-0">
                           <!-- The machine on the Operation Dashboard, in a new tab. -->
@@ -432,7 +449,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { ExclamationCircleIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ChevronDownIcon, ChevronUpDownIcon, ChevronUpIcon, ExclamationCircleIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -582,6 +599,34 @@ function liveByMachine(c) {
   const order = c.vends.map(v => v.id)
   return [...groups.values()].sort((a, b) => order.indexOf(a.vendId) - order.indexOf(b.vendId))
 }
+
+// Sort of the live boxes: none = the campaign's machine order; Machine ID numeric (2046 < 2301), Site Name A–Z.
+// A box with no Site sorts last either way.
+const liveSortKeys = [{ id: 'code', name: 'ID' }, { id: 'site', name: 'Site Name' }]
+const liveSort = ref({ key: null, asc: true })
+
+function sortLive(key) {
+  liveSort.value = { key, asc: liveSort.value.key === key ? !liveSort.value.asc : true }
+}
+
+const liveGroups = computed(() => {
+  const { key, asc } = liveSort.value
+  const out = {}
+  for (const c of props.campaigns) {
+    const groups = liveByMachine(c)
+    if (key) {
+      groups.sort((a, b) => {
+        const x = a[key] == null ? '' : String(a[key])
+        const y = b[key] == null ? '' : String(b[key])
+        if (!x || !y) return (x ? 0 : 1) - (y ? 0 : 1)
+        const cmp = x.localeCompare(y, undefined, { numeric: true, sensitivity: 'base' })
+        return asc ? cmp : -cmp
+      })
+    }
+    out[c.id] = groups
+  }
+  return out
+})
 
 function toggleDay(i) {
   form.days_mask ^= (1 << i)
