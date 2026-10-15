@@ -79,8 +79,9 @@
                             target="_blank"
                             class="font-bold text-blue-700 hover:underline"
                           >{{ g.code }}</a>
-                          <span v-if="g.site || g.rp" class="ml-1 text-gray-700" :title="g.rp ? '' : 'Sells at the board price'">
+                          <span v-if="g.site || g.rp" class="ml-1 text-gray-700">
                             {{ g.site }}<template v-if="g.site && g.rp"> · </template>{{ g.rp }}
+                            <span v-if="g.boardPrice" class="text-gray-500" title="This machine sells at its board price, not the Site's RP">· board price</span>
                           </span>
                         </span>
                         <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
@@ -554,7 +555,7 @@ function liveByMachine(c) {
   for (const s of c.live ?? []) {
     if (!groups.has(s.vend_id)) {
       const vend = c.vends.find(v => v.id === s.vend_id)
-      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, rp: vend?.rp ?? null, from: s.starts_at, to: s.ends_at, slots: [] })
+      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, rp: vend?.rp ?? null, boardPrice: vend?.board_price ?? false, from: s.starts_at, to: s.ends_at, slots: [] })
     }
     const g = groups.get(s.vend_id)
     g.slots.push(s)

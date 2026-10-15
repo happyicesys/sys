@@ -309,8 +309,9 @@ class HappyHourCampaignController extends Controller
                 'via_group' => $v->pivot?->via_group,
                 'code' => $v->codeLabel(),
                 'site' => $v->customer?->name,
-                // The Site's tier when the machine sells at server price; null = it sells at the board price.
-                'rp' => ($rp = $v->serverPriceType()) ? "RP{$rp}" : null,
+                // The Site's tier (the Site owns it); board_price = the machine does not follow it.
+                'rp' => ($rp = $v->customer?->selling_price_type) ? "RP{$rp}" : null,
+                'board_price' => ! $v->usesServerPrice(),
                 'machine_type' => $v->machine_type,
                 'supported' => HappyHourEligibility::supports($v),
                 // For the ⚠ tooltip: why an unsupported machine gets no slots.
