@@ -6,16 +6,18 @@ use App\Models\HappyHourCampaign;
 use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Support\OperatorScope;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Live machine groups on a Happy Hour campaign (Brian, 2026-10-14): "All VM - Big Board" and "All
  * Smart Freezers" instead of binding each machine by hand.
  *
- * A group is LIVE: its members are the campaign OWNER's operator's active machines of that kind that
- * can run Happy Hour now (HappyHourEligibility) — never a sibling operator's (Brian: HIMD, UL-ST…
- * are not discounted by an HIPL campaign). A big board joins by itself when it reaches app 315, and
- * leaves when it is deactivated or moves operator.
+ * A group is LIVE: its members are the active machines of that kind, of the campaign OWNER's operator
+ * group (`OperatorScope::groupOf`: an HIPL campaign takes HIPL and its siblings HIMD, UL-ST, LEA, HIESG,
+ * XO, MSW, CB — Brian, 2026-10-15, reversing 2026-10-14's "own operator only"; any other owner, its own
+ * machines), that can run Happy Hour now (HappyHourEligibility). A big board joins by itself when it
+ * reaches app 315, and leaves when it is deactivated or moves out of the group.
  *
  * Members are materialised into `happy_hour_campaign_vend` with `via_group` set, so the planner, the
  * overlap check, /thumbnails and the bear fallback read one pivot as before. This class is the only
@@ -124,6 +126,7 @@ final class HappyHourMachineGroups
 
     /**
      * @param  list<string>  $groups
+     * @param  int  $operatorId  the campaign's owner; its operator group is covered
      * @return array<int, string> vend id => group
      */
     public function membersFor(array $groups, int $operatorId): array
@@ -136,7 +139,7 @@ final class HappyHourMachineGroups
 
         $members = [];
         Vend::withoutGlobalScopes()
-            ->where('operator_id', $operatorId)
+            ->whereIn('operator_id', self::operatorGroup($operatorId))
             ->where('is_active', 1)
             ->whereIn('machine_type', $types)
             ->get(['id', 'machine_type', 'is_active', 'apk_version_code', 'apk_ver_json'])
@@ -149,6 +152,17 @@ final class HappyHourMachineGroups
             });
 
         return $members;
+    }
+
+    /**
+     * The operators a campaign owned by $operatorId covers. An owner missing from `operators` covers
+     * just itself (the pre-2026-10-15 rule) rather than nothing.
+     *
+     * @return list<int>
+     */
+    public static function operatorGroup(int $operatorId): array
+    {
+        return OperatorScope::groupOf($operatorId) ?: [$operatorId];
     }
 
     /**

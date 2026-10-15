@@ -91,25 +91,38 @@ class OperatorScope
         // NOT $user->operator: that relation inherits OperatorFilterScope,
         // which pins the lookup to auth()->user()->operator_id and so returns
         // null whenever $user is anyone other than the authenticated user -
-        // silently memoising an empty ceiling for them. OperatorActiveScope is
-        // dropped too, so a user whose own operator has been deactivated still
-        // sees their own campaigns instead of a blank page (they still cannot
-        // see anyone else's).
-        $operator = Operator::withoutGlobalScopes()->find((int) $user->operator_id);
+        // silently memoising an empty ceiling for them (groupOf() looks the
+        // operator up without scopes).
+        return self::$memo[$key] = self::groupOf((int) $user->operator_id);
+    }
+
+    /**
+     * An operator's group: HIPL => HIPL + its siblings (PARENT_GROUP_CODES), anyone else => itself.
+     * The rule forUser() applies to a viewer, asked of an operator — e.g. which machines a Happy Hour
+     * campaign's live groups cover (Brian, 2026-10-15: an HIPL campaign's groups take the siblings').
+     *
+     * @return array<int, int> [] = unknown operator
+     */
+    public static function groupOf(int $operatorId): array
+    {
+        // OperatorActiveScope is dropped too, so a user whose own operator has been
+        // deactivated still sees their own campaigns instead of a blank page (they
+        // still cannot see anyone else's).
+        $operator = Operator::withoutGlobalScopes()->find($operatorId);
 
         if (! $operator) {
-            return self::$memo[$key] = [];
+            return [];
         }
 
         if ($operator->code !== self::PARENT_CODE) {
-            return self::$memo[$key] = [(int) $operator->id];
+            return [(int) $operator->id];
         }
 
         // OperatorFilterScope pins non-HIPL viewers to their own operator row;
         // drop it here so the group lookup is a property of the code list and
         // not of whoever happens to be authenticated. OperatorActiveScope is
         // deliberately kept — a deactivated sibling is out of scope.
-        return self::$memo[$key] = Operator::withoutGlobalScope(OperatorFilterScope::class)
+        return Operator::withoutGlobalScope(OperatorFilterScope::class)
             ->whereIn('code', self::PARENT_GROUP_CODES)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)

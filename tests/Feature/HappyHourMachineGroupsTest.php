@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
+use App\Models\Operator;
 use App\Models\User;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPlanner;
+use App\Support\OperatorScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,8 @@ use Tests\TestCase;
 
 /**
  * Live machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" bind every
- * machine of that kind of the campaign OWNER's operator that can run Happy Hour, and follow it — a big
+ * machine of that kind of the campaign OWNER's operator group (HIPL + siblings since 2026-10-15; any
+ * other owner, its own) that can run Happy Hour, and follow it — a big
  * board joins when it reaches app 315, a deactivated one leaves with its slots. Hand-picked machines
  * are untouched, and a machine another campaign holds is never taken.
  */
@@ -25,13 +28,21 @@ class HappyHourMachineGroupsTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** HIMD: one of HIPL's siblings (OperatorScope::PARENT_GROUP_CODES). */
     private const OTHER = 27;
+
+    /** ARK: an operator outside HIPL's group. */
+    private const OUTSIDER = 40;
 
     protected function setUp(): void
     {
         parent::setUp();
         Queue::fake();
         Carbon::setTestNow('2026-10-14 09:00:00');
+        foreach ([1 => 'HIPL', self::OTHER => 'HIMD', self::OUTSIDER => 'ARK'] as $id => $code) {
+            Operator::withoutGlobalScopes()->forceCreate(['id' => $id, 'code' => $code, 'name' => $code, 'is_active' => true]);
+        }
+        OperatorScope::flush();
     }
 
     protected function tearDown(): void
@@ -96,7 +107,8 @@ class HappyHourMachineGroupsTest extends TestCase
         $bigOld = $this->vending(2844, 220);                  // joins when it reaches 315
         $this->vending(2638, 315, 'ZC-83A');                  // small board: never
         $this->vending(2900, 315, 'ZC-328', 1, false);        // inactive: never
-        $this->vending(4101, 315, 'ZC-328', self::OTHER);     // another operator: never (Brian)
+        $sibling = $this->vending(2169, 316, 'ZC-328', self::OTHER);   // HIMD, an HIPL sibling: joins (2026-10-15)
+        $this->vending(4101, 315, 'ZC-328', self::OUTSIDER);  // outside HIPL's group: never
         $hand = $this->vending(2003, 315);
 
         $this->actingAs($this->admin())->post('/happy-hour-campaigns', $this->form([
@@ -109,6 +121,7 @@ class HappyHourMachineGroupsTest extends TestCase
             $freezer => HappyHourMachineGroups::SMART_FREEZER,
             $bigReady => HappyHourMachineGroups::VENDING_BIG_BOARD,
             $hand => null, // hand-picked stays hand-picked even though the group would cover it
+            $sibling => HappyHourMachineGroups::VENDING_BIG_BOARD,
         ], $this->members($campaign));
 
         // 2844 updates to 315, 50002 to app 30; 2031 is retired with a live slot on it.
@@ -216,5 +229,22 @@ class HappyHourMachineGroupsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([$theirs => HappyHourMachineGroups::VENDING_BIG_BOARD], $this->members(HappyHourCampaign::withoutGlobalScopes()->firstOrFail()));
+    }
+
+    public function test_a_sibling_owner_cannot_claim_the_same_group_at_the_same_hours(): void
+    {
+        $this->actingAs($this->admin())->post('/happy-hour-campaigns', $this->form(['machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))
+            ->assertSessionHasNoErrors();
+
+        // HIMD's machines are already in HIPL's group, so an HIMD group campaign would fight it for them.
+        $this->actingAs($this->admin(self::OTHER))->post('/happy-hour-campaigns', $this->form(['name' => 'HIMD own',
+            'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasErrors('machine_groups');
+
+        // ARK is outside HIPL's group: its own group campaign covers only ARK and is allowed.
+        $ark = $this->vending(4101, 315, 'ZC-328', self::OUTSIDER);
+        $this->actingAs($this->admin(self::OUTSIDER))->post('/happy-hour-campaigns', $this->form(['name' => 'ARK own',
+            'machine_groups' => [HappyHourMachineGroups::VENDING_BIG_BOARD]]))->assertSessionHasNoErrors();
+        $this->assertSame([$ark => HappyHourMachineGroups::VENDING_BIG_BOARD],
+            $this->members(HappyHourCampaign::withoutGlobalScopes()->where('name', 'ARK own')->firstOrFail()));
     }
 }

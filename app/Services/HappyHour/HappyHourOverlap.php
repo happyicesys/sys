@@ -68,8 +68,10 @@ final class HappyHourOverlap
     }
 
     /**
-     * Another active campaign of the same owner with the same live group at overlapping times — refused
-     * even before the group has a member (both would claim every machine that joins later).
+     * Another active campaign whose owner's operator group shares an operator with this one's, with the
+     * same live group at overlapping times — refused even before the group has a member (both would
+     * claim every machine that joins later). Since 2026-10-15 an HIPL campaign's groups cover its
+     * siblings, so an HIMD campaign with "All VM - Big Board" clashes with an HIPL one.
      *
      * @param  array<string, mixed>  $data
      * @param  list<string>  $groups
@@ -83,10 +85,10 @@ final class HappyHourOverlap
 
         return HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
-            ->where('operator_id', $operatorId)
             ->whereNotNull('machine_groups')
             ->get()
-            ->filter(fn (HappyHourCampaign $other) => array_intersect($groups, (array) $other->machine_groups) !== []
+            ->filter(fn (HappyHourCampaign $other) => array_intersect(HappyHourMachineGroups::operatorGroup($operatorId), HappyHourMachineGroups::operatorGroup((int) $other->operator_id)) !== []
+                && array_intersect($groups, (array) $other->machine_groups) !== []
                 && self::meets($data, $other))
             ->map(fn (HappyHourCampaign $other) => sprintf(
                 '%s is already in "%s" at overlapping times.',

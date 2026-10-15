@@ -1054,8 +1054,10 @@ Exclusion rules:
 - A promo below the current unit cost is excluded unless the campaign allows it.
 
 Machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" (`machine_groups`) are LIVE —
-every ACTIVE machine of that kind of the campaign OWNER's operator that can run Happy Hour now
-(`HappyHourEligibility`; never a sibling operator's, Brian), joining as it qualifies (a big board on reaching
+every ACTIVE machine of that kind of the campaign OWNER's operator GROUP that can run Happy Hour now
+(`HappyHourEligibility`; the group is `OperatorScope::groupOf` — an HIPL campaign covers HIPL and its siblings
+HIMD, UL-ST, LEA, HIESG, XO, MSW, CB, Brian 2026-10-15, reversing 10-14's own-operator-only; any other owner covers
+itself; an owner missing from `operators` covers itself), joining as it qualifies (a big board on reaching
 315) and leaving when it stops. `HappyHourMachineGroups` is the only writer of `happy_hour_campaign_vend`: it
 materialises members there with `via_group` (NULL = picked by hand), on every save and in the minute planner
 (`followGroups`, which cancels a leaver's slots and nudges the bear fallback), so every pivot reader keeps
@@ -1064,8 +1066,8 @@ its active dates — `HappyHourCampaign::inForce`) picked by hand leaves every g
 campaign is in force — the WHOLE machine, whatever the hours (Brian's choice) — and rejoins when it is paused,
 ended or deleted; save and delete call `HappyHourPlanner::followGroups` so the handover is immediate, and the
 group campaign's row lists it as "2031 → <campaign>". Clashes on save are only equal-priority ones: two
-campaigns naming the same machine at overlapping hours, or the same group on two overlapping campaigns of one
-owner. The form's picker shows hand-picked machines only.
+campaigns naming the same machine at overlapping hours, or the same group on two overlapping campaigns whose
+owners' operator groups meet (an HIMD group campaign clashes with HIPL's). The form's picker shows hand-picked machines only.
 Regression coverage: `tests/Feature/HappyHourMachineGroupsTest.php`.
 
 Machines and the freezer:
