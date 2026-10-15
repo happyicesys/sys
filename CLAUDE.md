@@ -54,6 +54,12 @@ skipped and deletes do nothing (both happened until 2026-10-09).
   their authed routes. Bank payout files (refund CIMB / PayNow CSV / PayPal
   worklist, commission CIMB) go through `App\Support\PayoutFiles`, which reads
   Spaces first and falls back to `local` for older files.
+- **View Screen history** (2026-10-15): each delivered Setting/Edit "View Screen"
+  picture is kept PRIVATE under `vend-screenshots/{vend}/` with a `vend_screenshots`
+  row (who clicked). `App\Services\Screenshot\VendScreenshotHistory` is its only
+  writer and prunes each machine to the newest five, file then row, on every save —
+  a screen can show a customer's QR or member details, so never raise that or
+  serve them by URL. Regression coverage: `tests/Feature/VendScreenshotTest.php`.
 - **Local on purpose:** `storage/app/ota-cache` (the verified APK copy MQTT OTA
   serves), the customer-summary state JSON, logs and temp files.
 
