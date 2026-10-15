@@ -142,6 +142,18 @@ class HappyHourVendingTest extends TestCase
     }
 
     /** Binds a UI Setting carrying one campaign to the machine. */
+    /** Binds the machine to a UI Setting that carries no campaign. */
+    private function uiSetting(Vend $vend, string $name = 'XO'): int
+    {
+        $settingId = DB::table('apk_settings')->insertGetId([
+            'name' => $name, 'settings_parameter_json' => json_encode([]),
+            'operator_id' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('apk_setting_vend')->insert(['apk_setting_id' => $settingId, 'vend_id' => $vend->id, 'created_at' => now(), 'updated_at' => now()]);
+
+        return $settingId;
+    }
+
     private function uiSettingCampaign(Vend $vend, array $campaign = []): Campaign
     {
         $settingId = DB::table('apk_settings')->insertGetId([
@@ -236,65 +248,68 @@ class HappyHourVendingTest extends TestCase
 
     // ── 4. Failsafe ──────────────────────────────────────────────────────────────────────────
 
-    public function test_a_live_ui_setting_campaign_pauses_happy_hour_ends_a_live_slot_and_it_resumes_at_the_next_slot(): void
+    public function test_a_machine_bound_to_a_ui_setting_ignores_happy_hour_until_it_is_unbound(): void
     {
+        // Brian, 2026-10-15: any UI Setting wins, campaign or not (it was "only a live campaign" until then).
         $vend = $this->vending(2245, [11 => ['A', 160, 9, 10]]);
         $free = $this->vending(2246, [11 => ['A', 160, 9, 10]]);
         $this->campaign([$vend, $free]);
         $promo = $this->uiSettingCampaign($vend);
 
-        // Planning: the paused machine gets no slot, the other one does.
+        // Planning: the bound machine gets no slot, the other one does.
         Carbon::setTestNow('2026-10-09 13:58:00');
         $stats = $this->planner()->run(now());
         $this->assertSame(1, $stats['paused_machines']);
         $this->assertSame([$free->id], HappyHourSlot::pluck('vend_id')->all());
         $this->assertSame(
-            "Happy Hour paused on 2245 — UI Setting 'Cash& Cashless_2 Cornetto Royale \$5' has live campaign 'Buy any 2 Royale Cornettos for \$5' (until 31 Dec 2026). Resumes automatically when the campaign ends or is removed.",
+            "Happy Hour is ignored on 2245 — it runs UI Setting 'Cash& Cashless_2 Cornetto Royale \$5' (live campaign 'Buy any 2 Royale Cornettos for \$5', until 31 Dec 2026). Unbind the UI Setting to run Happy Hour here.",
             HappyHourPause::forVends([$vend->id], now(), [$vend->id => '2245'])[$vend->id]['message']
         );
 
-        Carbon::setTestNow('2026-10-09 14:30:00');
-        $this->planner()->run(now());
-        $this->assertSame(0, HappyHourSlot::where('vend_id', $vend->id)->count(), 'still paused mid-slot');
-
-        // The campaign ends: Happy Hour resumes at the NEXT slot by itself, not part-way through this one.
+        // Its campaign ends: the UI Setting is still bound, so Happy Hour stays away.
         $promo->update(['is_active' => false]);
-        Carbon::setTestNow('2026-10-09 14:40:00');
-        $this->planner()->run(now());
-        $this->assertSame(0, HappyHourSlot::where('vend_id', $vend->id)->count(), 'the 14:00 slot time began while paused');
         Carbon::setTestNow('2026-10-09 14:58:00');
         $this->planner()->run(now());
-        $this->assertSame(['2026-10-09 15:00:00'], HappyHourSlot::where('vend_id', $vend->id)->pluck('starts_at')->map(fn ($t) => $t->toDateTimeString())->all());
+        $this->assertSame(0, HappyHourSlot::where('vend_id', $vend->id)->count(), 'still bound to a UI Setting');
 
-        // A campaign that goes live mid-slot ends the live slot at the next minute run and nudges.
-        Carbon::setTestNow('2026-10-09 15:10:00');
-        $promo->update(['is_active' => true]);
-        Queue::fake();
-        $stats = $this->planner()->run(now());
-        $slot = HappyHourSlot::where('vend_id', $vend->id)->where('starts_at', '2026-10-09 15:00:00')->firstOrFail();
-        $this->assertSame(1, $stats['paused']);
-        $this->assertSame([HappyHourSlot::STATUS_CANCELLED, '2026-10-09 15:10:00'], [$slot->status, $slot->ends_at->toDateTimeString()]);
-        Queue::assertPushed(NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id);
-        $this->assertSame(HappyHourSlot::STATUS_SCHEDULED, HappyHourSlot::where('vend_id', $free->id)->where('starts_at', '2026-10-09 15:00:00')->value('status'));
-
-        // Unbound mid-day: the next slot is planned again.
+        // Unbound mid-slot: Happy Hour resumes at the NEXT slot by itself, not part-way through this one.
+        Carbon::setTestNow('2026-10-09 15:05:00');
+        $this->planner()->run(now());                                   // the minute run sees it still bound
         DB::table('apk_setting_vend')->where('vend_id', $vend->id)->delete();
+        Carbon::setTestNow('2026-10-09 15:10:00');
+        $this->planner()->run(now());
+        $this->assertSame(0, HappyHourSlot::where('vend_id', $vend->id)->count(), 'the 15:00 slot time began while bound');
         Carbon::setTestNow('2026-10-09 15:58:00');
         $this->planner()->run(now());
-        $this->assertSame(1, HappyHourSlot::where('vend_id', $vend->id)->where('starts_at', '2026-10-09 16:00:00')->count());
+        $this->assertSame(['2026-10-09 16:00:00'], HappyHourSlot::where('vend_id', $vend->id)->pluck('starts_at')->map(fn ($t) => $t->toDateTimeString())->all());
+
+        // Bound to a UI Setting with NO campaign mid-slot: the live slot ends at the next minute run, nudged.
+        Carbon::setTestNow('2026-10-09 16:10:00');
+        $this->uiSetting($vend);
+        Queue::fake();
+        $stats = $this->planner()->run(now());
+        $slot = HappyHourSlot::where('vend_id', $vend->id)->where('starts_at', '2026-10-09 16:00:00')->firstOrFail();
+        $this->assertSame(1, $stats['paused']);
+        $this->assertSame([HappyHourSlot::STATUS_CANCELLED, '2026-10-09 16:10:00'], [$slot->status, $slot->ends_at->toDateTimeString()]);
+        Queue::assertPushed(NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id);
+        $this->assertSame(HappyHourSlot::STATUS_SCHEDULED, HappyHourSlot::where('vend_id', $free->id)->where('starts_at', '2026-10-09 16:00:00')->value('status'));
     }
 
-    public function test_only_an_active_started_and_unended_campaign_pauses(): void
+    public function test_any_ui_setting_binding_pauses_and_only_a_live_campaign_is_named(): void
     {
         $vend = $this->vending(2245, []);
-        $this->uiSettingCampaign($vend, ['end_at' => '2026-10-08 00:00:00']);       // ended yesterday
-        $this->uiSettingCampaign($vend, ['start_at' => '2026-10-10 00:00:00']);     // starts tomorrow
-        $this->uiSettingCampaign($vend, ['is_active' => false]);                    // switched off
-        $this->assertFalse(HappyHourPause::isPaused($vend->id, now()));
+        $this->assertFalse(HappyHourPause::isPaused($vend->id, now()), 'no UI Setting: Happy Hour runs');
 
-        $this->uiSettingCampaign($vend, ['end_at' => '2026-10-09 00:00:00']);       // its last day is today
+        // Bound, with campaigns that are not live (ended, not started, switched off): paused all the same.
+        $this->uiSettingCampaign($vend, ['end_at' => '2026-10-08 00:00:00']);
+        $this->uiSettingCampaign($vend, ['start_at' => '2026-10-10 00:00:00']);
+        $this->uiSettingCampaign($vend, ['is_active' => false]);
         $this->assertTrue(HappyHourPause::isPaused($vend->id, now()));
-        $this->assertStringContainsString('(until 9 Oct 2026)', HappyHourPause::forVends([$vend->id], now())[$vend->id]['message']);
+        $this->assertStringNotContainsString('live campaign', HappyHourPause::forVends([$vend->id], now())[$vend->id]['message']);
+
+        $other = $this->vending(2246, []);
+        $this->uiSettingCampaign($other, ['end_at' => '2026-10-09 00:00:00']);       // its last day is today
+        $this->assertStringContainsString('until 9 Oct 2026)', HappyHourPause::forVends([$other->id], now())[$other->id]['message']);
         $this->assertFalse(HappyHourPause::isPaused($this->freezer()->id, now()), 'a freezer has no UI Setting');
     }
 

@@ -7,20 +7,21 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The failsafe (Brian, 2026-10-12): a UI Setting campaign beats Happy Hour, per machine. Ops keep the
- * two apart; if one slips through, the campaign keeps running and Happy Hour stops on that machine,
- * so the two promo systems never share a cart (the vending APK mirrors the rule on its side).
+ * The failsafe: a machine bound to a UI Setting runs the UI Setting only — Happy Hour is IGNORED there
+ * (Brian, 2026-10-15, widening 2026-10-12's "only while the UI Setting carries a live campaign"). The
+ * UI Setting is the one source of what such a machine shows, so the two promo systems never share a
+ * cart or a screen.
  *
- * A machine is paused while its UI Setting (`apk_setting_vend`) carries a LIVE campaign
- * (`apk_setting_campaign`): `campaigns.is_active = 1`, started (`start_at` <= now, or no start), and not
- * ended (`end_at` null or on/after today — `end_at` is a date at 00:00, the campaign's last day). It
- * does not depend on `enableLabelPromo`, so the rule errs towards pausing. A freezer has no UI
- * Setting, so it is never paused — the rule is written for any machine and costs a freezer nothing.
+ * A machine is paused while it has ANY `apk_setting_vend` row, whatever the UI Setting holds. When that
+ * UI Setting also carries a LIVE campaign (`apk_setting_campaign`: `campaigns.is_active = 1`, started,
+ * `end_at` null or on/after today) the message names it, longest-running first. A freezer has no UI
+ * Setting, so it is never paused, and a machine with none keeps Happy Hour (and gets the bear from
+ * HappyHourWelcomeFallback).
  *
  * Read by the planner (no slot while paused, a live slot ended early) and by the campaign page (the
  * exclamation icon and the form warning). Derived on every read, never stored, so Happy Hour resumes
- * at the next slot by itself when the campaign ends or is unbound. One query per call, whatever the
- * number of machines.
+ * at the next slot by itself once the machine is unbound from its UI Setting. Two queries per call,
+ * whatever the number of machines.
  */
 final class HappyHourPause
 {
@@ -28,7 +29,7 @@ final class HappyHourPause
      * Why each of these machines is paused now; machines that are not paused are absent.
      *
      * @param  iterable<int|string>  $vendIds
-     * @return array<int, array{apk_setting: string, campaign: string, ends_on: ?string, message: string}>
+     * @return array<int, array{apk_setting: string, campaign: ?string, ends_on: ?string, message: string}>
      */
     public static function forVends(iterable $vendIds, CarbonInterface $now, array $codes = []): array
     {
@@ -37,30 +38,41 @@ final class HappyHourPause
             return [];
         }
 
-        $rows = DB::table('apk_setting_vend as sv')
+        $bound = DB::table('apk_setting_vend as sv')
             ->join('apk_settings as s', 's.id', '=', 'sv.apk_setting_id')
-            ->join('apk_setting_campaign as sc', 'sc.apk_setting_id', '=', 'sv.apk_setting_id')
-            ->join('campaigns as c', 'c.id', '=', 'sc.campaign_id')
             ->whereIn('sv.vend_id', $ids)
+            ->orderBy('sv.vend_id')->orderBy('s.id')
+            ->get(['sv.vend_id', 'sv.apk_setting_id', 's.name as apk_setting']);
+        if ($bound->isEmpty()) {
+            return [];
+        }
+
+        // The live campaign on each of those UI Settings, for the message only.
+        $live = DB::table('apk_setting_campaign as sc')
+            ->join('campaigns as c', 'c.id', '=', 'sc.campaign_id')
+            ->whereIn('sc.apk_setting_id', $bound->pluck('apk_setting_id')->unique()->values())
             ->where('c.is_active', 1)
             ->where(fn ($q) => $q->whereNull('c.start_at')->orWhere('c.start_at', '<=', $now))
             ->where(fn ($q) => $q->whereNull('c.end_at')->orWhere('c.end_at', '>=', $now->copy()->startOfDay()))
-            // The campaign that keeps Happy Hour away longest is the one worth naming: no end first.
+            // The campaign that runs longest is the one worth naming: no end first.
             ->orderByRaw('c.end_at IS NULL DESC')->orderByDesc('c.end_at')->orderBy('c.id')
-            ->get(['sv.vend_id', 's.name as apk_setting', 'c.name as campaign', 'c.end_at']);
+            ->get(['sc.apk_setting_id', 'c.name as campaign', 'c.end_at'])
+            ->unique('apk_setting_id')
+            ->keyBy('apk_setting_id');
 
         $paused = [];
-        foreach ($rows as $row) {
+        foreach ($bound as $row) {
             $vendId = (int) $row->vend_id;
             if (isset($paused[$vendId])) {
                 continue;
             }
-            $endsOn = $row->end_at ? Carbon::parse($row->end_at)->toDateString() : null;
+            $campaign = $live->get($row->apk_setting_id);
+            $endsOn = $campaign?->end_at ? Carbon::parse($campaign->end_at)->toDateString() : null;
             $paused[$vendId] = [
                 'apk_setting' => (string) $row->apk_setting,
-                'campaign' => (string) $row->campaign,
+                'campaign' => $campaign ? (string) $campaign->campaign : null,
                 'ends_on' => $endsOn,
-                'message' => self::message($codes[$vendId] ?? (string) $vendId, (string) $row->apk_setting, (string) $row->campaign, $endsOn),
+                'message' => self::message($codes[$vendId] ?? (string) $vendId, (string) $row->apk_setting, $campaign ? (string) $campaign->campaign : null, $endsOn),
             ];
         }
 
@@ -73,11 +85,15 @@ final class HappyHourPause
     }
 
     /** The campaign page's hover text for a paused machine chip, and the form's warning. */
-    public static function message(string $machine, string $apkSetting, string $campaign, ?string $endsOn): string
+    public static function message(string $machine, string $apkSetting, ?string $campaign, ?string $endsOn): string
     {
-        $until = $endsOn ? 'until '.Carbon::parse($endsOn)->format('j M Y') : 'no end date';
+        $live = '';
+        if ($campaign !== null) {
+            $until = $endsOn ? 'until '.Carbon::parse($endsOn)->format('j M Y') : 'no end date';
+            $live = " (live campaign '{$campaign}', {$until})";
+        }
 
-        return "Happy Hour paused on {$machine} — UI Setting '{$apkSetting}' has live campaign '{$campaign}' ({$until}). "
-            .'Resumes automatically when the campaign ends or is removed.';
+        return "Happy Hour is ignored on {$machine} — it runs UI Setting '{$apkSetting}'{$live}. "
+            .'Unbind the UI Setting to run Happy Hour here.';
     }
 }

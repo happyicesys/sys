@@ -31,9 +31,9 @@ use Illuminate\Support\Facades\Log;
  * `/thumbnails` — NudgeFreezerMenu picks the frame), which carries the live and the next slot; the
  * machine switches between them on its own clock.
  *
- * Failsafe (HappyHourPause): a machine whose UI Setting has a live campaign gets no slot, and a slot
- * already live there ends at the next minute run; Happy Hour resumes by itself once the campaign
- * ends or is unbound. The pause is read once per run for every bound machine (one query).
+ * Failsafe (HappyHourPause): a machine bound to any UI Setting gets no slot (Happy Hour is ignored
+ * there, Brian 2026-10-15), and a slot already live there ends at the next minute run; Happy Hour
+ * resumes by itself once the machine is unbound from its UI Setting. The pause is read once per run for every bound machine (one query).
  */
 class HappyHourPlanner
 {
@@ -412,7 +412,7 @@ class HappyHourPlanner
     }
 
     /**
-     * The failsafe, every minute: a machine whose UI Setting campaign went live has its Happy Hour taken
+     * The failsafe, every minute: a machine newly bound to a UI Setting has its Happy Hour taken
      * back at once — a live slot ends now (cancelled; its sales are still recorded when it closes), one
      * picked but not started is removed — and the machine is nudged, so it drops the promo within about
      * a minute. Only machines with an open slot are checked (one query).
@@ -437,7 +437,7 @@ class HappyHourPlanner
             HappyHourSlot::whereIn('id', $live)->update(['ends_at' => $now, 'status' => HappyHourSlot::STATUS_CANCELLED]);
         }
         $this->rememberPause($paused, $now);
-        Log::info('happy hour paused by a live UI Setting campaign', ['vends' => $paused, 'slots_ended' => count($live), 'slots_removed' => count($notStarted)]);
+        Log::info('happy hour ignored: machine bound to a UI Setting', ['vends' => $paused, 'slots_ended' => count($live), 'slots_removed' => count($notStarted)]);
         $this->nudge($paused);
 
         return $slots->count();

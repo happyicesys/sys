@@ -25,9 +25,9 @@
           A SKU that sells out ends its slot early.
           Only freezers on app {{ minApkVersion }} or later and touchscreen vending machines (big board) on app
           {{ minVendingApkVersion }} or later can run it. On a vending machine the promo price applies to orders placed
-          on the screen only (keypad, cash and coin stay at the machine price), and a machine whose UI Setting has a
-          live campaign pauses Happy Hour (<ExclamationCircleIcon class="inline w-3.5 h-3.5 text-orange-600 -mt-0.5" />)
-          until that campaign ends or is removed.
+          on the screen only (keypad, cash and coin stay at the machine price), and a machine bound to a UI Setting
+          ignores Happy Hour (<ExclamationCircleIcon class="inline w-3.5 h-3.5 text-orange-600 -mt-0.5" />) — it runs
+          its UI Setting only — until it is unbound from it.
         </p>
 
         <div class="flex justify-end mt-3" v-if="permissions.includes('create happy-hour-campaigns')">
@@ -510,7 +510,7 @@ const unsupportedTooltip = (v) => {
     + `It joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`)
 }
 
-// The failsafe: a live UI Setting campaign on the machine pauses Happy Hour there (server-written text).
+// The failsafe: a machine bound to a UI Setting ignores Happy Hour (server-written text).
 const pausedTooltip = (v) => v.paused ? tooltipBox(escapeHtml(v.paused)) : null
 
 const chipClass = (v) => !v.supported

@@ -66,7 +66,7 @@ class HappyHourCampaignController extends Controller
         $slots = $slots->groupBy('happy_hour_campaign_id');
 
         $machines = $this->machineOptions($now);
-        // The failsafe (a live UI Setting campaign pauses Happy Hour on a machine), for the chips' icon.
+        // The failsafe (a machine bound to a UI Setting ignores Happy Hour), for the chips' icon.
         $boundVends = $campaigns->flatMap(fn ($c) => $c->vends);
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
@@ -319,7 +319,7 @@ class HappyHourCampaignController extends Controller
                 'is_active' => (bool) $v->is_active,
                 'apk_version_code' => $v->apk_version_code,
                 'unsupported_reason' => HappyHourEligibility::reason($v),
-                // For the ! icon: a live UI Setting campaign pauses Happy Hour here (HappyHourPause).
+                // For the ! icon: this machine runs a UI Setting, so Happy Hour is ignored here (HappyHourPause).
                 'paused' => $paused[$v->id]['message'] ?? null,
             ])->values(),
             'status' => $this->status($c, $now),
