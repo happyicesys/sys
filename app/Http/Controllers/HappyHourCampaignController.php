@@ -309,6 +309,7 @@ class HappyHourCampaignController extends Controller
                 'via_group' => $v->pivot?->via_group,
                 'code' => $v->codeLabel(),
                 'site' => $v->customer?->name,
+                'customer_id' => $v->customer_id,
                 // The Site's tier (the Site owns it); board_price = the machine does not follow it.
                 'rp' => ($rp = $v->customer?->selling_price_type) ? "RP{$rp}" : null,
                 'board_price' => ! $v->usesServerPrice(),

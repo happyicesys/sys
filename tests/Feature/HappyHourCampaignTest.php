@@ -378,6 +378,7 @@ class HappyHourCampaignTest extends TestCase
                 ->where('campaigns.1.live.0.qty', (int) $onHand->qty)
                 ->where('campaigns.1.live.0.capacity', (int) $onHand->capacity)
                 ->where('campaigns.1.vends.0.site', 'Site')
+                ->where('campaigns.1.vends.0.customer_id', $this->vend->customer_id)
                 ->where('campaigns.1.vends.0.rp', 'RP2')
                 ->where('campaigns.1.vends.0.board_price', false)
                 ->has('campaigns.0.live', 0));

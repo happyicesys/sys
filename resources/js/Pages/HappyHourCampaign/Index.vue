@@ -79,10 +79,25 @@
                             target="_blank"
                             class="font-bold text-blue-700 hover:underline"
                           >{{ g.code }}</a>
-                          <span v-if="g.site || g.rp" class="ml-1 text-gray-700">
-                            {{ g.site }}<template v-if="g.site && g.rp"> · </template>{{ g.rp }}
-                            <span v-if="g.boardPrice" class="text-gray-500" title="This machine sells at its board price, not the Site's RP">· board price</span>
-                          </span>
+                          <!-- The Site in the Site editor, in a new tab (Brian, 2026-10-15). -->
+                          <a
+                            v-if="g.site && g.customerId"
+                            :href="'/customers/' + g.customerId + '/edit'"
+                            target="_blank"
+                            class="ml-1 text-blue-700 hover:underline"
+                          >{{ g.site }}</a>
+                          <span v-else-if="g.site" class="ml-1 text-gray-700">{{ g.site }}</span>
+                          <!-- The Site's RP as the chip ProductMapping draws. Greyed when the machine does not
+                               follow it and sells at its VMC board price (167 of 178 campaign machines, 2026-10-15) —
+                               then the prices in this box are board prices, not the RP. -->
+                          <span
+                            v-if="g.rp"
+                            class="ml-1 inline-flex rounded px-0.5 py-0.5 text-[11px] leading-none border align-middle"
+                            :class="g.boardPrice ? 'bg-gray-100 text-gray-500 border-gray-300' : 'bg-indigo-100 text-indigo-800 border-indigo-300'"
+                            v-tooltip="g.boardPrice
+                              ? `The Site is on ${g.rp}, but this machine sells at its board price (Is Using Server Price? = No), so these prices are board prices.`
+                              : `This machine sells at the Site's ${g.rp} price.`"
+                          >{{ g.rp }}</span>
                         </span>
                         <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
                       </div>
@@ -555,7 +570,7 @@ function liveByMachine(c) {
   for (const s of c.live ?? []) {
     if (!groups.has(s.vend_id)) {
       const vend = c.vends.find(v => v.id === s.vend_id)
-      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, rp: vend?.rp ?? null, boardPrice: vend?.board_price ?? false, from: s.starts_at, to: s.ends_at, slots: [] })
+      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, customerId: vend?.customer_id ?? null, rp: vend?.rp ?? null, boardPrice: vend?.board_price ?? false, from: s.starts_at, to: s.ends_at, slots: [] })
     }
     const g = groups.get(s.vend_id)
     g.slots.push(s)
