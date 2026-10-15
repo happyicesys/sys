@@ -2271,9 +2271,9 @@ function scheduleScreenshotPoll() {
 
 function loadScreenshotHistory(newerThan = null, retries = 2) {
   if (!props.vend || !props.vend.id) {
-    return
+    return Promise.resolve()
   }
-  axios.get(`/vends/${props.vend.id}/screenshots`)
+  return axios.get(`/vends/${props.vend.id}/screenshots`)
     .then(({ data }) => {
       screenshotHistoryKeep.value = data.keep || 5
       screenshotHistory.value = data.items || []
@@ -2321,7 +2321,7 @@ function openScreenshot() {
   screenshotUrl.value = null
   screenshotViewingId.value = null
   screenshotBusy.value = true
-  loadScreenshotHistory()
+  const history = loadScreenshotHistory()
 
   axios.post(`/vends/${props.vend.id}/screenshot`)
     .then(() => {
@@ -2335,10 +2335,18 @@ function openScreenshot() {
       const msg = e?.response?.data?.message
       if (e?.response?.status === 429) {
         // Server-side cooldown. The machine is fine - we simply asked too soon,
-        // so don't tell the operator it failed to answer.
-        screenshotState.value = 'idle'
-        screenshotModalOpen.value = false
+        // so don't tell the operator it failed to answer. Keep the popup on the
+        // newest kept picture when there is one; close it when there is none.
         toast.info(msg || 'Give the machine a few seconds before asking again.')
+        history.then(() => {
+          const newest = screenshotHistory.value[0]
+          if (newest && screenshotModalOpen.value) {
+            viewScreenshotFromHistory(newest)
+          } else {
+            screenshotState.value = 'idle'
+            screenshotModalOpen.value = false
+          }
+        })
         return
       }
       if (e?.response?.status === 422) {
