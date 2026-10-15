@@ -41,8 +41,6 @@ return [
     // Minutes between live stock checks (device_product + device state + signal, per device).
     // The fleet status (one box_list call) still runs every minute.
     'stock_check_every_minutes' => (int) env('CITYBOX_STOCK_CHECK_MINUTES', 10),
-    // signal_strength's scale is unconfirmed (asked 2026-10-13); their example is 80 → 0-100.
-    'signal_max' => (int) env('CITYBOX_SIGNAL_MAX', 100),
     // A chiller stop's Open Door needs a before-restock photo first (Brian, 2026-10-13: "we locally
     // control and detect"). Only before Stock In — a later re-open is never blocked.
     'require_before_photo' => (bool) env('CITYBOX_REQUIRE_BEFORE_PHOTO', true),

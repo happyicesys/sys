@@ -276,9 +276,10 @@ class StockPollService
     }
 
     /**
-     * Their signal reading (signal_strength), into the same columns a vending machine's SIM
-     * reading uses so every existing signal pill shows it, and onto citybox_status_json. Their
-     * API answered 设备不存在 for every device on 2026-10-13 (asked); a failure only records itself.
+     * Their signal reading (signal_strength, "RSRP-好(-89dBm,31asu)" since 2026-10-15) on the 5-bar
+     * scale (ChillerSignal), into the same columns a vending machine's SIM reading uses so every
+     * existing signal pill shows it, and onto citybox_status_json.signal with the dBm and their word.
+     * A failure only records itself.
      */
     private function readSignal(Vend $vend, bool $online): void
     {
@@ -287,20 +288,26 @@ class StockPollService
         }
         $json = $vend->citybox_status_json ?? [];
         try {
-            $value = $this->gateway->signalStrength((string) $vend->citybox_equipment_id);
+            $signal = $this->gateway->signalStrength((string) $vend->citybox_equipment_id);
         } catch (\Throwable $e) {
             $json['signal'] = array_merge($json['signal'] ?? [], ['error' => mb_substr($e->getMessage(), 0, 160), 'error_at' => now()->toDateTimeString()]);
             $vend->forceFill(['citybox_status_json' => $json])->save();
 
             return;
         }
-        $max = max(1, (int) config('citybox.signal_max', 100));
-        $json['signal'] = ['value' => $value, 'max' => $max, 'at' => now()->toDateTimeString()];
+        $json['signal'] = [
+            'bars' => $signal->bars,
+            'rsrp_dbm' => $signal->rsrpDbm,
+            'quality' => $signal->qualityLabel(),
+            'raw' => mb_substr($signal->raw, 0, 64),
+            'at' => now()->toDateTimeString(),
+        ];
         $vend->forceFill([
             'citybox_status_json' => $json,
             'internet_source' => 'telco',
-            'internet_signal' => max(0, min($value, $max)),
-            'internet_signal_max' => $max,
+            'internet_network' => $signal->rsrpDbm !== null ? '4G' : null,
+            'internet_signal' => $signal->bars,
+            'internet_signal_max' => 5,
             'internet_updated_at' => now(),
         ])->save();
     }

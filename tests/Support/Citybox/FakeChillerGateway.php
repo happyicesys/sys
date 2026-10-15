@@ -58,7 +58,7 @@ class FakeChillerGateway implements ChillerGateway
     /** @var array[] price_group_list rows */
     public array $priceGroupRows = [];
 
-    /** @var array<string,int> equipment_id => signalStrength; absent = their 设备不存在 */
+    /** @var array<string,int|string> equipment_id => their raw signalStrength; absent = their 设备不存在 */
     public array $signals = [];
 
     /** @var array<int,array{device:string,msgId:string,before:string,after:string}> */
@@ -219,13 +219,13 @@ class FakeChillerGateway implements ChillerGateway
         return collect($this->priceGroupRows)->map(fn ($r) => ChillerPriceGroupRow::fromApi($r));
     }
 
-    public function signalStrength(string $deviceId): int
+    public function signalStrength(string $deviceId): \App\Services\Citybox\DTO\ChillerSignal
     {
         if (! isset($this->signals[$deviceId])) {
             throw new CityboxApiException('Citybox openapi api/Openapi/signal_strength failed: code 400 — 设备不存在', 400);
         }
 
-        return $this->signals[$deviceId];
+        return \App\Services\Citybox\DTO\ChillerSignal::fromApi($this->signals[$deviceId]);
     }
 
     public function submitRestockPhotos(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): void

@@ -369,9 +369,10 @@ const machine = computed(() => {
 // SIM's, so it reads on the same 5-bar scale as every other machine.
 const signal = computed(() => {
   const j = props.vend.citybox_status_json || {}
-  if (!j.signal || j.signal.value === undefined || j.signal.value === null) return null
-  const link = { internet_source: 'telco', internet_signal: Number(j.signal.value), internet_signal_max: Number(j.signal.max || 100) }
-  return { bars: signalBars(link), cls: signalBadgeClass(link), at: j.signal.at || null, tip: 'CityBox signal ' + j.signal.value + ' of ' + (j.signal.max || 100) }
+  if (!j.signal || j.signal.bars === undefined || j.signal.bars === null) return null
+  const link = { internet_source: 'telco', internet_signal: Number(j.signal.bars), internet_signal_max: 5 }
+  const parts = [j.signal.rsrp_dbm !== null && j.signal.rsrp_dbm !== undefined ? 'RSRP ' + j.signal.rsrp_dbm + ' dBm' : null, j.signal.quality]
+  return { bars: signalBars(link), cls: signalBadgeClass(link), at: j.signal.at || null, tip: 'CityBox signal: ' + parts.filter(Boolean).join(' · ') }
 })
 
 // Our stock ledger vs their live count (StockPollService::checkLedger). Only differences that

@@ -94,14 +94,14 @@ class CityboxOpenapiGateway implements ChillerGateway
         return collect($this->client->priceGroupList())->map(fn ($r) => ChillerPriceGroupRow::fromApi((array) $r));
     }
 
-    public function signalStrength(string $deviceId): int
+    public function signalStrength(string $deviceId): \App\Services\Citybox\DTO\ChillerSignal
     {
         $body = $this->client->signalStrength($deviceId);
-        if (! isset($body['signalStrength']) || ! is_numeric($body['signalStrength'])) {
+        if (! array_key_exists('signalStrength', $body)) {
             throw new CityboxApiException('Citybox signal_strength returned no signalStrength');
         }
 
-        return (int) $body['signalStrength'];
+        return \App\Services\Citybox\DTO\ChillerSignal::fromApi($body['signalStrength']);
     }
 
     public function submitRestockPhotos(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): void

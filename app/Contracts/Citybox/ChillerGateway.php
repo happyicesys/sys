@@ -48,8 +48,8 @@ interface ChillerGateway
     /** @return Collection<int, ChillerPriceGroupRow> every active price group, one row per group × product */
     public function priceGroups(): Collection;
 
-    /** Raw signal reading for one device (scale: config citybox.signal_max). */
-    public function signalStrength(string $deviceId): int;
+    /** One device's signal reading, on the 5-bar scale (ChillerSignal). */
+    public function signalStrength(string $deviceId): \App\Services\Citybox\DTO\ChillerSignal;
 
     /** One restock visit's before + after photo URLs, tied to that visit's door-open msg_id. */
     public function submitRestockPhotos(string $deviceId, string $msgId, string $beforeUrl, string $afterUrl): void;

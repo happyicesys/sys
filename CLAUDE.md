@@ -1453,11 +1453,12 @@ rather than adding a new `if (citybox)` somewhere else:
   at Stock In or by a photo taken after it; `CITYBOX_RESTOCK_PHOTO_PUSH=false` keeps them in
   mark1. A freezer has no supplier API; its photos are the job's own record. Regression coverage:
   `tests/Feature/CityboxRestockPhotoTest.php`.
-- **Signal** comes from their `signal_strength` in the stock check, onto the same
-  `vends.internet_*` columns a SIM reading uses (max `citybox.signal_max`, 100) and
-  `citybox_status_json.signal`, so the existing 5-bar pill reads it with no query change.
-  Their API answered 设备不存在 for every device on 2026-10-13; a failure only records
-  `signal.error`.
+- **Signal** comes from their `signal_strength` in the stock check. Since 2026-10-15 it answers
+  a STRING, "RSRP-好(-89dBm,31asu)", not the number its doc shows; `ChillerSignal` reads the dBm
+  onto 5 bars (≥ -80 → 5, ≥ -90 → 4, ≥ -100 → 3, ≥ -110 → 2, else 1; a plain number is 0–100).
+  The bars land on the same `vends.internet_*` columns a SIM reading uses (max 5, network 4G),
+  and the dBm + their word go on `citybox_status_json.signal`, so the existing pill reads it with
+  no query change. Regression coverage: `tests/Unit/CityboxSignalTest.php`.
 - **Their status is a separate layer, not our Status.** `ChillerStatus`
   (`Vend::chillerStatus()`) is their ops status / online / heartbeat, built
   from the last poll on the row and shown read-only. mark1's Status

@@ -257,6 +257,16 @@ class CityboxOrderSyncTest extends TestCase
         $this->assertSame('2026-10-13 12:00:00', $check['differs'][0]['since']);
     }
 
+    public function test_the_stock_check_reads_their_signal_onto_the_sim_columns(): void
+    {
+        $this->gw->signals['E1'] = 'RSRP-好(-89dBm,31asu)';
+        app(CityboxOpenapiSync::class)->syncAll();
+
+        $vend = $this->vend->fresh();
+        $this->assertSame(['telco', '4G', 4, 5], [$vend->internet_source, $vend->internet_network, (int) $vend->internet_signal, (int) $vend->internet_signal_max]);
+        $this->assertSame([4, -89, '好 (Good)'], [$vend->citybox_status_json['signal']['bars'], $vend->citybox_status_json['signal']['rsrp_dbm'], $vend->citybox_status_json['signal']['quality']]);
+    }
+
     public function test_with_the_ledger_off_orders_are_sales_and_the_poll_mirrors_their_count(): void
     {
         config(['citybox.stock_ledger' => false]);
