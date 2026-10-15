@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Services\HappyHour\HappyHourEligibility;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\ValueObjects\ReportedApkVersion;
@@ -421,6 +422,42 @@ class VendResource extends JsonResource
                             : null,
                     ])
                     ->values();
+            }, []),
+            // Happy Hour campaign(s) the machine is bound to: active and not
+            // past ends_on (a campaign whose dates have not started yet is
+            // kept, flagged by starts_on). Drives the "★ HH" badge under the
+            // Campaign badge on Vend/CustomerIndex. `ignored_by` and
+            // `ineligible` say why a bound machine is not running it: a machine
+            // bound to ANY UI Setting runs that and ignores Happy Hour (the
+            // HappyHourPause rule, read here from the loaded apkSettings), and
+            // only eligible boards/apps get slots (HappyHourEligibility).
+            'happy_hour_campaigns' => $this->whenLoaded('happyHourCampaigns', function () {
+                $today = Carbon::now()->toDateString();
+                $campaigns = $this->happyHourCampaigns
+                    ->filter(fn ($campaign) => $campaign->is_active
+                        && ($campaign->ends_on === null || $campaign->ends_on->toDateString() >= $today));
+                if ($campaigns->isEmpty()) {
+                    return [];
+                }
+
+                $uiSetting = $this->relationLoaded('apkSettings')
+                    ? $this->apkSettings->sortBy('id')->first()
+                    : null;
+                $ineligible = HappyHourEligibility::reason($this->resource);
+
+                return $campaigns->map(fn ($campaign) => [
+                    'id' => $campaign->id,
+                    'name' => $campaign->name,
+                    'discount_pct' => $campaign->discount_pct,
+                    'days' => $campaign->daysLabel(),
+                    'window' => substr((string) $campaign->window_start, 0, 5).'–'.substr((string) $campaign->window_end, 0, 5),
+                    'starts_on' => $campaign->starts_on && $campaign->starts_on->toDateString() > $today
+                        ? $campaign->starts_on->format('Y-m-d')
+                        : null,
+                    'ends_on' => $campaign->ends_on?->format('Y-m-d'),
+                    'ignored_by' => $uiSetting?->name,
+                    'ineligible' => $ineligible,
+                ])->values();
             }, []),
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),

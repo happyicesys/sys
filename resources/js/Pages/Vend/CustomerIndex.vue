@@ -892,6 +892,9 @@
 							<span class="text-sm font-medium text-gray-700">
 								Campaign
 							</span>
+							<span class="text-sm font-medium text-gray-700">
+								Happy Hour
+							</span>
 						</div>
 					</TableHead>
 					<TableHead>
@@ -1574,6 +1577,27 @@
 								<span>{{ campaign.name }}</span>
 								<span v-if="campaign.end_at" class="text-pink-600">
 									Exp: {{ campaign.end_at }}
+								</span>
+							</div>
+							<div
+								v-for="hh in (vend.vend && vend.vend.happy_hour_campaigns) ? vend.vend.happy_hour_campaigns : []"
+								:key="'hh-' + hh.id"
+								class="inline-flex flex-col rounded px-0.5 py-0.5 text-xs border w-fit bg-amber-100 text-amber-800 border-amber-300 cursor-help"
+								v-tooltip="happyHourTooltip(hh)"
+							>
+								<span class="font-semibold">★ HH −{{ hh.discount_pct }}% {{ hh.name }}</span>
+								<span class="text-amber-700">{{ hh.days }} {{ hh.window }}</span>
+								<span v-if="hh.starts_on" class="text-amber-700">
+									Starts: {{ hh.starts_on }}
+								</span>
+								<span v-if="hh.ends_on" class="text-amber-700">
+									Exp: {{ hh.ends_on }}
+								</span>
+								<span v-if="hh.ineligible" class="text-red-600 font-semibold">
+									⚠ Not running
+								</span>
+								<span v-else-if="hh.ignored_by" class="text-red-600 font-semibold">
+									⚠ Ignored: UI Setting
 								</span>
 							</div>
 							<span class="flex space-x-1 items-center">
@@ -4628,6 +4652,16 @@ if(channel && channel.amount && channel.amount != channel.ref_price) {
 }
 
 return 'text-gray-900'
+}
+
+// Hover text for the "★ HH" badge in the Machine ID column (VendResource.happy_hour_campaigns).
+function happyHourTooltip(hh) {
+	let text = `Happy Hour campaign "${hh.name}": −${hh.discount_pct}% on ${hh.days}, ${hh.window}.`
+	if (hh.starts_on) text += ` Starts ${hh.starts_on}.`
+	if (hh.ends_on) text += ` Last day ${hh.ends_on}.`
+	if (hh.ineligible) text += ` Not running on this machine: ${hh.ineligible}.`
+	else if (hh.ignored_by) text += ` Ignored on this machine: it runs UI Setting "${hh.ignored_by}". Unbind the UI Setting to run Happy Hour here.`
+	return text
 }
 
 // Maps contract type code to human-readable label. Mirrors Customer/Summary.vue.

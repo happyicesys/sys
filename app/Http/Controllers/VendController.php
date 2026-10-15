@@ -877,6 +877,9 @@ class VendController extends Controller
                     // (filtered in VendResource).
                     'vend.apkSettings:id,name',
                     'vend.apkSettings.campaigns:id,name,is_active,start_at,end_at',
+                    // Happy Hour campaign(s) the machine is bound to — the
+                    // "★ HH" badge under the Campaign badge (VendResource).
+                    'vend.happyHourCampaigns:id,name,is_active,starts_on,ends_on,days_mask,window_start,window_end,discount_pct',
                 ]);
 
             // Joins live in customerIndexBaseQuery() — shared with the Grouped?

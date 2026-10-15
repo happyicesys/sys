@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Support\SiteSearch;
 use App\Support\VendCode;
@@ -629,6 +630,18 @@ class Vend extends Model
     public function apkSettings()
     {
         return $this->belongsToMany(ApkSetting::class)->using(ApkSettingVend::class);
+    }
+
+    /**
+     * Happy Hour campaigns this machine is bound to, whoever owns them: the machine is already
+     * inside the viewer's boundary, and a HIPL campaign on it re-prices it all the same — the
+     * same reading the Sales Transactions badge takes (OperatorHappyHourCampaignScope docblock).
+     */
+    public function happyHourCampaigns()
+    {
+        return $this->belongsToMany(HappyHourCampaign::class, 'happy_hour_campaign_vend')
+            ->withoutGlobalScope(OperatorHappyHourCampaignScope::class)
+            ->withTimestamps();
     }
 
     public function category()
