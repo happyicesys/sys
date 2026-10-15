@@ -1498,7 +1498,7 @@ onMounted(() => {
     tagOptions.value = [
         { id: 'all', name: 'All' },       // default
         { id: 'any', name: 'Any' },
-        // Happy Hour first: "★ Happy Hour (all)", then "★ HH 30%" per discount (CampaignLabelFilter).
+        // Happy Hour first: "★ Happy Hour (all)", then one "★ <campaign name>" per campaign (CampaignLabelFilter).
         ...props.happyHourLabelOptions,
         ...props.tagOptions.data.map(t => ({ id: t.id, name: t.name }))
     ];

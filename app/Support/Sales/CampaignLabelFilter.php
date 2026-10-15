@@ -2,10 +2,10 @@
 
 namespace App\Support\Sales;
 
+use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Facades\DB;
 
 /**
  * The "Campaign Label(s)" of a sale — one definition for the Sales Transactions column, its filter
@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\DB;
  *   `all`        no filter
  *   `any`        any label at all — a product label OR Happy Hour
  *   `hh`         any Happy Hour sale
- *   `hh:<pct>`   a Happy Hour sale at that discount ("HH 30%")
+ *   `hhc:<id>`   a Happy Hour sale of that campaign (the dropdown names it, Brian 2026-10-15)
+ *   `hh:<pct>`   a Happy Hour sale at that discount — no longer offered, kept for bookmarked URLs
  *   anything else a product tag id, name or slug
  */
 final class CampaignLabelFilter
@@ -33,6 +34,8 @@ final class CampaignLabelFilter
 
     private const HAPPY_HOUR_PCT = 'hh:';
 
+    private const HAPPY_HOUR_CAMPAIGN = 'hhc:';
+
     /** "HH 30%" — the label a Happy Hour sale shows at that discount. */
     public static function happyHourLabel(int $discountPct): string
     {
@@ -40,15 +43,26 @@ final class CampaignLabelFilter
     }
 
     /**
-     * The Happy Hour filter options: all Happy Hour, then one per discount a slot has run at.
+     * The Happy Hour filter options: all Happy Hour, then one per campaign by its name (Brian,
+     * 2026-10-15: the name, not the discount). A deleted campaign is listed while it has slots,
+     * since its sales stay tagged. The campaign's operator scope applies: a viewer sees its own.
      *
      * @return list<array{id: string, name: string}>
      */
     public static function happyHourOptions(): array
     {
+        $campaigns = HappyHourCampaign::withTrashed()
+            ->where(fn ($q) => $q->whereNull('deleted_at')->orWhereExists(fn ($sub) => $sub->selectRaw('1')
+                ->from('happy_hour_slots')->whereColumn('happy_hour_slots.happy_hour_campaign_id', 'happy_hour_campaigns.id')))
+            ->orderByRaw('deleted_at IS NOT NULL')->orderBy('name')->orderBy('id')
+            ->get(['id', 'name', 'deleted_at']);
+
         $options = [['id' => self::HAPPY_HOUR, 'name' => '★ Happy Hour (all)']];
-        foreach (DB::table('happy_hour_slots')->distinct()->orderBy('discount_pct')->pluck('discount_pct') as $pct) {
-            $options[] = ['id' => self::HAPPY_HOUR_PCT.(int) $pct, 'name' => '★ '.self::happyHourLabel((int) $pct)];
+        foreach ($campaigns as $campaign) {
+            $options[] = [
+                'id' => self::HAPPY_HOUR_CAMPAIGN.$campaign->id,
+                'name' => '★ '.$campaign->name.($campaign->deleted_at ? ' (deleted)' : ''),
+            ];
         }
 
         return $options;
@@ -89,6 +103,16 @@ final class CampaignLabelFilter
 
         if ($value === self::HAPPY_HOUR) {
             $q->whereNotNull('vend_transactions.happy_hour_slot_id');
+
+            return;
+        }
+
+        if (str_starts_with($value, self::HAPPY_HOUR_CAMPAIGN)) {
+            $campaignId = (int) substr($value, strlen(self::HAPPY_HOUR_CAMPAIGN));
+            $q->whereNotNull('vend_transactions.happy_hour_slot_id')
+                ->whereExists(fn ($sub) => $sub->selectRaw('1')->from('happy_hour_slots as hh_slot')
+                    ->whereColumn('hh_slot.id', 'vend_transactions.happy_hour_slot_id')
+                    ->where('hh_slot.happy_hour_campaign_id', $campaignId));
 
             return;
         }

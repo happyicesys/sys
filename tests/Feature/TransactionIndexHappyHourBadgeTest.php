@@ -81,7 +81,7 @@ class TransactionIndexHappyHourBadgeTest extends TestCase
         $this->assertNull($rows['PLAIN']['happy_hour']);
     }
 
-    public function test_the_campaign_label_filter_finds_happy_hour_sales_by_discount_and_under_any(): void
+    public function test_the_campaign_label_filter_finds_happy_hour_sales_by_campaign_and_under_any(): void
     {
         $operator = Operator::withoutGlobalScopes()->create(['code' => 'TSTOP', 'name' => 'Test Operator', 'is_active' => true]);
         $customerId = DB::table('customers')->insertGetId(['name' => 'Site', 'profile_id' => 1, 'status_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
@@ -89,7 +89,7 @@ class TransactionIndexHappyHourBadgeTest extends TestCase
             'code' => 2003, 'name' => 'VM 2003', 'operator_id' => $operator->id, 'customer_id' => $customerId,
             'machine_type' => 'vending_machine', 'is_testing' => 0, 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $campaign = HappyHourCampaign::create(['name' => 'All machines', 'window_start' => '00:00:00', 'window_end' => '23:59:00', 'discount_pct' => 30]);
+        $campaign = HappyHourCampaign::create(['name' => 'All machines', 'operator_id' => $operator->id, 'window_start' => '00:00:00', 'window_end' => '23:59:00', 'discount_pct' => 30]);
         $slot = fn (int $pct, int $product) => HappyHourSlot::create([
             'happy_hour_campaign_id' => $campaign->id, 'vend_id' => $vendId, 'product_id' => $product, 'slot_date' => now()->toDateString(),
             'position' => 0, 'starts_at' => now()->subHour(), 'ends_at' => now()->addHour(),
@@ -97,6 +97,16 @@ class TransactionIndexHappyHourBadgeTest extends TestCase
         ]);
         $thirty = $slot(30, 1);
         $twenty = $slot(20, 2);
+        // A second campaign, deleted after it ran: still listed and filterable by name.
+        $lunch = HappyHourCampaign::create(['name' => 'Lunch clearance', 'operator_id' => $operator->id, 'window_start' => '12:00:00', 'window_end' => '14:00:00', 'discount_pct' => 40]);
+        $lunchSlot = HappyHourSlot::create([
+            'happy_hour_campaign_id' => $lunch->id, 'vend_id' => $vendId, 'product_id' => 3, 'slot_date' => now()->toDateString(),
+            'position' => 0, 'starts_at' => now()->subHours(3), 'ends_at' => now()->subHours(2),
+            'original_price' => 400, 'promo_price' => 240, 'discount_pct' => 40, 'rank' => 1,
+        ]);
+        $lunch->delete();
+        HappyHourCampaign::create(['name' => 'Deleted, never ran', 'operator_id' => $operator->id, 'window_start' => '12:00:00', 'window_end' => '14:00:00', 'discount_pct' => 10])->delete();
+        $breakfast = HappyHourCampaign::create(['name' => 'Breakfast deal', 'operator_id' => $operator->id, 'window_start' => '08:00:00', 'window_end' => '09:00:00', 'discount_pct' => 20]);
         $sale = fn (string $orderId, array $extra = []) => VendTransaction::create(array_merge([
             'order_id' => $orderId, 'vend_id' => $vendId, 'operator_id' => $operator->id, 'transaction_datetime' => now(),
             'amount' => 280, 'qty' => 1, 'vend_channel_code' => 11, 'vend_channel_id' => 0, 'gst_vat_rate' => 0,
@@ -104,10 +114,12 @@ class TransactionIndexHappyHourBadgeTest extends TestCase
         ], $extra));
         $hh30 = $sale('HH30');
         $hh20 = $sale('HH20');
+        $hh40 = $sale('HH40');
         $sale('PLAIN');
         $labelled = $sale('LABELLED', ['label_json' => [999]]);
         DB::table('vend_transactions')->where('id', $hh30->id)->update(['happy_hour_slot_id' => $thirty->id]);
         DB::table('vend_transactions')->where('id', $hh20->id)->update(['happy_hour_slot_id' => $twenty->id]);
+        DB::table('vend_transactions')->where('id', $hh40->id)->update(['happy_hour_slot_id' => $lunchSlot->id]);
 
         Permission::findOrCreate('read transactions', 'web');
         $user = User::factory()->create(['operator_id' => $operator->id]);
@@ -128,23 +140,32 @@ class TransactionIndexHappyHourBadgeTest extends TestCase
             return $found;
         };
 
-        $this->assertSame(['HH20', 'HH30'], $orders('hh'));
+        $this->assertSame(['HH20', 'HH30', 'HH40'], $orders('hh'));
+        $this->assertSame(['HH20', 'HH30'], $orders('hhc:'.$campaign->id));
+        $this->assertSame(['HH40'], $orders('hhc:'.$lunch->id), 'a deleted campaign still finds its sales');
+        $this->assertSame([], $orders('hhc:999999'));
+        // The discount form is no longer offered but still answers bookmarked URLs.
         $this->assertSame(['HH30'], $orders('hh:30'));
         $this->assertSame(['HH20'], $orders('hh:20'));
         $this->assertSame([], $orders('hh:50'));
-        $this->assertSame(['HH20', 'HH30', 'LABELLED'], $orders('any'), 'Any = a product label OR Happy Hour');
-        $this->assertSame(['HH20', 'HH30', 'LABELLED', 'PLAIN'], $orders('all'));
+        $this->assertSame(['HH20', 'HH30', 'HH40', 'LABELLED'], $orders('any'), 'Any = a product label OR Happy Hour');
+        $this->assertSame(['HH20', 'HH30', 'HH40', 'LABELLED', 'PLAIN'], $orders('all'));
 
         // The CSV / Excel exports put the same words in their Campaign Labels column.
         $this->assertSame([$thirty->id => 'HH 30%', $twenty->id => 'HH 20%'],
             \App\Support\Sales\CampaignLabelFilter::happyHourLabels([$thirty->id, $twenty->id, null]));
 
-        // The options carry Happy Hour, one per discount a slot ran at.
+        // The options carry Happy Hour (all) first, then each campaign by name: live ones A–Z, then
+        // deleted ones that ran. A deleted campaign that never ran has no sales to find, and another
+        // operator's campaign is not the viewer's to list (OperatorHappyHourCampaignScope).
+        $other = Operator::withoutGlobalScopes()->create(['code' => 'OTHER', 'name' => 'Other Operator', 'is_active' => true]);
+        HappyHourCampaign::create(['name' => 'Not yours', 'operator_id' => $other->id, 'window_start' => '08:00:00', 'window_end' => '09:00:00', 'discount_pct' => 20]);
         $this->actingAs($user)->get('/vends/transactions?'.http_build_query(['date_from' => now()->subDay()->toDateTimeString(), 'date_to' => now()->addDay()->toDateTimeString(), 'operators' => [$operator->id]]))
             ->assertInertia(fn ($page) => $page->where('happyHourLabelOptions', [
                 ['id' => 'hh', 'name' => '★ Happy Hour (all)'],
-                ['id' => 'hh:20', 'name' => '★ HH 20%'],
-                ['id' => 'hh:30', 'name' => '★ HH 30%'],
+                ['id' => 'hhc:'.$campaign->id, 'name' => '★ All machines'],
+                ['id' => 'hhc:'.$breakfast->id, 'name' => '★ Breakfast deal'],
+                ['id' => 'hhc:'.$lunch->id, 'name' => '★ Lunch clearance (deleted)'],
             ]));
     }
 }

@@ -1155,9 +1155,11 @@ Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_tra
 - **Happy Hour is a campaign label** (Brian, 2026-10-15): Sales Transactions shows "★ HH 30%" in Campaign Label(s)
   (`HappyHourBadge.vue`; the sale row for a single sale, the item row for a basket), one slot lookup per page.
   `App\Support\Sales\CampaignLabelFilter` is the one definition of a sale's labels: the filter (request key `tag`:
-  `all` / `any` = a product label OR Happy Hour / `hh` / `hh:<pct>` / a product tag id-name-slug), its options
-  (`happyHourOptions()`: "★ Happy Hour (all)" + one "★ HH n%" per discount a slot ran at) and the "HH n%" wording the
-  grid and both CSV exports + the Excel export put in Campaign Labels. Regression coverage:
+  `all` / `any` = a product label OR Happy Hour / `hh` / `hhc:<campaign id>` / a product tag id-name-slug; `hh:<pct>`
+  is no longer offered but still answers bookmarked URLs), its options (`happyHourOptions()`: "★ Happy Hour (all)" first,
+  then one "★ <campaign name>" per campaign the viewer's operator owns — Brian, 2026-10-15: the name, not the % — live
+  A–Z, then deleted ones that ran slots, "(deleted)") and the "HH n%" wording the grid and both CSV exports + the Excel
+  export put in Campaign Labels. Regression coverage:
   `tests/Feature/TransactionIndexHappyHourBadgeTest.php`.
 - Forward-only: sales before the column existed are untagged (none had sold at a promo price by 2026-10-11).
 
