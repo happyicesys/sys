@@ -497,10 +497,11 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 // Machine Management → Happy Hour Campaign (2026-10-09). Sets automatic discounts on
-                // freezer stock, so kept to the staff who own pricing.
+                // machine stock. 2026-10-15 sheet sync (Brian): + supervisor, technician, matching the
+                // Machine Management rows around it (UI Setting, Setting Charts).
                 'happy-hour-campaigns',
                 ['read', 'create', 'update', 'delete'],
-                ['superadmin', 'admin'],
+                ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 
             [
