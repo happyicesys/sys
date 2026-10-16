@@ -331,6 +331,110 @@ class HappyHourCampaignTest extends TestCase
         $this->assertSame($this->products['B']->id, HappyHourSlot::where('position', 1)->value('product_id'), 'A is held from 14:10');
     }
 
+    /** Runs the planner as each of the 14:00–17:00 slots comes up, and once more inside each start minute. */
+    private function runAfternoon(): void
+    {
+        foreach (['13:58', '14:58', '15:58', '16:58'] as $minute) {
+            Carbon::setTestNow("2026-10-09 {$minute}:00");
+            $this->planner()->run(now());
+            $this->planner()->run(now()->addMinute());
+        }
+    }
+
+    /** @return list<string> "code" or "code*" (priority) per slot at that start, by rank */
+    private function slotsAt(string $hhmm): array
+    {
+        return HappyHourSlot::where('starts_at', "2026-10-09 {$hhmm}:00")->orderBy('rank')->get()
+            ->map(fn ($s) => $this->codeOf($s->product_id).($s->is_priority ? '*' : ''))->all();
+    }
+
+    public function test_prioritized_skus_run_every_other_slot_take_turns_and_stay_out_of_the_slots_between(): void
+    {
+        // Balance %: A 100, B 90, C 80; D 30; E 10 with 1 unit — under the 15% floor and the 2-unit minimum.
+        $this->freezer(['A' => [10, 10, 4.00, 0], 'B' => [9, 10, 4.00, 0], 'C' => [8, 10, 4.00, 0], 'D' => [3, 10, 4.00, 0], 'E' => [1, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'sku_count' => 2,
+            'priority_product_ids' => [$this->products['D']->id, $this->products['E']->id]]);
+
+        $ranked = collect(app(HappyHourRanker::class)->rank($campaign, $this->vend, now()))->keyBy('productId');
+        $this->assertTrue($ranked[$this->products['E']->id]->isEligible(), 'a prioritized SKU sells down to its last unit');
+        $this->assertSame([1, 2], [$ranked[$this->products['D']->id]->rank, $ranked[$this->products['E']->id]->rank], 'prioritized first');
+
+        $this->runAfternoon();
+        $this->assertSame(['D*'], $this->slotsAt('14:00'), '1st slot: prioritized');
+        $this->assertSame(['A'], $this->slotsAt('15:00'), '2nd: the normal ranking, prioritized SKUs left out');
+        $this->assertSame(['E*'], $this->slotsAt('16:00'), '3rd: the next prioritized SKU in turn');
+        $this->assertSame(['B'], $this->slotsAt('17:00'), '4th: the normal rotation was not thrown off by the priority slots');
+        $this->assertSame(240, HappyHourSlot::where('starts_at', '2026-10-09 14:00:00')->value('promo_price'), "the campaign's 40%");
+    }
+
+    public function test_a_priority_slot_tops_up_from_the_normal_ranking_and_falls_back_when_nothing_prioritized_qualifies(): void
+    {
+        $this->freezer(['A' => [10, 10, 4.00, 0], 'B' => [9, 10, 4.00, 0], 'C' => [8, 10, 4.00, 0], 'D' => [3, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'sku_count' => 2, 'skus_per_slot' => 2,
+            'priority_product_ids' => [$this->products['D']->id]]);
+
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $this->assertSame(['D*', 'A'], $this->slotsAt('14:00'), 'one prioritized SKU + the best normal one');
+
+        // The prioritized SKU's promo is under its unit cost: the below-cost rule still applies, so the next
+        // priority slot runs the normal ranking.
+        DB::table('unit_costs')->insert(['product_id' => $this->products['D']->id, 'cost' => 300, 'is_current' => 1, 'date_from' => now()->subMonth()]);
+        Carbon::setTestNow('2026-10-09 14:58:00');
+        $this->planner()->run(now());
+        $this->assertSame(['A', 'B'], $this->slotsAt('15:00'));
+        Carbon::setTestNow('2026-10-09 15:58:00');
+        $this->planner()->run(now());
+        $this->assertSame(['A', 'B'], $this->slotsAt('16:00'));
+        $campaign->update(['allow_below_cost' => true]);
+        Carbon::setTestNow('2026-10-09 16:58:00');
+        $this->planner()->run(now());
+        $this->assertSame(['A', 'B'], $this->slotsAt('17:00'), 'an odd slot never offers it');
+    }
+
+    public function test_a_prioritized_sku_skips_the_availability_box_and_the_bestseller_hold_but_never_discount_wins(): void
+    {
+        $this->freezer(['A' => [10, 10, 4.00, 30], 'B' => [9, 10, 4.00, 20], 'C' => [8, 10, 4.00, 5]]);
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'sku_count' => 1,
+            'bestseller_hold_hours' => 6, 'bestseller_hold_count' => 1, 'priority_product_ids' => [$this->products['A']->id]]);
+        DB::table('products')->where('id', $this->products['A']->id)->update(['is_available' => 0]);
+        $this->stockIn('2026-10-09 13:00:00');
+
+        $ranked = collect(app(HappyHourRanker::class)->rank($campaign, $this->vend, now()))->keyBy('productId');
+        $this->assertTrue($ranked[$this->products['A']->id]->isEligible(), 'not Available + top seller after a Stock In, still prioritized');
+        $this->assertTrue($ranked[$this->products['A']->id]->priority);
+        // The hold's one place goes to the best seller that is not prioritized: B.
+        $this->assertStringStartsWith('Top 1 seller (#1, 20 sold', $ranked[$this->products['B']->id]->excludedReason);
+
+        $campaign->update(['excluded_product_ids' => [$this->products['A']->id]]);
+        $ranked = collect(app(HappyHourRanker::class)->rank($campaign->fresh(), $this->vend, now()))->keyBy('productId');
+        $this->assertSame('Excluded in this campaign', $ranked[$this->products['A']->id]->excludedReason);
+        $this->assertFalse($ranked[$this->products['A']->id]->priority);
+
+        // A machine that holds none of the prioritized SKUs runs the normal ranking in every slot.
+        $campaign->update(['excluded_product_ids' => null, 'priority_product_ids' => [999999]]);
+        $this->runAfternoon();
+        $this->assertSame(['B'], $this->slotsAt('14:00'));
+        $this->assertSame(0, HappyHourSlot::where('is_priority', true)->count());
+    }
+
+    public function test_a_priority_slot_whose_sku_sells_out_is_refilled_from_the_prioritized_list(): void
+    {
+        $this->freezer(['A' => [10, 10, 4.00, 0], 'D' => [3, 10, 4.00, 0], 'E' => [2, 10, 4.00, 0]]);
+        $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'sku_count' => 1,
+            'priority_product_ids' => [$this->products['D']->id, $this->products['E']->id]]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $this->assertSame(['D*'], $this->slotsAt('14:00'));
+
+        DB::table('vend_channels')->where('product_id', $this->products['D']->id)->update(['qty' => 0]);
+        Carbon::setTestNow('2026-10-09 14:20:00');
+        $this->planner()->run(now());
+        $this->assertSame(HappyHourSlot::STATUS_SOLD_OUT, HappyHourSlot::where('product_id', $this->products['D']->id)->value('status'));
+        $this->assertSame(['E*'], HappyHourSlot::open()->where('ends_at', '>', now())->get()
+            ->map(fn ($s) => $this->codeOf($s->product_id).($s->is_priority ? '*' : ''))->all());
+    }
+
     public function test_each_slot_is_picked_just_before_it_starts_from_live_stock_and_the_top_skus_take_turns(): void
     {
         // Balance %: A 50, B 80, C 60.
@@ -563,6 +667,17 @@ class HappyHourCampaignTest extends TestCase
         $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['bestseller_lookback_days' => 14]))->assertSessionHasNoErrors();
         $this->assertSame([6, 3, 14], [$campaign->fresh()->bestseller_hold_hours, $campaign->fresh()->bestseller_hold_count, $campaign->fresh()->bestseller_lookback_days], 'absent fields keep their value');
         $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['bestseller_hold_hours' => 0, 'bestseller_lookback_days' => 7]))->assertSessionHasNoErrors();
+
+        // Prioritize saves, an old tab without the field keeps it, and a SKU on both lists is refused.
+        [$a, $b] = [$this->products['A']->id, $this->products['B']->id];
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['priority_product_ids' => [$a]]))->assertSessionHasNoErrors();
+        $this->assertSame([$a], $campaign->fresh()->priorityProductIds());
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form())->assertSessionHasNoErrors();
+        $this->assertSame([$a], $campaign->fresh()->priorityProductIds());
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['priority_product_ids' => [$a, $b], 'excluded_product_ids' => [$b]]))
+            ->assertSessionHasErrors(['priority_product_ids' => 'A SKU cannot be both prioritized and never discounted: B.']);
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['priority_product_ids' => []]))->assertSessionHasNoErrors();
+        $this->assertSame([], $campaign->fresh()->priorityProductIds());
 
         // The warehouse-availability box saves both ways.
         $this->assertTrue($campaign->fresh()->skip_unavailable);

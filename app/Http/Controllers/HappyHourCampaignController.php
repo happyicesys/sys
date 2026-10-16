@@ -37,7 +37,7 @@ class HappyHourCampaignController extends Controller
     private const SCHEDULE_FIELDS = [
         'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end', 'slot_minutes',
         'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct', 'min_balance_pct', 'min_qty',
-        'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'excluded_product_ids',
+        'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'excluded_product_ids', 'priority_product_ids',
         'bestseller_hold_hours', 'bestseller_hold_count', 'bestseller_lookback_days',
     ];
 
@@ -283,6 +283,10 @@ class HappyHourCampaignController extends Controller
     {
         $data = $request->safe()->except('vend_ids');
         $data['excluded_product_ids'] = array_values(array_map('intval', $data['excluded_product_ids'] ?? [])) ?: null;
+        // Absent (an old tab) = keep the stored list.
+        if (array_key_exists('priority_product_ids', $data)) {
+            $data['priority_product_ids'] = array_values(array_map('intval', $data['priority_product_ids'] ?? [])) ?: null;
+        }
         $data['machine_groups'] = array_values(array_unique($data['machine_groups'] ?? [])) ?: null;
         // Stored as TIME ("14:00:00"); match it so an unchanged window is not seen as an edit.
         $data['window_start'] .= ':00';
@@ -356,6 +360,7 @@ class HappyHourCampaignController extends Controller
             'bestseller_hold_count' => (int) $c->bestseller_hold_count,
             'bestseller_lookback_days' => (int) ($c->bestseller_lookback_days ?: 7),
             'excluded_product_ids' => $c->excludedProductIds(),
+            'priority_product_ids' => $c->priorityProductIds(),
             'machine_groups' => array_values((array) $c->machine_groups),
             // Group members another campaign picked by name — they run that one while it is in force.
             'overridden' => $this->overridden($c),
@@ -389,6 +394,7 @@ class HappyHourCampaignController extends Controller
                 'ends_at' => $s->ends_at->format('H:i'),
                 'product' => $s->product?->name ?? "#{$s->product_id}",
                 'product_code' => $s->product?->code,
+                'is_priority' => (bool) $s->is_priority,
                 'original_price' => $s->original_price,
                 'promo_price' => $s->promo_price,
                 // On hand now / capacity, summed over the SKU's active channels — what the ranker reads.

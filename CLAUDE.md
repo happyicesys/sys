@@ -1035,7 +1035,7 @@ Transactions badge read every campaign (`withoutGlobalScope`). Regression covera
 What a campaign is:
 - A scheduled percentage discount on a smart freezer's slowest movers, one SKU per slot.
 - Settings: days, hours, active dates, duration per SKU, how many SKUs take turns, discount %, stock floor %,
-  minimum units, price rounding, exclusions, allow below cost, bestseller hold after Stock In. Sales look back (days) only feeds days of cover,
+  minimum units, price rounding, exclusions, prioritized SKUs, allow below cost, bestseller hold after Stock In. Sales look back (days) only feeds days of cover,
   so the form shows it only for that rule.
 - The page's Status column shows the slot running now; clicking a machine chip opens that machine's lineup
   ranked at this moment (`preview?vend_id=`). There is no per-day slot list any more (Brian, 2026-10-11).
@@ -1081,6 +1081,17 @@ Exclusion rules:
   days (`HappyHourCampaign::BESTSELLER_LOOKBACK_DAYS`); the page offers only 7 for now (Brian: "for now we use 7"),
   so opening 14 is a form field, not a migration. A slot picked before the driver arrives is swapped as it starts;
   a live slot keeps its SKU, like every exclusion.
+- **Prioritize** (Brian, 2026-10-16: "sku will be selected for HH on every other hour" — to clear stock, or when a
+  supplier funds the discount). `priority_product_ids` on the campaign. Every other slot time of the day (positions
+  0, 2, 4 … from the window start; `HappyHourPlanner::isPriorityTime`) offers the machine's prioritized SKUs first,
+  taking turns among themselves, and fills the places left from the normal ranking; the slots between run the normal
+  ranking WITHOUT them. A machine holding none runs the normal ranking every slot. A prioritized SKU keeps the
+  campaign's discount %, rounding and below-cost rule (Brian) and needs a price, but only 1 unit: the stock floor %,
+  minimum units, warehouse-availability box and bestseller hold do not apply, and it takes no place in the hold's top
+  Y. "Never discount" wins, and the form refuses a SKU on both lists. Each slot records `is_priority`: the normal
+  rotation and the priority rotation each look back only at their own slots (`picksFor` / `inTurn`), so priority
+  slots in between never make ranks 1+2 run twice; a priority slot's sold-out or starting swap tries the
+  prioritized SKUs first. The flag is also the hook for a supplier-claim report (none yet).
 
 Machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" (`machine_groups`) are LIVE —
 every ACTIVE machine of that kind of the campaign OWNER's operator GROUP that can run Happy Hour now

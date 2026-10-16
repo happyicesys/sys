@@ -24,7 +24,7 @@ class HappyHourSlot extends Model
 
     protected $fillable = [
         'happy_hour_campaign_id', 'vend_id', 'product_id', 'slot_date', 'position', 'starts_at', 'ends_at',
-        'original_price', 'promo_price', 'discount_pct', 'rank', 'qty_at_pick', 'capacity_at_pick',
+        'original_price', 'promo_price', 'discount_pct', 'rank', 'is_priority', 'qty_at_pick', 'capacity_at_pick',
         'avg_daily_sales', 'days_of_cover', 'status', 'checked_at', 'units_sold', 'revenue_cents', 'discount_cents',
     ];
 
@@ -37,6 +37,7 @@ class HappyHourSlot extends Model
         'promo_price' => 'integer',
         'discount_pct' => 'integer',
         'rank' => 'integer',
+        'is_priority' => 'boolean',
         'position' => 'integer',
         'qty_at_pick' => 'integer',
         'capacity_at_pick' => 'integer',

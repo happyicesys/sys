@@ -21,6 +21,8 @@ final class HappyHourCandidate
         public readonly ?int $unitCost,
         public ?string $excludedReason = null,
         public ?int $rank = null,
+        // On the campaign's Prioritize list: offered first in every other slot (HappyHourPlanner).
+        public bool $priority = false,
     ) {}
 
     /** qty ÷ capacity in %, or null when the SKU's capacity was never measured. */
@@ -66,6 +68,7 @@ final class HappyHourCandidate
             'unit_cost' => $this->unitCost,
             'excluded_reason' => $this->excludedReason,
             'rank' => $this->rank,
+            'priority' => $this->priority,
         ];
     }
 }

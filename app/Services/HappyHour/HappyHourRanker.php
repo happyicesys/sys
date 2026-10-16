@@ -24,6 +24,13 @@ use Illuminate\Support\Facades\DB;
  *
  * Bestseller hold (Brian, 2026-10-16): for `bestseller_hold_hours` after the machine's last Stock In, its
  * top `bestseller_hold_count` sellers of the last `bestseller_lookback_days` are left out (bestsellerHold).
+ *
+ * Prioritize (Brian, 2026-10-16: to clear stock, or when a supplier funds the discount): a SKU on the
+ * campaign's `priority_product_ids` is marked `priority` and ranks ahead of the rest, so the planner can offer
+ * it in every other slot. It keeps the campaign's discount %, rounding and below-cost rule and needs a price,
+ * but only 1 unit in stock: the stock floor %, the minimum units, the warehouse-availability box and the
+ * bestseller hold do not apply to it (clearing stock means selling the last units of a SKU on its way out).
+ * "Never discount" still wins; the page refuses a SKU on both lists.
  */
 class HappyHourRanker
 {
@@ -53,7 +60,9 @@ class HappyHourRanker
         $costs = $this->unitCosts($productIds);
         [$sold, $days] = $this->recentSales($vend, $productIds, $campaign->lookback_days, $now);
         $excluded = array_flip($campaign->excludedProductIds());
-        $held = $this->bestsellerHold($campaign, $vend, $productIds, $stock, $now);
+        $priority = array_diff_key(array_flip($campaign->priorityProductIds()), $excluded);
+        // Prioritized SKUs are never held, so they do not take one of the hold's top places either.
+        $held = $this->bestsellerHold($campaign, $vend, array_values(array_filter($productIds, fn ($id) => ! isset($priority[$id]))), $stock, $now);
 
         $candidates = [];
         foreach ($productIds as $productId) {
@@ -72,14 +81,16 @@ class HappyHourRanker
                 promoPrice: $promo,
                 unitCost: $costs[$productId] ?? null,
             );
+            $candidate->priority = isset($priority[$productId]);
             // The warehouse's Available? tick (Product Movement) off = not offered while the campaign skips those.
-            $unavailable = $campaign->skip_unavailable && isset($products[$productId]) && ! $products[$productId]->is_available;
+            $unavailable = ! $candidate->priority && $campaign->skip_unavailable && isset($products[$productId]) && ! $products[$productId]->is_available;
             $candidate->excludedReason = $this->exclusion($campaign, $candidate, isset($excluded[$productId]), $unavailable, $held[$productId] ?? null);
             $candidates[] = $candidate;
         }
 
         $eligible = array_values(array_filter($candidates, fn (HappyHourCandidate $c) => $c->isEligible()));
-        usort($eligible, $this->comparator($campaign, $vend, $now));
+        $comparator = $this->comparator($campaign, $vend, $now);
+        usort($eligible, fn (HappyHourCandidate $a, HappyHourCandidate $b) => $b->priority <=> $a->priority ?: $comparator($a, $b));
         foreach ($eligible as $i => $candidate) {
             $candidate->rank = $i + 1;
         }
@@ -104,8 +115,9 @@ class HappyHourRanker
             $unavailable => 'Not available in the warehouse',
             $held !== null => $held,
             $c->originalPrice === null || $c->originalPrice <= 0 => 'No selling price for this Site',
-            $c->qty < max(1, $campaign->min_qty) => "Only {$c->qty} in stock (minimum {$campaign->min_qty})",
-            $balance !== null && $balance <= $campaign->min_balance_pct => "Stock {$balance}% is at or under the {$campaign->min_balance_pct}% floor",
+            $c->priority && $c->qty < 1 => 'Prioritized, but out of stock',
+            ! $c->priority && $c->qty < max(1, $campaign->min_qty) => "Only {$c->qty} in stock (minimum {$campaign->min_qty})",
+            ! $c->priority && $balance !== null && $balance <= $campaign->min_balance_pct => "Stock {$balance}% is at or under the {$campaign->min_balance_pct}% floor",
             $c->promoPrice === null => 'The discount does not change this price',
             ! $campaign->allow_below_cost && $c->unitCost !== null && $c->promoPrice < $c->unitCost => sprintf(
                 'Promo $%s is below unit cost $%s', number_format($c->promoPrice / 100, 2), number_format($c->unitCost / 100, 2)

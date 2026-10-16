@@ -52,6 +52,9 @@ class HappyHourCampaignRequest extends FormRequest
             'bestseller_lookback_days' => ['sometimes', 'integer', Rule::in(HappyHourCampaign::BESTSELLER_LOOKBACK_DAYS)],
             'excluded_product_ids' => ['nullable', 'array'],
             'excluded_product_ids.*' => ['integer', 'exists:products,id'],
+            // Prioritize: offered first in every other slot (HappyHourPlanner::isPriorityTime).
+            'priority_product_ids' => ['nullable', 'array', 'max:30'],
+            'priority_product_ids.*' => ['integer', 'distinct', 'exists:products,id'],
             'vend_ids' => ['nullable', 'array'],
             'vend_ids.*' => ['integer', 'distinct'],
             // Live groups (HappyHourMachineGroups): the owner's machines of that kind, joining as they qualify.
@@ -74,6 +77,16 @@ class HappyHourCampaignRequest extends FormRequest
     {
         return [function (Validator $validator) {
             if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+            $both = array_intersect(
+                array_map('intval', (array) $this->input('priority_product_ids', [])),
+                array_map('intval', (array) $this->input('excluded_product_ids', [])),
+            );
+            if ($both !== []) {
+                $names = DB::table('products')->whereIn('id', $both)->orderBy('code')->pluck('code')->implode(', ');
+                $validator->errors()->add('priority_product_ids', "A SKU cannot be both prioritized and never discounted: {$names}.");
+
                 return;
             }
             $vendIds = array_map('intval', (array) $this->input('vend_ids', []));

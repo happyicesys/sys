@@ -61,7 +61,7 @@ class HappyHourCampaign extends Model
         'name', 'operator_id', 'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end',
         'slot_minutes', 'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct',
         'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'bestseller_hold_hours', 'bestseller_hold_count', 'bestseller_lookback_days',
-        'excluded_product_ids', 'machine_groups',
+        'excluded_product_ids', 'priority_product_ids', 'machine_groups',
         'created_by', 'updated_by',
     ];
 
@@ -84,6 +84,7 @@ class HappyHourCampaign extends Model
         'bestseller_hold_count' => 'integer',
         'bestseller_lookback_days' => 'integer',
         'excluded_product_ids' => 'array',
+        'priority_product_ids' => 'array',
         'machine_groups' => 'array',
     ];
 
@@ -182,6 +183,17 @@ class HappyHourCampaign extends Model
     public function excludedProductIds(): array
     {
         return array_values(array_map('intval', (array) ($this->excluded_product_ids ?? [])));
+    }
+
+    /**
+     * The prioritized SKUs (Brian, 2026-10-16): every other slot of the day offers these first
+     * (HappyHourPlanner::isPriorityTime), under relaxed stock rules (HappyHourRanker).
+     *
+     * @return list<int>
+     */
+    public function priorityProductIds(): array
+    {
+        return array_values(array_map('intval', (array) ($this->priority_product_ids ?? [])));
     }
 
     /** Human text for the days mask, e.g. "Every day", "Weekdays", "Mon, Wed". */

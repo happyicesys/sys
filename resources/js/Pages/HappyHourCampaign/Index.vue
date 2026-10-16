@@ -150,6 +150,8 @@
                              never shrink, so a long SKU name can no longer push them out of the box. -->
                         <span class="min-w-0 flex-1 flex items-baseline gap-1">
                           <span class="font-semibold truncate" :title="s.product">{{ s.product }}</span>
+                          <span v-if="s.is_priority" class="shrink-0 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800"
+                            v-tooltip="'Prioritized SKU: offered every other slot'">PRIORITY</span>
                           <span v-if="s.qty !== null" class="shrink-0 text-gray-600" title="On hand now / capacity">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
                           <!-- Sold in THIS slot so far — not a running total; the next slot starts at 0. -->
                           <span class="shrink-0 whitespace-nowrap" :class="s.sold ? 'font-bold text-emerald-700' : 'text-gray-400'"
@@ -186,6 +188,10 @@
                     <div v-if="c.bestseller_hold_hours > 0 && c.bestseller_hold_count > 0" class="text-xs text-gray-500 whitespace-nowrap"
                       v-tooltip="`For ${c.bestseller_hold_hours} h after a Stock In, the machine's top ${c.bestseller_hold_count} sellers of the last ${c.bestseller_lookback_days} days are not discounted`">
                       top {{ c.bestseller_hold_count }} sellers {{ c.bestseller_hold_hours }} h after Stock In
+                    </div>
+                    <div v-if="c.priority_product_ids?.length" class="text-xs text-amber-700 whitespace-nowrap"
+                      v-tooltip="productNames(c.priority_product_ids)">
+                      {{ c.priority_product_ids.length }} prioritized, every other slot
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
@@ -410,6 +416,15 @@
                 <span>Allow below unit cost</span>
               </label>
             </div>
+            <!-- Prioritize (Brian, 2026-10-16): to clear stock, or when a supplier funds the discount. Every other
+                 slot offers these first; the campaign's discount % and below-cost rule still apply. -->
+            <div class="md:col-span-6">
+              <label class="block text-sm font-medium text-gray-700">Prioritize</label>
+              <MultiSelect v-model="selectedPriority" :options="products" mode="tags" trackBy="id" valueProp="id" label="name"
+                placeholder="Products to offer every other slot" open-direction="top" class="mt-1" />
+              <p v-if="form.errors.priority_product_ids" class="text-red-600 text-xs mt-1">{{ form.errors.priority_product_ids }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">Offered first in every other slot, down to the last unit (stock floor, minimum units, warehouse Available? and the bestseller hold do not apply)</p>
+            </div>
           </div>
 
           <p class="text-xs text-gray-500 mt-4">
@@ -492,6 +507,7 @@
                     </TableData>
                     <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-left">
                       {{ row.product_code }} {{ row.product_name }}
+                      <span v-if="row.priority" class="ml-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800">PRIORITY</span>
                     </TableData>
                     <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-center">
                       <span class="whitespace-nowrap">{{ row.qty }}<span v-if="row.capacity"> / {{ row.capacity }} ({{ row.balance_pct }}%)</span></span>
@@ -567,7 +583,7 @@ const blank = () => ({
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
   min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false, skip_unavailable: true,
   bestseller_hold_hours: 0, bestseller_hold_count: 0, bestseller_lookback_days: 7,
-  excluded_product_ids: [], vend_ids: [], machine_groups: [],
+  excluded_product_ids: [], priority_product_ids: [], vend_ids: [], machine_groups: [],
 })
 
 const form = useForm(blank())
@@ -575,6 +591,7 @@ const editingId = ref(null)
 const showForm = ref(false)
 const selectedMachines = ref([])
 const selectedExcluded = ref([])
+const selectedPriority = ref([])
 const showPreview = ref(false)
 
 // The Campaign column's figures (last 24 h / last 30 days) and the graph modal (Brian, 2026-10-16).
@@ -685,7 +702,10 @@ const slotSummary = computed(() => {
   const hold = form.bestseller_hold_hours > 0 && form.bestseller_hold_count > 0
     ? ` For ${form.bestseller_hold_hours} h after each Stock In, the machine's top ${form.bestseller_hold_count} seller${form.bestseller_hold_count === 1 ? '' : 's'} of the last ${form.bestseller_lookback_days} days ${form.bestseller_hold_count === 1 ? 'is' : 'are'} not discounted.`
     : ''
-  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; ${turns}, at ${form.discount_pct}% off.${hold}`
+  const priority = selectedPriority.value.length
+    ? ` Every other slot (the 1st, 3rd, 5th …) offers the ${selectedPriority.value.length} prioritized SKU${selectedPriority.value.length === 1 ? '' : 's'} first, where the machine has ${selectedPriority.value.length === 1 ? 'it' : 'them'}.`
+    : ''
+  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; ${turns}, at ${form.discount_pct}% off.${priority}${hold}`
 })
 
 // "1+2, 3+4, then 1+2 again" for 4 SKUs, 2 at a time (the first full loop).
@@ -713,6 +733,8 @@ function statusClass(status) {
 function money(cents) {
   return cents === null || cents === undefined ? '' : '$' + (cents / 100).toFixed(2)
 }
+
+const productNames = (ids) => props.products.filter(p => ids.includes(p.id)).map(p => p.name).join(', ')
 
 function vendCode(c, vendId) {
   return c.vends.find(v => v.id === vendId)?.code ?? vendId
@@ -786,6 +808,7 @@ function openCreate() {
   form.clearErrors()
   selectedMachines.value = []
   selectedExcluded.value = []
+  selectedPriority.value = []
   showForm.value = true
 }
 
@@ -800,12 +823,14 @@ function openEdit(c) {
   // Only hand-picked machines go in the picker; a group's members follow the group.
   selectedMachines.value = props.machines.filter(m => c.vends.some(v => v.id === m.id && !v.via_group))
   selectedExcluded.value = props.products.filter(p => c.excluded_product_ids.includes(p.id))
+  selectedPriority.value = props.products.filter(p => (c.priority_product_ids ?? []).includes(p.id))
   showForm.value = true
 }
 
 function submit() {
   form.vend_ids = selectedMachines.value.map(m => m.id)
   form.excluded_product_ids = selectedExcluded.value.map(p => p.id)
+  form.priority_product_ids = selectedPriority.value.map(p => p.id)
   const url = editingId.value ? `/happy-hour-campaigns/${editingId.value}` : '/happy-hour-campaigns'
   form.post(url, {
     preserveScroll: true,
