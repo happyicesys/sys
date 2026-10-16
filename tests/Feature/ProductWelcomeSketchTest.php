@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
 use ImagickPixel;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -115,6 +116,28 @@ class ProductWelcomeSketchTest extends TestCase
     private function live(Product $product): ?ProductWelcomeSketch
     {
         return ProductWelcomeSketch::query()->where('product_id', $product->id)->first();
+    }
+
+    public function test_the_product_index_shows_the_chosen_sketch_as_artwork(): void
+    {
+        $drawn = $this->product('ART-1');
+        $plain = $this->product('ART-2');
+        Product::whereIn('id', [$drawn->id, $plain->id])->update(['is_active' => true, 'is_inventory' => true]);
+        ProductWelcomeSketch::create([
+            'product_id' => $drawn->id, 'status' => ProductWelcomeSketch::STATUS_READY, 'source' => ProductWelcomeSketch::SOURCE_UPLOAD,
+            'url' => 'https://cdn.test/sys/products/1/welcome-sketch/a.webp', 'generated_at' => now(),
+        ]);
+        $expected = ProductWelcomeSketchService::menuUrl($this->live($drawn));
+
+        $this->actingAs($this->user)->get('/products?code=ART&operator_id=all')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Product/Index')
+                ->where('products.data', fn ($rows) => collect($rows)->pluck('welcome_sketch_url', 'code')->sortKeys()->all() === [
+                    'ART-1' => $expected,
+                    'ART-2' => null,
+                ]));
+        $this->assertStringContainsString('?v=', $expected);
     }
 
     public function test_the_approved_set_is_stored_on_its_products_once_and_never_over_an_upload(): void

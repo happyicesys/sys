@@ -1005,7 +1005,7 @@ be deleted, and a file is removed only when no other entry shares its content-ha
 2026-10-12 left their files on Spaces: `products:welcome-sketches --recover [--dry-run]` turns them into
 `recovered` album entries (seed art recognised by hash). Served on `/api/vends/{code}/menu` as
 `welcome_sketch` — smart mappings only, `?v=` versioned, null = the freezer drops the photo; vending
-menus are byte-for-byte unchanged. Sources: **seed** (the approved set in
+menus are byte-for-byte unchanged. The Products index shows the live drawing as its Artwork column (`ProductResource.welcome_sketch_url`, the same versioned URL; eager-loaded only there). Sources: **seed** (the approved set in
 `resources/welcome-sketches/{product code}.webp`, `ProductWelcomeSketchSeeder`, idempotent, never over an
 upload; a duplicated code resolves to the freezer-planogram product), **generated** (OpenAI image edit,
 `OpenAiSketchGenerator` behind `SketchGenerator`, the photo + three seed sketches as the style;

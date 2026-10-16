@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Products\WelcomeSketch\ProductWelcomeSketchService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ProductResource extends JsonResource
@@ -89,6 +90,8 @@ class ProductResource extends JsonResource
             'not_yet_sync_api_qty' => isset($this->not_yet_sync_api_qty) ? $this->not_yet_sync_api_qty : null,
             'nutri_grade' => $this->nutri_grade,
             'thumbnail' => AttachmentResource::make($this->whenLoaded('thumbnail')),
+            // The live welcome-scene sketch (the album's chosen drawing), as the freezer menu serves it.
+            'welcome_sketch_url' => $this->when($this->relationLoaded('welcomeSketch'), fn () => ProductWelcomeSketchService::menuUrl($this->welcomeSketch)),
             'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
             'limit_is_created_by_system' => isset($this->limit_is_created_by_system) ? $this->limit_is_created_by_system : null,
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,

@@ -131,6 +131,8 @@ class ProductController extends Controller
                     'unitCosts' => function ($query) {
                         $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
                     },
+                    // Artwork column: the live (chosen) welcome-scene sketch.
+                    'welcomeSketch',
                 ])
                     ->filterIndex($request)
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
