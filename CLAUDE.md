@@ -1135,6 +1135,10 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
   made a basket's Happy Hour discount $0 and overstated product revenue / GP. `HappyHourSales::repriceVendingBasket`
   rewrites each tagged item to the slot's discount on that channel's price (HappyHourPricing, as `/thumbnails`
   priced it), ONLY when the items then add up to the header's amount; otherwise nothing is guessed (logged).
+  A failed line stays 0 (no revenue) but the header's `Price` charged it, so the proof counts it at its channel
+  price — discounted when tagged (2301, 2026-10-16: $2.40 + failed $2.40 = $4.80 kept the dispensed unit at $3.40
+  until then); a header that leaves failed lines out still proves with them at 0. `planVendingBasketReprice` is the
+  one decision (adds_up / reprice / unprovable / none), shared by the tagger and the command.
   Baskets from before the fix: `happy-hour:reprice-vending-baskets [--since=] [--apply]` (re-opens their slots'
   totals, dirties past days).
 - **The bear without a UI Setting** (Brian, 2026-10-14; `HappyHourWelcomeFallback`): an eligible big board
@@ -1154,6 +1158,13 @@ Regression coverage: `tests/Feature/HappyHourVendingTest.php`.
 Where the promo price applies:
 - An AI-judged extra unit taken during a slot is valued at the promo price (`CardPaymentService::shelfPrices`).
 - The freezer's TRADE carries the promo unit price but NOT the slot.
+- A refund claim on a tagged line pays back the promo, not the list price (Brian, 2026-10-16,
+  RF-261016005): a failed line is stored at 0, and the claim fell back to the channel's LIST price.
+  `App\Services\Refund\RefundItemPrice` is the one place a refund prices a `vend_transaction_items` row —
+  the customer form's candidates, the ticket's items, Items Flagged and Related Transactions all read it. A
+  tagged line stored below its channel price is already the charged price (repriced, or a freezer's
+  promo) and is kept; otherwise the slot's discount is applied to it. Regression coverage:
+  `tests/Feature/RefundHappyHourPriceTest.php`.
 
 Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_transactions` AND
 `vend_transaction_items`, written only by `HappyHourSales::tag()`, called from both TRADE ingest paths

@@ -48,6 +48,12 @@ class VendTransactionItem extends Model
         return $this->belongsTo(VendChannel::class);
     }
 
+    /** The Happy Hour slot that priced this line (`HappyHourSales::tag`); null for a full-price line. */
+    public function happyHourSlot()
+    {
+        return $this->belongsTo(HappyHourSlot::class);
+    }
+
     public function vendChannelError()
     {
         return $this->belongsTo(VendChannelError::class);

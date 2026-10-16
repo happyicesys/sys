@@ -374,21 +374,58 @@ final class HappyHourSales
      * which proves it. Anything else (another discount in the basket, a price changed mid-slot) is left
      * alone and logged. Idempotent: a basket whose items already add up is untouched.
      *
+     * A failed line keeps 0 (no revenue), but the customer was charged for it: the header's `Price` is
+     * the whole cart (2301, 2026-10-16: 2 × $2.40 = $4.80 with one unit failed). So the proof counts a
+     * failed line at what the screen charged — its channel price, discounted when tagged — and a basket
+     * whose header leaves failed lines out still proves the old way (failed lines at 0).
+     *
      * Every reader of item prices follows: slot results, the campaign page, product revenue / GP.
      *
      * @return bool whether the items were rewritten
      */
     public function repriceVendingBasket(int $saleId): bool
     {
-        $sale = DB::table('vend_transactions')->where('id', $saleId)->first(['id', 'amount', 'is_multiple']);
-        if (! $sale || ! $sale->is_multiple) {
+        $plan = $this->planVendingBasketReprice($saleId);
+        if ($plan['state'] !== 'reprice') {
+            if ($plan['state'] === 'unprovable') {
+                Log::info('happy hour basket not repriced: items do not add up to the sale', [
+                    'vend_transaction_id' => $saleId, 'amount' => $plan['amount'], 'repriced_total' => $plan['total'],
+                ]);
+            }
+
             return false;
         }
-        $items = DB::table('vend_transaction_items')->where('vend_transaction_id', $saleId)
-            ->get(['id', 'unit_price_amount', 'happy_hour_slot_id']);
+
+        DB::transaction(function () use ($plan) {
+            foreach ($plan['prices'] as $itemId => $price) {
+                DB::table('vend_transaction_items')->where('id', $itemId)->update(['unit_price_amount' => $price]);
+            }
+        });
+
+        return true;
+    }
+
+    /**
+     * What repriceVendingBasket would do, without writing: `adds_up` (nothing to do), `unprovable` (the
+     * repriced items still do not add up — left alone), `reprice` (with the new `prices` by item id), or
+     * `none` (not a basket, or no tagged line to reprice).
+     *
+     * @return array{state: string, prices: array<int, int>, amount: int, total: int}
+     */
+    public function planVendingBasketReprice(int $saleId): array
+    {
+        $plan = fn (string $state, array $prices = [], int $amount = 0, int $total = 0) => compact('state', 'prices', 'amount', 'total');
+        $sale = DB::table('vend_transactions')->where('id', $saleId)->first(['id', 'amount', 'is_multiple']);
+        if (! $sale || ! $sale->is_multiple) {
+            return $plan('none');
+        }
+        $items = DB::table('vend_transaction_items as i')
+            ->leftJoin('vend_channels as vc', 'vc.id', '=', 'i.vend_channel_id')
+            ->where('i.vend_transaction_id', $saleId)
+            ->get(['i.id', 'i.unit_price_amount', 'i.happy_hour_slot_id', 'i.vend_channel_error_code', 'vc.amount as channel_amount']);
         $header = (int) $sale->amount;
-        if ($items->isEmpty() || (int) $items->sum('unit_price_amount') === $header) {
-            return false;
+        if ($items->isEmpty()) {
+            return $plan('none', [], $header);
         }
 
         $slots = HappyHourSlot::query()
@@ -396,38 +433,46 @@ final class HappyHourSales
             ->whereIn('id', $items->pluck('happy_hour_slot_id')->filter()->unique()->values())
             ->get(['id', 'happy_hour_campaign_id', 'discount_pct'])
             ->keyBy('id');
+        $promo = function (object $item, int $price) use ($slots): ?int {
+            $slot = $item->happy_hour_slot_id ? $slots->get($item->happy_hour_slot_id) : null;
+
+            return $slot && $price > 0
+                ? HappyHourPricing::promoPrice($price, (int) $slot->discount_pct, (int) ($slot->campaign?->price_step_cents ?? 1))
+                : null;
+        };
+
+        // What the customer was charged for the failed lines (stored at 0): the channel price, discounted
+        // when the line is tagged.
+        $failedCharged = 0;
+        foreach ($items as $item) {
+            if ((int) $item->unit_price_amount === 0 && ! DispenseVerdict::isSaleCode($item->vend_channel_error_code)) {
+                $list = (int) ($item->channel_amount ?? 0);
+                $failedCharged += $promo($item, $list) ?? $list;
+            }
+        }
+        $proves = fn (int $stored) => $stored === $header || $stored + $failedCharged === $header;
+
+        $stored = (int) $items->sum('unit_price_amount');
+        if ($proves($stored)) {
+            return $plan('adds_up', [], $header, $stored);
+        }
 
         $new = [];
         $total = 0;
         foreach ($items as $item) {
-            $slot = $item->happy_hour_slot_id ? $slots->get($item->happy_hour_slot_id) : null;
             $price = (int) $item->unit_price_amount;
-            if ($slot && $price > 0) {
-                $promo = HappyHourPricing::promoPrice($price, (int) $slot->discount_pct, (int) ($slot->campaign?->price_step_cents ?? 1));
-                if ($promo !== null) {
-                    $new[$item->id] = $promo;
-                    $price = $promo;
-                }
+            $repriced = $promo($item, $price);
+            if ($repriced !== null) {
+                $new[(int) $item->id] = $repriced;
+                $price = $repriced;
             }
             $total += $price;
         }
-        if ($new === [] || $total !== $header) {
-            if ($new !== []) {
-                Log::info('happy hour basket not repriced: items do not add up to the sale', [
-                    'vend_transaction_id' => $saleId, 'amount' => $header, 'repriced_total' => $total,
-                ]);
-            }
-
-            return false;
+        if ($new === []) {
+            return $plan('none', [], $header, $total);
         }
 
-        DB::transaction(function () use ($new) {
-            foreach ($new as $itemId => $price) {
-                DB::table('vend_transaction_items')->where('id', $itemId)->update(['unit_price_amount' => $price]);
-            }
-        });
-
-        return true;
+        return $proves($total) ? $plan('reprice', $new, $header, $total) : $plan('unprovable', [], $header, $total);
     }
 
     private static function positiveInt(mixed $value): bool

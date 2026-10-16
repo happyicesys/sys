@@ -8,6 +8,7 @@ use App\Models\RefundTicketAttachment;
 use App\Models\RefundTicketItem;
 use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use App\Services\Refund\RefundEmailService;
+use App\Services\Refund\RefundItemPrice;
 use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
 use App\Support\DispenseVerdict;
@@ -1735,7 +1736,7 @@ class RefundController extends Controller
                 \App\Models\Scopes\OperatorTransactionFilterScope::class,
                 \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
             ])
-                ->with(['paymentMethod', 'vend', 'vendChannelError', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel'])
+                ->with(['paymentMethod', 'vend', 'vendChannelError', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel', 'vendTransactionItems.happyHourSlot'])
                 ->find($t->vend_transaction_id)
             : null;
         // Resolve the gateway log from the ticket, else from its matched txn — same
@@ -1903,7 +1904,7 @@ class RefundController extends Controller
                 'vend_channel_code' => $vti->vend_channel_code,
                 'unit_price' => $claim
                     ? number_format($claim->unit_price_cents / 100, 2)
-                    : number_format((($vti->unit_price_amount ?: ($vti->vendChannel?->amount ?? 0))) / 100, 2),
+                    : number_format(RefundItemPrice::cents($vti) / 100, 2),
             ]);
         }
         // Any claimed items whose channel wasn't found in the basket (safety net).
@@ -1929,7 +1930,7 @@ class RefundController extends Controller
             \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
         ])
             ->with(['paymentMethod', 'operator', 'customer', 'vendPrefix', 'vendChannel', 'vendChannelError',
-                'vendTransactionItems.product', 'vendTransactionItems.vendChannel',
+                'vendTransactionItems.product', 'vendTransactionItems.vendChannel', 'vendTransactionItems.happyHourSlot',
                 // Needed to tell "the machine reported nothing" apart from "the
                 // machine reported a clean dispense" — see machine_reported below.
                 'paymentGatewayLog:id,is_dispensed']);
@@ -2025,7 +2026,7 @@ class RefundController extends Controller
                     'product' => $i->product?->name ?? ($i->vend_channel_code ? 'Channel '.$i->vend_channel_code : 'Item'),
                     'product_code' => $i->product?->code,
                     'channel' => $i->vend_channel_code,
-                    'price' => number_format((($i->unit_price_amount ?: ($i->vendChannel?->amount ?? 0))) / 100, 2),
+                    'price' => number_format(RefundItemPrice::cents($i) / 100, 2),
                 ])->values(),
                 'link' => $link,
             ];

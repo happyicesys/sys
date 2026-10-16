@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
+use App\Models\VendTransactionItem;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
@@ -27,6 +28,7 @@ use App\Services\HappyHour\HappyHourSales;
 use App\Services\Products\WelcomeSketch\CutoutMaker;
 use App\Services\Products\WelcomeSketch\ProductWelcomeSketchService;
 use App\Services\Products\WelcomeSketch\SketchGenerator;
+use App\Services\Refund\RefundItemPrice;
 use App\Services\VendJobService;
 use App\Services\VendTransactionService;
 use App\ValueObjects\ApkSettingParameters;
@@ -567,6 +569,47 @@ class HappyHourVendingTest extends TestCase
             VendTransaction::withoutGlobalScopes()->orderBy('id')->get(['order_id', 'happy_hour_slot_id'])
                 ->mapWithKeys(fn ($t) => [$t->order_id => $t->happy_hour_slot_id === null ? null : (int) $t->happy_hour_slot_id])->all()
         );
+    }
+
+    public function test_a_basket_with_a_failed_happy_hour_unit_is_repriced_and_its_claim_pays_the_promo(): void
+    {
+        // 2301, 2026-10-16: 2 × $3.40 Walls's at 30% off = 2 × $2.40, one unit failed (SErr 7). The header
+        // is the whole cart ($4.80) while the failed line is stored at 0, so the old proof (items = sale)
+        // never held and the dispensed unit kept $3.40.
+        PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);
+        VendChannelError::firstOrCreate(['code' => 0], ['desc' => 'No Malfunction (0)']);
+        VendChannelError::firstOrCreate(['code' => 7], ['desc' => 'Sensor error (7)']);
+        $vend = $this->vending(2245, [11 => ['A', 160, 9, 10], 21 => ['B', 200, 2, 10]]);
+        $this->campaign([$vend]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $slot = HappyHourSlot::firstOrFail();
+        $promo = HappyHourPricing::promoPrice(160, 40, 10);
+
+        Carbon::setTestNow('2026-10-09 14:05:00');
+        app(VendTransactionService::class)->create($vend->fresh(), [
+            'ORDRID' => '26100914050552245', 'PAY_TYPE' => 0, 'TIME' => now()->format('Y-m-d H:i:s'), 'TXN_SRC' => 1,
+            'Price' => number_format((2 * $promo + 200) / 100, 2, '.', ''),
+            'transf_info' => [['SId' => 11, 'SErr' => 0], ['SId' => 11, 'SErr' => 7], ['SId' => 21, 'SErr' => 0]],
+            'HH' => [['SId' => 11, 'HHId' => $slot->id]],
+        ]);
+        $sale = VendTransaction::withoutGlobalScopes()->where('order_id', '26100914050552245')->firstOrFail();
+        $prices = fn () => DB::table('vend_transaction_items')->where('vend_transaction_id', $sale->id)
+            ->orderBy('id')->pluck('unit_price_amount')->map(fn ($v) => (int) $v)->all();
+
+        $this->assertSame([$promo, 0, 200], $prices(), 'the dispensed promo unit carries the promo; the failed one stays 0');
+
+        // Idempotent: a second pass, and the repair command, leave it alone (no second discount).
+        $this->assertFalse(app(HappyHourSales::class)->repriceVendingBasket($sale->id));
+        $this->artisan('happy-hour:reprice-vending-baskets', ['--since' => '2026-10-09', '--apply' => true])
+            ->expectsOutputToContain('Repriced 0 basket(s).')
+            ->assertSuccessful();
+        $this->assertSame([$promo, 0, 200], $prices());
+
+        // A refund claim on either Happy Hour unit pays back the promo.
+        $claimed = VendTransactionItem::with(['vendChannel', 'happyHourSlot'])->where('vend_transaction_id', $sale->id)->orderBy('id')->get()
+            ->map(fn ($i) => RefundItemPrice::cents($i))->all();
+        $this->assertSame([$promo, $promo, 200], $claimed);
     }
 
     // ── Freezer regression ───────────────────────────────────────────────────────────────────

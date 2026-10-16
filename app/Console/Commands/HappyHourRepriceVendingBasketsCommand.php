@@ -37,24 +37,27 @@ class HappyHourRepriceVendingBasketsCommand extends Command
         $repaired = 0;
         $skipped = 0;
         foreach ($baskets as $b) {
-            $items = DB::table('vend_transaction_items')->where('vend_transaction_id', $b->id)->get(['unit_price_amount', 'happy_hour_slot_id']);
-            if ((int) $items->sum('unit_price_amount') === (int) $b->amount) {
-                continue; // already adds up
+            $plan = $sales->planVendingBasketReprice((int) $b->id);
+            if ($plan['state'] === 'unprovable') {
+                $skipped++;
+                $this->warn("#{$b->id}: items do not add up to the sale after repricing ({$plan['total']} vs {$plan['amount']}) — left as is");
+
+                continue;
+            }
+            if ($plan['state'] !== 'reprice') {
+                continue; // already adds up, or nothing tagged to reprice
             }
             if (! $apply) {
-                $this->line("#{$b->id} vend {$b->vend_id} {$b->transaction_datetime}: items {$items->sum('unit_price_amount')} vs sale {$b->amount}");
+                $this->line("#{$b->id} vend {$b->vend_id} {$b->transaction_datetime}: sale {$b->amount}, items → ".implode(', ', $plan['prices']));
                 $repaired++;
 
                 continue;
             }
             if ($sales->repriceVendingBasket((int) $b->id)) {
                 $repaired++;
-                HappyHourSlot::whereIn('id', $items->pluck('happy_hour_slot_id')->filter()->unique())
-                    ->whereNotNull('units_sold')->update(['units_sold' => null]);
+                $slotIds = DB::table('vend_transaction_items')->where('vend_transaction_id', $b->id)->pluck('happy_hour_slot_id')->filter()->unique();
+                HappyHourSlot::whereIn('id', $slotIds)->whereNotNull('units_sold')->update(['units_sold' => null]);
                 $dirty->mark(Carbon::parse($b->transaction_datetime));
-            } else {
-                $skipped++;
-                $this->warn("#{$b->id}: items do not add up to the sale after repricing — left as is");
             }
         }
 
