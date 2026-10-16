@@ -21,6 +21,7 @@ use App\Models\VendTransaction;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
+use App\Services\HappyHour\HappyHourPricing;
 use App\Services\HappyHour\HappyHourRanker;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\Products\WelcomeSketch\CutoutMaker;
@@ -485,6 +486,50 @@ class HappyHourVendingTest extends TestCase
         $this->assertSame([3, 260, (160 - 90) + (140 - 80) + (160 - 90)], [$slot->units_sold, $slot->revenue_cents, $slot->discount_cents]);
     }
 
+    public function test_a_basket_stored_at_board_prices_is_repriced_to_what_the_screen_charged(): void
+    {
+        // A vending TRADE has one Price for the basket and none per line, so the ingest stores each item at
+        // its board price (2378, 2026-10-15: 3 × $3.40 items under a $7.20 sale → "L24h $0.00").
+        $vend = $this->vending(2245, [11 => ['A', 160, 9, 10], 21 => ['B', 200, 2, 10]]);
+        $this->campaign([$vend]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $slot = HappyHourSlot::where('vend_id', $vend->id)->firstOrFail();
+        $a = $this->products['A']->id;
+        $b = $this->products['B']->id;
+        $promo = HappyHourPricing::promoPrice(160, 40, 10);
+        $prices = fn (VendTransaction $t) => DB::table('vend_transaction_items')->where('vend_transaction_id', $t->id)
+            ->orderBy('id')->pluck('unit_price_amount')->map(fn ($v) => (int) $v)->all();
+
+        $basket = $this->basket($vend, [[$a, 11, 160], [$b, 21, 200]], '2026-10-09 14:20:00', [['SId' => 11, 'HHId' => $slot->id]], $promo + 200);
+        $this->assertSame([$promo, 200], $prices($basket), 'the promo line now carries the promo price; the other keeps its own');
+
+        // Another discount in the basket: the items cannot be made to add up, so nothing is guessed.
+        $odd = $this->basket($vend, [[$a, 11, 160], [$b, 21, 200]], '2026-10-09 14:25:00', [['SId' => 11, 'HHId' => $slot->id]], 250);
+        $this->assertSame([160, 200], $prices($odd));
+
+        // Baskets tagged before the fix: the repair command lists, then rewrites and re-opens the slot.
+        $old = $this->basket($vend, [[$a, 11, 160], [$a, 11, 160]], '2026-10-09 14:30:00', [], 2 * $promo);
+        DB::table('vend_transactions')->where('id', $old->id)->update(['happy_hour_slot_id' => $slot->id]);
+        DB::table('vend_transaction_items')->where('vend_transaction_id', $old->id)->update(['happy_hour_slot_id' => $slot->id]);
+        Carbon::setTestNow('2026-10-09 15:10:00');
+        $this->planner()->run(now());
+        $this->assertNotNull($slot->fresh()->units_sold);
+
+        $this->artisan('happy-hour:reprice-vending-baskets', ['--since' => '2026-10-09'])->assertSuccessful();
+        $this->assertSame([160, 160], $prices($old), 'a dry run writes nothing');
+        $this->artisan('happy-hour:reprice-vending-baskets', ['--since' => '2026-10-09', '--apply' => true])->assertSuccessful();
+        $this->assertSame([$promo, $promo], $prices($old));
+        $this->assertSame([160, 200], $prices($odd), 'still left alone');
+        $this->assertNull($slot->fresh()->units_sold, 'the slot is recounted by the next run');
+
+        // The slot's discount now counts each repriced unit off its board price; the odd basket's line is
+        // still the slot's unit, at the price it could not be proven to have charged (no discount claimed).
+        $this->planner()->run(now());
+        $slot->refresh();
+        $this->assertSame([4, 3 * $promo + 160, 3 * (160 - $promo)], [$slot->units_sold, $slot->revenue_cents, $slot->discount_cents]);
+    }
+
     public function test_the_trade_ingest_tags_a_touchscreen_sale_from_its_hh_list(): void
     {
         PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);
@@ -507,8 +552,18 @@ class HappyHourVendingTest extends TestCase
         $trade('26100914050352245', ['Price' => '2.90', 'transf_info' => [['SId' => 11, 'SErr' => 0, 'Price' => 90], ['SId' => 21, 'SErr' => 0, 'Price' => 200]],
             'HH' => [['SId' => 11, 'HHId' => $slot->id], 'garbage']]);
 
+        // As prod sends it (2378, 2026-10-15): one Price for the basket, no price per line — the items are
+        // stored at board price, then the Happy Hour line is repriced to what the screen charged.
+        $promo = HappyHourPricing::promoPrice(160, 40, 10);
+        $trade('26100914050452245', ['Price' => number_format(($promo + 200) / 100, 2, '.', ''),
+            'transf_info' => [['SId' => 11, 'SErr' => 0], ['SId' => 21, 'SErr' => 0]],
+            'HH' => [['SId' => 11, 'HHId' => $slot->id]]]);
+        $real = VendTransaction::withoutGlobalScopes()->where('order_id', '26100914050452245')->firstOrFail();
+        $this->assertSame([$promo, 200], DB::table('vend_transaction_items')->where('vend_transaction_id', $real->id)
+            ->orderBy('id')->pluck('unit_price_amount')->map(fn ($v) => (int) $v)->all());
+
         $this->assertSame(
-            ['26100914050052245' => $slot->id, '26100914050152245' => null, '26100914050252245' => null, '26100914050352245' => $slot->id],
+            ['26100914050052245' => $slot->id, '26100914050152245' => null, '26100914050252245' => null, '26100914050352245' => $slot->id, '26100914050452245' => $slot->id],
             VendTransaction::withoutGlobalScopes()->orderBy('id')->get(['order_id', 'happy_hour_slot_id'])
                 ->mapWithKeys(fn ($t) => [$t->order_id => $t->happy_hour_slot_id === null ? null : (int) $t->happy_hour_slot_id])->all()
         );
@@ -750,11 +805,11 @@ class HappyHourVendingTest extends TestCase
     }
 
     /** @param  list<array{0: int, 1: int, 2: int}>  $lines  product, channel, cents */
-    private function basket(Vend $vend, array $lines, string $at, array $hh): VendTransaction
+    private function basket(Vend $vend, array $lines, string $at, array $hh, ?int $amount = null): VendTransaction
     {
         $id = DB::table('vend_transactions')->insertGetId([
             'vend_id' => $vend->id, 'order_id' => 'VH-'.uniqid(), 'transaction_datetime' => $at,
-            'amount' => array_sum(array_column($lines, 2)), 'qty' => count($lines), 'is_multiple' => 1,
+            'amount' => $amount ?? array_sum(array_column($lines, 2)), 'qty' => count($lines), 'is_multiple' => 1,
             'settlement_status' => VendTransaction::SETTLEMENT_SETTLED, 'created_at' => $at, 'updated_at' => $at,
         ]);
         foreach ($lines as [$productId, $channel, $cents]) {

@@ -1125,6 +1125,13 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
   tagged only when its channel is named there, the slot is this machine's (and the line's product), and
   the sale is inside the slot ± grace. Malformed entries are ignored; keypad TRADEs carry no `HH`. A
   board-price machine's slot discount is each line's channel price less what it took.
+- **A vending basket's items are repriced at tagging** (Brian, 2026-10-16). The TRADE carries ONE `Price` for the
+  basket and none per line, so the ingest stores every item at its channel's board price — a promo line too, which
+  made a basket's Happy Hour discount $0 and overstated product revenue / GP. `HappyHourSales::repriceVendingBasket`
+  rewrites each tagged item to the slot's discount on that channel's price (HappyHourPricing, as `/thumbnails`
+  priced it), ONLY when the items then add up to the header's amount; otherwise nothing is guessed (logged).
+  Baskets from before the fix: `happy-hour:reprice-vending-baskets [--since=] [--apply]` (re-opens their slots'
+  totals, dirties past days).
 - **The bear without a UI Setting** (Brian, 2026-10-14; `HappyHourWelcomeFallback`): an eligible big board
   in an ACTIVE Happy Hour campaign with NO UI Setting gets, from `/parameters`, the schema DEFAULTS
   (`ApkSettingParameters::defaults()`) + `enableWelcomeScene = true` instead of the usual 400. It must be

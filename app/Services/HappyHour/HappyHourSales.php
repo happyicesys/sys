@@ -10,6 +10,7 @@ use App\Support\DispenseVerdict;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Which sales a Happy Hour slot priced — the only writer of `happy_hour_slot_id` on
@@ -333,7 +334,78 @@ final class HappyHourSales
             }
         }
 
-        return $this->write($sale, $tagged, $slots->values());
+        $count = $this->write($sale, $tagged, $slots->values());
+        if ($count > 0 && $sale->is_multiple) {
+            $this->repriceVendingBasket($sale->id);
+        }
+
+        return $count;
+    }
+
+    /**
+     * A vending TRADE carries ONE price for a basket (`Price`) and none per line, so the ingest stores
+     * each item at its channel's board price — a Happy Hour line too, though the screen charged its
+     * promo price (Brian, 2026-10-16: "L24h $0.00 · 5" on 2378, whose 5 units were all in baskets).
+     * This rewrites each tagged item to the price the screen charged — the slot's discount on that
+     * channel's price with the campaign's rounding, exactly as `/thumbnails` priced it
+     * (HappyHourPricing::channelSlots) — and only when the items then add up to the header's amount,
+     * which proves it. Anything else (another discount in the basket, a price changed mid-slot) is left
+     * alone and logged. Idempotent: a basket whose items already add up is untouched.
+     *
+     * Every reader of item prices follows: slot results, the campaign page, product revenue / GP.
+     *
+     * @return bool whether the items were rewritten
+     */
+    public function repriceVendingBasket(int $saleId): bool
+    {
+        $sale = DB::table('vend_transactions')->where('id', $saleId)->first(['id', 'amount', 'is_multiple']);
+        if (! $sale || ! $sale->is_multiple) {
+            return false;
+        }
+        $items = DB::table('vend_transaction_items')->where('vend_transaction_id', $saleId)
+            ->get(['id', 'unit_price_amount', 'happy_hour_slot_id']);
+        $header = (int) $sale->amount;
+        if ($items->isEmpty() || (int) $items->sum('unit_price_amount') === $header) {
+            return false;
+        }
+
+        $slots = HappyHourSlot::query()
+            ->with(['campaign' => fn ($q) => $q->withTrashed()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->select('id', 'price_step_cents')])
+            ->whereIn('id', $items->pluck('happy_hour_slot_id')->filter()->unique()->values())
+            ->get(['id', 'happy_hour_campaign_id', 'discount_pct'])
+            ->keyBy('id');
+
+        $new = [];
+        $total = 0;
+        foreach ($items as $item) {
+            $slot = $item->happy_hour_slot_id ? $slots->get($item->happy_hour_slot_id) : null;
+            $price = (int) $item->unit_price_amount;
+            if ($slot && $price > 0) {
+                $promo = HappyHourPricing::promoPrice($price, (int) $slot->discount_pct, (int) ($slot->campaign?->price_step_cents ?? 1));
+                if ($promo !== null) {
+                    $new[$item->id] = $promo;
+                    $price = $promo;
+                }
+            }
+            $total += $price;
+        }
+        if ($new === [] || $total !== $header) {
+            if ($new !== []) {
+                Log::info('happy hour basket not repriced: items do not add up to the sale', [
+                    'vend_transaction_id' => $saleId, 'amount' => $header, 'repriced_total' => $total,
+                ]);
+            }
+
+            return false;
+        }
+
+        DB::transaction(function () use ($new) {
+            foreach ($new as $itemId => $price) {
+                DB::table('vend_transaction_items')->where('id', $itemId)->update(['unit_price_amount' => $price]);
+            }
+        });
+
+        return true;
     }
 
     private static function positiveInt(mixed $value): bool
