@@ -41,7 +41,7 @@ class HappyHourRanker
         }
 
         $productIds = $stock->keys()->map(fn ($id) => (int) $id)->all();
-        $products = Product::query()->whereIn('id', $productIds)->get(['id', 'code', 'name'])->keyBy('id');
+        $products = Product::query()->whereIn('id', $productIds)->get(['id', 'code', 'name', 'is_available'])->keyBy('id');
         $prices = $vend->machine_type === Vend::MACHINE_TYPE_VENDING_MACHINE
             ? $this->vendingPrices($vend, $productIds, $stock)
             : $this->prices($vend, $productIds);
@@ -66,7 +66,9 @@ class HappyHourRanker
                 promoPrice: $promo,
                 unitCost: $costs[$productId] ?? null,
             );
-            $candidate->excludedReason = $this->exclusion($campaign, $candidate, isset($excluded[$productId]));
+            // The warehouse's Available? tick (Product Movement) off = not offered while the campaign skips those.
+            $unavailable = $campaign->skip_unavailable && isset($products[$productId]) && ! $products[$productId]->is_available;
+            $candidate->excludedReason = $this->exclusion($campaign, $candidate, isset($excluded[$productId]), $unavailable);
             $candidates[] = $candidate;
         }
 
@@ -87,12 +89,13 @@ class HappyHourRanker
         return array_values(array_filter($this->rank($campaign, $vend, $now), fn ($c) => $c->isEligible()));
     }
 
-    private function exclusion(HappyHourCampaign $campaign, HappyHourCandidate $c, bool $excludedByCampaign): ?string
+    private function exclusion(HappyHourCampaign $campaign, HappyHourCandidate $c, bool $excludedByCampaign, bool $unavailable = false): ?string
     {
         $balance = $c->balancePct();
 
         return match (true) {
             $excludedByCampaign => 'Excluded in this campaign',
+            $unavailable => 'Not available in the warehouse',
             $c->originalPrice === null || $c->originalPrice <= 0 => 'No selling price for this Site',
             $c->qty < max(1, $campaign->min_qty) => "Only {$c->qty} in stock (minimum {$campaign->min_qty})",
             $balance !== null && $balance <= $campaign->min_balance_pct => "Stock {$balance}% is at or under the {$campaign->min_balance_pct}% floor",

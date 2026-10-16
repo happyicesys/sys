@@ -166,6 +166,27 @@ class HappyHourCampaignTest extends TestCase
         $this->assertTrue(app(HappyHourRanker::class)->rank($campaign, $this->vend, now())[0]->isEligible());
     }
 
+    public function test_a_sku_not_available_in_the_warehouse_is_skipped_unless_the_campaign_allows_it(): void
+    {
+        // A is the best pick (never sold), but the warehouse has ticked it not Available.
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [9, 10, 3.00, 9]]);
+        DB::table('products')->where('id', $this->products['A']->id)->update(['is_available' => 0]);
+        $campaign = $this->campaign(['sku_count' => 1]);
+        $this->assertTrue($campaign->skip_unavailable, 'on by default');
+
+        $ranked = app(HappyHourRanker::class)->rank($campaign, $this->vend, now());
+        $this->assertSame([$this->products['B']->id, $this->products['A']->id], array_map(fn ($c) => $c->productId, $ranked));
+        $this->assertSame('Not available in the warehouse', $ranked[1]->excludedReason);
+
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $this->assertSame($this->products['B']->id, HappyHourSlot::where('position', 0)->value('product_id'));
+
+        $campaign->update(['skip_unavailable' => false]);
+        $this->assertTrue(app(HappyHourRanker::class)->rank($campaign, $this->vend, now())[0]->isEligible());
+        $this->assertSame($this->products['A']->id, app(HappyHourRanker::class)->rank($campaign, $this->vend, now())[0]->productId);
+    }
+
     public function test_each_slot_is_picked_just_before_it_starts_from_live_stock_and_the_top_skus_take_turns(): void
     {
         // Balance %: A 50, B 80, C 60.
@@ -390,6 +411,11 @@ class HappyHourCampaignTest extends TestCase
         $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/preview?vend_id=999999")->assertOk()
             ->assertJsonCount(0, 'machines');
 
+        // The warehouse-availability box saves both ways.
+        $this->assertTrue($campaign->fresh()->skip_unavailable);
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['discount_pct' => 50, 'skip_unavailable' => false]))->assertSessionHasNoErrors();
+        $this->assertFalse($campaign->fresh()->skip_unavailable);
+
         $this->actingAs($user)->delete("/happy-hour-campaigns/{$campaign->id}")->assertRedirect();
         $this->assertSame(0, HappyHourSlot::where('happy_hour_campaign_id', $campaign->id)->where('starts_at', '>', now())->count());
         $this->assertSoftDeleted($campaign);
@@ -586,7 +612,7 @@ class HappyHourCampaignTest extends TestCase
             'days_mask' => HappyHourCampaign::EVERY_DAY, 'window_start' => '14:00', 'window_end' => '18:00',
             'slot_minutes' => 60, 'sku_count' => 2, 'skus_per_slot' => 1, 'selection_rule' => HappyHourCampaign::RULE_DAYS_OF_COVER,
             'lookback_days' => 14, 'discount_pct' => 40, 'min_balance_pct' => 15, 'min_qty' => 2,
-            'price_step_cents' => 10, 'allow_below_cost' => false, 'excluded_product_ids' => [],
+            'price_step_cents' => 10, 'allow_below_cost' => false, 'skip_unavailable' => true, 'excluded_product_ids' => [],
             'vend_ids' => [$this->vend->id],
         ], $overrides);
     }

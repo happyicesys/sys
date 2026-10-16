@@ -36,7 +36,7 @@ class HappyHourCampaignController extends Controller
     private const SCHEDULE_FIELDS = [
         'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end', 'slot_minutes',
         'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct', 'min_balance_pct', 'min_qty',
-        'price_step_cents', 'allow_below_cost', 'excluded_product_ids',
+        'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'excluded_product_ids',
     ];
 
     public function __construct(private readonly HappyHourPlanner $planner) {}
@@ -309,6 +309,7 @@ class HappyHourCampaignController extends Controller
             'min_qty' => $c->min_qty,
             'price_step_cents' => $c->price_step_cents,
             'allow_below_cost' => $c->allow_below_cost,
+            'skip_unavailable' => $c->skip_unavailable,
             'excluded_product_ids' => $c->excludedProductIds(),
             'machine_groups' => array_values((array) $c->machine_groups),
             // Group members another campaign picked by name — they run that one while it is in force.

@@ -43,6 +43,8 @@ class HappyHourCampaignRequest extends FormRequest
             'min_qty' => ['required', 'integer', 'min:1', 'max:999'],
             'price_step_cents' => ['required', 'integer', Rule::in([1, 5, 10, 50, 100])],
             'allow_below_cost' => ['required', 'boolean'],
+            // Absent = keep the stored value (on by default).
+            'skip_unavailable' => ['sometimes', 'boolean'],
             'excluded_product_ids' => ['nullable', 'array'],
             'excluded_product_ids.*' => ['integer', 'exists:products,id'],
             'vend_ids' => ['nullable', 'array'],

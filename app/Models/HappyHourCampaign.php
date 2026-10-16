@@ -43,10 +43,15 @@ class HappyHourCampaign extends Model
 
     public const WEEKENDS = 0b1100000;
 
+    /** A new campaign skips warehouse-unavailable SKUs unless told otherwise (the column's default). */
+    protected $attributes = [
+        'skip_unavailable' => true,
+    ];
+
     protected $fillable = [
         'name', 'operator_id', 'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end',
         'slot_minutes', 'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct',
-        'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'excluded_product_ids', 'machine_groups',
+        'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'excluded_product_ids', 'machine_groups',
         'created_by', 'updated_by',
     ];
 
@@ -64,6 +69,7 @@ class HappyHourCampaign extends Model
         'min_qty' => 'integer',
         'price_step_cents' => 'integer',
         'allow_below_cost' => 'boolean',
+        'skip_unavailable' => 'boolean',
         'excluded_product_ids' => 'array',
         'machine_groups' => 'array',
     ];

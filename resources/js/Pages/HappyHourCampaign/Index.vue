@@ -359,7 +359,13 @@
               <MultiSelect v-model="selectedExcluded" :options="products" mode="tags" trackBy="id" valueProp="id" label="name"
                 placeholder="Products to leave out" open-direction="top" class="mt-1" />
             </div>
-            <div class="md:col-span-2 flex items-end">
+            <div class="md:col-span-2 flex flex-col justify-end gap-2">
+              <!-- On by default (Brian, 2026-10-16): a SKU whose warehouse Available? tick is off is never picked. -->
+              <label class="inline-flex items-center space-x-2 text-sm text-gray-700"
+                v-tooltip="'A SKU whose Available? tick is off in the warehouse (Product Movement) is skipped when a slot picks its SKUs.'">
+                <input type="checkbox" v-model="form.skip_unavailable" class="rounded border-gray-300" />
+                <span>No discount on SKUs not Available in the warehouse</span>
+              </label>
               <label class="inline-flex items-center space-x-2 text-sm text-gray-700">
                 <input type="checkbox" v-model="form.allow_below_cost" class="rounded border-gray-300" />
                 <span>Allow below unit cost</span>
@@ -489,7 +495,7 @@ const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
   window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4, skus_per_slot: 1,
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
-  min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false,
+  min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false, skip_unavailable: true,
   excluded_product_ids: [], vend_ids: [], machine_groups: [],
 })
 

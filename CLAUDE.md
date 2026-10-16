@@ -1061,6 +1061,9 @@ Exclusion rules:
 - The stock floor % applies only where Real Capacity is set; most freezer SKUs have none, which is why minimum
   units exists.
 - A promo below the current unit cost is excluded unless the campaign allows it.
+- A SKU whose warehouse **Available?** tick is off (`products.is_available`, Product Movement) is excluded while the
+  campaign's `skip_unavailable` box is ticked — on by default, existing campaigns included (Brian, 2026-10-16). Like
+  every exclusion it applies when a slot picks or swaps its SKU, so a SKU made unavailable mid-slot keeps that slot.
 
 Machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" (`machine_groups`) are LIVE —
 every ACTIVE machine of that kind of the campaign OWNER's operator GROUP that can run Happy Hour now
