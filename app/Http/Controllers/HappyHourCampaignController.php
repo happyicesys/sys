@@ -8,6 +8,7 @@ use App\Models\HappyHourSlot;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Services\HappyHour\HappyHourCampaignStats;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPause;
@@ -74,8 +75,18 @@ class HappyHourCampaignController extends Controller
         $boundVends = $campaigns->flatMap(fn ($c) => $c->vends);
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
+        // The Campaign column's figures: last 24 h over last 30 days (Brian, 2026-10-16).
+        $stats = app(HappyHourCampaignStats::class);
+        $operatorId = OperatorVendFilterScope::viewerOperatorId();
+
         return Inertia::render('HappyHourCampaign/Index', [
-            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold))->values(),
+            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => [
+                ...$this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold),
+                'stats' => [
+                    'l24h' => $stats->window($c->id, $now->copy()->subDay(), $now, $operatorId, oneDay: true),
+                    'l30d' => $stats->window($c->id, $now->copy()->subDays(30), $now, $operatorId),
+                ],
+            ])->values(),
             'machines' => $machines,
             'products' => $this->productOptions(collect($machines)->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
             'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
@@ -152,6 +163,36 @@ class HappyHourCampaignController extends Controller
      * "Lineup now" (a machine chip on the page): every SKU with its rank or the reason it is left
      * out. `vend_id` ranks just that machine; without it, every bound machine.
      */
+    /**
+     * The campaign's daily figures for its graph (Brian, 2026-10-16): sales, discount, units and
+     * average units per machine per day, every date in [from, to] (default the last 7 days).
+     */
+    public function stats(Request $request, int $id, HappyHourCampaignStats $stats): JsonResponse
+    {
+        $campaign = HappyHourCampaign::findOrFail($id);
+        $data = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        $to = isset($data['to']) ? Carbon::parse($data['to']) : Carbon::today();
+        $from = isset($data['from']) ? Carbon::parse($data['from']) : $to->copy()->subDays(6);
+        if ($from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+        if ($from->diffInDays($to) > 366) {
+            $from = $to->copy()->subDays(366);
+        }
+        $operatorId = OperatorVendFilterScope::viewerOperatorId();
+
+        return response()->json([
+            'campaign' => $campaign->name,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'days' => $stats->daily($campaign->id, $from, $to, $operatorId),
+            'total' => $stats->window($campaign->id, $from->copy()->startOfDay(), $to->copy()->endOfDay(), $operatorId),
+        ]);
+    }
+
     public function preview(Request $request, int $id, HappyHourRanker $ranker): JsonResponse
     {
         $campaign = HappyHourCampaign::findOrFail($id);

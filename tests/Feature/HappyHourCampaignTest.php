@@ -509,6 +509,52 @@ class HappyHourCampaignTest extends TestCase
             'the grouped totals agree with a closed slot\'s results()');
     }
 
+    public function test_the_campaign_figures_and_graph_count_tagged_sales_per_machine_day(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [9, 10, 3.00, 9]]);
+        $campaign = $this->campaign(['sku_count' => 1]);
+        $a = $this->products['A']->id;
+        $b = $this->products['B']->id;
+        foreach (['13:58:00', '14:58:00', '15:00:00'] as $t) {
+            Carbon::setTestNow("2026-10-09 {$t}");
+            $this->planner()->run(now());
+        }
+        $this->sale($a, 240, '2026-10-09 14:10:00');
+        $this->basket([[$a, 240], [$b, 300]], '2026-10-09 14:20:00');
+        $this->sale($a, 240, '2026-10-09 15:10:00');
+        $this->sale($a, 400, '2026-10-09 15:11:00'); // full price: not Happy Hour
+
+        Carbon::setTestNow('2026-10-09 15:20:00');
+        $user = User::factory()->create(['operator_id' => 1]);
+        $user->givePermissionTo(Permission::findOrCreate('read happy-hour-campaigns', 'web'));
+
+        // 3 promo units at $2.40 ($1.60 off each) on one machine that ran Happy Hour today.
+        $expect = ['revenue' => 720, 'discount' => 480, 'units' => 3, 'machines' => 1, 'machine_days' => 1, 'avg_daily_units_per_machine' => 3];
+        $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(function ($page) use ($expect) {
+                foreach ($expect as $key => $value) {
+                    $page->where("campaigns.0.stats.l24h.{$key}", $value)->where("campaigns.0.stats.l30d.{$key}", $value);
+                }
+            });
+
+        // The graph: the last 7 days by default, every date present.
+        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats")->assertOk()
+            ->assertJsonPath('from', '2026-10-03')
+            ->assertJsonPath('to', '2026-10-09')
+            ->assertJsonCount(7, 'days')
+            ->assertJsonPath('days.0.units', 0)
+            ->assertJsonPath('days.0.machines', 0)
+            ->assertJsonPath('days.6.units', 3)
+            ->assertJsonPath('days.6.discount', 480)
+            ->assertJsonPath('days.6.machines', 1)
+            ->assertJsonPath('total.revenue', 720);
+        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats?from=2026-10-01&to=2026-10-02")->assertOk()
+            ->assertJsonCount(2, 'days')
+            ->assertJsonPath('total.units', 0)
+            ->assertJsonPath('total.avg_daily_units_per_machine', null);
+        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats?from=junk")->assertStatus(422);
+    }
+
     public function test_the_trade_ingest_tags_a_freezer_sale_made_at_the_promo_price(): void
     {
         PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);

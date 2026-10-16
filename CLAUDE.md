@@ -1039,6 +1039,11 @@ What a campaign is:
   so the form shows it only for that rule.
 - The page's Status column shows the slot running now; clicking a machine chip opens that machine's lineup
   ranked at this moment (`preview?vend_id=`). There is no per-day slot list any more (Brian, 2026-10-11).
+- The Campaign column shows Total sales / Total $disc / Total qty / Avg daily qty per VM, last 24 h over last 30 days,
+  and "Show graph" opens daily bar charts for a chosen range (default 7 days, `/{id}/stats`) — Brian, 2026-10-16.
+  `HappyHourCampaignStats` owns the figures: the campaign's TAGGED sales (`HappyHourSales::dailyTotals`, the slot
+  results' rules) on machines the viewer may see; "per VM" = per machine-day on which it ran a slot (cancelled slots
+  never ran), so a young campaign is not divided by 30.
 
 `HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute, and once
 on each save. It:

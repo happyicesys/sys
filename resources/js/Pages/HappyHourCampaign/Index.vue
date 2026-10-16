@@ -77,6 +77,26 @@
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-left">
                     {{ c.name }}
                     <div class="text-xs font-normal text-gray-500">{{ ruleLabel(c.selection_rule) }}</div>
+                    <!-- How the campaign is doing: last 24 h over last 30 days (Brian, 2026-10-16). -->
+                    <table v-if="c.stats" class="mt-3 text-xs font-normal text-gray-700">
+                      <thead>
+                        <tr class="text-gray-500">
+                          <th class="pr-3 text-left font-normal"></th>
+                          <th class="px-1 text-right font-normal whitespace-nowrap">Last 24h</th>
+                          <th class="pl-2 text-right font-normal whitespace-nowrap">/ Last 30d</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="row in statRows" :key="row.key">
+                          <td class="pr-3 whitespace-nowrap" :title="row.title">{{ row.name }}</td>
+                          <td class="px-1 text-right font-semibold whitespace-nowrap">{{ row.format(c.stats.l24h[row.key]) }}</td>
+                          <td class="pl-2 text-right whitespace-nowrap">/ {{ row.format(c.stats.l30d[row.key]) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <button v-if="c.stats" type="button" class="mt-2 text-xs font-normal text-blue-700 hover:underline" @click="openStats(c)">
+                      Show graph
+                    </button>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <div class="flex items-center justify-center gap-2">
@@ -385,6 +405,36 @@
       </template>
     </Modal>
 
+    <!-- Campaign graph: daily figures over a chosen range (default the last 7 days). -->
+    <Modal :open="showStats" @modalClose="showStats = false">
+      <template #header>
+        <span>Happy Hour results · {{ statsCampaign?.name }}</span>
+      </template>
+      <template #default>
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <DatePicker v-model="statsRange.from" :maxDate="statsRange.to" :clearable="false">From</DatePicker>
+            <DatePicker v-model="statsRange.to" :minDate="statsRange.from" :clearable="false">To</DatePicker>
+            <div class="flex gap-1 pb-0.5">
+              <button v-for="p in statsPresets" :key="p.days" type="button"
+                class="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100" @click="setStatsPreset(p.days)">
+                {{ p.name }}
+              </button>
+            </div>
+          </div>
+          <div v-if="statsLoading && !statsData" class="text-sm text-gray-500">Loading…</div>
+          <template v-if="statsData">
+            <p class="text-xs text-gray-500">
+              {{ statsData.from }} → {{ statsData.to }}: sales {{ money(statsData.total.revenue) }}, discount {{ money(statsData.total.discount) }},
+              {{ statsData.total.units }} units over {{ statsData.total.machine_days }} machine-days
+              ({{ statsData.total.avg_daily_units_per_machine ?? '—' }} units per machine per day). A machine counts on each day it ran a slot.
+            </p>
+            <CampaignStatsCharts :days="statsData.days" :total="statsData.total" />
+          </template>
+        </div>
+      </template>
+    </Modal>
+
     <!-- Preview lineup -->
     <Modal :open="showPreview" @modalClose="showPreview = false">
       <template #header>
@@ -461,12 +511,13 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import CampaignStatsCharts from '@/Components/HappyHour/CampaignStatsCharts.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ChevronDownIcon, ChevronUpDownIcon, ChevronUpIcon, ExclamationCircleIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
@@ -505,6 +556,51 @@ const showForm = ref(false)
 const selectedMachines = ref([])
 const selectedExcluded = ref([])
 const showPreview = ref(false)
+
+// The Campaign column's figures (last 24 h / last 30 days) and the graph modal (Brian, 2026-10-16).
+const statRows = [
+  { key: 'revenue', name: 'Total sales', format: (v) => money(v ?? 0), title: 'Paid for Happy Hour units' },
+  { key: 'discount', name: 'Total $disc', format: (v) => money(v ?? 0), title: 'Normal price less the Happy Hour price, per unit sold' },
+  { key: 'units', name: 'Total qty', format: (v) => v ?? 0, title: 'Happy Hour units sold' },
+  { key: 'avg_daily_units_per_machine', name: 'Avg daily qty / VM', format: (v) => v ?? '—', title: 'Units per machine per day it ran a slot' },
+]
+const showStats = ref(false)
+const statsCampaign = ref(null)
+const statsData = ref(null)
+const statsLoading = ref(false)
+const statsRange = ref({ from: null, to: null })
+const statsPresets = [{ name: '7d', days: 7 }, { name: '14d', days: 14 }, { name: '30d', days: 30 }]
+let statsRequest = 0
+
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+function setStatsPreset(days) {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(to.getDate() - (days - 1))
+  statsRange.value = { from: isoDay(from), to: isoDay(to) }
+}
+
+function openStats(c) {
+  statsCampaign.value = c
+  statsData.value = null
+  setStatsPreset(7)
+  showStats.value = true
+}
+
+async function loadStats() {
+  if (!showStats.value || !statsCampaign.value || !statsRange.value.from || !statsRange.value.to) return
+  const ticket = ++statsRequest
+  statsLoading.value = true
+  try {
+    const { data } = await axios.get(`/happy-hour-campaigns/${statsCampaign.value.id}/stats`, { params: statsRange.value })
+    if (ticket === statsRequest) statsData.value = data
+  } finally {
+    if (ticket === statsRequest) statsLoading.value = false
+  }
+}
+
+watch(statsRange, loadStats, { deep: true })
 const preview = ref(null)
 const previewTitle = ref('')
 // Campaigns whose machine chips are all shown (a live group can hold every big board).

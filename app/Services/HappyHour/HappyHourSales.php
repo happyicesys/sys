@@ -125,14 +125,36 @@ final class HappyHourSales
     /**
      * What each slot sold on these machines, for sales made in [$from, $to] — the same rules as
      * results() (settled, not refunded, a sale code; a single sale = its header, a basket = its
-     * items; a board-price vending machine's discount per channel), in two grouped queries instead
-     * of two per slot. The campaign page reads it for "HH: n" (the slot running now) and each
-     * machine's last 24 h (Brian, 2026-10-15). Units are live: a closed slot's `units_sold` is not used.
+     * items; a board-price vending machine's discount per channel), summed over dailyTotals(). The
+     * campaign page reads it for "HH: n" (the slot running now) and each machine's last 24 h
+     * (Brian, 2026-10-15). Units are live: a closed slot's `units_sold` is not used.
      *
      * @param  iterable<int>  $vendIds
      * @return array<int, array{vend_id: int, units: int, revenue: int, discount: int}> slot id => totals
      */
     public function slotTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $totals = [];
+        foreach ($this->dailyTotals($vendIds, $from, $to) as $row) {
+            $t = $totals[$row['slot_id']] ??= ['vend_id' => $row['vend_id'], 'units' => 0, 'revenue' => 0, 'discount' => 0];
+            $t['units'] += $row['units'];
+            $t['revenue'] += $row['revenue'];
+            $t['discount'] += $row['discount'];
+            $totals[$row['slot_id']] = $t;
+        }
+
+        return $totals;
+    }
+
+    /**
+     * Happy Hour sales on these machines in [$from, $to], one row per (slot, sale date) — two grouped
+     * queries, whatever the range. Read by slotTotals() and the campaign figures and graph
+     * (HappyHourCampaignStats, Brian 2026-10-16). Same rules as results().
+     *
+     * @param  iterable<int>  $vendIds
+     * @return list<array{slot_id: int, campaign_id: int, vend_id: int, day: string, units: int, revenue: int, discount: int}>
+     */
+    public function dailyTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
     {
         $vendIds = collect($vendIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
         if ($vendIds === []) {
@@ -155,8 +177,9 @@ final class HappyHourSales
             ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->where('t.is_refunded', 0)
             ->where(fn ($q) => $q->whereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
-            ->groupBy('t.happy_hour_slot_id', 's.vend_id', 's.original_price')
-            ->selectRaw('t.happy_hour_slot_id AS slot_id, s.vend_id, s.original_price,
+            ->groupBy('t.happy_hour_slot_id', 's.happy_hour_campaign_id', 's.vend_id', 's.original_price', DB::raw('DATE(t.transaction_datetime)'))
+            ->selectRaw('t.happy_hour_slot_id AS slot_id, s.happy_hour_campaign_id AS campaign_id, s.vend_id, s.original_price,
+                DATE(t.transaction_datetime) AS day,
                 SUM(GREATEST(t.qty, 1)) AS units, SUM(t.amount) AS revenue,
                 SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(NULLIF(vc.amount, 0), s.original_price) - t.amount, 0)) AS channel_discount')
             ->get();
@@ -172,30 +195,29 @@ final class HappyHourSales
             ->whereNotNull('i.happy_hour_slot_id')
             ->where(fn ($q) => $q->whereNull('i.vend_channel_error_code')->orWhereIn('i.vend_channel_error_code', DispenseVerdict::SALE_CODES))
             ->where(fn ($q) => $q->whereNull('i.is_refunded')->orWhere('i.is_refunded', 0))
-            ->groupBy('i.happy_hour_slot_id', 's.vend_id', 's.original_price')
-            ->selectRaw('i.happy_hour_slot_id AS slot_id, s.vend_id, s.original_price,
+            ->groupBy('i.happy_hour_slot_id', 's.happy_hour_campaign_id', 's.vend_id', 's.original_price', DB::raw('DATE(t.transaction_datetime)'))
+            ->selectRaw('i.happy_hour_slot_id AS slot_id, s.happy_hour_campaign_id AS campaign_id, s.vend_id, s.original_price,
+                DATE(t.transaction_datetime) AS day,
                 COUNT(*) AS units, SUM(i.unit_price_amount) AS revenue,
                 SUM(GREATEST(COALESCE(NULLIF(vc.amount, 0), s.original_price) - i.unit_price_amount, 0)) AS channel_discount')
             ->get();
 
-        $totals = [];
-        foreach ($single->concat($multi) as $row) {
-            $t = $totals[$row->slot_id] ??= ['vend_id' => (int) $row->vend_id, 'original' => (int) $row->original_price,
-                'units' => 0, 'revenue' => 0, 'channel_discount' => 0];
-            $t['units'] += (int) $row->units;
-            $t['revenue'] += (int) $row->revenue;
-            $t['channel_discount'] += (int) $row->channel_discount;
-            $totals[$row->slot_id] = $t;
-        }
+        return $single->concat($multi)->map(function ($row) use ($perChannel) {
+            $units = (int) $row->units;
+            $revenue = (int) $row->revenue;
 
-        return collect($totals)->map(fn (array $t) => [
-            'vend_id' => $t['vend_id'],
-            'units' => $t['units'],
-            'revenue' => $t['revenue'],
-            'discount' => isset($perChannel[$t['vend_id']])
-                ? $t['channel_discount']
-                : max(0, $t['units'] * $t['original'] - $t['revenue']),
-        ])->all();
+            return [
+                'slot_id' => (int) $row->slot_id,
+                'campaign_id' => (int) $row->campaign_id,
+                'vend_id' => (int) $row->vend_id,
+                'day' => (string) $row->day,
+                'units' => $units,
+                'revenue' => $revenue,
+                'discount' => isset($perChannel[(int) $row->vend_id])
+                    ? (int) $row->channel_discount
+                    : max(0, $units * (int) $row->original_price - $revenue),
+            ];
+        })->values()->all();
     }
 
     /**

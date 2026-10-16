@@ -889,6 +889,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:read happy-hour-campaigns');
         Route::get('/{id}/preview', [HappyHourCampaignController::class, 'preview'])
             ->middleware('can:read happy-hour-campaigns');
+        Route::get('/{id}/stats', [HappyHourCampaignController::class, 'stats'])
+            ->middleware('can:read happy-hour-campaigns');
         Route::post('/', [HappyHourCampaignController::class, 'store'])
             ->middleware('can:create happy-hour-campaigns');
         Route::post('/{id}', [HappyHourCampaignController::class, 'update'])
