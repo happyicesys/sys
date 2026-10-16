@@ -436,6 +436,53 @@ class HappyHourCampaignTest extends TestCase
         $this->assertSame([4, 960, 640], [$slot->fresh()->units_sold, $slot->fresh()->revenue_cents, $slot->fresh()->discount_cents]);
     }
 
+    public function test_the_status_box_shows_units_sold_in_the_live_slot_and_the_machines_last_24_hours(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [9, 10, 3.00, 9]]);
+        $campaign = $this->campaign(['sku_count' => 1]);
+        $a = $this->products['A']->id;
+        $b = $this->products['B']->id;
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $first = HappyHourSlot::where('position', 0)->firstOrFail();
+
+        // The 14:00 slot sells two promo units: a single sale and a basket's promo line.
+        $this->sale($a, 240, '2026-10-09 14:10:00');
+        $this->basket([[$a, 240], [$b, 300]], '2026-10-09 14:20:00');
+
+        foreach (['14:58:00', '15:00:00'] as $t) {
+            Carbon::setTestNow("2026-10-09 {$t}");
+            $this->planner()->run(now());
+        }
+        $second = HappyHourSlot::where('position', 1)->firstOrFail();
+        $this->assertSame($a, $second->product_id);
+        $this->sale($a, 240, '2026-10-09 15:10:00');
+
+        // Neither counts: a refunded promo sale, and a promo sale older than 24 h.
+        $refunded = $this->sale($a, 240, '2026-10-09 15:12:00');
+        DB::table('vend_transactions')->where('id', $refunded->id)->update(['is_refunded' => 1]);
+        $old = $this->sale($a, 240, '2026-10-09 14:30:00');
+        DB::table('vend_transactions')->where('id', $old->id)->update(['transaction_datetime' => '2026-10-08 14:30:00']);
+
+        Carbon::setTestNow('2026-10-09 15:20:00');
+        $user = User::factory()->create(['operator_id' => 1]);
+        $user->givePermissionTo(Permission::findOrCreate('read happy-hour-campaigns', 'web'));
+
+        // "HH: n" is the slot running now only (1, not 3); the machine's last 24 h covers every slot:
+        // 3 units at $1.60 off each.
+        $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(fn ($page) => $page->where('campaigns.0.id', $campaign->id)
+                ->where('campaigns.0.live.0.id', $second->id)
+                ->where('campaigns.0.live.0.sold', 1)
+                ->where('campaigns.0.vends.0.l24h_units', 3)
+                ->where('campaigns.0.vends.0.l24h_discount', 480));
+
+        $totals = app(HappyHourSales::class)->slotTotals([$this->vend->id], now()->subDay(), now());
+        $this->assertSame(2, $totals[$first->id]['units']);
+        $this->assertSame(app(HappyHourSales::class)->results($first)['discount'], $totals[$first->id]['discount'],
+            'the grouped totals agree with a closed slot\'s results()');
+    }
+
     public function test_the_trade_ingest_tags_a_freezer_sale_made_at_the_promo_price(): void
     {
         PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);

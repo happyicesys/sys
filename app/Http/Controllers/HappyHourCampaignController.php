@@ -13,6 +13,7 @@ use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourRanker;
+use App\Services\HappyHour\HappyHourSales;
 use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\UserLogger;
 use Illuminate\Http\JsonResponse;
@@ -63,6 +64,9 @@ class HappyHourCampaignController extends Controller
             ->orderBy('vend_id')
             ->get();
         $stock = $this->liveStock($slots);
+        // Units sold so far in each live slot ("HH: n") and each live machine's last 24 h (Brian, 2026-10-15).
+        $grace = (int) config('happy_hour.sale_grace_seconds', 300);
+        $sold = app(HappyHourSales::class)->slotTotals($slots->pluck('vend_id'), $now->copy()->subDay(), $now->copy()->addSeconds($grace));
         $slots = $slots->groupBy('happy_hour_campaign_id');
 
         $machines = $this->machineOptions($now);
@@ -71,7 +75,7 @@ class HappyHourCampaignController extends Controller
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
         return Inertia::render('HappyHourCampaign/Index', [
-            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock))->values(),
+            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold))->values(),
             'machines' => $machines,
             'products' => $this->productOptions(collect($machines)->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
             'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
@@ -274,10 +278,16 @@ class HappyHourCampaignController extends Controller
      */
     /**
      * @param  array<string, array{qty: int, capacity: ?int}>  $stock  "vend:product" => on hand now (liveStock)
+     * @param  array<int, array{vend_id: int, units: int, revenue: int, discount: int}>  $sold  HappyHourSales::slotTotals, last 24 h
      */
-    private function campaignPayload(HappyHourCampaign $c, $liveSlots, array $paused = [], array $stock = []): array
+    private function campaignPayload(HappyHourCampaign $c, $liveSlots, array $paused = [], array $stock = [], array $sold = []): array
     {
         $now = Carbon::now();
+        // A machine's last 24 h = every slot it ran, whichever campaign (one machine, one campaign at a time).
+        $last24h = collect($sold)->groupBy('vend_id')->map(fn ($rows) => [
+            'units' => (int) $rows->sum('units'),
+            'discount' => (int) $rows->sum('discount'),
+        ]);
 
         return [
             'id' => $c->id,
@@ -321,6 +331,9 @@ class HappyHourCampaignController extends Controller
                 'unsupported_reason' => HappyHourEligibility::reason($v),
                 // For the ! icon: this machine runs a UI Setting, so Happy Hour is ignored here (HappyHourPause).
                 'paused' => $paused[$v->id]['message'] ?? null,
+                // Happy Hour units sold and discount given (cents) in the last 24 h, all slots and SKUs.
+                'l24h_units' => $last24h[$v->id]['units'] ?? 0,
+                'l24h_discount' => $last24h[$v->id]['discount'] ?? 0,
             ])->values(),
             'status' => $this->status($c, $now),
             'live' => $liveSlots->map(fn (HappyHourSlot $s) => [
@@ -335,6 +348,8 @@ class HappyHourCampaignController extends Controller
                 // On hand now / capacity, summed over the SKU's active channels — what the ranker reads.
                 'qty' => $stock["{$s->vend_id}:{$s->product_id}"]['qty'] ?? null,
                 'capacity' => $stock["{$s->vend_id}:{$s->product_id}"]['capacity'] ?? null,
+                // Units sold in THIS slot so far — not a running total; the next slot starts at 0.
+                'sold' => $sold[$s->id]['units'] ?? 0,
             ])->values(),
         ];
     }

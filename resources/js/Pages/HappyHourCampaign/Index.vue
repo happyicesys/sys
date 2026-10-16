@@ -46,11 +46,13 @@
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
                   <TableHead>Campaign</TableHead>
-                  <!-- Status: the live boxes sort by Machine ID or Site Name (Brian, 2026-10-15); a second click flips the order. -->
+                  <!-- Status: the live boxes sort by Machine ID, Site Name or the machine's last 24 h of Happy Hour
+                       (Brian, 2026-10-15; L24h qty, most first, by default); a second click flips the order. -->
                   <TableHead>
                     <div>Status</div>
-                    <div class="mt-1 flex justify-center gap-3 font-normal">
-                      <button v-for="k in liveSortKeys" :key="k.id" type="button" class="inline-flex items-center text-blue-600 hover:text-blue-800" @click="sortLive(k.id)">
+                    <div v-for="(row, r) in liveSortRows" :key="r" class="mt-1 flex justify-center gap-3 font-normal">
+                      <button v-for="k in row" :key="k.id" type="button" class="inline-flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                        :title="k.title" @click="sortLive(k.id)">
                         {{ k.name }}
                         <ChevronUpIcon v-if="liveSort.key === k.id && liveSort.asc" class="w-3.5 h-3.5" />
                         <ChevronDownIcon v-else-if="liveSort.key === k.id" class="w-3.5 h-3.5" />
@@ -116,7 +118,12 @@
                               : `This machine sells at the Site's ${g.rp} price.`"
                           >{{ g.rp }}</span>
                         </span>
-                        <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
+                        <span class="shrink-0 flex items-baseline gap-2">
+                          <!-- This machine's last 24 h of Happy Hour, all slots and SKUs: discount given · units sold. -->
+                          <span class="text-[11px] font-semibold text-emerald-700 whitespace-nowrap"
+                            title="Last 24 h on this machine, every Happy Hour slot: discount given · units sold">L24h {{ money(g.l24hDiscount) }} · {{ g.l24hUnits }}</span>
+                          <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
+                        </span>
                       </div>
                       <div v-for="s in g.slots" :key="s.id" class="flex items-baseline gap-2 text-xs text-gray-900">
                         <!-- Only the name shortens (… with the full name on hover); qty/capacity and the prices
@@ -124,6 +131,9 @@
                         <span class="min-w-0 flex-1 flex items-baseline gap-1">
                           <span class="font-semibold truncate" :title="s.product">{{ s.product }}</span>
                           <span v-if="s.qty !== null" class="shrink-0 text-gray-600" title="On hand now / capacity">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
+                          <!-- Sold in THIS slot so far — not a running total; the next slot starts at 0. -->
+                          <span class="shrink-0 whitespace-nowrap" :class="s.sold ? 'font-bold text-emerald-700' : 'text-gray-400'"
+                            title="Sold at the Happy Hour price in this slot so far">HH: {{ s.sold ?? 0 }}</span>
                         </span>
                         <span class="shrink-0 whitespace-nowrap">
                           <span class="text-gray-400 line-through mr-1">{{ money(s.original_price) }}</span>
@@ -589,7 +599,7 @@ function liveByMachine(c) {
   for (const s of c.live ?? []) {
     if (!groups.has(s.vend_id)) {
       const vend = c.vends.find(v => v.id === s.vend_id)
-      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, customerId: vend?.customer_id ?? null, rp: vend?.rp ?? null, boardPrice: vend?.board_price ?? false, from: s.starts_at, to: s.ends_at, slots: [] })
+      groups.set(s.vend_id, { vendId: s.vend_id, code: vendCode(c, s.vend_id), site: vend?.site ?? null, customerId: vend?.customer_id ?? null, rp: vend?.rp ?? null, boardPrice: vend?.board_price ?? false, l24hUnits: vend?.l24h_units ?? 0, l24hDiscount: vend?.l24h_discount ?? 0, from: s.starts_at, to: s.ends_at, slots: [] })
     }
     const g = groups.get(s.vend_id)
     g.slots.push(s)
@@ -600,14 +610,24 @@ function liveByMachine(c) {
   return [...groups.values()].sort((a, b) => order.indexOf(a.vendId) - order.indexOf(b.vendId))
 }
 
-// Sort of the live boxes: none = the campaign's machine order; Machine ID numeric (2046 < 2301), Site Name A–Z.
-// A box with no Site sorts last either way.
-const liveSortKeys = [{ id: 'code', name: 'ID' }, { id: 'site', name: 'Site Name' }]
-const liveSort = ref({ key: null, asc: true })
+// Sort of the live boxes. Machine ID numeric (2046 < 2301) and Site Name A–Z start ascending (a box with no Site
+// sorts last either way); the last-24 h figures start with the most first. Default: L24h qty, most first
+// (Brian, 2026-10-15: "we know who sold the most in 24 hours"). Ties fall back to Machine ID.
+const liveSortRows = [
+  [{ id: 'code', name: 'ID' }, { id: 'site', name: 'Site Name' }],
+  [
+    { id: 'l24hDiscount', name: 'L24h $disc', title: 'Happy Hour discount given on the machine in the last 24 h' },
+    { id: 'l24hUnits', name: 'L24h qty', title: 'Happy Hour units sold on the machine in the last 24 h' },
+  ],
+]
+const numericSortKeys = ['l24hDiscount', 'l24hUnits']
+const liveSort = ref({ key: 'l24hUnits', asc: false })
 
 function sortLive(key) {
-  liveSort.value = { key, asc: liveSort.value.key === key ? !liveSort.value.asc : true }
+  liveSort.value = { key, asc: liveSort.value.key === key ? !liveSort.value.asc : !numericSortKeys.includes(key) }
 }
+
+const byCode = (a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
 
 const liveGroups = computed(() => {
   const { key, asc } = liveSort.value
@@ -616,6 +636,9 @@ const liveGroups = computed(() => {
     const groups = liveByMachine(c)
     if (key) {
       groups.sort((a, b) => {
+        if (numericSortKeys.includes(key)) {
+          return ((asc ? 1 : -1) * ((a[key] ?? 0) - (b[key] ?? 0))) || byCode(a, b)
+        }
         const x = a[key] == null ? '' : String(a[key])
         const y = b[key] == null ? '' : String(b[key])
         if (!x || !y) return (x ? 0 : 1) - (y ? 0 : 1)

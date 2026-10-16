@@ -122,6 +122,82 @@ final class HappyHourSales
     }
 
     /**
+     * What each slot sold on these machines, for sales made in [$from, $to] — the same rules as
+     * results() (settled, not refunded, a sale code; a single sale = its header, a basket = its
+     * items; a board-price vending machine's discount per channel), in two grouped queries instead
+     * of two per slot. The campaign page reads it for "HH: n" (the slot running now) and each
+     * machine's last 24 h (Brian, 2026-10-15). Units are live: a closed slot's `units_sold` is not used.
+     *
+     * @param  iterable<int>  $vendIds
+     * @return array<int, array{vend_id: int, units: int, revenue: int, discount: int}> slot id => totals
+     */
+    public function slotTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $vendIds = collect($vendIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if ($vendIds === []) {
+            return [];
+        }
+        // A machine that sells at its own board price: discount = each line's channel price less what it took.
+        $perChannel = array_flip(DB::table('vends')->whereIn('id', $vendIds)
+            ->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)
+            ->where(fn ($q) => $q->whereNull('is_using_server_price')->orWhere('is_using_server_price', 0))
+            ->pluck('id')->all());
+
+        $single = DB::table('vend_transactions as t')
+            ->join('happy_hour_slots as s', 's.id', '=', 't.happy_hour_slot_id')
+            ->leftJoin('vend_channel_errors as e', 'e.id', '=', 't.vend_channel_error_id')
+            ->leftJoin('vend_channels as vc', fn ($j) => $j->on('vc.vend_id', '=', 't.vend_id')->on('vc.code', '=', 't.vend_channel_code'))
+            ->whereIn('t.vend_id', $vendIds)
+            ->whereBetween('t.transaction_datetime', [$from, $to])
+            ->whereNotNull('t.happy_hour_slot_id')
+            ->where('t.is_multiple', 0)
+            ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+            ->where('t.is_refunded', 0)
+            ->where(fn ($q) => $q->whereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
+            ->groupBy('t.happy_hour_slot_id', 's.vend_id', 's.original_price')
+            ->selectRaw('t.happy_hour_slot_id AS slot_id, s.vend_id, s.original_price,
+                SUM(GREATEST(t.qty, 1)) AS units, SUM(t.amount) AS revenue,
+                SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(NULLIF(vc.amount, 0), s.original_price) - t.amount, 0)) AS channel_discount')
+            ->get();
+
+        $multi = DB::table('vend_transaction_items as i')
+            ->join('vend_transactions as t', 't.id', '=', 'i.vend_transaction_id')
+            ->join('happy_hour_slots as s', 's.id', '=', 'i.happy_hour_slot_id')
+            ->leftJoin('vend_channels as vc', fn ($j) => $j->on('vc.vend_id', '=', 't.vend_id')->on('vc.code', '=', 'i.vend_channel_code'))
+            ->whereIn('t.vend_id', $vendIds)
+            ->whereBetween('t.transaction_datetime', [$from, $to])
+            ->where('t.is_multiple', 1)
+            ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+            ->whereNotNull('i.happy_hour_slot_id')
+            ->where(fn ($q) => $q->whereNull('i.vend_channel_error_code')->orWhereIn('i.vend_channel_error_code', DispenseVerdict::SALE_CODES))
+            ->where(fn ($q) => $q->whereNull('i.is_refunded')->orWhere('i.is_refunded', 0))
+            ->groupBy('i.happy_hour_slot_id', 's.vend_id', 's.original_price')
+            ->selectRaw('i.happy_hour_slot_id AS slot_id, s.vend_id, s.original_price,
+                COUNT(*) AS units, SUM(i.unit_price_amount) AS revenue,
+                SUM(GREATEST(COALESCE(NULLIF(vc.amount, 0), s.original_price) - i.unit_price_amount, 0)) AS channel_discount')
+            ->get();
+
+        $totals = [];
+        foreach ($single->concat($multi) as $row) {
+            $t = $totals[$row->slot_id] ??= ['vend_id' => (int) $row->vend_id, 'original' => (int) $row->original_price,
+                'units' => 0, 'revenue' => 0, 'channel_discount' => 0];
+            $t['units'] += (int) $row->units;
+            $t['revenue'] += (int) $row->revenue;
+            $t['channel_discount'] += (int) $row->channel_discount;
+            $totals[$row->slot_id] = $t;
+        }
+
+        return collect($totals)->map(fn (array $t) => [
+            'vend_id' => $t['vend_id'],
+            'units' => $t['units'],
+            'revenue' => $t['revenue'],
+            'discount' => isset($perChannel[$t['vend_id']])
+                ? $t['channel_discount']
+                : max(0, $t['units'] * $t['original'] - $t['revenue']),
+        ])->all();
+    }
+
+    /**
      * The "Happy Hour" badge for each slot id, for one page of Sales Transactions.
      *
      * @param  iterable<int|string|null>  $slotIds
