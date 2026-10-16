@@ -54,6 +54,12 @@ Route::prefix('v1')->group(function () {
         ->where(['sessionRef' => 'SF-[0-9]+-[0-9]+-[0-9]+', 'camera' => '[0-9]'])
         ->middleware(['throttle:device-card', 'device.signed']);
 
+    // Device -> mark1: a smart freezer's PayNow order paid but never fulfilled (door never opened) —
+    // FreezerUnfulfilledRefund checks the claim and refunds through Omise. Signed by the machine.
+    Route::post('/vends/{code}/orders/{orderId}/unfulfilled', [\App\Http\Controllers\Api\V1\FreezerOrderController::class, 'unfulfilled'])
+        ->where(['orderId' => '[A-Za-z0-9_-]{1,64}'])
+        ->middleware(['throttle:device-card', 'device.signed']);
+
     // Device -> mark1 card rail for a machine on a remote (cloud) terminal — the smart
     // freezer's Payrallel rail. Moves money, so every call is signed by the machine.
     Route::prefix('/vends/{code}/card')

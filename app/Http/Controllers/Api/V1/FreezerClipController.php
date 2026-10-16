@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\VerifyDeviceSignature;
 use App\Models\Vend;
+use App\Services\SmartFreezer\FreezerCameraGuard;
 use App\Services\SmartFreezer\FreezerClipStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class FreezerClipController extends Controller
 {
     /**
      * What the freezer should record, read at boot and every 30 min (and cached on the device):
-     * `{"camera": 5|null, "segment_ms": 10000, "max_ms": 300000}`. `camera` null = do not record —
+     * `{"camera": 5|null, "segment_ms": 10000, "max_ms": 300000, "guard_cameras": [3, 4]}`. `camera` null = do not record —
      * the off switch that needs no OTA (config smart_freezer.clips.camera / .vends).
      */
     public function settings(Request $request): JsonResponse
@@ -53,6 +54,8 @@ class FreezerClipController extends Controller
             'camera' => $on ? $camera : null,
             'segment_ms' => (int) config('smart_freezer.clips.segment_ms'),
             'max_ms' => (int) config('smart_freezer.clips.max_ms'),
+            // The cameras the freezer must see online before it sells (freezer app 34+); [] = no check.
+            'guard_cameras' => FreezerCameraGuard::camerasFor($vend),
         ]);
     }
 

@@ -118,7 +118,7 @@ class FreezerClipTest extends TestCase
             ]));
         };
 
-        $get()->assertOk()->assertExactJson(['camera' => 5, 'segment_ms' => 10000, 'max_ms' => 300000]);
+        $get()->assertOk()->assertExactJson(['camera' => 5, 'segment_ms' => 10000, 'max_ms' => 300000, 'guard_cameras' => []]);
         $get('WRONGKEY00000000')->assertStatus(401);
 
         config(['smart_freezer.clips.vends' => ['2009']]);

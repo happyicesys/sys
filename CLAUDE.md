@@ -1199,6 +1199,23 @@ boundary → a 30-min signed Spaces link). Remote control op `clip` {cameraId, s
 refused mid-sale) records a camera check under `SF-<code>-<epoch>-0`; the panel timeline links it.
 Regression coverage: `tests/Feature/FreezerClipTest.php`, `tests/Feature/FreezerRemoteControlTest.php`.
 
+**Camera guard + unfulfilled PayNow refund (Brian, 2026-10-16; freezer app 34+).** Zijia's AI judges a
+session from cameras 3 and 4, so a freezer listed in `FREEZER_CAMERA_GUARD_VENDS` (`smart_freezer.camera_guard`,
+empty = off; "50001" uses `FREEZER_CAMERA_GUARD_CAMERAS` default 3,4; "50002:3+4" its own) gets
+`guard_cameras` on the same `clips/settings` answer (`FreezerCameraGuard`) and asks the host whether they are
+online at checkout and again after payment, before the door unlocks. Down (after one 2 s re-look) stops the
+sale; a host that does not answer lets it go ahead. Before payment: "technical problem" page, nothing
+charged. After payment: a card hold (T05 / NETS) is voided by the freezer's own abort; a PayNow payment is
+reported on signed `POST /api/v1/vends/{code}/orders/{orderId}/unfulfilled` {session_ref, amount_cents,
+reason} and `FreezerUnfulfilledRefund` refunds it in full via `RefundOmiseJob` (source
+`omise_door_not_opened`) — only for reasons that mean the door was never commanded to open (`cameras_down`,
+`unlock_authorization_failed`; never `door_open_failed`), only an APPROVE Omise log of this machine with the
+same cents, approved within 6 h, with no TRADE and no Zijia video for the session; once per order (cache).
+Without this a paid-but-never-opened freezer order was booked as a code-99 sale and never refunded (the freezer
+CONFIRMs before unlocking, so the no-dispense refund cannot fire). 404/409/422 = refused for good, logged
+"freezer unfulfilled refund refused", the order waits for a person. Coverage:
+`tests/Feature/FreezerUnfulfilledRefundTest.php`.
+
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
 machine, Zijia's order no + our SF ref, links to the original videos, the AI's answer

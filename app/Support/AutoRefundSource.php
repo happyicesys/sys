@@ -23,6 +23,14 @@ final class AutoRefundSource
     /** Omise: the machine's TRADE reported a single-item dispense failure. */
     public const OMISE_TRADE_FAIL = 'omise_trade_fail';
 
+    /**
+     * Omise: a smart freezer took the payment but never opened its door — an AI camera was down
+     * after payment, or the unlock was never authorised (Brian, 2026-10-16). The freezer reports
+     * it on POST /api/v1/vends/{code}/orders/{orderId}/unfulfilled (FreezerUnfulfilledRefund),
+     * mark1 checks no door session or sale exists, then refunds in full.
+     */
+    public const OMISE_DOOR_NOT_OPENED = 'omise_door_not_opened';
+
     /** Omise: `php artisan refund:omise {orderId}` run by an operator. */
     public const OMISE_MANUAL = 'omise_manual';
 
@@ -119,7 +127,7 @@ final class AutoRefundSource
     public static function trigger(?string $source): ?string
     {
         return match ($source) {
-            self::OMISE_NO_DISPENSE, self::OMISE_STALE_APPROVE, self::OMISE_TRADE_FAIL => self::TRIGGER_SERVER,
+            self::OMISE_NO_DISPENSE, self::OMISE_STALE_APPROVE, self::OMISE_TRADE_FAIL, self::OMISE_DOOR_NOT_OPENED => self::TRIGGER_SERVER,
             self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL, self::CITYBOX_REFUNDED => self::TRIGGER_ADMIN,
             self::OMISE_DISPUTE => self::TRIGGER_CUSTOMER,
             default => null,
@@ -131,6 +139,7 @@ final class AutoRefundSource
         self::OMISE_NO_DISPENSE => 'Omise: the machine never confirmed a dispense within 10 minutes',
         self::OMISE_STALE_APPROVE => 'Omise: the customer paid after the QR code had expired',
         self::OMISE_TRADE_FAIL => 'Omise: the machine reported a dispense failure on a single purchase',
+        self::OMISE_DOOR_NOT_OPENED => 'Omise: the freezer could not open its door after payment (camera or unlock fault)',
         self::OMISE_MANUAL => 'Omise: refunded by staff from mark1',
         self::OMISE_EXTERNAL => 'Omise: refunded at the gateway by an admin (dashboard), not from mark1',
         self::OMISE_DISPUTE => 'Omise: refunded after a dispute or chargeback the customer raised',

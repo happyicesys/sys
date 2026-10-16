@@ -65,6 +65,32 @@ return [
         'max_ms' => (int) env('FREEZER_CLIP_MAX_MS', 300000),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Camera guard (Brian, 2026-10-16)
+    |--------------------------------------------------------------------------
+    | Zijia's AI judges a door session from cameras 3 and 4. A freezer on this list asks the host whether
+    | they are online when the customer picks a payment method and again after payment, before the door
+    | unlocks; a camera down stops the sale (after payment: a card hold is voided, PayNow is refunded by
+    | mark1 — see unfulfilled_refund). Served to the freezer as `guard_cameras` on clips/settings, read
+    | every 30 min. FREEZER_CAMERA_GUARD_VENDS: empty = off everywhere; "50001" uses the default cameras,
+    | "50002:3" or "50002:3+4" its own.
+    */
+    'camera_guard' => [
+        'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('FREEZER_CAMERA_GUARD_CAMERAS', '3,4'))))),
+        'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_CAMERA_GUARD_VENDS', ''))))),
+    ],
+
+    /*
+    | A freezer that took a PayNow payment but never opened its door reports it here
+    | (POST /api/v1/vends/{code}/orders/{orderId}/unfulfilled). Only these reasons — each means the door
+    | was never commanded to open — and only within max_age_minutes of the approval are refunded.
+    */
+    'unfulfilled_refund' => [
+        'reasons' => ['cameras_down', 'unlock_authorization_failed'],
+        'max_age_minutes' => (int) env('FREEZER_UNFULFILLED_REFUND_MAX_AGE_MINUTES', 360),
+    ],
+
     'zijia' => [
         'video_webhook_token' => env('ZIJIA_VIDEO_WEBHOOK_TOKEN'),
         // Product approval callback (算法服务接口文档 §7) is unsigned plain JSON: once set, its URL
