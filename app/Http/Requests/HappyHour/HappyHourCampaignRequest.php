@@ -45,6 +45,11 @@ class HappyHourCampaignRequest extends FormRequest
             'allow_below_cost' => ['required', 'boolean'],
             // Absent = keep the stored value (on by default).
             'skip_unavailable' => ['sometimes', 'boolean'],
+            // Bestseller hold: for X hours after a Stock In, the top Y sellers are not discounted. 0 = off.
+            // Absent (an old tab) = keep the stored value.
+            'bestseller_hold_hours' => ['sometimes', 'integer', 'min:0', 'max:168'],
+            'bestseller_hold_count' => ['sometimes', 'integer', 'min:0', 'max:30'],
+            'bestseller_lookback_days' => ['sometimes', 'integer', Rule::in(HappyHourCampaign::BESTSELLER_LOOKBACK_DAYS)],
             'excluded_product_ids' => ['nullable', 'array'],
             'excluded_product_ids.*' => ['integer', 'exists:products,id'],
             'vend_ids' => ['nullable', 'array'],

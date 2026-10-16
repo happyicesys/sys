@@ -1035,7 +1035,7 @@ Transactions badge read every campaign (`withoutGlobalScope`). Regression covera
 What a campaign is:
 - A scheduled percentage discount on a smart freezer's slowest movers, one SKU per slot.
 - Settings: days, hours, active dates, duration per SKU, how many SKUs take turns, discount %, stock floor %,
-  minimum units, price rounding, exclusions, allow below cost. Sales look back (days) only feeds days of cover,
+  minimum units, price rounding, exclusions, allow below cost, bestseller hold after Stock In. Sales look back (days) only feeds days of cover,
   so the form shows it only for that rule.
 - The page's Status column shows the slot running now; clicking a machine chip opens that machine's lineup
   ranked at this moment (`preview?vend_id=`). There is no per-day slot list any more (Brian, 2026-10-11).
@@ -1069,6 +1069,18 @@ Exclusion rules:
 - A SKU whose warehouse **Available?** tick is off (`products.is_available`, Product Movement) is excluded while the
   campaign's `skip_unavailable` box is ticked — on by default, existing campaigns included (Brian, 2026-10-16). Like
   every exclusion it applies when a slot picks or swaps its SKU, so a SKU made unavailable mid-slot keeps that slot.
+- **Bestseller hold** (Brian, 2026-10-16: "after stock in within X hours, exclude last 7 days top Y bestseller SKU").
+  A Stock In fills every SKU, so balance % handed the first slots after a visit to the fast sellers. For
+  `bestseller_hold_hours` (X) after the machine's last Stock In, its top `bestseller_hold_count` (Y) SKUs by units
+  sold over `bestseller_lookback_days` are left out (`HappyHourRanker::bestsellerHold`); then they rank like any SKU.
+  Either number 0 = off (the default, so existing campaigns are unchanged). **Stock In** = an `ops_job_items` row at
+  that machine with `completed_at` set (Undo Stock In clears it, so the hold lifts with it), not cancelled, and not
+  a goods-out action (`OpsJobItem::AUTO_PICK_STOCK_ACTIONS`: return / on-site adjustment / melted stock). Sales =
+  `vend_product_records` up to yesterday, every sale (Happy Hour ones too, Brian), only SKUs the machine holds now
+  and that sold ≥ 1; a tie at the cut goes to the higher on-hand qty, then product id. The window accepts 7 or 14
+  days (`HappyHourCampaign::BESTSELLER_LOOKBACK_DAYS`); the page offers only 7 for now (Brian: "for now we use 7"),
+  so opening 14 is a form field, not a migration. A slot picked before the driver arrives is swapped as it starts;
+  a live slot keeps its SKU, like every exclusion.
 
 Machine groups (Brian, 2026-10-14): "All VM - Big Board" / "All Smart Freezers" (`machine_groups`) are LIVE —
 every ACTIVE machine of that kind of the campaign OWNER's operator GROUP that can run Happy Hour now

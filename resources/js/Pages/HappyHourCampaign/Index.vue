@@ -183,6 +183,10 @@
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <span class="whitespace-nowrap">stock ≤ {{ c.min_balance_pct }}%</span>
                     <div class="whitespace-nowrap">or &lt; {{ c.min_qty }} units</div>
+                    <div v-if="c.bestseller_hold_hours > 0 && c.bestseller_hold_count > 0" class="text-xs text-gray-500 whitespace-nowrap"
+                      v-tooltip="`For ${c.bestseller_hold_hours} h after a Stock In, the machine's top ${c.bestseller_hold_count} sellers of the last ${c.bestseller_lookback_days} days are not discounted`">
+                      top {{ c.bestseller_hold_count }} sellers {{ c.bestseller_hold_hours }} h after Stock In
+                    </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <!-- Live groups first: their members join and leave by themselves. -->
@@ -337,6 +341,21 @@
                 <option :value="50">50¢</option>
                 <option :value="100">$1</option>
               </select>
+            </div>
+
+            <!-- Bestseller hold (Brian, 2026-10-16): a Stock In fills every SKU, so balance % would discount the
+                 fast sellers first. Either number 0 = off. Sales are counted over the last 7 days. -->
+            <div class="md:col-span-3">
+              <label class="block text-sm font-medium text-gray-700">After Stock In, hold top sellers for (hours)</label>
+              <input v-model.number="form.bestseller_hold_hours" type="number" min="0" max="168" :class="inputClass" />
+              <p v-if="form.errors.bestseller_hold_hours" class="text-red-600 text-xs mt-1">{{ form.errors.bestseller_hold_hours }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">0 = off</p>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-sm font-medium text-gray-700">How many top sellers to hold</label>
+              <input v-model.number="form.bestseller_hold_count" type="number" min="0" max="30" :class="inputClass" />
+              <p v-if="form.errors.bestseller_hold_count" class="text-red-600 text-xs mt-1">{{ form.errors.bestseller_hold_count }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">By units sold on that machine in the last {{ form.bestseller_lookback_days }} days</p>
             </div>
 
             <div class="md:col-span-6">
@@ -547,6 +566,7 @@ const blank = () => ({
   window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4, skus_per_slot: 1,
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
   min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false, skip_unavailable: true,
+  bestseller_hold_hours: 0, bestseller_hold_count: 0, bestseller_lookback_days: 7,
   excluded_product_ids: [], vend_ids: [], machine_groups: [],
 })
 
@@ -662,7 +682,10 @@ const slotSummary = computed(() => {
   const turns = together > 1
     ? `${together} SKUs at a time from the top ${total} (ranks ${groupsLabel(total, together)} …)`
     : `the top ${total} SKU${total === 1 ? '' : 's'} take turns`
-  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; ${turns}, at ${form.discount_pct}% off.`
+  const hold = form.bestseller_hold_hours > 0 && form.bestseller_hold_count > 0
+    ? ` For ${form.bestseller_hold_hours} h after each Stock In, the machine's top ${form.bestseller_hold_count} seller${form.bestseller_hold_count === 1 ? '' : 's'} of the last ${form.bestseller_lookback_days} days ${form.bestseller_hold_count === 1 ? 'is' : 'are'} not discounted.`
+    : ''
+  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; ${turns}, at ${form.discount_pct}% off.${hold}`
 })
 
 // "1+2, 3+4, then 1+2 again" for 4 SKUs, 2 at a time (the first full loop).

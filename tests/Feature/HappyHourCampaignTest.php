@@ -6,6 +6,8 @@ use App\Jobs\NudgeFreezerMenu;
 use App\Models\Customer;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
+use App\Models\OpsJob;
+use App\Models\OpsJobItem;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductMapping;
@@ -185,6 +187,148 @@ class HappyHourCampaignTest extends TestCase
         $campaign->update(['skip_unavailable' => false]);
         $this->assertTrue(app(HappyHourRanker::class)->rank($campaign, $this->vend, now())[0]->isEligible());
         $this->assertSame($this->products['A']->id, app(HappyHourRanker::class)->rank($campaign, $this->vend, now())[0]->productId);
+    }
+
+    /**
+     * The bestseller hold (Brian, 2026-10-16). Balance %: A, B and C are full after the visit, D 60%.
+     * Sold in the last 7 days: A 30, B 20, C 5, D 0; D also sold 100 ten days ago.
+     */
+    private function restockedFreezer(): void
+    {
+        $this->freezer(['A' => [10, 10, 4.00, 30], 'B' => [10, 10, 3.00, 20], 'C' => [9, 10, 3.00, 5], 'D' => [6, 10, 2.00, 0]]);
+        DB::table('vend_product_records')->insert(
+            ['vend_id' => $this->vend->id, 'product_id' => $this->products['D']->id, 'date' => now()->subDays(10)->toDateString(), 'total_count' => 100],
+        );
+    }
+
+    /** A stop at this machine, stocked in at $at (null = not stocked in yet). */
+    private function stockIn(?string $at, array $overrides = []): OpsJobItem
+    {
+        $job = OpsJob::create(['code' => 900000 + OpsJob::count(), 'date' => now()->toDateString(), 'status' => 1, 'operator_id' => 1]);
+
+        return OpsJobItem::create(array_merge([
+            'ops_job_id' => $job->id, 'vend_id' => $this->vend->id, 'customer_id' => $this->vend->customer_id,
+            'status' => $at ? OpsJob::STATUS_DELIVERED : OpsJob::STATUS_PICKED, 'completed_at' => $at,
+        ], $overrides));
+    }
+
+    /** @return list<int> the eligible product ids, best first */
+    private function lineupIds(HappyHourCampaign $campaign): array
+    {
+        return array_map(fn ($c) => $c->productId, app(HappyHourRanker::class)->lineup($campaign->fresh(), $this->vend, now()));
+    }
+
+    public function test_the_top_sellers_are_held_for_x_hours_after_a_stock_in_then_rank_again(): void
+    {
+        $this->restockedFreezer();
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'bestseller_hold_hours' => 6, 'bestseller_hold_count' => 2]);
+        [$a, $b, $c, $d] = [$this->products['A']->id, $this->products['B']->id, $this->products['C']->id, $this->products['D']->id];
+
+        // No Stock In yet: nothing is held.
+        $this->assertSame([$a, $b, $c, $d], $this->lineupIds($campaign));
+
+        // Stocked in at 13:00: the top 2 of the last 7 days (A 30, B 20) are left out until 19:00.
+        $item = $this->stockIn('2026-10-09 13:00:00');
+        $ranked = app(HappyHourRanker::class)->rank($campaign, $this->vend, now());
+        $this->assertSame([$c, $d], $this->lineupIds($campaign));
+        $this->assertSame('Top 2 seller (#1, 30 sold in 7 days): not discounted until 09 Oct 19:00, 6 h after the Stock In',
+            collect($ranked)->firstWhere('productId', $a)->excludedReason);
+        $this->assertStringStartsWith('Top 2 seller (#2, 20 sold in 7 days)', collect($ranked)->firstWhere('productId', $b)->excludedReason);
+
+        // The planner picks from what is left.
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $this->assertSame($c, HappyHourSlot::where('position', 0)->value('product_id'));
+
+        // At 13:00 + 6 h the hold is over and they rank again.
+        Carbon::setTestNow('2026-10-09 19:00:00');
+        $this->assertSame([$a, $b, $c, $d], $this->lineupIds($campaign));
+
+        // Undo Stock In clears completed_at, so the hold lifts with it.
+        Carbon::setTestNow('2026-10-09 15:00:00');
+        $this->assertSame([$c, $d], $this->lineupIds($campaign));
+        $item->update(['completed_at' => null, 'status' => OpsJob::STATUS_PICKED]);
+        $this->assertSame([$a, $b, $c, $d], $this->lineupIds($campaign));
+    }
+
+    public function test_the_bestseller_hold_needs_a_real_stock_in_inside_the_window(): void
+    {
+        $this->restockedFreezer();
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'bestseller_hold_hours' => 6, 'bestseller_hold_count' => 1]);
+        [$a, $b, $c, $d] = [$this->products['A']->id, $this->products['B']->id, $this->products['C']->id, $this->products['D']->id];
+        $all = [$a, $b, $c, $d];
+
+        $this->stockIn(null);
+        $this->stockIn('2026-10-09 07:30:00'); // 6 h 25 min ago: the hold is over
+        $this->stockIn('2026-10-09 13:00:00', ['status' => OpsJob::STATUS_CANCELLED]);
+        $this->stockIn('2026-10-09 13:00:00', ['stock_action_type' => 'return_stock']); // takes goods out
+        $this->stockIn('2026-10-09 14:30:00'); // later than now (13:55)
+        $this->assertSame($all, $this->lineupIds($campaign), 'none of these is a Stock In within the last 6 h');
+
+        $this->stockIn('2026-10-09 12:00:00', ['stock_action_type' => 'implement_new_mapping']);
+        $this->assertSame([$b, $c, $d], $this->lineupIds($campaign), 'a mapping changeover is a Stock In');
+
+        // Off when either number is 0.
+        $campaign->update(['bestseller_hold_count' => 0]);
+        $this->assertSame($all, $this->lineupIds($campaign));
+        $campaign->update(['bestseller_hold_count' => 1, 'bestseller_hold_hours' => 0]);
+        $this->assertSame($all, $this->lineupIds($campaign));
+    }
+
+    public function test_the_bestseller_hold_counts_units_over_its_own_window_and_only_skus_that_sold(): void
+    {
+        $this->restockedFreezer();
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'bestseller_hold_hours' => 6, 'bestseller_hold_count' => 4]);
+        [$a, $b, $c, $d] = [$this->products['A']->id, $this->products['B']->id, $this->products['C']->id, $this->products['D']->id];
+        $this->stockIn('2026-10-09 13:00:00');
+
+        // Top 4 over 7 days: only A, B and C sold, so D is never a bestseller and stays in.
+        $this->assertSame([$d], $this->lineupIds($campaign));
+
+        // Over 14 days D's 100 units ten days ago make it the #1 seller.
+        $campaign->update(['bestseller_hold_count' => 1, 'bestseller_lookback_days' => 14]);
+        $ranked = app(HappyHourRanker::class)->rank($campaign->fresh(), $this->vend, now());
+        $this->assertSame([$a, $b, $c], $this->lineupIds($campaign));
+        $this->assertStringStartsWith('Top 1 seller (#1, 100 sold in 14 days)', collect($ranked)->firstWhere('productId', $d)->excludedReason);
+
+        // A tie at the cut goes to the higher on-hand qty: B (10) over C (9) at 20 units each.
+        DB::table('vend_product_records')->where('product_id', $c)->where('total_count', 5)->update(['total_count' => 20]);
+        $campaign->update(['bestseller_hold_count' => 2, 'bestseller_lookback_days' => 7]);
+        $this->assertSame([$c, $d], $this->lineupIds($campaign));
+    }
+
+    public function test_a_stock_in_swaps_a_held_bestseller_as_its_slot_starts_but_never_ends_a_live_slot(): void
+    {
+        $this->restockedFreezer();
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'sku_count' => 1, 'bestseller_hold_hours' => 6, 'bestseller_hold_count' => 1]);
+        $a = $this->products['A']->id;
+
+        // 14:00 is picked at 13:58, before the driver arrives: A.
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $slot = HappyHourSlot::where('position', 0)->firstOrFail();
+        $this->assertSame($a, $slot->product_id);
+
+        // Stocked in at 13:59: as the slot starts, A no longer qualifies and the next in turn takes over.
+        Carbon::setTestNow('2026-10-09 13:59:00');
+        $this->stockIn('2026-10-09 13:59:00');
+        $this->planner()->run(now());
+        $this->assertSame($this->products['B']->id, $slot->fresh()->product_id, 'B: A is held, B is next at 100%');
+        $this->assertSame(HappyHourSlot::STATUS_SCHEDULED, $slot->fresh()->status);
+        $this->assertSame(1, HappyHourSlot::count());
+
+        // A live slot keeps its SKU when a Stock In lands mid-slot (like every exclusion); the next slot follows the hold.
+        DB::table('ops_job_items')->delete();
+        HappyHourSlot::whereKey($slot->id)->update(['product_id' => $a]);
+        Carbon::setTestNow('2026-10-09 14:10:00');
+        $this->stockIn('2026-10-09 14:10:00');
+        $this->planner()->run(now());
+        $this->assertSame($a, $slot->fresh()->product_id);
+        $this->assertSame(HappyHourSlot::STATUS_SCHEDULED, $slot->fresh()->status);
+
+        Carbon::setTestNow('2026-10-09 14:58:00');
+        $this->planner()->run(now());
+        $this->assertSame($this->products['B']->id, HappyHourSlot::where('position', 1)->value('product_id'), 'A is held from 14:10');
     }
 
     public function test_each_slot_is_picked_just_before_it_starts_from_live_stock_and_the_top_skus_take_turns(): void
@@ -410,6 +554,15 @@ class HappyHourCampaignTest extends TestCase
             ->assertJsonPath('machines.0.candidates.0.rank', 1);
         $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/preview?vend_id=999999")->assertOk()
             ->assertJsonCount(0, 'machines');
+
+        // The bestseller hold is off by default, saves, and takes a 7- or 14-day window only.
+        $this->assertSame([0, 0, 7], [$campaign->fresh()->bestseller_hold_hours, $campaign->fresh()->bestseller_hold_count, $campaign->fresh()->bestseller_lookback_days]);
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['bestseller_hold_hours' => 6, 'bestseller_hold_count' => 3]))->assertSessionHasNoErrors();
+        $this->assertSame([6, 3, 7], [$campaign->fresh()->bestseller_hold_hours, $campaign->fresh()->bestseller_hold_count, $campaign->fresh()->bestseller_lookback_days]);
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['bestseller_lookback_days' => 30]))->assertSessionHasErrors('bestseller_lookback_days');
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['bestseller_lookback_days' => 14]))->assertSessionHasNoErrors();
+        $this->assertSame([6, 3, 14], [$campaign->fresh()->bestseller_hold_hours, $campaign->fresh()->bestseller_hold_count, $campaign->fresh()->bestseller_lookback_days], 'absent fields keep their value');
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['bestseller_hold_hours' => 0, 'bestseller_lookback_days' => 7]))->assertSessionHasNoErrors();
 
         // The warehouse-availability box saves both ways.
         $this->assertTrue($campaign->fresh()->skip_unavailable);

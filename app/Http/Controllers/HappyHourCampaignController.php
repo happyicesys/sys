@@ -38,6 +38,7 @@ class HappyHourCampaignController extends Controller
         'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end', 'slot_minutes',
         'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct', 'min_balance_pct', 'min_qty',
         'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'excluded_product_ids',
+        'bestseller_hold_hours', 'bestseller_hold_count', 'bestseller_lookback_days',
     ];
 
     public function __construct(private readonly HappyHourPlanner $planner) {}
@@ -351,6 +352,9 @@ class HappyHourCampaignController extends Controller
             'price_step_cents' => $c->price_step_cents,
             'allow_below_cost' => $c->allow_below_cost,
             'skip_unavailable' => $c->skip_unavailable,
+            'bestseller_hold_hours' => (int) $c->bestseller_hold_hours,
+            'bestseller_hold_count' => (int) $c->bestseller_hold_count,
+            'bestseller_lookback_days' => (int) ($c->bestseller_lookback_days ?: 7),
             'excluded_product_ids' => $c->excludedProductIds(),
             'machine_groups' => array_values((array) $c->machine_groups),
             // Group members another campaign picked by name — they run that one while it is in force.

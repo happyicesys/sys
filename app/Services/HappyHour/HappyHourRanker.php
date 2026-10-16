@@ -3,6 +3,8 @@
 namespace App\Services\HappyHour;
 
 use App\Models\HappyHourCampaign;
+use App\Models\OpsJob;
+use App\Models\OpsJobItem;
 use App\Models\Product;
 use App\Models\Vend;
 use Carbon\CarbonInterface;
@@ -19,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Ties are broken by the higher on-hand qty (Brian, 2026-10-09), then product id, so a ranking is
  * deterministic.
+ *
+ * Bestseller hold (Brian, 2026-10-16): for `bestseller_hold_hours` after the machine's last Stock In, its
+ * top `bestseller_hold_count` sellers of the last `bestseller_lookback_days` are left out (bestsellerHold).
  */
 class HappyHourRanker
 {
@@ -48,6 +53,7 @@ class HappyHourRanker
         $costs = $this->unitCosts($productIds);
         [$sold, $days] = $this->recentSales($vend, $productIds, $campaign->lookback_days, $now);
         $excluded = array_flip($campaign->excludedProductIds());
+        $held = $this->bestsellerHold($campaign, $vend, $productIds, $stock, $now);
 
         $candidates = [];
         foreach ($productIds as $productId) {
@@ -68,7 +74,7 @@ class HappyHourRanker
             );
             // The warehouse's Available? tick (Product Movement) off = not offered while the campaign skips those.
             $unavailable = $campaign->skip_unavailable && isset($products[$productId]) && ! $products[$productId]->is_available;
-            $candidate->excludedReason = $this->exclusion($campaign, $candidate, isset($excluded[$productId]), $unavailable);
+            $candidate->excludedReason = $this->exclusion($campaign, $candidate, isset($excluded[$productId]), $unavailable, $held[$productId] ?? null);
             $candidates[] = $candidate;
         }
 
@@ -89,13 +95,14 @@ class HappyHourRanker
         return array_values(array_filter($this->rank($campaign, $vend, $now), fn ($c) => $c->isEligible()));
     }
 
-    private function exclusion(HappyHourCampaign $campaign, HappyHourCandidate $c, bool $excludedByCampaign, bool $unavailable = false): ?string
+    private function exclusion(HappyHourCampaign $campaign, HappyHourCandidate $c, bool $excludedByCampaign, bool $unavailable = false, ?string $held = null): ?string
     {
         $balance = $c->balancePct();
 
         return match (true) {
             $excludedByCampaign => 'Excluded in this campaign',
             $unavailable => 'Not available in the warehouse',
+            $held !== null => $held,
             $c->originalPrice === null || $c->originalPrice <= 0 => 'No selling price for this Site',
             $c->qty < max(1, $campaign->min_qty) => "Only {$c->qty} in stock (minimum {$campaign->min_qty})",
             $balance !== null && $balance <= $campaign->min_balance_pct => "Stock {$balance}% is at or under the {$campaign->min_balance_pct}% floor",
@@ -121,6 +128,73 @@ class HappyHourRanker
             // Days of cover: nothing sold = lasts forever = first in line.
             default => fn ($a, $b) => ($b->daysOfCover() ?? INF) <=> ($a->daysOfCover() ?? INF) ?: $tieBreak($a, $b),
         };
+    }
+
+    /**
+     * The bestseller hold (Brian, 2026-10-16: "after stock in within X hours, exclude last 7 days top Y
+     * bestseller SKU from happy hour"). A Stock In fills every SKU, so balance % would hand the first
+     * slots after a driver visit to the fast sellers, which need no discount. For `bestseller_hold_hours`
+     * after the machine's last Stock In, its top `bestseller_hold_count` SKUs by units sold over the last
+     * `bestseller_lookback_days` (up to yesterday, the daily records; every sale counts, Happy Hour ones
+     * too) are left out; then they rank again like any SKU. Off when either number is 0.
+     *
+     * Only SKUs the machine holds now compete (a SKU taken off the planogram would waste a place), and
+     * only ones that sold at least one unit. A tie at the cut goes to the higher on-hand qty, then
+     * product id, like the ranking itself.
+     *
+     * @param  list<int>  $productIds
+     * @param  \Illuminate\Support\Collection<int|string, object>  $stock  the grouped vend_channels rows
+     * @return array<int, string> product id => why it is held
+     */
+    private function bestsellerHold(HappyHourCampaign $campaign, Vend $vend, array $productIds, $stock, CarbonInterface $now): array
+    {
+        $hours = (int) $campaign->bestseller_hold_hours;
+        $count = (int) $campaign->bestseller_hold_count;
+        if ($hours < 1 || $count < 1) {
+            return [];
+        }
+        $stockedInAt = $this->lastStockIn($vend, $now, $hours);
+        if ($stockedInAt === null) {
+            return [];
+        }
+        $until = $stockedInAt->copy()->addHours($hours);
+
+        $days = in_array((int) $campaign->bestseller_lookback_days, HappyHourCampaign::BESTSELLER_LOOKBACK_DAYS, true)
+            ? (int) $campaign->bestseller_lookback_days
+            : HappyHourCampaign::BESTSELLER_LOOKBACK_DAYS[0];
+        [$sold] = $this->recentSales($vend, $productIds, $days, $now);
+        $sellers = array_keys(array_filter($sold, fn (int $units) => $units > 0));
+        usort($sellers, fn (int $a, int $b) => $sold[$b] <=> $sold[$a]
+            ?: (int) $stock[$b]->qty <=> (int) $stock[$a]->qty
+            ?: $a <=> $b);
+
+        $held = [];
+        foreach (array_slice($sellers, 0, $count) as $i => $productId) {
+            $held[$productId] = sprintf(
+                'Top %d seller (#%d, %d sold in %d days): not discounted until %s, %d h after the Stock In',
+                $count, $i + 1, $sold[$productId], $days, $until->format('d M H:i'), $hours,
+            );
+        }
+
+        return $held;
+    }
+
+    /**
+     * When the machine was last stocked in within the hold: the newest ops job item at it with Stock In
+     * done (`completed_at`; Undo Stock In clears it, so the hold lifts with it). A cancelled stop, or one
+     * that brings no goods (return / on-site adjustment / melted stock), is not a Stock In.
+     */
+    private function lastStockIn(Vend $vend, CarbonInterface $now, int $hours): ?\Carbon\Carbon
+    {
+        $at = DB::table('ops_job_items')
+            ->where('vend_id', $vend->id)
+            ->where('completed_at', '>', $now->copy()->subHours($hours))
+            ->where('completed_at', '<=', $now)
+            ->where('status', '!=', OpsJob::STATUS_CANCELLED)
+            ->where(fn ($q) => $q->whereNull('stock_action_type')->orWhereNotIn('stock_action_type', OpsJobItem::AUTO_PICK_STOCK_ACTIONS))
+            ->max('completed_at');
+
+        return $at === null ? null : \Carbon\Carbon::parse($at);
     }
 
     /**
