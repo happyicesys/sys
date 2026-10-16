@@ -70,7 +70,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white">
-                <tr v-for="(c, cIndex) in campaigns" :key="c.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                <tr v-for="(c, cIndex) in campaigns" :key="c.id" class="align-top divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     {{ cIndex + 1 }}
                   </TableData>
