@@ -1397,6 +1397,9 @@
 							<span class="text-green-600">
 								ACB Rev
 							</span>
+							<span>
+								Screen
+							</span>
 						</div>
 					</TableHead>
 				</tr>
@@ -3238,20 +3241,18 @@
 										{{ vend.acbVmcPaJson['ACBVer'] }}
 									</span>
 								</span>
-								<div
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_sold ? 'bg-yellow-200' : (vend.is_testing ? 'bg-gray-200' : (vend.vend_is_active ? 'bg-blue-200' : (vend.is_disposed ? 'bg-red-300' : 'bg-red-200')))]"
+								<!-- Newest View Screen picture (auto 07:00 / 17:00 or a click; attachLatestScreenshot),
+									replacing the old Machine status badge (Brian, 2026-10-16). Click to enlarge. -->
+								<button
+									v-if="vend.latest_screenshot"
+									type="button"
+									class="flex flex-col items-center self-center rounded border border-gray-200 p-0.5 hover:border-sky-500"
+									v-tooltip="'Machine screen ' + vend.latest_screenshot.captured_at + (vend.latest_screenshot.auto ? ' (auto)' : '') + ' - click to enlarge'"
+									@click="screenPreview = { url: vend.latest_screenshot.url, title: 'Machine Screen - #' + vendCodeLabel(vend) + ' - ' + vend.latest_screenshot.captured_at }"
 								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-													Machine
-												</span>
-												<span>
-														{{vend.is_sold ? 'Sold' : (vend.is_testing ? 'Testing' : (vend.vend_is_active ? 'Active' : (vend.is_disposed ? 'Disposed' : 'Not Active')))}}
-												</span>
-										</div>
-
-								</div>
+									<img :src="vend.latest_screenshot.url" loading="lazy" alt="Machine screen" class="h-16 w-auto rounded" />
+									<span class="text-[10px] text-gray-500">{{ moment(vend.latest_screenshot.captured_at).format('YYMMDD HH:mm') }}</span>
+								</button>
 
 				</div>
 			</span>
@@ -3275,6 +3276,12 @@
 	<div v-if="!hasSearched" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
 		Use the available filters and click <span class="font-semibold">Search</span> to load customer vending data.
 	</div>
+	<ImagePreviewModal
+		:open="!!screenPreview"
+		:url="screenPreview ? screenPreview.url : ''"
+		:title="screenPreview ? screenPreview.title : ''"
+		@close="screenPreview = null"
+	/>
 	<ChannelOverview
 		v-if="showChannelOverviewModal"
 		:productOptions="productOptions"
@@ -3485,6 +3492,7 @@ font-size:13px;
 	import Button from '@/Components/Button.vue';
 	import DatePicker from '@/Components/DatePicker.vue';
 	import Paginator from '@/Components/Paginator.vue';
+	import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
@@ -3944,6 +3952,8 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const sellingPriceTypeOptions = ref([])
 	const showAllFilters = ref(false)
 	const showChannelOverviewModal = ref(false)
+	// Operator column thumbnail enlarged: { url, title } or null.
+	const screenPreview = ref(null)
 	const showSmartChannelOverviewModal = ref(false)
 	const showChillerChannelOverviewModal = ref(false)
 	const showCreateModal = ref(false)

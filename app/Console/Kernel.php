@@ -102,6 +102,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();
         // Happy Hour: pick each day's lineup before its window, swap/end slots, record results.
         $schedule->command('happy-hour:run')->everyMinute()->withoutOverlapping(5);
+        // View Screen: the system's own picture of every eligible online machine, before the day starts
+        // and before ops finish (Brian, 2026-10-16). Kept in each machine's last-five history as "Auto".
+        $schedule->command('screenshots:capture-scheduled')->dailyAt('07:00')->withoutOverlapping(10);
+        $schedule->command('screenshots:capture-scheduled')->dailyAt('17:00')->withoutOverlapping(10);
         // Freezer AI results that landed before their sale (offline board): judge them once it arrives.
         $schedule->command('smart-freezer:zijia-evaluate-pending')->everyTenMinutes()->withoutOverlapping();
         // Freezer product barcodes from Zijia's SKU library (unique exact name match only) until

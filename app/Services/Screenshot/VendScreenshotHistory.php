@@ -51,6 +51,27 @@ class VendScreenshotHistory
             ->where('vend_id', $vend->id)->orderByDesc('id')->limit(self::KEEP)->get();
     }
 
+    /**
+     * Each machine's newest picture, keyed by vend id — the Operation Dashboard thumbnail. Two
+     * queries on the (vend_id, id) index whatever the page size.
+     *
+     * @param  array<int, int>  $vendIds
+     * @return Collection<int, VendScreenshot>
+     */
+    public function latestFor(array $vendIds): Collection
+    {
+        $vendIds = array_values(array_unique(array_filter(array_map('intval', $vendIds))));
+        if ($vendIds === []) {
+            return collect();
+        }
+
+        $ids = VendScreenshot::query()->whereIn('vend_id', $vendIds)
+            ->groupBy('vend_id')->selectRaw('MAX(id) AS id')->pluck('id');
+
+        return VendScreenshot::query()->whereIn('id', $ids)
+            ->get(['id', 'vend_id', 'requested_by', 'captured_at'])->keyBy('vend_id');
+    }
+
     /** Everything older than the newest KEEP goes: the file first, then its row. */
     private function prune(Vend $vend): void
     {

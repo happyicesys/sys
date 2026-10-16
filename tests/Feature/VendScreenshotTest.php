@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Jobs\PublishMqtt;
+use App\Jobs\Screenshot\RequestScheduledScreenshot;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendScreenshot;
 use App\Services\Screenshot\VendScreenshotHistory;
+use App\Services\Screenshot\VendScreenshotRequester;
 use App\Support\ScreenshotEligibility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -21,6 +23,8 @@ use Tests\TestCase;
  * be asked, the frame goes on the `default` queue with a cooldown, and the machine either delivers
  * a picture or says why not (busy / failed) instead of leaving the operator on a timeout. Each
  * delivered picture is also kept as history, the newest five per machine (VendScreenshotHistory).
+ * The system's own 07:00 / 17:00 capture (`screenshots:capture-scheduled`) asks every eligible online
+ * machine, spread out, and keeps its pictures with no requester ("Auto").
  */
 class VendScreenshotTest extends TestCase
 {
@@ -211,5 +215,86 @@ class VendScreenshotTest extends TestCase
             'token' => $token, 'file' => UploadedFile::fake()->image('s.jpg', 54, 96),
         ])->assertOk();
         $this->actingAs($this->user)->getJson("/vends/{$vend->id}/screenshot")->assertJsonPath('status', 'ready');
+    }
+
+    private function online(Vend $vend, bool $online = true): Vend
+    {
+        $vend->forceFill(['is_online' => $online])->save();
+
+        return $vend;
+    }
+
+    public function test_the_scheduled_run_asks_only_eligible_online_machines_spread_out(): void
+    {
+        $a = $this->online($this->vend(2031));
+        $b = $this->online($this->vend(50001, Vend::MACHINE_TYPE_SMART_FREEZER, 12));
+        $this->online($this->vend(2032, apk: 316));                        // no handler
+        $this->online($this->vend(2033, apk: 999, deviceType: 'ZC-83A'));  // small board
+        $this->vend(2034);                                                 // offline
+        $this->online($this->vend(6003, Vend::MACHINE_TYPE_SMART_CHILLER));
+        $inactive = $this->online($this->vend(2035));
+        $inactive->forceFill(['is_active' => 0])->save();
+
+        $this->artisan('screenshots:capture-scheduled')->assertSuccessful();
+
+        Queue::assertPushed(RequestScheduledScreenshot::class, 2);
+        $asked = [];
+        Queue::assertPushed(RequestScheduledScreenshot::class, function (RequestScheduledScreenshot $job) use (&$asked) {
+            $asked[$job->vendId] = $job->delay;
+
+            return $job->queue === 'default';
+        });
+        $this->assertEqualsCanonicalizing([$a->id, $b->id], array_keys($asked));
+        // Spread over the window, not all at once.
+        $this->assertNotEquals($asked[$a->id]->getTimestamp(), $asked[$b->id]->getTimestamp());
+
+        config(['vend.screenshot.auto_enabled' => false]);
+        $this->artisan('screenshots:capture-scheduled')->assertSuccessful();
+        Queue::assertPushed(RequestScheduledScreenshot::class, 2);
+    }
+
+    public function test_an_auto_capture_is_kept_as_history_with_no_requester(): void
+    {
+        $vend = $this->online($this->vend(2031));
+
+        (new RequestScheduledScreenshot($vend->id))->handle(app(VendScreenshotRequester::class));
+        Queue::assertPushedOn('default', PublishMqtt::class);
+        $token = (string) Cache::get('vend_screenshot_token_'.$vend->id);
+        $this->post('/api/v1/vends/2031/screenshot', [
+            'token' => $token, 'file' => UploadedFile::fake()->image('s.jpg', 54, 96),
+        ])->assertOk();
+
+        $this->assertNull(VendScreenshot::sole()->requested_by);
+        $this->actingAs($this->user)->getJson("/vends/{$vend->id}/screenshots")
+            ->assertJsonPath('items.0.auto', true)
+            ->assertJsonPath('items.0.requested_by', null);
+    }
+
+    public function test_an_auto_capture_steps_aside_for_an_operator_waiting_on_the_machine(): void
+    {
+        $vend = $this->online($this->vend(2031));
+        $operatorToken = $this->ask($vend);
+        Cache::forget('vend_screenshot_cooldown_'.$vend->id);
+
+        (new RequestScheduledScreenshot($vend->id))->handle(app(VendScreenshotRequester::class));
+
+        Queue::assertPushed(PublishMqtt::class, 1);
+        $this->assertSame($operatorToken, Cache::get('vend_screenshot_token_'.$vend->id));
+        $this->assertSame($this->user->id, Cache::get('vend_screenshot_requester_'.$vend->id));
+    }
+
+    public function test_the_dashboard_gets_each_machines_newest_picture(): void
+    {
+        $vend = $this->vend(2031);
+        $other = $this->vend(2032);
+        $this->capture($vend);
+        $this->capture($vend);
+        $newest = VendScreenshot::where('vend_id', $vend->id)->max('id');
+
+        $latest = app(VendScreenshotHistory::class)->latestFor([$vend->id, $other->id]);
+
+        $this->assertSame([$vend->id], $latest->keys()->all());
+        $this->assertSame($newest, $latest->get($vend->id)->id);
+        $this->assertTrue(app(VendScreenshotHistory::class)->latestFor([])->isEmpty());
     }
 }

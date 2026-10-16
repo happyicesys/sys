@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\PublishMqtt;
 use App\Models\Vend;
 use App\Models\VendScreenshot;
 use App\Services\Screenshot\VendScreenshotHistory;
+use App\Services\Screenshot\VendScreenshotRequester;
 use App\Support\ScreenshotEligibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
  * On-demand remote screen capture — Setting ▸ Edit ▸ "View Screen".
@@ -20,6 +19,10 @@ use Illuminate\Support\Str;
  * ONE frame per deliberate human click. No streaming, no auto-refresh, no polling
  * loop on the device. Want to see it change? Click again. That keeps the cellular
  * bill flat and gives a clean audit story: one click, one image, one log line.
+ * The one exception is the system's own capture at 07:00 and 17:00 (Brian,
+ * 2026-10-16; `screenshots:capture-scheduled`, `vend.screenshot.auto_hours`): two
+ * frames a day per machine, kept in the same history with no requester ("Auto").
+ * Both go through VendScreenshotRequester.
  *
  * Flow
  * ----
@@ -47,7 +50,7 @@ use Illuminate\Support\Str;
  * `vend_screenshots` row naming who clicked — and a machine is pruned to its
  * newest five, file and row, on every save. So there is no cleanup job, and a
  * screen that showed a customer's QR payment or member details stays at most five
- * clicks deep. History images are served only by historyImage(), with the same
+ * pictures deep. History images are served only by historyImage(), with the same
  * permission check as the live one.
  *
  * Permission is enforced by `can:update machine-settings` on the web routes
@@ -60,17 +63,8 @@ use Illuminate\Support\Str;
  */
 class VendScreenshotController extends Controller
 {
-    /** How long the device has to answer before the operator is told it timed out. */
-    private const TOKEN_TTL_SECONDS = 120;
-
     /** How long a delivered image stays viewable before it evaporates. */
     private const RESULT_TTL_SECONDS = 600;
-
-    /**
-     * Refuse a second request for the same machine inside this window. A capture costs the
-     * board a few seconds of CPU and a cellular upload; repeated clicks must not stack them.
-     */
-    private const COOLDOWN_SECONDS = 20;
 
     /** What the machine may say instead of sending a picture. */
     private const DEVICE_STATUSES = ['busy', 'failed'];
@@ -88,7 +82,7 @@ class VendScreenshotController extends Controller
     /**
      * Ask a machine for one frame.
      */
-    public function request(Request $httpRequest, Vend $vend)
+    public function request(Request $httpRequest, Vend $vend, VendScreenshotRequester $requester)
     {
         // The one rule the page's disabled button also shows: a board that cannot answer
         // would only leave the operator on a 2-minute timeout.
@@ -96,29 +90,12 @@ class VendScreenshotController extends Controller
             return response()->json(['status' => 'unsupported', 'message' => $why], 422);
         }
 
-        if (Cache::get($this->key('cooldown', $vend))) {
+        if ($requester->request($vend, $httpRequest->user()?->id) === VendScreenshotRequester::COOLDOWN) {
             return response()->json([
                 'status' => 'cooldown',
                 'message' => 'Give the machine a few seconds before asking again.',
             ], 429);
         }
-
-        $token = Str::random(40);
-
-        Cache::put($this->key('token', $vend), $token, self::TOKEN_TTL_SECONDS);
-        Cache::put($this->key('cooldown', $vend), 1, self::COOLDOWN_SECONDS);
-        // Who asked, for the history row — the device's upload carries no user.
-        Cache::put($this->key('requester', $vend), $httpRequest->user()?->id, self::TOKEN_TTL_SECONDS);
-        // Clear BOTH halves of the previous capture. latest() checks meta first,
-        // so leaving meta behind made the UI answer "ready" instantly with the
-        // image from the LAST request - the operator would never see the new one.
-        Cache::forget($this->key('result', $vend));
-        Cache::forget($this->key('meta', $vend));
-        Cache::put($this->key('pending', $vend), Carbon::now()->timestamp, self::TOKEN_TTL_SECONDS);
-
-        // `default`, not `high` (payment frames, served first) and not `low` (one worker shared
-        // with 150 s image-model calls and OTA pieces, which could outlast the token).
-        PublishMqtt::dispatch('CM'.$vend->code, $this->screenshotFrame($vend, $token))->onQueue('default');
 
         // Audit. The screen can show a customer's QR payment or member details, so
         // every capture is attributable to a named human.
@@ -132,7 +109,7 @@ class VendScreenshotController extends Controller
 
         return response()->json([
             'status' => 'requested',
-            'expires_in' => self::TOKEN_TTL_SECONDS,
+            'expires_in' => VendScreenshotRequester::TOKEN_TTL_SECONDS,
         ]);
     }
 
@@ -315,6 +292,8 @@ class VendScreenshotController extends Controller
                 'captured_at' => $shot->captured_at?->toDateTimeString(),
                 'bytes' => $shot->bytes,
                 'requested_by' => $shot->requester?->name,
+                // No requester = the 07:00 / 17:00 auto capture (every click has a user).
+                'auto' => $shot->requested_by === null,
                 'image_url' => route('vends.screenshot.history.image', ['vend' => $vend->id, 'screenshot' => $shot->id]),
             ])->values(),
         ]);
@@ -341,36 +320,8 @@ class VendScreenshotController extends Controller
 
     /* ---------------------------------------------------------------- helpers */
 
-    /**
-     * Same frame envelope as ApkReleaseController::otaCheckFrame — fid, length,
-     * base64 body, md5 signed with the machine's private key.
-     */
-    private function screenshotFrame(Vend $vend, string $token): string
-    {
-        $fid = 1;
-        $content = base64_encode(json_encode([
-            'Type' => 'SCREENSHOT',
-            'time' => Carbon::now()->timestamp,
-            'action' => '',
-            'mid' => $vend->code,
-            'token' => $token,
-            // Where to send it. Carried in the frame so the endpoint can move
-            // without shipping a new APK.
-            'url' => url('/api/v1/vends/'.$vend->code.'/screenshot'),
-            // Longest edge after downscale, and JPEG quality. 1080x1920 PNG is
-            // ~90 KB; 540x960 JPEG q60 is ~25-40 KB, which matters on cellular.
-            'maxEdge' => 960,
-            'quality' => 60,
-        ]));
-        $contentLength = strlen($content);
-        $key = $vend->private_key ?: config('vend.private_key', '123456789110138A');
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-        return $fid.','.$contentLength.','.$content.','.$md5;
-    }
-
     private function key(string $kind, Vend $vend): string
     {
-        return 'vend_screenshot_'.$kind.'_'.$vend->id;
+        return VendScreenshotRequester::key($kind, $vend);
     }
 }

@@ -98,6 +98,7 @@ use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
+use App\Services\Screenshot\VendScreenshotHistory;
 use App\Services\UserLogger;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
@@ -1714,6 +1715,7 @@ class VendController extends Controller
             // deferred-aggregates branch below so both the fast (deferred)
             // and the full render carry it.
             $this->attachVmBindingHistory($vends->getCollection());
+            $this->attachLatestScreenshot($vends->getCollection());
 
             // "Access Product(s)": blank the whole-machine money NOW, before
             // anything reads it. $totals, the per-row location-fee loop and
@@ -2348,6 +2350,33 @@ class VendController extends Controller
             'vendPrefixOptions' => ['data' => $vendPrefixOptions],
             'zoneOptions' => ['data' => $zoneOptions],
         ]);
+    }
+
+    /**
+     * Operator column thumbnail: the machine's newest View Screen picture (auto 07:00 / 17:00 or a
+     * click). Only for a viewer who may open View Screen — the image route is gated on
+     * `update machine-settings`, so anyone else would get a broken image. One query per page.
+     */
+    protected function attachLatestScreenshot($rows)
+    {
+        foreach ($rows as $row) {
+            $row->latest_screenshot = null;
+        }
+        if (! auth()->user()?->can('update machine-settings')) {
+            return;
+        }
+
+        $latest = app(VendScreenshotHistory::class)->latestFor(collect($rows)->pluck('vend_id')->all());
+        foreach ($rows as $row) {
+            $shot = $latest->get((int) $row->vend_id);
+            if ($shot) {
+                $row->latest_screenshot = [
+                    'url' => route('vends.screenshot.history.image', ['vend' => $shot->vend_id, 'screenshot' => $shot->id]),
+                    'captured_at' => $shot->captured_at?->toDateTimeString(),
+                    'auto' => $shot->requested_by === null,
+                ];
+            }
+        }
     }
 
     /**

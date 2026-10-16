@@ -59,7 +59,15 @@ skipped and deletes do nothing (both happened until 2026-10-09).
   row (who clicked). `App\Services\Screenshot\VendScreenshotHistory` is its only
   writer and prunes each machine to the newest five, file then row, on every save —
   a screen can show a customer's QR or member details, so never raise that or
-  serve them by URL. Regression coverage: `tests/Feature/VendScreenshotTest.php`.
+  serve them by URL. The system also captures every eligible online machine at
+  07:00 and 17:00 (Brian, 2026-10-16; `screenshots:capture-scheduled`, spread over
+  `vend.screenshot.auto_spread_minutes`, off with `SCREENSHOT_AUTO_CAPTURE=false`),
+  kept in the same five with `requested_by` NULL ("Auto") — every request, click or
+  schedule, goes through `VendScreenshotRequester`. "View Screen" opens on the newest
+  kept picture; "Capture again" asks the machine. The Operation Dashboard's Operator
+  column shows the newest one as a thumbnail (`VendController::attachLatestScreenshot`,
+  only for `update machine-settings`, the image route's gate). Regression coverage:
+  `tests/Feature/VendScreenshotTest.php`, `tests/Feature/OpsDashboardLatestScreenshotTest.php`.
 - **Local on purpose:** `storage/app/ota-cache` (the verified APK copy MQTT OTA
   serves), the customer-summary state JSON, logs and temp files.
 

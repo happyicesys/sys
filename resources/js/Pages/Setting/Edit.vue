@@ -87,7 +87,7 @@
                       type="button"
                       class="!text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       :disabled="screenshotBusy || !screenshotSupported"
-                      @click="openScreenshot()"
+                      @click="viewScreen()"
                     >
                       <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
                       {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
@@ -1876,6 +1876,14 @@
     </template>
 
     <div class="flex flex-col items-center">
+      <!-- At the top: under a tall picture and the history strip it fell below the fold. -->
+      <div class="mb-3 flex justify-end w-full">
+        <Button type="button" :disabled="screenshotBusy || !screenshotSupported" @click="openScreenshot()">
+          <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
+          {{ screenshotBusy ? 'Waiting for machine...' : 'Capture again' }}
+        </Button>
+      </div>
+
       <div v-if="screenshotState === 'pending'" class="py-16 flex flex-col items-center text-gray-600">
         <ArrowPathIcon class="w-10 h-10 animate-spin text-sky-500" />
         <p class="mt-4 text-base">Asking the machine...</p>
@@ -1912,7 +1920,7 @@
           class="max-h-[70vh] w-auto rounded border border-gray-300 shadow-sm"
         />
         <p class="mt-3 text-xs text-gray-500">
-          Captured {{ screenshotCapturedAt }}<template v-if="screenshotViewingId"> (from history)</template> - only this machine's last {{ screenshotHistoryKeep }} pictures are kept; older ones are deleted.
+          Captured {{ screenshotCapturedAt }}<template v-if="screenshotViewingId"> (from history)</template> - only this machine's last {{ screenshotHistoryKeep }} pictures are kept; older ones are deleted. The system also takes one at 07:00 and 17:00.
         </p>
       </div>
 
@@ -1931,17 +1939,12 @@
           >
             <img :src="shot.image_url" loading="lazy" alt="" class="h-24 w-auto rounded" />
             <span class="mt-1 text-[11px] text-gray-600">{{ shot.captured_at }}</span>
-            <span v-if="shot.requested_by" class="text-[11px] text-gray-400">{{ shot.requested_by }}</span>
+            <span v-if="shot.auto" class="text-[11px] text-gray-400">Auto</span>
+            <span v-else-if="shot.requested_by" class="text-[11px] text-gray-400">{{ shot.requested_by }}</span>
           </button>
         </div>
       </div>
 
-      <div class="mt-5 flex justify-end w-full">
-        <Button type="button" :disabled="screenshotBusy || !screenshotSupported" @click="openScreenshot()">
-          <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
-          Capture again
-        </Button>
-      </div>
     </div>
   </Modal>
   </BreezeAuthenticatedLayout>
@@ -2234,7 +2237,7 @@ const screenshotUnavailableReason = computed(() => props.screenshotUnavailableRe
 const screenshotSupported = computed(() => !screenshotUnavailableReason.value)
 
 const screenshotTooltip = computed(() => screenshotSupported.value
-  ? 'Ask this machine for one screenshot of what it is showing right now. It waits until nobody is using the machine (up to a minute), and nothing appears on its screen.'
+  ? 'Show this machine\'s latest screenshot (taken automatically at 07:00 and 17:00, or by an earlier click). Capture again asks the machine for a fresh one: it waits until nobody is using it (up to a minute), and nothing appears on its screen.'
   : screenshotUnavailableReason.value)
 
 const screenshotModalOpen = ref(false)
@@ -2304,6 +2307,31 @@ function closeScreenshot() {
   screenshotState.value = 'idle'
   screenshotHistory.value = []
   screenshotViewingId.value = null
+}
+
+// "View Screen" opens on the newest kept picture (the 07:00 / 17:00 auto capture or an earlier
+// click); "Capture again" in the popup asks the machine for a fresh one. A machine with no
+// picture yet is asked at once.
+function viewScreen() {
+  if (!props.vend || !props.vend.id || screenshotBusy.value || !screenshotSupported.value) {
+    return
+  }
+  screenshotModalOpen.value = true
+  screenshotState.value = 'idle'
+  screenshotMessage.value = null
+  screenshotUrl.value = null
+  screenshotViewingId.value = null
+  loadScreenshotHistory().then(() => {
+    if (!screenshotModalOpen.value) {
+      return
+    }
+    const newest = screenshotHistory.value[0]
+    if (newest) {
+      viewScreenshotFromHistory(newest)
+    } else {
+      openScreenshot()
+    }
+  })
 }
 
 function openScreenshot() {

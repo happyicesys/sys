@@ -581,6 +581,8 @@ class VendResource extends JsonResource
             // there; null on routes that don't enrich, which hides the block.
             'vm_binding_now' => isset($this->vm_binding_now) ? $this->vm_binding_now : null,
             'vm_binding_was' => isset($this->vm_binding_was) ? $this->vm_binding_was : null,
+            // Operation Dashboard: newest View Screen picture (VendController::attachLatestScreenshot).
+            'latest_screenshot' => isset($this->latest_screenshot) ? $this->latest_screenshot : null,
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
             'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue / 100 : 0,
             'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit / 100 : 0,
