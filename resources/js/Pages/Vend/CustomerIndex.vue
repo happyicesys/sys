@@ -1588,6 +1588,9 @@
 								<span v-if="campaign.end_at" class="text-pink-600">
 									Exp: {{ campaign.end_at }}
 								</span>
+								<span v-if="campaign.l7d_units !== null && campaign.l7d_units !== undefined" class="text-pink-600">
+									L7d: {{ campaign.l7d_units }} pcs sold
+								</span>
 							</div>
 							<div
 								v-for="hh in (vend.vend && vend.vend.happy_hour_campaigns) ? vend.vend.happy_hour_campaigns : []"
@@ -1602,6 +1605,9 @@
 								</span>
 								<span v-if="hh.ends_on" class="text-amber-700">
 									Exp: {{ hh.ends_on }}
+								</span>
+								<span v-if="hh.l7d_units !== null && hh.l7d_units !== undefined" class="text-amber-700">
+									L7d: {{ hh.l7d_units }} pcs sold
 								</span>
 								<span v-if="hh.ineligible" class="text-red-600 font-semibold">
 									⚠ Not running

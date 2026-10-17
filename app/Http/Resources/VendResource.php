@@ -417,6 +417,8 @@ class VendResource extends JsonResource
                     ->map(fn ($campaign) => [
                         'id' => $campaign->id,
                         'name' => $campaign->name,
+                        // Units sold under it, last 7 days (VendController::attachCampaignSales).
+                        'l7d_units' => isset($this->campaign_l7d_units) ? ($this->campaign_l7d_units[$campaign->id] ?? 0) : null,
                         'end_at' => $campaign->end_at
                             ? Carbon::parse($campaign->end_at)->setTimezone($this->getUserTimezone())->format('Y-m-d')
                             : null,
@@ -457,6 +459,7 @@ class VendResource extends JsonResource
                     'ends_on' => $campaign->ends_on?->format('Y-m-d'),
                     'ignored_by' => $uiSetting?->name,
                     'ineligible' => $ineligible,
+                    'l7d_units' => isset($this->happy_hour_l7d_units) ? ($this->happy_hour_l7d_units[$campaign->id] ?? 0) : null,
                 ])->values();
             }, []),
             'vend' => VendResource::make($this->whenLoaded('vend')),

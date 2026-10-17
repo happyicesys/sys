@@ -1735,6 +1735,7 @@ class VendController extends Controller
             // and the full render carry it.
             $this->attachVmBindingHistory($vends->getCollection());
             $this->attachLatestScreenshot($vends->getCollection());
+            $this->attachCampaignSales($vends->getCollection());
 
             // "Access Product(s)": blank the whole-machine money NOW, before
             // anything reads it. $totals, the per-row location-fee loop and
@@ -2394,6 +2395,23 @@ class VendController extends Controller
                     'captured_at' => $shot->captured_at?->toDateTimeString(),
                     'auto' => $shot->requested_by === null,
                 ];
+            }
+        }
+    }
+
+    /**
+     * "L7d: n pcs sold" in the campaign boxes (Brian, 2026-10-17): units each machine sold under each
+     * of its campaigns over the last 7 days, set on the row's machine for VendResource. One lookup
+     * for the page (MachineCampaignSales), never a join on the page query.
+     */
+    protected function attachCampaignSales($rows)
+    {
+        $sales = app(\App\Services\Sales\MachineCampaignSales::class)->lastDays(collect($rows)->pluck('vend_id'));
+        foreach ($rows as $row) {
+            $vend = $row->relationLoaded('vend') ? $row->vend : null;
+            if ($vend) {
+                $vend->campaign_l7d_units = $sales['campaigns'][(int) $vend->id] ?? [];
+                $vend->happy_hour_l7d_units = $sales['happy_hour'][(int) $vend->id] ?? [];
             }
         }
     }
