@@ -33,8 +33,9 @@ class ProductMovementController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read products']);
-        // Audit UI-02 (2026-10-17): a batch's supplier files need the write verbs, not read.
-        $this->middleware(['permission:update products'])->only(['storeBatchAttachments']);
+        // Audit UI-02 (2026-10-17): the ledger writes and a batch's supplier files need the
+        // write verbs, not read.
+        $this->middleware(['permission:update products'])->only(['store', 'batchIncoming', 'batchStore', 'storeBatchAttachments']);
         $this->middleware(['permission:delete products'])->only(['destroyBatchAttachment']);
 
         // if (env('CMS_URL')) {
@@ -271,6 +272,7 @@ class ProductMovementController extends Controller
                 ? Operator::pluck('id')->all()
                 : [auth()->user()->operator_id];
         }
+        $operators = ProductMovement::capOperatorsToViewer($operators);
 
         // 2. Incoming (ProductMovement)
         // Select: date, type_label, product, qty, running_qty (calc later), remarks
@@ -477,7 +479,7 @@ class ProductMovementController extends Controller
 
     public function incomingHistory(Request $request)
     {
-        $query = ProductMovement::query();
+        $query = ProductMovement::query()->visibleToViewer();
 
         $query->where('type', ProductMovement::TYPE_INCOMING)
             ->whereNotNull('batch_number');
@@ -528,6 +530,7 @@ class ProductMovementController extends Controller
     public function incomingBatchDetail($batch_number)
     {
         $movements = ProductMovement::with(['product', 'product.thumbnail', 'operator', 'user'])
+            ->visibleToViewer()
             ->where('batch_number', $batch_number)
             ->where('type', ProductMovement::TYPE_INCOMING)
             ->get();

@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class IncomingStockHistoryExport implements FromQuery, WithHeadings, WithMapping, WithColumnWidths, WithStyles
+class IncomingStockHistoryExport implements FromQuery, WithColumnWidths, WithHeadings, WithMapping, WithStyles
 {
     protected $request;
 
@@ -22,6 +22,7 @@ class IncomingStockHistoryExport implements FromQuery, WithHeadings, WithMapping
     public function query()
     {
         $query = ProductMovement::query()
+            ->visibleToViewer()
             ->with(['product', 'user', 'operator'])
             ->where('type', ProductMovement::TYPE_INCOMING)
             ->whereNotNull('batch_number');

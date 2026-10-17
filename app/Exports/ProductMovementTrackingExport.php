@@ -51,6 +51,7 @@ class ProductMovementTrackingExport implements FromCollection, WithColumnWidths,
                 ? Operator::pluck('id')->all()
                 : [auth()->user()->operator_id];
         }
+        $operators = ProductMovement::capOperatorsToViewer($operators);
 
         // Incoming Query
         $incomingQuery = ProductMovement::query()

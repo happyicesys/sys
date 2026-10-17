@@ -63,7 +63,7 @@ class IncomingBatchAttachmentTest extends TestCase
     public function test_batch_entry_saves_its_attachments(): void
     {
         $product = Product::create(['code' => 'IBA1', 'name' => 'Tea']);
-        $user = $this->viewer();
+        $user = $this->staff(1);
 
         $this->actingAs($user)->post('/products/movements/batch-incoming', [
             'batch_number' => 'Benelux #002',
@@ -86,7 +86,7 @@ class IncomingBatchAttachmentTest extends TestCase
     {
         $product = Product::create(['code' => 'IBA1', 'name' => 'Tea']);
 
-        $this->actingAs($this->viewer())->post('/products/movements/batch-incoming', [
+        $this->actingAs($this->staff(1))->post('/products/movements/batch-incoming', [
             'batch_number' => 'X1',
             'created_at' => '2026-10-09',
             'products' => [['id' => $product->id, 'qty' => 3]],

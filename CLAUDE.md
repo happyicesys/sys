@@ -184,6 +184,12 @@ door. `OperatorDeliveryProductMappingScope` is the worked example: it also
 covers edit/update/delete/bindVend and two `::all()` option lists.
 Regression coverage: `tests/Feature/DeliveryProductMappingOperatorScopeTest.php`.
 
+`ProductMovement` deliberately has NO global scope — ops-job pick / unpick read
+movements across operators. The Incoming Stock pages (history, batch detail, both
+exports, tracking) apply `ProductMovement::visibleToViewer()` /
+`capOperatorsToViewer()` by hand instead (2026-10-17), and keying stock needs
+`update products`. Regression coverage: `tests/Feature/IncomingStockAccessTest.php`.
+
 ## Pricing source: the Site owns the tier, the machine only follows it
 
 `customers.selling_price_type` (RP1–RP5, Customer/Site edit) is the **only**
