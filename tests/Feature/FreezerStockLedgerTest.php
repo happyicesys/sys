@@ -116,6 +116,102 @@ class FreezerStockLedgerTest extends TestCase
         $this->assertSame(3, (int) $this->channel->fresh()->qty);
     }
 
+    private function operationsUser(): User
+    {
+        $user = User::factory()->create();
+        foreach (['read operations', 'update operations', 'admin-access operations'] as $permission) {
+            $user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate($permission, 'web'));
+        }
+
+        return $user;
+    }
+
+    /**
+     * The next request reads the item as it was BEFORE the previous one committed — what a
+     * double tap on a slow link does: both requests load status 2, then both run the branch.
+     */
+    private function nextReadIsStale(string $status): void
+    {
+        $once = false;
+        OpsJobItem::retrieved(function (OpsJobItem $item) use (&$once, $status) {
+            if ($once || $item->id !== $this->item->id) {
+                return;
+            }
+            $once = true;
+            $item->setRawAttributes(array_merge($item->getAttributes(), ['status' => $status]), true);
+        });
+    }
+
+    public function test_a_double_tapped_stock_in_credits_the_freezer_once(): void
+    {
+        $user = $this->operationsUser();
+        $line = $this->item->opsJobItemChannels()->first();
+        $payload = [
+            'channels' => [['id' => $line->id, 'qty' => 0, 'refill' => 3, 'capacity' => 3]],
+            'cash_amount' => 0, 'cashless_amount' => 0, 'temp_cash_amount_from_vmc' => 0,
+        ];
+
+        $this->actingAs($user)->post("/ops-jobs/items/{$this->item->id}/confirm", $payload)->assertRedirect();
+        $this->nextReadIsStale(OpsJob::STATUS_PICKED);
+        $this->actingAs($user)->post("/ops-jobs/items/{$this->item->id}/confirm", $payload)->assertRedirect();
+
+        $this->assertSame(OpsJob::STATUS_DELIVERED, (string) $this->item->fresh()->status);
+        $this->assertSame(3, (int) $this->channel->fresh()->qty, 'the refill is added once, not twice');
+    }
+
+    public function test_a_double_tapped_pick_writes_one_warehouse_movement(): void
+    {
+        $this->item->update(['status' => OpsJob::STATUS_PENDING]);
+        \App\Models\Operator::forceCreate(['id' => 1, 'code' => 'OP1', 'name' => 'Op']);
+        $user = $this->operationsUser();
+        $line = $this->item->opsJobItemChannels()->first();
+        $payload = ['channels' => [['id' => $line->id, 'qty' => 0, 'picked' => 3]]];
+
+        $this->actingAs($user)->post("/ops-jobs/items/{$this->item->id}/confirm", $payload)->assertRedirect();
+        $this->nextReadIsStale(OpsJob::STATUS_PENDING);
+        $this->actingAs($user)->post("/ops-jobs/items/{$this->item->id}/confirm", $payload)->assertRedirect();
+
+        $this->assertSame(OpsJob::STATUS_PICKED, (string) $this->item->fresh()->status);
+        $this->assertSame(1, \App\Models\ProductMovement::where('batch_number', $this->item->id + 25000)->count());
+    }
+
+    public function test_a_double_tapped_undo_stock_in_takes_the_refill_out_once(): void
+    {
+        $this->channel->update(['qty' => 5]);
+        $this->item->update(['status' => OpsJob::STATUS_DELIVERED, 'completed_at' => now()]);
+        $user = $this->operationsUser();
+
+        $this->actingAs($user)->post("/ops-jobs/items/{$this->item->id}/undo-status")->assertRedirect();
+        $this->nextReadIsStale(OpsJob::STATUS_DELIVERED);
+        $this->actingAs($user)->post("/ops-jobs/items/{$this->item->id}/undo-status")->assertRedirect();
+
+        $this->assertSame(OpsJob::STATUS_PICKED, (string) $this->item->fresh()->status);
+        $this->assertSame(2, (int) $this->channel->fresh()->qty, '5 − 3 once');
+    }
+
+    public function test_undo_is_the_exact_inverse_even_when_the_stock_in_was_clamped_at_zero(): void
+    {
+        // A return of 5 keyed against a ledger that reads 3: the stock in clamps at 0.
+        $this->channel->update(['qty' => 3]);
+        $this->item->opsJobItemChannels()->update(['qty' => 5, 'actual_qty' => -5]);
+
+        app(FreezerStockLedger::class)->stockIn($this->item->fresh());
+        $this->assertSame(0, (int) $this->channel->fresh()->qty);
+
+        app(FreezerStockLedger::class)->undoStockIn($this->item->fresh());
+        $this->assertSame(3, (int) $this->channel->fresh()->qty, 'back to 3, not 5');
+    }
+
+    public function test_undo_takes_back_what_was_applied_after_a_sale_used_part_of_the_refill(): void
+    {
+        app(FreezerStockLedger::class)->stockIn($this->item->fresh()); // 0 + 3
+        $this->channel->update(['qty' => 1]); // two sold since
+
+        app(FreezerStockLedger::class)->undoStockIn($this->item->fresh());
+
+        $this->assertSame(0, (int) $this->channel->fresh()->qty, 'never below zero: the sold units are gone');
+    }
+
     public function test_a_sale_takes_off_each_dispensed_unit_once_even_when_replayed(): void
     {
         $this->channel->update(['qty' => 3]);

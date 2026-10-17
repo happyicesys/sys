@@ -19,7 +19,10 @@ use App\Services\Stock\SkuPlanogram;
  *
  * Two things this deliberately does NOT own:
  *  - **qty.** It is our ledger (ops-job topup in, each sale out), not a supplier feed, so an existing
- *    row keeps its quantity through every re-sync. A new SKU starts empty.
+ *    row keeps its quantity through every re-sync. A new SKU starts empty. The frame still carries
+ *    each row's qty, but flagged `qty_seed_only`: SyncVendChannels runs later on the `high` queue,
+ *    and writing the dispatch-time figure then would put back every sale taken in between (audit
+ *    STK-04, 2026-10-17). It seeds only a row with no live ledger — new, or back from retirement.
  *  - **capacity.** The mapping item's override, else the SKU's measured par (`products.freezer_slot_qty`).
  *    Unmeasured products leave it at 0, which reads as "-" on the dashboard rather than as a made-up
  *    par; a freezer row stays active either way.
@@ -65,6 +68,7 @@ class FreezerChannelSync
                 'suffix' => $sku->suffix,
                 'product_id' => $productId,
                 'qty' => (int) ($row?->qty ?? 0),
+                'qty_seed_only' => true,
                 'capacity' => $sku->capacity,
                 'amount' => (int) ($prices[$productId] ?? $fallback[$productId] ?? 0),
                 'amount2' => 0,

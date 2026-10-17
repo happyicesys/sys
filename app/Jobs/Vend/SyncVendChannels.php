@@ -68,6 +68,19 @@ class SyncVendChannels implements ShouldQueue
                 DB::beginTransaction();
             }
             try {
+                // A chiller's absolute count (StockPollService::pushChannels) names when it was read.
+                // Under the vend row lock (ChillerStockLedger::apply takes it too): a count older than
+                // the baseline already recorded writes no qty, and a newer one records itself below.
+                $baseline = $skuStocked && isset($this->input['stock_baseline']['at']) ? $this->input['stock_baseline'] : null;
+                $countIsStale = false;
+                if ($baseline) {
+                    $current = \App\Services\Citybox\ChillerStockLedger::lockedBaselineAt($vend->id);
+                    $countIsStale = $current !== null && $current->greaterThan(Carbon::parse($baseline['at']));
+                    // Re-read under the lock: an order deducted after the read above would otherwise
+                    // leave a row whose stale copy equals the count, so the absolute write is skipped.
+                    $allRows = VendChannel::where('vend_id', $vend->id)->get();
+                    $prevVendChannels = $allRows->whereNotNull('product_id')->keyBy(fn ($row) => (int) $row->product_id);
+                }
                 if ($skuStocked) {
                     $this->releaseClaimedLabels($allRows, $channels);
                 }
@@ -104,11 +117,11 @@ class SyncVendChannels implements ShouldQueue
 
                     $stockEvent = null;
 
-                    // A CityBox chiller keeps its own ledger (ChillerStockLedger): the scheduled frame
-                    // carries THEIR count only to seed a row that has no ledger yet — new, or coming
-                    // back from retirement. A live row's qty is never overwritten (the write would
-                    // undo an order deducted since their count was read).
-                    if (! empty($channel['qty_seed_only']) && $prevVendChannel && $prevVendChannel->is_active) {
+                    // A CityBox chiller and a Smart Freezer keep their own ledger (ChillerStockLedger,
+                    // FreezerStockLedger): their frames carry a qty only to seed a row that has no
+                    // ledger yet — new, or coming back from retirement. A live row's qty is never
+                    // overwritten (the write would undo a sale deducted since the frame was built).
+                    if ((! empty($channel['qty_seed_only']) || $countIsStale) && $prevVendChannel && $prevVendChannel->is_active) {
                         unset($data['qty']);
                     }
 
@@ -188,6 +201,9 @@ class SyncVendChannels implements ShouldQueue
                 }
                 if ($skuStocked) {
                     $this->retireSkuRowsMissingFrom($channels, $allRows);
+                    if ($baseline && ! $countIsStale) {
+                        \App\Services\Citybox\ChillerStockLedger::countLanded($vend, Carbon::parse($baseline['at']), (string) ($baseline['source'] ?? 'read'));
+                    }
                     DB::commit();
                 }
             } catch (\Throwable $e) {

@@ -47,6 +47,13 @@ class SystemQtySyncTarget implements StockCheckSyncTarget
     {
         return DB::transaction(function () use ($channel, $by) {
             // ---- validate before -------------------------------------------------
+            // The caller filtered "unsynced" from rows it loaded before any lock: two tabs or a
+            // retried request would both apply the variance (audit STK-08). Claim the count line.
+            $channel = StockCheckChannel::query()->lockForUpdate()->find($channel->id) ?? $channel;
+            if ($channel->synced_at !== null) {
+                return ChannelSyncResult::skipped($channel->vend_channel_code, 'Already synced.');
+            }
+
             $live = VendChannel::query()->lockForUpdate()->find($channel->vend_channel_id);
 
             if ($live === null) {

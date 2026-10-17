@@ -1631,8 +1631,9 @@
               </Button>
               <Button
                   type="button"
-                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit disabled:opacity-50 disabled:cursor-wait"
                   @click="onUndoStatusClicked(opsJobItem.id)"
+                  :disabled="statusSubmitting"
                   v-if="opsJobItem.status == 3 && permissions.includes('admin-access operations')"
               >
                 <span class="flex space-x-1 items-center">
@@ -1644,8 +1645,9 @@
               </Button>
               <Button
                   type="button"
-                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit disabled:opacity-50 disabled:cursor-wait"
                   @click="onUndoStatusClicked(opsJobItem.id)"
+                  :disabled="statusSubmitting"
                   v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && !AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.stock_action_type)"
               >
                 <span class="flex space-x-1 items-center">
@@ -1683,8 +1685,9 @@
               </Button>
               <Button
                   type="button"
-                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit disabled:opacity-50 disabled:cursor-wait"
                   @click="onUndoStatusClicked(opsJobItem.id)"
+                  :disabled="statusSubmitting"
                   v-if="opsJobItem.status == 4 && permissions.includes('admin-access operations')"
               >
                 <span class="flex space-x-1 items-center">
@@ -1696,8 +1699,9 @@
               </Button>
               <Button
                   type="button"
-                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit disabled:opacity-50 disabled:cursor-wait"
                   @click="onUndoStatusClicked(opsJobItem.id)"
+                  :disabled="statusSubmitting"
                   v-if="opsJobItem.status == 98 && permissions.includes('admin-access operations')"
               >
                 <span class="flex space-x-1 items-center">
@@ -1725,8 +1729,9 @@
               </Button>
               <Button
                   type="button"
-                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit disabled:opacity-50 disabled:cursor-wait"
                   @click="onConfirmClicked()"
+                  :disabled="statusSubmitting"
                   v-if="opsJobItem.status == 1"
               >
                 <span class="flex space-x-1 items-center">
@@ -1738,8 +1743,9 @@
               </Button>
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-400 hover:bg-green-500 text-gray-800 w-full md:w-fit"
+                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-400 hover:bg-green-500 text-gray-800 w-full md:w-fit disabled:opacity-50 disabled:cursor-wait"
                   @click="onConfirmClicked()"
+                  :disabled="statusSubmitting"
                   v-if="opsJobItem.status == 2"
               >
               <span class="flex space-x-1 items-center">
@@ -1939,6 +1945,8 @@ onMounted(() => {
 // Restock photos (CityBox chiller, Smart Freezer): before gates Open Door until Stock In; after is asked for at Stock In.
 const restockPhotos = ref({ before: [], after: [] })
 const afterPhotoPrompt = ref(false)
+// Picked / Stock In / Undo in flight: a second tap on a slow link would post the same status change again.
+const statusSubmitting = ref(false)
 const restockPhotoUrl = computed(() => '/ops-jobs/items/' + opsJobItem.value.id + '/restock-photos')
 const hasRestockPhotos = computed(() => !!(opsJobItem.value.is_citybox_chiller || opsJobItem.value.is_smart_freezer))
 const needsBeforePhoto = computed(() => hasRestockPhotos.value && opsJobItem.value.status < 3 && !restockPhotos.value.before.length)
@@ -2519,6 +2527,10 @@ function onConfirmClicked() {
     }
   }
 
+  if (statusSubmitting.value) {
+    return;
+  }
+  statusSubmitting.value = true
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/confirm', {
     channels: channels.value.map((channel) => {
       return {
@@ -2533,6 +2545,7 @@ function onConfirmClicked() {
     ...form.value
   }, {
     preserveScroll: true,
+    onFinish: () => { statusSubmitting.value = false },
     onSuccess: () => {
       toast.success("Successfully Updated", {
         timeout: 3000
@@ -2800,9 +2813,14 @@ function onUndoStatusClicked(opsJobItemID) {
   if (!approval) {
       return;
   }
+  if (statusSubmitting.value) {
+    return;
+  }
+  statusSubmitting.value = true
   router.post('/ops-jobs/items/' + opsJobItemID + '/undo-status', {
   }, {
     preserveScroll: true,
+    onFinish: () => { statusSubmitting.value = false },
     onSuccess: () => {
       toast.success("Successfully Updated", {
         timeout: 3000

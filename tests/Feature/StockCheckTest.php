@@ -277,6 +277,25 @@ class StockCheckTest extends TestCase
         $this->deleteJson('/stock-checks/'.$check->id)->assertStatus(422);
     }
 
+    public function test_two_syncs_that_both_saw_the_count_unsynced_apply_the_variance_once(): void
+    {
+        $check = $this->assign();
+        $this->actingAs($this->driver)
+            ->postJson('/stock-checks/'.$check->id.'/submit', $this->answers($check, [11 => 5, 12 => 0, 14 => 5]))->assertOk();
+        $qty = fn (int $code) => (int) VendChannel::where('vend_id', $this->vend->id)->where('code', $code)->value('qty');
+        $before = $qty(11);
+
+        // Two tabs (or a retried request): the second loaded the count before the first committed.
+        $secondTab = \App\Models\StockCheck::with('channels')->find($check->id);
+        app(\App\Services\StockCheck\StockCheckService::class)->sync(\App\Models\StockCheck::find($check->id), $this->supervisor);
+        $afterFirst = $qty(11);
+        $results = app(\App\Services\StockCheck\StockCheckService::class)->sync($secondTab, $this->supervisor);
+
+        $this->assertNotSame($before, $afterFirst, 'the first sync moved channel 11');
+        $this->assertSame($afterFirst, $qty(11), 'the second moves nothing');
+        $this->assertFalse(collect($results)->contains(fn ($r) => $r->applied));
+    }
+
     public function test_a_queue_that_cannot_be_reached_does_not_fail_a_committed_sync(): void
     {
         $check = $this->assign();

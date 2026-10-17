@@ -695,8 +695,27 @@ class OpsJobController extends Controller
 
     public function confirmItem(Request $request, $id)
     {
-        $opsJobItem = $this->scopedOpsJobItem($id);
+        // What the person pressed is the status the page was on, i.e. the status this request read.
+        $seen = (string) $this->scopedOpsJobItem($id)->status;
 
+        // A double tap on a slow link (or a retry) sends this twice. The branch is one transaction
+        // that claims the item under a row lock, AT the status this request saw (audit STK-01): the
+        // second request waits, then finds the status already moved and does nothing — no second
+        // relative Stock In on a freezer's ledger, no second warehouse "picked" movement, and never
+        // a second "Picked" tap turning into a Stock In. Calls that leave the database (CityBox,
+        // MQTT, queued jobs) run after commit.
+        DB::transaction(function () use ($request, $id, $seen) {
+            $opsJobItem = OpsJobItem::whereKey($id)->lockForUpdate()->firstOrFail();
+            if ((string) $opsJobItem->status === $seen) {
+                $this->confirmItemLocked($request, $opsJobItem);
+            }
+        });
+
+        return redirect()->back();
+    }
+
+    private function confirmItemLocked(Request $request, OpsJobItem $opsJobItem): void
+    {
         switch ($opsJobItem->status) {
             case 1:
                 $stats = DB::table('ops_job_item_channels as ojic')
@@ -866,35 +885,10 @@ class OpsJobController extends Controller
                     }
                 }
 
-                // Auto push product info to machine if implement_new_mapping
+                // Auto push product info to machine if implement_new_mapping — after commit: these
+                // reach CityBox / the broker / the queue, and must read the committed mapping.
                 if ($opsJobItem->stock_action_type === 'implement_new_mapping') {
-                    $vend = $opsJobItem->vend;
-                    // The swap above wrote product_mapping_id straight to the row; this
-                    // relation may still hold the old one, and the chiller's channels are
-                    // derived FROM it.
-                    $vend?->refresh();
-                    if ($vend && $vend->isSmartChiller()) {
-                        // A chiller has no APK to push a frame to: its channels are derived
-                        // from the (now advanced) mapping plus CityBox's live stock, so they are
-                        // rebuilt here — new codes appear, dropped ones retire — before
-                        // SubmitCityboxCount sends the counts a few seconds later. The rebuild
-                        // bypasses the submit-pending guard, which this very stock-in just set.
-                        app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend);
-                    } elseif ($vend && $vend->isSmartFreezer()) {
-                        // One row per SKU, qty carried by product: the freezer's rows are
-                        // rewritten from the (now advanced) mapping, then the APK re-pulls.
-                        app(\App\Services\Freezer\FreezerChannelSync::class)->sync($vend);
-                        $this->vendJobService->syncChannelSlotListToVend($vend);
-                    } elseif ($vend) {
-                        $this->productMappingService->syncChannelsByVend($vend);
-                        \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
-
-                        // Frame building lives in ONE place (2026-08-13) — this
-                        // used to be an inline copy of the TYPESYNCAPICHANNELSLOTLIST
-                        // frame; now it shares the builder with the manual Sync
-                        // button and the bind/rebind auto-pushes.
-                        $this->vendJobService->syncChannelSlotListToVend($vend);
-                    }
+                    DB::afterCommit(fn () => $this->pushMappingChangeover($opsJobItem));
                 }
 
                 if ($opsJobItem->refillable_amount === null || $opsJobItem->refillable_count === null) {
@@ -956,8 +950,38 @@ class OpsJobController extends Controller
 
                 break;
         }
+    }
 
-        return redirect()->back();
+    /** The machine side of an "implement new mapping" Stock In, once the swap has committed. */
+    private function pushMappingChangeover(OpsJobItem $opsJobItem): void
+    {
+        $vend = $opsJobItem->vend;
+        // The Stock In wrote product_mapping_id straight to the row; this
+        // relation may still hold the old one, and the chiller's channels are
+        // derived FROM it.
+        $vend?->refresh();
+        if ($vend && $vend->isSmartChiller()) {
+            // A chiller has no APK to push a frame to: its channels are derived
+            // from the (now advanced) mapping plus CityBox's live stock, so they are
+            // rebuilt here — new codes appear, dropped ones retire — before
+            // SubmitCityboxCount sends the counts a few seconds later. The rebuild
+            // bypasses the submit-pending guard, which this very stock-in just set.
+            app(\App\Services\Citybox\StockPollService::class)->rebuildChannels($vend);
+        } elseif ($vend && $vend->isSmartFreezer()) {
+            // One row per SKU, qty carried by product: the freezer's rows are
+            // rewritten from the (now advanced) mapping, then the APK re-pulls.
+            app(\App\Services\Freezer\FreezerChannelSync::class)->sync($vend);
+            $this->vendJobService->syncChannelSlotListToVend($vend);
+        } elseif ($vend) {
+            $this->productMappingService->syncChannelsByVend($vend);
+            \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
+
+            // Frame building lives in ONE place (2026-08-13) — this
+            // used to be an inline copy of the TYPESYNCAPICHANNELSLOTLIST
+            // frame; now it shares the builder with the manual Sync
+            // button and the bind/rebind auto-pushes.
+            $this->vendJobService->syncChannelSlotListToVend($vend);
+        }
     }
 
     public function addChannel(Request $request, $id)
@@ -2179,8 +2203,22 @@ class OpsJobController extends Controller
 
     public function undoItemStatus($id)
     {
-        $opsJobItem = $this->scopedOpsJobItem($id);
+        $seen = (string) $this->scopedOpsJobItem($id)->status;
 
+        // Same claim as confirmItem: a double-tapped Undo Stock In takes a freezer's refill back
+        // out once, and never turns into an Undo Picked.
+        DB::transaction(function () use ($id, $seen) {
+            $opsJobItem = OpsJobItem::whereKey($id)->lockForUpdate()->firstOrFail();
+            if ((string) $opsJobItem->status === $seen) {
+                $this->undoItemStatusLocked($opsJobItem);
+            }
+        });
+
+        return redirect()->back();
+    }
+
+    private function undoItemStatusLocked(OpsJobItem $opsJobItem): void
+    {
         switch ($opsJobItem->status) {
             case OpsJob::STATUS_PICKED:
                 $opsJobItem->status = OpsJob::STATUS_PENDING;
@@ -2247,8 +2285,6 @@ class OpsJobController extends Controller
         if ((int) $opsJobItem->status < (int) OpsJob::STATUS_DELIVERED) {
             $opsJobItem->clearFreeze();
         }
-
-        return redirect()->back();
     }
 
     /**
@@ -2267,7 +2303,7 @@ class OpsJobController extends Controller
                 return;
             }
             $opsJobItem->forceFill(['citybox_submit_status' => 'reverting', 'citybox_submit_error' => null])->saveQuietly();
-            \App\Jobs\SubmitCityboxCount::dispatch($opsJobItem->id, true)->onQueue('high');
+            \App\Jobs\SubmitCityboxCount::dispatch($opsJobItem->id, true)->onQueue('high')->afterCommit();
         } catch (\Throwable $e) {
             Log::warning('Could not queue CityBox count revert for ops_job_item '.$opsJobItem->id.': '.$e->getMessage());
         }

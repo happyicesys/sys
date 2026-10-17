@@ -22,8 +22,11 @@ use Illuminate\Support\Facades\DB;
  *  - **Stock In** adds each SKU's refill (`actual_qty`, negative for a return). Relative, not
  *    "count + refill": the driver never types a count — the page sends back the qty it loaded, so
  *    an absolute write would put back every sale made while the page was open.
- *  - **Undo Stock In** takes the refill back out — the exact inverse. Only on rows still in the
- *    planogram: after a mapping swap a retired SKU's returned stock must not come back.
+ *  - **Undo Stock In** takes back what that Stock In actually moved — the exact inverse. Both
+ *    directions clamp at zero, so the refill is not always what moved (a return of 5 against a
+ *    ledger of 3 moves 3): each line records `ledger_applied_qty`, and undo reverses that (audit
+ *    SF-14, 2026-10-17; a line stocked in before the column falls back to its refill). Only on rows
+ *    still in the planogram: after a mapping swap a retired SKU's returned stock must not come back.
  *  - **A sale** takes one off per unit the TRADE reports dispensed, by product (`transf_info[].goods_id`
  *    = mark1 product id), once — only when the ingest creates or first fills the row.
  *
@@ -40,14 +43,16 @@ class FreezerStockLedger
             return;
         }
 
-        foreach ($item->opsJobItemChannels()->get() as $line) {
-            $refill = (int) $line->actual_qty;
-            if (! $line->vend_channel_id || $refill === 0) {
-                continue;
+        DB::transaction(function () use ($item, $vend) {
+            foreach ($item->opsJobItemChannels()->get() as $line) {
+                $refill = (int) $line->actual_qty;
+                if (! $line->vend_channel_id || $refill === 0) {
+                    continue;
+                }
+                $applied = $this->move(VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id), $refill);
+                $line->forceFill(['ledger_applied_qty' => $applied])->saveQuietly();
             }
-            VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)
-                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$refill.', 0)')]);
-        }
+        });
 
         $this->refreshJson($vend);
     }
@@ -59,16 +64,39 @@ class FreezerStockLedger
             return;
         }
 
-        foreach ($item->opsJobItemChannels()->get() as $line) {
-            $refill = (int) $line->actual_qty;
-            if (! $line->vend_channel_id || $refill === 0) {
-                continue;
+        DB::transaction(function () use ($item, $vend) {
+            foreach ($item->opsJobItemChannels()->get() as $line) {
+                $applied = $line->ledger_applied_qty !== null ? (int) $line->ledger_applied_qty : (int) $line->actual_qty;
+                if ($line->vend_channel_id && $applied !== 0) {
+                    $this->move(VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)->where('is_active', true), -$applied);
+                }
+                if ($line->ledger_applied_qty !== null) {
+                    $line->forceFill(['ledger_applied_qty' => null])->saveQuietly();
+                }
             }
-            VendChannel::whereKey($line->vend_channel_id)->where('vend_id', $vend->id)->where('is_active', true)
-                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) - '.$refill.', 0)')]);
-        }
+        });
 
         $this->refreshJson($vend);
+    }
+
+    /**
+     * Adds $delta to one row, never below zero, under a row lock.
+     *
+     * @return int what actually moved (0 when the row is not there)
+     */
+    private function move($row, int $delta): int
+    {
+        $channel = $row->lockForUpdate()->first(['id', 'qty']);
+        if (! $channel) {
+            return 0;
+        }
+        $before = (int) $channel->qty;
+        $after = max($before + $delta, 0);
+        if ($after !== $before) {
+            VendChannel::whereKey($channel->id)->update(['qty' => $after]);
+        }
+
+        return $after - $before;
     }
 
     /**
@@ -86,8 +114,7 @@ class FreezerStockLedger
                 ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) - '.(int) $units.', 0)')]);
         }
 
-        // After commit: the dashboard JSON must read the committed qty.
-        DB::afterCommit(fn () => $this->refreshJson($vend));
+        $this->refreshJson($vend);
     }
 
     /** @return array<int, int> product id => units dispensed */
@@ -110,8 +137,9 @@ class FreezerStockLedger
         return $units;
     }
 
+    /** After commit: the dashboard JSON must read the committed qty. */
     private function refreshJson(Vend $vend): void
     {
-        SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
+        DB::afterCommit(fn () => SaveVendChannelsJson::dispatch($vend->id)->onQueue('default'));
     }
 }

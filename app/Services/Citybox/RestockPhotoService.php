@@ -129,7 +129,7 @@ class RestockPhotoService
         }
         $item->forceFill(['citybox_photo_push_status' => 'pending', 'citybox_photo_push_error' => null])->saveQuietly();
         // After the count submit (5 s), which may fill in the visit's msg_id.
-        PushCityboxRestockPhotos::dispatch($item->id)->delay(now()->addSeconds(15))->onQueue('default');
+        PushCityboxRestockPhotos::dispatch($item->id)->delay(now()->addSeconds(15))->onQueue('default')->afterCommit();
     }
 
     /** @return array{before: ?string, after: ?string} the latest photo URL of each slot */

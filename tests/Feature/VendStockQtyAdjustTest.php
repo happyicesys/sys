@@ -227,6 +227,22 @@ class VendStockQtyAdjustTest extends TestCase
         $this->assertSame([], $this->gw->submits);
     }
 
+    public function test_a_chiller_overwrite_does_not_wipe_an_order_booked_while_citybox_was_being_updated(): void
+    {
+        $vend = $this->chiller();
+        $lemon = $this->row($vend, 90339);
+        // CityBox takes seconds to answer; meanwhile the minute pull deducts an order from our ledger.
+        $this->gw->afterSubmit = fn () => VendChannel::whereKey($lemon->id)->update(['qty' => 2]);
+
+        $this->actingAs($this->user())
+            ->postJson("/vends/{$vend->id}/stock-qty/{$lemon->id}", ['qty' => 7, 'expected_qty' => 3])
+            ->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'The system now shows 2, not 3'));
+
+        $this->assertSame(2, (int) $lemon->fresh()->qty, 'the order stays deducted');
+        $this->assertSame(0, VendChannelQtyAdjustment::count());
+    }
+
     public function test_a_chiller_overwrite_corrects_our_ledger_even_when_citybox_disagrees(): void
     {
         // The reason to overwrite by hand: ours says 3, CityBox says 2, the shelf holds 5.

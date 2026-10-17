@@ -1562,8 +1562,14 @@ rather than adding a new `if (citybox)` somewhere else:
     GP / product report picks chillers up with no report change.
   - **`ChillerStockLedger`**: a chiller's `vend_channels.qty` is OUR ledger now, like a
     freezer's. Absolute counts set it — the Stock In A-frame read-back, an Undo Stock In's
-    revert, a hand overwrite, the chiller's first read — each recording the vend's
-    `stock_baseline_at` (when their count was READ). Each order takes its units off ONCE
+    revert, the chiller's first read — each recording `vends.stock_baseline_at` (when their
+    count was READ; its own column since 2026-10-17, audit STK-02 — it lived in
+    `citybox_status_json`, which six writers save whole from stale copies, so a poll put old
+    baselines back). The baseline only moves forward (conditional UPDATE) and is written by
+    `SyncVendChannels` in the transaction that writes the count, under the vend row lock
+    `ChillerStockLedger::apply` also takes; an order the ledger deducted while that frame waited
+    on the queue is taken off again (`countLanded`). A hand overwrite sets ONE SKU and records
+    no baseline (the baseline is per vend). Each order takes its units off ONCE
     (`stock_deducted_json` per product, so a corrected / cancelled order moves only the
     difference), unless taken at or before the baseline (already inside that count) or
     corrected after a newer count. A refund returns money, not goods: stock stays out.
@@ -1708,7 +1714,11 @@ from mark1 = refused. Vending machine: refused — its VMC's next CHANNEL frame 
 overwrite it. Every overwrite carries the qty the person saw and is refused if the machine
 moved since (a sale, a Stock In) — for a chiller compared with OUR ledger, so a count that
 differs from CityBox's can still be corrected (with `CITYBOX_STOCK_LEDGER=false`, with
-theirs). A chiller DECREASE made here is recorded by the next stock check as a `sale`
+theirs). A chiller is checked twice: before the CityBox calls, and again under the row locks
+after them, since those calls take seconds and an order can be deducted meanwhile (audit STK-05);
+the second refusal says CityBox already holds the new figure. No baseline is recorded, so a
+pay-later order for that SKU taken before the count and paid after it is still deducted from the
+hand-set figure. A chiller DECREASE made here is recorded by the next stock check as a `sale`
 movement in `citybox_stock_movements` (no door-open window) — nothing reads that table yet. Regression coverage:
 `tests/Feature/VendStockQtyAdjustTest.php`.
 

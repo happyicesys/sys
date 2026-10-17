@@ -177,9 +177,23 @@ class ChannelQtyAdjuster
                 Log::warning('Citybox qty adjust: read-back failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
             }
 
-            // Our ledger takes the person's figure; with the ledger off, what CityBox read back.
-            $channel->update(['qty' => $ledger ? $qty : ($readBack ?? $qty)]);
-            $log = $this->record($vend, $channel, $before, $qty, $readBack, $msgId, $by);
+            // Our ledger takes the person's figure; with the ledger off, what CityBox read back. The
+            // calls above take seconds, and an order can be deducted meanwhile (STK-05): re-check
+            // under the same locks ChillerStockLedger::apply takes (vend row, then the channel), and
+            // write the row and its audit line as one.
+            $log = DB::transaction(function () use ($vend, $channel, $ledger, $before, $qty, $readBack, $msgId, $by) {
+                \App\Services\Citybox\ChillerStockLedger::lockedBaselineAt($vend->id);
+                $row = VendChannel::whereKey($channel->id)->lockForUpdate()->first();
+                if ($ledger && (int) $row->qty !== $before) {
+                    Log::warning('Citybox qty adjust: our ledger moved while CityBox was being updated', [
+                        'vend_id' => $vend->id, 'product_id' => $row->product_id, 'before' => $before, 'now' => (int) $row->qty, 'sent' => $qty, 'msg_id' => $msgId,
+                    ]);
+                    throw new QtyAdjustRefused("The system now shows {$row->qty}, not {$before} — a sale was booked while CityBox was being updated. CityBox now holds {$qty}; check the count and set it again.");
+                }
+                $row->update(['qty' => $ledger ? $qty : ($readBack ?? $qty)]);
+
+                return $this->record($vend, $row, $before, $qty, $readBack, $msgId, $by);
+            });
 
             if ($lines !== null) {
                 $this->stock->applyStockOnly($vend, $lines);

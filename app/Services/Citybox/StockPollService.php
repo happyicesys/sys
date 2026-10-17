@@ -215,11 +215,17 @@ class StockPollService
         if ($frame->isEmpty()) {
             return;
         }
-        \App\Jobs\Vend\SyncVendChannels::dispatch($frame->toArray(), $vend)->onQueue('high');
+        $payload = $frame->toArray();
         if ($ledger && $absolute) {
-            // Orders taken up to the moment their count was READ are inside it.
-            ChillerStockLedger::markBaseline($vend, $readAt ?? now(), $label ? 'frame '.$label : 'read');
+            // Orders taken up to the moment their count was READ are inside it. The baseline is
+            // recorded by the job, in the transaction that writes the count — recording it here, at
+            // dispatch, let an order deducted while the frame waited be overwritten and lost (STK-02).
+            $payload['stock_baseline'] = [
+                'at' => ($readAt ?? now())->toDateTimeString(),
+                'source' => $label ? 'frame '.$label : 'read',
+            ];
         }
+        \App\Jobs\Vend\SyncVendChannels::dispatch($payload, $vend)->onQueue('high');
     }
 
     /**

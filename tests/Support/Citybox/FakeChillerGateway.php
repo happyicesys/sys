@@ -147,6 +147,9 @@ class FakeChillerGateway implements ChillerGateway
     /** Set to a message to make submitCount throw, as CityBox does on a stale session. */
     public ?string $failSubmit = null;
 
+    /** Runs once the submit was accepted: a test's stand-in for what happens meanwhile on our side. */
+    public ?\Closure $afterSubmit = null;
+
     public function restockConfig(string $deviceId): Collection
     {
         if ($this->failRestockConfig) {
@@ -251,6 +254,9 @@ class FakeChillerGateway implements ChillerGateway
                     $this->stock[$session->deviceId][$i]['quantity'] = (string) $qty;
                 }
             }
+        }
+        if ($this->afterSubmit) {
+            ($this->afterSubmit)();
         }
     }
 }

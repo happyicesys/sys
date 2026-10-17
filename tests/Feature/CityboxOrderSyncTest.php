@@ -204,6 +204,57 @@ class CityboxOrderSyncTest extends TestCase
         $this->assertSame(6, $this->qty(90343), 'the 12:30 count already reflects the truth');
     }
 
+    public function test_a_stale_copy_of_the_vend_never_puts_an_old_baseline_back(): void
+    {
+        // The poll loads every vend at sweep start, then spends seconds on CityBox calls.
+        $stale = Vend::withoutGlobalScopes()->find($this->vend->id);
+        // Meanwhile a Stock In's read-back records a newer count.
+        ChillerStockLedger::markBaseline(Vend::withoutGlobalScopes()->find($this->vend->id), Carbon::parse('2026-10-13 12:30:00'), 'frame A');
+        // The poll saves its health mirror from the copy it loaded.
+        $json = $stale->citybox_status_json ?? [];
+        $json['poll'] = ['at' => '2026-10-13 12:31:00', 'ok' => true];
+        $stale->forceFill(['citybox_status_json' => $json])->save();
+
+        $this->assertSame('2026-10-13 12:30:00', ChillerStockLedger::baselineAt($this->vend->fresh())->toDateTimeString());
+
+        // And an older count never moves it back.
+        ChillerStockLedger::markBaseline($stale, Carbon::parse('2026-10-13 12:00:00'), 'read');
+        $this->assertSame('2026-10-13 12:30:00', ChillerStockLedger::baselineAt($this->vend->fresh())->toDateTimeString());
+    }
+
+    public function test_an_order_deducted_while_the_count_waits_on_the_queue_stays_deducted(): void
+    {
+        Queue::fake([\App\Jobs\Vend\SyncVendChannels::class, \App\Jobs\Vend\SyncVendChannelErrorLog::class, \App\Jobs\Vend\SaveVendChannelsJson::class, \App\Jobs\Vend\SyncVendTransactionTotalsJson::class]);
+        // A Stock In read-back: their count at 12:30 is 4 Lalune.
+        Carbon::setTestNow('2026-10-13 12:30:00');
+        $this->gw->seedStock('E1', [
+            ['id' => 90343, 'name' => 'Lalune', 'qty' => 4, 'layer' => 1, 'price' => '1.70'],
+            ['id' => 90404, 'name' => 'Soda', 'qty' => 6, 'layer' => 1, 'price' => '1.50'],
+        ]);
+        app(\App\Services\Citybox\StockPollService::class)->pushChannels($this->vend->fresh(), $this->gw->deviceStock('E1'), 'A', force: true, absolute: true, readAt: now());
+        $frame = null;
+        Queue::assertPushed(\App\Jobs\Vend\SyncVendChannels::class, function ($job) use (&$frame) {
+            $frame = (fn () => $this->input)->call($job);
+
+            return true;
+        });
+
+        // A customer takes one at 12:35; the minute pull deducts it before the frame job runs.
+        Carbon::setTestNow('2026-10-13 12:36:00');
+        $this->gw->seedOrder('2026-10-13', 210, 'E1', [[90343, 1, '1.70']], time: '12:35:00');
+        $this->pull('2026-10-13');
+
+        Carbon::setTestNow('2026-10-13 12:37:00');
+        app()->call([new \App\Jobs\Vend\SyncVendChannels($frame, $this->vend->fresh()), 'handle']);
+
+        $this->assertSame(3, $this->qty(90343), 'their 12:30 count less the 12:35 order');
+        $this->assertSame('2026-10-13 12:30:00', ChillerStockLedger::baselineAt($this->vend->fresh())->toDateTimeString());
+
+        // The next pull of the same order moves nothing.
+        $this->pull('2026-10-13');
+        $this->assertSame(3, $this->qty(90343));
+    }
+
     public function test_a_test_rig_amount_moves_stock_but_is_never_a_sale(): void
     {
         $this->gw->seedOrder('2026-10-13', 170, 'E1', [[90343, 1, '0.10']], time: '11:50:00');

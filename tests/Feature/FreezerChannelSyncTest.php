@@ -76,6 +76,25 @@ class FreezerChannelSyncTest extends TestCase
         $this->assertSame(48, $channels[11]['capacity'], "the SKU's own measured par, once per code it sits on");
     }
 
+    public function test_a_sale_between_dispatch_and_run_is_not_written_back(): void
+    {
+        Queue::fake();
+        $vend = $this->freezer();
+        $productId = Product::where('code', 'U-01')->value('id');
+        $row = VendChannel::forceCreate(['vend_id' => $vend->id, 'code' => 11, 'product_id' => $productId, 'qty' => 5, 'capacity' => 24, 'amount' => 300, 'is_active' => 1]);
+
+        app(FreezerChannelSync::class)->sync($vend);
+        $frame = ['channels' => array_values($this->pushedFrame())];
+        $this->assertSame(5, $frame['channels'][0]['qty'], 'the frame was built while the ledger read 5');
+
+        // A TRADE lands while the job waits on the high queue (FreezerStockLedger::sale is relative).
+        VendChannel::whereKey($row->id)->update(['qty' => 4]);
+
+        app()->call([new SyncVendChannels($frame, $vend->fresh()), 'handle']);
+
+        $this->assertSame(4, (int) $row->fresh()->qty, 'the sale stays deducted');
+    }
+
     public function test_it_keeps_our_ledger_and_retires_a_sku_that_left_the_planogram(): void
     {
         Queue::fake([SyncVendChannels::class => false, \App\Jobs\Vend\SyncVendChannelErrorLog::class, \App\Jobs\Vend\SaveVendChannelsJson::class]);

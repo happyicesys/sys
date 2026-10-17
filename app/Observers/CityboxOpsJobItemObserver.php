@@ -31,8 +31,8 @@ class CityboxOpsJobItemObserver
                 return;
             }
             $item->forceFill(['citybox_submit_status' => 'pending', 'citybox_submit_error' => null])->saveQuietly();
-            // 5 s: after the controller's channel loop has committed actual_qty.
-            SubmitCityboxCount::dispatch($item->id)->delay(now()->addSeconds(5))->onQueue('high');
+            // After commit (the Stock In is one transaction since 2026-10-17), then 5 s.
+            SubmitCityboxCount::dispatch($item->id)->delay(now()->addSeconds(5))->onQueue('high')->afterCommit();
             // The visit's before/after photos, if both are in already (else the upload sends them).
             app(\App\Services\Citybox\RestockPhotoService::class)->pushIfReady($item->setRelation('vend', $vend));
         } catch (\Throwable $e) {

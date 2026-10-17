@@ -97,7 +97,7 @@ class ProductMappingController extends Controller
      * today's default and a later change on Product → Edit would stop reaching
      * the machines. Typing a different number still overrides, as before.
      */
-    private function normalizeCapacityOverride(ProductMapping $mapping, $productId, $value): ?int
+    private function normalizeCapacityOverride(ProductMapping $mapping, $productId, $value, ?\Illuminate\Support\Collection $products = null): ?int
     {
         if ($value === null || $value === '') {
             return null;
@@ -105,7 +105,7 @@ class ProductMappingController extends Controller
 
         $override = max(0, min(999, (int) $value));
         $default = ProductMappingItem::productDefaultCapacity(
-            \App\Models\Product::withoutGlobalScopes()->find($productId),
+            $products ? $products->get((int) $productId) : \App\Models\Product::withoutGlobalScopes()->find($productId),
             $mapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE
         );
 
@@ -1262,23 +1262,37 @@ class ProductMappingController extends Controller
                 }
             }
 
-            $productMapping->productMappingItems()->delete();
-            foreach ($request->productMappingItems as $productMappingItem) {
-                $productMapping->productMappingItems()->create([
-                    'channel_code' => ChannelCode::normalize($productMappingItem['channel_code']),
-                    'product_id' => $productMappingItem['product']['id'],
-                    'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
-                    'sequence' => $productMappingItem['sequence'],
-                    'capacity_override' => $this->normalizeCapacityOverride(
-                        $productMapping,
-                        $productMappingItem['product']['id'],
-                        $productMappingItem['capacity_override'] ?? null
-                    ),
-                ]);
-            }
         }
 
-        $productMapping->save();
+        // Delete + recreate + save as ONE unit (audit CORE-06): a failure half-way left the mapping
+        // with missing rows, and syncChannels() below then nulled product_id on every bound
+        // machine's channels for them — unattributed sales. Products are read once, not per row.
+        DB::transaction(function () use ($request, $productMapping) {
+            if ($request->productMappingItems) {
+                $products = \App\Models\Product::withoutGlobalScopes()
+                    ->whereIn('id', collect($request->productMappingItems)->pluck('product.id')->filter()->unique()->values())
+                    ->get(['id', 'freezer_slot_qty', 'chiller_slot_qty'])
+                    ->keyBy('id');
+
+                $productMapping->productMappingItems()->delete();
+                foreach ($request->productMappingItems as $productMappingItem) {
+                    $productMapping->productMappingItems()->create([
+                        'channel_code' => ChannelCode::normalize($productMappingItem['channel_code']),
+                        'product_id' => $productMappingItem['product']['id'],
+                        'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
+                        'sequence' => $productMappingItem['sequence'],
+                        'capacity_override' => $this->normalizeCapacityOverride(
+                            $productMapping,
+                            $productMappingItem['product']['id'],
+                            $productMappingItem['capacity_override'] ?? null,
+                            $products
+                        ),
+                    ]);
+                }
+            }
+
+            $productMapping->save();
+        });
 
         $this->productMappingService->syncChannels($productMapping->id);
 
