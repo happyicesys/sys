@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\CardSettlementReport;
 use App\Models\CardSettlementRow;
+use App\Models\CardTerminal;
 use App\Models\CardTerminalBinding;
+use App\Models\CardTerminalUnit;
 use App\Models\PaymentMethod;
 use App\Models\RefundTicket;
+use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use App\Support\AutoRefundSource;
@@ -362,5 +365,51 @@ class CardSettlementRefundReconcilerTest extends TestCase
             ->expectsOutputToContain('APPLYING')
             ->assertSuccessful();
         $this->assertFalse((bool) $sale->fresh()->is_refunded);
+    }
+
+    /**
+     * CARD-01: a Payrallel (T05) terminal is never on a NETS report, so its machine's sales are
+     * not "NA in NETS" — not ticked refunded, not `not_captured` — on a day NETS is final.
+     */
+    public function test_a_t05_terminal_sale_is_never_judged_by_the_nets_report()
+    {
+        $t05 = CardTerminal::firstOrCreate(['name' => 'Payrallel (T05)']);
+        CardTerminalUnit::create(['terminal_id' => 'N620W325842', 'card_terminal_id' => $t05->id]);
+        CardTerminalBinding::create(['provider' => 'payrallel-t05', 'terminal_id' => 'N620W325842', 'vend_id' => self::VEND, 'bound_from' => '2026-08-01']);
+        $this->report(self::DAY);
+        $this->report('2026-08-30');
+        $fault = VendChannelError::firstOrCreate(['code' => 4], ['desc' => 'Open circuit, motor not detected (4)']);
+        // A failed single vend: on a NETS terminal this shape is ticked "NA in NETS".
+        $failed = $this->sale('2026-08-29 14:31:07', ['vend_channel_error_id' => $fault->id, 'is_found_in_transaction' => true]);
+        // The shape prod already carries: a dispensed T05 sale left at `not_captured` before the fix.
+        $stale = $this->sale('2026-08-29 15:00:00', ['success_qty' => 1, 'dispensed_qty' => 1, 'is_found_in_transaction' => true]);
+        $stale->forceFill(['card_settlement_state' => CardSettlementRefundReconciler::STATE_NOT_CAPTURED])->save();
+
+        $stats = $this->reconcile();
+
+        $this->assertSame(0, $stats['ticked_not_captured']);
+        foreach ([$failed, $stale] as $sale) {
+            $sale->refresh();
+            $this->assertFalse((bool) $sale->is_refunded);
+            $this->assertNull($sale->auto_refund_source);
+            $this->assertSame(CardSettlementRefundReconciler::STATE_UNBOUND, $sale->card_settlement_state, 'No NETS terminal');
+        }
+        $this->assertSame('unbound', app(CardSettlementRefundReconciler::class)->verdictFor($failed)['state']);
+    }
+
+    /** CARD-01: a machine with a NETS reader AND a T05 bound that day is judged by its NETS reader. */
+    public function test_a_nets_binding_beside_a_t05_one_still_covers_the_machine()
+    {
+        $t05 = CardTerminal::firstOrCreate(['name' => 'Payrallel (T05)']);
+        CardTerminalUnit::create(['terminal_id' => 'N620W325842', 'card_terminal_id' => $t05->id]);
+        CardTerminalBinding::create(['provider' => 'payrallel-t05', 'terminal_id' => 'N620W325842', 'vend_id' => self::VEND, 'bound_from' => '2026-08-01']);
+        $this->bind();
+        $this->report(self::DAY);
+        $this->report('2026-08-30');
+        $sale = $this->sale('2026-08-29 14:31:07', ['success_qty' => 1, 'is_found_in_transaction' => true]);
+
+        $this->reconcile();
+
+        $this->assertSame(CardSettlementRefundReconciler::STATE_NOT_CAPTURED, $sale->fresh()->card_settlement_state);
     }
 }

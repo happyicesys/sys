@@ -343,11 +343,12 @@ class CardPaymentServiceTest extends TestCase
         $this->gateway->answer($this->order(), T::APPROVED);
         $this->service->refresh($intent);
 
-        $this->gateway->failCapture = new CardTerminalException('Payrallel capture refused (HTTP 502)');
+        // An explicit refusal (4xx): nothing was charged, so it is safe to send again later.
+        $this->gateway->failCapture = CardTerminalException::refused('Payrallel capture refused (HTTP 422)', 422);
         Carbon::setTestNow(Carbon::now()->addMinutes(16));
         $this->service->reconcile();
         $this->assertSame(CardPaymentIntent::STATE_APPROVED, $intent->fresh()->state);
-        $this->assertStringContainsString('auto-capture', $intent->fresh()->last_error);
+        $this->assertStringContainsString('reconciler capture', $intent->fresh()->last_error);
 
         $this->service->reconcile(); // too soon to retry
         $this->assertCount(1, $this->gateway->callsOf('capture'));
@@ -370,5 +371,102 @@ class CardPaymentServiceTest extends TestCase
         $this->service->reconcile();
 
         $this->assertCount(1, $this->gateway->callsOf('capture'));
+    }
+
+    /** CARD-02: a timed-out auto-capture may have charged the card — never send it again. */
+    public function test_an_auto_capture_timeout_is_flagged_and_never_resent(): void
+    {
+        config(['payrallel.mode' => 'preauth']);
+        $intent = $this->start();
+        $this->gateway->answer($this->order(), T::APPROVED);
+        $this->service->refresh($intent);
+
+        $this->gateway->failCapture = new CardTerminalException('Payrallel unreachable (capture): Operation timed out'); // may have reached
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+
+        $flagged = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURING, $flagged->state);
+        $this->assertSame(430, $flagged->ai_decision['uncertain']);
+        $this->assertStringContainsString('not resent', $flagged->last_error);
+
+        $this->gateway->failCapture = null;
+        foreach ([11, 30, 120] as $minutes) {
+            Carbon::setTestNow(Carbon::now()->addMinutes($minutes));
+            $this->service->reconcile();
+        }
+        $this->assertCount(1, $this->gateway->callsOf('capture'), 'an uncertain capture is never resent by the sweep');
+
+        $this->artisan('card-payments:resolve-charge', ['reference' => 'SF1', '--charged' => true])->assertSuccessful();
+        $resolved = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $resolved->state);
+        $this->assertSame(430, $resolved->captured_cents);
+        $this->assertCount(1, $this->gateway->callsOf('capture'));
+    }
+
+    /** CARD-02: the device's own capture timing out — its retry and the sweep send nothing more. */
+    public function test_a_device_capture_timeout_is_not_resent_by_the_device_retry_or_the_sweep(): void
+    {
+        config(['payrallel.mode' => 'preauth']);
+        $intent = $this->start();
+        $this->gateway->answer($this->order(), T::APPROVED);
+        $approved = $this->service->refresh($intent);
+
+        $this->gateway->failCapture = new CardTerminalException('Payrallel capture refused (HTTP 502)');
+        try {
+            $this->service->capture($approved, 300);
+            $this->fail('the device must hear that its capture failed');
+        } catch (CardTerminalException) {
+        }
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURING, $intent->fresh()->state);
+        $this->assertSame(300, $intent->fresh()->ai_decision['uncertain']);
+
+        $this->gateway->failCapture = null;
+        $retried = $this->service->capture($intent->fresh(), 300); // the device's follow-up retry
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURING, $retried->state);
+
+        try {
+            $this->service->void($intent->fresh());
+            $this->fail('a capture that may have gone through cannot be voided');
+        } catch (DomainException) {
+        }
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(20));
+        $this->service->reconcile();
+        $this->assertCount(1, $this->gateway->callsOf('capture'), 'neither the retry nor the sweep re-captures the full hold');
+        $this->assertSame([], $this->gateway->callsOf('void'));
+
+        // The old command name still resolves it; "not charged" sends the SAME 300c again.
+        $this->artisan('card-payments:resolve-ai-charge', ['reference' => 'SF1', '--not-charged' => true])->assertSuccessful();
+        $resolved = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $resolved->state);
+        $this->assertSame(300, $resolved->captured_cents);
+        $this->assertSame([300, 300], array_column($this->gateway->callsOf('capture'), 2));
+    }
+
+    /** CARD-02: a run that died between sending a capture and recording its answer. */
+    public function test_a_run_that_died_mid_capture_is_flagged_not_resent(): void
+    {
+        config(['payrallel.mode' => 'preauth']);
+        $intent = $this->start();
+        $this->gateway->answer($this->order(), T::APPROVED);
+        $this->service->refresh($intent);
+        $intent->fresh()->update(['state' => CardPaymentIntent::STATE_CAPTURING, 'ai_decision' => ['inflight' => 430, 'by' => 'reconciler']]);
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(30));
+        $this->service->reconcile();
+
+        $this->assertSame(430, $intent->fresh()->ai_decision['uncertain']);
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURING, $intent->fresh()->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+    }
+
+    /** CARD-04: the per-intent lock outlives the longest chain of provider calls made under it. */
+    public function test_the_intent_lock_outlives_three_provider_calls_at_full_timeout(): void
+    {
+        foreach ([[8, 4], [15, 10]] as [$timeout, $connect]) {
+            config(['payrallel.timeout' => $timeout, 'payrallel.connect_timeout' => $connect]);
+            $this->assertGreaterThan(3 * ($timeout + $connect), CardPaymentService::lockSeconds());
+        }
     }
 }

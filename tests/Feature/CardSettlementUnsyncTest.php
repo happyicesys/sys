@@ -267,4 +267,78 @@ class CardSettlementUnsyncTest extends TestCase
         $this->assertTrue((bool) $apk->fresh()->is_retained_credit_settlement, "the APK's own evidence stands");
         $this->assertSame($apkFailed->id, (int) $apk->fresh()->retained_credit_settles_txn_id);
     }
+
+    /** CARD-06: a second Undo Sync (a double click, two tabs) finds the report in review and does nothing. */
+    public function test_a_second_undo_sync_is_refused_and_changes_nothing(): void
+    {
+        $report = $this->report();
+        $sale = $this->sale(['success_qty' => 0, 'dispensed_qty' => 0, 'vend_channel_error_id' => $this->fault->id]);
+        $this->reversedLine($sale, $report);
+        $this->sync($report);
+        $first = $this->unsync($report);
+        $this->assertSame(1, $first['ticks_cleared']);
+
+        try {
+            // A stale copy that still reads "synced" — the check is made again under the lock.
+            app(CardSettlementUnsyncService::class)->unsync($report, null);
+            $this->fail('a report already in review cannot be un-synced again');
+        } catch (\DomainException) {
+        }
+        $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->fresh()->status);
+        $this->assertNull($report->fresh()->unwind_pending_json, 'the first unwind finished');
+    }
+
+    /** CARD-06: an unwind that fails part-way leaves a marker; finish-unwind completes it. */
+    public function test_an_unwind_that_fails_part_way_leaves_a_marker_that_finish_unwind_completes(): void
+    {
+        $report = $this->report();
+        $sale = $this->sale(['success_qty' => 0, 'dispensed_qty' => 0, 'vend_channel_error_id' => $this->fault->id]);
+        $this->reversedLine($sale, $report);
+        $this->sync($report);
+        $this->assertTrue((bool) $sale->fresh()->is_refunded);
+
+        $real = app(CardSettlementRefundReconciler::class);
+        $this->app->instance(CardSettlementRefundReconciler::class, new class($real) extends CardSettlementRefundReconciler
+        {
+            public function __construct(private CardSettlementRefundReconciler $real)
+            {
+                parent::__construct(app(\App\Services\Refund\RefundTicketService::class));
+            }
+
+            public function unwindDay(\Carbon\CarbonInterface $day): array
+            {
+                throw new \RuntimeException('database went away');
+            }
+        });
+        try {
+            $this->unsync($report);
+            $this->fail('the unwind failure surfaces');
+        } catch (\RuntimeException) {
+        }
+
+        $report->refresh();
+        $this->assertSame(CardSettlementReport::STATUS_REVIEW, $report->status, 'the flip to review committed');
+        $this->assertContains(self::DAY, $report->unwind_pending_json['days'], 'and the days still to unwind are recorded');
+        $this->assertTrue((bool) $sale->fresh()->is_refunded, 'the tick it set is still there');
+        $section = collect(app(\App\Services\CardSettlement\CardSettlementHealthCheck::class)->run(Carbon::parse('2026-09-09')))->firstWhere('key', 'pending_unwind');
+        $this->assertStringContainsString("finish-unwind --report={$report->id}", $section['items'][0]['text']);
+
+        $this->app->forgetInstance(CardSettlementRefundReconciler::class);
+        $this->app->forgetInstance(CardSettlementUnsyncService::class);
+        $this->artisan('card-settlement:finish-unwind')->assertSuccessful();
+
+        $this->assertNull($report->fresh()->unwind_pending_json);
+        $this->assertFalse((bool) $sale->fresh()->is_refunded);
+        $this->artisan('card-settlement:finish-unwind')->expectsOutputToContain('Nothing pending')->assertSuccessful();
+    }
+
+    /** CARD-06: Sync, Undo Sync and Delete hold the report; a second one waits, then gives up. */
+    public function test_a_held_report_refuses_a_second_action(): void
+    {
+        $report = $this->report();
+        $report->exclusively(function () use ($report) {
+            $this->expectException(\Illuminate\Contracts\Cache\LockTimeoutException::class);
+            $report->exclusively(fn () => null, 0);
+        });
+    }
 }

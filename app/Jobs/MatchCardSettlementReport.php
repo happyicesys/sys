@@ -73,7 +73,8 @@ class MatchCardSettlementReport implements ShouldQueue
             // Hands-off: sync as soon as matching is done — query lines stay
             // queries and never block it (config card_settlement.auto_sync).
             if (config('card_settlement.auto_sync')) {
-                app(CardSettlementSyncService::class)->sync($report->fresh(), null);
+                // Waits out a user's Sync / Undo Sync on this report rather than racing it.
+                app(CardSettlementSyncService::class)->sync($report->fresh(), null, waitSeconds: 120);
             }
         } catch (Throwable $e) {
             $report->forceFill([

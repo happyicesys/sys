@@ -451,7 +451,7 @@ class CardSettlementRefundReconciler
             self::STATE_UNCOVERED => ['Not in report (partial coverage)', 'This terminal\'s company settles only part of its sales through the NETS file, so a missing line proves nothing.'],
             self::STATE_PENDING_REVIEW => ['In review', 'The NETS report has a line for this sale but that report has not been synced yet.'],
             self::STATE_NO_REPORT => ['No report yet', 'The NETS files for this day and the next are not both synced yet, so the report cannot rule on this sale.'],
-            self::STATE_UNBOUND => ['Terminal not bound', 'No card terminal was bound to this machine on that day, so its NETS lines cannot be matched.'],
+            self::STATE_UNBOUND => ['No NETS terminal', 'No NETS terminal was bound to this machine on that day (none, or a terminal of another rail such as a Payrallel T05), so the NETS report cannot rule on its sales.'],
         ];
         [$label, $detail] = $labels[$state];
 
@@ -536,9 +536,15 @@ class CardSettlementRefundReconciler
     }
 
     /**
-     * vend_id → the CardTerminalUnit bound to it on that day (company loaded).
-     * A binding whose terminal has no unit row still counts as bound: it gets
-     * a unit shell with no company and no flag (unknown), never "unbound".
+     * vend_id → the NETS-reported CardTerminalUnit bound to it on that day
+     * (company loaded). A binding whose terminal has no unit row still counts
+     * as bound: it gets a unit shell with no company and no flag (unknown),
+     * never "unbound".
+     *
+     * A terminal of another rail — a Payrallel (T05) on a smart freezer — is
+     * never on a NETS report, so "no line" proves nothing about it: it is left
+     * out, and its machine's sales read `unbound` ("No NETS terminal"), never
+     * "NA in NETS" (audit CARD-01; 13 freezer 50001 sales, 2026-10-05..09).
      *
      * @return Collection<int, CardTerminalUnit>
      */
@@ -547,8 +553,7 @@ class CardSettlementRefundReconciler
         $bindings = CardTerminalBinding::query()
             ->effectiveOn($day->toDateString())
             ->orderBy('id')
-            ->get(['vend_id', 'terminal_id'])
-            ->unique('vend_id');
+            ->get(['vend_id', 'terminal_id']);
 
         $units = CardTerminalUnit::query()
             ->with('company')
@@ -556,11 +561,11 @@ class CardSettlementRefundReconciler
             ->get()
             ->keyBy('terminal_id');
 
-        return $bindings->mapWithKeys(function ($b) use ($units) {
-            $unit = $units->get($b->terminal_id) ?? (new CardTerminalUnit)->forceFill(['terminal_id' => $b->terminal_id]);
-
-            return [(int) $b->vend_id => $unit];
-        });
+        return $bindings
+            ->map(fn ($b) => [(int) $b->vend_id, $units->get($b->terminal_id) ?? (new CardTerminalUnit)->forceFill(['terminal_id' => $b->terminal_id])])
+            ->filter(fn ($pair) => $pair[1]->settlementProvider() === 'nets')
+            ->unique(fn ($pair) => $pair[0])
+            ->mapWithKeys(fn ($pair) => [$pair[0] => $pair[1]]);
     }
 
     protected function ownsTick(VendTransaction $sale): bool

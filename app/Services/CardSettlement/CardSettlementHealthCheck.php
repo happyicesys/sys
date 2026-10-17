@@ -36,6 +36,7 @@ class CardSettlementHealthCheck
         $sections = [
             $this->missingFiles($today, $base),
             $this->unsyncedReports($today, $base),
+            $this->pendingUnwinds($base),
             $this->pendingMoves($from, $base),
             $this->openRefundsOnRetries($base),
             $this->machinesWithoutCompany($from, $base),
@@ -65,6 +66,18 @@ class CardSettlementHealthCheck
         }
 
         return ['key' => 'missing_files', 'title' => 'NETS files not uploaded', 'action' => 'Download them from MerchantConnect and upload them; matching and Sync then run by themselves.', 'items' => $items];
+    }
+
+    /** An Undo Sync whose take-back stopped part-way: ticks it set may still stand (CARD-06). */
+    protected function pendingUnwinds(string $base): array
+    {
+        $items = CardSettlementReport::query()->whereNotNull('unwind_pending_json')->orderBy('id')->get()
+            ->map(fn (CardSettlementReport $r) => [
+                'text' => "{$r->original_filename}: Undo Sync did not finish taking back what it synced — run `php artisan card-settlement:finish-unwind --report={$r->id}`",
+                'url' => $base.'/card-settlements/'.$r->id,
+            ])->all();
+
+        return ['key' => 'pending_unwind', 'title' => 'Undo Sync not finished', 'action' => 'Run the command shown; it is safe to repeat.', 'items' => $items];
     }
 
     protected function unsyncedReports(Carbon $today, string $base): array
@@ -198,11 +211,12 @@ class CardSettlementHealthCheck
     }
 
     /**
-     * T05 holds charged by the AI verdict (CardPaymentService::settleAwaitingAi) that need a
-     * person: a charge whose outcome is unknown (never resent until resolved), a refused charge
-     * still retrying, money judged but not collected, and every hold with no AI verdict that is
-     * waiting for a person to key in the charge on AI Recognition — never charged on its own, and
-     * an uncaptured hold expires (~a month) and gives the goods away, so its age is shown.
+     * T05 holds charged by the AI verdict (CardPaymentService::settleAwaitingAi), or captured by
+     * the device / reconciler (`capturing`), that need a person: a charge whose outcome is unknown
+     * (never resent until resolved), a refused charge still retrying, money judged but not
+     * collected, and every hold with no AI verdict that is waiting for a person to key in the
+     * charge on AI Recognition — never charged on its own, and an uncaptured hold expires
+     * (~a month) and gives the goods away, so its age is shown.
      */
     protected function t05AiCharges(string $base): array
     {
@@ -210,7 +224,7 @@ class CardSettlementHealthCheck
         $payments = app(CardPaymentService::class);
         CardPaymentIntent::query()
             ->with('vend:id,code,code_prefix')
-            ->where(fn ($q) => $q->where('state', CardPaymentIntent::STATE_AWAITING_AI)
+            ->where(fn ($q) => $q->whereIn('state', [CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::STATE_CAPTURING])
                 ->orWhere(fn ($q) => $q->where('state', CardPaymentIntent::STATE_CAPTURED)->where('owed_cents', '>', 0)
                     ->where('updated_at', '>=', now()->subDays(14))))
             ->orderBy('id')
@@ -219,7 +233,8 @@ class CardSettlementHealthCheck
                 $decision = (array) $i->ai_decision;
                 $machine = $i->vend?->codeLabel() ?? "vend #{$i->vend_id}";
                 $text = match (true) {
-                    isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-ai-charge {$i->reference} --charged|--not-charged`",
+                    isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-charge {$i->reference} --charged|--not-charged`",
+                    $i->state === CardPaymentIntent::STATE_CAPTURING => "{$machine} {$i->reference}: capture of ".((int) ($decision['inflight'] ?? $i->amount_cents) / 100).' has no recorded answer — the next sweep flags it',
                     $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected (Payrallel refused to raise the hold; the hold was charged)',
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
                     ($because = $payments->personNeededBecause($i)) !== null => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100)

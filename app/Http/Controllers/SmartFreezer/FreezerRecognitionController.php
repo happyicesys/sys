@@ -244,7 +244,7 @@ class FreezerRecognitionController extends Controller
                 // Payrallel refused to raise the authorisation: the hold was charged, the rest is owed.
                 'increment_refused' => isset($card->ai_decision['increment_refused']),
                 // A charge that may have gone through; nothing more is sent until resolved
-                // (`card-payments:resolve-ai-charge`).
+                // (`card-payments:resolve-charge`).
                 'uncertain_cents' => $card->ai_decision['uncertain'] ?? null,
                 'reason' => $card->ai_decision['reason'] ?? null,
                 'error' => $card->last_error,

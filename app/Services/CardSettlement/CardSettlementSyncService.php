@@ -63,8 +63,22 @@ class CardSettlementSyncService
         return $this->lastReconcile;
     }
 
-    /** @return int number of matched rows covered by the sync */
-    public function sync(CardSettlementReport $report, ?int $userId): int
+    /**
+     * Holds the report for the whole sync ({@see CardSettlementReport::exclusively}), so a
+     * user's click and the match job's auto-sync, or a Sync and an Undo Sync, never
+     * interleave. The report is re-read under the lock.
+     *
+     * @return int number of matched rows covered by the sync
+     *
+     * @throws \Illuminate\Contracts\Cache\LockTimeoutException when another action holds the report
+     */
+    public function sync(CardSettlementReport $report, ?int $userId, int $waitSeconds = 15): int
+    {
+        return $report->exclusively(fn (CardSettlementReport $fresh) => $this->syncLocked($fresh, $userId), $waitSeconds);
+    }
+
+    /** Caller holds the report lock. */
+    protected function syncLocked(CardSettlementReport $report, ?int $userId): int
     {
         // Direction 1 of the NETS ↔ TRADE gap: money in the report, no sale.
         // Created BEFORE the stamp so the new rows are synced and reconciled

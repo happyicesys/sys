@@ -141,6 +141,12 @@ class CardSettlementOrphanSales
      * Before a line is re-pointed (Assign) or dismissed (Ignore): if its sale
      * is an orphan still awaiting its TRADE, delete that orphan. Returns
      * whether one was deleted.
+     *
+     * A live TRADE may be adopting the same orphan at this moment
+     * (VendTransactionService::findSettlementOrphan row-locks it). So the
+     * orphan is re-read FOR UPDATE and deleted only while it is still awaiting
+     * its TRADE: once adopted it is a real sale and stays (audit CARD-05).
+     * Joins the caller's transaction when there is one.
      */
     public function release(CardSettlementRow $row): bool
     {
@@ -148,23 +154,32 @@ class CardSettlementOrphanSales
             return false;
         }
 
-        $sale = VendTransaction::withoutGlobalScopes()
-            ->whereKey($row->matched_vend_transaction_id)
-            ->where('card_settlement_row_id', $row->id)
-            ->where('is_found_in_transaction', false)
-            ->first();
+        $sale = DB::transaction(function () use ($row) {
+            $sale = VendTransaction::withoutGlobalScopes()
+                ->whereKey($row->matched_vend_transaction_id)
+                ->where('card_settlement_row_id', $row->id)
+                ->where('is_found_in_transaction', false)
+                ->lockForUpdate()
+                ->first();
+            if (! $sale) {
+                return null;
+            }
+
+            // Conditional: only a sale STILL awaiting its TRADE goes. Nothing else is
+            // touched unless it did — an adopted sale keeps its items and its line.
+            if (VendTransaction::withoutGlobalScopes()->whereKey($sale->id)->where('is_found_in_transaction', false)->delete() !== 1) {
+                return null;
+            }
+            $row->forceFill(['matched_vend_transaction_id' => null])->save();
+            $sale->vendTransactionItems()->delete();
+
+            return $sale;
+        });
         if (! $sale) {
             return false;
         }
 
-        $day = $sale->transaction_datetime;
-        // Release the claim first: the UNIQUE index on matched_vend_transaction_id
-        // is what stops two lines owning one sale.
-        $row->forceFill(['matched_vend_transaction_id' => null])->save();
-        $sale->vendTransactionItems()->delete();
-        $sale->delete();
-        $this->dirtyDays->mark($day);
-
+        $this->dirtyDays->mark($sale->transaction_datetime);
         Log::info('CardSettlementOrphanSales: orphan sale deleted', ['vend_transaction_id' => $sale->id, 'row_id' => $row->id]);
 
         return true;

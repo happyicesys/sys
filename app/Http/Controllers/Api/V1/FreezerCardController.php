@@ -10,6 +10,7 @@ use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\CardTerminalEventLog;
 use App\Services\CardTerminal\CardTerminalException;
 use DomainException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -26,8 +27,8 @@ use Illuminate\Http\Request;
  *   POST /api/v1/vends/{code}/card/{reference}/void
  *
  * Every route is signed by the machine (VerifyDeviceSignature). Errors are
- * JSON {error}: 404 unknown machine/reference, 409 a refused transition,
- * 503 no terminal or the provider unreachable.
+ * JSON {error}: 404 unknown machine/reference, 409 a refused transition or the
+ * attempt busy with another call (retry), 503 no terminal or the provider unreachable.
  */
 class FreezerCardController extends Controller
 {
@@ -179,6 +180,10 @@ class FreezerCardController extends Controller
             return response()->json(['error' => $e->getMessage()], 409);
         } catch (CardTerminalException $e) {
             return response()->json(['error' => $e->getMessage()], 503);
+        } catch (LockTimeoutException) {
+            // Another call holds this attempt (the reconciler, or the device's own earlier
+            // request still waiting on Payrallel). Nothing was done: the device retries.
+            return response()->json(['error' => 'busy: this card attempt is being worked on — retry'], 409);
         }
     }
 

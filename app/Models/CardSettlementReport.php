@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class CardSettlementReport extends Model
 {
@@ -37,6 +38,7 @@ class CardSettlementReport extends Model
         'synced_count',
         'refunded_count',
         'error_message',
+        'unwind_pending_json',
         'uploaded_by',
         'matched_at',
         'synced_at',
@@ -48,7 +50,11 @@ class CardSettlementReport extends Model
         'report_generated_at' => 'datetime',
         'matched_at' => 'datetime',
         'synced_at' => 'datetime',
+        'unwind_pending_json' => 'array',
     ];
+
+    /** Longest a Sync / Undo Sync / Delete may hold a report (Sync repairs + reconciles days). */
+    public const LOCK_SECONDS = 900;
 
     protected static function booted(): void
     {
@@ -98,6 +104,24 @@ class CardSettlementReport extends Model
     }
 
     /** The disk this report's file was written to (falls back to the configured one). */
+    /**
+     * Runs $work while holding this report: Sync, Undo Sync, Delete and the match job's
+     * auto-sync never run on one report at once (audit CARD-06). $work gets the report
+     * re-read under the lock, so a status check inside it is current.
+     *
+     * @template T
+     *
+     * @param  callable(self): T  $work
+     * @return T
+     *
+     * @throws \Illuminate\Contracts\Cache\LockTimeoutException when another holds it past $waitSeconds
+     */
+    public function exclusively(callable $work, int $waitSeconds = 15): mixed
+    {
+        return Cache::lock('card-settlement-report:'.$this->id, self::LOCK_SECONDS)
+            ->block($waitSeconds, fn () => $work(static::query()->findOrFail($this->id)));
+    }
+
     public function fileDisk(): string
     {
         return $this->storage_disk ?: self::storageDisk();

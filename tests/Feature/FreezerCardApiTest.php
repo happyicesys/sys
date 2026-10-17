@@ -7,8 +7,10 @@ use App\Models\CardPaymentEvent;
 use App\Models\CardPaymentIntent;
 use App\Models\RemoteCardTerminal;
 use App\Models\Vend;
+use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\CardTerminal\TerminalTransaction as T;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\FakeRemoteCardTerminalGateway;
@@ -112,6 +114,20 @@ class FreezerCardApiTest extends TestCase
 
         // The door already opened: a void now would refund released goods.
         $this->signed('POST', '/api/v1/vends/50001/card/SF1/void')->assertStatus(409);
+    }
+
+    /** CARD-04: an attempt locked by another call answers 409 (retry), never a 500. */
+    public function test_a_busy_attempt_answers_409_not_500(): void
+    {
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF9', 'amount_cents' => 430])->assertStatus(202);
+        $this->mock(CardPaymentService::class, function ($mock) {
+            $mock->shouldReceive('capture')->andThrow(new LockTimeoutException);
+            $mock->shouldReceive('refresh')->andThrow(new LockTimeoutException);
+        });
+
+        $this->signed('POST', '/api/v1/vends/50001/card/SF9/capture', ['amount_cents' => 430])
+            ->assertStatus(409)->assertJsonPath('error', 'busy: this card attempt is being worked on — retry');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF9')->assertStatus(409);
     }
 
     public function test_door_failure_voids(): void

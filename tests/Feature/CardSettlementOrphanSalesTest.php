@@ -213,6 +213,34 @@ class CardSettlementOrphanSalesTest extends TestCase
         $this->assertSame($adoptedId, $adoptedRow->fresh()->matched_vend_transaction_id);
     }
 
+    /**
+     * CARD-05: a TRADE adopting the orphan between release()'s read and its delete (the
+     * adoption row-locks it; the delete waited, then ran) — the adopted sale must survive.
+     */
+    public function test_an_orphan_adopted_after_release_read_it_survives(): void
+    {
+        $rep = $this->report();
+        $row = $this->line($rep);
+        app(CardSettlementSyncService::class)->sync($rep, null);
+        $orphanId = $row->fresh()->matched_vend_transaction_id;
+        $this->assertNotNull($orphanId);
+
+        // The adoption lands right after release() has read the row as an orphan.
+        $adopted = false;
+        VendTransaction::retrieved(function (VendTransaction $sale) use ($orphanId, &$adopted) {
+            if (! $adopted && $sale->id === $orphanId) {
+                $adopted = true;
+                \Illuminate\Support\Facades\DB::table('vend_transactions')->where('id', $orphanId)
+                    ->update(['is_found_in_transaction' => true, 'order_id' => 'LATE-TRADE-1']);
+            }
+        });
+
+        $this->assertFalse(app(CardSettlementOrphanSales::class)->release($row->fresh()));
+        $this->assertTrue($adopted);
+        $this->assertNotNull(VendTransaction::withoutGlobalScopes()->find($orphanId), 'the adopted sale is a real sale');
+        $this->assertSame($orphanId, $row->fresh()->matched_vend_transaction_id, 'and its line still claims it');
+    }
+
     public function test_orphans_audit_lists_a_possible_double_count(): void
     {
         $rep = $this->report();

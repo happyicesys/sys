@@ -8,8 +8,11 @@ use App\Models\VendTransaction;
 use App\Services\Sales\DirtyDayRegistry;
 use App\Services\Sales\RollupRebuilder;
 use Carbon\Carbon;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * "Undo sync" and Delete on a NETS report (Brian, 2026-10-05: a synced report
@@ -52,11 +55,29 @@ class CardSettlementUnsyncService
     ) {}
 
     /**
+     * Holds the report ({@see CardSettlementReport::exclusively}) and re-checks it is still
+     * synced under the lock, so two clicks, or an Undo Sync racing a Sync, never both act.
+     * The days to unwind are recorded on the report in the same transaction that flips it
+     * to review (`unwind_pending_json`) and cleared once the unwind finishes: a failure
+     * part-way leaves that marker for {@see finishPendingUnwind()} instead of stale ticks
+     * nobody knows about.
+     *
      * @return array{orphans_deleted:int, unstamped:int, links_removed:int, days:array, ticks_cleared:int, tickets_released:int}
+     *
+     * @throws DomainException when the report is not synced
+     * @throws \Illuminate\Contracts\Cache\LockTimeoutException when another action holds the report
      */
     public function unsync(CardSettlementReport $report, ?int $userId): array
     {
-        abort_unless($report->status === CardSettlementReport::STATUS_SYNCED, 422, 'Only a synced report can be un-synced.');
+        return $report->exclusively(fn (CardSettlementReport $fresh) => $this->unsyncLocked($fresh, $userId));
+    }
+
+    /** Caller holds the report lock. */
+    protected function unsyncLocked(CardSettlementReport $report, ?int $userId): array
+    {
+        if ($report->status !== CardSettlementReport::STATUS_SYNCED) {
+            throw new DomainException('Only a synced report can be un-synced.');
+        }
 
         $days = $this->coveredDays($report);
         $orphansDeleted = 0;
@@ -106,11 +127,16 @@ class CardSettlementUnsyncService
                 'refunded_count' => 0,
                 'synced_at' => null,
                 'synced_by' => null,
+                'unwind_pending_json' => [
+                    'days' => array_values(array_unique($days)),
+                    'revend_days' => $this->coveredDays($report),
+                    'since' => now()->toIso8601String(),
+                ],
             ])->save();
             $report->refreshCounts();
         });
 
-        $result = $this->unwind($days, $this->coveredDays($report), []);
+        $result = $this->runPendingUnwind($report);
 
         Log::info('Card settlement report un-synced', [
             'report_id' => $report->id,
@@ -121,6 +147,101 @@ class CardSettlementUnsyncService
         ] + $result);
 
         return ['orphans_deleted' => $orphansDeleted, 'unstamped' => $unstamped] + $result;
+    }
+
+    /**
+     * Re-runs an Undo Sync's unwind that did not finish (`card-settlement:finish-unwind`).
+     * unwindDay is idempotent: it takes back only what the synced reports no longer
+     * support, then reconciles the day again.
+     */
+    public function finishPendingUnwind(CardSettlementReport $report): array
+    {
+        return $report->exclusively(fn (CardSettlementReport $fresh) => $fresh->unwind_pending_json === null
+            ? ['links_removed' => 0, 'days' => [], 'ticks_cleared' => 0, 'tickets_released' => 0]
+            : $this->runPendingUnwind($fresh));
+    }
+
+    /** Unwinds the report's recorded days, then clears the marker. Caller holds the report lock. */
+    protected function runPendingUnwind(CardSettlementReport $report): array
+    {
+        $pending = (array) $report->unwind_pending_json;
+        $result = $this->unwind((array) ($pending['days'] ?? []), (array) ($pending['revend_days'] ?? []), []);
+        $report->forceFill(['unwind_pending_json' => null])->save();
+
+        return $result;
+    }
+
+    /**
+     * Delete a report that is not synced (Undo Sync first). Held like Sync / Undo Sync, the
+     * status re-checked under the lock. The DB rows go in one transaction and the stored
+     * file only after it commits — a failed delete never leaves rows pointing at a missing
+     * file. What the report vouched for outside its own rows is then unwound
+     * ({@see forgetDeleted}); if that fails the report is already gone, so the exact
+     * command to finish it is logged and returned.
+     *
+     * @return array{links_removed:int, days:array, ticks_cleared:int, tickets_released:int, unwind_failed?:string}
+     *
+     * @throws DomainException when the report is synced or still matching
+     * @throws \Illuminate\Contracts\Cache\LockTimeoutException when another action holds the report
+     */
+    public function delete(CardSettlementReport $report): array
+    {
+        return $report->exclusively(function (CardSettlementReport $report) {
+            if ($report->status === CardSettlementReport::STATUS_MATCHING) {
+                throw new DomainException('Matching is still running.');
+            }
+            if ($report->status === CardSettlementReport::STATUS_SYNCED) {
+                throw new DomainException('A synced report cannot be deleted — Undo sync first.');
+            }
+
+            $evidence = $this->evidenceOf($report);
+            $disk = $report->fileDisk();
+            $files = DB::transaction(function () use ($report) {
+                $files = [];
+                foreach ($report->attachments as $attachment) {
+                    if ($attachment->local_url) {
+                        $files[] = $attachment->local_url;
+                    }
+                    $attachment->delete();
+                }
+                $report->delete(); // rows cascade
+
+                return $files;
+            });
+
+            foreach ($files as $path) {
+                try {
+                    Storage::disk($disk)->delete($path);
+                } catch (Throwable $e) {
+                    Log::warning('Card settlement report file not deleted', ['report_id' => $report->id, 'path' => $path, 'error' => $e->getMessage()]);
+                }
+            }
+
+            try {
+                return $this->forgetDeleted($evidence);
+            } catch (Throwable $e) {
+                report($e);
+                $command = 'php artisan card-settlement:finish-unwind --days='.implode(',', array_unique($evidence['days']))
+                    .($evidence['sale_ids'] ? ' --top-up-sales='.implode(',', $evidence['sale_ids']) : '');
+                Log::error('Card settlement report deleted but its unwind failed — finish it by hand', [
+                    'report_id' => $report->id, 'command' => $command, 'error' => $e->getMessage(),
+                ]);
+
+                return ['links_removed' => 0, 'days' => [], 'ticks_cleared' => 0, 'tickets_released' => 0, 'unwind_failed' => $command];
+            }
+        });
+    }
+
+    /**
+     * The delete-side unwind for days given by hand (the command logged by a failed
+     * {@see delete()}).
+     *
+     * @param  string[]  $days
+     * @param  int[]  $topUpSaleIds
+     */
+    public function unwindDays(array $days, array $topUpSaleIds = []): array
+    {
+        return $this->forgetDeleted(['days' => $days, 'sale_ids' => $topUpSaleIds]);
     }
 
     /**

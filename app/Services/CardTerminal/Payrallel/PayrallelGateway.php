@@ -214,9 +214,12 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         );
         // A 4xx is an explicit refusal of this request; a 5xx may have been
         // half-processed on their side, so it stays "may have reached".
-        throw $response->clientError()
-            ? CardTerminalException::notSent($text)
-            : new CardTerminalException($text);
+        if ($response->clientError()) {
+            throw CardTerminalException::refused($text, $response->status());
+        }
+        $e = new CardTerminalException($text);
+        $e->httpStatus = $response->status();
+        throw $e;
     }
 
     private function isNotFound(Response $response, array $body): bool

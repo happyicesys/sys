@@ -190,6 +190,35 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertArrayHasKey('increment_refused', $intent->ai_decision);
     }
 
+    /** CARD-08: a rate limit or a dropped connection is not Payrallel declining the increase. */
+    public function test_a_transient_refusal_of_the_increase_is_retried_at_the_full_amount(): void
+    {
+        $this->doorClosed();
+        $this->verdict('took_more', [1 => 5, 2 => 1]); // 1660c on a 760c hold
+        $this->gateway->failCapture = CardTerminalException::refused('Payrallel capture refused (HTTP 429): too many requests', 429);
+        $this->service->reconcile();
+
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
+        $this->assertSame(1660, $intent->ai_decision['capture_cents'], 'the judged amount is kept');
+        $this->assertArrayNotHasKey('increment_refused', $intent->ai_decision);
+        $this->assertNull($intent->owed_cents);
+        $this->assertNotNull($intent->last_queried_at);
+
+        $this->gateway->failCapture = CardTerminalException::notSent('Payrallel unreachable (capture): cURL error 7: could not connect');
+        Carbon::setTestNow(Carbon::now()->addMinutes(11));
+        $this->service->reconcile();
+        $this->assertSame(1660, CardPaymentIntent::sole()->ai_decision['capture_cents']);
+
+        $this->gateway->failCapture = null;
+        Carbon::setTestNow(Carbon::now()->addMinutes(11));
+        $this->service->reconcile();
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
+        $this->assertSame(1660, $intent->captured_cents);
+        $this->assertSame([1660, 1660, 1660], array_column($this->gateway->callsOf('capture'), 2));
+    }
+
     public function test_incomplete_charges_what_the_ai_saw_plus_unasked_products_as_paid(): void
     {
         // Product 1 (300c) has a barcode; product 2 (160c) has none. Paid 2 + 1, the AI saw 1 of product 1.

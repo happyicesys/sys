@@ -30,11 +30,18 @@ use Illuminate\Support\Facades\Log;
  *  2. A void is refused once the goods are presumed released: after capture,
  *     or past `device_void_window_minutes` from approval.
  *  3. One provider call at a time per intent (cache lock), so the device's
- *     poll and the reconciler cannot both void the same money.
+ *     poll and the reconciler cannot both void the same money. The lock outlives
+ *     the longest chain of calls made under it ({@see lockSeconds}).
+ *  4. A capture whose outcome is unknown is never resent: it is written ahead, and a
+ *     timeout / 5xx / a run that died mid-call leaves it for a person
+ *     ({@see resolveUncertainCharge}) — a second capture on one order could double it.
  */
 class CardPaymentService
 {
-    private const LOCK_SECONDS = 20;
+    /** Most provider calls made under one lock: cancel → query → void. */
+    private const MAX_CALLS_PER_LOCK = 3;
+
+    private const LOCK_SLACK_SECONDS = 10;
 
     private const LOCK_WAIT_SECONDS = 10;
 
@@ -165,7 +172,8 @@ class CardPaymentService
     public function capture(CardPaymentIntent $intent, int $cents, ?string $sessionRef = null): CardPaymentIntent
     {
         return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $sessionRef) {
-            if (in_array($intent->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_AWAITING_AI], true)) {
+            // CAPTURING: a capture was sent and its answer is unknown — never send another.
+            if (in_array($intent->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::STATE_CAPTURING], true)) {
                 return $intent;
             }
             if ($intent->state !== CardPaymentIntent::STATE_APPROVED) {
@@ -187,14 +195,10 @@ class CardPaymentService
             }
 
             if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
-                $terminal = $this->terminalOf($intent);
-                try {
-                    $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
-                } catch (CardTerminalException $e) {
-                    $intent->update(['last_error' => $this->errorText('capture: '.$e->getMessage())]);
-                    throw $e;
-                }
-            } elseif ($cents !== $intent->amount_cents) {
+                // Throws on failure, after recording it (uncertain → CAPTURING, refused → APPROVED).
+                return $this->sendCapture($intent, $cents, 'device', rethrow: true);
+            }
+            if ($cents !== $intent->amount_cents) {
                 // A sale already took the full amount; a smaller "capture" would
                 // need a refund, which this API does not have.
                 throw new DomainException("sale mode charged {$intent->amount_cents}c; cannot capture {$cents}c");
@@ -233,6 +237,8 @@ class CardPaymentService
                     throw new DomainException('already captured: the goods were released');
                 case CardPaymentIntent::STATE_AWAITING_AI:
                     throw new DomainException('door closed: the AI verdict decides the charge');
+                case CardPaymentIntent::STATE_CAPTURING:
+                    throw new DomainException('a capture was sent and its outcome is unknown: the goods were released');
             }
 
             $window = (int) config('payrallel.device_void_window_minutes', 15);
@@ -332,6 +338,22 @@ class CardPaymentService
                 $this->isolated($intent, fn () => $this->locked($intent, fn (CardPaymentIntent $i) => $this->closeUnconfirmed($i)));
             });
 
+        // A capture written ahead whose answer was never recorded (the run died mid-call): it may
+        // have gone through, so it is flagged for a person, never resent. One still in flight
+        // holds the lock; by the time the lock is ours it has an answer.
+        CardPaymentIntent::query()
+            ->where('state', CardPaymentIntent::STATE_CAPTURING)
+            ->lazyById(100)
+            ->each(function (CardPaymentIntent $intent) use (&$touched) {
+                $this->isolated($intent, fn () => $this->locked($intent, function (CardPaymentIntent $i) use (&$touched) {
+                    $decision = (array) $i->ai_decision;
+                    if ($i->state === CardPaymentIntent::STATE_CAPTURING && isset($decision['inflight'])) {
+                        $touched++;
+                        $this->chargeUncertain($i, $decision, 'the run stopped before its answer was recorded');
+                    }
+                }));
+            });
+
         // Holds waiting on their AI verdict: charge as soon as it is in. With no verdict nothing is
         // charged on its own — a person keys it in (chargeByPerson). A decided charge the provider
         // refused is retried every AUTO_CAPTURE_RETRY_MINUTES (inside settleAwaitingAiLocked).
@@ -359,7 +381,7 @@ class CardPaymentService
      *
      * The decision is made ONCE and kept on the intent (`ai_decision`). The capture is written
      * ahead (`inflight`): an answer that never came (timeout, 5xx, a run that died) is never
-     * resent — it is flagged for a person ({@see resolveUncertainAiCharge}). A refusal (4xx) of
+     * resent — it is flagged for a person ({@see resolveUncertainCharge}). A refusal (4xx) of
      * the hold's own amount is retried every AUTO_CAPTURE_RETRY_MINUTES.
      */
     public function settleAwaitingAi(CardPaymentIntent $intent): CardPaymentIntent
@@ -377,7 +399,7 @@ class CardPaymentService
         $cart = (int) ($decision['cart_cents'] ?? $intent->amount_cents);
 
         if (isset($decision['uncertain'])) {
-            return $intent; // a charge that may have gone through: a person decides (resolveUncertainAiCharge)
+            return $intent; // a charge that may have gone through: a person decides (resolveUncertainCharge)
         }
         if (isset($decision['inflight'])) {
             // A run died between sending a charge and recording its answer.
@@ -426,7 +448,9 @@ class CardPaymentService
             }
             unset($decision['inflight']);
             $fallback = isset($decision['fallback_cents']) ? (int) $decision['fallback_cents'] : null;
-            if ($fallback !== null && $cents > $fallback) {
+            // Only a real "no" (a 4xx that is not 408/409/423/425/429) is Payrallel declining the
+            // increase. A rate limit or a connect failure decided nothing: retried at the full amount.
+            if ($fallback !== null && $cents > $fallback && $e->isDefiniteRefusal()) {
                 // Payrallel would not raise the authorisation: take the hold, record the rest.
                 $decision['increment_refused'] = $this->errorText($e->getMessage());
                 $decision['capture_cents'] = $fallback;
@@ -460,8 +484,8 @@ class CardPaymentService
 
     /**
      * A charge whose outcome is unknown (timeout, 5xx, or a run that died mid-call): it is never
-     * resent. The intent stays `awaiting_ai`, flagged, until a person checks Payrallel and calls
-     * {@see resolveUncertainAiCharge}.
+     * resent. The intent stays where it is (`awaiting_ai`, or `capturing` for a device / reconciler
+     * capture), flagged, until a person checks Payrallel and calls {@see resolveUncertainCharge}.
      */
     private function chargeUncertain(CardPaymentIntent $intent, array $decision, string $why): CardPaymentIntent
     {
@@ -479,21 +503,36 @@ class CardPaymentService
 
     /**
      * A person checked Payrallel for a flagged charge: $charged = it went through (the intent is
-     * captured at that amount), false = it did not (the same capture is sent again now).
+     * captured at that amount), false = it did not (the same capture is sent again now). Covers
+     * both paths: an AI-decided charge (`awaiting_ai`) and a device / reconciler capture
+     * (`capturing`).
      *
      * @throws DomainException when the intent has no flagged charge
      */
-    public function resolveUncertainAiCharge(CardPaymentIntent $intent, bool $charged): CardPaymentIntent
+    public function resolveUncertainCharge(CardPaymentIntent $intent, bool $charged): CardPaymentIntent
     {
         return $this->locked($intent, function (CardPaymentIntent $intent) use ($charged) {
             $decision = (array) $intent->ai_decision;
-            if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI || ! isset($decision['uncertain'])) {
+            // Under the lock an `inflight` capture is no longer in flight: its run died.
+            $flagged = $decision['uncertain'] ?? ($intent->state === CardPaymentIntent::STATE_CAPTURING ? ($decision['inflight'] ?? null) : null);
+            if ($flagged === null || ! in_array($intent->state, [CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::STATE_CAPTURING], true)) {
                 throw new DomainException('no charge of uncertain outcome on this intent');
             }
-            $cents = (int) $decision['uncertain'];
-            unset($decision['uncertain']);
-            $this->events->record('ai.charge_resolved', ['cents' => $cents, 'charged' => $charged],
+            $cents = (int) $flagged;
+            unset($decision['uncertain'], $decision['inflight']);
+            $this->events->record('charge.resolved', ['cents' => $cents, 'charged' => $charged, 'state' => $intent->state],
                 $intent->terminal, $intent->custom_order_id, null, 'warning');
+
+            if ($intent->state === CardPaymentIntent::STATE_CAPTURING) {
+                $by = (string) ($decision['by'] ?? 'reconciler');
+
+                return $charged
+                    ? $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
+                        'ai_decision' => null, 'captured_cents' => $cents, 'captured_at' => Carbon::now(),
+                        'last_error' => null, 'last_queried_at' => null,
+                    ])
+                    : $this->sendCapture($intent, $cents, $by); // sends the same capture again
+            }
 
             if ($charged) {
                 return $this->captured($intent, $decision, $cents);
@@ -713,17 +752,9 @@ class CardPaymentService
             return $intent; // the device confirmed or voided it meanwhile
         }
         if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
-            $terminal = $this->terminalOf($intent);
-            try {
-                $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $intent->amount_cents);
-            } catch (CardTerminalException $e) {
-                $intent->update([
-                    'last_error' => $this->errorText('auto-capture: '.$e->getMessage()),
-                    'last_queried_at' => Carbon::now(),
-                ]);
-                Log::error('Card auto-capture failed — retrying', $this->logContext($intent) + ['error' => $e->getMessage()]);
-
-                return $intent;
+            $intent = $this->sendCapture($intent, $intent->amount_cents, 'reconciler');
+            if ($intent->state !== CardPaymentIntent::STATE_CAPTURED) {
+                return $intent; // refused (retried in AUTO_CAPTURE_RETRY_MINUTES) or uncertain (a person decides)
             }
         }
         $intent->update([
@@ -736,6 +767,50 @@ class CardPaymentService
         Log::warning('Card payment captured without device confirmation', $this->logContext($intent));
 
         return $intent;
+    }
+
+    /**
+     * Sends a capture that is not AI-decided (the device's door-closed capture, or the reconciler's
+     * capture of an unconfirmed hold), written ahead: the intent is CAPTURING with the cents
+     * `inflight` before the call, so a run that dies mid-call leaves a flag, never a resend.
+     *  - success → CAPTURED;
+     *  - timeout / 5xx (may have reached Payrallel) → stays CAPTURING, flagged `uncertain`;
+     *  - an explicit refusal / no connection → back to APPROVED, nothing was charged, retried.
+     * Caller holds the lock. $rethrow: the device is told it failed (its retry then sees CAPTURING
+     * or APPROVED, never a second capture of an uncertain one).
+     */
+    private function sendCapture(CardPaymentIntent $intent, int $cents, string $by, bool $rethrow = false): CardPaymentIntent
+    {
+        $decision = ['inflight' => $cents, 'by' => $by, 'sent_at' => Carbon::now()->toIso8601String()];
+        $intent->update(['state' => CardPaymentIntent::STATE_CAPTURING, 'ai_decision' => $decision]);
+        $terminal = $this->terminalOf($intent);
+        try {
+            $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
+        } catch (CardTerminalException $e) {
+            if ($e->mayHaveReachedTerminal) {
+                $this->chargeUncertain($intent, $decision, "{$by} capture: ".$e->getMessage());
+            } else {
+                $intent->update([
+                    'state' => CardPaymentIntent::STATE_APPROVED,
+                    'ai_decision' => null,
+                    'last_error' => $this->errorText("{$by} capture: ".$e->getMessage()),
+                    'last_queried_at' => Carbon::now(),
+                ]);
+                Log::error('Card capture refused — retrying', $this->logContext($intent) + ['by' => $by, 'error' => $e->getMessage()]);
+            }
+            if ($rethrow) {
+                throw $e;
+            }
+
+            return $intent;
+        }
+
+        return $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
+            'ai_decision' => null,
+            'captured_cents' => $cents,
+            'captured_at' => Carbon::now(),
+            'last_error' => null,
+        ]);
     }
 
     /** One provider query, and the state change it implies. Caller holds the lock. */
@@ -927,8 +1002,20 @@ class CardPaymentService
      */
     private function locked(CardPaymentIntent $intent, callable $work): mixed
     {
-        return Cache::lock('card-payment-intent:'.$intent->id, self::LOCK_SECONDS)
+        return Cache::lock('card-payment-intent:'.$intent->id, self::lockSeconds())
             ->block(self::LOCK_WAIT_SECONDS, fn () => $work($intent->fresh()));
+    }
+
+    /**
+     * How long the per-intent lock lives: the longest chain of provider calls made under it, each
+     * at its full connect + read timeout, plus slack. Shorter, and a second worker could take the
+     * lock while the first still waits on Payrallel — two callers acting on the same money.
+     */
+    public static function lockSeconds(): int
+    {
+        $perCall = (int) config('payrallel.timeout', 8) + (int) config('payrallel.connect_timeout', 4);
+
+        return self::MAX_CALLS_PER_LOCK * $perCall + self::LOCK_SLACK_SECONDS;
     }
 
     private function mode(): string

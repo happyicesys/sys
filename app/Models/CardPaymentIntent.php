@@ -18,6 +18,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *      │                                   └──late approval──▶ (auto void) voided | void_failed
  *      └──send failed──▶ error
  *
+ *   approved ──capture sent (preauth; device, or reconciler past the void window)──▶ capturing
+ *   capturing ──answer: ok──▶ captured | ──refused──▶ approved (retried)
+ *             └──timeout / 5xx / run died──▶ stays capturing, flagged, until a person resolves it
+ *
  *   approved ──door closed + session ref (preauth, ai_capture)──▶ awaiting_ai
  *   awaiting_ai ──AI verdict / a person's keyed-in charge (no verdict)──▶ captured (the judged
  *                                          total in one capture, above the hold too) | voided
@@ -28,6 +32,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `awaiting_ai`: the goods are released and the hold stays open until the kiosk
  * session's AI verdict decides the charge (AiCaptureDecision). Nothing on the device
  * moves it; only CardPaymentService::settleAwaitingAi does.
+ *
+ * `ai_decision` holds the AI's decision on an `awaiting_ai` hold, and the write-ahead of any
+ * capture (`inflight` → `uncertain`, cents) on both paths.
  */
 class CardPaymentIntent extends Model
 {
@@ -53,6 +60,13 @@ class CardPaymentIntent extends Model
 
     /** Door closed on a hold; the charge waits for the session's AI verdict. */
     public const STATE_AWAITING_AI = 'awaiting_ai';
+
+    /**
+     * A device / reconciler capture was sent (written ahead, `ai_decision.inflight`) and its
+     * answer is not recorded. Left here after a timeout / 5xx / a run that died: it may have been
+     * charged, so nothing is resent until a person says (`card-payments:resolve-charge`).
+     */
+    public const STATE_CAPTURING = 'capturing';
 
     public const MODE_SALE = 'sale';
 

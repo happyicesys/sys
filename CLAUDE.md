@@ -287,7 +287,13 @@ been returned, and always together with `auto_refund_source`
   terminal ticks too and the flag stays informational (the "Auto refund"
   badge). Nets-Auresys terminals
   (`config('card_settlement.report_coverage_gap_companies')`) → `uncovered`,
-  never ticked from a missing line; unbound machine → untouched. The verdict
+  never ticked from a missing line; unbound machine → untouched. **A terminal of
+  another rail is not a NETS binding** (audit CARD-01, 2026-10-17): the reconciler
+  only counts units whose `settlementProvider()` is `nets`, so a freezer on a
+  Payrallel (T05) reads `unbound` ("No NETS terminal"), never "NA in NETS" — before
+  the fix 13 freezer 50001 sales (2026-10-05, 10-09) were left `not_captured`;
+  `card-settlement:reconcile-refunds --from=2026-10-05 --to=2026-10-09 [--apply]`
+  rewrites them. The verdict
   is persisted in `vend_transactions.card_settlement_state` (reversed at
   once; the rest once the day is final). The "NA in NETS" badge on Sales
   Transactions and both Refund Request screens states the REPORT FACT behind
@@ -323,7 +329,7 @@ been returned, and always together with `auto_refund_source`
   a NETS reversal is known to mark1 only once that day's report is uploaded
   and synced, never at TRADE time, and the refund ticket page shows the
   report's verdict ("NETS report": Reversed / Captured, not reversed / Not
-  captured / No report yet / Terminal not bound) so ops decide on evidence.
+  captured / No report yet / No NETS terminal) so ops decide on evidence.
   See `CARD_SETTLEMENT_2026-09-01.md`.
 - Every write of `is_refunded` must also call
   `RefundTicketService::markAutoRefundedByCharge` so an open ticket's frozen
@@ -652,7 +658,10 @@ Both directions of "the report and the machine disagree" are handled at Sync
   Ignored with `NOTE_TEST_AMOUNT` instead.
   `card-settlement:create-orphan-sales --apply` seeds reports synced before
   this existed. Assign / Ignore on such a line deletes an orphan still awaiting
-  its TRADE (`release()`); an adopted one is a real sale and stays.
+  its TRADE (`release()`); an adopted one is a real sale and stays — `release()`
+  re-reads it FOR UPDATE and deletes only `WHERE is_found_in_transaction = 0`, and
+  Assign / Ignore run in one transaction, because a live TRADE may be adopting it
+  at that moment (audit CARD-05).
 - **A late card TRADE adopts the orphan** (`VendTransactionService::findSettlementOrphan`:
   same machine, same cents, report time within −300/+60 s of EITHER the frame
   time or the moment we received the frame — the same two anchors the matcher
@@ -802,8 +811,17 @@ Both directions of "the report and the machine disagree" are handled at Sync
     the day can no longer support go to NULL, then the day is reconciled again) and
     rebuilt. Matching and terminal moves are not undone. Delete does the same unwind
     for what the file vouched for beyond its own rows — a purchase in ANOTHER report
-    its reversal line undid, and top-up links its lines proved. Regression coverage:
-    `tests/Feature/CardSettlementUnsyncTest.php`.
+    its reversal line undid, and top-up links its lines proved. **One action per
+    report at a time** (audit CARD-06): Sync, Undo Sync, Delete and the match job's
+    auto-sync all go through `CardSettlementReport::exclusively()` (cache lock,
+    status re-checked under it; a busy report answers "try again in a minute").
+    Undo Sync records the days still to unwind (`unwind_pending_json`) in the same
+    transaction that flips the report to review and clears it when the unwind
+    finishes; a failure part-way stays listed in the 08:30 email until
+    `card-settlement:finish-unwind` re-runs it (idempotent). Delete removes the
+    rows in one transaction and the file only after it commits; if its unwind
+    fails, the page and the log give the `finish-unwind --days=…` command.
+    Regression coverage: `tests/Feature/CardSettlementUnsyncTest.php`.
   - **`card-settlement:health` at 08:30** emails the HIPL alert-email list
     (`alert_operator_code`) ONLY what needs a person — missing NETS files,
     unsynced reports, weak moves, open refunds on retried vends (same card,
@@ -1307,7 +1325,18 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   (releases) the hold. A hold the freezer never confirms is captured in full by
   `card-payments:reconcile` once the void window has passed — goods are
   presumed released, and an uncaptured hold expiring (~a month) would give them
-  away. A refused capture stays `approved` and is retried every 10 min.
+  away. **Every capture is written ahead** (audit CARD-02, 2026-10-17): the
+  device's capture and that auto-capture move the intent to `capturing`
+  (`ai_decision.inflight`) before the call. An answer → `captured`; an explicit
+  refusal (4xx) or no connection → back to `approved`, retried every 10 min; a
+  timeout / 5xx / a run that died mid-call stays `capturing`, flagged
+  `uncertain`, and is NEVER resent — not by the sweep, not by the device's retry
+  (which gets `capturing` back), and it cannot be voided. A person checks
+  Payrallel and runs `card-payments:resolve-charge {reference} --charged|--not-charged`
+  (old name `resolve-ai-charge` still works), the same command as the AI path.
+  The per-intent lock lives `CardPaymentService::lockSeconds()` = 3 × (timeout +
+  connect timeout) + 10 s, the longest call chain under it; a device request that
+  cannot get it answers 409 "busy — retry", never 500 (audit CARD-04).
 - **The AI verdict decides a T05 charge** (Brian, 2026-10-03; plan
   `apk/smart-freezer/AI_GATED_CARD_CAPTURE_PLAN_2026-10-03.md`). A door-closed
   capture carrying `session_ref` (the kiosk txnRef = the TRADE's SFREF, freezer app
@@ -1318,7 +1347,9 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   in that sale else the machine's `vend_channels.amount`; nothing taken → void;
   above the hold → ONE capture of the whole judged amount (Brian, 2026-10-04, as
   Payrallel told us: "you only need to do capture, as auth_incr is done on our
-  backend" — never several captures on one order); if Payrallel refuses that (4xx),
+  backend" — never several captures on one order); if Payrallel refuses that (a 4xx
+  other than 408/409/423/425/429 — `CardTerminalException::isDefiniteRefusal()`;
+  a rate limit or a connect failure is retried at the full amount, audit CARD-08),
   the hold itself is captured at once and the rest recorded in `owed_cents`
   (`ai_decision.increment_refused`); **incomplete** (a paid product had no barcode, so
   the AI was never asked about it) → the middle ground (Brian, 2026-10-05): products the
@@ -1347,7 +1378,7 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   written ahead (`inflight`); a timeout / 5xx / a run that died mid-call
   flags it `uncertain`, the intent stays `awaiting_ai` with the error on AI Recognition,
   and a person checks Payrallel's portal and runs
-  `php artisan card-payments:resolve-ai-charge {reference} --charged|--not-charged`.
+  `php artisan card-payments:resolve-charge {reference} --charged|--not-charged`.
   A DNS / TCP-connect failure is a definite "not sent" (`PayrallelGateway::neverConnected`),
   only a read timeout or 5xx is uncertain. Safety rules from the 2026-10-04 review:
   a verdict decides the amount only if it is the session's ONLY verdict, its callback is

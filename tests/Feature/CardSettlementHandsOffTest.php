@@ -442,7 +442,7 @@ class CardSettlementHandsOffTest extends TestCase
         $section = collect(app(CardSettlementHealthCheck::class)->run())->firstWhere('key', 't05_ai_charges');
 
         $this->assertCount(4, $section['items']);
-        $this->assertStringContainsString('resolve-ai-charge', $section['items'][0]['text']);
+        $this->assertStringContainsString('resolve-charge', $section['items'][0]['text']);
         $this->assertStringContainsString('the AI never answered; key in the charge on AI Recognition', $section['items'][2]['text']);
         $this->assertStringContainsString('the AI gave no verdict; key in the charge on AI Recognition', $section['items'][3]['text']);
     }

@@ -16,7 +16,10 @@ use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\ParserRegistry;
 use App\Services\CardSettlement\TerminalMoveSuggestions;
 use App\Support\VendCode;
+use DomainException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -310,15 +313,6 @@ class CardSettlementController extends Controller
     }
 
     /**
-     * Terminals whose unmatched lines have a fitting sale on ANOTHER machine —
-     * the binding sheet is probably wrong for that TID. Grouped so the user
-     * fixes the binding once, either by hand or through fixBindings() below.
-     *
-     * `from_date` is the earliest line that fits the suggested machine, i.e.
-     * the earliest date this report can prove the terminal was already there —
-     * so a repair never claims more history than the evidence covers.
-     */
-    /**
      * Move every suspected wrong binding in this report onto the machine its
      * sales are actually on, then rematch — the one-click form of the manual
      * "go to the right machine's Settings page" instruction.
@@ -456,20 +450,23 @@ class CardSettlementController extends Controller
 
         // A line being moved off the sale that was CREATED from it (Part 2
         // orphan, still no TRADE) takes that sale with it — never two rows.
-        app(CardSettlementOrphanSales::class)->release($row);
+        // One transaction: the orphan's delete and the line's new claim land together.
+        DB::transaction(function () use ($row, $txn) {
+            app(CardSettlementOrphanSales::class)->release($row);
 
-        $row->update([
-            'status' => CardSettlementRow::STATUS_MATCHED,
-            'matched_vend_transaction_id' => $txn->id,
-            // The line follows the sale it was assigned to — a cross-machine
-            // pick (wrong binding) must not keep showing the old machine.
-            'vend_id' => $txn->vend_id,
-            'match_time_delta' => null,
-            'candidates_json' => null,
-            'resolution_note' => 'Resolved manually',
-            'resolved_by' => auth()->id(),
-            'resolved_at' => now(),
-        ]);
+            $row->update([
+                'status' => CardSettlementRow::STATUS_MATCHED,
+                'matched_vend_transaction_id' => $txn->id,
+                // The line follows the sale it was assigned to — a cross-machine
+                // pick (wrong binding) must not keep showing the old machine.
+                'vend_id' => $txn->vend_id,
+                'match_time_delta' => null,
+                'candidates_json' => null,
+                'resolution_note' => 'Resolved manually',
+                'resolved_by' => auth()->id(),
+                'resolved_at' => now(),
+            ]);
+        });
         $report->refreshCounts();
 
         return back()->with('message', 'Row resolved.');
@@ -480,26 +477,28 @@ class CardSettlementController extends Controller
         $report = CardSettlementReport::findOrFail($id);
         $row = $report->rows()->findOrFail($rowId);
 
-        // Ignoring a paired reversal must release its purchase line, or that
-        // sale would still be marked refunded on Sync with no reversal behind it.
-        if ($row->is_reversal && $row->reverses_row_id) {
-            CardSettlementRow::where('id', $row->reverses_row_id)
-                ->where('reversed_by_row_id', $row->id)
-                ->update(['reversed_by_row_id' => null]);
-        }
+        DB::transaction(function () use ($row, $request) {
+            // Ignoring a paired reversal must release its purchase line, or that
+            // sale would still be marked refunded on Sync with no reversal behind it.
+            if ($row->is_reversal && $row->reverses_row_id) {
+                CardSettlementRow::where('id', $row->reverses_row_id)
+                    ->where('reversed_by_row_id', $row->id)
+                    ->update(['reversed_by_row_id' => null]);
+            }
 
-        // Ignoring a line whose sale was created from it removes that orphan sale.
-        app(CardSettlementOrphanSales::class)->release($row);
+            // Ignoring a line whose sale was created from it removes that orphan sale.
+            app(CardSettlementOrphanSales::class)->release($row);
 
-        $row->update([
-            'status' => CardSettlementRow::STATUS_IGNORED,
-            'matched_vend_transaction_id' => null,
-            'match_time_delta' => null,
-            'reverses_row_id' => null,
-            'resolution_note' => $request->input('note') ?: 'Ignored by user',
-            'resolved_by' => auth()->id(),
-            'resolved_at' => now(),
-        ]);
+            $row->update([
+                'status' => CardSettlementRow::STATUS_IGNORED,
+                'matched_vend_transaction_id' => null,
+                'match_time_delta' => null,
+                'reverses_row_id' => null,
+                'resolution_note' => $request->input('note') ?: 'Ignored by user',
+                'resolved_by' => auth()->id(),
+                'resolved_at' => now(),
+            ]);
+        });
         $report->refreshCounts();
 
         return back()->with('message', 'Row ignored.');
@@ -573,7 +572,12 @@ class CardSettlementController extends Controller
         $report = CardSettlementReport::findOrFail($id);
         abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
 
-        $count = $syncService->sync($report, auth()->id());
+        try {
+            $count = $syncService->sync($report, auth()->id());
+        } catch (LockTimeoutException) {
+            return back()->withErrors(['report' => 'Another Sync, Undo Sync or Delete is running on this report — try again in a minute.']);
+        }
+        $report->refresh();
 
         // The report is the source of truth for the auto-refund tick: say what
         // it changed beyond the stamp, so a cleared tick never goes unnoticed.
@@ -606,7 +610,13 @@ class CardSettlementController extends Controller
         abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
         abort_unless($report->status === CardSettlementReport::STATUS_SYNCED, 422, 'This report is not synced.');
 
-        $r = $unsync->unsync($report, auth()->id());
+        try {
+            $r = $unsync->unsync($report, auth()->id());
+        } catch (DomainException $e) {
+            abort(422, $e->getMessage());
+        } catch (LockTimeoutException) {
+            return back()->withErrors(['report' => 'Another Sync, Undo Sync or Delete is running on this report — try again in a minute.']);
+        }
 
         $msg = "Sync undone: {$r['unstamped']} sale(s) unstamped";
         if ($r['orphans_deleted']) {
@@ -630,21 +640,19 @@ class CardSettlementController extends Controller
         abort_if($report->status === CardSettlementReport::STATUS_SYNCED, 422,
             'A synced report cannot be deleted — Undo sync first.');
 
-        $evidence = $unsync->evidenceOf($report);
-
-        foreach ($report->attachments as $attachment) {
-            if ($attachment->local_url) {
-                Storage::disk($report->fileDisk())->delete($attachment->local_url);
-            }
-            $attachment->delete();
-        }
-        $report->delete(); // rows cascade
-
         // Its reversal lines may have undone purchases in other reports, and its
-        // lines may have proved top-ups: take back what they vouched for.
-        $unsync->forgetDeleted($evidence);
+        // lines may have proved top-ups: delete() takes back what they vouched for.
+        try {
+            $r = $unsync->delete($report);
+        } catch (DomainException $e) {
+            abort(422, $e->getMessage());
+        } catch (LockTimeoutException) {
+            return back()->withErrors(['report' => 'Another Sync, Undo Sync or Delete is running on this report — try again in a minute.']);
+        }
 
-        return redirect()->route('card-settlements')->with('message', 'Report deleted.');
+        return redirect()->route('card-settlements')->with('message', isset($r['unwind_failed'])
+            ? 'Report deleted, but taking back what it vouched for failed — ask an admin to run: '.$r['unwind_failed']
+            : 'Report deleted.');
     }
 
     /** The uploaded file, streamed from private storage to a permitted viewer. */
