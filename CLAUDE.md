@@ -96,6 +96,14 @@ permission set from its own table every time it runs.
 php artisan db:seed --class=RolePermissionSyncSeeder
 ```
 
+**A push deploys sys AND lsh, but nothing runs the seeder on lsh** (own DB, `forge@206.189.39.162`,
+`/home/forge/lsh.happyice.com.sg/current`). A new `can:`/`permission:` gate therefore 403s every lsh
+user until someone seeds it there. 2026-10-17: the UI Setting per-verb gate locked out lsh
+operator_admin (Edit refused). lsh turned out ~170 grants behind (Stock Count, Service Notice,
+Happy Hour, the `picker` role, …); the full sync was run there the same day (Brian's go-ahead)
+and lsh now matches sys grant for grant. **After every deploy that touches the seeder, run it on
+lsh too.** `observer_transactions` holds zero permissions on both hosts (it did before, too).
+
 Amending it:
 
 | Want | Do |
