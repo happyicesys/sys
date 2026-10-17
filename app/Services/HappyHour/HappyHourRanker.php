@@ -34,6 +34,25 @@ use Illuminate\Support\Facades\DB;
  */
 class HappyHourRanker
 {
+    /** Why a SKU is left out, one key per rule of exclusion() — the campaign page groups the skipped SKUs on it. */
+    public const EXCLUDED_CAMPAIGN = 'campaign';
+
+    public const EXCLUDED_UNAVAILABLE = 'unavailable';
+
+    public const EXCLUDED_BESTSELLER = 'bestseller';
+
+    public const EXCLUDED_NO_PRICE = 'no_price';
+
+    public const EXCLUDED_PRIORITY_EMPTY = 'priority_empty';
+
+    public const EXCLUDED_MIN_QTY = 'min_qty';
+
+    public const EXCLUDED_FLOOR = 'floor';
+
+    public const EXCLUDED_NO_DISCOUNT = 'no_discount';
+
+    public const EXCLUDED_BELOW_COST = 'below_cost';
+
     /** @return list<HappyHourCandidate> eligible first in rank order, then the excluded ones */
     public function rank(HappyHourCampaign $campaign, Vend $vend, CarbonInterface $now): array
     {
@@ -84,7 +103,11 @@ class HappyHourRanker
             $candidate->priority = isset($priority[$productId]);
             // The warehouse's Available? tick (Product Movement) off = not offered while the campaign skips those.
             $unavailable = ! $candidate->priority && $campaign->skip_unavailable && isset($products[$productId]) && ! $products[$productId]->is_available;
-            $candidate->excludedReason = $this->exclusion($campaign, $candidate, isset($excluded[$productId]), $unavailable, $held[$productId] ?? null);
+            $hold = $held[$productId] ?? null;
+            [$candidate->excludedCode, $candidate->excludedReason] = $this->exclusion($campaign, $candidate, isset($excluded[$productId]), $unavailable, $hold['reason'] ?? null);
+            if ($candidate->excludedCode === self::EXCLUDED_BESTSELLER) {
+                [$candidate->heldUntil, $candidate->holdPlace, $candidate->holdSold] = [$hold['until'], $hold['place'], $hold['sold']];
+            }
             $candidates[] = $candidate;
         }
 
@@ -106,23 +129,24 @@ class HappyHourRanker
         return array_values(array_filter($this->rank($campaign, $vend, $now), fn ($c) => $c->isEligible()));
     }
 
-    private function exclusion(HappyHourCampaign $campaign, HappyHourCandidate $c, bool $excludedByCampaign, bool $unavailable = false, ?string $held = null): ?string
+    /** @return array{0: ?string, 1: ?string} [EXCLUDED_* key, the reason in words]; [null, null] = eligible */
+    private function exclusion(HappyHourCampaign $campaign, HappyHourCandidate $c, bool $excludedByCampaign, bool $unavailable = false, ?string $held = null): array
     {
         $balance = $c->balancePct();
 
         return match (true) {
-            $excludedByCampaign => 'Excluded in this campaign',
-            $unavailable => 'Not available in the warehouse',
-            $held !== null => $held,
-            $c->originalPrice === null || $c->originalPrice <= 0 => 'No selling price for this Site',
-            $c->priority && $c->qty < 1 => 'Prioritized, but out of stock',
-            ! $c->priority && $c->qty < max(1, $campaign->min_qty) => "Only {$c->qty} in stock (minimum {$campaign->min_qty})",
-            ! $c->priority && $balance !== null && $balance <= $campaign->min_balance_pct => "Stock {$balance}% is at or under the {$campaign->min_balance_pct}% floor",
-            $c->promoPrice === null => 'The discount does not change this price',
-            ! $campaign->allow_below_cost && $c->unitCost !== null && $c->promoPrice < $c->unitCost => sprintf(
+            $excludedByCampaign => [self::EXCLUDED_CAMPAIGN, 'Excluded in this campaign'],
+            $unavailable => [self::EXCLUDED_UNAVAILABLE, 'Not available in the warehouse'],
+            $held !== null => [self::EXCLUDED_BESTSELLER, $held],
+            $c->originalPrice === null || $c->originalPrice <= 0 => [self::EXCLUDED_NO_PRICE, 'No selling price for this Site'],
+            $c->priority && $c->qty < 1 => [self::EXCLUDED_PRIORITY_EMPTY, 'Prioritized, but out of stock'],
+            ! $c->priority && $c->qty < max(1, $campaign->min_qty) => [self::EXCLUDED_MIN_QTY, "Only {$c->qty} in stock (minimum {$campaign->min_qty})"],
+            ! $c->priority && $balance !== null && $balance <= $campaign->min_balance_pct => [self::EXCLUDED_FLOOR, "Stock {$balance}% is at or under the {$campaign->min_balance_pct}% floor"],
+            $c->promoPrice === null => [self::EXCLUDED_NO_DISCOUNT, 'The discount does not change this price'],
+            ! $campaign->allow_below_cost && $c->unitCost !== null && $c->promoPrice < $c->unitCost => [self::EXCLUDED_BELOW_COST, sprintf(
                 'Promo $%s is below unit cost $%s', number_format($c->promoPrice / 100, 2), number_format($c->unitCost / 100, 2)
-            ),
-            default => null,
+            )],
+            default => [null, null],
         };
     }
 
@@ -156,7 +180,7 @@ class HappyHourRanker
      *
      * @param  list<int>  $productIds
      * @param  \Illuminate\Support\Collection<int|string, object>  $stock  the grouped vend_channels rows
-     * @return array<int, string> product id => why it is held
+     * @return array<int, array{reason: string, until: \Carbon\Carbon, place: int, sold: int}> product id => why it is held
      */
     private function bestsellerHold(HappyHourCampaign $campaign, Vend $vend, array $productIds, $stock, CarbonInterface $now): array
     {
@@ -182,10 +206,15 @@ class HappyHourRanker
 
         $held = [];
         foreach (array_slice($sellers, 0, $count) as $i => $productId) {
-            $held[$productId] = sprintf(
-                'Top %d seller (#%d, %d sold in %d days): not discounted until %s, %d h after the Stock In',
-                $count, $i + 1, $sold[$productId], $days, $until->format('d M H:i'), $hours,
-            );
+            $held[$productId] = [
+                'reason' => sprintf(
+                    'Top %d seller (#%d, %d sold in %d days): not discounted until %s, %d h after the Stock In',
+                    $count, $i + 1, $sold[$productId], $days, $until->format('d M H:i'), $hours,
+                ),
+                'until' => $until,
+                'place' => $i + 1,
+                'sold' => $sold[$productId],
+            ];
         }
 
         return $held;

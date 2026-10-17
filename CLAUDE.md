@@ -1074,6 +1074,13 @@ What a campaign is:
   so the form shows it only for that rule.
 - The page's Status column shows the slot running now; clicking a machine chip opens that machine's lineup
   ranked at this moment (`preview?vend_id=`). There is no per-day slot list any more (Brian, 2026-10-11).
+- Each Status box also lists what the machine is NOT offering and why (Brian, 2026-10-17: "a better picture of how
+  the HH is being run"): held top sellers one per line ("TOP 1 … held till Mon 05:33"), every other reason as a
+  count with the SKUs on hover, and "n holding top sellers back" under the machine count. Ranked LIVE by
+  `HappyHourSkipped` (the ranker now, not the reasons at pick time; a SKU on offer now is never listed), fetched by
+  the page after it renders from `/{id}/skipped` (~9 queries per live machine) and cached 60 s per viewer. The reason
+  key is `HappyHourCandidate::$excludedCode` (`HappyHourRanker::EXCLUDED_*`, one per rule of `exclusion()`) — a new
+  exclusion rule needs its own key, or the page files it under "Other".
 - The Campaign column shows Total sales / Total $disc / Total qty / Avg daily qty per VM, last 24 h over last 30 days,
   and "Show graph" opens daily bar charts for a chosen range (default 7 days, `/{id}/stats`) — Brian, 2026-10-16.
   `HappyHourCampaignStats` owns the figures: the campaign's TAGGED sales (`HappyHourSales::dailyTotals`, the slot

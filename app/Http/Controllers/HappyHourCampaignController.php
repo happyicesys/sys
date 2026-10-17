@@ -15,12 +15,14 @@ use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourRanker;
 use App\Services\HappyHour\HappyHourSales;
+use App\Services\HappyHour\HappyHourSkipped;
 use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\UserLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -192,6 +194,37 @@ class HappyHourCampaignController extends Controller
             'days' => $stats->daily($campaign->id, $from, $to, $operatorId),
             'total' => $stats->window($campaign->id, $from->copy()->startOfDay(), $to->copy()->endOfDay(), $operatorId),
         ]);
+    }
+
+    /**
+     * The Status boxes' "Skipped" lines (Brian, 2026-10-17): for each machine running a slot of this campaign
+     * now, the SKUs it is NOT offering and why — ranked live (HappyHourSkipped). Fetched by the page after it
+     * renders, since ranking every live machine (~10 queries each) would hold the page up; kept 60 s per
+     * viewer (the machines listed are cut by the viewer's operator).
+     */
+    public function skipped(int $id, HappyHourSkipped $skipped): JsonResponse
+    {
+        $campaign = HappyHourCampaign::findOrFail($id);
+        $key = "happy-hour-skipped:{$campaign->id}:".auth()->id();
+
+        return response()->json(Cache::remember($key, 60, function () use ($campaign, $skipped) {
+            $now = Carbon::now();
+            $live = HappyHourSlot::query()->open()
+                ->where('happy_hour_campaign_id', $campaign->id)
+                ->where('starts_at', '<=', $now)
+                ->where('ends_at', '>', $now)
+                ->get(['vend_id', 'product_id']);
+            $vends = $live->isEmpty() ? collect() : $this->visibleVends($campaign->vends())
+                ->whereIn('vends.id', $live->pluck('vend_id')->unique()->values())
+                ->with('customer:id,selling_price_type')
+                ->get();
+            $onOffer = $live->groupBy('vend_id')->map(fn ($rows) => $rows->pluck('product_id')->map(fn ($p) => (int) $p)->all())->all();
+
+            return [
+                'at' => $now->toDateTimeString(),
+                'machines' => (object) $skipped->forMachines($campaign, $vends, $onOffer, $now),
+            ];
+        }));
     }
 
     public function preview(Request $request, int $id, HappyHourRanker $ranker): JsonResponse

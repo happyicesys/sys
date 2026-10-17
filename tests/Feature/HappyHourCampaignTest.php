@@ -297,6 +297,55 @@ class HappyHourCampaignTest extends TestCase
         $this->assertSame([$c, $d], $this->lineupIds($campaign));
     }
 
+    /**
+     * The Status box's "Skipped" lines (Brian, 2026-10-17): per live machine, the SKUs not on offer and why, ranked
+     * live — the held top sellers first with when they rank again, then the rest; a SKU on offer now never shows.
+     */
+    public function test_the_skipped_endpoint_lists_held_top_sellers_first_then_the_other_reasons_live(): void
+    {
+        $this->restockedFreezer();
+        // E: one unit left, under the campaign's minimum of 2.
+        $e = Product::forceCreate(['code' => 'E', 'name' => 'Treat E', 'operator_id' => 1]);
+        SellingPrice::create(['product_id' => $e->id, 'type' => SellingPrice::TYPE_2, 'amount' => 2.00]);
+        DB::table('vend_channels')->insert(['vend_id' => $this->vend->id, 'code' => 51, 'product_id' => $e->id, 'amount' => 200, 'qty' => 1, 'capacity' => 10, 'is_active' => 1]);
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT, 'bestseller_hold_hours' => 6, 'bestseller_hold_count' => 2]);
+        [$a, $b, $c] = [$this->products['A']->id, $this->products['B']->id, $this->products['C']->id];
+        $this->stockIn('2026-10-09 13:00:00');
+
+        $user = User::factory()->create(['operator_id' => 1]);
+        $user->givePermissionTo(Permission::findOrCreate('read happy-hour-campaigns', 'web'));
+
+        // Nothing running yet: no machine to report on.
+        $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/skipped")->assertOk()->assertExactJson([
+            'at' => '2026-10-09 13:55:00', 'machines' => [],
+        ]);
+
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $this->assertSame($c, HappyHourSlot::where('position', 0)->value('product_id'), 'A and B are held, so C (90%) runs');
+
+        Carbon::setTestNow('2026-10-09 14:05:00');
+        $list = $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/skipped")->assertOk()
+            ->json("machines.{$this->vend->id}");
+        $this->assertSame([$a, $b, $e->id], array_column($list, 'product_id'), 'held top sellers first, by place; D is eligible');
+        $this->assertSame(['bestseller', 'bestseller', 'min_qty'], array_column($list, 'code'));
+        $this->assertSame([1, 30], [$list[0]['hold_place'], $list[0]['hold_sold']]);
+        $this->assertSame('2026-10-09T19:00:00+08:00', $list[0]['held_until']);
+        $this->assertSame('Only 1 in stock (minimum 2)', $list[2]['reason']);
+        $this->assertSame([1, 10], [$list[2]['qty'], $list[2]['capacity']]);
+
+        // Live: E is topped up and C drops to 1 unit mid-slot. Within the 60 s cache nothing moves; after it E is
+        // gone, and C keeps its slot, so it is not listed as skipped on the machine offering it.
+        DB::table('vend_channels')->where('vend_id', $this->vend->id)->where('product_id', $e->id)->update(['qty' => 5]);
+        DB::table('vend_channels')->where('vend_id', $this->vend->id)->where('product_id', $c)->update(['qty' => 1]);
+        $this->travel(30)->seconds();
+        $this->assertSame([$a, $b, $e->id], array_column($this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/skipped")
+            ->json("machines.{$this->vend->id}"), 'product_id'));
+        $this->travel(31)->seconds();
+        $this->assertSame([$a, $b], array_column($this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/skipped")
+            ->json("machines.{$this->vend->id}"), 'product_id'));
+    }
+
     public function test_a_stock_in_swaps_a_held_bestseller_as_its_slot_starts_but_never_ends_a_live_slot(): void
     {
         $this->restockedFreezer();

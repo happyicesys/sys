@@ -23,6 +23,12 @@ final class HappyHourCandidate
         public ?int $rank = null,
         // On the campaign's Prioritize list: offered first in every other slot (HappyHourPlanner).
         public bool $priority = false,
+        // Why it is left out, as a key the page can group on (HappyHourRanker::EXCLUDED_*); null = eligible.
+        public ?string $excludedCode = null,
+        // Bestseller hold only: when it ranks again, its place in the top Y and its units over the hold's window.
+        public ?\Carbon\CarbonInterface $heldUntil = null,
+        public ?int $holdPlace = null,
+        public ?int $holdSold = null,
     ) {}
 
     /** qty ÷ capacity in %, or null when the SKU's capacity was never measured. */
@@ -67,6 +73,7 @@ final class HappyHourCandidate
             'promo_price' => $this->promoPrice,
             'unit_cost' => $this->unitCost,
             'excluded_reason' => $this->excludedReason,
+            'excluded_code' => $this->excludedCode,
             'rank' => $this->rank,
             'priority' => $this->priority,
         ];

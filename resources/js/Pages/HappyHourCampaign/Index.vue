@@ -108,6 +108,11 @@
                         Total {{ liveGroups[c.id].length }} machine{{ liveGroups[c.id].length === 1 ? '' : 's' }}
                       </span>
                     </div>
+                    <!-- How many of them hold top sellers back right now (the bestseller hold after a Stock In). -->
+                    <div v-if="heldMachineCount(c) > 0" class="mt-1 text-xs text-orange-700 whitespace-nowrap"
+                      v-tooltip="`Machines whose top ${c.bestseller_hold_count} sellers are held back for ${c.bestseller_hold_hours} h after a Stock In`">
+                      {{ heldMachineCount(c) }} holding top sellers back
+                    </div>
                     <!-- What is on offer right now, one box per machine (Brian, 2026-10-12: a flat list mixed the machines). -->
                     <div v-for="g in liveGroups[c.id]" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
                       <div class="flex items-center justify-between gap-2">
@@ -162,6 +167,23 @@
                           <span class="font-bold text-red-600">{{ money(s.promo_price) }}</span>
                         </span>
                       </div>
+                      <!-- What this machine is NOT offering and why, ranked live (Brian, 2026-10-17): the top sellers held
+                           after a Stock In one per line, every other reason as a count with the SKUs on hover. -->
+                      <div v-if="skippedFor(c.id, g.vendId)" class="mt-1 border-t border-amber-200 pt-1 text-xs">
+                        <div v-for="k in skippedFor(c.id, g.vendId).held" :key="k.product_id" class="flex items-baseline gap-1 text-gray-700"
+                          v-tooltip="k.reason">
+                          <span class="shrink-0 rounded bg-orange-100 px-1 text-[10px] font-semibold text-orange-800">TOP {{ k.hold_place }}</span>
+                          <span class="min-w-0 truncate">{{ k.product }}</span>
+                          <span class="shrink-0 text-gray-500">({{ k.qty }}/{{ k.capacity ?? '—' }})</span>
+                          <span class="ml-auto shrink-0 whitespace-nowrap text-gray-500">{{ k.hold_sold }} sold/{{ c.bestseller_lookback_days }}d · held till {{ heldUntilLabel(k.held_until) }}</span>
+                        </div>
+                        <div v-if="skippedFor(c.id, g.vendId).others.length" class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-gray-500">
+                          <span>Skipped:</span>
+                          <span v-for="grp in skippedFor(c.id, g.vendId).others" :key="grp.key" class="cursor-help whitespace-nowrap underline decoration-dotted"
+                            v-tooltip="skippedTooltip(grp)">{{ grp.label }} {{ grp.items.length }}</span>
+                        </div>
+                      </div>
+                      <div v-else-if="skipped[c.id] === undefined && c.status === 'running'" class="mt-1 text-[11px] text-gray-400">Checking skipped SKUs…</div>
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
@@ -552,7 +574,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ChevronDownIcon, ChevronUpDownIcon, ChevronUpIcon, ExclamationCircleIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
@@ -775,6 +797,59 @@ function sortLive(key) {
 }
 
 const byCode = (a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
+
+// The Status boxes' skipped SKUs, ranked live by the server (`/{id}/skipped`, kept 60 s there) and fetched after
+// the page renders: campaign id → { vend id → [skipped SKU] }; undefined = still loading, null = failed.
+const skipped = ref({})
+const skippedGroups = [
+  { key: 'low', label: 'Low stock', codes: ['min_qty', 'floor'] },
+  { key: 'priority_empty', label: 'Prioritized, sold out', codes: ['priority_empty'] },
+  { key: 'unavailable', label: 'Not available', codes: ['unavailable'] },
+  { key: 'price', label: 'Price', codes: ['no_price', 'no_discount', 'below_cost'] },
+  { key: 'campaign', label: 'Never discount', codes: ['campaign'] },
+]
+
+async function loadSkipped(c) {
+  try {
+    const { data } = await axios.get(`/happy-hour-campaigns/${c.id}/skipped`)
+    skipped.value = { ...skipped.value, [c.id]: data.machines ?? {} }
+  } catch (e) {
+    skipped.value = { ...skipped.value, [c.id]: null }
+  }
+}
+
+onMounted(() => {
+  for (const c of props.campaigns) {
+    if (c.status === 'running' && (c.live ?? []).length) loadSkipped(c)
+  }
+})
+
+function skippedFor(campaignId, vendId) {
+  const list = skipped.value[campaignId]?.[vendId]
+  if (!list?.length) return null
+  const held = list.filter(k => k.code === 'bestseller')
+  const others = skippedGroups
+    .map(grp => ({ ...grp, items: list.filter(k => grp.codes.includes(k.code)) }))
+    .filter(grp => grp.items.length)
+  const known = skippedGroups.flatMap(grp => grp.codes).concat('bestseller')
+  const rest = list.filter(k => !known.includes(k.code))
+  if (rest.length) others.push({ key: 'other', label: 'Other', items: rest })
+  return { held, others }
+}
+
+const heldMachineCount = (c) => Object.values(skipped.value[c.id] ?? {}).filter(list => list.some(k => k.code === 'bestseller')).length
+
+function skippedTooltip(grp) {
+  return tooltipBox(grp.items.map(k => `<strong>${escapeHtml(k.product)}</strong> (${k.qty}/${k.capacity ?? '—'}): ${escapeHtml(k.reason ?? '')}`).join('<br>'))
+}
+
+// "14:20" today, else "Sat 14:20".
+function heldUntilLabel(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${time}`
+}
 
 const liveGroups = computed(() => {
   const { key, asc } = liveSort.value
