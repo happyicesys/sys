@@ -1042,6 +1042,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // stripWholeMachineMoney() the page itself uses.
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
             ->name('vends.customer.aggregates');
+        // Pre-Search "Needs attention" section of the page above (same gate as the page).
+        Route::post('/customers/critical-attention', [VendController::class, 'customerIndexAttention'])
+            ->middleware('product.unrestricted')
+            ->name('vends.customer.critical-attention');
 
         // Smart Freezer remote card terminal (Payrallel T05) — Setting > Edit status panel.
         // Read-only: the T05 is bound with the Card Terminal picker on the same page.

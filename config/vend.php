@@ -15,4 +15,12 @@ return [
         'auto_spread_minutes' => (int) env('SCREENSHOT_AUTO_SPREAD_MINUTES', 10),
     ],
 
+    // Ops Dashboard "Needs attention" (App\Services\OpsDashboard\CriticalAttention, Brian 2026-10-17).
+    // A board restarts now and then (power cut, watchdog) — on a normal day 89 of 240 did at least
+    // once, 25 five times or more — so only a machine that keeps restarting is flagged.
+    'attention' => [
+        'no_sales_hours' => (int) env('OPS_ATTENTION_NO_SALES_HOURS', 48),
+        'apk_restarts_per_day' => (int) env('OPS_ATTENTION_APK_RESTARTS_PER_DAY', 5),
+    ],
+
 ];

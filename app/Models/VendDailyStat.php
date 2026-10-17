@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Model;
  *
  * Known metrics:
  *   - 'pwron'            : VendDataService receives Type=PWRON from a machine
+ *   - 'apk_restart'      : that PWRON followed a real APK process restart of the same build
+ *                          (App\Support\ApkRestartDetector — crash, reboot or power cut; never
+ *                          an install). From 2026-10-17; read by the Ops Dashboard.
  *   - 'ui_looper_stall'  : the APK's main looper stopped answering (frozen screen)
  *   - 'ui_no_frames'     : looper alive but nothing drawn — dead draw pipeline
  *   - 'ui_probe_fail'    : the hourly page round-trip did not complete

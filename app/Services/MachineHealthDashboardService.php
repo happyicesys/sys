@@ -25,6 +25,25 @@ class MachineHealthDashboardService
 {
     private const CACHE_TTL_SECONDS = 300; // 5 minutes
 
+    /**
+     * "(1) Alert on Lost of Connectivity or Electricity": an offline machine whose
+     * last sign of life is under this many hours old. Longer than that it is
+     * parked or gone, not an alert. The Ops Dashboard's Needs attention section
+     * reads the same rule (App\Services\OpsDashboard\CriticalAttention).
+     */
+    public const OFFLINE_ALERT_MAX_HOURS = 60;
+
+    /** SQL: a machine's last sign of life, from any channel that reports one (NULL = never). */
+    public static function lastContactSql(): string
+    {
+        $fallbackDate = '1970-01-01 00:00:00';
+        $columns = ['mqtt_last_updated_at', 'last_updated_at', 'last_vend_transaction_at', 'offline_restart_count_datetime'];
+        $greatest = implode(', ', array_map(fn ($c) => "COALESCE({$c}, '{$fallbackDate}')", $columns));
+        $allNull = implode(' AND ', array_map(fn ($c) => "{$c} IS NULL", $columns));
+
+        return "CASE WHEN {$allNull} THEN NULL ELSE GREATEST({$greatest}) END";
+    }
+
     public function getDashboardData(Request $request): array
     {
         $filters = $this->hydrateFilters($request);
@@ -788,14 +807,7 @@ class MachineHealthDashboardService
         $nowSql = $now->toDateTimeString();
         // Increase limit to accommodate all potential offline machines across buckets
         $limit = 500;
-        $fallbackDate = '1970-01-01 00:00:00';
-        $greatestParts = implode(', ', [
-            "COALESCE(mqtt_last_updated_at, '{$fallbackDate}')",
-            "COALESCE(last_updated_at, '{$fallbackDate}')",
-            "COALESCE(last_vend_transaction_at, '{$fallbackDate}')",
-            "COALESCE(offline_restart_count_datetime, '{$fallbackDate}')",
-        ]);
-        $lastContactExpr = "CASE WHEN mqtt_last_updated_at IS NULL AND last_updated_at IS NULL AND last_vend_transaction_at IS NULL AND offline_restart_count_datetime IS NULL THEN NULL ELSE GREATEST({$greatestParts}) END";
+        $lastContactExpr = self::lastContactSql();
         $hoursOfflineExpr = "ROUND(TIMESTAMPDIFF(MINUTE, {$lastContactExpr}, '{$nowSql}') / 60, 2)";
 
         $vends = $this->baseVendQuery($filters)
@@ -812,7 +824,7 @@ class MachineHealthDashboardService
                 DB::raw("{$hoursOfflineExpr} as hours_offline"),
             ])
             ->havingRaw('last_contact_at IS NOT NULL')
-            ->having('hours_offline', '<', 60)
+            ->having('hours_offline', '<', self::OFFLINE_ALERT_MAX_HOURS)
             ->orderBy('hours_offline')
             ->limit($limit)
             ->get();

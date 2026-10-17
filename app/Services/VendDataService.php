@@ -40,6 +40,7 @@ use App\Models\ModemUnit;
 use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Support\ApkRestartDetector;
 use Carbon\Carbon;
 // use PhpMqtt\Client\Facades\MQTT;
 use Illuminate\Support\Facades\Cache;
@@ -381,6 +382,23 @@ class VendDataService
                             );
                         } catch (\Throwable $e) {
                             \Log::warning('IncrementVendDailyStat inline failed', [
+                                'vend_id' => $vend->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                        // A real APK restart (not a reconnect, not an install) — the Ops
+                        // Dashboard's "APK restarting" alert counts these per day.
+                        try {
+                            if (ApkRestartDetector::observe($vend->id, $originalInput['f'] ?? null, $processedInput['apkver'] ?? null)) {
+                                IncrementVendDailyStat::dispatchSync(
+                                    $vend->id,
+                                    $vend->code,
+                                    'apk_restart',
+                                    Carbon::now()->toDateString()
+                                );
+                            }
+                        } catch (\Throwable $e) {
+                            \Log::warning('APK restart counter failed', [
                                 'vend_id' => $vend->id,
                                 'error' => $e->getMessage(),
                             ]);

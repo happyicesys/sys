@@ -832,6 +832,13 @@
 					</dl>
 				</section>
 			</div>
+			<!-- Pre-Search only: machines that need someone now (Brian, 2026-10-17). -->
+			<CriticalAttentionPanel
+				v-if="!hasSearched"
+				class="mt-3"
+				:params="attentionParams"
+				@show="showAttentionMachines"
+			/>
 	</div>
 
 	<div class="mt-6 flex flex-col" v-if="hasSearched">
@@ -3502,6 +3509,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import SmartChillerRowCells from '@/Components/SmartChillerRowCells.vue';
+	import CriticalAttentionPanel from '@/Components/OpsDashboard/CriticalAttentionPanel.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
 	import { ref, computed, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
@@ -4085,6 +4093,15 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const isFreezer = (vend) => vend && vend.machine_type === 'smart_freezer'
 	const initBinded = usePage().props.initBinded
 	const hasSearched = ref(props.autoLoad ?? false)
+
+	// "Needs attention" (pre-Search): fetched with the page's own query string, so it counts the
+	// same machines as the cards. A machine (or a whole group) opens in the grid through the
+	// `codes` deep-link; a lone code gets a trailing comma so it matches exactly, not as a prefix.
+	const attentionParams = Object.fromEntries(new URLSearchParams(window.location.search));
+	function showAttentionMachines(labels) {
+		if (!labels.length) return;
+		router.get('/vends/customers', { codes: labels.join(',') + (labels.length === 1 ? ',' : '') });
+	}
 	const now = ref((props.autoLoad ? moment().format('HH:mm:ss') : '--:--'))
 
 onMounted(() => {

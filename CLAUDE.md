@@ -1731,6 +1731,37 @@ hand-set figure. A chiller DECREASE made here is recorded by the next stock chec
 movement in `citybox_stock_movements` (no door-open window) — nothing reads that table yet. Regression coverage:
 `tests/Feature/VendStockQtyAdjustTest.php`.
 
+## Operation Dashboard: "Needs attention" before Search
+
+Brian, 2026-10-17. On first load the grid stays empty (Search loads it), and a section under the
+Last 30 days / Current cards lists the machines that need someone now, grouped by what is wrong
+(`Components/OpsDashboard/CriticalAttentionPanel.vue`, fetched after paint from
+`POST /vends/customers/critical-attention`, permission `read vend-customers`). Every rule lives in
+`App\Services\OpsDashboard\CriticalAttention`; the page only draws them:
+
+- **(1) offline and 2A–2E are Machine Health's own alerts**: offline with a last sign of life under
+  `MachineHealthDashboardService::OFFLINE_ALERT_MAX_HOURS` (60, `lastContactSql()` — one definition
+  for both pages), and the ACTIVE `vend_smart_alerts` rows `DetectTempTrends` keeps. Vending machines
+  only, like Machine Health (a freezer's or chiller's probes mean something else).
+- **APK keeps restarting**: the APK sends no crash report, so `App\Support\ApkRestartDetector` reads
+  each PWRON's frame counter `f` — at or below the previous PWRON's = the process restarted — and
+  `VendDataService` counts it as the `apk_restart` daily stat. A restart onto a NEW `apkver` is an
+  install and is not counted. A power cut or watchdog reboot still counts, so only
+  `vend.attention.apk_restarts_per_day` (5) in one day flags a machine (a normal day: 89 of 240 boards
+  restart once, 25 five times or more). Counting starts at deploy, and only once the
+  `subscribe:mqtt` daemon is restarted (it holds the old `VendDataService`).
+- **Touch screen frozen**: the 306+ UI watchdog (`ui_looper_stall` / `ui_no_frames`, or a day whose
+  `ui_probe_fail` had no `ui_probe_pass`), today or yesterday. Older builds never report it.
+- **No sales**: last sale older than `vend.attention.no_sales_hours` (48), every machine kind; a
+  machine that never sold is not flagged.
+
+The section counts the SAME machines as the cards: `VendController::applyCustomerIndexRequestDefaults()`
+(visited, Include unbound?, status by role, operator group, `indexType`) and
+`customerIndexFilteredQuery()` are shared by the page, the cards, the Grouped? seed and this endpoint —
+add a population default there, never in one caller. A chip (or a group's Show) opens those machines
+in the grid through the `codes` deep-link; a lone code gets a trailing comma so `VendCode::whereSearch`
+matches it exactly. Regression coverage: `tests/Feature/OpsDashboardCriticalAttentionTest.php`.
+
 ## APK OTA: nudges and the updater's own report
 
 `ota:nudge-stale` sends OTA_CHECK (`App\Services\OtaCheckNudge`) to online,

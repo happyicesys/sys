@@ -95,6 +95,7 @@ use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\MqttService;
+use App\Services\OpsDashboard\CriticalAttention;
 use App\Services\PaymentGatewayService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
@@ -214,7 +215,7 @@ class VendController extends Controller
         VendDispenseService $vendDispenseService,
         VendJobService $vendJobService
     ) {
-        $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
+        $this->middleware(['permission:read vend-customers'])->only(['indexCustomer', 'customerIndexAttention']);
         // Dashboard (Lite) is a SEPARATE method, so it needs its own entry —
         // `only('indexCustomer')` above does NOT cover indexCustomerLite, and
         // without this line the route is reachable by any authenticated user
@@ -631,12 +632,12 @@ class VendController extends Controller
     }
 
     /**
-     * @param  bool  $lite  Render the Dashboard (Lite) page instead of the full
-     *                      Dashboard. The Lite page has no pre-Search aggregate
-     *                      cards, so the (expensive) all-rows card query is
-     *                      skipped for it. Everything else is identical.
+     * The Operation Dashboard's request defaults that decide its population: visited, the
+     * permission-gated Include unbound?, the Machine / Customer Status defaults by role, and the
+     * viewer's operator group. indexCustomer and customerIndexAttention both call this, so the
+     * Needs attention section can never count a different set of machines from the cards.
      */
-    public function indexCustomer(Request $request, bool $lite = false)
+    private function applyCustomerIndexRequestDefaults(Request $request): void
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
 
@@ -702,6 +703,24 @@ class VendController extends Controller
                 $request->merge(['operators' => [$userOperator?->id]]);
             }
         }
+
+        // Set only after the status branch above read the caller's own indexType; the filter
+        // chain reads `status` as the CUSTOMER's status once this is set.
+        $request->merge(['indexType' => 'customers']);
+    }
+
+    /**
+     * @param  bool  $lite  Render the Dashboard (Lite) page instead of the full
+     *                      Dashboard. The Lite page has no pre-Search aggregate
+     *                      cards, so the (expensive) all-rows card query is
+     *                      skipped for it. Everything else is identical.
+     */
+    public function indexCustomer(Request $request, bool $lite = false)
+    {
+        // Every default that decides WHICH machines the page counts, in one place: the
+        // pre-Search Needs attention endpoint applies the same ones (customerIndexAttention).
+        $this->applyCustomerIndexRequestDefaults($request);
+        $includeUnboundVends = $request->boolean('include_unbound_vends');
 
         // "Access Product(s)": every money column below is blanked for a
         // restricted viewer, but ORDER BY still runs on the real value - sorting
@@ -6767,14 +6786,7 @@ class VendController extends Controller
     private function groupedExpandedIds(Request $request): array
     {
         $includeUnboundVends = $request->boolean('include_unbound_vends');
-
-        $seed = $this->customerIndexBaseQuery($includeUnboundVends);
-        $seed = $this->filterVendsDB($seed, $request);
-        $seed = $this->filterOperatorDB($seed, $this->customerIndexOperatorColumn($includeUnboundVends));
-
-        // reorder() drops the ORDER BY filterVendsDB added — irrelevant for an
-        // id pluck and some sort keys reference SELECT aliases we don't expose.
-        $seed->reorder();
+        $seed = $this->customerIndexFilteredQuery($request);
 
         $unboundVendIds = $includeUnboundVends
             ? (clone $seed)->whereNull('customers.id')->distinct()->pluck('vends.id')->map(fn ($v) => (int) $v)->all()
@@ -6810,20 +6822,50 @@ class VendController extends Controller
         ];
     }
 
+    /**
+     * The grid's own row source, filter chain and viewer ceiling, unordered (sorting is irrelevant
+     * for an aggregate or an id pluck, and some sort keys reference SELECT aliases a slim query
+     * does not expose). The cards, the Grouped? seed and Needs attention all start here, so none
+     * of them can count a different population from the rows the grid shows.
+     */
+    private function customerIndexFilteredQuery(Request $request)
+    {
+        $includeUnboundVends = $request->boolean('include_unbound_vends');
+        $query = $this->customerIndexBaseQuery($includeUnboundVends);
+        $query = $this->filterVendsDB($query, $request);
+        $query = $this->filterOperatorDB($query, $this->customerIndexOperatorColumn($includeUnboundVends));
+
+        return $query->reorder();
+    }
+
+    /**
+     * Operation Dashboard "Needs attention" (Brian, 2026-10-17): the pre-Search section listing
+     * machines that need someone now. Fetched by the page after it renders, with the page's own
+     * query string, so the section counts the same machines as the cards above it.
+     */
+    public function customerIndexAttention(Request $request, CriticalAttention $attention)
+    {
+        $this->applyCustomerIndexRequestDefaults($request);
+        // The pre-Search cards' own default (indexCustomer): an untouched Machine Status means Active.
+        if (! $request->filled('status') && ! $request->filled('codes') && ! $request->filled('channel_codes')) {
+            $request->merge(['status' => 'active']);
+        }
+
+        $vendIds = $this->customerIndexFilteredQuery($request)
+            ->whereNotNull('vends.id')
+            ->distinct()
+            ->pluck('vends.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return response()->json($attention->forVendIds($vendIds));
+    }
+
     private function computeCustomerIndexCardStats(Request $request): array
     {
         // Same row source and viewer ceiling as the grid, so the cards can
         // never be drawn from a different population than the rows below them.
-        $includeUnboundVends = $request->boolean('include_unbound_vends');
-        $query = $this->customerIndexBaseQuery($includeUnboundVends);
-
-        $query = $this->filterVendsDB($query, $request);
-        $query = $this->filterOperatorDB($query, $this->customerIndexOperatorColumn($includeUnboundVends));
-
-        // reorder() drops the ORDER BY filterVendsDB added — sorting is
-        // irrelevant for aggregation and some sort keys reference SELECT
-        // aliases this slim query doesn't expose.
-        $rows = $query->reorder()
+        $rows = $this->customerIndexFilteredQuery($request)
             ->select([
                 'customers.id AS id',
                 'customers.id AS customer_id',
