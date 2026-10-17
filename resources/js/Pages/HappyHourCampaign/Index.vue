@@ -167,20 +167,14 @@
                           <span class="font-bold text-red-600">{{ money(s.promo_price) }}</span>
                         </span>
                       </div>
-                      <!-- What this machine is NOT offering and why, ranked live (Brian, 2026-10-17): the top sellers held
-                           after a Stock In one per line, every other reason as a count with the SKUs on hover. -->
+                      <!-- What this machine is NOT offering and why, ranked live (Brian, 2026-10-17), every SKU on its own line
+                           with the reason spelled out — no hover needed (Brian, same day): held top sellers first. -->
                       <div v-if="skippedFor(c.id, g.vendId)" class="mt-1 border-t border-amber-200 pt-1 text-xs">
-                        <div v-for="k in skippedFor(c.id, g.vendId).held" :key="k.product_id" class="flex items-baseline gap-1 text-gray-700"
-                          v-tooltip="k.reason">
-                          <span class="shrink-0 rounded bg-orange-100 px-1 text-[10px] font-semibold text-orange-800">TOP {{ k.hold_place }}</span>
-                          <span class="min-w-0 truncate">{{ k.product }}</span>
+                        <div v-for="k in skippedFor(c.id, g.vendId)" :key="k.product_id" class="flex items-baseline gap-1 text-gray-700">
+                          <span class="shrink-0 rounded px-1 text-[10px] font-semibold" :class="skipTag(k).cls">{{ skipTag(k).label }}</span>
+                          <span class="min-w-0 truncate" :title="k.product">{{ k.product }}</span>
                           <span class="shrink-0 text-gray-500">({{ k.qty }}/{{ k.capacity ?? '—' }})</span>
-                          <span class="ml-auto shrink-0 whitespace-nowrap text-gray-500">{{ k.hold_sold }} sold/{{ c.bestseller_lookback_days }}d · held till {{ heldUntilLabel(k.held_until) }}</span>
-                        </div>
-                        <div v-if="skippedFor(c.id, g.vendId).others.length" class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-gray-500">
-                          <span>Skipped:</span>
-                          <span v-for="grp in skippedFor(c.id, g.vendId).others" :key="grp.key" class="cursor-help whitespace-nowrap underline decoration-dotted"
-                            v-tooltip="skippedTooltip(grp)">{{ grp.label }} {{ grp.items.length }}</span>
+                          <span class="ml-auto shrink-0 whitespace-nowrap text-gray-500">{{ skipDetail(c, k) }}</span>
                         </div>
                       </div>
                       <div v-else-if="skipped[c.id] === undefined && c.status === 'running'" class="mt-1 text-[11px] text-gray-400">Checking skipped SKUs…</div>
@@ -801,14 +795,6 @@ const byCode = (a, b) => String(a.code).localeCompare(String(b.code), undefined,
 // The Status boxes' skipped SKUs, ranked live by the server (`/{id}/skipped`, kept 60 s there) and fetched after
 // the page renders: campaign id → { vend id → [skipped SKU] }; undefined = still loading, null = failed.
 const skipped = ref({})
-const skippedGroups = [
-  { key: 'low', label: 'Low stock', codes: ['min_qty', 'floor'] },
-  { key: 'priority_empty', label: 'Prioritized, sold out', codes: ['priority_empty'] },
-  { key: 'unavailable', label: 'Not available', codes: ['unavailable'] },
-  { key: 'price', label: 'Price', codes: ['no_price', 'no_discount', 'below_cost'] },
-  { key: 'campaign', label: 'Never discount', codes: ['campaign'] },
-]
-
 async function loadSkipped(c) {
   try {
     const { data } = await axios.get(`/happy-hour-campaigns/${c.id}/skipped`)
@@ -824,24 +810,44 @@ onMounted(() => {
   }
 })
 
+// The server's order: held top sellers by place, then the other reasons, "never discount" last.
 function skippedFor(campaignId, vendId) {
   const list = skipped.value[campaignId]?.[vendId]
-  if (!list?.length) return null
-  const held = list.filter(k => k.code === 'bestseller')
-  const others = skippedGroups
-    .map(grp => ({ ...grp, items: list.filter(k => grp.codes.includes(k.code)) }))
-    .filter(grp => grp.items.length)
-  const known = skippedGroups.flatMap(grp => grp.codes).concat('bestseller')
-  const rest = list.filter(k => !known.includes(k.code))
-  if (rest.length) others.push({ key: 'other', label: 'Other', items: rest })
-  return { held, others }
+  return list?.length ? list : null
+}
+
+const skipTags = {
+  priority_empty: { label: 'PRIORITY', cls: 'bg-amber-100 text-amber-800' },
+  min_qty: { label: 'LOW', cls: 'bg-red-100 text-red-700' },
+  floor: { label: 'LOW', cls: 'bg-red-100 text-red-700' },
+  unavailable: { label: 'N/A', cls: 'bg-gray-200 text-gray-700' },
+  no_price: { label: 'PRICE', cls: 'bg-purple-100 text-purple-700' },
+  no_discount: { label: 'PRICE', cls: 'bg-purple-100 text-purple-700' },
+  below_cost: { label: 'COST', cls: 'bg-purple-100 text-purple-700' },
+  campaign: { label: 'NEVER', cls: 'bg-slate-200 text-slate-700' },
+}
+
+function skipTag(k) {
+  if (k.code === 'bestseller') return { label: `TOP ${k.hold_place}`, cls: 'bg-orange-100 text-orange-800' }
+  return skipTags[k.code] ?? { label: 'SKIP', cls: 'bg-gray-100 text-gray-600' }
+}
+
+// The reason in a few words, right-aligned on the SKU's line.
+function skipDetail(c, k) {
+  switch (k.code) {
+    case 'bestseller': return `${k.hold_sold} sold/${c.bestseller_lookback_days}d · held till ${heldUntilLabel(k.held_until)}`
+    case 'min_qty': return `only ${k.qty} left · min ${c.min_qty}`
+    case 'floor': return `stock ${k.capacity ? Math.round(k.qty * 1000 / k.capacity) / 10 : '—'}% · floor ${c.min_balance_pct}%`
+    case 'priority_empty': return 'prioritized, sold out'
+    case 'unavailable': return 'not available in warehouse'
+    case 'no_price': return 'no selling price'
+    case 'no_discount': return 'discount changes nothing'
+    case 'campaign': return 'never discount'
+    default: return k.reason ?? ''
+  }
 }
 
 const heldMachineCount = (c) => Object.values(skipped.value[c.id] ?? {}).filter(list => list.some(k => k.code === 'bestseller')).length
-
-function skippedTooltip(grp) {
-  return tooltipBox(grp.items.map(k => `<strong>${escapeHtml(k.product)}</strong> (${k.qty}/${k.capacity ?? '—'}): ${escapeHtml(k.reason ?? '')}`).join('<br>'))
-}
 
 // "14:20" today, else "Sat 14:20".
 function heldUntilLabel(iso) {

@@ -1094,8 +1094,9 @@ What a campaign is:
 - The page's Status column shows the slot running now; clicking a machine chip opens that machine's lineup
   ranked at this moment (`preview?vend_id=`). There is no per-day slot list any more (Brian, 2026-10-11).
 - Each Status box also lists what the machine is NOT offering and why (Brian, 2026-10-17: "a better picture of how
-  the HH is being run"): held top sellers one per line ("TOP 1 … held till Mon 05:33"), every other reason as a
-  count with the SKUs on hover, and "n holding top sellers back" under the machine count. Ranked LIVE by
+  the HH is being run"): every skipped SKU on its own line with a tag and the reason spelled out, no hover (Brian,
+  same day) — held top sellers first ("TOP 1 … held till Mon 05:33"), then LOW / N/A / PRICE / COST / NEVER — and
+  "n holding top sellers back" under the machine count. Ranked LIVE by
   `HappyHourSkipped` (the ranker now, not the reasons at pick time; a SKU on offer now is never listed), fetched by
   the page after it renders from `/{id}/skipped` (~9 queries per live machine) and cached 60 s per viewer. The reason
   key is `HappyHourCandidate::$excludedCode` (`HappyHourRanker::EXCLUDED_*`, one per rule of `exclusion()`) — a new
