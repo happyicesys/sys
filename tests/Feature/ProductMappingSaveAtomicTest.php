@@ -53,6 +53,7 @@ class ProductMappingSaveAtomicTest extends TestCase
     {
         $user = User::factory()->create(['operator_id' => OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID]);
         $user->givePermissionTo(Permission::findOrCreate('read product-mappings', 'web'));
+        $user->givePermissionTo(Permission::findOrCreate('update product-mappings', 'web'));
 
         return $user;
     }
