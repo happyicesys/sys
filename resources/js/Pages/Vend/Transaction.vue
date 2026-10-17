@@ -838,6 +838,11 @@
                             <span v-else-if="!vendTransaction.person_id">
                                 {{ vendTransaction.customer_name }}
                             </span>
+                            <!-- What the machine runs now, coloured as on the Operation Dashboard (Brian, 2026-10-17). -->
+                            <div v-if="vendTransaction.machine_campaigns" class="mt-0.5 flex flex-col gap-0.5">
+                                <span v-if="vendTransaction.machine_campaigns.happy_hour" class="rounded px-0.5 py-0.5 text-xs border w-fit bg-amber-100 text-amber-800 border-amber-300 font-semibold">HappyHour</span>
+                                <span v-for="name in vendTransaction.machine_campaigns.campaigns" :key="name" class="rounded px-0.5 py-0.5 text-xs border w-fit bg-pink-100 text-pink-800 border-pink-300">{{ name }}</span>
+                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.operator_code }}

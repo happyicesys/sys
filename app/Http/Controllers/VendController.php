@@ -4268,6 +4268,13 @@ class VendController extends Controller
             }
         }
 
+        // Label under Site: what the machine runs NOW (yellow HappyHour / pink UI campaign), as on
+        // the Operation Dashboard. One lookup for the page's machines.
+        $machineLabels = app(\App\Services\Sales\MachineCampaignLabels::class)->forVends($records->pluck('vend_id'));
+        foreach ($records as $record) {
+            $record->machine_campaigns = $machineLabels[$record->vend_id] ?? null;
+        }
+
         // Per-item "Refund Request" badge placement for MULTIPLE-purchase
         // transactions. When a customer's refund request targets a specific SKU
         // (the wizard lets them pick which line item to refund), the ticket
