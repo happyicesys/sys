@@ -3082,8 +3082,11 @@
 									:class="[
 										(vend.vend && vend.vend.lcd_monitor_short && vend.vend.lcd_monitor_short !== 'N/A')
 											? ((vend.is_active || vend.is_testing) ? 'bg-green-200' : 'bg-gray-200 text-gray-400')
-											: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400')
+											: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400'),
+										railIdle(vend, 'qr') ? RAIL_IDLE_FRAME + ' cursor-pointer' : ''
 									]"
+									v-tooltip="railIdle(vend, 'qr') ? { content: railIdleTooltip(vend, 'qr'), html: true } : null"
+									@click="openRailTransactions(vend, 'qr')"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
@@ -3092,6 +3095,10 @@
 											<span>
 													{{ vend.vend && vend.vend.lcd_monitor_short ? vend.vend.lcd_monitor_short : 'N/A' }}
 											</span>
+											<a v-if="railIdle(vend, 'qr')" :href="railTransactionsUrl(vend, 'qr')" target="_blank" rel="noopener" @click.stop
+													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white hover:bg-red-700">
+													{{ railIdleShort(vend, 'qr') }} ↗
+											</a>
 									</div>
 							</div>
 							<div
@@ -3138,10 +3145,11 @@
 							</div>
 							<div
 							class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
-							:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+							:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400', railIdle(vend, 'cash') ? RAIL_IDLE_FRAME : '']"
 							v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
 							@click.stop="onCoinFloatClicked(vend)"
-							title="Click to view 14-day coin float change history"
+							v-tooltip="railIdle(vend, 'cash') ? { content: railIdleTooltip(vend, 'cash') + '<div class=&quot;mt-1 opacity-80&quot;>Click the badge for the 14-day coin float history; the red tag opens the transactions.</div>', html: true } : null"
+							:title="railIdle(vend, 'cash') ? null : 'Click to view 14-day coin float change history'"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold underline decoration-dotted">
@@ -3150,6 +3158,10 @@
 											<span>
 													{{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
 											</span>
+											<a v-if="railIdle(vend, 'cash')" :href="railTransactionsUrl(vend, 'cash')" target="_blank" rel="noopener" @click.stop
+													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white no-underline hover:bg-red-700">
+													{{ railIdleShort(vend, 'cash') }} ↗
+											</a>
 									</div>
 							</div>
 							<!-- <div
@@ -3184,9 +3196,10 @@
 								 Green when set, gray "N/A" when null. -->
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_active || vend.is_testing ? (vend.card_terminal_name ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+									:class="[vend.is_active || vend.is_testing ? (vend.card_terminal_name ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400', railIdle(vend, 'card') ? RAIL_IDLE_FRAME + ' cursor-pointer' : '']"
 									@mouseenter="loadFieldAudit(vend.vend_id)"
-									v-tooltip="{ content: fieldAuditTooltip(vend.vend_id, [{ key: 'card_terminal_id', label: 'Company' }, { key: 'card_terminal_unit_id', label: 'Terminal ID' }]), html: true }"
+									@click="openRailTransactions(vend, 'card')"
+									v-tooltip="{ content: (railIdle(vend, 'card') ? railIdleTooltip(vend, 'card') + '<hr class=&quot;my-1.5 opacity-30&quot;>' : '') + fieldAuditTooltip(vend.vend_id, [{ key: 'card_terminal_id', label: 'Company' }, { key: 'card_terminal_unit_id', label: 'Terminal ID' }]), html: true }"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
@@ -3195,6 +3208,10 @@
 											<span>
 													{{ vend.card_terminal_name ? vend.card_terminal_name : 'N/A' }}
 											</span>
+											<a v-if="railIdle(vend, 'card')" :href="railTransactionsUrl(vend, 'card')" target="_blank" rel="noopener" @click.stop
+													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white hover:bg-red-700">
+													{{ railIdleShort(vend, 'card') }} ↗
+											</a>
 											<!-- The TID fitted today voids a failed vend by itself
 													 (card_terminal_units.is_will_auto_refund, seeded from the partner
 													 workbook). Shown ONLY for a Yes terminal — No and unknown are the
@@ -5008,6 +5025,63 @@ function avgMthlySales(vend) {
 // as typing the code into that box); date_from/date_to are its date range.
 // Transaction.vue hydrates all three from the query string on mount, so the
 // filter panel there shows what the link actually applied.
+// Payment rails fitted to a machine but silent for 48 h (App\Support\PaymentRailIdle, Brian
+// 2026-10-17): the Card Terminal, LCD Monitor (QR / Omise) and Coin Float badges get a red frame;
+// hovering says why, clicking opens the machine's last 7 days of Sales Transactions in a new tab.
+const RAIL_IDLE_FRAME = 'relative ring-2 ring-red-500 ring-offset-1 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]'
+const RAIL_NAMES = { card: 'card', qr: 'QR (Omise)', cash: 'cash' }
+
+function railIdle(vend, rail) {
+		return vend.payment_idle?.[rail] || null
+}
+
+function railIdleShort(vend, rail) {
+		const idle = railIdle(vend, rail)
+		if (!idle) return ''
+		const name = { card: 'No card', qr: 'No QR', cash: 'No cash' }[rail]
+		if (idle.hours_since === null) return name + ' ever'
+		return name + ' ' + (idle.hours_since >= 72 ? Math.floor(idle.hours_since / 24) + 'd' : Math.floor(idle.hours_since) + 'h')
+}
+
+function railIdleTooltip(vend, rail) {
+		const idle = railIdle(vend, rail)
+		if (!idle) return ''
+		const name = RAIL_NAMES[rail]
+		const last = idle.last_at
+				? `Last ${name} sale: ${moment(idle.last_at).fromNow()} (${moment(idle.last_at).format('D MMM HH:mm')}).`
+				: `No ${name} sale on record for this machine.`
+		const lines = [
+				`<strong>No ${name} sale in the last 48 h</strong>`,
+				last,
+				idle.machine_idle
+						? 'The machine took no sale of any kind in 48 h either — check it is up before the payment device.'
+						: 'Other payments are still coming in, so this payment device is the likely fault.',
+				'<span class="opacity-80">Click to open its Sales Transactions in a new tab.</span>',
+		]
+		return '<div class="max-w-xs space-y-1 text-left">' + lines.map((l) => `<div>${l}</div>`).join('') + '</div>'
+}
+
+// From the rail's last sale (so that sale is on screen), at least the last 7 days, at most 31.
+function railTransactionsUrl(vend, rail) {
+		const lastAt = railIdle(vend, rail)?.last_at
+		let from = moment().subtract(6, 'days').startOf('day')
+		if (lastAt && moment(lastAt).isBefore(from)) from = moment(lastAt).startOf('day')
+		const floor = moment().subtract(30, 'days').startOf('day')
+		if (from.isBefore(floor)) from = floor
+
+		return '/vends/transactions?' + new URLSearchParams({
+				codes: vend.code ?? '',
+				date_from: from.format('YYYY-MM-DD'),
+				date_to: moment().format('YYYY-MM-DD'),
+		}).toString()
+}
+
+function openRailTransactions(vend, rail) {
+		if (railIdle(vend, rail)) {
+				window.open(railTransactionsUrl(vend, rail), '_blank', 'noopener')
+		}
+}
+
 function todayTransactionsUrl(vend) {
 		const today = moment().format('YYYY-MM-DD')
 

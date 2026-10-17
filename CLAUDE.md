@@ -1762,6 +1762,19 @@ add a population default there, never in one caller. A chip (or a group's Show) 
 in the grid through the `codes` deep-link; a lone code gets a trailing comma so `VendCode::whereSearch`
 matches it exactly. Regression coverage: `tests/Feature/OpsDashboardCriticalAttentionTest.php`.
 
+**Silent payment rails get a red frame** (Brian, 2026-10-17: components "long time in no function
+condition, causing no transaction in either Omise, Cash or Card"). In the grid, the Card Terminal,
+LCD Monitor (the QR shows on it = Omise) and Coin Float badges are framed red when the machine HAS that
+rail and took no sale on it for `vend.attention.payment_idle_hours` (48). `App\Support\PaymentRailIdle`
+is the one rule, emitted as `VendResource.payment_idle` (only where the grid selected the last-sale
+columns). It reads only `vends.last_card_ / last_cashless_ / last_cash_vend_transaction_at`, which the TRADE
+ingest keeps (payment method code 1 / a gateway method / code 0; checked 2026-10-17: under 3% of active
+machines differ from their real last sale by more than 5 min). Active, non-testing machines only. Hover
+says why, and whether the WHOLE machine went quiet too (then check the machine, not the device); the
+frame (Coin Float: its red tag, since the badge itself opens the float history) opens the machine's
+Sales Transactions in a new tab, from that rail's last sale, 7 to 31 days back. Regression coverage:
+`tests/Unit/PaymentRailIdleTest.php`, `tests/Feature/OpsDashboardPaymentRailIdleTest.php`.
+
 ## APK OTA: nudges and the updater's own report
 
 `ota:nudge-stale` sends OTA_CHECK (`App\Services\OtaCheckNudge`) to online,

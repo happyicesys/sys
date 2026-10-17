@@ -1371,6 +1371,13 @@ class VendController extends Controller
                 // badge on the customer index page.
                 'vends.card_terminal_id',
                 'card_terminals.name AS card_terminal_name',
+                // Last sale per payment rail: a rail fitted but silent for 48 h
+                // draws a red frame on its badge (App\Support\PaymentRailIdle).
+                'vends.lcd_monitor_id',
+                'vends.last_vend_transaction_at',
+                'vends.last_card_vend_transaction_at',
+                'vends.last_cashless_vend_transaction_at',
+                'vends.last_cash_vend_transaction_at',
                 // The acquirer TID fitted NOW and whether it makes a failed
                 // vend good by itself (card_terminal_units.is_will_auto_refund).
                 // Correlated subqueries, NOT joins: this SELECT already spans a

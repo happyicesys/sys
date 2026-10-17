@@ -21,6 +21,9 @@ return [
     'attention' => [
         'no_sales_hours' => (int) env('OPS_ATTENTION_NO_SALES_HOURS', 48),
         'apk_restarts_per_day' => (int) env('OPS_ATTENTION_APK_RESTARTS_PER_DAY', 5),
+        // A fitted payment rail (card terminal / LCD QR / coin mech) with no sale for this long gets a
+        // red frame on its Operation Dashboard badge (App\Support\PaymentRailIdle, Brian 2026-10-17).
+        'payment_idle_hours' => (int) env('OPS_ATTENTION_PAYMENT_IDLE_HOURS', 48),
     ],
 
 ];

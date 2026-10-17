@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Customer;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourEligibility;
+use App\Support\PaymentRailIdle;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\ValueObjects\ReportedApkVersion;
@@ -350,6 +351,12 @@ class VendResource extends JsonResource
                 ] : null;
             }),
             'parameterJson' => isset($this->parameter_json) ? $this->parameter_json : null,
+            // Operation Dashboard red frames: fitted payment rails silent for 48 h. Only where the
+            // grid selected the last-sale columns, so no other page gets an empty verdict.
+            'payment_idle' => $this->resource instanceof \Illuminate\Database\Eloquent\Model
+                && array_key_exists('last_vend_transaction_at', $this->resource->getAttributes())
+                ? (object) PaymentRailIdle::forRow($this->resource->getAttributes())
+                : null,
             'postcode' => isset($this->postcode) ? $this->postcode : null,
             'preferred_visit_days_json' => isset($this->preferred_visit_days_json) ? $this->preferred_visit_days_json : null,
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
