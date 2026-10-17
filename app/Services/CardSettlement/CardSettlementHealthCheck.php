@@ -291,6 +291,9 @@ class CardSettlementHealthCheck
                     ZijiaSkuApprovalService::OUTCOME_UNKNOWN_STATUS => 'unknown audit status "'.$n->audit_status.'"',
                     ZijiaSkuApprovalService::OUTCOME_NOT_IN_LIBRARY => 'approved barcode not found in Zijia\'s library (not applied)',
                     ZijiaSkuApprovalService::OUTCOME_UNREACHABLE => 'Zijia\'s library did not answer (not applied; the 3-minute sync will retry)',
+                    ZijiaSkuApprovalService::OUTCOME_NAME_DIFFERS => 'Zijia\'s library names this barcode as a different product (not applied)',
+                    ZijiaSkuApprovalService::OUTCOME_STILL_IN_LIBRARY => 'rejection of a barcode Zijia\'s library still lists (not cleared)',
+                    ZijiaSkuApprovalService::OUTCOME_REFUSED_NO_TOKEN => 'refused: ZIJIA_SKU_CALLBACK_TOKEN is not set on this server',
                     default => 'push without product code or barcode',
                 }), 'url' => null])
             ->all();

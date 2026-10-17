@@ -23,6 +23,8 @@ class ZijiaSkuNotifyTest extends TestCase
 
     private const SECRET = 'app-secret-under-test';
 
+    private const TOKEN = 'sku-token';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -30,7 +32,7 @@ class ZijiaSkuNotifyTest extends TestCase
             'base_url' => 'https://algo.test', 'app_id' => '1789379222883159', 'app_secret' => self::SECRET,
             'model_ids' => [], 'notify_url' => null, 'auto_submit' => false, 'timeout' => 5,
             'callback_verification' => 'enforce', 'timezone' => 'Asia/Shanghai',
-        ]]);
+        ], 'smart_freezer.zijia.sku_callback_token' => self::TOKEN]);
     }
 
     private function push(array $biz, ?string $secret = self::SECRET): TestResponse
@@ -114,19 +116,20 @@ class ZijiaSkuNotifyTest extends TestCase
     }
 
     /** The documented 商品审批回调 (§7): plain JSON, unsigned. */
-    private function documented(bool $pass, array $sku, string $query = ''): TestResponse
+    private function documented(bool $pass, array $sku, ?string $token = self::TOKEN): TestResponse
     {
-        return $this->postJson(self::URL.$query, ['pass' => $pass, 'msg' => $pass ? null : '申请被拒绝,拒绝原因: 图片不清', 'sku' => $sku + [
+        return $this->postJson(self::URL.($token !== null ? '?token='.$token : ''), ['pass' => $pass, 'msg' => $pass ? null : '申请被拒绝,拒绝原因: 图片不清', 'sku' => $sku + [
             'brandName' => '其他/其他', 'category' => 4, 'packageType' => 5, 'spec' => '120克', 'status' => 1, 'version' => 1,
             'sysSkuId' => 1791006205910842, 'standardProduct' => true,
         ]]);
     }
 
-    private function library(array $codes): void
+    /** Zijia's public library (§8): barcode => the name it was modelled under. */
+    private function library(array $entries): void
     {
         \Illuminate\Support\Facades\Http::fake(['algo.test/*' => fn ($r) => \Illuminate\Support\Facades\Http::response([
-            'list' => array_values(array_map(fn ($c) => ['productCode' => $c, 'skuName' => 'x'],
-                array_filter($codes, fn ($c) => $c === ($r->data()['productCode'] ?? null)))),
+            'list' => collect($entries)->filter(fn ($name, $code) => (string) $code === ($r->data()['productCode'] ?? null))
+                ->map(fn ($name, $code) => ['productCode' => (string) $code, 'skuName' => $name])->values()->all(),
             'totalPage' => 1, 'currentPage' => 1, 'totalCount' => 1,
         ])]);
     }
@@ -139,8 +142,9 @@ class ZijiaSkuNotifyTest extends TestCase
 
     public function test_the_documented_callback_matches_our_code_in_attach_after_a_library_check(): void
     {
-        $this->library(['0726436016209']);
+        $this->library(['0726436016209' => 'Basque Cheesecake - Chocolate']);
         $chocolate = $this->product('CC-02');
+        $chocolate->forceFill(['name' => 'Basque Cheesecake - Chocolate'])->save();
 
         $this->documented(true, ['productCode' => '0726436016209', 'skuName' => 'Basque Cheesecake - Chocolate', 'attach' => 'CC-02'])
             ->assertOk()->assertJson(['status' => 200, 'body' => 'SUCCESS']);
@@ -150,7 +154,7 @@ class ZijiaSkuNotifyTest extends TestCase
 
     public function test_a_portal_application_without_our_code_matches_a_unique_freezer_product_by_name(): void
     {
-        $this->library(['0726436016209']);
+        $this->library(['0726436016209' => 'Basque Cheesecake Chocolate']);
         $chocolate = $this->product('CC-02');
         $chocolate->forceFill(['name' => 'Basque Cheesecake - Chocolate'])->save();
         $this->onFreezer($chocolate);
@@ -171,26 +175,65 @@ class ZijiaSkuNotifyTest extends TestCase
         $this->assertSame('not_in_library', ZijiaSkuNotification::sole()->outcome);
     }
 
-    public function test_once_a_token_is_set_the_callback_must_carry_it(): void
+    public function test_the_callback_must_carry_the_token(): void
     {
-        config(['smart_freezer.zijia.sku_callback_token' => 'sku-token']);
-        $this->library(['0726436016209']);
+        $this->library(['0726436016209' => 'P CC-02']);
         $chocolate = $this->product('CC-02');
 
-        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'])->assertJson(['status' => 500]);
+        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'], null)->assertJson(['status' => 500]);
+        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'], 'wrong')->assertJson(['status' => 500]);
         $this->assertNull($chocolate->fresh()->barcode);
 
-        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'], '?token=sku-token')->assertJson(['status' => 200]);
+        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'])->assertJson(['status' => 200]);
         $this->assertSame('0726436016209', $chocolate->fresh()->barcode);
     }
 
-    public function test_a_rejection_clears_only_the_barcode_it_names(): void
+    /** Audit SF-02: with no token configured the callback is refused (fail closed), never applied unsigned. */
+    public function test_without_a_configured_token_every_callback_is_refused(): void
     {
-        $chocolate = $this->product('CC-02', '0726436016209');
+        config(['smart_freezer.zijia.sku_callback_token' => null]);
+        $this->library(['0726436016209' => 'P CC-02', '9300000000001' => 'P U-01']);
+        $chocolate = $this->product('CC-02');
+        $other = $this->product('U-01', '8851932115919');
 
-        $this->documented(false, ['productCode' => '0726436016209', 'attach' => 'CC-02'])->assertOk();
+        $this->documented(true, ['productCode' => '0726436016209', 'attach' => 'CC-02'], null)->assertJson(['status' => 500]);
+        $this->documented(false, ['productCode' => '8851932115919', 'attach' => 'U-01'], null)->assertJson(['status' => 500]);
 
         $this->assertNull($chocolate->fresh()->barcode);
+        $this->assertSame('8851932115919', $other->fresh()->barcode, 'an untokened rejection never clears a barcode');
+        $this->assertSame(['refused_no_token', 'refused_no_token'], ZijiaSkuNotification::query()->orderBy('id')->pluck('outcome')->all());
+        $this->assertStringContainsString('ZIJIA_SKU_CALLBACK_TOKEN',
+            collect(app(CardSettlementHealthCheck::class)->run())->firstWhere('key', 'zijia_sku_push')['items'][0]['text']);
+    }
+
+    /** Audit SF-02: a barcode that really exists, but for another product, is never planted. */
+    public function test_an_approval_whose_library_entry_is_another_product_is_not_applied(): void
+    {
+        $this->library(['9300000000001' => 'Magnum Classic']);
+        $chocolate = $this->product('CC-02');
+        $chocolate->forceFill(['name' => 'Basque Cheesecake - Chocolate'])->save();
+
+        $this->documented(true, ['productCode' => '9300000000001', 'skuName' => 'Basque Cheesecake - Chocolate', 'attach' => 'CC-02'])->assertOk();
+
+        $this->assertNull($chocolate->fresh()->barcode);
+        $this->assertSame('library_name_differs', ZijiaSkuNotification::sole()->outcome);
+        $this->assertStringContainsString('names this barcode',
+            collect(app(CardSettlementHealthCheck::class)->run())->firstWhere('key', 'zijia_sku_push')['items'][0]['text']);
+    }
+
+    /** Audit SF-02: a rejection that is not one of our applications clears only what their library has dropped. */
+    public function test_a_rejection_clears_a_barcode_only_once_their_library_no_longer_lists_it(): void
+    {
+        $this->library(['8851932115919' => 'P U-01']);
+        $stillListed = $this->product('U-01', '8851932115919');
+        $dropped = $this->product('CC-02', '0726436016209');
+
+        $this->documented(false, ['productCode' => '8851932115919', 'attach' => 'U-01'])->assertOk();
+        $this->documented(false, ['productCode' => '0726436016209', 'attach' => 'CC-02'])->assertOk();
+
+        $this->assertSame('8851932115919', $stillListed->fresh()->barcode);
+        $this->assertNull($dropped->fresh()->barcode);
+        $this->assertSame(['still_in_library', 'cleared'], ZijiaSkuNotification::query()->orderBy('id')->pluck('outcome')->all());
     }
 
     public function test_unknown_codes_statuses_and_shapes_are_kept_and_reported(): void

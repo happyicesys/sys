@@ -189,7 +189,9 @@ class SkuStockIdentityTest extends TestCase
         $mapping = ChillerMapping::bind($vend, [101 => [90338, 5]]);
         $lemon = ChillerMapping::product(90339, 6);
         $user = User::factory()->create();
-        $user->givePermissionTo(Permission::findOrCreate('read product-mappings', 'web'));
+        foreach (['read', 'create', 'update', 'delete'] as $verb) {
+            $user->givePermissionTo(Permission::findOrCreate("{$verb} product-mappings", 'web'));
+        }
 
         $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", ['channel_code' => ' 102a', 'product_id' => $lemon->id])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('product_mapping_items', ['product_mapping_id' => $mapping->id, 'channel_code' => '102A']);
@@ -222,7 +224,9 @@ class SkuStockIdentityTest extends TestCase
         $mapping = ChillerMapping::bind($vend, [101 => [90338, 5]]);
         $lemon = ChillerMapping::product(90339, 6);
         $user = User::factory()->create();
-        $user->givePermissionTo(Permission::findOrCreate('read product-mappings', 'web'));
+        foreach (['read', 'create', 'update', 'delete'] as $verb) {
+            $user->givePermissionTo(Permission::findOrCreate("{$verb} product-mappings", 'web'));
+        }
 
         $this->actingAs($user)->post("/product-mappings/{$mapping->id}/items/create", [
             'channel_code' => '102', 'product_id' => $lemon->id, 'capacity_override' => 6,

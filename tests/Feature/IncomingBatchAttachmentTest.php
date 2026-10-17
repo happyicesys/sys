@@ -26,6 +26,9 @@ class IncomingBatchAttachmentTest extends TestCase
     {
         parent::setUp();
         Storage::fake(config('filesystems.default'));
+        foreach ([1 => 'HIPL', 2 => 'OPB'] as $id => $code) {
+            DB::table('operators')->insert(['id' => $id, 'code' => $code, 'name' => $code, 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()]);
+        }
     }
 
     private function viewer(): User
@@ -35,13 +38,24 @@ class IncomingBatchAttachmentTest extends TestCase
         return tap(User::factory()->create())->givePermissionTo('read products');
     }
 
-    private function seedBatch(string $batch, array $qtys): void
+    /** A user of this operator with these `products` verbs. */
+    private function staff(int $operatorId, array $verbs = ['read', 'update', 'delete']): User
+    {
+        $user = User::factory()->create(['operator_id' => $operatorId]);
+        foreach ($verbs as $verb) {
+            $user->givePermissionTo(Permission::findOrCreate("{$verb} products", 'web'));
+        }
+
+        return $user;
+    }
+
+    private function seedBatch(string $batch, array $qtys, ?int $operatorId = null): void
     {
         foreach ($qtys as $i => $qty) {
             $product = Product::create(['code' => "IBA{$batch}{$i}", 'name' => "P{$i}"]);
             DB::table('product_movements')->insert([
                 'product_id' => $product->id, 'type' => ProductMovement::TYPE_INCOMING, 'qty' => $qty,
-                'batch_number' => $batch, 'created_at' => now(), 'updated_at' => now(),
+                'batch_number' => $batch, 'operator_id' => $operatorId, 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
     }
@@ -104,7 +118,7 @@ class IncomingBatchAttachmentTest extends TestCase
     public function test_attachments_can_be_added_to_and_removed_from_an_existing_batch(): void
     {
         $this->seedBatch('Benelux #001', [48]);
-        $user = $this->viewer();
+        $user = $this->staff(1);
 
         $this->actingAs($user)->post('/products/movements/incoming-attachments', [
             'batch_number' => 'Benelux #001',
@@ -113,6 +127,10 @@ class IncomingBatchAttachmentTest extends TestCase
 
         $file = IncomingBatchAttachment::sole();
         $this->assertSame('Benelux #001', $file->batch_number);
+        // Supplier documents carry cost prices: private on Spaces, served only through the authed route.
+        $this->assertSame('private', Storage::getVisibility($file->local_url));
+        $this->assertSame(route('product-movements.incoming-attachments.show', $file->id), $file->full_url);
+        $this->actingAs($user)->get(route('product-movements.incoming-attachments.show', $file->id))->assertOk();
 
         $this->actingAs($user)
             ->get('/products/movements/incoming-history/'.rawurlencode('Benelux #001'))
@@ -123,9 +141,50 @@ class IncomingBatchAttachmentTest extends TestCase
         Storage::assertMissing($file->local_url);
     }
 
+    /** Audit UI-02 (2026-10-17): read alone cannot add or remove a batch's files. */
+    public function test_read_alone_cannot_add_or_delete_attachments(): void
+    {
+        $this->seedBatch('B-1', [10], 1);
+        $file = IncomingBatchAttachment::create(['batch_number' => 'B-1', 'local_url' => 'sys/incoming-batches/a.pdf', 'name' => 'a.pdf', 'operator_id' => 1]);
+        Storage::put('sys/incoming-batches/a.pdf', 'x');
+
+        $this->actingAs($this->staff(1, ['read']))->post('/products/movements/incoming-attachments', [
+            'batch_number' => 'B-1', 'attachments' => [UploadedFile::fake()->create('b.pdf', 5, 'application/pdf')],
+        ])->assertForbidden();
+        $this->actingAs($this->staff(1, ['read', 'update']))->delete('/products/movements/incoming-attachments/'.$file->id)->assertForbidden();
+
+        $this->assertSame(1, IncomingBatchAttachment::count());
+        Storage::assertExists('sys/incoming-batches/a.pdf');
+    }
+
+    /** Audit UI-02: another operator can neither see, open, add to nor delete a batch's files. */
+    public function test_another_operator_cannot_reach_a_batchs_files(): void
+    {
+        $this->seedBatch('HIPL-7', [10], 1);
+        $hiplUser = $this->staff(1);
+        $this->actingAs($hiplUser)->post('/products/movements/incoming-attachments', [
+            'batch_number' => 'HIPL-7', 'attachments' => [UploadedFile::fake()->create('inv.pdf', 5, 'application/pdf')],
+        ])->assertRedirect();
+        $file = IncomingBatchAttachment::sole();
+        $this->assertSame(1, (int) $file->operator_id);
+
+        $outsider = $this->staff(2);
+        $this->actingAs($outsider)->get(route('product-movements.incoming-attachments.show', $file->id))->assertNotFound();
+        $this->actingAs($outsider)->delete('/products/movements/incoming-attachments/'.$file->id)->assertNotFound();
+        $this->actingAs($outsider)->post('/products/movements/incoming-attachments', [
+            'batch_number' => 'HIPL-7', 'attachments' => [UploadedFile::fake()->create('x.pdf', 5, 'application/pdf')],
+        ])->assertNotFound();
+        $this->actingAs($outsider)->get('/products/movements/incoming-history')
+            ->assertInertia(fn (AssertableInertia $page) => $this->assertSame([],
+                array_column(collect($page->toArray()['props']['history']['data'])->firstWhere('batch_number', 'HIPL-7')['attachments'] ?? [], 'name')));
+
+        $this->assertSame(1, IncomingBatchAttachment::withoutGlobalScopes()->count());
+        Storage::assertExists($file->local_url);
+    }
+
     public function test_attachment_needs_an_existing_batch(): void
     {
-        $this->actingAs($this->viewer())->post('/products/movements/incoming-attachments', [
+        $this->actingAs($this->staff(1))->post('/products/movements/incoming-attachments', [
             'batch_number' => 'nope',
             'attachments' => [UploadedFile::fake()->create('a.pdf', 5, 'application/pdf')],
         ])->assertNotFound();

@@ -44,7 +44,7 @@ class ZijiaAiTrainingTest extends TestCase
             'base_url' => 'https://algo.test', 'app_id' => '1789379222883159', 'app_secret' => self::SECRET,
             'model_ids' => [], 'notify_url' => null, 'auto_submit' => false, 'timeout' => 5,
             'callback_verification' => 'enforce', 'timezone' => 'Asia/Shanghai',
-        ], 'smart_freezer.zijia.sku_callback_token' => null]);
+        ], 'smart_freezer.zijia.sku_callback_token' => 'sku-token']);
 
         $this->user = User::factory()->create(['name' => 'Ops One', 'operator_id' => 1]);
         foreach (['read products', 'update products'] as $p) {
@@ -130,7 +130,7 @@ class ZijiaAiTrainingTest extends TestCase
                 && $sku['attach'] === 'CC-02'
                 && $sku['productCode'] === '0726436016209'
                 && $sku['category'] === 4 && $sku['packageType'] === 3
-                && str_ends_with($sku['callbackUrl'], '/api/smart-freezer/zijia/sku/notify')
+                && str_ends_with($sku['callbackUrl'], '/api/smart-freezer/zijia/sku/notify?token=sku-token')
                 // The product photo, squared (1:1) into our own storage before it is sent.
                 && str_starts_with($sku['packageImageUrl'], "https://space.test/sys/zijia-sku/{$this->product->id}/square/")
                 && count($sku['skuModelPic']['high']) === 2;
@@ -146,6 +146,20 @@ class ZijiaAiTrainingTest extends TestCase
 
         // Locked while Zijia reviews it.
         $this->save(['sku_name' => 'changed'])->assertSessionHasErrors('application');
+    }
+
+    /** Audit SF-02: Zijia's answer would be refused without our token, so nothing is sent without one. */
+    public function test_submit_is_refused_while_no_callback_token_is_set(): void
+    {
+        config(['smart_freezer.zijia.sku_callback_token' => null]);
+        $app = $this->fullDraft();
+        Http::fake(['algo.test/api/algorithm/api' => Http::response(['code' => 0, 'msg' => '提交审核成功'])]);
+
+        $this->actingAs($this->user)->post("/products/{$this->product->id}/ai-training/submit")
+            ->assertSessionHasErrors('application');
+
+        $this->assertSame(ZijiaSkuApplication::STATUS_DRAFT, $app->fresh()->status);
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'algorithm/api'));
     }
 
     public function test_a_refused_submission_is_failed_with_their_answer(): void
@@ -174,7 +188,7 @@ class ZijiaAiTrainingTest extends TestCase
     {
         $app = $this->submitted();
 
-        $this->postJson('/api/smart-freezer/zijia/sku/notify', ['pass' => true, 'msg' => null, 'sku' => [
+        $this->postJson('/api/smart-freezer/zijia/sku/notify?token=sku-token', ['pass' => true, 'msg' => null, 'sku' => [
             'applicationNo' => $app->application_no, 'productCode' => '0726436016209', 'skuName' => 'Basque Cheesecake - Chocolate',
             'sysSkuId' => 1791006205910842, 'attach' => 'CC-02',
         ]])->assertOk()->assertJson(['status' => 200, 'body' => 'SUCCESS']);
@@ -192,7 +206,7 @@ class ZijiaAiTrainingTest extends TestCase
     {
         $app = $this->submitted();
 
-        $this->postJson('/api/smart-freezer/zijia/sku/notify', ['pass' => false, 'msg' => '申请被拒绝,拒绝原因: 图片不清晰', 'sku' => [
+        $this->postJson('/api/smart-freezer/zijia/sku/notify?token=sku-token', ['pass' => false, 'msg' => '申请被拒绝,拒绝原因: 图片不清晰', 'sku' => [
             'applicationNo' => $app->application_no, 'productCode' => '0726436016209',
         ]])->assertOk();
 

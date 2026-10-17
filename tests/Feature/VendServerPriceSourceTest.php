@@ -243,11 +243,11 @@ class VendServerPriceSourceTest extends TestCase
         $this->bindApkSetting($vend, 'server');
         $settingId = DB::table('apk_setting_vend')->where('vend_id', $vend->id)->value('apk_setting_id');
 
-        foreach (['read machine-settings', 'update machine-settings'] as $perm) {
+        foreach (['read machine-settings', 'update machine-settings', 'read apk-settings'] as $perm) {
             \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
         }
         $user = User::factory()->create();
-        $user->givePermissionTo(['read machine-settings', 'update machine-settings']);
+        $user->givePermissionTo(['read machine-settings', 'update machine-settings', 'read apk-settings']);
 
         // Machine Settings → Edit: the flag + the Site's RP; no per-machine RP field any more.
         $this->actingAs($user)->get('/settings/vend/'.$vend->id.'/update')

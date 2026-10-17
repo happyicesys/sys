@@ -314,6 +314,11 @@ class ZijiaSkuApplicationService
         if (! $this->client->isConfigured()) {
             throw ValidationException::withMessages(['application' => 'Zijia\'s algorithm service is not configured on this server.']);
         }
+        // Their answer (§7) is refused without our token (audit SF-02), so an application sent
+        // without one could never be decided here.
+        if ((string) config('smart_freezer.zijia.sku_callback_token') === '') {
+            throw ValidationException::withMessages(['application' => 'ZIJIA_SKU_CALLBACK_TOKEN is not set on this server, so Zijia\'s answer would be refused. Ask an admin to set it, then submit.']);
+        }
 
         $pics = array_merge(['high' => [], 'horizontal' => [], 'low' => []], (array) $app->model_pics);
         $sku = array_filter([

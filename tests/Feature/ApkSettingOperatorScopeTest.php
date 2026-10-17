@@ -75,6 +75,10 @@ class ApkSettingOperatorScopeTest extends TestCase
     private function userFor(Operator $operator): User
     {
         $user = User::factory()->create(['operator_id' => $operator->id]);
+        // The routes are gated per verb since audit CORE-01 (2026-10-17); this file tests the operator boundary.
+        foreach (['read', 'create', 'update', 'delete'] as $verb) {
+            $user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate("{$verb} apk-settings", 'web'));
+        }
 
         OperatorScope::flush();
 

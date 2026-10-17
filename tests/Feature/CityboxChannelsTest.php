@@ -198,11 +198,11 @@ class CityboxChannelsTest extends TestCase
         app(CityboxOpenapiSync::class)->syncAll();
         $this->assertSame([101], $this->channels()->pluck('code')->map(fn ($c) => (int) $c)->all());
 
-        foreach (['read product-mappings', 'update machine-settings'] as $p) {
+        foreach (['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'update machine-settings'] as $p) {
             \Spatie\Permission\Models\Permission::findOrCreate($p, 'web');
         }
         $user = User::factory()->create();
-        $user->givePermissionTo(['read product-mappings', 'update machine-settings']);
+        $user->givePermissionTo(['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'update machine-settings']);
 
         $this->actingAs($user)
             ->post('/product-mappings/'.$mapping->id.'/items/create', ['channel_code' => '304', 'product_id' => $peach->id])

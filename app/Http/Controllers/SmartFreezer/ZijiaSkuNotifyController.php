@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Log;
  *
  * Two shapes. Their DOCUMENTED one (算法服务接口文档 §7 商品审批回调, found 2026-10-05): plain
  * unsigned JSON `{pass, msg, sku}`, sent to the callbackUrl set on each product application —
- * guarded by an optional `?token=` and a check against their library (approvalCallback). And the
+ * guarded by a mandatory `?token=` (refused while none is configured) and our application or
+ * their library (approvalCallback). And the
  * signed envelope we proposed to Zijia (same signature and `callback_verification` mode as the
  * result callback; `enforce` in prod refuses unsigned). Every push is kept whole in `zijia_sku_notifications`, refused
  * ones too, because the payload shape is not final. Answers like the result callback:
@@ -64,16 +65,25 @@ class ZijiaSkuNotifyController extends Controller
     }
 
     /**
-     * 算法服务接口文档 §7 商品审批回调. No signature exists for it, so: a `?token=` once
-     * `sku_callback_token` is set (we choose the callbackUrl), and every approval is checked
-     * against their library before it changes a barcode (ZijiaSkuApprovalService).
+     * 算法服务接口文档 §7 商品审批回调. No signature exists for it, so it must carry our
+     * `?token=` (we choose the callbackUrl, ZijiaSkuApplicationService::callbackUrl). With no
+     * `sku_callback_token` configured every callback is REFUSED — fail closed (audit SF-02): an
+     * unauthenticated push could clear a barcode or plant another product's, and the barcode
+     * decides what a T05 hold is charged. Even tokened, a change needs our own application or
+     * their library's confirmation (ZijiaSkuApprovalService::applyApprovalCallback).
      *
      * @param  array<string, mixed>  $payload
      */
     private function approvalCallback(Request $request, string $raw, array $payload): JsonResponse
     {
         $token = (string) config('smart_freezer.zijia.sku_callback_token');
-        if ($token !== '' && ! hash_equals($token, (string) ($request->query('token') ?? $request->header('X-Api-Key', '')))) {
+        if ($token === '') {
+            ZijiaSkuNotification::query()->create(['raw_body' => $raw, 'payload' => $payload, 'verified' => false, 'outcome' => ZijiaSkuApprovalService::OUTCOME_REFUSED_NO_TOKEN]);
+            Log::warning('zijia sku approval callback refused: ZIJIA_SKU_CALLBACK_TOKEN is not set', ['ip' => $request->ip()]);
+
+            return $this->reply(500, 'token');
+        }
+        if (! hash_equals($token, (string) ($request->query('token') ?? $request->header('X-Api-Key', '')))) {
             ZijiaSkuNotification::query()->create(['raw_body' => $raw, 'payload' => $payload, 'verified' => false, 'outcome' => 'refused_token']);
             Log::warning('zijia sku approval callback refused: token', ['ip' => $request->ip()]);
 
@@ -81,7 +91,7 @@ class ZijiaSkuNotifyController extends Controller
         }
 
         $result = $this->approvals->applyApprovalCallback($payload);
-        ZijiaSkuNotification::query()->create($result + ['raw_body' => $raw, 'payload' => $payload, 'verified' => $token !== '' ? true : null]);
+        ZijiaSkuNotification::query()->create($result + ['raw_body' => $raw, 'payload' => $payload, 'verified' => true]);
         Log::info('zijia sku approval callback', $result);
 
         return $this->reply(200, 'SUCCESS');

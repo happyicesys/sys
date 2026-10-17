@@ -34,7 +34,7 @@ class MappingMenuAutoPushTest extends TestCase
         parent::setUp();
         Model::reguard();
         Cache::flush();
-        foreach (['read product-mappings', 'read products', 'update products'] as $p) {
+        foreach (['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'read products', 'update products'] as $p) {
             Permission::findOrCreate($p, 'web');
         }
         DB::table('operators')->insertOrIgnore([
@@ -47,7 +47,7 @@ class MappingMenuAutoPushTest extends TestCase
     private function admin(): User
     {
         $user = User::factory()->create(['operator_id' => 1]);
-        $user->givePermissionTo(['read product-mappings', 'read products', 'update products']);
+        $user->givePermissionTo(['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'read products', 'update products']);
 
         return $user;
     }

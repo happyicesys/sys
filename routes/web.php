@@ -785,6 +785,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/movements/incoming-history', [ProductMovementController::class, 'incomingHistory'])->name('product-movements.incoming-history');
         Route::get('/movements/incoming-history/export', [ProductMovementController::class, 'incomingHistoryExport'])->name('product-movements.incoming-history-export');
         Route::post('/movements/incoming-attachments', [ProductMovementController::class, 'storeBatchAttachments'])->name('product-movements.incoming-attachments.store');
+        Route::get('/movements/incoming-attachments/{attachment}', [ProductMovementController::class, 'showBatchAttachment'])->name('product-movements.incoming-attachments.show');
         Route::delete('/movements/incoming-attachments/{attachment}', [ProductMovementController::class, 'destroyBatchAttachment'])->name('product-movements.incoming-attachments.destroy');
         // Batch numbers are free text ("Benelux #001", "PO 12/3"): the page encodes
         // the segment, and .+ lets a decoded "/" still reach the controller.

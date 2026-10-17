@@ -136,7 +136,7 @@ class SpacesFileStorageTest extends TestCase
         $source = ProductMapping::withoutGlobalScopes()->create(['name' => 'M1', 'operator_id' => $hipl->id, 'is_active' => true]);
         $attachment = $this->attachmentOn($source, 'sys/product-mappings/src.png');
 
-        $this->actingAs($this->userWith('read product-mappings'))
+        $this->actingAs($this->userWith('read product-mappings', 'create product-mappings'))
             ->post('/product-mappings/replicate', ['id' => $source->id]);
 
         $replica = ProductMapping::withoutGlobalScopes()->where('name', 'M1-replicated')->firstOrFail();

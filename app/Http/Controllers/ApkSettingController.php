@@ -43,6 +43,15 @@ class ApkSettingController extends Controller
 
     public function __construct(VendJobService $vendJobService)
     {
+        // Audit CORE-01 (2026-10-17): the routes sit only behind `auth`, so each verb is gated here.
+        // Push, media uploads and (un)binding change what machines show, so they need `update`.
+        $this->middleware(['permission:read apk-settings']);
+        $this->middleware(['permission:create apk-settings'])->only(['create', 'store']);
+        $this->middleware(['permission:update apk-settings'])->only([
+            'update', 'push', 'bindCampaigns', 'unbindCampaign', 'createCampaignItem', 'deleteCampaignItem', 'unbindVend',
+            'uploadCampaignImages', 'uploadCampaignVideos', 'uploadImages', 'uploadVideos', 'uploadMedia', 'uploadCampaignMedia',
+        ]);
+        $this->middleware(['permission:delete apk-settings'])->only(['destroy']);
         $this->tagBindingService = new TagBindingService;
         $this->vendParameterService = new VendParameterService;
         $this->vendJobService = $vendJobService;

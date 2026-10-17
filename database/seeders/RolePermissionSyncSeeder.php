@@ -506,7 +506,10 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'apk-settings',
-                ['read', 'export'],
+                // create/update/delete: audit CORE-01 (2026-10-17). The routes had no server gate
+                // at all, so these are the roles that already reached them through the sidebar —
+                // nobody here loses access; everyone else (driver, picker, prod_owner…) does.
+                ['read', 'export', 'create', 'update', 'delete'],
                 // 2026-07-23 sheet sync: - driver (UI Setting row has no Driver)
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor'],
             ],

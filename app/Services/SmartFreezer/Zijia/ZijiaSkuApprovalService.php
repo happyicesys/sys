@@ -45,9 +45,19 @@ class ZijiaSkuApprovalService
 
     public const OUTCOME_UNREACHABLE = 'library_unreachable';
 
+    /** An unsigned approval of a barcode their library files under another product's name. */
+    public const OUTCOME_NAME_DIFFERS = 'library_name_differs';
+
+    /** An unsigned rejection of a barcode their library still lists. */
+    public const OUTCOME_STILL_IN_LIBRARY = 'still_in_library';
+
+    /** A §7 callback while `ZIJIA_SKU_CALLBACK_TOKEN` is unset: refused, nothing applied. */
+    public const OUTCOME_REFUSED_NO_TOKEN = 'refused_no_token';
+
     /** Outcomes a person should look at (the 08:30 health email). */
     public const NEEDS_A_PERSON = [self::OUTCOME_CONFLICT, self::OUTCOME_NO_PRODUCT, self::OUTCOME_AMBIGUOUS,
-        self::OUTCOME_NO_CODE, self::OUTCOME_UNKNOWN_STATUS, self::OUTCOME_NOT_IN_LIBRARY, self::OUTCOME_UNREACHABLE];
+        self::OUTCOME_NO_CODE, self::OUTCOME_UNKNOWN_STATUS, self::OUTCOME_NOT_IN_LIBRARY, self::OUTCOME_UNREACHABLE,
+        self::OUTCOME_NAME_DIFFERS, self::OUTCOME_STILL_IN_LIBRARY, self::OUTCOME_REFUSED_NO_TOKEN];
 
     /**
      * @param  array<string, mixed>  $biz  the push's business content
@@ -80,10 +90,18 @@ class ZijiaSkuApprovalService
      * Zijia's product approval callback as documented (算法服务接口文档 §7): plain unsigned JSON
      * `{pass, msg, sku: {productCode, skuName, sysSkuId, applicationNo, attach, …}}`.
      *
-     * Unsigned, so an approval is applied only once Zijia's own library (§8, public) confirms the
-     * barcode exists — a forged push can at worst fill a real barcode. The product is found by
-     * `sku.attach` / `sku.applicationNo` = products.code (ours when we apply through §5), else by
-     * a unique exact name among smart-freezer planogram products (portal applications).
+     * Unsigned (the controller refuses it unless it carries our `?token=`), and a barcode decides
+     * what the AI names and so what a T05 hold is charged — so nothing here trusts the payload alone
+     * (audit SF-02, 2026-10-17):
+     * - one of OUR applications (its `applicationNo`) names the product; an approval of the very
+     *   barcode we submitted is applied, any other barcode must be in their library;
+     * - anything else must be confirmed by their public library (§8) before a write: an approval
+     *   only when the library files that barcode under this product's name (the 3-minute crawl's
+     *   rule — a real barcode of ANOTHER product is never planted), a rejection only when the
+     *   library no longer lists the barcode. Otherwise the push waits for a person.
+     * The product is found by `sku.attach` / `sku.applicationNo` = products.code (ours when we
+     * apply through §5), else by a unique exact name among smart-freezer planogram products
+     * (portal applications).
      *
      * @param  array<string, mixed>  $payload
      * @return array{merchant_goods_code: ?string, product_code: ?string, sku_name: ?string, audit_status: ?string, product_id: ?int, outcome: string}
@@ -127,10 +145,6 @@ class ZijiaSkuApprovalService
             return $fields + $result + ['zijia_sku_application_id' => $application->id];
         }
 
-        if ($kind === 'approved' && ($miss = $this->libraryMiss($barcode)) !== null) {
-            return $fields + ['product_id' => null, 'outcome' => $miss];
-        }
-
         [$product, $miss] = $code !== null ? $this->byCode($code) : [null, self::OUTCOME_NO_PRODUCT];
         if ($product === null && $name !== null) {
             [$product, $miss] = $this->byName($name);
@@ -138,19 +152,65 @@ class ZijiaSkuApprovalService
         if ($product === null) {
             return $fields + ['product_id' => null, 'outcome' => $miss];
         }
+        if ($this->wouldWrite($product, $kind, $barcode) && ($stop = $this->libraryRefuses($product, $kind, $barcode)) !== null) {
+            return $fields + ['product_id' => $product->id, 'outcome' => $stop];
+        }
 
         return $fields + $this->applyTo($product, $kind, $barcode);
+    }
+
+    /** Whether applyTo() would change the product's barcode (fill an empty one, or clear this one). */
+    private function wouldWrite(Product $product, string $kind, string $barcode): bool
+    {
+        $current = $product->barcode === '' ? null : $product->barcode;
+
+        return $kind === 'approved' ? $current === null : $current === $barcode;
+    }
+
+    /**
+     * Null when Zijia's library backs this unsigned change; else why it is not applied. An approval
+     * needs the barcode filed under this product's name, a rejection needs it gone from the library.
+     */
+    private function libraryRefuses(Product $product, string $kind, string $barcode): ?string
+    {
+        $entries = $this->libraryEntries($barcode);
+        if ($entries === null) {
+            return self::OUTCOME_UNREACHABLE;
+        }
+        if ($kind !== 'approved') {
+            return $entries->isEmpty() ? null : self::OUTCOME_STILL_IN_LIBRARY;
+        }
+        if ($entries->isEmpty()) {
+            return self::OUTCOME_NOT_IN_LIBRARY;
+        }
+        $want = ZijiaBarcodeSync::normalise((string) $product->name);
+
+        return $entries->contains(fn ($s) => ZijiaBarcodeSync::normalise((string) ($s['skuName'] ?? '')) === $want)
+            ? null : self::OUTCOME_NAME_DIFFERS;
+    }
+
+    /**
+     * Their public library's entries for exactly this barcode (§8), or null when it did not answer.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>|null
+     */
+    private function libraryEntries(string $barcode)
+    {
+        $page = $this->client->querySkus(1, 20, null, $barcode);
+
+        return $page === null ? null
+            : collect($page['list'])->filter(fn ($s) => (string) ($s['productCode'] ?? '') === $barcode)->values();
     }
 
     /** Null when Zijia's public library (§8) has this barcode; else why it cannot be applied. */
     private function libraryMiss(string $barcode): ?string
     {
-        $page = $this->client->querySkus(1, 20, null, $barcode);
-        if ($page === null) {
+        $entries = $this->libraryEntries($barcode);
+        if ($entries === null) {
             return self::OUTCOME_UNREACHABLE;
         }
 
-        return collect($page['list'])->contains(fn ($s) => (string) ($s['productCode'] ?? '') === $barcode) ? null : self::OUTCOME_NOT_IN_LIBRARY;
+        return $entries->isNotEmpty() ? null : self::OUTCOME_NOT_IN_LIBRARY;
     }
 
     /** @return array{product_id: int, outcome: string} */

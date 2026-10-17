@@ -18,7 +18,7 @@ class ZijiaAiTrainingController extends Controller
 
     public function save(Request $request, int $productId): RedirectResponse
     {
-        $product = Product::withoutGlobalScopes()->findOrFail($productId);
+        $product = Product::findOrFail($productId);
         $data = $request->validate([
             'sku_name' => ['nullable', 'string', 'max:255'],
             'brand_name' => ['nullable', 'string', 'max:100'],
@@ -55,7 +55,7 @@ class ZijiaAiTrainingController extends Controller
 
     public function submit(Request $request, int $productId): RedirectResponse
     {
-        $product = Product::withoutGlobalScopes()->findOrFail($productId);
+        $product = Product::findOrFail($productId);
         $application = $this->applications->current($product);
         abort_if($application === null, 422, 'Save a draft first.');
 

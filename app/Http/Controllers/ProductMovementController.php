@@ -13,6 +13,7 @@ use App\Models\OpsJob;
 use App\Models\OpsJobItemChannel;
 use App\Models\Product;
 use App\Models\ProductMovement;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Services\BlindPlanningService;
 use App\Services\VendTransactionSalesAggregator;
 use App\Support\VendCode;
@@ -32,6 +33,9 @@ class ProductMovementController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read products']);
+        // Audit UI-02 (2026-10-17): a batch's supplier files need the write verbs, not read.
+        $this->middleware(['permission:update products'])->only(['storeBatchAttachments']);
+        $this->middleware(['permission:delete products'])->only(['destroyBatchAttachment']);
 
         // if (env('CMS_URL')) {
         //     abort(404);
@@ -175,7 +179,7 @@ class ProductMovementController extends Controller
             }
 
             foreach ($files as $file) {
-                IncomingBatchAttachment::create($file + ['batch_number' => $batchNumber, 'user_id' => $userId]);
+                IncomingBatchAttachment::create($file + ['batch_number' => $batchNumber, 'operator_id' => $operatorId, 'user_id' => $userId]);
             }
         });
 
@@ -191,19 +195,32 @@ class ProductMovementController extends Controller
             'attachments.*' => 'file|max:'.IncomingBatchAttachment::MAX_KB.'|mimes:'.IncomingBatchAttachment::MIMES,
         ]);
 
-        $exists = ProductMovement::where('batch_number', $request->batch_number)
+        // The batch's operator: a restricted viewer's own batch only (ProductMovement has no
+        // operator scope, so the boundary is applied here); HIPL files it under the batch's owner.
+        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
+        $batch = ProductMovement::where('batch_number', $request->batch_number)
             ->where('type', ProductMovement::TYPE_INCOMING)
-            ->exists();
-        abort_unless($exists, 404);
+            ->when($viewerOperatorId !== null, fn ($q) => $q->where('operator_id', $viewerOperatorId));
+        abort_unless($batch->exists(), 404);
+        $operatorId = $viewerOperatorId ?? $batch->max('operator_id');
 
         foreach ($request->file('attachments') as $file) {
             IncomingBatchAttachment::create($this->storeBatchFile($file) + [
                 'batch_number' => $request->batch_number,
+                'operator_id' => $operatorId,
                 'user_id' => auth()->id(),
             ]);
         }
 
         return redirect()->back();
+    }
+
+    /** Opens a batch file in the browser; the scope keeps other operators' files at 404. */
+    public function showBatchAttachment(IncomingBatchAttachment $attachment)
+    {
+        abort_unless(Storage::exists($attachment->local_url), 404);
+
+        return Storage::response($attachment->local_url, $attachment->name);
     }
 
     public function destroyBatchAttachment(IncomingBatchAttachment $attachment)
@@ -216,11 +233,13 @@ class ProductMovementController extends Controller
 
     private function storeBatchFile(UploadedFile $file): array
     {
-        $path = $file->storePublicly(IncomingBatchAttachment::DIR);
+        // Private: supplier documents carry cost prices (audit UI-02). Served by showBatchAttachment.
+        $path = Storage::putFile(IncomingBatchAttachment::DIR, $file, 'private');
+        abort_unless($path, 500, 'Could not store the file.');
 
         return [
             'local_url' => $path,
-            'full_url' => Storage::url($path),
+            'full_url' => null,
             'name' => mb_substr($file->getClientOriginalName(), 0, 255),
             'mime_type' => $file->getClientMimeType(),
             'size' => $file->getSize(),

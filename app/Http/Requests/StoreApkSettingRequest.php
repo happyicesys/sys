@@ -8,9 +8,8 @@ class StoreApkSettingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Route-level authorization is a separate, tracked change (the
-        // /apk-settings group carries no `can:` middleware today); this
-        // request only adds input validation.
+        // Authorization is ApkSettingController's per-verb permission middleware
+        // (`create` / `update apk-settings`); this request only adds input validation.
         return true;
     }
 

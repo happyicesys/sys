@@ -39,7 +39,7 @@ class ZijiaTrainingPhotoSquareTest extends TestCase
             'base_url' => 'https://algo.test', 'app_id' => '1789379222883159', 'app_secret' => 'secret',
             'model_ids' => [], 'notify_url' => null, 'auto_submit' => false, 'timeout' => 5,
             'callback_verification' => 'enforce', 'timezone' => 'Asia/Shanghai',
-        ], 'smart_freezer.zijia.sku_callback_token' => null]);
+        ], 'smart_freezer.zijia.sku_callback_token' => 'sku-token']);
 
         $this->user = User::factory()->create(['operator_id' => 1]);
         foreach (['read products', 'update products'] as $p) {

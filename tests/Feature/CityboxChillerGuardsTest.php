@@ -39,11 +39,11 @@ class CityboxChillerGuardsTest extends TestCase
         $this->gw = new FakeChillerGateway;
         $this->app->instance(ChillerGateway::class, $this->gw);
         // + update machine-settings: /vends/{id}/update is gated since 2026-09-15 (audit M2-03).
-        foreach (['read product-mappings', 'update operations', 'admin-access operations', 'update machine-settings'] as $p) {
+        foreach (['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'update operations', 'admin-access operations', 'update machine-settings'] as $p) {
             Permission::findOrCreate($p, 'web');
         }
         $this->user = User::factory()->create();
-        $this->user->givePermissionTo(['read product-mappings', 'update operations', 'admin-access operations', 'update machine-settings']);
+        $this->user->givePermissionTo(['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'update operations', 'admin-access operations', 'update machine-settings']);
         $this->actingAs($this->user);
     }
 

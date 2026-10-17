@@ -53,7 +53,13 @@ skipped and deletes do nothing (both happened until 2026-10-09).
   photos and bank payout files sit PRIVATE on Spaces and are served only through
   their authed routes. Bank payout files (refund CIMB / PayNow CSV / PayPal
   worklist, commission CIMB) go through `App\Support\PayoutFiles`, which reads
-  Spaces first and falls back to `local` for older files.
+  Spaces first and falls back to `local` for older files. Incoming Stock batch
+  files (supplier invoices / DOs, cost prices) are private since 2026-10-17
+  (audit UI-02): served by `product-movements.incoming-attachments.show`, which
+  is what `IncomingBatchAttachment::full_url` returns; each row carries the
+  batch's `operator_id` under `OperatorIncomingBatchAttachmentScope`; add needs
+  `update products`, delete `delete products`. Regression coverage:
+  `tests/Feature/IncomingBatchAttachmentTest.php`.
 - **View Screen history** (2026-10-15): each delivered Setting/Edit "View Screen"
   picture is kept PRIVATE under `vend-screenshots/{vend}/` with a `vend_screenshots`
   row (who clicked). `App\Services\Screenshot\VendScreenshotHistory` is its only
@@ -972,9 +978,16 @@ unrecognised). Rules:
   商品审批回调 (the doc is in Brian's WeChat files, `智佳算法服务接口文档 20260914.md`): plain
   UNSIGNED JSON `{pass, msg, sku:{productCode, skuName, sysSkuId, applicationNo, attach…}}`, sent
   to the `callbackUrl` set on each application (§5 `sys.sku.sync.put`; portal applications may
-  have none). No signature exists, so an approval only changes a barcode after their public
-  library (§8) confirms that barcode, and `ZIJIA_SKU_CALLBACK_TOKEN` (unset today — the URL
-  already given to Zijia has no token) makes `?token=` mandatory once set. Product: `attach` /
+  have none). No signature exists, so (audit SF-02, 2026-10-17 — an unsigned push could CLEAR any
+  freezer product's barcode or plant ANOTHER product's real barcode, and the barcode decides what
+  the AI names and so what a T05 hold is charged): **every §7 callback must carry `?token=`
+  `ZIJIA_SKU_CALLBACK_TOKEN`, and while that env is unset every callback is REFUSED**
+  (`refused_no_token`, listed in the 08:30 health email) and AI Training refuses to Submit
+  (`callbackUrl()` carries the token, so an application sent without one could never be decided).
+  Even tokened, a change needs our own application (its `applicationNo`) or their public library
+  (§8): an approval is applied only when the library files that barcode under THIS product's name
+  (the 3-minute crawl's rule; else `library_name_differs`), a rejection only when the library no
+  longer lists it (else `still_in_library`); both wait for a person. Product: `attach` /
   `applicationNo` = `products.code`, else a unique exact name among freezer-planogram products.
   (2) The signed envelope we proposed (2026-10-05), signed like the result callback (enforce:
   unsigned changes nothing), matched by 商品编码 = `products.code`. In both, a code shared by
@@ -986,7 +999,7 @@ unrecognised). Rules:
   sends `sys.sku.sync.put` with `applicationNo` (ours, digits), `attach` = products.code and
   `callbackUrl` = our `/sku/notify`. Every exchange is an event (draft, photos, the exact signed
   envelope, their answer, the §7 callback, the barcode outcome) shown as the section's activity
-  log. The §7 callback finds the application by `applicationNo`; approving the barcode we submitted
+  log. The §7 callback (tokened) finds the application by `applicationNo`; approving the barcode we submitted
   sets it on the product (no library check needed), anything else is library-checked; a rejection
   keeps their `msg`. Submitted = locked; a new application copies the last one (new number).
   Permission `update products`. The barcode is NEVER set at submit — only on approval.
@@ -1010,7 +1023,7 @@ unrecognised). Rules:
   approved application for that barcode. A draft or pending application always stays the
   section's current one. Training happens in mark1 from now on (Brian); vms4 is mirrored. Approved → fills an empty barcode
   (a different existing one is left and reported); rejected / withdrawn → clears a barcode
-  equal to theirs (an unknown sn would make Zijia reject the whole session). Every push is
+  equal to theirs (an unsigned §7 one only once their library no longer lists it) (an unknown sn would make Zijia reject the whole session). Every push is
   kept in `zijia_sku_notifications` with its outcome; the ones needing a person are in the
   08:30 health email. The 3-minute crawl stays as the backstop. `modelIdList` is optional ("可以先不用传"):
   empty config sends `[]`, never omits the key.

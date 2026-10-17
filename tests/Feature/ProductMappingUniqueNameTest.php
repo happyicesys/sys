@@ -53,7 +53,9 @@ class ProductMappingUniqueNameTest extends TestCase
     private function userFor(Operator $operator): User
     {
         $user = User::factory()->create(['operator_id' => $operator->id]);
-        $user->givePermissionTo(Permission::findOrCreate('read product-mappings', 'web'));
+        foreach (['read', 'create', 'update', 'delete'] as $verb) {
+            $user->givePermissionTo(Permission::findOrCreate("{$verb} product-mappings", 'web'));
+        }
 
         return $user;
     }

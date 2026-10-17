@@ -35,11 +35,11 @@ class ProductMappingBasketLayoutScopeTest extends TestCase
     {
         parent::setUp();
         Queue::fake();
-        foreach (['read product-mappings', 'update machine-settings'] as $p) {
+        foreach (['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'update machine-settings'] as $p) {
             Permission::findOrCreate($p, 'web');
         }
         $user = User::factory()->create();
-        $user->givePermissionTo(['read product-mappings', 'update machine-settings']);
+        $user->givePermissionTo(['read product-mappings', 'create product-mappings', 'update product-mappings', 'delete product-mappings', 'update machine-settings']);
         $this->actingAs($user);
     }
 

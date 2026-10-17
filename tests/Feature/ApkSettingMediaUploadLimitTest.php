@@ -49,6 +49,10 @@ class ApkSettingMediaUploadLimitTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->user = User::factory()->create(['operator_id' => $id]);
+        // The routes are gated per verb since audit CORE-01 (2026-10-17).
+        foreach (['read', 'create', 'update', 'delete'] as $verb) {
+            $this->user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate("{$verb} apk-settings", 'web'));
+        }
         OperatorScope::flush();
 
         $this->settingId = DB::table('apk_settings')->insertGetId([

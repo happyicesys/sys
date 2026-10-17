@@ -72,7 +72,7 @@ class ProductWelcomeSketchController extends Controller
 
     private function product(int $productId): Product
     {
-        return Product::withoutGlobalScopes()->findOrFail($productId);
+        return Product::findOrFail($productId);
     }
 
     /** Do it, then answer with the section's fresh state; a refusal is a 422 with its reason. */

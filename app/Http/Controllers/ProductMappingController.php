@@ -12,6 +12,7 @@ use App\Models\Operator;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendPrefix;
@@ -42,9 +43,28 @@ class ProductMappingController extends Controller
 
     private $vendJobService;
 
+    /**
+     * What the create / edit forms may set on a mapping (audit CORE-02, 2026-10-17). Never
+     * `operator_id`: create takes the user's, and only an unrestricted viewer may move a mapping
+     * between operators (update()). Filling from the whole request let an operator user hand a
+     * mapping to another operator or make it global.
+     */
+    private const FORM_FIELDS = [
+        'name', 'remarks', 'is_active', 'selling_price_type', 'upcoming_product_mapping_id',
+        'upcoming_product_mapping_start_date', 'is_smart', 'machine_type', 'basket_layout_json',
+    ];
+
     public function __construct()
     {
+        // Per verb (audit STK-11, 2026-10-17): the item routes push stock to CityBox, so a
+        // read-only role must never pass them.
         $this->middleware(['permission:read product-mappings']);
+        $this->middleware(['permission:create product-mappings'])->only(['create', 'replicate']);
+        $this->middleware(['permission:update product-mappings'])->only([
+            'update', 'toggleSmart', 'toggleActivateDeactivate', 'bindVends', 'uploadAttachment',
+            'createItem', 'reorderBasket', 'updateItem', 'updateItemSequence', 'deleteItem',
+        ]);
+        $this->middleware(['permission:delete product-mappings'])->only(['delete']);
         $this->productMappingService = new ProductMappingService;
         $this->smartFreezerCatalogPush = new SmartFreezerCatalogPush;
         $this->vendJobService = new VendJobService;
@@ -652,7 +672,7 @@ class ProductMappingController extends Controller
         ]);
 
         $productMapping = new ProductMapping;
-        $productMapping->fill($request->all());
+        $productMapping->fill($request->only(self::FORM_FIELDS));
         $productMapping->operator_id = auth()->user()->operator_id;
         $this->syncMachineType($productMapping, $request);
         // upcoming_product_mapping_id is fillable, so an API caller can preset it at create.
@@ -1196,7 +1216,12 @@ class ProductMappingController extends Controller
         // $request->merge([
         //     'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
         // ]);
-        $productMapping->fill($request->all());
+        $productMapping->fill($request->only(self::FORM_FIELDS));
+        // The Edit page's Operator picker: only an unrestricted (HIPL) viewer may move a mapping,
+        // or make it global (blank). Anyone else's mapping keeps its operator (audit CORE-02).
+        if ($request->has('operator_id') && OperatorVendFilterScope::viewerOperatorId() === null) {
+            $productMapping->operator_id = $request->filled('operator_id') ? (int) $request->input('operator_id') : null;
+        }
         $this->syncMachineType($productMapping, $request);
         $this->assertMachineTypeChangeAllowed($productMapping);
 
