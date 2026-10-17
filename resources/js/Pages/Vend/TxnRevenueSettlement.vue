@@ -25,7 +25,7 @@ const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
 
 const railOptions = [
-    { id: 'card', name: 'Card terminal (NETS)' },
+    { id: 'card', name: 'Card terminal (NETS / T05)' },
     { id: 'qr', name: 'QR gateway (Omise)' },
     { id: 'cash', name: 'Cash' },
     { id: 'other', name: 'Other (HID, Grab…)' },
@@ -37,7 +37,7 @@ const revenueStates = {
     pending: { text: 'Pending', class: 'bg-gray-100 text-gray-600', tip: 'The rail has not ruled yet — the NETS files for this day and the next are not both synced, or the Omise charge is not approved.' },
     not_found: { text: 'No line in NETS', class: 'bg-amber-100 text-amber-800', tip: 'NETS is final for this day and has no line for this sale, so no money was received for it (a failed vend voided before batch upload, or a shortfall to investigate).' },
     unverifiable: { text: 'Not verifiable', class: 'bg-gray-100 text-gray-600', tip: 'No report covers this sale: the terminal was not bound that day, or its supplier (Auresys) settles only part of its sales through the NETS file.' },
-    refunded: { text: 'Refunded', class: 'bg-rose-100 text-rose-700', tip: 'The rail returned the money (NETS reversal / void, Omise refund), so there is no revenue.' },
+    refunded: { text: 'Refunded', class: 'bg-rose-100 text-rose-700', tip: 'The rail returned the money (NETS reversal / void, Omise refund, a released T05 hold), so there is no revenue.' },
     retained: { text: 'Retained credit', class: 'bg-violet-100 text-violet-800', tip: 'Paid from credit the reader kept after an earlier failed vend — no new money. The money is counted on that earlier sale.' },
     none: { text: '', class: '', tip: '' },
 };
@@ -181,6 +181,9 @@ const cashlessTxnCents = computed(() => t.value.txn.card.cents + t.value.txn.qr.
                 <div class="text-xs text-gray-500">{{ pct(t.revenue.cents, cashlessTxnCents) }} of cashless sales (${{ money(cashlessTxnCents) }}) confirmed by a rail</div>
                 <dl class="mt-2 text-xs grid grid-cols-2 gap-y-0.5">
                     <dt class="text-gray-500">NETS report</dt><dd class="text-right">${{ money(t.revenue.card_cents) }}</dd>
+                    <template v-if="t.revenue.t05_cents">
+                        <dt class="text-gray-500" v-tooltip="'Smart freezer card sales on a Payrallel T05: what Payrallel captured. Its MDR is not in mark1.'">Payrallel (T05)</dt><dd class="text-right">${{ money(t.revenue.t05_cents) }}</dd>
+                    </template>
                     <dt class="text-gray-500">Omise API</dt><dd class="text-right">${{ money(t.revenue.qr_cents) }}</dd>
                     <dt class="text-gray-500" v-tooltip="revenueStates.pending.tip">Pending (txn amt)</dt><dd class="text-right">${{ money(states.pending.cents) }} <span class="text-gray-400">({{ states.pending.count }})</span></dd>
                     <dt class="text-gray-500" v-tooltip="revenueStates.not_found.tip">No line in NETS</dt><dd class="text-right">${{ money(states.not_found.cents) }} <span class="text-gray-400">({{ states.not_found.count }})</span></dd>
@@ -198,7 +201,7 @@ const cashlessTxnCents = computed(() => t.value.txn.card.cents + t.value.txn.qr.
                     <dt class="text-gray-500" v-tooltip="'Omise\'s own fee + VAT on each charge.'">— Omise (actual)</dt><dd class="text-right">${{ money(t.settlement.qr_mdr_cents) }}</dd>
                     <dt class="text-gray-500" v-tooltip="'What the bank receives. NETS EFTPOS / FlashPay / cross-border bank the full amount and bill the MDR separately; Visa/Mastercard bank the amount after MDR.'">Bank-in amount</dt><dd class="text-right">${{ money(t.settlement.bank_in_cents) }}</dd>
                     <template v-if="t.settlement.unpriced_cents">
-                        <dt class="text-amber-700" v-tooltip="'Matched NETS lines whose card type has no rate in the payout schedule — no MDR or bank-in figure for them.'">No rate on file</dt><dd class="text-right text-amber-700">${{ money(t.settlement.unpriced_cents) }}</dd>
+                        <dt class="text-amber-700" v-tooltip="'Revenue with no rate in mark1: matched NETS lines whose card type has no rate in the payout schedule, and Payrallel (T05) captures — no MDR or bank-in figure for them.'">No rate on file</dt><dd class="text-right text-amber-700">${{ money(t.settlement.unpriced_cents) }}</dd>
                     </template>
                 </dl>
             </div>
@@ -262,7 +265,7 @@ const cashlessTxnCents = computed(() => t.value.txn.card.cents + t.value.txn.qr.
                         <td class="border-l border-gray-100 whitespace-nowrap">
                             <template v-if="r.revenue_state !== 'none'">
                                 <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" :class="revenueStates[r.revenue_state]?.class"
-                                    v-tooltip="revenueStates[r.revenue_state]?.tip">{{ revenueStates[r.revenue_state]?.text }}</span>
+                                    v-tooltip="r.revenue_tip || revenueStates[r.revenue_state]?.tip">{{ r.revenue_label || revenueStates[r.revenue_state]?.text }}</span>
                                 <div class="text-gray-500 mt-0.5">{{ r.revenue_source }}</div>
                                 <span v-if="['Retained credit', 'Re-vended'].includes(r.payment_status)" class="text-[10px] font-semibold text-violet-700"
                                     v-tooltip="r.payment_status === 'Re-vended' ? 'The reader kept this payment as credit and a later vend consumed it — the money was received, so it is revenue here.' : 'Paid partly or wholly from credit left by an earlier failed vend; only a top-up line (if any) is new money.'">{{ r.payment_status }}</span>
@@ -270,7 +273,7 @@ const cashlessTxnCents = computed(() => t.value.txn.card.cents + t.value.txn.qr.
                         </td>
                         <td class="text-right whitespace-nowrap">
                             <span v-if="r.revenue_cents !== null" class="font-semibold">{{ money(r.revenue_cents) }}</span>
-                            <div v-if="r.revenue_diff_cents" class="text-amber-700" v-tooltip="'Revenue differs from the machine\'s amount — e.g. a top-up line on a retained-credit sale.'">
+                            <div v-if="r.revenue_diff_cents" class="text-amber-700" v-tooltip="'Revenue differs from the machine\'s amount — e.g. a top-up line on a retained-credit sale, or a T05 charge the AI judged.'">
                                 {{ r.revenue_diff_cents > 0 ? '+' : '' }}{{ money(r.revenue_diff_cents) }}
                             </div>
                         </td>

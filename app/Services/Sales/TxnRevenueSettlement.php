@@ -2,9 +2,11 @@
 
 namespace App\Services\Sales;
 
+use App\Models\CardPaymentIntent;
 use App\Models\CardSettlementRow;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
+use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\CardSettlement\Payout\SettlementPayoutResolver;
 use App\Support\AutoRefundSource;
@@ -29,10 +31,13 @@ use Illuminate\Support\Facades\DB;
  *
  *   Vending Transaction  vend_transactions — our own record, from the TRADE.
  *   Revenue              the rail's own evidence: the NETS report line
- *                        (card_settlement_rows) or the Omise charge
- *                        (payment_gateway_logs). No figure when the rail
- *                        returned the money. Cash / HID / Grab have no rail
- *                        we reconcile, so they stay blank.
+ *                        (card_settlement_rows), the Omise charge
+ *                        (payment_gateway_logs), or for a smart freezer's
+ *                        Payrallel (T05) card sale the capture on its
+ *                        card_payment_intents row (no NETS report carries
+ *                        those). No figure when the rail returned the money.
+ *                        Cash / HID / Grab have no rail we reconcile, so they
+ *                        stay blank.
  *   Settlement           NETS: payout date + gateway from the acquirer
  *                        schedule, MDR ESTIMATED from its rate. Omise: MDR and
  *                        net are the ACTUAL figures on the charge; its
@@ -72,7 +77,33 @@ class TxnRevenueSettlement
     /** Cash, HID card, Grab — no rail mark1 reconciles against. */
     public const REV_NONE = 'none';
 
+    /** Where a T05 sale's revenue comes from — Payrallel's capture, not a report. */
+    public const SOURCE_T05 = 'Payrallel (T05)';
+
     public function __construct(protected SettlementPayoutResolver $payouts) {}
+
+    /**
+     * The T05 card attempt behind a smart freezer's card sale (alias `t05`): the TRADE's SFREF is the
+     * kiosk session the door-close capture named (`card_payment_intents.session_ref`, freezer app 26+).
+     * Only card sales on a freezer are looked at, so no other row pays for the JSON read, and only the
+     * newest intent of a session joins, so a sale is never counted twice.
+     */
+    protected static function joinT05Intent(Builder $query): void
+    {
+        $latest = DB::table('card_payment_intents')
+            ->whereNotNull('session_ref')
+            ->groupBy('vend_id', 'session_ref')
+            ->select(['vend_id', 'session_ref', DB::raw('MAX(id) AS id')]);
+
+        $query
+            ->leftJoinSub($latest, 't05_key', function ($join) {
+                $join->on('t05_key.vend_id', '=', 'vend_transactions.vend_id')
+                    ->where('vends.machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+                    ->where('payment_methods.code', PaymentMethod::CODE_CARD_TERMINAL)
+                    ->whereRaw("t05_key.session_ref = JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.SFREF'))");
+            })
+            ->leftJoin('card_payment_intents as t05', 't05.id', '=', 't05_key.id');
+    }
 
     public static function railSql(): string
     {
@@ -101,6 +132,12 @@ class TxnRevenueSettlement
             ." WHEN ($rail) = '".self::RAIL_QR."' THEN CASE"
             .' WHEN payment_gateway_logs.status = '.PaymentGatewayLog::STATUS_REFUND." THEN '".self::REV_REFUNDED."'"
             .' WHEN payment_gateway_logs.status = '.PaymentGatewayLog::STATUS_APPROVE." THEN '".self::REV_MATCHED."'"
+            ." ELSE '".self::REV_PENDING."' END"
+            // A T05 sale: Payrallel's capture is the rail's evidence (a released hold = no money).
+            .' WHEN t05.id IS NOT NULL THEN CASE'
+            ." WHEN t05.state = '".CardPaymentIntent::STATE_CAPTURED."' THEN '".self::REV_MATCHED."'"
+            ." WHEN t05.state = '".CardPaymentIntent::STATE_VOIDED."' THEN '".self::REV_REFUNDED."'"
+            ." WHEN t05.state IN ('".CardPaymentIntent::STATE_DECLINED."', '".CardPaymentIntent::STATE_CANCELLED."', '".CardPaymentIntent::STATE_ERROR."') THEN '".self::REV_NOT_FOUND."'"
             ." ELSE '".self::REV_PENDING."' END"
             .' WHEN tr_line.id IS NOT NULL THEN CASE'
             ." WHEN tr_line.reversed_by_row_id IS NOT NULL THEN '".self::REV_REFUNDED."'"
@@ -148,6 +185,7 @@ class TxnRevenueSettlement
             ->whereBetween('vend_transactions.transaction_datetime', [$from, $to])
             ->whereIn('vend_transactions.operator_id', $operatorIds ?: [0])
             ->where('vends.is_testing', false);
+        self::joinT05Intent($query);
 
         if (filled($request->input('codes'))) {
             VendCode::whereLabels($query, preg_split('/[\s,]+/', (string) $request->input('codes')));
@@ -241,6 +279,10 @@ class TxnRevenueSettlement
                 'tr_line.card_last4 AS line_card_last4',
                 'tr_line.card_settlement_report_id AS line_report_id',
                 'tr_report.provider AS line_provider',
+                't05.id AS t05_id',
+                't05.state AS t05_state',
+                't05.captured_cents AS t05_captured_cents',
+                't05.amount_cents AS t05_hold_cents',
             ]);
     }
 
@@ -265,8 +307,23 @@ class TxnRevenueSettlement
         $settlementDate = null;
         $settlementGateway = null;
         $settlementNote = null;
+        $label = null;
+        $tip = null;
 
-        if ($rail === self::RAIL_QR) {
+        if ($rail === self::RAIL_CARD && ! empty($row->t05_id)) {
+            $source = self::SOURCE_T05;
+            if ($state === self::REV_MATCHED) {
+                $revenueCents = (int) $row->t05_captured_cents;
+                $settlementNote = 'Payrallel\'s payout terms and dates are not in mark1, so MDR and bank-in are not shown.';
+            }
+            [$label, $tip] = match ($state) {
+                self::REV_MATCHED => [null, 'Payrallel captured this amount on the card (the AI-judged charge, or the hold in full).'],
+                self::REV_REFUNDED => ['Hold released', 'The T05 hold was voided (nothing taken, or the door never opened): no money was taken.'],
+                self::REV_NOT_FOUND => ['No T05 charge', 'The T05 attempt never reached an approved hold: no money was taken.'],
+                self::REV_PENDING => [null, 'The T05 charge is not final yet: waiting for the AI verdict, or a charge a person must confirm in Payrallel.'],
+                default => [null, null],
+            };
+        } elseif ($rail === self::RAIL_QR) {
             $source = 'Omise API';
             if ($state === self::REV_MATCHED) {
                 $revenueCents = (int) ($row->omise_amount_cents ?: $row->gateway_amount_cents);
@@ -338,6 +395,9 @@ class TxnRevenueSettlement
             'refund_request_status' => $row->refund_request_status,
 
             'revenue_state' => $state,
+            // Overrides of the state's badge text / tooltip where the rail is not NETS (a T05 sale).
+            'revenue_label' => $label,
+            'revenue_tip' => $tip,
             'revenue_source' => $source,
             'revenue_cents' => $revenueCents,
             'revenue_diff_cents' => $revenueCents === null ? null : $revenueCents - (int) $row->amount,
@@ -392,7 +452,11 @@ class TxnRevenueSettlement
                 DB::raw('SUM('.self::omiseCents('net').') AS net'),
             ]);
 
+        // A T05 sale has no report line: its revenue is Payrallel's capture, MDR unknown.
+        $t05Revenue = (int) $matched((clone $filtered)->whereNotNull('t05.id'))->sum('t05.captured_cents');
+
         $cardGroups = $matched((clone $filtered)->whereRaw("($rail) = ?", [self::RAIL_CARD]))
+            ->whereNotNull('tr_line.id')
             ->leftJoin('card_settlement_reports as tr_report', 'tr_report.id', '=', 'tr_line.card_settlement_report_id')
             ->groupBy('tr_report.provider', 'tr_line.product', 'tr_line.card_issuer', 'tr_line.amount_cents')
             ->get([
@@ -420,7 +484,7 @@ class TxnRevenueSettlement
 
         $qrRevenue = (int) ($qr->revenue ?? 0);
         $qrMdr = (int) ($qr->mdr ?? 0);
-        $revenue = $card['revenue'] + $qrRevenue;
+        $revenue = $card['revenue'] + $qrRevenue + $t05Revenue;
         $mdr = $card['mdr'] + $qrMdr;
 
         $railRow = fn (string $r) => [
@@ -444,6 +508,7 @@ class TxnRevenueSettlement
             'revenue' => [
                 'cents' => $revenue,
                 'card_cents' => $card['revenue'],
+                't05_cents' => $t05Revenue,
                 'qr_cents' => $qrRevenue,
                 'states' => collect([
                     self::REV_MATCHED, self::REV_PENDING, self::REV_NOT_FOUND, self::REV_UNVERIFIABLE,
@@ -456,7 +521,7 @@ class TxnRevenueSettlement
                 'qr_mdr_cents' => $qrMdr,
                 'net_cents' => $revenue - $mdr,
                 'bank_in_cents' => $card['bank_in'] + (int) ($qr->net ?? 0),
-                'unpriced_cents' => $card['unpriced'],
+                'unpriced_cents' => $card['unpriced'] + $t05Revenue,
             ],
         ];
     }

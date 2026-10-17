@@ -851,7 +851,16 @@ Brian 2026-09-28) follows each sale machine → rail → bank. All rules live in
 
 - **Revenue is what a RAIL confirms, never the machine's amount.** Card = the
   matched NETS line's `amount_cents` (a retained-credit top-up line is smaller
-  than its sale — that is correct); QR = the approved Omise charge. Cash, HID
+  than its sale — that is correct); QR = the approved Omise charge; a smart
+  freezer's Payrallel (T05) card sale = its intent's `captured_cents` (2026-10-17,
+  the open half of audit CARD-01 — no NETS report carries T05). The sale finds its
+  intent by vend + TRADE `SFREF` = `card_payment_intents.session_ref` (freezer app
+  26+; newest intent per session, card sales on freezers only — `joinT05Intent`):
+  captured → Matched (an AI-judged charge can differ from the sale), voided →
+  Refunded ("Hold released"), declined / cancelled / error → "No T05 charge",
+  anything else → Pending. A sale with no intent keeps the NETS rules (`unbound` →
+  Not verifiable). Payrallel's MDR and payout dates are not in mark1, so T05
+  revenue counts under "No rate on file" (`unpriced_cents`) with no bank-in. Cash, HID
   and Grab have no rail and stay blank. No figure when the rail returned the
   money (reversal line, `settlement_status` REFUNDED, Omise status 98,
   `is_refunded`) — **except `retained_credit_revend`**, whose money was kept.

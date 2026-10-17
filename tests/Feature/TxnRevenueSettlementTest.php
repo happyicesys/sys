@@ -308,4 +308,66 @@ class TxnRevenueSettlementTest extends TestCase
         $unpriced = new PayoutTerms('COS', 1);
         $this->assertNull($unpriced->mdrCents(1000, 900));
     }
+
+    /**
+     * A freezer's Payrallel (T05) card sale is on no NETS report (audit CARD-01): its revenue is what
+     * Payrallel captured — `card_payment_intents.captured_cents`, joined by the TRADE's SFREF = the
+     * intent's session_ref on that machine — and a released hold is no revenue.
+     */
+    public function test_a_t05_card_sale_takes_its_revenue_from_the_payrallel_capture(): void
+    {
+        DB::table('vends')->where('id', $this->vendId)->update(['machine_type' => 'smart_freezer']);
+        $terminalId = DB::table('remote_card_terminals')->insertGetId([
+            'vend_id' => $this->vendId, 'provider' => 'payrallel', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $intent = function (string $session, string $state, ?int $captured) use ($terminalId) {
+            static $n = 0;
+            $n++;
+            DB::table('card_payment_intents')->insert([
+                'vend_id' => $this->vendId, 'remote_card_terminal_id' => $terminalId, 'provider' => 'payrallel', 'reference' => "SF{$n}", 'custom_order_id' => "5073-SF{$n}",
+                'session_ref' => $session, 'mode' => 'preauth', 'amount_cents' => 220, 'captured_cents' => $captured, 'state' => $state,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+        $frame = fn (string $session) => ['vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => $session, 'TXN_SRC' => 1],
+            'card_settlement_state' => 'unbound'];
+
+        $this->sale('T05MORE', 220, $this->card, $frame('SF-5073-1-1'));     // the AI saw one more: 330 charged
+        $intent('SF-5073-1-1', 'captured', 330);
+        $this->sale('T05VOID', 220, $this->card, $frame('SF-5073-2-2'));     // nothing taken: hold released
+        $intent('SF-5073-2-2', 'voided', null);
+        $this->sale('T05WAIT', 220, $this->card, $frame('SF-5073-3-3'));     // still waiting for the AI
+        $intent('SF-5073-3-3', 'awaiting_ai', null);
+        $this->sale('T05NONE', 220, $this->card, $frame('SF-5073-4-4'));     // no intent recorded for it
+        $qr = $this->sale('QRSAME', 220, $this->omise, $frame('SF-5073-1-1')); // same session ref, paid by QR: not T05
+        $this->omiseCharge($qr, PaymentGatewayLog::STATUS_APPROVE, ['amount' => 220, 'fee' => 5, 'fee_vat' => 0, 'net' => 215]);
+
+        [$rows, $totals] = $this->page();
+
+        $this->assertSame('matched', $rows['T05MORE']['revenue_state']);
+        $this->assertSame(330, $rows['T05MORE']['revenue_cents']);
+        $this->assertSame(110, $rows['T05MORE']['revenue_diff_cents']);
+        $this->assertSame('Payrallel (T05)', $rows['T05MORE']['revenue_source']);
+        $this->assertNull($rows['T05MORE']['mdr_cents'], 'Payrallel terms are not in mark1');
+        $this->assertNull($rows['T05MORE']['bank_in_cents']);
+
+        $this->assertSame('refunded', $rows['T05VOID']['revenue_state']);
+        $this->assertSame('Hold released', $rows['T05VOID']['revenue_label']);
+        $this->assertNull($rows['T05VOID']['revenue_cents']);
+        $this->assertSame('pending', $rows['T05WAIT']['revenue_state']);
+        $this->assertSame('unverifiable', $rows['T05NONE']['revenue_state'], 'no intent: as before');
+        $this->assertSame('matched', $rows['QRSAME']['revenue_state']);
+        $this->assertSame(220, $rows['QRSAME']['revenue_cents']);
+
+        $this->assertSame(330, $totals['revenue']['t05_cents']);
+        $this->assertSame(0, $totals['revenue']['card_cents'], 'NETS report revenue only');
+        $this->assertSame(330 + 220, $totals['revenue']['cents']);
+        $this->assertSame(330, $totals['settlement']['unpriced_cents']);
+        $this->assertSame(5, $totals['settlement']['mdr_cents']);
+        $this->assertSame(1, $totals['revenue']['states']['refunded']['count']);
+        $this->assertSame(5, $totals['txn']['count'], 'one row per sale: the intent join never duplicates');
+
+        [$rows] = $this->page(['revenue_states' => ['matched'], 'rails' => ['card']]);
+        $this->assertSame(['T05MORE'], array_keys($rows));
+    }
 }
