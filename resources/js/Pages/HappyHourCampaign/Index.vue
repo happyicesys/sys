@@ -114,9 +114,10 @@
                       {{ heldMachineCount(c) }} holding top sellers back
                     </div>
                     <!-- What is on offer right now, one box per machine (Brian, 2026-10-12: a flat list mixed the machines). -->
-                    <div v-for="g in liveGroups[c.id]" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
+                    <div v-for="(g, gIndex) in liveGroups[c.id]" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
                       <div class="flex items-center justify-between gap-2">
                         <span class="text-xs min-w-0">
+                          <span class="mr-1 inline-flex min-w-[1.25rem] justify-center rounded bg-gray-700 px-1 text-[11px] font-bold leading-4 text-white">{{ gIndex + 1 }}</span>
                           <!-- The machine on the Operation Dashboard, in a new tab. -->
                           <a
                             :href="'/vends/customers?codes=' + encodeURIComponent(g.code) + '&autoload=true'"
