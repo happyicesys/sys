@@ -17,6 +17,7 @@
 // The Happy Hour campaign graph (Brian, 2026-10-16): daily sales, discount, units and average units per
 // machine, from /happy-hour-campaigns/{id}/stats. Money arrives in cents and is shown in dollars.
 import { Chart, registerables } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { computed, nextTick, onBeforeUnmount, reactive, watch } from 'vue';
 
 Chart.register(...registerables);
@@ -50,6 +51,14 @@ function label(date) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+// The figure printed on top of each bar (Brian, 2026-10-18): whole dollars for money, the count for units,
+// two decimals for the per-machine average. Empty days get no label.
+function barLabel(m, v) {
+  if (v == null || v === 0) return '';
+  if (m.money) return '$' + Math.round(v);
+  return m.decimals ? Number(v).toFixed(2) : String(v);
+}
+
 function draw() {
   for (const m of measures.value) {
     charts[m.key]?.destroy();
@@ -58,6 +67,7 @@ function draw() {
     const values = props.days.map(d => d[m.key] == null ? null : (m.money ? d[m.key] / 100 : d[m.key]));
     charts[m.key] = new Chart(el, {
       type: 'bar',
+      plugins: [ChartDataLabels],
       data: {
         labels: props.days.map(d => label(d.date)),
         datasets: [{
@@ -74,8 +84,18 @@ function draw() {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        layout: { padding: { top: 18 } },
         plugins: {
           legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            offset: 2,
+            clamp: true,
+            color: '#374151',
+            font: { size: 11, weight: '600' },
+            formatter: (v) => barLabel(m, v),
+          },
           tooltip: {
             displayColors: false,
             callbacks: {
