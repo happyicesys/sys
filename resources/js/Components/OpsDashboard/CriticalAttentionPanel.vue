@@ -24,8 +24,20 @@
 		<dl v-else class="grid grid-cols-1 gap-px bg-gray-300 sm:grid-cols-2 lg:grid-cols-3 [&>div]:bg-rose-50">
 			<div v-for="group in data.groups" :key="group.key" class="px-4 py-3">
 				<dt class="text-xs font-medium leading-tight text-gray-500">{{ group.label }}</dt>
-				<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums" :class="countClass(group)">
-					{{ group.count }}
+				<dd class="mt-1 flex items-baseline gap-2">
+					<!-- The count opens ALL of this category's machines in the grid (Brian, 2026-10-18:
+					     the per-group Show was missed once it went; the list stays fully shown). -->
+					<button
+						v-if="group.count"
+						type="button"
+						class="group inline-flex items-baseline gap-1.5 text-left"
+						:aria-label="`Show the ${group.count} entries of ${group.label} in the grid`"
+						@click="emit('show', group.machines.map((m) => m.code_label))"
+					>
+						<span class="text-[1.375rem] leading-7 font-semibold tabular-nums underline decoration-dotted underline-offset-4 group-hover:decoration-solid" :class="countClass(group)">{{ group.count }}</span>
+						<span class="text-xs font-medium text-indigo-600 group-hover:underline">show entries</span>
+					</button>
+					<span v-else class="text-[1.375rem] leading-7 font-semibold tabular-nums" :class="countClass(group)">0</span>
 				</dd>
 				<!-- Every flagged machine, "code - site", straight away (Brian, 2026-10-18: no Show / more
 				     click). A line opens that machine in the grid below. -->
