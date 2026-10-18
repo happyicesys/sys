@@ -23,36 +23,26 @@
 		<p v-else-if="!data" class="px-4 py-3 text-sm text-gray-500">Checking machines…</p>
 		<dl v-else class="grid grid-cols-1 gap-px bg-gray-300 sm:grid-cols-2 lg:grid-cols-3 [&>div]:bg-rose-50">
 			<div v-for="group in data.groups" :key="group.key" class="px-4 py-3">
-				<dt class="flex items-start justify-between gap-2 text-xs font-medium leading-tight text-gray-500">
-					<span>{{ group.label }}</span>
-					<button
-						v-if="group.count"
-						type="button"
-						class="shrink-0 font-medium text-indigo-600 hover:underline"
-						@click="emit('show', group.machines.map((m) => m.code_label))"
-					>
-						Show
-					</button>
-				</dt>
+				<dt class="text-xs font-medium leading-tight text-gray-500">{{ group.label }}</dt>
 				<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums" :class="countClass(group)">
 					{{ group.count }}
 				</dd>
-				<ul v-if="group.count" class="mt-1.5 flex flex-wrap gap-1">
-					<li v-for="machine in visibleMachines(group)" :key="machine.vend_id">
+				<!-- Every flagged machine, "code - site", straight away (Brian, 2026-10-18: no Show / more
+				     click). A line opens that machine in the grid below. -->
+				<ul v-if="group.count" class="mt-1.5 space-y-1">
+					<li v-for="machine in group.machines" :key="machine.vend_id">
 						<button
 							type="button"
-							class="rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ring-1 ring-inset hover:opacity-80"
+							class="flex w-full items-baseline gap-1.5 rounded px-1.5 py-1 text-left text-xs ring-1 ring-inset hover:opacity-80"
 							:class="chipClass(group)"
-							:title="`${machine.site || 'No site'} · ${machine.detail}`"
 							:aria-label="`${machine.code_label}, ${machine.site || 'no site'}: ${machine.detail}`"
 							@click="emit('show', [machine.code_label])"
 						>
-							{{ machine.code_label }}
-						</button>
-					</li>
-					<li v-if="group.count > CHIP_LIMIT && !expanded[group.key]">
-						<button type="button" class="px-1 text-xs text-gray-600 underline" @click="expanded[group.key] = true">
-							+{{ group.count - CHIP_LIMIT }} more
+							<span class="min-w-0 flex-1">
+								<span class="font-semibold tabular-nums">{{ machine.code_label }}</span>
+								<span> - {{ machine.site || 'No site' }}</span>
+							</span>
+							<span class="shrink-0 whitespace-nowrap text-[10px] opacity-75">{{ machine.detail }}</span>
 						</button>
 					</li>
 				</ul>
@@ -62,7 +52,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -72,12 +62,9 @@ const props = defineProps({
 
 const emit = defineEmits(['show']);
 
-const CHIP_LIMIT = 12;
-
 const data = ref(null);
 const loading = ref(false);
 const error = ref('');
-const expanded = reactive({});
 
 async function load() {
 	loading.value = true;
@@ -90,10 +77,6 @@ async function load() {
 	} finally {
 		loading.value = false;
 	}
-}
-
-function visibleMachines(group) {
-	return expanded[group.key] ? group.machines : group.machines.slice(0, CHIP_LIMIT);
 }
 
 function countClass(group) {

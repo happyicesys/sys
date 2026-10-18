@@ -1758,8 +1758,9 @@ Last 30 days / Current cards lists the machines that need someone now, grouped b
 The section counts the SAME machines as the cards: `VendController::applyCustomerIndexRequestDefaults()`
 (visited, Include unbound?, status by role, operator group, `indexType`) and
 `customerIndexFilteredQuery()` are shared by the page, the cards, the Grouped? seed and this endpoint —
-add a population default there, never in one caller. A chip (or a group's Show) opens those machines
-in the grid through the `codes` deep-link; a lone code gets a trailing comma so `VendCode::whereSearch`
+add a population default there, never in one caller. Every flagged machine is listed as "code - site" with
+its reason, no Show / more click (Brian, 2026-10-18); a line opens that machine in the grid through the
+`codes` deep-link; a lone code gets a trailing comma so `VendCode::whereSearch`
 matches it exactly. Regression coverage: `tests/Feature/OpsDashboardCriticalAttentionTest.php`.
 
 **Silent payment rails get a red frame** (Brian, 2026-10-17: components "long time in no function
