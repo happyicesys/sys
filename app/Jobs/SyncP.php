@@ -2,16 +2,23 @@
 
 namespace App\Jobs;
 
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
+use App\Support\OfflineRebootCounter;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 class SyncP implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /** vend_daily_stats metric: offline auto-reboots that day (OfflineRebootCounter). */
+    public const METRIC_OFFLINE_REBOOT = 'offline_reboot';
 
     protected $input;
 
@@ -45,8 +52,40 @@ class SyncP implements ShouldQueue
             $update['offline_restart_count_datetime'] = $this->input['OfflineRestartCountDatetime'];
         }
 
-        if ($update !== []) {
-            $this->vend->update($update);
+        if ($update === []) {
+            return;
         }
+
+        // 2026-10-18: the rise since the stored count is the day's offline auto-reboots — the
+        // Ops Dashboard's "APK reboot (connection issue)". Read and written under the row lock,
+        // so two heartbeats in flight never count the same reboots twice.
+        DB::transaction(function () use ($update) {
+            $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)
+                ->lockForUpdate()
+                ->find($this->vend->getKey());
+            if (! $vend) {
+                return;
+            }
+
+            $reboots = array_key_exists('offline_restart_count', $update)
+                ? OfflineRebootCounter::delta(
+                    $vend->getRawOriginal('offline_restart_count'),
+                    $vend->getRawOriginal('offline_restart_count_datetime'),
+                    $update['offline_restart_count'],
+                    $update['offline_restart_count_datetime'] ?? $vend->getRawOriginal('offline_restart_count_datetime'),
+                )
+                : 0;
+
+            $vend->update($update);
+
+            if ($reboots > 0) {
+                DB::statement(
+                    'INSERT INTO vend_daily_stats (vend_id, vend_code, date, metric, count, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                     ON DUPLICATE KEY UPDATE count = count + VALUES(count), updated_at = NOW()',
+                    [$vend->id, (string) $vend->code, Carbon::now()->toDateString(), self::METRIC_OFFLINE_REBOOT, $reboots]
+                );
+            }
+        });
     }
 }

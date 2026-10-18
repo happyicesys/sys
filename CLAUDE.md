@@ -1743,13 +1743,19 @@ Last 30 days / Current cards lists the machines that need someone now, grouped b
   `MachineHealthDashboardService::OFFLINE_ALERT_MAX_HOURS` (60, `lastContactSql()` — one definition
   for both pages), and the ACTIVE `vend_smart_alerts` rows `DetectTempTrends` keeps. Vending machines
   only, like Machine Health (a freezer's or chiller's probes mean something else).
-- **APK keeps restarting**: the APK sends no crash report, so `App\Support\ApkRestartDetector` reads
-  each PWRON's frame counter `f` — at or below the previous PWRON's = the process restarted — and
-  `VendDataService` counts it as the `apk_restart` daily stat. A restart onto a NEW `apkver` is an
-  install and is not counted. A power cut or watchdog reboot still counts, so only
-  `vend.attention.apk_restarts_per_day` (5) in one day flags a machine (a normal day: 89 of 240 boards
-  restart once, 25 five times or more). Counting starts at deploy, and only once the
-  `subscribe:mqtt` daemon is restarted (it holds the old `VendDataService`).
+- **APK reboot (connection issue)** (Brian, 2026-10-18: "reboot means connection issue"): the
+  board's own offline auto-reboots — no HTTP to mark1 for 6 min, `Main2Activity::triggerOfflineReboot`.
+  The APK counts them in `OfflineRestartCount` on every `P` heartbeat; `SyncP` books the rise since the
+  stored count (`App\Support\OfflineRebootCounter` — a new install or the Clear button restamps
+  `OfflineRestartCountDatetime`, which means "counted from 0") as the `offline_reboot` daily stat, under
+  the vend row lock. `vend.attention.apk_restarts_per_day` (5) of them on today or yesterday flags a
+  machine. **No crash group yet**: `App\Support\ApkRestartDetector` still counts every process restart
+  as `apk_restart` (each PWRON's frame counter `f` at or below the previous one's, same `apkver`), but
+  that also holds crashes, power cuts and reloads, which nothing can tell apart — add an "APK crash"
+  group only once a crash is detectable (e.g. the APK reporting its crash handler). The first deploy
+  ran `ops-attention:backfill-offline-reboots --apply` (today + yesterday estimated from the running
+  total). Before it the card read "APK keeps restarting (crash / reboot)" and 2525's 21 a day were all
+  no-internet reboots.
 - **Touch screen frozen**: the 306+ UI watchdog (`ui_looper_stall` / `ui_no_frames`, or a day whose
   `ui_probe_fail` had no `ui_probe_pass`), today or yesterday. Older builds never report it.
 - **No sales**: last sale older than `vend.attention.no_sales_hours` (48), every machine kind; a

@@ -121,8 +121,8 @@ class OpsDashboardCriticalAttentionTest extends TestCase
         ];
         $this->alert($fan, VendSmartAlert::TYPE_COMP_FAN_OFF);
         $this->alert($fan, VendSmartAlert::TYPE_TEMPS_ABOVE_0, active: false);
-        $this->stat($restarts, 'apk_restart', 6);
-        $this->stat($fewRestarts, 'apk_restart', 2);
+        $this->stat($restarts, 'offline_reboot', 6);
+        $this->stat($fewRestarts, 'offline_reboot', 2);
         $this->stat($frozen, 'ui_looper_stall', 1, '2026-10-16');
         $this->stat($probes, 'ui_probe_fail', 3);
         $this->stat($probesOk, 'ui_probe_fail', 1);
@@ -149,7 +149,7 @@ class OpsDashboardCriticalAttentionTest extends TestCase
             'is_online' => 0, 'mqtt_last_updated_at' => now()->subHours(2), 'last_vend_transaction_at' => now()->subHours(60),
         ]);
         $this->alert($freezer, VendSmartAlert::TYPE_TEMPS_ABOVE_0);
-        $this->stat($freezer, 'apk_restart', 9);
+        $this->stat($freezer, 'offline_reboot', 9);
 
         $labels = $this->labels(app(CriticalAttention::class)->forVendIds([$freezer]));
 

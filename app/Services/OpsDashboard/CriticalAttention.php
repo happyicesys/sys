@@ -2,6 +2,7 @@
 
 namespace App\Services\OpsDashboard;
 
+use App\Jobs\SyncP;
 use App\Models\Vend;
 use App\Models\VendDailyStat;
 use App\Models\VendSmartAlert;
@@ -23,8 +24,12 @@ use Illuminate\Support\Facades\DB;
  *    MachineHealthDashboardService::OFFLINE_ALERT_MAX_HOURS, and the active vend_smart_alerts rows
  *    DetectTempTrends keeps. Like Machine Health they apply to vending machines only — a freezer's
  *    or chiller's probes and links mean something else.
- *  - APK restarting: `apk_restart` daily counts (App\Support\ApkRestartDetector) at or above
- *    `vend.attention.apk_restarts_per_day` on today or yesterday.
+ *  - APK reboot (connection issue): the board's own offline auto-reboots — no HTTP to mark1 for
+ *    6 min — counted as `offline_reboot` by SyncP from the heartbeat's counter, at or above
+ *    `vend.attention.apk_restarts_per_day` on today or yesterday. Only those (Brian, 2026-10-18:
+ *    "reboot means connection issue"): the `apk_restart` count (App\Support\ApkRestartDetector)
+ *    also holds crashes, power cuts and reloads, which nothing can tell apart yet, so it is not
+ *    shown. An "APK crash" group waits until a crash can be detected.
  *  - Screen frozen: the APK's UI watchdog (306+) — a looper stall or no-frames today or yesterday,
  *    or a day whose hourly page checks all failed.
  *  - No sales: a machine whose last sale is older than `vend.attention.no_sales_hours`. Every
@@ -83,7 +88,7 @@ class CriticalAttention
         foreach (self::TEMPERATURE_GROUPS as $type => $label) {
             $groups[] = $this->group($type, $label, 'critical', $alerts[$type] ?? []);
         }
-        $groups[] = $this->group(self::GROUP_APK_RESTART, 'APK keeps restarting (crash / reboot)', 'warning', $this->apkRestarts($vendingIds, $now));
+        $groups[] = $this->group(self::GROUP_APK_RESTART, 'APK reboot (connection issue)', 'warning', $this->connectionReboots($vendingIds, $now));
         $groups[] = $this->group(self::GROUP_SCREEN, 'Touch screen frozen', 'warning', $this->screenFaults($vendingIds, $now));
         $groups[] = $this->group(self::GROUP_NO_SALES, 'No sales for '.$this->noSalesHours().'h', 'warning', $this->noSales($vends, $now));
 
@@ -155,16 +160,16 @@ class CriticalAttention
         return $out;
     }
 
-    /** @return array<int, string> */
-    private function apkRestarts(array $vendingIds, Carbon $now): array
+    /** @return array<int, string> vend id => detail; the worst of today and yesterday */
+    private function connectionReboots(array $vendingIds, Carbon $now): array
     {
         $threshold = max(1, (int) config('vend.attention.apk_restarts_per_day', 5));
 
-        return $this->dailyStats($vendingIds, ['apk_restart'], $now)
+        return $this->dailyStats($vendingIds, [SyncP::METRIC_OFFLINE_REBOOT], $now)
             ->groupBy('vend_id')
             ->map(fn (Collection $rows) => (int) $rows->max('count'))
             ->filter(fn (int $max) => $max >= $threshold)
-            ->map(fn (int $max) => "{$max} restarts in a day")
+            ->map(fn (int $max) => "{$max} reboots in a day (no internet for 6 min)")
             ->all();
     }
 
