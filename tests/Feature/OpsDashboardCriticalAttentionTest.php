@@ -140,11 +140,7 @@ class OpsDashboardCriticalAttentionTest extends TestCase
         $this->assertSame(11, $result['machine_count']);
         $this->assertSame(7, $result['flagged_count']);
         $this->assertSame('Site 1001', $result['groups'][0]['machines'][0]['site']);
-        $this->assertSame(
-            ['label' => 'HTTP', 'value' => 'Offline', 'tone' => 'bad'],
-            $result['groups'][0]['machines'][0]['status'][0],
-            'each machine carries its live status (MachineStatusSummary)'
-        );
+        $this->assertSame('2A Fan OFF', $result['groups'][1]['short'], 'the tag each full grid row carries');
     }
 
     public function test_hardware_rules_skip_freezers_and_chillers_but_no_sales_does_not(): void
@@ -206,6 +202,27 @@ class OpsDashboardCriticalAttentionTest extends TestCase
 
         $this->assertNotNull($cards);
         $this->assertSame($cards, $section);
+    }
+
+    public function test_the_full_rows_load_as_a_partial_reload_of_just_those_machines(): void
+    {
+        foreach ([6001, 6002, 6003] as $code) {
+            $this->vend($code);
+        }
+
+        $response = $this->actingAs($this->viewer())->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => (string) app(\App\Http\Middleware\HandleInertiaRequests::class)->version(request()),
+            'X-Inertia-Partial-Component' => 'Vend/CustomerIndex',
+            'X-Inertia-Partial-Data' => 'vends',
+        ])->get('/vends/customers?autoload=true&codes=6001,6003&numberPerPage=All&defer_aggregates=0');
+
+        $response->assertOk();
+        $props = $response->json('props');
+        $this->assertArrayHasKey('vends', $props);
+        $this->assertArrayNotHasKey('initialStats', $props, 'only the rows travel, the cards stay as they were');
+        $codes = collect($props['vends']['data'])->pluck('code')->map(fn ($c) => (int) $c)->sort()->values()->all();
+        $this->assertSame([6001, 6003], $codes);
     }
 
     private function pwron(int $code, int $frameId, string $apkVersion): void

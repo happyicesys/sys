@@ -7,7 +7,6 @@ use App\Models\Vend;
 use App\Models\VendDailyStat;
 use App\Models\VendSmartAlert;
 use App\Services\MachineHealthDashboardService;
-use App\Support\MachineStatusSummary;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -68,17 +67,12 @@ class CriticalAttention
 
         $vends = $vendIds === [] ? collect() : DB::table('vends')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id')
             ->whereIn('vends.id', $vendIds)
             ->select([
                 'vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type',
                 'vends.is_online', 'vends.last_vend_transaction_at',
                 'customers.name AS site_name',
                 DB::raw(MachineHealthDashboardService::lastContactSql().' AS last_contact_at'),
-                // The live status shown under each machine (MachineStatusSummary).
-                'vends.last_updated_at', 'vends.is_mqtt', 'vends.is_mqtt_active', 'vends.mqtt_last_updated_at',
-                'vends.temp', 'vends.temp_updated_at', 'vends.is_temp_error', 'vends.parameter_json',
-                'modem_units.is_online AS modem_unit_is_online', 'modem_units.last_updated_at AS modem_unit_last_updated_at',
             ])
             ->get()
             ->keyBy('id');
@@ -236,9 +230,22 @@ class CriticalAttention
             ->get(['vend_id', 'date', 'metric', 'count']);
     }
 
+    /** The tag a machine's full grid row carries for each group (Ops Dashboard, before Search). */
+    private const SHORT = [
+        self::GROUP_OFFLINE => 'Offline',
+        VendSmartAlert::TYPE_COMP_FAN_OFF => '2A Fan OFF',
+        VendSmartAlert::TYPE_TEMPS_ABOVE_0 => '2B >0°C',
+        VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => '2C >-8°C',
+        VendSmartAlert::TYPE_NOT_REACH_MINUS_18 => '2D not -18°C',
+        VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD => '2E rising',
+        self::GROUP_APK_RESTART => 'APK restarts',
+        self::GROUP_SCREEN => 'Screen frozen',
+        self::GROUP_NO_SALES => 'No sales',
+    ];
+
     private function group(string $key, string $label, string $severity, array $machines): array
     {
-        return ['key' => $key, 'label' => $label, 'severity' => $severity, 'machines' => $machines];
+        return ['key' => $key, 'label' => $label, 'short' => self::SHORT[$key] ?? $label, 'severity' => $severity, 'machines' => $machines];
     }
 
     private function machine(object $vend, string $detail): array
@@ -248,7 +255,6 @@ class CriticalAttention
             'code_label' => VendCode::label($vend->code_prefix, $vend->code),
             'site' => $vend->site_name,
             'detail' => $detail,
-            'status' => MachineStatusSummary::forRow($vend),
         ];
     }
 

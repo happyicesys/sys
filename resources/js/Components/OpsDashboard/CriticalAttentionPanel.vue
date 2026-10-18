@@ -25,14 +25,14 @@
 			<div v-for="group in data.groups" :key="group.key" class="px-4 py-3">
 				<dt class="text-xs font-medium leading-tight text-gray-500">{{ group.label }}</dt>
 				<dd class="mt-1 flex items-baseline gap-2">
-					<!-- The count opens ALL of this category's machines in the grid (Brian, 2026-10-18:
-					     the per-group Show was missed once it went; the list stays fully shown). -->
+					<!-- The count narrows the full rows below to this category (Brian, 2026-10-18: the
+					     per-group Show was missed once it went; the list stays fully shown). -->
 					<button
 						v-if="group.count"
 						type="button"
 						class="group inline-flex items-baseline gap-1.5 text-left"
 						:aria-label="`Show the ${group.count} entries of ${group.label} in the grid`"
-						@click="emit('show', group.machines.map((m) => m.code_label))"
+						@click="emit('show', { title: group.label, vendIds: group.machines.map((m) => m.vend_id), codes: group.machines.map((m) => m.code_label) })"
 					>
 						<span class="text-[1.375rem] leading-7 font-semibold tabular-nums underline decoration-dotted underline-offset-4 group-hover:decoration-solid" :class="countClass(group)">{{ group.count }}</span>
 						<span class="text-xs font-medium text-indigo-600 group-hover:underline">show entries</span>
@@ -40,7 +40,7 @@
 					<span v-else class="text-[1.375rem] leading-7 font-semibold tabular-nums" :class="countClass(group)">0</span>
 				</dd>
 				<!-- Every flagged machine, "code - site", straight away (Brian, 2026-10-18: no Show / more
-				     click). A line opens that machine in the grid below. -->
+				     click). A line narrows the full rows below to that machine. -->
 				<ul v-if="group.count" class="mt-1.5 space-y-1">
 					<li v-for="machine in group.machines" :key="machine.vend_id">
 						<button
@@ -48,7 +48,7 @@
 							class="w-full rounded px-1.5 py-1 text-left text-xs ring-1 ring-inset hover:opacity-80"
 							:class="chipClass(group)"
 							:aria-label="`${machine.code_label}, ${machine.site || 'no site'}: ${machine.detail}`"
-							@click="emit('show', [machine.code_label])"
+							@click="emit('show', { title: `${machine.code_label} - ${machine.site || 'No site'}`, vendIds: [machine.vend_id], codes: [machine.code_label] })"
 						>
 							<span class="flex items-baseline gap-1.5">
 								<span class="min-w-0 flex-1">
@@ -56,19 +56,6 @@
 									<span> - {{ machine.site || 'No site' }}</span>
 								</span>
 								<span class="shrink-0 whitespace-nowrap text-[10px] opacity-75">{{ machine.detail }}</span>
-							</span>
-							<!-- Its live status, so nobody has to open the machine (Brian, 2026-10-18;
-							     App\Support\MachineStatusSummary — the grid's Machine Status badges). -->
-							<span v-if="machine.status && machine.status.length" class="mt-1 flex flex-wrap gap-1">
-								<span
-									v-for="badge in machine.status"
-									:key="badge.label"
-									class="inline-flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-px text-[10px] leading-4 text-gray-800"
-									:class="statusClass(badge.tone)"
-								>
-									<span class="font-semibold">{{ badge.label }}</span>
-									<span>{{ badge.value }}</span>
-								</span>
 							</span>
 						</button>
 					</li>
@@ -87,7 +74,8 @@ const props = defineProps({
 	params: { type: Object, default: () => ({}) },
 });
 
-const emit = defineEmits(['show']);
+// loaded: the page fetches these machines' full grid rows once it knows them.
+const emit = defineEmits(['show', 'loaded']);
 
 const data = ref(null);
 const loading = ref(false);
@@ -99,6 +87,7 @@ async function load() {
 	try {
 		const response = await axios.post('/vends/customers/critical-attention', props.params);
 		data.value = response.data;
+		emit('loaded', response.data);
 	} catch (e) {
 		error.value = 'Could not check the machines just now. Refresh to try again.';
 	} finally {
@@ -111,10 +100,6 @@ function countClass(group) {
 		return 'text-gray-400';
 	}
 	return group.severity === 'critical' ? 'text-red-700' : 'text-amber-700';
-}
-
-function statusClass(tone) {
-	return { ok: 'bg-green-200', bad: 'bg-red-200', idle: 'bg-gray-200' }[tone] || 'bg-gray-200';
 }
 
 function chipClass(group) {

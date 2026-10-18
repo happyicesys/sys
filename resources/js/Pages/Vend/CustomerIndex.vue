@@ -837,11 +837,23 @@
 				v-if="!hasSearched"
 				class="mt-3"
 				:params="attentionParams"
+				@loaded="onAttentionLoaded"
 				@show="showAttentionMachines"
 			/>
 	</div>
 
-	<div class="mt-6 flex flex-col" v-if="hasSearched">
+	<div class="mt-6 flex flex-col" v-if="hasSearched || attention.rows">
+	<!-- Before Search: the full rows of the machines that need attention (Brian, 2026-10-18), most
+	     urgent first. The section above narrows them; Search replaces them as usual. -->
+	<div v-if="!hasSearched && attention.rows" ref="attentionTableTop" class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
+		<span class="font-semibold">Needs attention</span>
+		<span v-if="attention.title">{{ attention.title }} · {{ vends.data.length }} {{ vends.data.length === 1 ? 'machine' : 'machines' }}</span>
+		<span v-else-if="attention.rows.length < attention.total">The {{ attention.rows.length }} most urgent of {{ attention.total }} machines · open a category above for the rest</span>
+		<span v-else>All {{ attention.total }} machines, most urgent first</span>
+		<button v-if="attention.title" type="button" class="font-medium text-indigo-600 hover:underline" @click="showAllAttentionRows">Show all loaded</button>
+		<span v-if="attention.loading" class="text-xs text-rose-700">Loading…</span>
+	</div>
+	<div v-else-if="!hasSearched && attention.loading" class="mb-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">Loading the machines that need attention…</div>
 	<!-- Deferred-load notice: heavy $/stock/job columns stream in via a 2nd
 	     request after the table paints; this tells the user those cells (and
 	     the matching cards) are still populating so brief 0s aren't mistaken
@@ -1419,7 +1431,17 @@
 						<input type="checkbox" v-model="vend.is_selected" :disabled="!vend.customer_id" :title="vend.customer_id ? '' : 'Unbound machine — no site to assign a job to'" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40">
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-						{{ vends.meta.from + vendIndex }}
+						{{ (vends.meta ? vends.meta.from : 1) + vendIndex }}
+						<!-- Why this machine needs attention (only on the pre-Search attention rows). -->
+						<div v-if="!hasSearched && attention.byVend[vend.vend_id]" class="mt-1 flex flex-col items-center gap-0.5">
+							<span
+								v-for="tag in attention.byVend[vend.vend_id]"
+								:key="tag.key"
+								class="whitespace-nowrap rounded px-1 text-[10px] font-semibold leading-4 ring-1 ring-inset"
+								:class="tag.severity === 'critical' ? 'bg-red-50 text-red-800 ring-red-200' : 'bg-amber-50 text-amber-800 ring-amber-200'"
+								:title="tag.label + ' · ' + tag.detail"
+							>{{ tag.short }}</span>
+						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
 						<div class="flex flex-col space-y-2 items-center">
@@ -3298,12 +3320,12 @@
 		</table>
 	</div>
 	<!-- <div class="py-5"> -->
-		<Paginator class="py-14" v-if="vends.data.length" :links="vends.links" :meta="vends.meta"></Paginator>
+		<Paginator class="py-14" v-if="vends.data.length && hasSearched" :links="vends.links" :meta="vends.meta"></Paginator>
 	<!-- </div> -->
 	</div>
 	</div>
 	</div>
-	<div v-if="!hasSearched" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
+	<div v-if="!hasSearched && !attention.rows && !attention.loading" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
 		Use the available filters and click <span class="font-semibold">Search</span> to load customer vending data.
 	</div>
 	<ImagePreviewModal
@@ -4121,9 +4143,87 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	// same machines as the cards. A machine (or a whole group) opens in the grid through the
 	// `codes` deep-link; a lone code gets a trailing comma so it matches exactly, not as a prefix.
 	const attentionParams = Object.fromEntries(new URLSearchParams(window.location.search));
-	function showAttentionMachines(labels) {
-		if (!labels.length) return;
-		router.get('/vends/customers', { codes: labels.join(',') + (labels.length === 1 ? ',' : '') });
+	// Before Search, the grid shows the FULL rows of those machines (Brian, 2026-10-18), fetched once
+	// the section knows them: one partial reload of `vends` only, for just their codes, all on one
+	// page, with the heavy columns inline (a handful of rows). The address bar, the cards and the
+	// section are untouched; Search replaces the rows as usual.
+	// Capped (performance, Brian 2026-10-18): a row is ~85 KB of JSON (~10 KB on the wire), so a bad day
+	// with hundreds of machines offline must not pull them all on open. The rest load on demand when
+	// their category is opened.
+	const ATTENTION_AUTO_ROWS = 60
+	const attention = ref({ rows: null, byVend: {}, title: null, loading: false, total: 0 })
+	const attentionTableTop = ref(null)
+	const attentionCache = new Map() // vend_id → full grid row
+
+	function urgency(row) {
+		return Math.min(...(attention.value.byVend[row.vend_id] || [{ order: 99 }]).map((t) => t.order))
+	}
+
+	function sortByUrgency(rows) {
+		return [...rows].sort((a, b) => urgency(a) - urgency(b) || String(a.code).localeCompare(String(b.code), undefined, { numeric: true }))
+	}
+
+	function displayAttention(rows, title) {
+		attention.value.title = title
+		attention.value.rows = [...attentionCache.values()]
+		vends.value = { ...(vends.value || {}), data: sortByUrgency(rows), meta: { ...((vends.value && vends.value.meta) || {}), from: 1 } }
+	}
+
+	// One partial reload of `vends` for just these codes, all on one page, heavy columns inline.
+	function loadAttentionRows(codes, then) {
+		attention.value.loading = true
+		router.reload({
+			only: ['vends'],
+			data: { autoload: true, codes: codes.join(',') + (codes.length === 1 ? ',' : ''), numberPerPage: 'All', defer_aggregates: 0 },
+			preserveUrl: true,
+			preserveState: true,
+			preserveScroll: true,
+			onSuccess: () => {
+				if (hasSearched.value) return
+				getVendsField().data.forEach((row) => attentionCache.set(row.vend_id, row))
+				then()
+			},
+			onFinish: () => { attention.value.loading = false },
+		})
+	}
+
+	function onAttentionLoaded(data) {
+		if (hasSearched.value) return
+		const byVend = {}
+		const urgent = [] // [vend_id, code] most urgent first, each machine once
+		data.groups.forEach((group, order) => {
+			group.machines.forEach((m) => {
+				if (!byVend[m.vend_id]) {
+					byVend[m.vend_id] = []
+					urgent.push([m.vend_id, m.code_label])
+				}
+				byVend[m.vend_id].push({ key: group.key, short: group.short, label: group.label, detail: m.detail, severity: group.severity, order })
+			})
+		})
+		attentionCache.clear()
+		attention.value = { rows: null, byVend, title: null, loading: false, total: urgent.length }
+		if (!urgent.length) return
+		const first = urgent.slice(0, ATTENTION_AUTO_ROWS)
+		loadAttentionRows(first.map(([, code]) => code), () => displayAttention([...attentionCache.values()], null))
+	}
+
+	function showAttentionMachines(selection) {
+		if (!attention.value.rows) {
+			// Rows not here (yet): open them as an ordinary search.
+			const codes = selection.codes
+			router.get('/vends/customers', { codes: codes.join(',') + (codes.length === 1 ? ',' : '') })
+			return
+		}
+		const show = () => {
+			displayAttention(selection.vendIds.map((id) => attentionCache.get(id)).filter(Boolean), selection.title)
+			nextTick(() => attentionTableTop.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+		}
+		const missing = selection.vendIds.map((id, i) => [id, selection.codes[i]]).filter(([id]) => !attentionCache.has(id))
+		missing.length ? loadAttentionRows(missing.map(([, code]) => code), show) : show()
+	}
+
+	function showAllAttentionRows() {
+		displayAttention([...attentionCache.values()], null)
 	}
 	const now = ref((props.autoLoad ? moment().format('HH:mm:ss') : '--:--'))
 
@@ -4423,9 +4523,13 @@ if(urlParams.has('channel_codes')) {
 
 const activeMachineHealthAlerts = ref({});
 
+// Ids the current alert map was fetched for. Narrowing the rows to a subset of them (the Needs
+// attention section's categories) needs no new request — the map already covers every row shown.
+let activeAlertsFetchedFor = new Set();
 const fetchActiveAlerts = (data) => {
 	if (!data || data.length === 0) {
 		activeMachineHealthAlerts.value = {};
+		activeAlertsFetchedFor = new Set();
 		return;
 	}
 	let vendIds = [];
@@ -4434,11 +4538,15 @@ const fetchActiveAlerts = (data) => {
 		if (v.id) vendIds.push(v.id);
 	});
 	vendIds = [...new Set(vendIds.filter(id => id))];
+	if (vendIds.length > 0 && vendIds.every(id => activeAlertsFetchedFor.has(id))) {
+		return;
+	}
 
 	if (vendIds.length > 0) {
 		axios.post('/reports/machine-health/active-alerts', { vend_ids: vendIds })
 			.then(res => {
 				activeMachineHealthAlerts.value = res.data;
+				activeAlertsFetchedFor = new Set(vendIds);
 			})
 			.catch(err => {
 				activeMachineHealthAlerts.value = {};
