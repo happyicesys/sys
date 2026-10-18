@@ -34,10 +34,15 @@ class MachineHealthDashboardService
     public const OFFLINE_ALERT_MAX_HOURS = 60;
 
     /** SQL: a machine's last sign of life, from any channel that reports one (NULL = never). */
-    public static function lastContactSql(): string
+    public static function lastContactSql(string $table = 'vends'): string
     {
         $fallbackDate = '1970-01-01 00:00:00';
-        $columns = ['mqtt_last_updated_at', 'last_updated_at', 'last_vend_transaction_at', 'offline_restart_count_datetime'];
+        // Qualified: a caller that joins another table with a `last_updated_at` (modem_units) would
+        // otherwise make the column ambiguous.
+        $columns = array_map(
+            fn ($c) => "{$table}.{$c}",
+            ['mqtt_last_updated_at', 'last_updated_at', 'last_vend_transaction_at', 'offline_restart_count_datetime']
+        );
         $greatest = implode(', ', array_map(fn ($c) => "COALESCE({$c}, '{$fallbackDate}')", $columns));
         $allNull = implode(' AND ', array_map(fn ($c) => "{$c} IS NULL", $columns));
 

@@ -33,16 +33,31 @@
 					<li v-for="machine in group.machines" :key="machine.vend_id">
 						<button
 							type="button"
-							class="flex w-full items-baseline gap-1.5 rounded px-1.5 py-1 text-left text-xs ring-1 ring-inset hover:opacity-80"
+							class="w-full rounded px-1.5 py-1 text-left text-xs ring-1 ring-inset hover:opacity-80"
 							:class="chipClass(group)"
 							:aria-label="`${machine.code_label}, ${machine.site || 'no site'}: ${machine.detail}`"
 							@click="emit('show', [machine.code_label])"
 						>
-							<span class="min-w-0 flex-1">
-								<span class="font-semibold tabular-nums">{{ machine.code_label }}</span>
-								<span> - {{ machine.site || 'No site' }}</span>
+							<span class="flex items-baseline gap-1.5">
+								<span class="min-w-0 flex-1">
+									<span class="font-semibold tabular-nums">{{ machine.code_label }}</span>
+									<span> - {{ machine.site || 'No site' }}</span>
+								</span>
+								<span class="shrink-0 whitespace-nowrap text-[10px] opacity-75">{{ machine.detail }}</span>
 							</span>
-							<span class="shrink-0 whitespace-nowrap text-[10px] opacity-75">{{ machine.detail }}</span>
+							<!-- Its live status, so nobody has to open the machine (Brian, 2026-10-18;
+							     App\Support\MachineStatusSummary — the grid's Machine Status badges). -->
+							<span v-if="machine.status && machine.status.length" class="mt-1 flex flex-wrap gap-1">
+								<span
+									v-for="badge in machine.status"
+									:key="badge.label"
+									class="inline-flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-px text-[10px] leading-4 text-gray-800"
+									:class="statusClass(badge.tone)"
+								>
+									<span class="font-semibold">{{ badge.label }}</span>
+									<span>{{ badge.value }}</span>
+								</span>
+							</span>
 						</button>
 					</li>
 				</ul>
@@ -84,6 +99,10 @@ function countClass(group) {
 		return 'text-gray-400';
 	}
 	return group.severity === 'critical' ? 'text-red-700' : 'text-amber-700';
+}
+
+function statusClass(tone) {
+	return { ok: 'bg-green-200', bad: 'bg-red-200', idle: 'bg-gray-200' }[tone] || 'bg-gray-200';
 }
 
 function chipClass(group) {

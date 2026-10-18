@@ -7,6 +7,7 @@ use App\Models\Vend;
 use App\Models\VendDailyStat;
 use App\Models\VendSmartAlert;
 use App\Services\MachineHealthDashboardService;
+use App\Support\MachineStatusSummary;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -67,12 +68,17 @@ class CriticalAttention
 
         $vends = $vendIds === [] ? collect() : DB::table('vends')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id')
             ->whereIn('vends.id', $vendIds)
             ->select([
                 'vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type',
                 'vends.is_online', 'vends.last_vend_transaction_at',
                 'customers.name AS site_name',
                 DB::raw(MachineHealthDashboardService::lastContactSql().' AS last_contact_at'),
+                // The live status shown under each machine (MachineStatusSummary).
+                'vends.last_updated_at', 'vends.is_mqtt', 'vends.is_mqtt_active', 'vends.mqtt_last_updated_at',
+                'vends.temp', 'vends.temp_updated_at', 'vends.is_temp_error', 'vends.parameter_json',
+                'modem_units.is_online AS modem_unit_is_online', 'modem_units.last_updated_at AS modem_unit_last_updated_at',
             ])
             ->get()
             ->keyBy('id');
@@ -242,6 +248,7 @@ class CriticalAttention
             'code_label' => VendCode::label($vend->code_prefix, $vend->code),
             'site' => $vend->site_name,
             'detail' => $detail,
+            'status' => MachineStatusSummary::forRow($vend),
         ];
     }
 

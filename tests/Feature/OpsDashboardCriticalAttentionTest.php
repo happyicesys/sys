@@ -140,6 +140,11 @@ class OpsDashboardCriticalAttentionTest extends TestCase
         $this->assertSame(11, $result['machine_count']);
         $this->assertSame(7, $result['flagged_count']);
         $this->assertSame('Site 1001', $result['groups'][0]['machines'][0]['site']);
+        $this->assertSame(
+            ['label' => 'HTTP', 'value' => 'Offline', 'tone' => 'bad'],
+            $result['groups'][0]['machines'][0]['status'][0],
+            'each machine carries its live status (MachineStatusSummary)'
+        );
     }
 
     public function test_hardware_rules_skip_freezers_and_chillers_but_no_sales_does_not(): void

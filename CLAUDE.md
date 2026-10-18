@@ -1765,7 +1765,9 @@ The section counts the SAME machines as the cards: `VendController::applyCustome
 (visited, Include unbound?, status by role, operator group, `indexType`) and
 `customerIndexFilteredQuery()` are shared by the page, the cards, the Grouped? seed and this endpoint —
 add a population default there, never in one caller. Every flagged machine is listed as "code - site" with
-its reason, no Show / more click (Brian, 2026-10-18); a line opens that machine in the grid through the
+its reason and its live status (`App\Support\MachineStatusSummary`: HTTP, MQTT, Remote Modem, T1/T2,
+Dispensing Door, Product Drop Sensor — the grid's Machine Status rules and colours; links only for a
+freezer or chiller), no Show / more click (Brian, 2026-10-18); a line opens that machine in the grid through the
 `codes` deep-link; a lone code gets a trailing comma so `VendCode::whereSearch`
 matches it exactly. Regression coverage: `tests/Feature/OpsDashboardCriticalAttentionTest.php`.
 
