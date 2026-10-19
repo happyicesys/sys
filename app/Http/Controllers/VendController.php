@@ -216,7 +216,7 @@ class VendController extends Controller
         VendDispenseService $vendDispenseService,
         VendJobService $vendJobService
     ) {
-        $this->middleware(['permission:read vend-customers'])->only(['indexCustomer', 'customerIndexAttention']);
+        $this->middleware(['permission:read vend-customers'])->only(['indexCustomer', 'customerIndexAttention', 'customerIndexAlertCount']);
         // Dashboard (Lite) is a SEPARATE method, so it needs its own entry —
         // `only('indexCustomer')` above does NOT cover indexCustomerLite, and
         // without this line the route is reachable by any authenticated user
@@ -6892,20 +6892,37 @@ class VendController extends Controller
      */
     public function customerIndexAttention(Request $request, CriticalAttention $attention)
     {
+        return response()->json($attention->forVendIds($this->customerIndexAttentionPopulation($request)));
+    }
+
+    /**
+     * The red count on the Operation Dashboard's "Show Alert/Error" button (Brian, 2026-10-19: "like
+     * unread, how many messages unread with the numbering and the red badges"). Fetched after paint
+     * with the page's own query string, so it counts what the button would list (MachineAlerts).
+     */
+    public function customerIndexAlertCount(Request $request, MachineAlerts $alerts)
+    {
+        $population = $this->customerIndexAttentionPopulation($request);
+        $result = $alerts->forVendIds($population);
+
+        return response()->json(['total' => $result['total'], 'machine_count' => count($population)]);
+    }
+
+    /** @return int[] the machines the pre-Search cards count — the population of both endpoints above */
+    private function customerIndexAttentionPopulation(Request $request): array
+    {
         $this->applyCustomerIndexRequestDefaults($request);
         // The pre-Search cards' own default (indexCustomer): an untouched Machine Status means Active.
         if (! $request->filled('status') && ! $request->filled('codes') && ! $request->filled('channel_codes')) {
             $request->merge(['status' => 'active']);
         }
 
-        $vendIds = $this->customerIndexFilteredQuery($request)
+        return $this->customerIndexFilteredQuery($request)
             ->whereNotNull('vends.id')
             ->distinct()
             ->pluck('vends.id')
             ->map(fn ($id) => (int) $id)
             ->all();
-
-        return response()->json($attention->forVendIds($vendIds));
     }
 
     private function computeCustomerIndexCardStats(Request $request): array

@@ -1046,6 +1046,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/customers/critical-attention', [VendController::class, 'customerIndexAttention'])
             ->middleware('product.unrestricted')
             ->name('vends.customer.critical-attention');
+        // The red count on the page's "Show Alert/Error" button (same gate as the page).
+        Route::post('/customers/alert-count', [VendController::class, 'customerIndexAlertCount'])
+            ->middleware('product.unrestricted')
+            ->name('vends.customer.alert-count');
 
         // Smart Freezer remote card terminal (Payrallel T05) — Setting > Edit status panel.
         // Read-only: the T05 is bound with the Card Terminal picker on the same page.

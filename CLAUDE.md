@@ -1793,7 +1793,9 @@ offline, bill / coin acceptor `Stat` 1, coin float ≤ 3000, and the three idle 
 testing machines only. The population is `customerIndexFilteredQuery()` (Needs attention's), not
 Grouped?'s clusters. The `machineAlerts` prop carries each machine's tags (the "#" cell) and a count
 per reason; a reason chip re-searches with `alert_reason=<key>`, the counts staying over the whole
-list. Prod 2026-10-19: 255 of 402 machines flagged, the rule ran in 268 ms; error rate ≥ 3% alone
+list. The button carries a red count like an unread badge: the listed total while the list is open,
+otherwise `POST /vends/customers/alert-count` (`customerIndexAlertCount`, same population and gate as
+Needs attention), fetched after paint and again after a Search that changes the filters. Prod 2026-10-19: 255 of 402 machines flagged, the rule ran in 268 ms; error rate ≥ 3% alone
 puts 39 on the list. Regression coverage: `tests/Feature/OpsDashboardMachineAlertsTest.php`.
 
 **Silent payment rails get a red frame** (Brian, 2026-10-17: components "long time in no function

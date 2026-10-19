@@ -172,4 +172,19 @@ class OpsDashboardMachineAlertsTest extends TestCase
 
         $page('')->assertInertia(fn (Assert $p) => $p->where('machineAlerts', null)->has('vends.data', 3));
     }
+
+    public function test_the_button_badge_counts_what_the_button_would_list(): void
+    {
+        $this->vend(4001);
+        $this->vend(4002, ['parameter_json' => json_encode(['Sensor' => '2'])]);
+        $this->vend(4003, ['parameter_json' => json_encode(['BILLStat' => 1])]);
+        $this->vend(5001, ['parameter_json' => json_encode(['Sensor' => '2'])], self::OTHER_OPERATOR_ID);
+
+        $this->actingAs($this->viewer())->postJson('/vends/customers/alert-count')
+            ->assertOk()->assertExactJson(['total' => 2, 'machine_count' => 3]);
+        $this->actingAs($this->viewer(self::OTHER_OPERATOR_ID))->postJson('/vends/customers/alert-count')
+            ->assertOk()->assertExactJson(['total' => 1, 'machine_count' => 1]);
+        $this->actingAs(User::factory()->create(['operator_id' => OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID]))
+            ->postJson('/vends/customers/alert-count')->assertForbidden();
+    }
 }

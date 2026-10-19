@@ -600,13 +600,20 @@
 						     machines with at least one red badge or Needs attention reason. -->
 						<Button
 							type="button"
-							class="inline-flex space-x-1.5 items-center rounded-md px-8 py-3 md:px-5 text-sm font-semibold leading-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+							class="relative inline-flex space-x-1.5 items-center rounded-md px-8 py-3 md:px-5 text-sm font-semibold leading-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
 							:class="alertsOnly ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white text-red-700 ring-1 ring-inset ring-red-300 hover:bg-red-50'"
 							@click="toggleAlertsOnly"
 							v-if="indexType === 'customers'"
 						>
 							<ExclamationTriangleIcon class="h-4 w-4" aria-hidden="true" />
 							<span>{{ alertsOnly ? 'Showing Alert/Error · Show all' : 'Show Alert/Error' }}</span>
+							<!-- The count, like an unread badge (Brian, 2026-10-19). -->
+							<span
+								v-if="alertCount !== null"
+								class="absolute -top-2 -right-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none tabular-nums shadow ring-2 ring-white"
+								:class="alertCount === 0 ? 'bg-gray-400 text-white' : 'bg-red-600 text-white'"
+								:aria-label="`${alertCount} machines with an alert or error`"
+							>{{ alertCount > 999 ? '999+' : alertCount }}</span>
 						</Button>
 						<Button
 							class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -5450,6 +5457,26 @@ function onShowAllFiltersClicked() {
 
 // "Show Alert/Error" (Brian, 2026-10-19): a search with the page's other filters kept.
 const alertsOnly = computed(() => !!props.machineAlerts)
+// Its red count, like an unread badge: the listed total while the list is open, otherwise fetched
+// after paint for the page's current filters (POST /vends/customers/alert-count, ~0.3 s server time).
+const fetchedAlertCount = ref(null)
+const alertCount = computed(() => props.machineAlerts ? props.machineAlerts.total : fetchedAlertCount.value)
+let alertCountFor = null
+function loadAlertCount() {
+	if (props.indexType !== 'customers' || props.machineAlerts) return
+	const params = Object.fromEntries(new URLSearchParams(window.location.search))
+	delete params.alerts_only
+	delete params.alert_reason
+	const key = JSON.stringify(params)
+	if (key === alertCountFor) return
+	alertCountFor = key
+	axios.post('/vends/customers/alert-count', params)
+		.then(res => { if (alertCountFor === key) fetchedAlertCount.value = res.data.total })
+		.catch(() => { if (alertCountFor === key) { fetchedAlertCount.value = null; alertCountFor = null } })
+}
+onMounted(loadAlertCount)
+// A Search with other filters changes what the button would list; re-count for them.
+watch(() => usePage().url, () => nextTick(loadAlertCount))
 function toggleAlertsOnly() {
 	filters.value.alerts_only = !alertsOnly.value
 	filters.value.alert_reason = ''
