@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StoresDatesInAppTimezone;
 use App\Models\Scopes\OperatorHappyHourCampaignScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Support\SiteSearch;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 class Vend extends Model
 {
     use HasFactory;
+    use StoresDatesInAppTimezone;
 
     const ATTACHMENT_TYPE_LOG = 1;
 

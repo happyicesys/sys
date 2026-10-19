@@ -79,6 +79,17 @@ skipped and deletes do nothing (both happened until 2026-10-09).
 
 Regression coverage: `tests/Feature/SpacesFileStorageTest.php`.
 
+## Dates posted back as UTC ISO strings: convert, never store the wall time
+
+Laravel serializes every date cast as UTC ISO-8601 (`2023-10-21T16:00:00.000000Z` for a Singapore midnight),
+and the Site and Machine edit pages post the whole record back as received. Eloquent keeps a parsed string's
+WALL time and drops its zone, so until 2026-10-19 each save moved `begin_date` / `termination_date` /
+`last_invoice_date` 8 hours back — a day every second or third save (1,954 saves since the audit log began; ~490
+Site and ~356 machine begin dates were left at 16:00 / 08:00). `App\Models\Concerns\StoresDatesInAppTimezone`
+(on `Customer` and `Vend`) converts a date STRING that names its zone to the app timezone before storing; plain
+strings and Carbons are untouched. A new model edited by posting its own JSON back takes the trait too.
+Regression coverage: `tests/Feature/DateRoundTripTimezoneTest.php`.
+
 ## Roles and permissions: one file, always
 
 `database/seeders/RolePermissionSyncSeeder.php` is the **single source of truth**.

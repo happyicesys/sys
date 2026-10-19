@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StoresDatesInAppTimezone;
 use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Support\SiteSearch;
 use App\Support\VendCode;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 class Customer extends Model
 {
     use HasFactory;
+    use StoresDatesInAppTimezone;
 
     const DAYS_MAPPING = [
         1 => 'Mon',
