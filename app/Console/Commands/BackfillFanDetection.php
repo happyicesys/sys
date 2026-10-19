@@ -15,8 +15,9 @@ use Illuminate\Support\Facades\DB;
  * each machine from what its board has reported (App\Support\FanSignal): a running fan in the kept
  * readings (vend_fans, ~14 days) or in its last parameters → detected, stamped with the first running
  * reading; nothing → no fan. A fan that died before the kept readings goes to "no fan" too; the 2B–2E
- * temperature alarms still catch that machine warming up. Each change is saved through the model, so
- * Setting/Edit's "last changed" names it. Dry run unless --apply.
+ * temperature alarms still catch that machine warming up. Saved through the model, but user_logs keeps
+ * only a person's web actions, so these (like the ingest's) leave no audit row; fan_detected_at is the
+ * record. Dry run unless --apply. Idempotent: a second run changes nothing.
  */
 class BackfillFanDetection extends Command
 {

@@ -1839,7 +1839,11 @@ writes the column, so no save can set it. **Machine Health 2A** (`DetectTempTren
 `OFF_AFTER_MINUTES` (40), from the last running one (or the 8 h lookback); no readings at all is a
 connection gap, never "fan off" (2627 / 2527 alarmed on that before). The 2026-10-19 move ran
 `fan:backfill-detection --apply` (dry run without `--apply`): detected = a running reading kept or in the
-last parameters, else no fan. Regression coverage: `tests/Feature/FanAutoDetectTest.php`.
+last parameters, else no fan — sys: 565 machines to no fan (26 active: the three false 2A alarms
+2003 / 4730 / 2031 cleared, plus fan-less vending boards, freezers, chillers, benches), 365 stamped; lsh: 3
+to no fan (2003, 2006, 2007), 15 stamped. The system's own changes leave no `user_logs` row (it records
+only a person's web actions); a Reset does. Right after, the only active 2A on sys was 2301, whose ~400
+signal never reads as running. Regression coverage: `tests/Feature/FanAutoDetectTest.php`.
 
 ## APK OTA: nudges and the updater's own report
 
