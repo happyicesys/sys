@@ -96,6 +96,7 @@ use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\MqttService;
 use App\Services\OpsDashboard\CriticalAttention;
+use App\Services\OpsDashboard\MachineAlerts;
 use App\Services\PaymentGatewayService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
@@ -836,6 +837,8 @@ class VendController extends Controller
         // Search/autoload path so the frontend falls back to its existing
         // page-scoped totals/currentStats once the table is loaded.
         $initialStats = null;
+        // Reasons per machine while "Show Alert/Error" is on (null otherwise).
+        $machineAlerts = null;
 
         if ($shouldAutoload) {
             $vends = $this->customerIndexBaseQuery($includeUnboundVends)
@@ -947,6 +950,23 @@ class VendController extends Controller
                 $vends = $this->filterVendsDB($vends, $request);
             }
             $vends = $this->filterOperatorDB($vends, $this->customerIndexOperatorColumn($includeUnboundVends));
+
+            // "Show Alert/Error" (Brian, 2026-10-19): only the machines, among those the filters
+            // above chose, with at least one red badge or Needs attention reason (MachineAlerts).
+            // The population is the filters' own (as Needs attention reads it), not Grouped?'s
+            // clusters: a sibling pulled in only by its group-mate is not this list's business.
+            // `alert_reason` narrows to one reason; the counts stay over the whole list.
+            if ($request->boolean('alerts_only')) {
+                $population = $this->customerIndexFilteredQuery($request)
+                    ->whereNotNull('vends.id')->distinct()->pluck('vends.id')->map(fn ($id) => (int) $id)->all();
+                $machineAlerts = app(MachineAlerts::class)->forVendIds($population);
+                $machineAlerts['machine_count'] = count($population);
+                $machineAlerts['reason'] = $request->filled('alert_reason') ? (string) $request->alert_reason : null;
+                $listed = collect($machineAlerts['by_vend'])
+                    ->filter(fn ($tags) => $machineAlerts['reason'] === null || in_array($machineAlerts['reason'], array_column($tags, 'key'), true))
+                    ->keys()->all();
+                $vends->whereIn('vends.id', $listed ?: [-1]);
+            }
 
             $countQuery = clone $vends;
             $total = $countQuery->count();
@@ -2345,6 +2365,8 @@ class VendController extends Controller
             // Pre-Search card stats over ALL filtered rows (null once a
             // Search/autoload has populated the table).
             'initialStats' => $initialStats,
+            // "Show Alert/Error": each listed machine's reasons + a count per reason (MachineAlerts).
+            'machineAlerts' => $machineAlerts,
             'locationTypeOptions' => ['data' => $locationTypeOptions],
             // "LCD Monitor" filter list — SHORT labels (7", 10.1" …), the same
             // strings the LCD Monitor badge shows, so the dropdown reads like

@@ -1780,6 +1780,22 @@ so `VendCode::whereSearch` matches it exactly. Search replaces all of this with 
 Regression coverage: `tests/Feature/OpsDashboardCriticalAttentionTest.php` (including the
 partial-reload contract).
 
+**"Show Alert/Error" button** (Brian, 2026-10-19: "if operator want to focus in alert/error machines,
+click this button (instead of filter)"). Beside Operations; it searches with the page's other filters
+kept plus `alerts_only=true`, and lists only the machines with at least one red badge in the Error /
+Machine Status / Payment Device columns or a Needs attention reason. `App\Services\OpsDashboard\MachineAlerts`
+is the one rule, and each reason mirrors its badge's colour rule in `CustomerIndex.vue` — change the
+two together: HTTP offline (past Needs attention's 60 h window, so never tagged twice), an uncleared
+channel error, a 1d / 2d / 7d error rate ≥ 3%, drop sensor off (even `Sensor`), a reporting modem unit
+offline, bill / coin acceptor `Stat` 1, coin float ≤ 3000, and the three idle payment rails
+(`PaymentRailIdle`). Left out: "Dispensing Door: Open" (156 of 469 active machines read open,
+2026-10-19 — the door flag is not usable), MQTT Offline (grey, not red), the refund trend. Active or
+testing machines only. The population is `customerIndexFilteredQuery()` (Needs attention's), not
+Grouped?'s clusters. The `machineAlerts` prop carries each machine's tags (the "#" cell) and a count
+per reason; a reason chip re-searches with `alert_reason=<key>`, the counts staying over the whole
+list. Prod 2026-10-19: 255 of 402 machines flagged, the rule ran in 268 ms; error rate ≥ 3% alone
+puts 39 on the list. Regression coverage: `tests/Feature/OpsDashboardMachineAlertsTest.php`.
+
 **Silent payment rails get a red frame** (Brian, 2026-10-17: components "long time in no function
 condition, causing no transaction in either Omise, Cash or Card"). In the grid, the Card Terminal,
 LCD Monitor (the QR shows on it = Omise) and Coin Float badges are framed red when the machine HAS that

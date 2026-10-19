@@ -596,6 +596,18 @@
 									</span>
 							</div>
 						</Button>
+						<!-- "Show Alert/Error" (Brian, 2026-10-19): one click instead of filters — the
+						     machines with at least one red badge or Needs attention reason. -->
+						<Button
+							type="button"
+							class="inline-flex space-x-1.5 items-center rounded-md px-8 py-3 md:px-5 text-sm font-semibold leading-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+							:class="alertsOnly ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white text-red-700 ring-1 ring-inset ring-red-300 hover:bg-red-50'"
+							@click="toggleAlertsOnly"
+							v-if="indexType === 'customers'"
+						>
+							<ExclamationTriangleIcon class="h-4 w-4" aria-hidden="true" />
+							<span>{{ alertsOnly ? 'Showing Alert/Error · Show all' : 'Show Alert/Error' }}</span>
+						</Button>
 						<Button
 							class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 							@click.prevent="onMapAllMarkerClicked"
@@ -854,6 +866,32 @@
 		<span v-if="attention.loading" class="text-xs text-rose-700">Loading…</span>
 	</div>
 	<div v-else-if="!hasSearched && attention.loading" class="mb-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">Loading the machines that need attention…</div>
+	<!-- "Show Alert/Error": how many machines, and a count per reason; a reason narrows the list. -->
+	<div v-if="hasSearched && machineAlerts" class="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+		<div class="flex flex-wrap items-baseline gap-x-2">
+			<span class="font-semibold">Alert/Error</span>
+			<span>{{ machineAlerts.total }} of {{ machineAlerts.machine_count }} machines have at least one</span>
+			<button type="button" class="ml-auto text-xs font-medium text-indigo-600 hover:underline" @click="toggleAlertsOnly">Show all machines</button>
+		</div>
+		<div class="mt-1.5 flex flex-wrap gap-1.5">
+			<button
+				type="button"
+				class="rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
+				:class="!machineAlerts.reason ? 'bg-red-600 text-white ring-red-600' : 'bg-white text-red-800 ring-red-200 hover:bg-red-100'"
+				@click="filterAlertReason('')"
+			>All {{ machineAlerts.total }}</button>
+			<button
+				v-for="reason in machineAlerts.reasons"
+				:key="reason.key"
+				type="button"
+				class="rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
+				:class="machineAlerts.reason === reason.key
+					? 'bg-red-600 text-white ring-red-600'
+					: (reason.severity === 'critical' ? 'bg-white text-red-800 ring-red-200 hover:bg-red-100' : 'bg-white text-amber-800 ring-amber-200 hover:bg-amber-50')"
+				@click="filterAlertReason(reason.key)"
+			>{{ reason.short }} {{ reason.count }}</button>
+		</div>
+	</div>
 	<!-- Deferred-load notice: heavy $/stock/job columns stream in via a 2nd
 	     request after the table paints; this tells the user those cells (and
 	     the matching cards) are still populating so brief 0s aren't mistaken
@@ -1440,6 +1478,16 @@
 								class="whitespace-nowrap rounded px-1 text-[10px] font-semibold leading-4 ring-1 ring-inset"
 								:class="tag.severity === 'critical' ? 'bg-red-50 text-red-800 ring-red-200' : 'bg-amber-50 text-amber-800 ring-amber-200'"
 								:title="tag.label + ' · ' + tag.detail"
+							>{{ tag.short }}</span>
+						</div>
+						<!-- Why this machine is on the "Show Alert/Error" list. -->
+						<div v-if="hasSearched && machineAlerts && machineAlerts.by_vend[vend.vend_id]" class="mt-1 flex flex-col items-center gap-0.5">
+							<span
+								v-for="tag in machineAlerts.by_vend[vend.vend_id]"
+								:key="tag.key"
+								class="whitespace-nowrap rounded px-1 text-[10px] font-semibold leading-4 ring-1 ring-inset"
+								:class="tag.severity === 'critical' ? 'bg-red-50 text-red-800 ring-red-200' : 'bg-amber-50 text-amber-800 ring-amber-200'"
+								:title="tag.detail ? tag.short + ' · ' + tag.detail : tag.short"
 							>{{ tag.short }}</span>
 						</div>
 					</TableData>
@@ -3605,6 +3653,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			// point the cards fall back to the page-scoped totals/currentStats.
 			// Shape: { vmCount, totals: {...}, current: {...} }.
 			initialStats: Object,
+			machineAlerts: Object,
 			locationTypeOptions: Object,
 			// Same-operator users for the Site Note @-mention dropdown — same
 			// prop and shape as Customer/Summary.vue.
@@ -3968,6 +4017,11 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			// Defaults ON for the Operation Dashboard (customers view); the
 			// machines view leaves it off since grouping is site-based.
 			group_siblings: props.indexType === 'customers',
+			// "Show Alert/Error" (Brian, 2026-10-19): only machines with at least one red badge or
+			// Needs attention reason (App\Services\OpsDashboard\MachineAlerts); alert_reason narrows
+			// to one reason. Plain values; spread into router.get.
+			alerts_only: false,
+			alert_reason: '',
 			// "Include unbound?" — top-row checkbox (customers view only). When
 			// on, machines with no site binding are listed too, standing in for
 			// the retired Vend/Index page. Plain boolean; spread into router.get.
@@ -4462,6 +4516,8 @@ if(urlParams.has('channel_codes')) {
 
 		if(key === 'sortBy') filters.value.sortBy = (value === 'true');
 		if(cleanKey === 'group_siblings') filters.value.group_siblings = (value === 'true' || value === '1');
+		if(cleanKey === 'alerts_only') filters.value.alerts_only = (value === 'true' || value === '1');
+		if(cleanKey === 'alert_reason') filters.value.alert_reason = value;
 		if(cleanKey === 'include_unbound_vends') filters.value.include_unbound_vends = (value === 'true' || value === '1');
 
 		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
@@ -5390,6 +5446,19 @@ function onPickListModalClose() {
 
 function onShowAllFiltersClicked() {
 		showAllFilters.value = !showAllFilters.value
+}
+
+// "Show Alert/Error" (Brian, 2026-10-19): a search with the page's other filters kept.
+const alertsOnly = computed(() => !!props.machineAlerts)
+function toggleAlertsOnly() {
+	filters.value.alerts_only = !alertsOnly.value
+	filters.value.alert_reason = ''
+	onSearchFilterUpdated()
+}
+function filterAlertReason(key) {
+	filters.value.alerts_only = true
+	filters.value.alert_reason = key
+	onSearchFilterUpdated()
 }
 
 function onSearchFilterUpdated() {
