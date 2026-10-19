@@ -7,6 +7,7 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\VendConfigResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Models\Category;
+use App\Models\Contact;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerContractLog;
@@ -36,6 +37,7 @@ use App\Traits\SearchAddress;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -5972,6 +5974,32 @@ class CustomerController extends Controller
         return redirect()->route('customers.edit', [$customer->id]);
     }
 
+    /**
+     * The Site's Billing Contact (Bill From company, contact person, email, phones). An existing contact is
+     * always updated; a Site without one gets it as soon as ANY field has a value. Until 2026-10-19 the contact
+     * was saved only when "Billing Contact Person" was filled, so a new Site given just a company and an email
+     * (6620, "Coliwoo Star Pte Ltd") saved without error and came back empty every time.
+     *
+     * @param  array<string, mixed>|null  $contact
+     */
+    private function saveBillingContact(Customer $customer, $contact): void
+    {
+        if (! is_array($contact)) {
+            return;
+        }
+        $data = Arr::only($contact, (new Contact)->getFillable());
+        if ($customer->contact) {
+            $customer->contact->update($data);
+
+            return;
+        }
+        $hasValue = collect(Arr::except($data, ['phone_country_id', 'alt_phone_country_id']))
+            ->contains(fn ($v) => $v !== null && trim((string) $v) !== '');
+        if ($hasValue) {
+            $customer->contact()->create($data);
+        }
+    }
+
     public function update(Request $request, $id)
     {
         // dd($request->all());
@@ -6117,9 +6145,7 @@ class CustomerController extends Controller
                 ]);
                 $customer = Customer::create($request->customer);
 
-                if ($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
-                    $customer->contact()->updateOrCreate($request->customer['contact']);
-                }
+                $this->saveBillingContact($customer, $request->customer['contact'] ?? null);
 
                 if ($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
                     $customer->deliveryAddress()->updateOrCreate([
@@ -6391,13 +6417,7 @@ class CustomerController extends Controller
                 ]);
             }
 
-            if ($request->customer['contact'] && isset($request->customer['contact']['name'])) {
-                if ($customer->contact) {
-                    $customer->contact->update($request->customer['contact']);
-                } else {
-                    $customer->contact()->create($request->customer['contact']);
-                }
-            }
+            $this->saveBillingContact($customer, $request->customer['contact'] ?? null);
 
             if ($request->customer['address'] && isset($request->customer['address']['country_id'])) {
                 $customer->deliveryAddress()->updateOrCreate([
