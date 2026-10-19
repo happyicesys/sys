@@ -1167,7 +1167,20 @@
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
+                        <!-- Price Type: header-level only -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                        </TableData>
+                        <!-- Amount: what THIS line sold for — the actual price, a Happy Hour line at its promo
+                             (Brian, 2026-10-19). A line that failed to dispense books no revenue (0), greyed. -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-right bg-gray-100">
+                            <span v-if="vendTransactionItem.amount !== null && vendTransactionItem.amount !== undefined"
+                                :class="vendTransactionItem.amount === 0 ? 'text-gray-400' : ''"
+                                :title="vendTransactionItem.amount === 0 ? 'Not dispensed: no revenue booked for this line' : (vendTransactionItem.happy_hour ? 'Happy Hour price' : 'Selling price of this item')">
+                                {{ vendTransactionItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </span>
+                        </TableData>
+                        <!-- Payment Method: header-level only -->
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                         </TableData>
                         <!-- Payment Status: header-level only, blank on item rows -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">

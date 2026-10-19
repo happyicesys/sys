@@ -49,6 +49,10 @@ class VendTransactionItemResource extends JsonResource
             'refund_request_is_dropped' => (bool) ($this->refund_request_is_dropped ?? false),
             'product' => ProductResource::make($this->whenLoaded('product')),
             'product_id' => $this->product_id,
+            // What this line actually sold for (Brian, 2026-10-19: "the actual selling price during transaction,
+            // not the listed price"): stored per line at ingest, a Happy Hour line repriced to its promo when it is
+            // tagged. Dollars, like the sale row's `amount`. A line that failed to dispense is stored at 0.
+            'amount' => $this->unit_price_amount !== null ? $this->unit_price_amount / 100 : null,
             // Happy Hour slot that priced this line — set per page in VendController::transactionIndex.
             'happy_hour' => $this->happy_hour ?? null,
             // "Access Product(s)": a mixed basket is shown whole on purpose, but a

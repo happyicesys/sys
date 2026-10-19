@@ -74,13 +74,14 @@ class TransactionIndexStatusColumnsTest extends TestCase
         ], $attrs));
     }
 
-    private function item(VendTransaction $txn, int $channelCode, int $errorCode): void
+    private function item(VendTransaction $txn, int $channelCode, int $errorCode, ?int $unitPriceCents = null): void
     {
         VendTransactionItem::create([
             'vend_transaction_id' => $txn->id,
             'vend_channel_code' => $channelCode,
             'vend_channel_error_code' => $errorCode,
             'vend_channel_error_id' => VendChannelError::where('code', $errorCode)->value('id'),
+            'unit_price_amount' => $unitPriceCents,
         ]);
     }
 
@@ -201,6 +202,26 @@ class TransactionIndexStatusColumnsTest extends TestCase
         $items = collect($multi['vendTransactionItems'])->keyBy('vend_channel_code');
         $this->assertSame(SaleStatus::DISPENSED, $items[11]['dispense_status']);
         $this->assertSame(SaleStatus::FAILED, $items[12]['dispense_status']);
+    }
+
+    /**
+     * Each item row of a multiple purchase shows what THAT line sold for (Brian, 2026-10-19: "the actual selling
+     * price during transaction, not the listed price") — `unit_price_amount`, a Happy Hour line at its promo, in
+     * dollars like the sale row. A line that failed to dispense is stored at 0.
+     */
+    public function test_each_item_row_carries_the_price_it_actually_sold_for(): void
+    {
+        $basket = $this->txn('MULTI-PRICED', ['amount' => 1250, 'qty' => 3, 'is_multiple' => 1]);
+        $this->item($basket, 15, 0, 490);
+        $this->item($basket, 18, 0, 310); // a Happy Hour line, repriced from 430 at tagging
+        $this->item($basket, 25, 4, 0);   // failed to dispense: no revenue booked
+        $this->item($basket, 26, 0, 450);
+
+        $rows = $this->gridRows();
+
+        $this->assertEquals(12.5, $rows['MULTI-PRICED']['amount']);
+        $items = collect($rows['MULTI-PRICED']['vendTransactionItems'])->keyBy('vend_channel_code');
+        $this->assertEquals([4.9, 3.1, 0, 4.5], [$items[15]['amount'], $items[18]['amount'], $items[25]['amount'], $items[26]['amount']]);
     }
 
     /**
