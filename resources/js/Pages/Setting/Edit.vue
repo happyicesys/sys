@@ -762,24 +762,31 @@
                 </div>
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-3">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Fan speed signal available?
+                <!-- Detected by the system, not chosen (Brian, 2026-10-19; App\Support\FanSignal): a fan is
+                     detected the first time the board reports it running, and stays detected — a fan
+                     that later reads 0 is broken, which the 2A alarm is for. -->
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Fan speed signal
                 </label>
-                <MultiSelect
-                  v-model="form.is_fan_enabled"
-                  :options="booleanStrictOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="value"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-                <FieldAudit :entry="fieldAudit.is_fan_enabled" />
-                <div class="text-sm text-red-600" v-if="form.errors.is_fan_enabled">
-                  {{ form.errors.is_fan_enabled }}
+                <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                  <span v-if="fanDetected" class="inline-flex items-center rounded-md bg-green-100 px-2 py-1 font-medium text-green-800">
+                    Detected<template v-if="vend.fan_detected_at">&nbsp;since {{ moment(vend.fan_detected_at).format('YYMMDD h:mm a') }}</template>
+                  </span>
+                  <span v-else class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 font-medium text-gray-700">Not detected</span>
+                  <button
+                    v-if="fanDetected && permissions.includes('update machine-settings')"
+                    type="button"
+                    class="text-xs font-medium text-indigo-600 hover:underline disabled:text-gray-400"
+                    :disabled="fanResetting"
+                    @click="resetFanDetection"
+                  >Reset fan detection</button>
                 </div>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ fanDetected
+                    ? 'Set by the system when the board reported a running fan. Reset only after a board or fan is changed or removed.'
+                    : 'Switches on by itself the first time the board reports a running fan (above 1000). No fan alarm until then.' }}
+                </p>
+                <FieldAudit :entry="fieldAudit.is_fan_enabled" />
             </div>
 
             <hr class="sm:col-span-6">
@@ -2584,7 +2591,6 @@ function getDefaultForm() {
     is_testing: '',
     is_active: '',
     is_using_server_price: '',
-    is_fan_enabled: {id: 'true', value: 'Yes'},
     upcoming_product_mapping_id: '',
     vend_config_id: '',
     vend_contract_id: '',
@@ -2615,6 +2621,19 @@ async function loadCityboxRepairDevices() {
 // Per-field audit (who/when) for this machine, derived from user_logs. Re-read
 // after every successful save: the page stays mounted across Inertia's
 // redirect-back, so onMounted alone would leave the lines a save behind.
+// Fan detection is the system's (App\Support\FanSignal); a person can only reset it after a
+// board or fan change. The page is not reloaded, so an unsaved form survives.
+const fanDetected = computed(() => [true, 1, '1', 'true'].includes(props.vend.is_fan_enabled))
+const fanResetting = ref(false)
+function resetFanDetection() {
+  if (!confirm('Reset fan detection for this machine?\n\nUse this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan again.')) return
+  fanResetting.value = true
+  axios.post(`/vends/${props.vend.id}/fan-detection/reset`)
+    .then(() => { props.vend.is_fan_enabled = false; props.vend.fan_detected_at = null; loadFieldAudit() })
+    .catch(() => alert('Could not reset fan detection. Please try again.'))
+    .finally(() => { fanResetting.value = false })
+}
+
 function loadFieldAudit() {
   if (!props.vend || !props.vend.id) {
     return;
@@ -2784,7 +2803,6 @@ onMounted(() => {
     machine_type: machineTypeOptions.value.find(machineType => machineType.id == (props.vend.machine_type || 'vending_machine')) || null,
     citybox_equipment_id: props.vend.citybox_equipment_id || null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
-    is_fan_enabled: (props.vend.is_fan_enabled === false || props.vend.is_fan_enabled === 0 || props.vend.is_fan_enabled === '0' || props.vend.is_fan_enabled === 'false') ? {id: 'false', value: 'No'} : {id: 'true', value: 'Yes'},
     simcard_id: props.vend.simcard_id ? simcardOptions.value.find(simcard => simcard.id == props.vend.simcard_id) : null,
     status: statusOptions.value.find(status => status.id == (props.vend.is_sold == 1 ? 'sold' : (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
@@ -3537,7 +3555,6 @@ function saveVend(vendID) {
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       operator_id: data.operator_id ? data.operator_id.id : null,
-      is_fan_enabled: data.is_fan_enabled ? (data.is_fan_enabled.id === 'true' ? true : false) : true,
       product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
       status: data.status.id,
       upcoming_product_mapping_id: data.upcoming_product_mapping_id ? data.upcoming_product_mapping_id.id : null,

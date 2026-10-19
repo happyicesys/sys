@@ -499,40 +499,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             unset($newState['comp_fan_off_start']);
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 40 mins', '> 60 mins'], $existingAlerts);
         } else {
-            // "Any fan record ever?" plus "latest active fan within 8h". The old
-            // combined query used COUNT(*) over ALL history — an unbounded scan of
-            // every fan row for the machine — just to test > 0. Split into an O(1)
-            // existence check plus an 8h-bounded MAX (both served by
-            // idx_vf_vid_type_created). Same inputs → same result.
-            $eightHoursAgo = $now->copy()->subHours(8);
-            $hasFanRecord = DB::table('vend_fans')
-                ->where('vend_id', $vendId)
-                ->where('type', \App\Models\VendFan::TYPE_MAIN)
-                ->exists();
-
-            $lastActiveFanAt = null;
-            if ($hasFanRecord) {
-                $lastActiveFanAt = DB::table('vend_fans')
-                    ->where('vend_id', $vendId)
-                    ->where('type', \App\Models\VendFan::TYPE_MAIN)
-                    ->where('value', '>', 0)
-                    ->where('created_at', '>=', $eightHoursAgo->toDateTimeString())
-                    ->max('created_at');
-            }
-
-            $fanIsOff = false;
-            $startOff = $now;
-
-            if ($hasFanRecord) {
-                if ($lastActiveFanAt) {
-                    $lastActiveFanTime = \Carbon\Carbon::parse($lastActiveFanAt);
-                    $fanIsOff = $now->diffInMinutes($lastActiveFanTime) > 40;
-                    $startOff = $lastActiveFanTime;
-                } else {
-                    $fanIsOff = true;
-                    $startOff = $eightHoursAgo; // Bound backtrace history to 8 hours to avoid db full table scan
-                }
-            }
+            // Only what the board REPORTED (Brian, 2026-10-19; App\Support\FanSignal): running means
+            // above 1000, and no readings at all is a connection gap, never "fan off" — 2627 / 2527
+            // alarmed on missing readings before. offSince() is the last running reading (or the
+            // 8 h lookback) when readings keep arriving and none of the last 40 min is running.
+            $offSince = \App\Support\FanSignal::offSince($vendId, $now);
+            $fanIsOff = $offSince !== null;
+            $startOff = $offSince ?? $now;
 
             if ($fanIsOff && $vend->is_online) {
                 if (!isset($state['comp_fan_off_start'])) {

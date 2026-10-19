@@ -5,6 +5,7 @@ namespace App\Jobs\Vend;
 use App\Models\Vend;
 use App\Models\VendFan;
 use App\Models\VendTemp;
+use App\Support\FanSignal;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -361,8 +362,15 @@ class SyncVendParameter implements ShouldQueue
             // writes parameter_json from this same $input, so `fan > 1000` here is
             // equivalent to the batch's `parameter_json->fan > 1000`. One-way latch;
             // it rides the existing isDirty()->save() in handle() — no extra query.
-            if (! $vend->is_fan_enabled && (float) $input['fan'] > 1000) {
-                $vend->is_fan_enabled = true;
+            // Fan detection (2026-10-19, App\Support\FanSignal): the first running reading also
+            // stamps fan_detected_at, once. Never the other way — a fan reading 0 is a broken fan.
+            if (FanSignal::isRunning($input['fan'])) {
+                if (! $vend->is_fan_enabled) {
+                    $vend->is_fan_enabled = true;
+                }
+                if (! $vend->fan_detected_at) {
+                    $vend->fan_detected_at = now();
+                }
             }
         }
     }

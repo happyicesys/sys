@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Vend;
+use App\Support\FanSignal;
 use Illuminate\Console\Command;
 
 class CheckVendFanEnabled extends Command
@@ -38,11 +39,18 @@ class CheckVendFanEnabled extends Command
      */
     public function handle()
     {
-        $updatedCount = Vend::where('is_fan_enabled', false)
-            ->where('parameter_json->fan', '>', 1000)
-            ->update([
-                'is_fan_enabled' => true,
-            ]);
+        // Backstop for the ingest latch (SyncVendParameter): a machine whose board reports a running
+        // fan but was never stamped. One-way, like the latch (App\Support\FanSignal).
+        $updatedCount = Vend::withoutGlobalScopes()
+            ->where(fn ($q) => $q->where('is_fan_enabled', false)->orWhereNull('fan_detected_at'))
+            ->where('parameter_json->fan', '>', FanSignal::RUNNING_MIN)
+            ->get()
+            ->each(function (Vend $vend) {
+                $vend->is_fan_enabled = true;
+                $vend->fan_detected_at ??= now();
+                $vend->save();
+            })
+            ->count();
 
         $this->info("Successfully updated {$updatedCount} vends to is_fan_enabled = true.");
 

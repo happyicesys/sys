@@ -391,6 +391,7 @@ class SettingController extends Controller
                 'vends.is_enable_soft_keyboard_credit_card_pay',
                 'vends.is_enable_soft_keyboard_hid_pay',
                 'vends.is_fan_enabled',
+                'vends.fan_detected_at',
             )
             ->first();
 

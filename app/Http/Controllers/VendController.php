@@ -246,7 +246,7 @@ class VendController extends Controller
             ->only(['update', 'unbindCustomer', 'editProducts', 'uploadAttachment']);
         // Setting/Edit only (route /settings/vend/{id}/update is staff-only).
         $this->middleware(['permission:update machine-settings'])
-            ->only(['unbindCustomerDeactivate', 'syncApkSettings', 'replaceProductMapping', 'promoteUpcomingProductMapping']);
+            ->only(['unbindCustomerDeactivate', 'syncApkSettings', 'replaceProductMapping', 'promoteUpcomingProductMapping', 'resetFanDetection']);
         // Remote controls. Rendered UNGATED on Vend/Edit (Advance Control), which
         // is reached from Machine View (`read machine-view`) and from the Ops
         // Dashboard's machine link (`admin-access vend-customers`), and gated on
@@ -5938,7 +5938,8 @@ class VendController extends Controller
             'is_disposed' => $request->is_disposed,
             'is_sold' => $request->is_sold,
             'is_testing' => $request->is_testing,
-            'is_fan_enabled' => $request->is_fan_enabled === 'true' || $request->is_fan_enabled === true,
+            // is_fan_enabled is no longer set here: the board's own fan signal decides it
+            // (App\Support\FanSignal); a person can only reset it (resetFanDetection).
             // Pricing source (No = board price / Yes = follow the Site's RP).
             // The tier itself is never stored on the vend — see
             // Vend::serverPriceType(). Only persisted when the form sent it.
@@ -6159,6 +6160,25 @@ class VendController extends Controller
         }
 
         return response()->json($audit);
+    }
+
+    /**
+     * Setting/Edit "Reset fan detection" (Brian, 2026-10-19): after a board or fan is changed or
+     * removed. The machine goes back to "no fan" until its board reports a running fan again
+     * (App\Support\FanSignal); DetectTempTrends clears a 2A alarm on its next run.
+     */
+    public function resetFanDetection($vendID)
+    {
+        $vend = Vend::findOrFail($vendID);
+        $vend->is_fan_enabled = false;
+        $vend->fan_detected_at = null;
+        $vend->save();
+
+        $message = 'Fan detection reset. It switches on again when the board reports a running fan.';
+
+        return request()->expectsJson()
+            ? response()->json(['message' => $message])
+            : redirect()->back()->with('success', $message);
     }
 
     public function unbindCustomer($vendID, $returnUrl = null)

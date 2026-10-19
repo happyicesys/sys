@@ -1822,6 +1822,25 @@ frame (Coin Float: its red tag, since the badge itself opens the float history) 
 Sales Transactions in a new tab, from that rail's last sale, 7 to 31 days back. Regression coverage:
 `tests/Unit/PaymentRailIdleTest.php`, `tests/Feature/OpsDashboardPaymentRailIdleTest.php`.
 
+## Fan detection: the board decides, a person can only reset
+
+Brian, 2026-10-19. `vends.is_fan_enabled` ("Fan speed signal") is no longer chosen on Setting/Edit:
+`App\Support\FanSignal` is the one rule. A fan is RUNNING only above `FanSignal::RUNNING_MIN` (1000 —
+real fans read ~3,600–5,400; fan-less inputs read 0 or 200–800 noise). A machine HAS a fan from the
+first running reading, stamped once in `vends.fan_detected_at` (the readings in `vend_fans` are kept only
+~14 days), set by the parameter ingest (`SyncVendParameter::createVendFan`) with
+`check:vend-fan-enabled` (04:10) as backstop. It never goes back to "no fan" by itself — a fan that later
+reads 0 is a broken fan, which 2A exists for. New machines start with no fan (column default 0); before,
+every machine started Yes and fan-less boards raised 2A for months (2256: 240 days). Setting/Edit shows
+Detected (since …) / Not detected and, with `update machine-settings`, **Reset fan detection**
+(`POST /vends/{id}/fan-detection/reset`) for a board or fan change; `VendController::update` no longer
+writes the column, so no save can set it. **Machine Health 2A** (`DetectTempTrends`, via
+`FanSignal::offSince`) judges only REPORTED readings: off = readings still arriving but none running for
+`OFF_AFTER_MINUTES` (40), from the last running one (or the 8 h lookback); no readings at all is a
+connection gap, never "fan off" (2627 / 2527 alarmed on that before). The 2026-10-19 move ran
+`fan:backfill-detection --apply` (dry run without `--apply`): detected = a running reading kept or in the
+last parameters, else no fan. Regression coverage: `tests/Feature/FanAutoDetectTest.php`.
+
 ## APK OTA: nudges and the updater's own report
 
 `ota:nudge-stale` sends OTA_CHECK (`App\Services\OtaCheckNudge`) to online,

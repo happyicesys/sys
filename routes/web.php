@@ -1182,6 +1182,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/channels-error-rate', [VendController::class, 'getChannelsErrorRate']);
         Route::post('/{id}/update', [VendController::class, 'update']);
         Route::post('/{id}/unbind/{returnUrl?}', [VendController::class, 'unbindCustomer']);
+        Route::post('/{id}/fan-detection/reset', [VendController::class, 'resetFanDetection'])->name('vends.fan-detection.reset');
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::get('/{id}/smart-planogram', [VendController::class, 'smartPlanogram']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
