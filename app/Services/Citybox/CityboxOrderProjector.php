@@ -37,7 +37,10 @@ use Illuminate\Support\Facades\Log;
  *
  * Statuses: 1 paid and 3 refund applied are sales; 4 refunded is a sale whose money went back —
  * `is_refunded` + REFUNDED + source `citybox_refunded`, through the refund-ticket writer like every
- * other refund; anything else is not projected. A test-rig amount (VendTransaction::
+ * other refund. 0 unpaid and 2 paying are goods taken with no money (Brian, 2026-10-21: show
+ * them, marked unpaid): settlement UNPAID, Payment "Unpaid", never a sale, and the same row turns
+ * SETTLED in place if CityBox later reports it paid. 5 rejected and −1 cancelled are not projected.
+ * A test-rig amount (VendTransaction::
  * ODD_TRANSACTION_AMOUNTS) is never projected, or the 23:59 sweep and the next pull would fight
  * over it; its goods still leave the ledger.
  *
@@ -49,6 +52,16 @@ class CityboxOrderProjector
     public const SKIP_TEST_AMOUNT = 'skip:test_amount';
 
     public const SKIP_NOT_A_SALE = 'skip:status';
+
+    /**
+     * Goods taken, no money collected: listed as an Unpaid row, never a sale. The same statuses
+     * ChillerStockLedger counts as goods taken; 5 rejected and −1 cancelled move no stock and owe
+     * nothing, so they stay unlisted.
+     */
+    public const UNPAID = [ChillerOrder::STATUS_UNPAID, ChillerOrder::STATUS_PAYING];
+
+    /** Every status that gets a vend_transactions row; anything else is skipped. */
+    public const PROJECTED = [ChillerOrder::STATUS_PAID, ChillerOrder::STATUS_REFUND_APPLIED, ChillerOrder::STATUS_REFUNDED, ...self::UNPAID];
 
     /** @var array<int,int> payment_methods.code → id */
     private array $methodIds;
@@ -77,21 +90,21 @@ class CityboxOrderProjector
         }
 
         $status = (int) $order->order_status;
-        $isSale = in_array($status, [ChillerOrder::STATUS_PAID, ChillerOrder::STATUS_REFUND_APPLIED, ChillerOrder::STATUS_REFUNDED], true);
+        $projected = in_array($status, self::PROJECTED, true);
         $existing = $order->vend_transaction_id
             ? VendTransaction::withoutGlobalScopes()->find($order->vend_transaction_id)
             : VendTransaction::withoutGlobalScopes()->where('vend_id', $vend->id)->where('order_id', $order->order_name)->first();
 
-        if (! $isSale || in_array($order->money_cents, VendTransaction::ODD_TRANSACTION_AMOUNTS, true)) {
+        if (! $projected || in_array($order->money_cents, VendTransaction::ODD_TRANSACTION_AMOUNTS, true)) {
             if ($existing) {
-                // Was a sale, is not one now. Never seen (their list carries only 1/3/4); keep the
-                // row and say so rather than deleting money from the reports silently.
+                // Was projected, is not now (an unknown status, or a test amount). Never seen; keep
+                // the row and say so rather than deleting money from the reports silently.
                 Log::warning('Citybox order stopped being a sale after it was projected', ['citybox_order_id' => $order->citybox_order_id, 'status' => $status, 'vend_transaction_id' => $existing->id]);
 
                 return $this->mark($order, $existing->id, 'status '.$status.' after projection');
             }
 
-            return $this->mark($order, null, $isSale ? self::SKIP_TEST_AMOUNT : self::SKIP_NOT_A_SALE);
+            return $this->mark($order, null, $projected ? self::SKIP_TEST_AMOUNT : self::SKIP_NOT_A_SALE);
         }
 
         $lines = $this->unitLines($order, $vend);
@@ -130,7 +143,9 @@ class CityboxOrderProjector
                 }
             }
             $this->lateTrades->noteLanded($txn);
-            $this->bumpLastSale($vend, $txn->transaction_datetime);
+            if (! in_array($status, self::UNPAID, true)) {
+                $this->bumpLastSale($vend, $txn->transaction_datetime);
+            }
 
             return $txn->id;
         });
@@ -200,7 +215,9 @@ class CityboxOrderProjector
         $unitCost = array_sum(array_column($units, 'unit_cost'));
         $revenue = $amount / (1.00 + $gst / 100);
         $refunded = $status === ChillerOrder::STATUS_REFUNDED;
-        $at = $order->paid_at ?? $order->ordered_at ?? now();
+        $unpaid = in_array($status, self::UNPAID, true);
+        // A sale is booked when the money came in; an unpaid one when the goods left.
+        $at = ($unpaid ? null : $order->paid_at) ?? $order->ordered_at ?? now();
 
         return [
             'transaction_datetime' => $at,
@@ -234,7 +251,11 @@ class CityboxOrderProjector
             'unit_cost' => $unitCost,
             'gross_profit' => $grossProfit = $revenue - $unitCost,
             'gross_profit_margin' => $revenue ? ($grossProfit * 100) / $revenue : 0,
-            'settlement_status' => $refunded ? VendTransaction::SETTLEMENT_REFUNDED : VendTransaction::SETTLEMENT_SETTLED,
+            'settlement_status' => match (true) {
+                $refunded => VendTransaction::SETTLEMENT_REFUNDED,
+                $unpaid => VendTransaction::SETTLEMENT_UNPAID,
+                default => VendTransaction::SETTLEMENT_SETTLED,
+            },
             'is_refunded' => $refunded,
             'auto_refund_source' => $refunded ? AutoRefundSource::CITYBOX_REFUNDED : null,
             'meta_json' => [

@@ -38,6 +38,11 @@ class VendTransaction extends Model
 
     const SETTLEMENT_SETTLED = 2;   // counts as a sale (normal error-code logic still applies)
 
+    // Goods left the machine but no money came in: a CityBox take-first-pay-later order its rail
+    // has not captured (CityboxOrderProjector, Brian 2026-10-21). Listed so ops can see it, never a
+    // sale. Becomes SETTLED in place if CityBox later reports it paid.
+    const SETTLEMENT_UNPAID = 3;
+
     // "Odd" transactions swept nightly by RemoveOddTransactions (see
     // remove:today-odd-transactions, dailyAt 23:59): test-rig amounts, and
     // anything under the TEST operator. Amounts are in MINOR units
@@ -852,6 +857,7 @@ class VendTransaction extends Model
             // QR gateway sale, so a failed QR vend used to list as "Successful".
             // "Payment Status" filter — the same rule, in SQL, that
             // SaleStatus::payment() applies per row (keep the two in step):
+            //   unpaid          settlement_status UNPAID (CityBox: goods taken, money never captured)
             //   refunded        is_refunded (any source but retained_credit_revend) OR voided
             //   re_vended       is_refunded via retained_credit_revend
             //   retained_credit is_retained_credit_settlement, not refunded
@@ -868,10 +874,13 @@ class VendTransaction extends Model
 
                 $notRefunded = function ($q) {
                     $q->where('vend_transactions.is_refunded', false)
-                        ->where('vend_transactions.settlement_status', '!=', self::SETTLEMENT_REFUNDED);
+                        ->whereNotIn('vend_transactions.settlement_status', [self::SETTLEMENT_REFUNDED, self::SETTLEMENT_UNPAID]);
                 };
 
                 switch ($search) {
+                    case 'unpaid':
+                        $query->where('vend_transactions.settlement_status', self::SETTLEMENT_UNPAID);
+                        break;
                     case 'refunded':
                         $query->where(function ($q) use ($revend) {
                             $q->where(function ($r) use ($revend) {

@@ -19,6 +19,8 @@ use App\Services\Citybox\CityboxOrderSync;
 use App\Services\Citybox\CityboxPayMethod;
 use App\Services\Sales\DirtyDayRegistry;
 use App\Support\AutoRefundSource;
+use App\Support\SaleFacts;
+use App\Support\SaleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -263,6 +265,54 @@ class CityboxOrderSyncTest extends TestCase
         $this->assertSame(0, VendTransaction::withoutGlobalScopes()->count());
         $this->assertSame('skip:test_amount', CityboxOrder::sole()->projection_error);
         $this->assertSame(8, $this->qty(90343), 'the goods still left the cabinet');
+    }
+
+    public function test_an_unpaid_order_is_listed_as_unpaid_and_becomes_a_sale_once_paid(): void
+    {
+        // Prod order 347 (2026-10-20): four units taken, Alipay never captured.
+        $this->gw->seedOrder('2026-10-13', 347, 'E1', [[90343, 1, '1.70'], [90404, 2, '1.50']], status: 0, time: '11:30:00', paidAt: '0000-00-00 00:00:00', pay: 'ALIPAY_CN');
+        $stats = $this->pull('2026-10-13');
+        $this->assertSame(1, $stats['projected']);
+
+        $txn = VendTransaction::withoutGlobalScopes()->sole();
+        $this->assertSame(VendTransaction::SETTLEMENT_UNPAID, (int) $txn->settlement_status);
+        $this->assertSame([470, 3], [(int) $txn->amount, $txn->vendTransactionItems()->count()], 'what the customer owes, item by item');
+        $this->assertSame('2026-10-13 11:30:00', $txn->transaction_datetime->toDateTimeString(), 'booked when the goods left');
+        $this->assertSame(SaleStatus::UNPAID, SaleStatus::payment(SaleFacts::fromRow($txn)));
+        $this->assertNotNull(SaleStatus::paymentNote(SaleFacts::fromRow($txn)));
+        $this->assertSame(0, VendTransaction::withoutGlobalScopes()->countsAsSale()->count(), 'never a sale');
+        $this->assertSame([8, 4], [$this->qty(90343), $this->qty(90404)], 'the goods still left the cabinet');
+        $this->assertNull($this->vend->fresh()->last_vend_transaction_at, 'not a sale, so not the last sale');
+        $this->assertNull(CityboxOrder::sole()->projection_error);
+
+        // CityBox captures it on the 15th: the same row turns into the sale, on the pay day.
+        Carbon::setTestNow('2026-10-15 09:00:00');
+        $this->gw->seedOrder('2026-10-13', 347, 'E1', [[90343, 1, '1.70'], [90404, 2, '1.50']], status: 1, time: '11:30:00', paidAt: '2026-10-14 20:00:00', pay: 'ALIPAY_CN');
+        $this->pull('2026-10-13');
+
+        $txn->refresh();
+        $this->assertSame(1, VendTransaction::withoutGlobalScopes()->count());
+        $this->assertSame(VendTransaction::SETTLEMENT_SETTLED, (int) $txn->settlement_status);
+        $this->assertSame('2026-10-14 20:00:00', $txn->transaction_datetime->toDateTimeString());
+        $this->assertSame(1, VendTransaction::withoutGlobalScopes()->countsAsSale()->count());
+        $this->assertContains('2026-10-13', app(DirtyDayRegistry::class)->days(), 'the day it left is rebuilt');
+        $this->assertContains('2026-10-14', app(DirtyDayRegistry::class)->days(), 'the day it landed is rebuilt');
+        $this->assertSame([8, 4], [$this->qty(90343), $this->qty(90404)], 'paying moves no stock');
+    }
+
+    public function test_an_unpaid_order_skipped_before_2026_10_21_is_listed_on_the_next_pull(): void
+    {
+        $this->gw->seedOrder('2026-10-13', 348, 'E1', [[90343, 1, '1.70']], status: 0, time: '11:30:00', paidAt: '0000-00-00 00:00:00');
+        $this->pull('2026-10-13');
+        // What the old projector left behind: no row, marked skip:status, payload unchanged since.
+        VendTransaction::withoutGlobalScopes()->delete();
+        CityboxOrder::sole()->forceFill(['vend_transaction_id' => null, 'projected_at' => null, 'projection_error' => 'skip:status'])->save();
+
+        $this->pull('2026-10-13');
+
+        $this->assertSame(VendTransaction::SETTLEMENT_UNPAID, (int) VendTransaction::withoutGlobalScopes()->sole()->settlement_status);
+        $this->assertNull(CityboxOrder::sole()->projection_error);
+        $this->assertSame(8, $this->qty(90343), 'stock taken once, not again');
     }
 
     public function test_an_unknown_device_is_kept_and_retried_once_linked(): void

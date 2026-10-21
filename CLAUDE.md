@@ -1576,7 +1576,12 @@ rather than adding a new `if (citybox)` somewhere else:
     TNG / Other` (codes 900–903, never Card Terminal — card settlement keys on code 1),
     Site frozen at the first projection. Status 1 and 3 (refund applied) are sales; 4 is
     `is_refunded` + REFUNDED + `auto_refund_source = citybox_refunded` through
-    `markAutoRefundedByCharge`. A test-rig amount (`ODD_TRANSACTION_AMOUNTS`) is never
+    `markAutoRefundedByCharge`. Status 0 unpaid / 2 paying (goods taken, money not captured)
+    is listed too (Brian, 2026-10-21) as `settlement_status = 3` UNPAID, booked at the order
+    time: Payment "Unpaid" on Sales Transactions (filter "Unpaid"), never a sale — every sales
+    gate is `= 2` — and the same row turns SETTLED on the pay time once CityBox reports it
+    paid. 5 rejected / −1 cancelled move no stock and are not listed (`skip:status`). Last sale
+    (`last_vend_transaction_at`) ignores unpaid rows. A test-rig amount (`ODD_TRANSACTION_AMOUNTS`) is never
     projected (`skip:test_amount`) or the 23:59 sweep and the next pull would fight. A day
     the sale lands on or leaves is dirtied for the 02:00 rollup rebuild, so every sales /
     GP / product report picks chillers up with no report change.
@@ -1593,8 +1598,9 @@ rather than adding a new `if (citybox)` somewhere else:
     (`stock_deducted_json` per product, so a corrected / cancelled order moves only the
     difference), unless taken at or before the baseline (already inside that count) or
     corrected after a newer count. A refund returns money, not goods: stock stays out.
-    A pay-later order is in `order_list` only once paid (`order_not_pay` carries no
-    lines), so its goods leave the ledger late.
+    Unpaid orders are in `order_list` too, lines and all (status 0, `pay_succ_time`
+    0000-00-00 — first seen 2026-10-19, order 319 paid 32 min later), so their goods leave
+    the ledger when taken, not when paid.
   - **Their live count only checks ours.** `device_product` / device state / signal are
     read every `citybox.stock_check_every_minutes` (10), not every minute (fleet status,
     one `box_list` call, still is). The scheduled frame flags `qty_seed_only`, so

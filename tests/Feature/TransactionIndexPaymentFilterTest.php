@@ -97,6 +97,9 @@ class TransactionIndexPaymentFilterTest extends TestCase
             'auto_refund_source' => AutoRefundSource::RETAINED_CREDIT_REVEND,
         ]);
         $retained = $this->txn($this->card, [], ['is_retained_credit_settlement' => true]);
+        // CityBox take-first-pay-later: goods gone, their rail never captured the money.
+        $citybox = PaymentMethod::create(['code' => 904, 'name' => 'Citybox - Alipay', 'is_active' => true]);
+        $unpaid = $this->txn($citybox, ['settlement_status' => VendTransaction::SETTLEMENT_UNPAID]);
 
         $expected = [
             'unconfirmed' => [$cashUnconfirmed, $cardUnconfirmed],
@@ -105,6 +108,7 @@ class TransactionIndexPaymentFilterTest extends TestCase
             'refunded' => [$cardReversed, $paynowVoided],
             're_vended' => [$reVended],
             'retained_credit' => [$retained],
+            'unpaid' => [$unpaid],
         ];
         $labels = [
             'unconfirmed' => SaleStatus::UNCONFIRMED,
@@ -113,6 +117,7 @@ class TransactionIndexPaymentFilterTest extends TestCase
             'refunded' => SaleStatus::REFUNDED,
             're_vended' => SaleStatus::RE_VENDED,
             'retained_credit' => SaleStatus::RETAINED_CREDIT,
+            'unpaid' => SaleStatus::UNPAID,
         ];
 
         foreach ($expected as $filter => $rows) {
@@ -126,7 +131,7 @@ class TransactionIndexPaymentFilterTest extends TestCase
         // Every row lands in exactly one bucket.
         $all = collect($expected)->flatten()->pluck('id')->sort()->values()->all();
         $this->assertSame($all, $this->listed('all'));
-        $this->assertCount(9, $all);
+        $this->assertCount(10, $all);
     }
 
     public function test_dispense_filter_exposes_the_no_verdict_states(): void

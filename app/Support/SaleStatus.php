@@ -58,6 +58,9 @@ final class SaleStatus
     /** Approved from credit the VMC/reader banked earlier — no fresh authorisation, no money moved on this row. */
     public const RETAINED_CREDIT = 'Retained credit';
 
+    /** Goods left the machine, the rail never collected the money (CityBox pay-later, settlement UNPAID). Not a sale. */
+    public const UNPAID = 'Unpaid';
+
     /** No payment rail has confirmed this row (cash; card terminal before its report is synced). Rendered blank. */
     public const UNCONFIRMED = '';
 
@@ -82,6 +85,10 @@ final class SaleStatus
     /** Money verdict — see the class docblock for which rail confirms what. */
     public static function payment(SaleFacts $sale): string
     {
+        if ($sale->settlementStatus === VendTransaction::SETTLEMENT_UNPAID) {
+            return self::UNPAID;
+        }
+
         if ($sale->isRefunded) {
             return $sale->autoRefundSource === AutoRefundSource::RETAINED_CREDIT_REVEND
                 ? self::RE_VENDED
@@ -115,6 +122,7 @@ final class SaleStatus
         return match (self::payment($sale)) {
             self::RETAINED_CREDIT => 'Approved from credit the card reader retained after an earlier failed vend (CSHL_ARMED_MS < 5 s) — no fresh card authorisation, no settlement to match.',
             self::RE_VENDED => 'The reader kept this payment as credit and a later vend consumed it — the customer was made whole by goods, no money was returned.',
+            self::UNPAID => 'The customer took the goods but CityBox has not collected the money. Not counted as a sale; it becomes one if CityBox later reports it paid.',
             default => null,
         };
     }

@@ -127,8 +127,11 @@ class CityboxOrderSync
     /** An unchanged order still needs a pass while its sale or its stock is not settled. */
     private function hasWorkLeft(CityboxOrder $row, ?Vend $vend): bool
     {
-        $saleOpen = $row->projection_error !== null && ! str_starts_with($row->projection_error, 'skip:')
-            && ! str_starts_with($row->projection_error, 'status ');
+        $saleOpen = ($row->projection_error !== null && ! str_starts_with($row->projection_error, 'skip:')
+            && ! str_starts_with($row->projection_error, 'status '))
+            // Skipped before unpaid orders were listed (2026-10-21): project it on the next pass.
+            || ($row->projection_error === CityboxOrderProjector::SKIP_NOT_A_SALE
+                && in_array((int) $row->order_status, CityboxOrderProjector::PROJECTED, true));
         $stockOpen = $row->stock_deducted_at === null && ($row->stock_note === null || $row->stock_note === 'unknown_device');
 
         return $saleOpen || ($stockOpen && $vend !== null && ChillerStockLedger::enabled());

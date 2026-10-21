@@ -432,7 +432,7 @@ class TxnRevenueSettlement
         $rail = self::railSql();
 
         $byRail = (clone $filtered)
-            ->where('vend_transactions.settlement_status', '<>', VendTransaction::SETTLEMENT_REFUNDED)
+            ->whereNotIn('vend_transactions.settlement_status', [VendTransaction::SETTLEMENT_REFUNDED, VendTransaction::SETTLEMENT_UNPAID])
             ->groupBy(DB::raw($rail))
             ->get([DB::raw("$rail AS rail"), DB::raw('COUNT(*) AS n'), DB::raw('SUM(vend_transactions.amount) AS cents')])
             ->keyBy('rail');

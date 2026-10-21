@@ -913,9 +913,10 @@
                              column mixed the two. -->
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <!-- Blank = no rail has confirmed the money (cash; card before its report is synced).
-                                 Retained-credit rows get a badge with the why (payment_note). -->
+                                 Retained-credit and Unpaid rows get a badge with the why (payment_note). -->
                             <span v-if="vendTransaction.payment_note"
-                                  class="inline-flex rounded px-1.5 py-0.5 text-xs font-medium border bg-purple-50 text-purple-700 border-purple-200 cursor-help"
+                                  class="inline-flex rounded px-1.5 py-0.5 text-xs font-medium border cursor-help"
+                                  :class="vendTransaction.payment_status === 'Unpaid' ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-purple-50 text-purple-700 border-purple-200'"
                                   v-tooltip="vendTransaction.payment_note">
                                 {{ vendTransaction.payment_status }}
                             </span>
@@ -1420,6 +1421,7 @@ const saleStatusClass = (s) => ({
     'Refunded': 'text-red-700',
     'Failed': 'text-red-700',
     'Re-vended': 'text-amber-700',
+    'Unpaid': 'text-amber-700',
 }[s] || 'text-gray-500')
 
 const refundStatusClass = (s) => ({
@@ -1516,6 +1518,7 @@ onMounted(() => {
         {id: 'paid', value: 'Paid'},
         {id: 'settled', value: 'Settled'},
         {id: 'refunded', value: 'Refunded'},
+        {id: 'unpaid', value: 'Unpaid (goods taken, not paid)'},
         {id: 'unconfirmed', value: 'Unconfirmed (blank)'},
         {id: 'retained_credit', value: 'Retained credit'},
         {id: 're_vended', value: 'Re-vended'},
