@@ -374,10 +374,11 @@ final class HappyHourSales
      * which proves it. Anything else (another discount in the basket, a price changed mid-slot) is left
      * alone and logged. Idempotent: a basket whose items already add up is untouched.
      *
-     * A failed line keeps 0 (no revenue), but the customer was charged for it: the header's `Price` is
-     * the whole cart (2301, 2026-10-16: 2 × $2.40 = $4.80 with one unit failed). So the proof counts a
-     * failed line at what the screen charged — its channel price, discounted when tagged — and a basket
-     * whose header leaves failed lines out still proves the old way (failed lines at 0).
+     * A failed line was charged too: the header's `Price` is the whole cart (2301, 2026-10-16: 2 × $2.40
+     * = $4.80 with one unit failed). Since 2026-10-21 the ingest stores it at its channel price like any
+     * line, so it is repriced like any tagged line. Lines stored before that sit at 0: the proof counts
+     * them at what the screen charged — the channel price, discounted when tagged — and a header that
+     * leaves them out still proves with them at 0.
      *
      * Every reader of item prices follows: slot results, the campaign page, product revenue / GP.
      *
@@ -441,8 +442,8 @@ final class HappyHourSales
                 : null;
         };
 
-        // What the customer was charged for the failed lines (stored at 0): the channel price, discounted
-        // when the line is tagged.
+        // What the customer was charged for failed lines stored at 0 before 2026-10-21: the channel price,
+        // discounted when the line is tagged.
         $failedCharged = 0;
         foreach ($items as $item) {
             if ((int) $item->unit_price_amount === 0 && ! DispenseVerdict::isSaleCode($item->vend_channel_error_code)) {

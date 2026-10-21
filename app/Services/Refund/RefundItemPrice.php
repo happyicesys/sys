@@ -12,9 +12,9 @@ use App\Services\HappyHour\HappyHourPricing;
  * line pays back. Every refund surface that prices a `vend_transaction_items` row reads it here.
  *
  * A vending TRADE carries no per-line price, so the ingest stores each line at its channel's LIST
- * price, and a failed line at 0 (no revenue). `HappyHourSales::repriceVendingBasket` then rewrites a
- * Happy Hour line that came out to its promo, but a failed line stays at 0 — so a claim on it fell back
- * to the list price although the customer paid the promo (Brian, 2026-10-16, RF-261016005: 2 × Walls's
+ * price — a failed line too since 2026-10-21; before that it was stored at 0 — and
+ * `HappyHourSales::repriceVendingBasket` rewrites a Happy Hour line to its promo. A failed line stored
+ * at 0 made a claim on it fall back to the list price although the customer paid the promo (Brian, 2026-10-16, RF-261016005: 2 × Walls's
  * Ice Ball at $2.40 = $4.80 paid, one failed, claim showed $3.40). A tagged line is priced the way the
  * screen charged it: the slot's discount on the channel's price with the campaign's rounding
  * (HappyHourPricing::channelSlots).

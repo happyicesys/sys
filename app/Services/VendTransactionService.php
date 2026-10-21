@@ -874,8 +874,7 @@ class VendTransactionService
         // Knock-on: the returned row may now be a REAL channel carrying real
         // state rather than the blank one create() used to make, so
         // determineUnitPriceAmount's last-resort fallback can read that row's
-        // amount / amount2. Reachable only when the item succeeded AND the
-        // TRADE carried no unit_price_amount AND no positive amount — in which
+        // amount / amount2. Reachable only when the TRADE carried no unit_price_amount AND no positive amount — in which
         // case the deactivated channel's own price is a better answer than the
         // null the blank row produced. Covered by
         // VendChannelDuplicateGuardTest::test_trade_channel_creation_reuses_an_inactive_row.
@@ -885,12 +884,15 @@ class VendTransactionService
         ]);
     }
 
-    private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input, bool $isSuccessfulItem): ?int
+    /**
+     * What a line sold for. A line that failed to dispense keeps its price too (Brian, 2026-10-21): the
+     * customer paid for the whole basket — every basket total checked on prod includes the failed line —
+     * and a multiple purchase is never partly auto-refunded, so a claim is paid on request from this
+     * figure (RefundItemPrice). Revenue and sold-qty aggregates leave failed lines out by their error
+     * code (DispenseVerdict::sqlSale), never by a 0 price.
+     */
+    private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input): ?int
     {
-        if (! $isSuccessfulItem) {
-            return 0;
-        }
-
         if (array_key_exists('unit_price_amount', $input) && ! is_null($input['unit_price_amount'])) {
             return (int) $input['unit_price_amount'];
         }
@@ -1043,7 +1045,7 @@ class VendTransactionService
             $vendChannel = $this->createVendChannel($vend->id, $vendChannelCode);
         }
 
-        $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input, $isSuccessful);
+        $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input);
 
         return [
             'amount' => isset($input['amount']) ? $input['amount'] : 0,

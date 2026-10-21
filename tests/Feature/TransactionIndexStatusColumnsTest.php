@@ -207,7 +207,7 @@ class TransactionIndexStatusColumnsTest extends TestCase
     /**
      * Each item row of a multiple purchase shows what THAT line sold for (Brian, 2026-10-19: "the actual selling
      * price during transaction, not the listed price") — `unit_price_amount`, a Happy Hour line at its promo, in
-     * dollars like the sale row. A line that failed to dispense is stored at 0.
+     * dollars like the sale row. A line that failed to dispense before 2026-10-21 was stored at 0.
      */
     public function test_each_item_row_carries_the_price_it_actually_sold_for(): void
     {

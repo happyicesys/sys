@@ -51,7 +51,8 @@ class VendTransactionItemResource extends JsonResource
             'product_id' => $this->product_id,
             // What this line actually sold for (Brian, 2026-10-19: "the actual selling price during transaction,
             // not the listed price"): stored per line at ingest, a Happy Hour line repriced to its promo when it is
-            // tagged. Dollars, like the sale row's `amount`. A line that failed to dispense is stored at 0.
+            // tagged. Dollars, like the sale row's `amount`. A line that failed to dispense keeps
+            // its price since 2026-10-21 (the basket was paid in full); older failed lines read 0.
             'amount' => $this->unit_price_amount !== null ? $this->unit_price_amount / 100 : null,
             // Happy Hour slot that priced this line — set per page in VendController::transactionIndex.
             'happy_hour' => $this->happy_hour ?? null,

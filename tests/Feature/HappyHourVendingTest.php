@@ -574,8 +574,8 @@ class HappyHourVendingTest extends TestCase
     public function test_a_basket_with_a_failed_happy_hour_unit_is_repriced_and_its_claim_pays_the_promo(): void
     {
         // 2301, 2026-10-16: 2 × $3.40 Walls's at 30% off = 2 × $2.40, one unit failed (SErr 7). The header
-        // is the whole cart ($4.80) while the failed line is stored at 0, so the old proof (items = sale)
-        // never held and the dispensed unit kept $3.40.
+        // is the whole cart ($4.80). Since 2026-10-21 the failed line keeps its price like any line, so
+        // both Happy Hour units are repriced to the promo and the items add up to the sale.
         PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);
         VendChannelError::firstOrCreate(['code' => 0], ['desc' => 'No Malfunction (0)']);
         VendChannelError::firstOrCreate(['code' => 7], ['desc' => 'Sensor error (7)']);
@@ -597,14 +597,14 @@ class HappyHourVendingTest extends TestCase
         $prices = fn () => DB::table('vend_transaction_items')->where('vend_transaction_id', $sale->id)
             ->orderBy('id')->pluck('unit_price_amount')->map(fn ($v) => (int) $v)->all();
 
-        $this->assertSame([$promo, 0, 200], $prices(), 'the dispensed promo unit carries the promo; the failed one stays 0');
+        $this->assertSame([$promo, $promo, 200], $prices(), 'both Happy Hour units carry the promo, the failed one too');
 
         // Idempotent: a second pass, and the repair command, leave it alone (no second discount).
         $this->assertFalse(app(HappyHourSales::class)->repriceVendingBasket($sale->id));
         $this->artisan('happy-hour:reprice-vending-baskets', ['--since' => '2026-10-09', '--apply' => true])
             ->expectsOutputToContain('Repriced 0 basket(s).')
             ->assertSuccessful();
-        $this->assertSame([$promo, 0, 200], $prices());
+        $this->assertSame([$promo, $promo, 200], $prices());
 
         // A refund claim on either Happy Hour unit pays back the promo.
         $claimed = VendTransactionItem::with(['vendChannel', 'happyHourSlot'])->where('vend_transaction_id', $sale->id)->orderBy('id')->get()

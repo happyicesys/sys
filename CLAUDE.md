@@ -496,6 +496,18 @@ Both labels are deduced in one place, `App\Support\SaleStatus`, from
   print "NA" via `DispenseVerdict::displayCode`). `SaleStatus::dispenseReason()`
   tells the two blanks (no TRADE vs. verdict on the items) apart.
 
+**A line that failed to dispense keeps its price** (Brian, 2026-10-21: "we already receive the payment, so
+payment will not reduced because of error, since we can not do partial auto refund"). A multiple purchase is
+paid as a whole — none of 1,099 baskets with a failed line in the 90 days to 2026-10-21 left it out of the
+header amount — and is never partly auto-refunded; a claim is paid on request from the line's price
+(`RefundItemPrice`). So `VendTransactionService::determineUnitPriceAmount` prices a failed line exactly like
+a dispensed one (the TRADE's line price, else the channel's), where it used to store 0. Nothing that counts
+SOLD moves: every revenue / GP / sold-qty reader leaves a failed line out by its error code
+(`DispenseVerdict::sqlSale`), and `GpMetricsAggregator` already spread the header over zero-priced lines.
+Lines stored at 0 before the fix: `sales:backfill-failed-item-prices [--days=31] [--apply]` — run once on
+2026-10-21 for the last 31 days, where today's channel price is still what was charged; older lines stay 0.
+Regression coverage: `tests/Feature/FailedItemKeepsPriceTest.php`.
+
 The Sales Transactions grid, both CSV export jobs (+ the appended unreported
 gateway rows) and the refund screen's related transactions all call it — add
 a new consumer there, do not re-derive; a consumer's query must select the
@@ -1239,9 +1251,10 @@ Vending machines (Brian, 2026-10-12; contract `apk/mark1-apk/UNRELEASED_V315.md`
   made a basket's Happy Hour discount $0 and overstated product revenue / GP. `HappyHourSales::repriceVendingBasket`
   rewrites each tagged item to the slot's discount on that channel's price (HappyHourPricing, as `/thumbnails`
   priced it), ONLY when the items then add up to the header's amount; otherwise nothing is guessed (logged).
-  A failed line stays 0 (no revenue) but the header's `Price` charged it, so the proof counts it at its channel
-  price — discounted when tagged (2301, 2026-10-16: $2.40 + failed $2.40 = $4.80 kept the dispensed unit at $3.40
-  until then); a header that leaves failed lines out still proves with them at 0. `planVendingBasketReprice` is the
+  The header's `Price` charged failed lines too (2301, 2026-10-16: $2.40 + failed $2.40 = $4.80 kept the dispensed
+  unit at $3.40 until then); since 2026-10-21 a failed line is stored at its channel price like any line and repriced
+  like any tagged line. Lines stored at 0 before that count in the proof at their channel price — discounted when
+  tagged — and a header that leaves them out still proves with them at 0. `planVendingBasketReprice` is the
   one decision (adds_up / reprice / unprovable / none), shared by the tagger and the command.
   Baskets from before the fix: `happy-hour:reprice-vending-baskets [--since=] [--apply]` (re-opens their slots'
   totals, dirties past days).
@@ -1263,7 +1276,7 @@ Where the promo price applies:
 - An AI-judged extra unit taken during a slot is valued at the promo price (`CardPaymentService::shelfPrices`).
 - The freezer's TRADE carries the promo unit price but NOT the slot.
 - A refund claim on a tagged line pays back the promo, not the list price (Brian, 2026-10-16,
-  RF-261016005): a failed line is stored at 0, and the claim fell back to the channel's LIST price.
+  RF-261016005): a failed line was stored at 0 then, and the claim fell back to the channel's LIST price.
   `App\Services\Refund\RefundItemPrice` is the one place a refund prices a `vend_transaction_items` row —
   the customer form's candidates, the ticket's items, Items Flagged and Related Transactions all read it. A
   tagged line stored below its channel price is already the charged price (repriced, or a freezer's
