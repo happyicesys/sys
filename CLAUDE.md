@@ -1849,6 +1849,20 @@ frame (Coin Float: its red tag, since the badge itself opens the float history) 
 Sales Transactions in a new tab, from that rail's last sale, 7 to 31 days back. Regression coverage:
 `tests/Unit/PaymentRailIdleTest.php`, `tests/Feature/OpsDashboardPaymentRailIdleTest.php`.
 
+**Touch screen usage rate** (Brian, 2026-10-22). Under the Card Terminal badge in the Payment Device
+column, a line graph of pieces sold through the touch screen ÷ all pieces sold, L30d → L7d → Y'day →
+Today (`Components/OpsDashboard/TouchUsageSparkline.vue`): green when today (else yesterday) is at or
+above the 30-day rate, red below; hover lists all four as "x% (touch of total pcs)"; hidden on a machine
+that sold nothing through a touch screen in 30 days (a keypad-only board). `App\Support\TouchScreenUsage`
+is the one rule: touch = `vend_transactions.interface_type` 1 (TRADE `TXN_SRC` 1 — the APK built the
+order) except Grab Mart (`Grab::PAYMENT_METHOD_GRABMART`, which the APK also marks 1 but was ordered
+online); keypad is 0 / blank, keypad QR 50, remote dispense 2. Pieces as Sales(qty) counts them, settled
+sales only; windows start at midnight: today, yesterday, today + 6 days, today + 29 days.
+`SyncVendTransactionTotalsJson` (after every sale, unique per 3 min) stores it as
+`vend_transaction_totals_json.touch_usage` and in the Site's `totals_json`, vending machines only — one
+indexed range scan, 27 ms on the busiest machine (prod 2026-10-22), so the page adds no query. A machine
+shows it after its next sale. Regression coverage: `tests/Feature/TouchScreenUsageTest.php`.
+
 ## Fan detection: the board decides, a person can only reset
 
 Brian, 2026-10-19. `vends.is_fan_enabled` ("Fan speed signal") is no longer chosen on Setting/Edit:

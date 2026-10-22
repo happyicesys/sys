@@ -5,6 +5,7 @@ namespace App\Jobs\Vend;
 use App\Models\Customer;
 use App\Models\Vend;
 use App\Support\DispenseVerdict;
+use App\Support\TouchScreenUsage;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -64,6 +65,11 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
         } else {
             return;
         }
+
+        // Touch screen usage (pieces via the touch screen ÷ all pieces) per window — the Operation
+        // Dashboard's line graph (App\Support\TouchScreenUsage). Computed once, written to both the
+        // machine's and the Site's totals, since the dashboard reads either.
+        $touchUsage = $vend ? $this->touchUsage($vend) : null;
 
         if ($vend) {
             $todayTxns = $vend->daysVendTransactions(0, 0);
@@ -138,6 +144,7 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
 
             $vend->update([
                 'vend_transaction_totals_json' => [
+                    'touch_usage' => $touchUsage,
                     'today_amount' => $todayAmount,
                     'today_count' => $todayCount,
                     'yesterday_amount' => (int) $records1->sum('total_amount'),
@@ -252,6 +259,7 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
 
             $customer->update([
                 'totals_json' => [
+                    'touch_usage' => $touchUsage,
                     'today_amount' => $todayAmount,
                     'today_count' => $todayCount,
                     'yesterday_amount' => (int) $records1->sum('total_amount'),
@@ -294,6 +302,16 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
                 ],
             ]);
         }
+    }
+
+    /** Vending machines only: a freezer or chiller has no keypad, so the rate would always be 100% or 0%. */
+    private function touchUsage(Vend $vend): ?array
+    {
+        if (($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) !== Vend::MACHINE_TYPE_VENDING_MACHINE) {
+            return null;
+        }
+
+        return TouchScreenUsage::forVend((int) $vend->id);
     }
 
     private function calculateSuccessfulItemCount($transactionQuery): int

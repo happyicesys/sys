@@ -3300,6 +3300,8 @@
 											</span>
 									</div>
 							</div>
+							<!-- Touch screen usage rate, L30d → today (Brian, 2026-10-22). -->
+							<TouchUsageSparkline :usage="vend.vendTransactionTotalsJson ? vend.vendTransactionTotalsJson.touch_usage : null" />
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
@@ -3610,6 +3612,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import TableData from '@/Components/TableData.vue';
 	import SmartChillerRowCells from '@/Components/SmartChillerRowCells.vue';
 	import CriticalAttentionPanel from '@/Components/OpsDashboard/CriticalAttentionPanel.vue';
+	import TouchUsageSparkline from '@/Components/OpsDashboard/TouchUsageSparkline.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
 	import { ref, computed, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
