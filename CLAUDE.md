@@ -1140,7 +1140,9 @@ What a campaign is:
 - **Related Total Sales** (Daniel, 2026-10-22, `HAPPY_HOUR_UPLIFT_GRAPH_PLAN_2026-10-22.md`: HH is the bridge to the rest
   of the basket): every settled, not-refunded transaction whose HEADER carries `happy_hour_slot_id`, counted WHOLE (header
   amount; dispensed units = a single sale's verdict / a basket's lines with a sale code) —
-  `HappyHourSales::dailyRelatedTotals`, the same set Sales Transactions lists under the campaign's label. The graph stacks
+  single HH sales from `HappyHourSales::dailyTotals` + tagged baskets from `dailyBasketTotals`, the same set Sales
+  Transactions lists under the campaign's label. Window and graph figures are cached 5 min (`HappyHourCampaignStats::CACHE_SECONDS`:
+  ~2 s each on prod, as `happy_hour_slot_id` has no index). The graph stacks
   HH + the rest on sales, units and units per machine, with a `non_hh_*_pct` line (0–100%); the Campaign column shows
   "Related sales" and "Non-HH %". The related total is clamped to never read below the HH part.
 

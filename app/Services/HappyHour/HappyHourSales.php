@@ -147,12 +147,14 @@ final class HappyHourSales
     }
 
     /**
-     * Happy Hour sales on these machines in [$from, $to], one row per (slot, sale date) — two grouped
+     * Happy Hour sales on these machines in [$from, $to], one row per (slot, sale date, kind) — two grouped
      * queries, whatever the range. Read by slotTotals() and the campaign figures and graph
-     * (HappyHourCampaignStats, Brian 2026-10-16). Same rules as results().
+     * (HappyHourCampaignStats, Brian 2026-10-16). Same rules as results(). `multiple` says which query a
+     * row came from: a single sale is its header (and `transactions` counts them — a single HH sale is a
+     * whole related transaction on its own), a basket's row is its promo lines (`transactions` 0).
      *
      * @param  iterable<int>  $vendIds
-     * @return list<array{slot_id: int, campaign_id: int, vend_id: int, day: string, units: int, revenue: int, discount: int}>
+     * @return list<array{slot_id: int, campaign_id: int, vend_id: int, day: string, multiple: bool, transactions: int, units: int, revenue: int, discount: int}>
      */
     public function dailyTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
     {
@@ -179,7 +181,7 @@ final class HappyHourSales
             ->where(fn ($q) => $q->whereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
             ->groupBy('t.happy_hour_slot_id', 's.happy_hour_campaign_id', 's.vend_id', 's.original_price', DB::raw('DATE(t.transaction_datetime)'))
             ->selectRaw('t.happy_hour_slot_id AS slot_id, s.happy_hour_campaign_id AS campaign_id, s.vend_id, s.original_price,
-                DATE(t.transaction_datetime) AS day,
+                DATE(t.transaction_datetime) AS day, 0 AS multiple, COUNT(*) AS transactions,
                 SUM(GREATEST(t.qty, 1)) AS units, SUM(t.amount) AS revenue,
                 SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(NULLIF(vc.amount, 0), s.original_price) - t.amount, 0)) AS channel_discount')
             ->get();
@@ -197,7 +199,7 @@ final class HappyHourSales
             ->where(fn ($q) => $q->whereNull('i.is_refunded')->orWhere('i.is_refunded', 0))
             ->groupBy('i.happy_hour_slot_id', 's.happy_hour_campaign_id', 's.vend_id', 's.original_price', DB::raw('DATE(t.transaction_datetime)'))
             ->selectRaw('i.happy_hour_slot_id AS slot_id, s.happy_hour_campaign_id AS campaign_id, s.vend_id, s.original_price,
-                DATE(t.transaction_datetime) AS day,
+                DATE(t.transaction_datetime) AS day, 1 AS multiple, 0 AS transactions,
                 COUNT(*) AS units, SUM(i.unit_price_amount) AS revenue,
                 SUM(GREATEST(COALESCE(NULLIF(vc.amount, 0), s.original_price) - i.unit_price_amount, 0)) AS channel_discount')
             ->get();
@@ -211,6 +213,8 @@ final class HappyHourSales
                 'campaign_id' => (int) $row->campaign_id,
                 'vend_id' => (int) $row->vend_id,
                 'day' => (string) $row->day,
+                'multiple' => (bool) $row->multiple,
+                'transactions' => (int) $row->transactions,
                 'units' => $units,
                 'revenue' => $revenue,
                 'discount' => isset($perChannel[(int) $row->vend_id])
@@ -221,59 +225,47 @@ final class HappyHourSales
     }
 
     /**
-     * "Related Total Sales" (Daniel, 2026-10-22: HH is the bridge — "如果说 5 支里面有一支是 Happy Hour 的也算"):
-     * every settled, not-refunded transaction holding at least one Happy Hour unit, counted WHOLE — the
-     * header is tagged on a single sale and on a basket that includes a promo unit, so this is the set
-     * Sales Transactions lists under that campaign's label. One row per (campaign, machine, sale date):
-     * transactions, multiple purchases, what the customer paid (header amount) and the dispensed units
-     * (a single sale's own verdict; a basket's lines with a sale code, not refunded). Two grouped queries
-     * over (vend_id, transaction_datetime). Read by HappyHourCampaignStats beside dailyTotals().
+     * The baskets behind "Related Total Sales" (Daniel, 2026-10-22: HH is the bridge — "如果说 5 支里面有一支是
+     * Happy Hour 的也算"): every settled, not-refunded multiple purchase whose header is tagged (it includes a
+     * promo unit), counted WHOLE — what the customer paid (header amount) and its dispensed lines (a sale code,
+     * not refunded). One row per (campaign, machine, sale date), one grouped query over
+     * (vend_id, transaction_datetime); a basket's lines are counted through the vend_transaction_id index.
+     * Single HH sales need no query of their own: each is already a whole transaction in dailyTotals().
+     * HappyHourCampaignStats adds the two.
      *
      * @param  iterable<int>  $vendIds
-     * @return list<array{campaign_id: int, vend_id: int, day: string, transactions: int, multiple: int, revenue: int, units: int}>
+     * @return list<array{campaign_id: int, vend_id: int, day: string, transactions: int, revenue: int, units: int}>
      */
-    public function dailyRelatedTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
+    public function dailyBasketTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
     {
         $vendIds = collect($vendIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
         if ($vendIds === []) {
             return [];
         }
-        $base = fn () => DB::table('vend_transactions as t')
+        $dispensedLine = DispenseVerdict::sqlSale('i.vend_channel_error_code');
+
+        return DB::table('vend_transactions as t')
             ->join('happy_hour_slots as s', 's.id', '=', 't.happy_hour_slot_id')
             ->whereIn('t.vend_id', $vendIds)
             ->whereBetween('t.transaction_datetime', [$from, $to])
             ->whereNotNull('t.happy_hour_slot_id')
+            ->where('t.is_multiple', 1)
             ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->where('t.is_refunded', 0)
-            ->groupBy('s.happy_hour_campaign_id', 't.vend_id', DB::raw('DATE(t.transaction_datetime)'));
-
-        $single = $base()
-            ->leftJoin('vend_channel_errors as e', 'e.id', '=', 't.vend_channel_error_id')
-            ->where('t.is_multiple', 0)
-            ->where(fn ($q) => $q->whereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
-            ->selectRaw('s.happy_hour_campaign_id AS campaign_id, t.vend_id, DATE(t.transaction_datetime) AS day,
-                COUNT(*) AS transactions, 0 AS multiple, SUM(t.amount) AS revenue, SUM(GREATEST(t.qty, 1)) AS units')
-            ->get();
-
-        $codes = implode(', ', array_map('intval', DispenseVerdict::SALE_CODES));
-        $multi = $base()
-            ->where('t.is_multiple', 1)
+            ->groupBy('s.happy_hour_campaign_id', 't.vend_id', DB::raw('DATE(t.transaction_datetime)'))
             ->selectRaw("s.happy_hour_campaign_id AS campaign_id, t.vend_id, DATE(t.transaction_datetime) AS day,
-                COUNT(*) AS transactions, COUNT(*) AS multiple, SUM(t.amount) AS revenue,
+                COUNT(*) AS transactions, SUM(t.amount) AS revenue,
                 SUM((SELECT COUNT(*) FROM vend_transaction_items i WHERE i.vend_transaction_id = t.id
-                    AND (i.vend_channel_error_code IS NULL OR i.vend_channel_error_code IN ({$codes}))
-                    AND (i.is_refunded IS NULL OR i.is_refunded = 0))) AS units")
-            ->get();
-
-        return $single->concat($multi)->map(fn ($row) => [
-            'campaign_id' => (int) $row->campaign_id,
-            'vend_id' => (int) $row->vend_id,
-            'day' => (string) $row->day,
-            'transactions' => (int) $row->transactions,
-            'multiple' => (int) $row->multiple,
-            'revenue' => (int) $row->revenue,
-            'units' => (int) $row->units,
-        ])->values()->all();
+                    AND {$dispensedLine} AND (i.is_refunded IS NULL OR i.is_refunded = 0))) AS units")
+            ->get()
+            ->map(fn ($row) => [
+                'campaign_id' => (int) $row->campaign_id,
+                'vend_id' => (int) $row->vend_id,
+                'day' => (string) $row->day,
+                'transactions' => (int) $row->transactions,
+                'revenue' => (int) $row->revenue,
+                'units' => (int) $row->units,
+            ])->values()->all();
     }
 
     /**

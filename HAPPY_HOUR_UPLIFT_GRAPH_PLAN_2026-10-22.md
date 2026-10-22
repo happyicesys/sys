@@ -1,6 +1,6 @@
 # Happy Hour graph: show what HH pulls along — plan (2026-10-22)
 
-**Status: BUILT 2026-10-22** (`HappyHourSales::dailyRelatedTotals`, `HappyHourCampaignStats`, `CampaignStatsCharts.vue`; test `test_related_total_sales_count_each_transaction_holding_a_happy_hour_unit_whole`). The "Build" section below is what shipped. Source: Daniel's annotated screenshot of "Happy Hour results · Default 30%" and
+**Status: BUILT 2026-10-22** (`HappyHourSales::dailyTotals` + `dailyBasketTotals`, `HappyHourCampaignStats` (cached 5 min), `CampaignStatsCharts.vue`; test `test_related_total_sales_count_each_transaction_holding_a_happy_hour_unit_whole`). The "Build" section below is what shipped. Source: Daniel's annotated screenshot of "Happy Hour results · Default 30%" and
 his 84 s screen recording explaining it (Dropbox `ScreenRecorderProject100.mp4`, sent by Brian 2026-10-22;
 the video is the same screenshot with his cursor, the content is in the voice-over, transcribed below).
 
@@ -74,7 +74,7 @@ On his 21 Oct figures: HH $521 of $830 → **37% non-HH**; HH 211 of 300 units �
 
 ## Build (about half a day)
 
-1. `HappyHourSales::dailyRelatedTotals($vendIds, $from, $to)`: per (campaign, day), related transactions,
+1. (Shipped as `dailyTotals` single rows + `HappyHourSales::dailyBasketTotals`.) Per (campaign, day), related transactions,
    multiple count, Related Total Sales, related dispensed qty. Two grouped queries over
    `(vend_id, transaction_datetime)`, same settled / not-refunded rules as `dailyTotals`.
 2. `HappyHourCampaignStats::daily` / `window` add `related_revenue`, `related_units`, `related_transactions`,
