@@ -93,19 +93,27 @@ function label(date) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-// The figure printed on top of each column (Brian, 2026-10-18; the related TOTAL on a stacked chart): whole
-// dollars for money, the count for units, two decimals for the per-machine average. Empty days get no label.
+// The figure printed on each column (Brian, 2026-10-18; the related TOTAL on a stacked chart): whole dollars
+// for money — no "$", so four digits still fit a phone-width bar (Brian, 2026-10-22; the axis carries the $) —
+// the count for units, two decimals for the per-machine average. Empty days get no label.
 function barLabel(m, v) {
   if (v == null || v === 0) return '';
-  if (m.money) return '$' + Math.round(v);
+  if (m.money) return String(Math.round(v));
   return m.decimals ? Number(v).toFixed(2) : String(Math.round(v));
 }
 
 const round2 = (v) => Math.round(v * 100) / 100;
 
+// Whether a bar segment is tall enough (px) for a figure inside it.
+const MIN_INSIDE_LABEL_PX = 16;
+function fitsInside(ctx) {
+  const bar = ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.dataIndex];
+  return !!bar && Math.abs(bar.base - bar.y) >= MIN_INSIDE_LABEL_PX;
+}
+
 function datasets(m) {
   const hh = props.days.map(d => (m.hh(d) == null ? null : m.hh(d)));
-  const bar = { type: 'bar', borderRadius: 3, borderSkipped: 'bottom', maxBarThickness: 28, yAxisID: 'y', order: 2 };
+  const bar = { type: 'bar', borderRadius: 3, borderSkipped: 'bottom', maxBarThickness: 34, barPercentage: 0.92, yAxisID: 'y', order: 2 };
   if (!m.stacked) {
     return [{ ...bar, label: m.title, data: hh, backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
       datalabels: { formatter: (v) => barLabel(m, v) } }];
@@ -116,7 +124,9 @@ function datasets(m) {
   return [
     { ...bar, label: 'Happy Hour', data: hh, stack: 's', backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
       // The Happy Hour figure inside the top of its own segment, in white (Brian, 2026-10-22).
-      borderRadius: 0, datalabels: { anchor: 'end', align: 'start', offset: 2, clamp: false, color: '#ffffff', formatter: (v) => barLabel(m, v) } },
+      // Left out on a segment too short to hold it (it would spill under the axis); the tooltip still has it.
+      borderRadius: 0, datalabels: { anchor: 'end', align: 'start', offset: 2, clamp: false, color: '#ffffff', display: fitsInside,
+        formatter: (v) => barLabel(m, v) } },
     { ...bar, label: 'Rest of the transactions', data: other, stack: 's', backgroundColor: OTHER, hoverBackgroundColor: OTHER_HOVER,
       // The column's total sits on its top segment.
       datalabels: { formatter: (v, ctx) => barLabel(m, total[ctx.dataIndex]) } },
@@ -165,7 +175,7 @@ function draw() {
             offset: 2,
             clamp: true,
             color: '#374151',
-            font: { size: 11, weight: '600' },
+            font: { size: 10, weight: '600' },
           },
           tooltip: {
             displayColors: false,
