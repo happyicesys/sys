@@ -115,7 +115,8 @@ function datasets(m) {
 
   return [
     { ...bar, label: 'Happy Hour', data: hh, stack: 's', backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
-      borderRadius: 0, datalabels: { display: false } },
+      // The Happy Hour figure inside the top of its own segment, in white (Brian, 2026-10-22).
+      borderRadius: 0, datalabels: { anchor: 'end', align: 'start', offset: 2, clamp: false, color: '#ffffff', formatter: (v) => barLabel(m, v) } },
     { ...bar, label: 'Rest of the transactions', data: other, stack: 's', backgroundColor: OTHER, hoverBackgroundColor: OTHER_HOVER,
       // The column's total sits on its top segment.
       datalabels: { formatter: (v, ctx) => barLabel(m, total[ctx.dataIndex]) } },
