@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaymentMethod extends Model
 {
+    /** `code` of Cash (coins / notes at the machine) — every other method is cashless. */
+    public const CODE_CASH = 0;
+
     /** `code` of the Card Terminal method (NETS reader). The ONLY method the NETS settlement report can carry. */
     public const CODE_CARD_TERMINAL = 1;
 

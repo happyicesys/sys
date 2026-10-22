@@ -1686,6 +1686,12 @@
 								<span v-if="hh.l7d_units !== null && hh.l7d_units !== undefined" class="text-red-600 font-semibold">
 									L7d: {{ hh.l7d_units }} pcs sold
 								</span>
+								<!-- The machine's L7d Non-HH % (Brian, 2026-10-23): the campaign page's formula, in $ —
+								     how much other spending its Happy Hour sales brought along. -->
+								<span v-if="happyHourTrend(vend) && happyHourTrend(vend).non_hh_pct_7d !== null" class="font-semibold text-amber-900"
+									v-tooltip="{ content: nonHhTooltip(happyHourTrend(vend)), html: true }">
+									L7d Non-HH: {{ happyHourTrend(vend).non_hh_pct_7d }}%
+								</span>
 								<span v-if="hh.ineligible" class="text-red-600 font-semibold">
 									⚠ Not running
 								</span>
@@ -1693,6 +1699,15 @@
 									⚠ Ignored: UI Setting
 								</span>
 							</div>
+							<!-- Daily HH sold qty, L30d → today (Brian, 2026-10-23). -->
+							<TrendSparkline
+								v-if="happyHourTrend(vend) && vend.vend && vend.vend.happy_hour_campaigns && vend.vend.happy_hour_campaigns.length"
+								class="max-w-[9rem]"
+								title="Daily HH sold qty"
+								:percent="false"
+								hint="Happy Hour pieces sold per day; L30d and L7d are the average over the days it ran Happy Hour"
+								:points="happyHourQtyPoints(happyHourTrend(vend))"
+							/>
 							<span class="flex space-x-1 items-center">
 								<span>
 									<Button
@@ -3300,8 +3315,19 @@
 											</span>
 									</div>
 							</div>
-							<!-- Touch screen usage rate, L30d → today (Brian, 2026-10-22). -->
-							<TouchUsageSparkline :usage="vend.vendTransactionTotalsJson ? vend.vendTransactionTotalsJson.touch_usage : null" />
+							<!-- Touch screen and cashless rates by transaction count, L30d → today (Brian, 2026-10-22/23). -->
+							<TrendSparkline
+								v-if="hasRate(totalsOf(vend).touch_usage, 'touch')"
+								title="Touch screen"
+								hint="Transactions made on the touch screen ÷ all transactions"
+								:points="ratePoints(totalsOf(vend).touch_usage, 'touch')"
+							/>
+							<TrendSparkline
+								v-if="hasRate(totalsOf(vend).cashless_usage, 'cashless')"
+								title="Cashless"
+								hint="Transactions paid any way but cash ÷ all paid transactions"
+								:points="ratePoints(totalsOf(vend).cashless_usage, 'cashless')"
+							/>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
@@ -3612,7 +3638,8 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import TableData from '@/Components/TableData.vue';
 	import SmartChillerRowCells from '@/Components/SmartChillerRowCells.vue';
 	import CriticalAttentionPanel from '@/Components/OpsDashboard/CriticalAttentionPanel.vue';
-	import TouchUsageSparkline from '@/Components/OpsDashboard/TouchUsageSparkline.vue';
+	import TrendSparkline from '@/Components/OpsDashboard/TrendSparkline.vue';
+	import { ratePoints, hasRate, happyHourQtyPoints } from '@/composables/opsTrendPoints';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
 	import { ref, computed, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
@@ -5457,6 +5484,15 @@ function onPickListModalClose() {
 function onShowAllFiltersClicked() {
 		showAllFilters.value = !showAllFilters.value
 }
+
+// The stored totals the trend graphs read (SyncVendTransactionTotalsJson) — {} when the row has none.
+const totalsOf = (vend) => vend.vendTransactionTotalsJson || {}
+const happyHourTrend = (vend) => totalsOf(vend).happy_hour || null
+const nonHhTooltip = (hh) => '<div class="mb-1 font-semibold">Non-HH % (last 7 days)</div>'
+	+ '<div class="mb-1 opacity-80">Related sales that were not Happy Hour units — every HH sale and every basket holding one, counted whole — the campaign page\'s formula, in $</div>'
+	+ `<div>Related sales <b>${money(hh.related_revenue_7d)}</b>, of which Happy Hour <b>${money(hh.hh_revenue_7d)}</b></div>`
+// Integer cents → the operator's currency, at display only.
+const money = (cents) => `${operatorCountry?.currency_symbol ?? '$'}${(Number(cents || 0) / Math.pow(10, operatorCountry?.currency_exponent ?? 2)).toFixed(2)}`
 
 // "Show Alert/Error" (Brian, 2026-10-19): a search with the page's other filters kept.
 const alertsOnly = computed(() => !!props.machineAlerts)

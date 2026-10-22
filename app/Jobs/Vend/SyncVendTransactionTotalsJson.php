@@ -4,8 +4,9 @@ namespace App\Jobs\Vend;
 
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Services\OpsDashboard\MachineHappyHourTrend;
 use App\Support\DispenseVerdict;
-use App\Support\TouchScreenUsage;
+use App\Support\TransactionMix;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -54,7 +55,7 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
      *
      * @return void
      */
-    public function handle()
+    public function handle(MachineHappyHourTrend $happyHourTrend)
     {
         if ($this->model instanceof Vend) {
             $vend = $this->model;
@@ -66,10 +67,10 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        // Touch screen usage (pieces via the touch screen ÷ all pieces) per window — the Operation
-        // Dashboard's line graph (App\Support\TouchScreenUsage). Computed once, written to both the
-        // machine's and the Site's totals, since the dashboard reads either.
-        $touchUsage = $vend ? $this->touchUsage($vend) : null;
+        // The Operation Dashboard's trend graphs, by transaction count (touch screen, cashless —
+        // App\Support\TransactionMix) and Happy Hour (MachineHappyHourTrend). Computed once, written to
+        // both the machine's and the Site's totals, since the dashboard reads either.
+        $trends = $vend ? $this->trends($vend, $happyHourTrend) : [];
 
         if ($vend) {
             $todayTxns = $vend->daysVendTransactions(0, 0);
@@ -144,7 +145,7 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
 
             $vend->update([
                 'vend_transaction_totals_json' => [
-                    'touch_usage' => $touchUsage,
+                    ...$trends,
                     'today_amount' => $todayAmount,
                     'today_count' => $todayCount,
                     'yesterday_amount' => (int) $records1->sum('total_amount'),
@@ -259,7 +260,7 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
 
             $customer->update([
                 'totals_json' => [
-                    'touch_usage' => $touchUsage,
+                    ...$trends,
                     'today_amount' => $todayAmount,
                     'today_count' => $todayCount,
                     'yesterday_amount' => (int) $records1->sum('total_amount'),
@@ -304,14 +305,21 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
         }
     }
 
-    /** Vending machines only: a freezer or chiller has no keypad, so the rate would always be 100% or 0%. */
-    private function touchUsage(Vend $vend): ?array
+    /**
+     * touch_usage / cashless_usage / happy_hour for the dashboard's trend graphs. Vending machines only: a
+     * freezer or chiller has no keypad, cash or Happy Hour line to compare with. Keys always present (null
+     * otherwise), so a machine that stops qualifying loses a stale graph.
+     *
+     * @return array{touch_usage: ?array, cashless_usage: ?array, happy_hour: ?array}
+     */
+    private function trends(Vend $vend, MachineHappyHourTrend $happyHourTrend): array
     {
         if (($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) !== Vend::MACHINE_TYPE_VENDING_MACHINE) {
-            return null;
+            return ['touch_usage' => null, 'cashless_usage' => null, 'happy_hour' => null];
         }
 
-        return TouchScreenUsage::forVend((int) $vend->id);
+        return TransactionMix::forVend((int) $vend->id)
+            + ['happy_hour' => $happyHourTrend->forVend((int) $vend->id)];
     }
 
     private function calculateSuccessfulItemCount($transactionQuery): int

@@ -1849,19 +1849,28 @@ frame (Coin Float: its red tag, since the badge itself opens the float history) 
 Sales Transactions in a new tab, from that rail's last sale, 7 to 31 days back. Regression coverage:
 `tests/Unit/PaymentRailIdleTest.php`, `tests/Feature/OpsDashboardPaymentRailIdleTest.php`.
 
-**Touch screen usage rate** (Brian, 2026-10-22). Under the Card Terminal badge in the Payment Device
-column, a line graph of pieces sold through the touch screen ÷ all pieces sold, L30d → L7d → Y'day →
-Today (`Components/OpsDashboard/TouchUsageSparkline.vue`): green when today (else yesterday) is at or
-above the 30-day rate, red below; hover lists all four as "x% (touch of total pcs)"; hidden on a machine
-that sold nothing through a touch screen in 30 days (a keypad-only board). `App\Support\TouchScreenUsage`
-is the one rule: touch = `vend_transactions.interface_type` 1 (TRADE `TXN_SRC` 1 — the APK built the
-order) except Grab Mart (`Grab::PAYMENT_METHOD_GRABMART`, which the APK also marks 1 but was ordered
-online); keypad is 0 / blank, keypad QR 50, remote dispense 2. Pieces as Sales(qty) counts them, settled
-sales only; windows start at midnight: today, yesterday, today + 6 days, today + 29 days.
-`SyncVendTransactionTotalsJson` (after every sale, unique per 3 min) stores it as
-`vend_transaction_totals_json.touch_usage` and in the Site's `totals_json`, vending machines only — one
-indexed range scan, 27 ms on the busiest machine (prod 2026-10-22), so the page adds no query. A machine
-shows it after its next sale. Regression coverage: `tests/Feature/TouchScreenUsageTest.php`.
+**Trend graphs by transaction count + Happy Hour** (Brian, 2026-10-22/23). Small four-point line graphs, L30d →
+L7d → Y'day → Today, all drawn by `Components/OpsDashboard/TrendSparkline.vue` from points built in
+`composables/opsTrendPoints.js`: green when the latest point (today, else yesterday) is at or above L30d, red below,
+grey with nothing to compare; hover lists the four with their counts; a window with nothing breaks the line. Under
+the Card Terminal badge: **Touch screen** (transactions made on the touch screen ÷ all transactions) and **Cashless**
+(transactions paid any way but cash ÷ transactions with a payment method on record) — by TRANSACTION, never pieces
+(Brian, 2026-10-23: a touch-screen basket holds several, which skewed the first, piece-based version); each hidden on a
+machine that never used that way in 30 days. `App\Support\TransactionMix` is the one rule: a transaction = a settled
+sale that sold ≥ 1 piece (Sales(qty)'s count; a failed or refunded sale is none); touch = `interface_type` 1 (TRADE
+`TXN_SRC` 1) except Grab Mart (`Grab::PAYMENT_METHOD_GRABMART`, also 1 but ordered online) — keypad is 0 / blank, keypad
+QR 50, remote dispense 2; cashless = `payment_methods.code` ≠ `PaymentMethod::CODE_CASH` (card, QR / e-wallets, HID,
+Grab). In the first column's Happy Hour box: **L7d Non-HH %** and a **Daily HH sold qty** graph —
+`App\Services\OpsDashboard\MachineHappyHourTrend`, the campaign page's rules for one machine: HH units / sales =
+tagged sales (`HappyHourSales::dailyTotals`), related = every single HH sale + every tagged basket counted whole
+(`dailyBasketTotals`), never below the HH part; Non-HH % = (related − HH) ÷ related in $; L30d / L7d qty = the
+average over the days the machine ran Happy Hour (a non-cancelled slot started that day), Y'day / today as they are,
+no point on a day without Happy Hour. Windows start at midnight: today, yesterday, today + 6, today + 29.
+`SyncVendTransactionTotalsJson` (after each sale, unique per 3 min) computes them once and stores `touch_usage`,
+`cashless_usage`, `happy_hour` in `vend_transaction_totals_json` and the Site's `totals_json` — vending machines only
+(null otherwise; `happy_hour` null with no slot in 30 days). Indexed range scans: ≤ 40 ms for the mix, ~30 ms for Happy
+Hour per machine on prod (2026-10-23), so the page adds no query. Regression coverage:
+`tests/Feature/TransactionMixTest.php`, `tests/Feature/MachineHappyHourTrendTest.php`.
 
 ## Fan detection: the board decides, a person can only reset
 
