@@ -480,6 +480,13 @@
               {{ statsData.total.units }} units over {{ statsData.total.machine_days }} machine-days
               ({{ statsData.total.avg_daily_units_per_machine ?? '—' }} units per machine per day). A machine counts on each day it ran a slot.
             </p>
+            <!-- HH is the bridge (Daniel, 2026-10-22): the whole of every transaction that held a Happy Hour unit. -->
+            <p class="mt-1 mb-3 text-xs text-gray-700">
+              Related Total Sales {{ money(statsData.total.related_revenue) }} over {{ statsData.total.related_transactions }} transactions
+              ({{ statsData.total.related_multiple }} multiple purchases), {{ statsData.total.related_units }} units —
+              <span class="font-semibold">non-HH {{ statsData.total.non_hh_revenue_pct ?? '—' }}% of sales, {{ statsData.total.non_hh_units_pct ?? '—' }}% of units</span>.
+              A transaction counts whole when it holds at least one Happy Hour unit.
+            </p>
             <CampaignStatsCharts :days="statsData.days" :total="statsData.total" />
           </template>
         </div>
@@ -617,6 +624,8 @@ const statRows = [
   { key: 'discount', name: 'Total $disc', format: (v) => money(v ?? 0), title: 'Normal price less the Happy Hour price, per unit sold' },
   { key: 'units', name: 'Total qty', format: (v) => v ?? 0, title: 'Happy Hour units sold' },
   { key: 'avg_daily_units_per_machine', name: 'Avg daily qty / VM', format: (v) => v ?? '—', title: 'Units per machine per day it ran a slot' },
+  { key: 'related_revenue', name: 'Related sales', format: (v) => money(v ?? 0), title: 'The whole of every transaction that held a Happy Hour unit' },
+  { key: 'non_hh_revenue_pct', name: 'Non-HH %', format: (v) => (v == null ? '—' : v + '%'), title: 'Share of Related sales that is not the Happy Hour units — what Happy Hour pulled along' },
 ]
 const showStats = ref(false)
 const statsCampaign = ref(null)

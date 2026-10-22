@@ -872,6 +872,49 @@ class HappyHourCampaignTest extends TestCase
         $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats?from=junk")->assertStatus(422);
     }
 
+    public function test_related_total_sales_count_each_transaction_holding_a_happy_hour_unit_whole(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [9, 10, 3.00, 9]]);
+        $campaign = $this->campaign(['sku_count' => 1]);
+        $a = $this->products['A']->id;
+        $b = $this->products['B']->id;
+        foreach (['13:58:00', '14:00:00'] as $t) {
+            Carbon::setTestNow("2026-10-09 {$t}");
+            $this->planner()->run(now());
+        }
+        $this->sale($a, 240, '2026-10-09 14:05:00');                                        // HH alone: 0% non-HH
+        $five = $this->basket([[$a, 240], [$b, 300], [$b, 300], [$b, 300], [$b, 300]], '2026-10-09 14:10:00'); // 1 of 5 is HH: counted whole
+        DB::table('vend_transaction_items')->where('vend_transaction_id', $five->id)->where('product_id', $b)->limit(1)
+            ->update(['vend_channel_error_code' => 7]);                                      // a failed line is paid but not a unit
+        DB::table('vend_transactions')->where('id', $this->sale($a, 240, '2026-10-09 14:15:00')->id)->update(['is_refunded' => 1]);
+        $this->basket([[$b, 300], [$b, 300]], '2026-10-09 14:20:00');                      // no HH unit: not related
+        $this->sale($b, 300, '2026-10-09 14:25:00');                                        // full price: not related
+
+        Carbon::setTestNow('2026-10-09 14:40:00');
+        $user = User::factory()->create(['operator_id' => 1]);
+        $user->givePermissionTo(Permission::findOrCreate('read happy-hour-campaigns', 'web'));
+
+        // HH: 2 units, $4.80. Related: 2 transactions, $2.40 + $14.40 = $16.80, 1 + 4 dispensed units.
+        $expect = [
+            'revenue' => 480, 'units' => 2,
+            'related_transactions' => 2, 'related_multiple' => 1, 'related_revenue' => 1680, 'related_units' => 5,
+            'related_units_per_machine' => 5, 'non_hh_revenue_pct' => 71.4, 'non_hh_units_pct' => 60,
+        ];
+        $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(function ($page) use ($expect) {
+                foreach ($expect as $key => $value) {
+                    $page->where("campaigns.0.stats.l24h.{$key}", $value);
+                }
+            });
+        $json = $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats")->assertOk()->json();
+        foreach ($expect as $key => $value) {
+            $this->assertEquals($value, $json['days'][6][$key], "day {$key}");
+            $this->assertEquals($value, $json['total'][$key], "total {$key}");
+        }
+        $this->assertNull($json['days'][0]['non_hh_revenue_pct'], 'a day with no sales has no share');
+        $this->assertSame(0, $json['days'][0]['related_revenue']);
+    }
+
     public function test_the_trade_ingest_tags_a_freezer_sale_made_at_the_promo_price(): void
     {
         PaymentMethod::firstOrCreate(['code' => 0], ['name' => 'Cash', 'is_active' => true]);

@@ -221,6 +221,62 @@ final class HappyHourSales
     }
 
     /**
+     * "Related Total Sales" (Daniel, 2026-10-22: HH is the bridge — "如果说 5 支里面有一支是 Happy Hour 的也算"):
+     * every settled, not-refunded transaction holding at least one Happy Hour unit, counted WHOLE — the
+     * header is tagged on a single sale and on a basket that includes a promo unit, so this is the set
+     * Sales Transactions lists under that campaign's label. One row per (campaign, machine, sale date):
+     * transactions, multiple purchases, what the customer paid (header amount) and the dispensed units
+     * (a single sale's own verdict; a basket's lines with a sale code, not refunded). Two grouped queries
+     * over (vend_id, transaction_datetime). Read by HappyHourCampaignStats beside dailyTotals().
+     *
+     * @param  iterable<int>  $vendIds
+     * @return list<array{campaign_id: int, vend_id: int, day: string, transactions: int, multiple: int, revenue: int, units: int}>
+     */
+    public function dailyRelatedTotals(iterable $vendIds, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $vendIds = collect($vendIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if ($vendIds === []) {
+            return [];
+        }
+        $base = fn () => DB::table('vend_transactions as t')
+            ->join('happy_hour_slots as s', 's.id', '=', 't.happy_hour_slot_id')
+            ->whereIn('t.vend_id', $vendIds)
+            ->whereBetween('t.transaction_datetime', [$from, $to])
+            ->whereNotNull('t.happy_hour_slot_id')
+            ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+            ->where('t.is_refunded', 0)
+            ->groupBy('s.happy_hour_campaign_id', 't.vend_id', DB::raw('DATE(t.transaction_datetime)'));
+
+        $single = $base()
+            ->leftJoin('vend_channel_errors as e', 'e.id', '=', 't.vend_channel_error_id')
+            ->where('t.is_multiple', 0)
+            ->where(fn ($q) => $q->whereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
+            ->selectRaw('s.happy_hour_campaign_id AS campaign_id, t.vend_id, DATE(t.transaction_datetime) AS day,
+                COUNT(*) AS transactions, 0 AS multiple, SUM(t.amount) AS revenue, SUM(GREATEST(t.qty, 1)) AS units')
+            ->get();
+
+        $codes = implode(', ', array_map('intval', DispenseVerdict::SALE_CODES));
+        $multi = $base()
+            ->where('t.is_multiple', 1)
+            ->selectRaw("s.happy_hour_campaign_id AS campaign_id, t.vend_id, DATE(t.transaction_datetime) AS day,
+                COUNT(*) AS transactions, COUNT(*) AS multiple, SUM(t.amount) AS revenue,
+                SUM((SELECT COUNT(*) FROM vend_transaction_items i WHERE i.vend_transaction_id = t.id
+                    AND (i.vend_channel_error_code IS NULL OR i.vend_channel_error_code IN ({$codes}))
+                    AND (i.is_refunded IS NULL OR i.is_refunded = 0))) AS units")
+            ->get();
+
+        return $single->concat($multi)->map(fn ($row) => [
+            'campaign_id' => (int) $row->campaign_id,
+            'vend_id' => (int) $row->vend_id,
+            'day' => (string) $row->day,
+            'transactions' => (int) $row->transactions,
+            'multiple' => (int) $row->multiple,
+            'revenue' => (int) $row->revenue,
+            'units' => (int) $row->units,
+        ])->values()->all();
+    }
+
+    /**
      * The "Happy Hour" badge for each slot id, for one page of Sales Transactions.
      *
      * @param  iterable<int|string|null>  $slotIds

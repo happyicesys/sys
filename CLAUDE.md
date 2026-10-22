@@ -1137,6 +1137,12 @@ What a campaign is:
   `HappyHourCampaignStats` owns the figures: the campaign's TAGGED sales (`HappyHourSales::dailyTotals`, the slot
   results' rules) on machines the viewer may see; "per VM" = per machine-day on which it ran a slot (cancelled slots
   never ran), so a young campaign is not divided by 30.
+- **Related Total Sales** (Daniel, 2026-10-22, `HAPPY_HOUR_UPLIFT_GRAPH_PLAN_2026-10-22.md`: HH is the bridge to the rest
+  of the basket): every settled, not-refunded transaction whose HEADER carries `happy_hour_slot_id`, counted WHOLE (header
+  amount; dispensed units = a single sale's verdict / a basket's lines with a sale code) —
+  `HappyHourSales::dailyRelatedTotals`, the same set Sales Transactions lists under the campaign's label. The graph stacks
+  HH + the rest on sales, units and units per machine, with a `non_hh_*_pct` line (0–100%); the Campaign column shows
+  "Related sales" and "Non-HH %". The related total is clamped to never read below the HH part.
 
 `HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute, and once
 on each save. It:
