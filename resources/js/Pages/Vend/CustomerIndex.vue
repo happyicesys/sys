@@ -1675,8 +1675,8 @@
 								class="inline-flex flex-col rounded px-0.5 py-0.5 text-xs border w-fit bg-amber-100 text-amber-800 border-amber-300 cursor-help"
 								v-tooltip="happyHourTooltip(hh)"
 							>
+								<!-- No days / time line (Brian, 2026-10-23); the schedule stays in the hover. -->
 								<span class="font-semibold">★ HH −{{ hh.discount_pct }}% {{ hh.name }}</span>
-								<span class="text-amber-700">{{ hh.days }} {{ hh.window }}</span>
 								<span v-if="hh.starts_on" class="text-amber-700">
 									Starts: {{ hh.starts_on }}
 								</span>
