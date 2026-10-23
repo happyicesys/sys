@@ -144,7 +144,7 @@
                     Product Name
                 </SearchInput>
             </div>
-            <div v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <OperatorFilter v-model="filters.operators" />
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
@@ -304,7 +304,7 @@
                     APK Ver
                 </SearchInput>
             </div>
-            <div v-if="showAllFilters">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Contract
                 </label>
@@ -363,7 +363,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div v-if="showAllFilters">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Model
                 </label>
@@ -380,7 +380,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div v-if="showAllFilters">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label class="block text-sm font-medium text-gray-700">
                     Campaign Label(s)
                 </label>
@@ -389,7 +389,7 @@
                     :options="tagOptions"
                     valueProp="id"
                     label="name"
-                    placeholder="Select tag"
+                    placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
                 />
