@@ -761,9 +761,6 @@
                         <TableHead>
                             Product Name
                         </TableHead>
-                        <TableHead>
-                            Price Type
-                        </TableHead>
                         <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount', true)">
                             Amount {{ operatorCountry.currency_symbol }}
                         </TableHeadSort>
@@ -857,25 +854,6 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             {{ vendTransaction.product_name }}
-                        </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <div
-                                class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
-                                :class="[vendTransaction.amount === vendTransaction.vend_channel_amount ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : (vendTransaction.amount === vendTransaction.vend_channel_amount2 ? 'bg-purple-100 text-purple-800 border-purple-300' : '')]"
-                                v-if="(vendTransaction.amount === vendTransaction.vend_channel_amount) || (vendTransaction.amount === vendTransaction.vend_channel_amount2)"
-                            >
-                                <div class="flex flex-col">
-                                    <span class="font-semibold grow-0" v-if="vendTransaction.amount === vendTransaction.vend_channel_amount && vendTransaction.amount === vendTransaction.vend_channel_amount2">
-                                        P1
-                                    </span>
-                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vend_channel_amount">
-                                        P1
-                                    </span>
-                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vend_channel_amount2">
-                                        P2
-                                    </span>
-                                </div>
-                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -1168,9 +1146,6 @@
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <!-- Price Type: header-level only -->
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                        </TableData>
                         <!-- Amount: what THIS line sold for — the actual price, a Happy Hour line at its promo
                              (Brian, 2026-10-19). A line that failed to dispense books no revenue (0), greyed. -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-right bg-gray-100">
@@ -1258,7 +1233,7 @@
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
-                        <td colspan="26" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                        <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                             No Results Found
                         </td>
                     </tr>

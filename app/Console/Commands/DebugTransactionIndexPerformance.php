@@ -109,7 +109,6 @@ class DebugTransactionIndexPerformance extends Command
                 ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                 ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
-                ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
@@ -128,7 +127,6 @@ class DebugTransactionIndexPerformance extends Command
                     'vend_transactions.vend_channel_code',
                     'products.code AS product_code',
                     'products.name AS product_name',
-                    'vend_channels.amount AS vend_channel_amount',
                     'vend_transactions.amount',
                     'payment_methods.name AS payment_method_name',
                     'vend_channel_errors.desc AS vend_channel_error_desc',

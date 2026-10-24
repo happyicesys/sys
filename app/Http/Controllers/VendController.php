@@ -4074,7 +4074,7 @@ class VendController extends Controller
             // produces identical ordering with O(n log n) cost instead.
             //
             // NOTE: sort key must be table-qualified here because the join set
-            // introduces columns with the same name (e.g. vend_channels.amount).
+            // introduces columns with the same name (e.g. customers.code / products.code).
             $sortKey = $request->sortKey ?: 'transaction_datetime';
             // Map bare column names to their qualified form to avoid ambiguity.
             $qualifiedSortKey = match (true) {
@@ -4102,7 +4102,8 @@ class VendController extends Controller
                 ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                 ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
-                ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+                // No vend_channels join: its amount / amount2 only fed the legacy P1/P2 "Price Type" column,
+                // removed from this table 2026-10-24 (Brian: VMCs no longer set a P2 price).
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
@@ -4131,8 +4132,6 @@ class VendController extends Controller
                     'vend_transactions.vend_channel_code',
                     'products.code AS product_code',
                     'products.name AS product_name',
-                    'vend_channels.amount AS vend_channel_amount',
-                    'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_transactions.amount',
                     'payment_methods.name AS payment_method_name',
                     'vend_transactions.cashless_mfg',
