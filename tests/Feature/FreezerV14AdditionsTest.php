@@ -105,6 +105,15 @@ class FreezerV14AdditionsTest extends TestCase
 
     // -------------------------------------------------------------- schedule
 
+    public function test_a_schedule_entry_goes_up_to_zero_and_no_higher(): void
+    {
+        // The top of the range is 0 °C since 2026-10-24 (it was -5).
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls/schedules", ['run_at' => '07:00', 'celsius' => 0])->assertCreated();
+        $this->postJson("/vends/{$vend->id}/freezer-controls/schedules", ['run_at' => '08:00', 'celsius' => 1])
+            ->assertStatus(422)->assertJsonValidationErrors('celsius');
+    }
+
     public function test_schedule_entries_are_added_listed_paused_and_removed(): void
     {
         Carbon::setTestNow('2026-09-17 10:00:00');

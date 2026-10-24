@@ -112,6 +112,18 @@ class FreezerRemoteControlTest extends TestCase
         $this->assertSame(0, FreezerControlCommand::count());
     }
 
+    public function test_the_setpoint_goes_up_to_zero_and_no_higher(): void
+    {
+        $vend = $this->freezer();
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => 1]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => -31]])->assertStatus(422);
+        // One accepted send per test: the controls page rate-limits a machine's commands.
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => 0]])->assertStatus(202);
+        $this->assertSame(['celsius' => 0], FreezerControlCommand::sole()->args);
+        $this->assertSame(0, FreezerControlService::SETPOINT_MAX);
+        $this->getJson("/vends/{$vend->id}/freezer-controls")->assertJsonPath('setpoint.max', 0);
+    }
+
     public function test_door_commands_need_the_door_permission(): void
     {
         $vend = $this->freezer();

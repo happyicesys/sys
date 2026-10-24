@@ -146,10 +146,13 @@ class FreezerControlService
     /** Largest full-log upload accepted, bytes gzipped. */
     public const LOG_UPLOAD_MAX_BYTES = 4194304;
 
-    /** Setpoint range accepted by the APK (ThermostatLimits). */
+    /**
+     * Setpoint range accepted by the APK (ThermostatLimits). The top was -5 until Brian raised it to 0 °C
+     * (2026-10-24); the AG-325 itself allows -45..+10. A freezer app older than 39 still refuses above -5.
+     */
     public const SETPOINT_MIN = -30;
 
-    public const SETPOINT_MAX = -5;
+    public const SETPOINT_MAX = 0;
 
     /**
      * Smallest APK versionCode that understands FREEZERCTL.
