@@ -89,7 +89,7 @@ class FreezerControlController extends Controller
             'supported_demist_fan' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DEMIST_FAN,
             // Camera clip check (APK 33): records and uploads one of our own door clips.
             'supported_clip' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_CLIP,
-            // Compressor Off for a chosen time, and a setpoint above -5 °C (APK 39).
+            // Compressor Off for a chosen time (APK 40).
             'supported_timed_off' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_TIMED_OFF,
             'compressor_off_minutes' => FreezerControlService::COMPRESSOR_OFF_MINUTES,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
@@ -99,7 +99,7 @@ class FreezerControlController extends Controller
             'photos' => $this->photoPayload($vend),
             'setpoint' => [
                 'min' => FreezerControlService::SETPOINT_MIN,
-                'max' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_TIMED_OFF
+                'max' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_SETPOINT_ZERO
                     ? FreezerControlService::SETPOINT_MAX : FreezerControlService::SETPOINT_MAX_BEFORE_39,
                 // The last one WE set — shown when the machine cannot read its setpoint back (app < 22
                 // or an older plugin); from app 22 the status snapshot carries the controller's own

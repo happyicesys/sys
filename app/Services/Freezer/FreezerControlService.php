@@ -154,17 +154,19 @@ class FreezerControlService
 
     public const SETPOINT_MAX = 0;
 
-    /** The highest setpoint a freezer app older than {@see MIN_APK_VERSION_CODE_TIMED_OFF} (39) accepts. */
+    /** APK 39 (published 2026-10-24) raised the setpoint top from -5 to 0 °C; an older app refuses above -5. */
+    public const MIN_APK_VERSION_CODE_SETPOINT_ZERO = 39;
+
     public const SETPOINT_MAX_BEFORE_39 = -5;
 
     /**
-     * APK 39: the compressor Off carries `minutes`, how long until the controller gets the compressor
+     * APK 40: the compressor Off carries `minutes`, how long until the controller gets the compressor
      * back (Brian, 2026-10-25). The app takes it to remote itself, holds it off for that long instead of
      * its 30-minute remote limit, then hands it back so the setpoint loop starts it again — and files
-     * the hand-back with a fresh status, so this page stops showing "off". An older app would drop the
-     * hold and hand the compressor back after 30 minutes. The same build raised the setpoint top to 0 °C.
+     * the hand-back with a fresh status, so this page stops showing "off". An older app would ignore
+     * the minutes and hand the compressor back after 30 minutes.
      */
-    public const MIN_APK_VERSION_CODE_TIMED_OFF = 39;
+    public const MIN_APK_VERSION_CODE_TIMED_OFF = 40;
 
     /** Choices for the timed Off, minutes: half an hour, then whole hours to 12. */
     public const COMPRESSOR_OFF_MINUTES = [30, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720];
@@ -349,8 +351,8 @@ class FreezerControlService
     }
 
     /**
-     * The smallest APK versionCode that understands this command, arguments included: a timed
-     * compressor Off and a setpoint above -5 °C need 39, the rest of the op whatever
+     * The smallest APK versionCode that understands this command, arguments included: a setpoint
+     * above -5 °C needs 39, a timed compressor Off 40, the rest of the op whatever
      * {@see minApkVersionFor()} says.
      */
     public static function minApkVersionForCommand(string $op, array $args): int
@@ -360,7 +362,7 @@ class FreezerControlService
             $min = max($min, self::MIN_APK_VERSION_CODE_TIMED_OFF);
         }
         if ($op === 'setpoint' && is_int($args['celsius'] ?? null) && $args['celsius'] > self::SETPOINT_MAX_BEFORE_39) {
-            $min = max($min, self::MIN_APK_VERSION_CODE_TIMED_OFF);
+            $min = max($min, self::MIN_APK_VERSION_CODE_SETPOINT_ZERO);
         }
 
         return $min;

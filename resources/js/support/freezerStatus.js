@@ -148,15 +148,15 @@ export class FreezerStatus {
         return this.thermostat.compressorRemoteMode ?? null;
     }
 
-    /** When a timed compressor Off ends (app 39+), epoch ms; null when none is running. */
+    /** When a timed compressor Off ends (app 40+), epoch ms; null when none is running. */
     get compressorOffUntil() {
         const until = numberOrNull(this.raw?.compressorOffUntil);
         return until !== null && until > 0 ? until : null;
     }
 
-    /** App 39+ takes the compressor to remote itself for a timed Off, so Off works in either mode. */
+    /** App 40+ takes the compressor to remote itself for a timed Off, so Off works in either mode. */
     get timedOffManaged() {
-        return Number(this.raw?.apk?.versionCode ?? 0) >= 39;
+        return Number(this.raw?.apk?.versionCode ?? 0) >= 40;
     }
 
     /** The thermostat's fan output (the lid demister); the driver board's reading when the thermostat has none. */

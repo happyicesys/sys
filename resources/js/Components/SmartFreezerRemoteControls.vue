@@ -197,7 +197,7 @@
               </div>
 
               <!--
-                App 39+: Off asks how long (0.5–12 h). The machine takes the compressor to remote itself, keeps
+                App 40+: Off asks how long (0.5–12 h). The machine takes the compressor to remote itself, keeps
                 it off for that long instead of its 30-minute remote limit, then gives it back to the controller,
                 which starts it from the setpoint. On, or Compressor control → Controller, ends it sooner.
               -->
@@ -208,7 +208,7 @@
                 <ControlButton v-if="data.supported_timed_off" :disabled="!canSend" :active="status.compressorOn === false"
                                @click="openTimedOff">Off…</ControlButton>
                 <ControlButton v-else :disabled="!!compressorBlocked" :active="status.compressorOn === false"
-                               @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on. The machine hands it back to the controller after ' + REMOTE_LEASE_MINUTES + ' minutes; a chosen duration needs app v39.')">Off</ControlButton>
+                               @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on. The machine hands it back to the controller after ' + REMOTE_LEASE_MINUTES + ' minutes; a chosen duration needs app v40.')">Off</ControlButton>
               </ControlRow>
 
               <ControlRow label="Compressor control" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
@@ -614,14 +614,14 @@ const REMOTE_LEASE_MINUTES = 30
  */
 const compressorBlocked = computed(() => blockedReason.value || (status.value.compressorRemote === false ? 'The controller owns the compressor — set Compressor control to Remote first.' : ''))
 
-/** The timed compressor Off (app 39+): the chooser, and when a running one ends. */
+/** The timed compressor Off (app 40+): the chooser, and when a running one ends. */
 const timedOff = ref({ open: false, minutes: 60 })
 const offUntil = computed(() => {
   const until = status.value.compressorOffUntil
   return until !== null && until > now.value ? until : null
 })
 const offUntilNote = computed(() => (offUntil.value ? 'off until ' + moment(offUntil.value).format('ddd HH:mm') : ''))
-/** Off works in either mode from app 39 (the machine takes the compressor to remote), so only On is held back. */
+/** Off works in either mode from app 40 (the machine takes the compressor to remote), so only On is held back. */
 const compressorRowReason = computed(() => (data.value.supported_timed_off && !blockedReason.value && compressorBlocked.value
   ? 'On needs Compressor control set to Remote. Off works either way.'
   : compressorBlocked.value))

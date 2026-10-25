@@ -136,7 +136,7 @@ class FreezerRemoteControlTest extends TestCase
 
     public function test_a_timed_compressor_off_is_sent_with_its_minutes(): void
     {
-        $vend = $this->freezer(['apk_version_code' => 39]);
+        $vend = $this->freezer(['apk_version_code' => 40]);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 45]])->assertStatus(422);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 780]])->assertStatus(422);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => true, 'minutes' => 60]])->assertStatus(422);
@@ -149,11 +149,13 @@ class FreezerRemoteControlTest extends TestCase
             ->assertJsonPath('compressor_off_minutes.12', 720);
     }
 
-    public function test_a_timed_compressor_off_needs_freezer_app_39_but_a_plain_off_does_not(): void
+    public function test_a_timed_compressor_off_needs_freezer_app_40_but_a_plain_off_does_not(): void
     {
-        $old = $this->freezer(['apk_version_code' => 38]);
+        // 39 is published and takes a setpoint up to 0 °C, but not the timed Off.
+        $old = $this->freezer(['apk_version_code' => 39]);
+        $this->getJson("/vends/{$old->id}/freezer-controls")->assertJsonPath('setpoint.max', 0)->assertJsonPath('supported_timed_off', false);
         $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 120]])
-            ->assertStatus(422)->assertJsonPath('message', "This machine's app is too old for this control (needs versionCode 39).");
+            ->assertStatus(422)->assertJsonPath('message', "This machine's app is too old for this control (needs versionCode 40).");
         $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false]])->assertStatus(202);
         $this->assertSame(['on' => false], FreezerControlCommand::sole()->args);
     }
