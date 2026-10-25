@@ -164,6 +164,7 @@ const OP_LABELS = {
     sdkcall: 'SDK call',
     beep: 'Beep',
     power: 'Mains',
+    thermostat: 'Compressor handed back',
     camera: 'Camera',
 };
 
@@ -185,6 +186,9 @@ const RESULT_LABELS = {
 export function describeCommand(command) {
     const args = command.args || {};
     if (command.op && command.op.startsWith('error:')) return `Error logged by ${command.op.slice(6)}`;
+    if (command.op === 'compressor' && args.on === false && args.minutes) {
+        return `Compressor off for ${args.minutes === 30 ? '0.5' : args.minutes / 60} h`;
+    }
     if ('on' in args) return `${OP_LABELS[command.op]} ${args.on ? 'on' : 'off'}`;
     if ('celsius' in args) return `${OP_LABELS[command.op]} ${args.celsius} °C`;
     if ('step' in args) return `${OP_LABELS[command.op]} ${args.step}`;

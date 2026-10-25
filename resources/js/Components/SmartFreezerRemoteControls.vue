@@ -196,11 +196,19 @@
                 </div>
               </div>
 
-              <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)" :reason="compressorBlocked">
+              <!--
+                App 39+: Off asks how long (0.5–12 h). The machine takes the compressor to remote itself, keeps
+                it off for that long instead of its 30-minute remote limit, then gives it back to the controller,
+                which starts it from the setpoint. On, or Compressor control → Controller, ends it sooner.
+              -->
+              <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)"
+                          :note="offUntilNote" :reason="compressorRowReason">
                 <ControlButton :disabled="!!compressorBlocked" :active="status.compressorOn === true"
-                               @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.')">On</ControlButton>
-                <ControlButton :disabled="!!compressorBlocked" :active="status.compressorOn === false"
-                               @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on.')">Off</ControlButton>
+                               @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.' + (offUntil ? ' This also ends the timed Off.' : ''))">On</ControlButton>
+                <ControlButton v-if="data.supported_timed_off" :disabled="!canSend" :active="status.compressorOn === false"
+                               @click="openTimedOff">Off…</ControlButton>
+                <ControlButton v-else :disabled="!!compressorBlocked" :active="status.compressorOn === false"
+                               @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on. The machine hands it back to the controller after ' + REMOTE_LEASE_MINUTES + ' minutes; a chosen duration needs app v39.')">Off</ControlButton>
               </ControlRow>
 
               <ControlRow label="Compressor control" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
@@ -406,6 +414,28 @@
         @take="(id) => send('photo', { cameraId: id })"
         @close="cameraOpen = false"
       />
+      <Modal :open="timedOff.open" @modalClose="timedOff.open = false">
+        <template #header><span class="font-semibold text-black">Switch the compressor off</span></template>
+        <template #default>
+          <label class="block text-sm text-gray-700">
+            Turn back on after
+            <select v-model.number="timedOff.minutes" class="ml-2 rounded-md border-gray-300 py-1 text-sm">
+              <option v-for="m in data.compressor_off_minutes || []" :key="m" :value="m">{{ hoursLabel(m) }}</option>
+            </select>
+          </label>
+          <p class="mt-2 text-sm text-gray-700">
+            Back on at about <span class="font-semibold">{{ backOnAt }}</span>. The chamber warms while it is off.
+            Then the controller takes the compressor back and starts it from its setpoint.
+          </p>
+          <p class="mt-1 text-xs text-gray-500">Pressing On, or Compressor control → Controller, ends it sooner. A restart of the machine keeps the time.</p>
+          <div class="mt-4 flex justify-end space-x-2">
+            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="timedOff.open = false">Cancel</Button>
+            <Button type="button" class="bg-red-600 hover:bg-red-700 text-white" :disabled="!timedOff.minutes" @click.prevent="sendTimedOff">
+              Off for {{ hoursLabel(timedOff.minutes) }}
+            </Button>
+          </div>
+        </template>
+      </Modal>
       <Modal :open="!!confirm" @modalClose="confirm = null">
         <template #header><span class="font-semibold text-black">{{ confirm?.title }}</span></template>
         <template #default>
@@ -583,6 +613,34 @@ const REMOTE_LEASE_MINUTES = 30
  * it. Same rule the machine's own service panel applies, so both screens grey out the same buttons.
  */
 const compressorBlocked = computed(() => blockedReason.value || (status.value.compressorRemote === false ? 'The controller owns the compressor — set Compressor control to Remote first.' : ''))
+
+/** The timed compressor Off (app 39+): the chooser, and when a running one ends. */
+const timedOff = ref({ open: false, minutes: 60 })
+const offUntil = computed(() => {
+  const until = status.value.compressorOffUntil
+  return until !== null && until > now.value ? until : null
+})
+const offUntilNote = computed(() => (offUntil.value ? 'off until ' + moment(offUntil.value).format('ddd HH:mm') : ''))
+/** Off works in either mode from app 39 (the machine takes the compressor to remote), so only On is held back. */
+const compressorRowReason = computed(() => (data.value.supported_timed_off && !blockedReason.value && compressorBlocked.value
+  ? 'On needs Compressor control set to Remote. Off works either way.'
+  : compressorBlocked.value))
+const backOnAt = computed(() => moment(now.value + (timedOff.value.minutes || 0) * 60000).format('ddd HH:mm'))
+
+function hoursLabel(minutes) {
+  return minutes === 30 ? '0.5 hour' : minutes / 60 + (minutes === 60 ? ' hour' : ' hours')
+}
+
+function openTimedOff() {
+  timedOff.value = { open: true, minutes: timedOff.value.minutes || 60 }
+}
+
+function sendTimedOff() {
+  const minutes = timedOff.value.minutes
+  timedOff.value.open = false
+  if (minutes) send('compressor', { on: false, minutes })
+}
+
 const fanBlocked = computed(() => blockedReason.value || (status.value.fanRemote === false ? 'The controller owns the fan (door switch) — set Fan control to Remote first.' : ''))
 const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_batch2 ? '' : "This machine's app is older than v14; these controls need the update."))
 

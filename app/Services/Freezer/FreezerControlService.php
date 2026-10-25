@@ -154,6 +154,21 @@ class FreezerControlService
 
     public const SETPOINT_MAX = 0;
 
+    /** The highest setpoint a freezer app older than {@see MIN_APK_VERSION_CODE_TIMED_OFF} (39) accepts. */
+    public const SETPOINT_MAX_BEFORE_39 = -5;
+
+    /**
+     * APK 39: the compressor Off carries `minutes`, how long until the controller gets the compressor
+     * back (Brian, 2026-10-25). The app takes it to remote itself, holds it off for that long instead of
+     * its 30-minute remote limit, then hands it back so the setpoint loop starts it again — and files
+     * the hand-back with a fresh status, so this page stops showing "off". An older app would drop the
+     * hold and hand the compressor back after 30 minutes. The same build raised the setpoint top to 0 °C.
+     */
+    public const MIN_APK_VERSION_CODE_TIMED_OFF = 39;
+
+    /** Choices for the timed Off, minutes: half an hour, then whole hours to 12. */
+    public const COMPRESSOR_OFF_MINUTES = [30, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720];
+
     /**
      * Smallest APK versionCode that understands FREEZERCTL.
      *
@@ -333,6 +348,24 @@ class FreezerControlService
         };
     }
 
+    /**
+     * The smallest APK versionCode that understands this command, arguments included: a timed
+     * compressor Off and a setpoint above -5 °C need 39, the rest of the op whatever
+     * {@see minApkVersionFor()} says.
+     */
+    public static function minApkVersionForCommand(string $op, array $args): int
+    {
+        $min = self::minApkVersionFor($op);
+        if ($op === 'compressor' && ($args['minutes'] ?? null) !== null) {
+            $min = max($min, self::MIN_APK_VERSION_CODE_TIMED_OFF);
+        }
+        if ($op === 'setpoint' && is_int($args['celsius'] ?? null) && $args['celsius'] > self::SETPOINT_MAX_BEFORE_39) {
+            $min = max($min, self::MIN_APK_VERSION_CODE_TIMED_OFF);
+        }
+
+        return $min;
+    }
+
     /** @return array<string, mixed> the arguments to send */
     private function validate(string $op, array $args): array
     {
@@ -349,7 +382,8 @@ class FreezerControlService
                 ? ['probe' => $args['probe']]
                 : throw ValidationException::withMessages(['args.probe' => 'Choose one of the listed diagnostics.']),
             'sdkcall' => $this->sdkCall($args['action'] ?? null, $args['params'] ?? null),
-            'fan', 'light', 'compressor', 'comprmode', 'fanmode' => is_bool($args['on'] ?? null)
+            'compressor' => $this->compressor($args),
+            'fan', 'light', 'comprmode', 'fanmode' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => 'Choose on or off.']),
             'setpoint' => $this->setpoint($args['celsius'] ?? null),
@@ -363,6 +397,26 @@ class FreezerControlService
                 'grep' => is_string($args['grep'] ?? null) && trim($args['grep']) !== '' ? Str::limit(trim($args['grep']), self::LOG_GREP_MAX, '') : null,
             ], fn ($v) => $v !== null),
         };
+    }
+
+    /** On / Off, and for an Off optionally how long until the controller takes the compressor back. */
+    private function compressor(array $args): array
+    {
+        if (! is_bool($args['on'] ?? null)) {
+            throw ValidationException::withMessages(['args.on' => 'Choose on or off.']);
+        }
+        $minutes = $args['minutes'] ?? null;
+        if ($minutes === null) {
+            return ['on' => $args['on']];
+        }
+        if ($args['on']) {
+            throw ValidationException::withMessages(['args.minutes' => 'Only an Off takes a duration.']);
+        }
+        if (! is_int($minutes) || ! in_array($minutes, self::COMPRESSOR_OFF_MINUTES, true)) {
+            throw ValidationException::withMessages(['args.minutes' => 'Choose half an hour, or 1 to 12 hours.']);
+        }
+
+        return ['on' => false, 'minutes' => $minutes];
     }
 
     private function beepSeconds(mixed $seconds): array

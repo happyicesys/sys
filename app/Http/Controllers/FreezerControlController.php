@@ -89,6 +89,9 @@ class FreezerControlController extends Controller
             'supported_demist_fan' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DEMIST_FAN,
             // Camera clip check (APK 33): records and uploads one of our own door clips.
             'supported_clip' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_CLIP,
+            // Compressor Off for a chosen time, and a setpoint above -5 °C (APK 39).
+            'supported_timed_off' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_TIMED_OFF,
+            'compressor_off_minutes' => FreezerControlService::COMPRESSOR_OFF_MINUTES,
             'diag_probes' => FreezerControlService::DIAG_PROBES,
             'camera_id_max' => FreezerControlService::CAMERA_ID_MAX,
             'beep_seconds_max' => FreezerControlService::BEEP_SECONDS_MAX,
@@ -96,7 +99,8 @@ class FreezerControlController extends Controller
             'photos' => $this->photoPayload($vend),
             'setpoint' => [
                 'min' => FreezerControlService::SETPOINT_MIN,
-                'max' => FreezerControlService::SETPOINT_MAX,
+                'max' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_TIMED_OFF
+                    ? FreezerControlService::SETPOINT_MAX : FreezerControlService::SETPOINT_MAX_BEFORE_39,
                 // The last one WE set — shown when the machine cannot read its setpoint back (app < 22
                 // or an older plugin); from app 22 the status snapshot carries the controller's own
                 // `thermostat.setPoint`, which the page prefers. Resolved here rather than from the
@@ -409,8 +413,9 @@ class FreezerControlController extends Controller
             return response()->json(['message' => 'Raw SDK calls are limited to superadmins.'], 403);
         }
 
-        if ((int) $vend->apk_version_code < FreezerControlService::minApkVersionFor($data['op'])) {
-            return response()->json(['message' => 'This machine\'s app is too old for this control (needs versionCode '.FreezerControlService::minApkVersionFor($data['op']).').'], 422);
+        $minApk = FreezerControlService::minApkVersionForCommand($data['op'], $data['args'] ?? []);
+        if ((int) $vend->apk_version_code < $minApk) {
+            return response()->json(['message' => 'This machine\'s app is too old for this control (needs versionCode '.$minApk.').'], 422);
         }
 
         // One command at a time per machine: the device executes them serially anyway, and a

@@ -148,6 +148,17 @@ export class FreezerStatus {
         return this.thermostat.compressorRemoteMode ?? null;
     }
 
+    /** When a timed compressor Off ends (app 39+), epoch ms; null when none is running. */
+    get compressorOffUntil() {
+        const until = numberOrNull(this.raw?.compressorOffUntil);
+        return until !== null && until > 0 ? until : null;
+    }
+
+    /** App 39+ takes the compressor to remote itself for a timed Off, so Off works in either mode. */
+    get timedOffManaged() {
+        return Number(this.raw?.apk?.versionCode ?? 0) >= 39;
+    }
+
     /** The thermostat's fan output (the lid demister); the driver board's reading when the thermostat has none. */
     get fanOn() {
         return this.thermostat.fanOn ?? this.raw?.fanOn ?? null;
@@ -263,7 +274,9 @@ export class FreezerStatus {
     get ignoredControls() {
         const notes = [];
         if (this.compressorRemote === false) {
-            notes.push('The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.');
+            notes.push(this.timedOffManaged
+                ? 'The temperature controller is running the compressor itself, so Compressor On is ignored until you press Remote. Off works either way: the machine takes the compressor to remote for the time you choose.'
+                : 'The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.');
         }
         if (this.fanRemote === false && !this.demistManaged) {
             notes.push('The fan follows the door switch on the controller, so Cabinet fan on/off is ignored until you press Remote under Fan control (app v20+).');

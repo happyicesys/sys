@@ -114,7 +114,7 @@ class FreezerRemoteControlTest extends TestCase
 
     public function test_the_setpoint_goes_up_to_zero_and_no_higher(): void
     {
-        $vend = $this->freezer();
+        $vend = $this->freezer(['apk_version_code' => 39]);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => 1]])->assertStatus(422);
         $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => -31]])->assertStatus(422);
         // One accepted send per test: the controls page rate-limits a machine's commands.
@@ -122,6 +122,40 @@ class FreezerRemoteControlTest extends TestCase
         $this->assertSame(['celsius' => 0], FreezerControlCommand::sole()->args);
         $this->assertSame(0, FreezerControlService::SETPOINT_MAX);
         $this->getJson("/vends/{$vend->id}/freezer-controls")->assertJsonPath('setpoint.max', 0);
+    }
+
+    public function test_a_setpoint_above_minus_five_needs_freezer_app_39(): void
+    {
+        // App 38 refuses anything above -5 °C itself ("invalid", 50002 on 2026-10-24): say so here instead.
+        $vend = $this->freezer(['apk_version_code' => 38]);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => -2]])
+            ->assertStatus(422)->assertJsonPath('message', "This machine's app is too old for this control (needs versionCode 39).");
+        $this->getJson("/vends/{$vend->id}/freezer-controls")->assertJsonPath('setpoint.max', -5)->assertJsonPath('supported_timed_off', false);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'setpoint', 'args' => ['celsius' => -5]])->assertStatus(202);
+    }
+
+    public function test_a_timed_compressor_off_is_sent_with_its_minutes(): void
+    {
+        $vend = $this->freezer(['apk_version_code' => 39]);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 45]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 780]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => true, 'minutes' => 60]])->assertStatus(422);
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 30]])->assertStatus(202);
+
+        $this->assertSame(['on' => false, 'minutes' => 30], FreezerControlCommand::sole()->args);
+        $this->getJson("/vends/{$vend->id}/freezer-controls")
+            ->assertJsonPath('supported_timed_off', true)
+            ->assertJsonPath('compressor_off_minutes.0', 30)
+            ->assertJsonPath('compressor_off_minutes.12', 720);
+    }
+
+    public function test_a_timed_compressor_off_needs_freezer_app_39_but_a_plain_off_does_not(): void
+    {
+        $old = $this->freezer(['apk_version_code' => 38]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false, 'minutes' => 120]])
+            ->assertStatus(422)->assertJsonPath('message', "This machine's app is too old for this control (needs versionCode 39).");
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'compressor', 'args' => ['on' => false]])->assertStatus(202);
+        $this->assertSame(['on' => false], FreezerControlCommand::sole()->args);
     }
 
     public function test_door_commands_need_the_door_permission(): void
