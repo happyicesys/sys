@@ -425,9 +425,13 @@ class VendDataService
                             'no_frames' => 'ui_no_frames',
                             'probe_fail' => 'ui_probe_fail',
                             'probe_pass' => 'ui_probe_pass',
-                            // looper_recovered pairs with a stall already counted, and
-                            // probe_abort means a customer walked up mid-probe — it is
-                            // not a measurement. Both are stored, neither is counted.
+                            // The stall cleared by itself (sent right after it, from the
+                            // watchdog thread). Counted on its own metric so Needs attention
+                            // flags only a stall that never recovered (Brian, 2026-10-25) —
+                            // never added to the stall count.
+                            'looper_recovered' => 'ui_looper_recovered',
+                            // probe_abort means a customer walked up mid-probe — it is not a
+                            // measurement. Stored, not counted.
                             default => null,
                         };
                         if ($uiMetric !== null) {

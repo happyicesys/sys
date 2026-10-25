@@ -119,17 +119,18 @@ class VendUiHealthIngestTest extends TestCase
     }
 
     /**
-     * A recovery pairs with a stall that has already been counted, and an abort
-     * means a customer walked up mid-probe — neither is a fault, and counting
-     * them would inflate the apparent failure rate of every machine that
-     * recovers on its own.
+     * A recovery is counted on its OWN metric (Brian, 2026-10-25), so Needs attention can drop a
+     * stall that cleared by itself — never as another stall. An abort means a customer walked up
+     * mid-probe: not a measurement, stored but not counted.
      */
-    public function test_recovery_and_abort_are_stored_but_not_counted(): void
+    public function test_a_recovery_is_counted_apart_and_an_abort_not_at_all(): void
     {
         $this->receive($this->frame('looper_recovered', ['ms' => 41000]));
         $this->receive($this->frame('probe_abort', ['stage' => 'open']));
 
-        Queue::assertNotPushed(IncrementVendDailyStat::class);
+        $this->assertCounted('ui_looper_recovered');
+        $this->assertNotCounted('ui_looper_stall');
+        Queue::assertPushed(IncrementVendDailyStat::class, 1);
         // Still kept for diagnosis: one vend_data row per frame.
         Queue::assertPushed(CreateVendData::class, 2);
     }

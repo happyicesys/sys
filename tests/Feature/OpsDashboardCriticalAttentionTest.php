@@ -143,6 +143,36 @@ class OpsDashboardCriticalAttentionTest extends TestCase
         $this->assertSame('2A Fan OFF', $result['groups'][1]['short'], 'the tag each full grid row carries');
     }
 
+    /**
+     * Brian, 2026-10-25 (machine 2809): a stall the APK saw clear by itself 15 s later is not a
+     * frozen screen — only a stall with no recovery after it is (still stuck, or it ended in a
+     * reboot). Netted over today and yesterday, so a recovery just after midnight still counts.
+     */
+    public function test_a_screen_stall_that_recovered_by_itself_is_not_flagged(): void
+    {
+        $ids = [
+            $recovered = $this->vend(1101),
+            $stuck = $this->vend(1102),
+            $acrossMidnight = $this->vend(1103),
+            $oneOfTwo = $this->vend(1104),
+            $noFrames = $this->vend(1105),
+        ];
+        $this->stat($recovered, 'ui_looper_stall', 1);
+        $this->stat($recovered, 'ui_looper_recovered', 1);
+        $this->stat($stuck, 'ui_looper_stall', 1, '2026-10-16');
+        $this->stat($acrossMidnight, 'ui_looper_stall', 1, '2026-10-16');
+        $this->stat($acrossMidnight, 'ui_looper_recovered', 1);
+        $this->stat($oneOfTwo, 'ui_looper_stall', 2);
+        $this->stat($oneOfTwo, 'ui_looper_recovered', 1);
+        $this->stat($noFrames, 'ui_no_frames', 1);
+
+        $result = app(CriticalAttention::class)->forVendIds($ids);
+        $screen = collect($result['groups'])->firstWhere('key', 'screen');
+
+        $this->assertSame(['1102', '1104', '1105'], array_column($screen['machines'], 'code_label'));
+        $this->assertSame('1 freeze (not recovered)', $screen['machines'][0]['detail']);
+    }
+
     public function test_hardware_rules_skip_freezers_and_chillers_but_no_sales_does_not(): void
     {
         $freezer = $this->vend(50001, [

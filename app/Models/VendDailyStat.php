@@ -22,6 +22,9 @@ use Illuminate\Database\Eloquent\Model;
  *                          from the P heartbeat's OfflineRestartCount). From 2026-10-18; the Ops
  *                          Dashboard's "APK reboot (connection issue)".
  *   - 'ui_looper_stall'  : the APK's main looper stopped answering (frozen screen)
+ *   - 'ui_looper_recovered': that stall cleared by itself (looper_recovered, sent right after
+ *                          it); a stall with no recovery is the one Needs attention flags.
+ *                          From 2026-10-25.
  *   - 'ui_no_frames'     : looper alive but nothing drawn — dead draw pipeline
  *   - 'ui_probe_fail'    : the hourly page round-trip did not complete
  *   - 'ui_probe_pass'    : it did — the denominator the three above are read against

@@ -1794,8 +1794,13 @@ Last 30 days / Current cards lists the machines that need someone now, grouped b
   ran `ops-attention:backfill-offline-reboots --apply` (today + yesterday estimated from the running
   total). Before it the card read "APK keeps restarting (crash / reboot)" and 2525's 21 a day were all
   no-internet reboots.
-- **Touch screen frozen**: the 306+ UI watchdog (`ui_looper_stall` / `ui_no_frames`, or a day whose
-  `ui_probe_fail` had no `ui_probe_pass`), today or yesterday. Older builds never report it.
+- **Touch screen frozen**: the 306+ UI watchdog, today or yesterday — a looper stall that did NOT recover,
+  `ui_no_frames`, or a day whose `ui_probe_fail` had no `ui_probe_pass`. Older builds never report it. The
+  APK sends `looper_recovered` seconds after a stall that clears by itself; since 2026-10-25 the ingest
+  counts it as `ui_looper_recovered` and the rule nets stalls − recoveries over the two days (Brian: "turn
+  off the alarm once situation is recovered" — 2809 was flagged all day for an 8 s GPU stall that cleared
+  in 15 s). A stall with no recovery — still stuck, or ended in a reboot — stays flagged. `no_frames` has
+  no recovery event, so each one counts.
 - **No sales**: last sale older than `vend.attention.no_sales_hours` (48), every machine kind; a
   machine that never sold is not flagged.
 

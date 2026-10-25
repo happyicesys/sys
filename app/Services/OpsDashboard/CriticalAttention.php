@@ -30,8 +30,9 @@ use Illuminate\Support\Facades\DB;
  *    "reboot means connection issue"): the `apk_restart` count (App\Support\ApkRestartDetector)
  *    also holds crashes, power cuts and reloads, which nothing can tell apart yet, so it is not
  *    shown. An "APK crash" group waits until a crash can be detected.
- *  - Screen frozen: the APK's UI watchdog (306+) — a looper stall or no-frames today or yesterday,
- *    or a day whose hourly page checks all failed.
+ *  - Screen frozen: the APK's UI watchdog (306+) — a looper stall that did not recover (no
+ *    `looper_recovered` after it; Brian, 2026-10-25: "turn off the alarm once situation is
+ *    recovered") or no-frames, today or yesterday, or a day whose hourly page checks all failed.
  *  - No sales: a machine whose last sale is older than `vend.attention.no_sales_hours`. Every
  *    machine kind. A machine that has never sold (new) is not flagged.
  */
@@ -54,7 +55,11 @@ class CriticalAttention
         VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD => '2E) T1 or T2, above -17°C and upward trending',
     ];
 
-    private const SCREEN_FAULT_METRICS = ['ui_looper_stall', 'ui_no_frames'];
+    private const METRIC_STALL = 'ui_looper_stall';
+
+    private const METRIC_STALL_RECOVERED = 'ui_looper_recovered';
+
+    private const METRIC_NO_FRAMES = 'ui_no_frames';
 
     /**
      * @param  int[]  $vendIds  machines already chosen by the page's filters and viewer ceiling
@@ -173,14 +178,24 @@ class CriticalAttention
             ->all();
     }
 
-    /** @return array<int, string> */
+    /**
+     * A stall the APK saw clear by itself (`looper_recovered`, sent seconds after it) is not a
+     * frozen screen; one with no recovery is — still stuck, or it ended in a reboot (machine
+     * 2809, 2026-10-23). Stalls and recoveries are netted over both days, so a stall just
+     * before midnight recovered just after it still cancels out. No-frames has no recovery
+     * event, so each one counts.
+     *
+     * @return array<int, string>
+     */
     private function screenFaults(array $vendingIds, Carbon $now): array
     {
+        $metrics = [self::METRIC_STALL, self::METRIC_STALL_RECOVERED, self::METRIC_NO_FRAMES, 'ui_probe_fail', 'ui_probe_pass'];
         $out = [];
-        foreach ($this->dailyStats($vendingIds, [...self::SCREEN_FAULT_METRICS, 'ui_probe_fail', 'ui_probe_pass'], $now)->groupBy('vend_id') as $vendId => $rows) {
-            $faults = (int) $rows->whereIn('metric', self::SCREEN_FAULT_METRICS)->sum('count');
+        foreach ($this->dailyStats($vendingIds, $metrics, $now)->groupBy('vend_id') as $vendId => $rows) {
+            $count = fn (string $metric) => (int) $rows->where('metric', $metric)->sum('count');
+            $faults = max(0, $count(self::METRIC_STALL) - $count(self::METRIC_STALL_RECOVERED)) + $count(self::METRIC_NO_FRAMES);
             if ($faults > 0) {
-                $out[(int) $vendId] = "{$faults} freeze".($faults === 1 ? '' : 's');
+                $out[(int) $vendId] = "{$faults} freeze".($faults === 1 ? '' : 's').' (not recovered)';
 
                 continue;
             }
