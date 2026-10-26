@@ -15,7 +15,7 @@
                     {{ $t('Each line is one text of the system, written in English. Type new wording and press Save; everyone sees it on their next page. Reset brings back the original wording.') }}
                 </p>
                 <p class="text-xs text-gray-500">
-                    {{ $t('"Shown on" lists every page that uses the text. The same English text shares one wording, so a change appears in all of those places. Pick a page to review its texts one page at a time.') }}
+                    {{ $t('"Shown on" names every place the text appears: menu section › menu entry › page title · its web address. The same English text shares one wording, so a change appears in all of those places. Pick a page to review its texts one page at a time.') }}
                 </p>
                 <div class="flex flex-wrap gap-4 text-xs text-gray-600">
                     <span>{{ $t('Texts: :count', { count: counts.total }) }}</span>
@@ -39,7 +39,7 @@
                         <span class="font-medium text-gray-700">{{ $t('Page') }}</span>
                         <select v-model="form.page_name" class="mt-1 block w-full rounded-md border-gray-300 text-sm" @change="search()">
                             <option value="">{{ $t('All pages') }}</option>
-                            <option v-for="(count, name) in pages" :key="name" :value="name">{{ name }} ({{ count }})</option>
+                            <option v-for="(info, id) in pages" :key="id" :value="id">{{ info.label }} ({{ info.count }})</option>
                         </select>
                     </label>
                     <label class="block text-sm">

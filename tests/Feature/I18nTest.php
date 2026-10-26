@@ -116,21 +116,34 @@ class I18nTest extends TestCase
         $this->assertSame('zh_CN', app()->getLocale(), 'server messages follow the user too');
     }
 
-    public function test_each_text_says_where_it_is_shown(): void
+    /**
+     * Brian, 2026-10-26: name a place the way a person finds it — menu section › entry › page title ·
+     * web address — never a file name.
+     */
+    public function test_each_text_says_where_it_is_shown_in_words_a_person_knows(): void
     {
         $places = app(\App\Services\I18n\TranslationPlaces::class);
-        $this->assertContains('Menu & top bar', $places->for('Machine Health'), 'a menu entry is listed under the menu');
-        $this->assertContains('Translations (Translation/Index)', $places->for('Shown on:'), 'a page is named by its title and path');
-        $this->assertArrayHasKey('Translations (Translation/Index)', $places->pages());
+        $this->assertContains('Menu & top bar (every page)', $places->for('Machine Health'), 'a menu entry is listed under the menu');
+        $this->assertContains('Admin › Translations · /translations', $places->for('Shown on:'), 'a page: section › entry · address');
+        $this->assertContains('Menu & top bar (every page)', $places->for('Shown on:'), 'the Edit wording box sits in the top bar');
+        $this->assertContains('Machine Management › Machines Settings › VM Edit · /settings/vend/{id}/update', $places->for('Reset fan detection'));
+        $this->assertContains('System message shown in Operations › Dashboard · /vends/customers', $places->for('Touch screen frozen'));
+        foreach ($places->pages() as $info) {
+            $this->assertDoesNotMatchRegularExpression('/\\.vue|resources\\/|\\b[A-Z][a-zA-Z]+\\/[A-Z][a-zA-Z]+\\b/', $info['label'], 'no file names: '.$info['label']);
+        }
+        app()->setLocale('zh_CN');
+        $this->assertContains('系统管理 › 翻译 · /translations', $places->for('Shown on:'), 'names follow the reader\'s language');
+        app()->setLocale('en');
 
         $reader = $this->user(['read translations']);
         $this->actingAs($reader)->getJson('/translations/places?key=Shown%20on%3A')
-            ->assertOk()->assertJsonPath('places', ['Shared: WordingEditor', 'Translations (Translation/Index)']);
-        $this->actingAs($reader)->get('/translations?page_name='.urlencode('Menu & top bar'))
+            ->assertOk()->assertJsonFragment(['Admin › Translations · /translations']);
+        $this->actingAs($reader)->get('/translations?page_name=layout')
             ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('entries.data', fn ($rows) => collect($rows)->every(fn ($r) => in_array('Menu & top bar', $r['places'], true)))
+            ->where('entries.data', fn ($rows) => collect($rows)->every(fn ($r) => in_array('layout', $r['place_ids'], true)))
             ->where('entries.total', fn ($total) => $total > 50)
-            ->where('filters.page_name', 'Menu & top bar'));
+            ->where('filters.page_name', 'layout')
+            ->where('pages.layout.label', 'Menu & top bar (every page)'));
         $this->actingAs($this->user())->getJson('/translations/places?key=Save')->assertForbidden();
     }
 

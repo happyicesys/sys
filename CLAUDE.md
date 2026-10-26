@@ -105,7 +105,10 @@ Wording = `lang/zh_CN.json` (shipped) with `ui_translations` (one row per text a
 language, English too) on top — `App\Services\I18n\TranslationCatalog`, the one reader for the Vue pages
 (`/i18n/{locale}.json?v=<version>`, fetched before mount, refetched when the shared `i18n.version` moves)
 and for `__()` (`OverridingTranslationLoader`). Admins change wording without a deploy on **Admin →
-Translations** or with **Edit wording** on any page (`Components/I18n/WordingEditor.vue`: t() output then
+Translations** (each text says where it is shown — `TranslationPlaces`: menu section › entry › page title ·
+web address, never a file name; Brian, 2026-10-26; forms / pop-ups count as the page that opens them, a piece on
+> 6 pages is "Shared", server messages name their area; a Page filter lists one page's texts) or with **Edit
+wording** on any page (`Components/I18n/WordingEditor.vue`: t() output then
 carries invisible markers naming its key; every click is captured so nothing on the page acts). Permission
 `translations` (read, update): superadmin, admin. Glossary: `lang/GLOSSARY_zh_CN.md`.
 

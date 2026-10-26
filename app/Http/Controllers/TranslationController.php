@@ -28,13 +28,15 @@ class TranslationController extends Controller
         $status = in_array($request->query('status'), ['missing', 'changed'], true) ? $request->query('status') : 'all';
         $page = trim((string) $request->query('page_name', ''));
         $where = $places->all();
+        $pages = $places->pages();
+        $label = fn (string $id) => $pages[$id]['label'] ?? $id;
 
         $master = $this->masterKeys($catalog);
         $shipped = $locale === TranslationCatalog::DEFAULT_LOCALE ? [] : $catalog->base($locale);
         $changed = UiTranslation::with('updatedBy:id,name')->where('locale', $locale)->get()->keyBy('key');
         $keys = array_values(array_unique(array_merge($master, $changed->keys()->all())));
 
-        $rows = collect($keys)->map(function (string $key) use ($locale, $shipped, $changed, $where) {
+        $rows = collect($keys)->map(function (string $key) use ($locale, $shipped, $changed, $where, $label) {
             $row = $changed->get($key);
 
             return [
@@ -44,11 +46,12 @@ class TranslationController extends Controller
                 'updated_by' => $row?->updatedBy?->name,
                 'updated_at' => $row?->updated_at?->toDateTimeString(),
                 // Where the text is shown; one wording serves every place listed.
-                'places' => $where[$key] ?? [],
+                'place_ids' => $where[$key] ?? [],
+                'places' => array_map($label, $where[$key] ?? []),
             ];
         });
         if ($page !== '') {
-            $rows = $rows->filter(fn ($r) => in_array($page, $r['places'], true));
+            $rows = $rows->filter(fn ($r) => in_array($page, $r['place_ids'], true));
         }
         if ($search !== '') {
             $needle = mb_strtolower($search);
@@ -73,7 +76,8 @@ class TranslationController extends Controller
             'entries' => $paginator,
             'locales' => TranslationCatalog::LOCALES,
             'filters' => ['locale' => $locale, 'search' => $search, 'status' => $status, 'page_name' => $page],
-            'pages' => $places->pages(),
+            // Place id => readable name (menu section › entry › page title · address) and number of texts.
+            'pages' => $pages,
             'counts' => [
                 'total' => count($master),
                 'translated' => count(array_intersect_key($catalog->base(self::MASTER_LOCALE), array_flip($master))),
