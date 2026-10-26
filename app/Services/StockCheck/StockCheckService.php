@@ -40,7 +40,7 @@ class StockCheckService
         $productIds = array_values(array_filter(array_map('intval', $options['product_ids'] ?? [])));
 
         if ($isRandom && $sampleSize < 1) {
-            throw ValidationException::withMessages(['sample_size' => 'Say how many channels to draw.']);
+            throw ValidationException::withMessages(['sample_size' => __('Say how many channels to draw.')]);
         }
 
         $drawn = $this->drawFor($vend, $isRandom, $sampleSize, $productIds);
@@ -153,8 +153,8 @@ class StockCheckService
 
     public function undo(StockCheck $check, User $by): StockCheck
     {
-        abort_unless($check->isCompleted(), 422, 'Only a counted stock count can be reopened.');
-        abort_if($check->hasSyncedChannels(), 422, 'This count has already been synced to the system quantity and can no longer be reopened.');
+        abort_unless($check->isCompleted(), 422, __('Only a counted stock count can be reopened.'));
+        abort_if($check->hasSyncedChannels(), 422, __('This count has already been synced to the system quantity and can no longer be reopened.'));
 
         DB::transaction(function () use ($check, $by) {
             $check->channels()->update([
@@ -196,7 +196,7 @@ class StockCheckService
 
     public function delete(StockCheck $check): void
     {
-        abort_if($check->hasSyncedChannels(), 422, 'A synced stock count is history and cannot be deleted.');
+        abort_if($check->hasSyncedChannels(), 422, __('A synced stock count is history and cannot be deleted.'));
 
         $check->delete(); // channels cascade
     }
@@ -222,7 +222,7 @@ class StockCheckService
     public function sync(StockCheck $check, User $by): array
     {
         // ---- validate before ----------------------------------------------------
-        abort_unless($check->isCompleted(), 422, 'Count first, then sync.');
+        abort_unless($check->isCompleted(), 422, __('Count first, then sync.'));
 
         $target = $this->syncTargetFor($check->vend);
 
@@ -233,7 +233,7 @@ class StockCheckService
         $pending = $check->channels->filter(fn (StockCheckChannel $c) => $c->hasVariance() && ! $c->isSynced());
 
         if ($pending->isEmpty()) {
-            throw ValidationException::withMessages(['sync' => 'Nothing to sync: every counted channel already matches.']);
+            throw ValidationException::withMessages(['sync' => __('Nothing to sync: every counted channel already matches.')]);
         }
 
         // ---- apply (each channel validates itself before and after) ------------
@@ -274,8 +274,9 @@ class StockCheckService
 
         if ($eligible->isEmpty()) {
             throw ValidationException::withMessages([
-                'vend_id' => 'No channel to count: this machine has no stocked channel'
-                    .($productIds ? ' holding the chosen product(s).' : '.'),
+                'vend_id' => $productIds
+                    ? __('No channel to count: this machine has no stocked channel holding the chosen product(s).')
+                    : __('No channel to count: this machine has no stocked channel.'),
             ]);
         }
 
@@ -304,6 +305,6 @@ class StockCheckService
 
     private function assertPending(StockCheck $check): void
     {
-        abort_unless($check->isPending(), 422, 'This stock count is '.strtolower($check->statusName()).' — reopen it first.');
+        abort_unless($check->isPending(), 422, __('This stock count is :status — reopen it first.', ['status' => strtolower($check->statusName())]));
     }
 }

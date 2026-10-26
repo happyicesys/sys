@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="HID Card" />
+  <Head :title="$t('HID Card')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (HID Card)
+        {{ $t('Data Management (HID Card)') }}
       </h2>
     </template>
 
@@ -17,24 +17,24 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Card Value" v-model="filters.value">
-            Card Value
+          <SearchInput :placeholderStr="$t('Card Value')" v-model="filters.value">
+            {{ $t('Card Value') }}
           </SearchInput>
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
-          <SearchInput placeholderStr="Email" v-model="filters.email">
-            Email
+          <SearchInput :placeholderStr="$t('Email')" v-model="filters.email">
+            {{ $t('Email') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Operator
+              {{ $t('Operator') }}
             </label>
             <MultiSelect
               v-model="filters.operator_id"
@@ -42,7 +42,7 @@
               trackBy="id"
               valueProp="id"
               label="full_name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             ></MultiSelect>
@@ -59,7 +59,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
               <!-- <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -88,7 +88,7 @@
                           </svg>
                       </div>
                       <span>
-                          Export CSV
+                          {{ $t('Export CSV') }}
                       </span>
                   </div>
               </Button>
@@ -96,13 +96,13 @@
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ hidCards.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ hidCards.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ hidCards.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -110,7 +110,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -130,16 +130,16 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('value')">
-                      Value
+                      {{ $t('Value') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHeadSort>
                     <TableHead>
-                      Name
+                      {{ $t('Name') }}
                     </TableHead>
                     <TableHead>
-                      Email
+                      {{ $t('Email') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -170,7 +170,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -179,7 +179,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -187,7 +187,7 @@
                       </tr>
                 <tr v-if="!hidCards.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -215,6 +215,7 @@ import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import moment from 'moment'
+import { t } from '@/i18n'
 
 const props = defineProps({
   hidCards: Object,
@@ -244,10 +245,10 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   operatorOptions.value = [
-    { id: 'all', full_name: 'All' },
+    { id: 'all', full_name: t('All') },
     ...props.operatorOptions.data.map((data) => {
       return { id: data.id, code: data.code, full_name: data.full_name };
     }),
@@ -295,16 +296,16 @@ function onExportExcelClicked() {
 }
 
 function onDeleteClicked(hidCard) {
-  const approval = confirm('Are you sure to delete ' + hidCard.value + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: hidCard.value }));
   if (!approval) {
       return;
   }
   router.delete('/hid-cards/' + hidCard.id, {
     onSuccess: () => {
-      toast.success("HID card deleted successfully", { timeout: 3000 })
+      toast.success(t("HID card deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete HID card", { timeout: 3000 })
+      toast.error(t("Failed to delete HID card"), { timeout: 3000 })
     }
   })
 }

@@ -1,10 +1,10 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="vendConfig.data && vendConfig.data.id">
-            Editing Setting Chart
+            {{ $t('Editing Setting Chart') }}
           </span>
           <span v-if="vendConfig.data && vendConfig.data.id">
             {{ vendConfig.data.name }}
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Latest Version
+                {{ $t('Latest Version') }}
               </label>
               <MultiSelect
                 v-model="form.version"
@@ -32,7 +32,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -43,12 +43,12 @@
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :error="form.errors.desc" rows="10">
-                Desc
+                {{ $t('Desc') }}
               </FormTextarea>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Compatible Setting Chart(s)
+                {{ $t('Compatible Setting Chart(s)') }}
               </label>
               <MultiSelect
                 v-model="form.vendConfigCompatibles"
@@ -56,7 +56,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 mode="tags"
                 class="mt-1"
@@ -73,7 +73,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> {{ $t('Attachment(s)') }} </span>
                 </div>
               </div>
             </div>
@@ -108,14 +108,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Machine Prefix Binding </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Machine Prefix Binding') }} </span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-5" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Machine Prefix
+                {{ $t('Machine Prefix') }}
               </label>
               <MultiSelect
                 v-model="form.vend_prefix_id"
@@ -123,7 +123,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -143,7 +143,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -159,10 +159,10 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Machine Prefix
+                          {{ $t('Machine Prefix') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -185,7 +185,7 @@
                       </tr>
                       <tr v-if="!vendPrefixes.length">
                         <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                          No Records Found
+                          {{ $t('No Records Found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -212,13 +212,13 @@
                       <span class="flex space-x-1 items-center" v-if="form.is_active">
                         <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
                         <span>
-                          Deactivate
+                          {{ $t('Deactivate') }}
                         </span>
                       </span>
                       <span class="flex space-x-1 items-center" v-else>
                         <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
                         <span>
-                          Activate
+                          {{ $t('Activate') }}
                         </span>
                       </span>
                     </div>
@@ -232,7 +232,7 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
@@ -240,7 +240,7 @@
                   <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save
+                      {{ $t('Save') }}
                     </span>
                   </Button>
                 </div>
@@ -270,6 +270,7 @@ import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIc
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   products: Object,
@@ -280,8 +281,8 @@ const props = defineProps({
 })
 
 const booleanStrictOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
 ])
 
 const emit = defineEmits(['modalClose'])
@@ -379,10 +380,10 @@ function replicateProductMapping() {
   },
   {
     onSuccess: () => {
-      toast.success("Setting chart replicated successfully", { timeout: 3000 })
+      toast.success(t('Setting chart replicated successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to replicate setting chart", { timeout: 3000 })
+      toast.error(t('Failed to replicate setting chart'), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,

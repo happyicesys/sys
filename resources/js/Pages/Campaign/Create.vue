@@ -1,10 +1,10 @@
 <template>
-  <Head title="Campaign" />
+  <Head :title="$t('Campaign')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create New Campaign
+        {{ $t('Create New Campaign') }}
       </h2>
     </template>
 

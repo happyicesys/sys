@@ -1,10 +1,10 @@
 <template>
-  <Head title="Tutorials" />
+  <Head :title="$t('Tutorials')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Tutorials
+        {{ $t('Tutorials') }}
       </h2>
     </template>
 
@@ -14,7 +14,7 @@
         <!-- Management Section -->
         <div v-if="hasPermission('read tutorials-operators')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
           <div class="p-6 bg-white border-b border-gray-200">
-            <h3 class="text-lg font-medium text-red-600 mb-4">Management to know</h3>
+            <h3 class="text-lg font-medium text-red-600 mb-4">{{ $t('Management to know') }}</h3>
             <div class="space-y-6">
               <div v-for="(item, index) in managementItems" :key="index" class="border-b pb-4 last:border-b-0 last:pb-0">
                 <div class="flex justify-between items-start">
@@ -25,7 +25,7 @@
                     </ul>
                   </div>
                   <a v-if="item.link" :href="item.link" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
-                    Watch Video
+                    {{ $t('Watch Video') }}
                     <ArrowTopRightOnSquareIcon class="w-4 h-4 ml-1" />
                   </a>
 
@@ -38,7 +38,7 @@
         <!-- Drivers Section -->
         <div v-if="hasPermission('read tutorials-drivers')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
           <div class="p-6 bg-white border-b border-gray-200">
-            <h3 class="text-lg font-medium text-red-600 mb-4">Drivers to know</h3>
+            <h3 class="text-lg font-medium text-red-600 mb-4">{{ $t('Drivers to know') }}</h3>
             <div class="space-y-6">
               <div v-for="(item, index) in driverItems" :key="index" class="border-b pb-4 last:border-b-0 last:pb-0">
                 <div class="flex justify-between items-start">
@@ -49,7 +49,7 @@
                     </ul>
                   </div>
                   <a :href="item.link" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
-                    Watch Video
+                    {{ $t('Watch Video') }}
                     <ArrowTopRightOnSquareIcon class="w-4 h-4 ml-1" />
                   </a>
                 </div>
@@ -67,6 +67,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/vue/20/solid';
+import { t } from '@/i18n';
 
 const page = usePage();
 const permissions = page.props.auth.permissions;
@@ -77,115 +78,115 @@ function hasPermission(permission) {
 
 const managementItems = [
     {
-        title: 'VendingMachine (CustomerView) Tab',
+        title: t('VendingMachine (CustomerView) Tab'),
         link: 'https://www.youtube.com/watch?v=GiloQqqvAcA',
         subtitles: [
-            'Machine status in a glance',
-            'Active machines that currently in operation',
-            'Machine View = All machines (in operation & not in operation)'
+            t('Machine status in a glance'),
+            t('Active machines that currently in operation'),
+            t('Machine View = All machines (in operation & not in operation)')
         ]
     },
     {
-        title: 'Site Management Tab',
+        title: t('Site Management Tab'),
         link: 'https://www.youtube.com/watch?v=LieUqAR9V-A',
         subtitles: [
-            'Create new customer profile',
-            'Bind Machine to Site'
+            t('Create new customer profile'),
+            t('Bind Machine to Site')
         ]
     },
     {
-        title: 'Machine Management Tab',
+        title: t('Machine Management Tab'),
         link: 'https://www.youtube.com/watch?v=4mg3jn_aXi4',
         subtitles: [
-            'Machine View',
-            'Machine Setting',
-            'APK setting (upload video & photo)'
+            t('Machine View'),
+            t('Machine Setting'),
+            t('APK setting (upload video & photo)')
         ]
     },
     {
-        title: 'Data Management Tab',
+        title: t('Data Management Tab'),
         link: 'https://www.youtube.com/watch?v=XdD8GOEed0M',
         subtitles: [
-            'Machine Serial Number',
-            'Cashless Terminal',
-            'SIM Card',
-            'Location Types',
-            'Refilling Routes'
+            t('Machine Serial Number'),
+            t('Cashless Terminal'),
+            t('SIM Card'),
+            t('Location Types'),
+            t('Refilling Routes')
         ]
     },
     {
-        title: 'Product Management Tab',
+        title: t('Product Management Tab'),
         link: 'https://www.youtube.com/watch?v=9O6iD8yW2ZY',
         subtitles: [
-            'Create new Product',
-            'Mappings: Define Products to be in that menu',
-            'Categories',
-            'Product Labels'
+            t('Create new Product'),
+            t('Mappings: Define Products to be in that menu'),
+            t('Categories'),
+            t('Product Labels')
         ]
     },
     {
-        title: 'Product Availability (Warehouse)',
+        title: t('Product Availability (Warehouse)'),
         link: 'https://www.youtube.com/watch?v=sfQRlfmhCqA',
         subtitles: [
-            'Stock Incoming & Incoming History',
-            'Warehouse Log',
-            'Last7d sold qty',
-            'Qty in Warehouse - Picked Qty = Remaining Qty',
-            'Planning: Qty needed and Capped Qty per Channel'
+            t('Stock Incoming & Incoming History'),
+            t('Warehouse Log'),
+            t('Last7d sold qty'),
+            t('Qty in Warehouse - Picked Qty = Remaining Qty'),
+            t('Planning: Qty needed and Capped Qty per Channel')
         ]
     },
     {
-        title: 'Job assignment and stock planning',
+        title: t('Job assignment and stock planning'),
         link: 'https://www.youtube.com/watch?v=YJvXJQYcxgE',
         subtitles: [
-            'Assign Job to Driver',
-            'Check Qty needed (planning for Jobs on Date)',
-            'Order Incoming if Qty not enough',
-            'Set capped qty if certain sku not enough/phase-out soon',
-            'Route optimization'
+            t('Assign Job to Driver'),
+            t('Check Qty needed (planning for Jobs on Date)'),
+            t('Order Incoming if Qty not enough'),
+            t('Set capped qty if certain sku not enough/phase-out soon'),
+            t('Route optimization')
         ]
     },
     {
-        title: 'Machine Health Dashboard',
+        title: t('Machine Health Dashboard'),
         link: '',
         subtitles: []
     },
     {
-        title: 'Change to new SKU and Mapping',
+        title: t('Change to new SKU and Mapping'),
         link: 'https://youtu.be/kCXIEQUFlNI',
         subtitles: [
-            'Create new Mapping. Replicate from current Mapping, replace old sku with new sku',
-            'Link Current Mapping to New Mapping',
-            'Implementation of New Mapping: Job > Stock Action > Implement New Mapping',
-            'Picker: Pick goods including the new sku',
-            'Driver refill to machine. Return old sku to warehouse',
-            'Digital screen will updated with new sku'
+            t('Create new Mapping. Replicate from current Mapping, replace old sku with new sku'),
+            t('Link Current Mapping to New Mapping'),
+            t('Implementation of New Mapping: Job > Stock Action > Implement New Mapping'),
+            t('Picker: Pick goods including the new sku'),
+            t('Driver refill to machine. Return old sku to warehouse'),
+            t('Digital screen will updated with new sku')
         ]
     }
 ];
 
 const driverItems = [
     {
-        title: 'Stock refill instruction for Model E/F/EG',
+        title: t('Stock refill instruction for Model E/F/EG'),
         link: 'https://www.youtube.com/watch?v=rMF1coC9zZ4',
         subtitles: [
-            'Take goods from Truck',
-            'Open machine\'s lock',
-            'Frost defrost',
-            'Open freezer door',
-            'Pull out rack (start from Left rack)',
-            'Refill goods into machine (within 15 mins)',
-            'Clean: use rag, moisture and seal area',
-            'Click \'Stock-in\' in Job',
-            'Update inventory qty to VMC',
-            'Clear error',
-            'Refill spoon',
-            'External cleaning'
+            t('Take goods from Truck'),
+            t("Open machine's lock"),
+            t('Frost defrost'),
+            t('Open freezer door'),
+            t('Pull out rack (start from Left rack)'),
+            t('Refill goods into machine (within 15 mins)'),
+            t('Clean: use rag, moisture and seal area'),
+            t("Click 'Stock-in' in Job"),
+            t('Update inventory qty to VMC'),
+            t('Clear error'),
+            t('Refill spoon'),
+            t('External cleaning')
         ]
     },
     {
         id: '1a',
-        title: 'Revised: update inventory qty to VMC and Clear Error',
+        title: t('Revised: update inventory qty to VMC and Clear Error'),
         link: 'https://youtube.com/shorts/ogIv8Q-PuAU',
         subtitles: []
     }

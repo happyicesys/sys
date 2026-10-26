@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Platform" />
+  <Head :title="$t('Delivery Platform')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform Product Mapping
+        {{ $t('Delivery Platform Product Mapping') }}
       </h2>
     </template>
 
@@ -17,22 +17,22 @@
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                Create
+                {{ $t('Create') }}
               </span>
             </Button>
           </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID') }}
           </SearchInput>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Platform ID
+              {{ $t('Platform ID') }}
             </label>
             <MultiSelect
               v-model="selectedPlatformRefNumber"
@@ -40,7 +40,7 @@
               trackBy="id"
               valueProp="id"
               label="ref_number"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               :canClear="false"
@@ -57,20 +57,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ deliveryProductMappings.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ deliveryProductMappings.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ deliveryProductMappings.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -78,7 +78,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -98,19 +98,19 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="delivery_platform_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_id')">
-                      Platform
+                      {{ $t('Platform') }}
                     </TableHeadSort>
                     <TableHead>
-                      Channel - Product
+                      {{ $t('Channel - Product') }}
                     </TableHead>
                     <TableHead>
-                      Binded Vending Machines
+                      {{ $t('Binded Vending Machines') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -181,7 +181,7 @@
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
-                                  Edit
+                                  {{ $t('Edit') }}
                               </span>
                             </Button>
                           </Link>
@@ -196,11 +196,11 @@
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
                               <span>
-                                  Delete
+                                  {{ $t('Delete') }}
                               </span>
                             </span>
                             <span v-if="deliveryProductMapping.deliveryProductMappingVends && deliveryProductMapping.deliveryProductMappingVends.length > 0">
-                              (Binded)
+                              {{ $t('(Binded)') }}
                             </span>
                           </Button>
                         </div>
@@ -208,7 +208,7 @@
                       </tr>
                 <tr v-if="!deliveryProductMappings.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -234,6 +234,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
@@ -262,11 +263,11 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   platformRefNumberOptions.value = [
-    { id: 'all', ref_number: 'All' },
+    { id: 'all', ref_number: t('All') },
     ...(props.platformRefNumberOptions?.data || []).map((data) => ({ id: data.id, ref_number: data.ref_number })),
   ]
   const preselectedPlatformRef = platformRefNumberOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)
@@ -288,16 +289,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(deliveryProductMapping) {
-  const approval = confirm('Are you sure to delete ' + deliveryProductMapping.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: deliveryProductMapping.name }));
   if (!approval) {
       return;
   }
   router.delete('/delivery-product-mappings/' + deliveryProductMapping.id, {
     onSuccess: () => {
-      toast.success("Delivery product mapping deleted successfully", { timeout: 3000 })
+      toast.success(t('Delivery product mapping deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete delivery product mapping", { timeout: 3000 })
+      toast.error(t('Failed to delete delivery product mapping'), { timeout: 3000 })
     }
   })
 }

@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Operators" />
+  <Head :title="$t('Operators')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Operators
+        {{ $t('Operators') }}
       </h2>
     </template>
 
@@ -18,19 +18,19 @@
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                Create
+                {{ $t('Create') }}
               </span>
             </Button>
           </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
           <div>
             <label class="block text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.status"
@@ -38,7 +38,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               :canClear="false"
@@ -57,20 +57,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ operators.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ operators.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ operators.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -78,7 +78,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -98,19 +98,19 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
+                      {{ $t('Code') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Country
+                      {{ $t('Country') }}
                     </TableHead>
                     <TableHead>
-                      Timezone
+                      {{ $t('Timezone') }}
                     </TableHead>
                     <TableHead>
-                      Status
+                      {{ $t('Status') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -138,7 +138,7 @@
                           class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
                           :class="operator.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                         >
-                          {{ operator.is_active ? 'Active' : 'Inactive' }}
+                          {{ operator.is_active ? $t('Active') : $t('Inactive') }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
@@ -149,7 +149,7 @@
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
-                                  Edit
+                                  {{ $t('Edit') }}
                               </span>
                             </Button>
                           </Link>
@@ -159,7 +159,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button> -->
                           <Button
@@ -171,7 +171,7 @@
                             <FolderMinusIcon v-if="operator.is_active" class="w-4 h-4"></FolderMinusIcon>
                             <FolderPlusIcon v-else class="w-4 h-4"></FolderPlusIcon>
                             <span>
-                                {{ operator.is_active ? 'Deactivate' : 'Activate' }}
+                                {{ operator.is_active ? $t('Deactivate') : $t('Activate') }}
                             </span>
                           </Button>
                         </div>
@@ -179,7 +179,7 @@
                       </tr>
                 <tr v-if="!operators.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -223,6 +223,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   countries: Object,
@@ -237,9 +238,9 @@ const props = defineProps({
 })
 
 const statusOptions = ref([
-  { id: 'active', value: 'Active' },
-  { id: 'inactive', value: 'Inactive' },
-  { id: 'all', value: 'All' },
+  { id: 'active', value: t('Active') },
+  { id: 'inactive', value: t('Inactive') },
+  { id: 'all', value: t('All') },
 ])
 
 const filters = ref({
@@ -247,7 +248,7 @@ const filters = ref({
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
-  status: { id: 'active', value: 'Active' },
+  status: { id: 'active', value: t('Active') },
 })
 const showModal = ref(false)
 const operator = ref()
@@ -263,7 +264,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
@@ -281,7 +282,7 @@ function onCreateClicked() {
 // Operators are never deleted - only deactivated, so they can be brought back.
 function onToggleActiveClicked(operator) {
   const action = operator.is_active ? 'deactivate' : 'activate'
-  const approval = confirm('Are you sure to ' + action + ' ' + operator.name + '?');
+  const approval = confirm(operator.is_active ? t('Are you sure to deactivate :name?', { name: operator.name }) : t('Are you sure to activate :name?', { name: operator.name }));
   if (!approval) {
       return;
   }
@@ -289,10 +290,10 @@ function onToggleActiveClicked(operator) {
     preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
-      toast.success('Operator ' + action + 'd successfully', { timeout: 3000 })
+      toast.success(action === 'deactivate' ? t('Operator deactivated successfully') : t('Operator activated successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error('Failed to ' + action + ' operator', { timeout: 3000 })
+      toast.error(action === 'deactivate' ? t('Failed to deactivate operator') : t('Failed to activate operator'), { timeout: 3000 })
     }
   })
 }

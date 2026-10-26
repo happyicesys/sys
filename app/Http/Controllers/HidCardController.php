@@ -263,7 +263,7 @@ class HidCardController extends Controller
 
         $hidCard->vends()->sync($request->vends);
 
-        return redirect()->route('hid-cards')->with('success', 'HID Card created.');
+        return redirect()->route('hid-cards')->with('success', __('HID Card created.'));
     }
 
     public function update(Request $request, $hidCardID)
@@ -288,7 +288,7 @@ class HidCardController extends Controller
 
         $hidCard->vends()->sync($request->vends);
 
-        return redirect()->route('hid-cards.edit', ['id' => $hidCard->id])->with('success', 'Voucher updated successfully');
+        return redirect()->route('hid-cards.edit', ['id' => $hidCard->id])->with('success', __('Voucher updated successfully'));
     }
 
 

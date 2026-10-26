@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Attachments
+            {{ $t('Attachments') }}
           </span>
         </div>
       </template>

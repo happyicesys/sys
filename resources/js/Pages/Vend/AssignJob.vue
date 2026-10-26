@@ -6,7 +6,7 @@
           <span class="text-gray-600">
             <div class="flex space-x-2">
               <span>
-                Assign {{ vends.length }} Job(s)
+                {{ $t('Assign :count Job(s)', { count: vends.length }) }}
               </span>
             </div>
           </span>
@@ -14,7 +14,7 @@
       </template>
       <template #default>
         <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0">
-          <dt class="text-sm font-medium leading-6 text-gray-900">Machine(s)</dt>
+          <dt class="text-sm font-medium leading-6 text-gray-900">{{ $t('Machine(s)') }}</dt>
           <dd class="mt-1 mb-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
             <span v-for="(vend, vendIndex) in vends" class="flex flex-col space-y-1">
               <span>
@@ -39,11 +39,11 @@
               v-model="form.date"
               class="col-span-5"
           >
-              Date
+              {{ $t('Date') }}
           </DatePicker>
           <div class="col-span-5">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Driver
+              {{ $t('Driver') }}
             </label>
             <MultiSelect
                 v-model="form.driver_id"
@@ -51,7 +51,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
             >
@@ -67,7 +67,7 @@
             <span class="flex space-x-1">
               <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
               <span>
-                Assign Job(s)
+                {{ $t('Assign Job(s)') }}
               </span>
             </span>
           </Button>
@@ -86,6 +86,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { onMounted, ref } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode';
 const props = defineProps({
   driverOptions: [Array, Object],
@@ -140,7 +141,7 @@ function onAssignJobClicked(product) {
   })
   .post('/ops-jobs/assign', {
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
       emit('jobAssigned')

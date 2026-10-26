@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Visitor History" />
+  <Head :title="$t('Visitor History')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Visitor History
+        {{ $t('Visitor History') }}
       </h2>
     </template>
 
@@ -18,16 +18,16 @@
             <button type="button"
               @click="switchView('sessions')"
               :class="[view === 'sessions' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50', 'px-4 py-2 text-sm font-medium border rounded-l-md focus:outline-none']">
-              Login Sessions
+              {{ $t('Login Sessions') }}
             </button>
             <button type="button"
               @click="switchView('pages')"
               :class="[view === 'pages' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50', 'px-4 py-2 text-sm font-medium border-t border-b border-r rounded-r-md focus:outline-none']">
-              Page Views
+              {{ $t('Page Views') }}
             </button>
           </div>
           <p class="text-xs text-gray-500">
-            History is kept for {{ retentionDays }} days.
+            {{ $t('History is kept for :days days.', { days: retentionDays }) }}
           </p>
         </div>
 
@@ -43,14 +43,14 @@
         -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 mt-3 items-start">
           <div class="col-span-5 md:col-span-1">
-            <DatePicker v-model="filters.dateFrom">From</DatePicker>
+            <DatePicker v-model="filters.dateFrom">{{ $t('From') }}</DatePicker>
           </div>
           <div class="col-span-5 md:col-span-1">
-            <DatePicker v-model="filters.dateTo" :minDate="filters.dateFrom">To</DatePicker>
+            <DatePicker v-model="filters.dateTo" :minDate="filters.dateFrom">{{ $t('To') }}</DatePicker>
           </div>
           <div class="col-span-5 md:col-span-2">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              User
+              {{ $t('User') }}
             </label>
             <MultiSelect
               v-model="filters.users"
@@ -58,7 +58,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="All users"
+              :placeholder="$t('All users')"
               open-direction="bottom"
               class="mt-1"
               mode="tags"
@@ -67,7 +67,7 @@
           </div>
           <div class="col-span-5 md:col-span-1" v-if="view === 'sessions'">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Device
+              {{ $t('Device') }}
             </label>
             <MultiSelect
               v-model="filters.deviceType"
@@ -75,20 +75,20 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Any"
+              :placeholder="$t('Any')"
               open-direction="bottom"
               class="mt-1"
             >
             </MultiSelect>
           </div>
           <div class="col-span-5 md:col-span-1">
-            <SearchInput placeholderStr="e.g. 175.140" v-model="filters.ip" @keyup.enter="onSearchFilterUpdated()">
-              IP Address
+            <SearchInput :placeholderStr="$t('e.g. 175.140')" v-model="filters.ip" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('IP Address') }}
             </SearchInput>
           </div>
           <div class="col-span-5 md:col-span-1">
-            <SearchInput placeholderStr="e.g. /transactions" v-model="filters.path" @keyup.enter="onSearchFilterUpdated()">
-              Page
+            <SearchInput :placeholderStr="$t('e.g. /transactions')" v-model="filters.path" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Page') }}
             </SearchInput>
           </div>
         </div>
@@ -100,25 +100,25 @@
                 @click="onSearchFilterUpdated()"
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>Search</span>
+                <span>{{ $t('Search') }}</span>
               </Button>
               <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-300 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 @click="resetFilters()"
               >
                 <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>Reset</span>
+                <span>{{ $t('Reset') }}</span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
             <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-              <span>Showing</span>
+              <span>{{ $t('Showing') }}</span>
               <span class="font-medium">{{ rows.meta ? (rows.meta.from ?? 0) : 0 }}</span>
-              <span>to</span>
+              <span>{{ $t('to') }}</span>
               <span class="font-medium">{{ rows.meta ? (rows.meta.to ?? 0) : 0 }}</span>
-              <span>of</span>
+              <span>{{ $t('of') }}</span>
               <span class="font-medium">{{ rows.meta ? rows.meta.total : 0 }}</span>
-              <span>results</span>
+              <span>{{ $t('results') }}</span>
             </p>
             <MultiSelect
               v-model="filters.numberPerPage"
@@ -126,7 +126,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               @selected="onSearchFilterUpdated"
@@ -138,28 +138,26 @@
         <!-- Summary -->
         <div class="mt-4 grid grid-cols-3 gap-2 text-center">
           <div class="rounded-md bg-gray-50 border px-3 py-2">
-            <p class="text-xs text-gray-500">Login Sessions</p>
+            <p class="text-xs text-gray-500">{{ $t('Login Sessions') }}</p>
             <p class="text-lg font-semibold text-gray-800">{{ summary.sessions }}</p>
           </div>
           <div class="rounded-md bg-gray-50 border px-3 py-2">
-            <p class="text-xs text-gray-500">Distinct Users</p>
+            <p class="text-xs text-gray-500">{{ $t('Distinct Users') }}</p>
             <p class="text-lg font-semibold text-gray-800">{{ summary.users }}</p>
           </div>
           <div class="rounded-md bg-gray-50 border px-3 py-2">
-            <p class="text-xs text-gray-500">Page Views</p>
+            <p class="text-xs text-gray-500">{{ $t('Page Views') }}</p>
             <p class="text-lg font-semibold text-gray-800">{{ summary.page_views }}</p>
           </div>
         </div>
 
         <p class="mt-3 text-xs text-gray-500 leading-relaxed">
-          <span class="font-medium text-gray-700">How to read the timings:</span>
-          a <span class="inline-flex items-center rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-[10px] font-medium">measured</span>
-          duration was reported by the browser itself (accurate, and it excludes time the tab spent in the background).
-          An <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-medium">est.</span>
-          duration is only the gap until the next page was opened, so it includes idle time.
-          A session shows <em>Logged out</em> only when the user actually clicked Log Out; closing the tab shows
-          <em>Left / closed tab</em>, and a session that simply went quiet past the {{ sessionLifetime }}-minute
-          session window is marked <em>Expired (inferred)</em>.
+          <span class="font-medium text-gray-700">{{ $t('How to read the timings:') }}</span>
+          {{ $t('a') }} <span class="inline-flex items-center rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-[10px] font-medium">{{ $t('measured') }}</span>
+          {{ $t('duration was reported by the browser itself (accurate, and it excludes time the tab spent in the background).') }}
+          {{ $t('An') }} <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-medium">{{ $t('est.') }}</span>
+          {{ $t('duration is only the gap until the next page was opened, so it includes idle time. A session shows') }} <em>{{ $t('Logged out') }}</em> {{ $t('only when the user actually clicked Log Out; closing the tab shows') }}
+          <em>{{ $t('Left / closed tab') }}</em>{{ $t(', and a session that simply went quiet past the :minutes-minute session window is marked', { minutes: sessionLifetime }) }} <em>{{ $t('Expired (inferred)') }}</em>.
         </p>
       </div>
 
@@ -171,14 +169,14 @@
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Login</TableHead>
-                  <TableHead>IP Address</TableHead>
-                  <TableHead>Device</TableHead>
-                  <TableHead>Browser</TableHead>
-                  <TableHead>Pages</TableHead>
-                  <TableHead>Session Length</TableHead>
-                  <TableHead>Ended</TableHead>
+                  <TableHead>{{ $t('User') }}</TableHead>
+                  <TableHead>{{ $t('Login') }}</TableHead>
+                  <TableHead>{{ $t('IP Address') }}</TableHead>
+                  <TableHead>{{ $t('Device') }}</TableHead>
+                  <TableHead>{{ $t('Browser') }}</TableHead>
+                  <TableHead>{{ $t('Pages') }}</TableHead>
+                  <TableHead>{{ $t('Session Length') }}</TableHead>
+                  <TableHead>{{ $t('Ended') }}</TableHead>
                   <TableHead></TableHead>
                 </tr>
               </thead>
@@ -222,7 +220,7 @@
                     </TableData>
                     <TableData :currentIndex="sessionIndex" :totalLength="sessions.data.length" inputClass="text-center">
                       <span :class="statusBadgeClass(session)" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">
-                        {{ session.status }}
+                        {{ $t(session.status) }}
                       </span>
                       <div class="text-xs text-gray-500 mt-1" v-if="session.ended_at">{{ session.ended_at }}</div>
                     </TableData>
@@ -232,25 +230,25 @@
                         @click="toggleSession(session)"
                       >
                         <component :is="expanded[session.id] ? ChevronUpIcon : ChevronDownIcon" class="w-4 h-4" />
-                        <span>Pages</span>
+                        <span>{{ $t('Pages') }}</span>
                       </Button>
                     </TableData>
                   </tr>
                   <tr v-if="expanded[session.id]" class="bg-gray-50">
                     <td colspan="10" class="px-4 py-3">
                       <div v-if="loadingSession === session.id" class="text-sm text-gray-500">
-                        Loading pages…
+                        {{ $t('Loading pages…') }}
                       </div>
                       <div v-else-if="!(sessionPages[session.id] || []).length" class="text-sm text-gray-500">
-                        No page views recorded for this session.
+                        {{ $t('No page views recorded for this session.') }}
                       </div>
                       <table v-else class="min-w-full text-sm">
                         <thead>
                           <tr class="text-left text-xs uppercase text-gray-500">
-                            <th class="py-1 pr-4">Opened</th>
-                            <th class="py-1 pr-4">Page</th>
-                            <th class="py-1 pr-4">Time on Page</th>
-                            <th class="py-1 pr-4">Active</th>
+                            <th class="py-1 pr-4">{{ $t('Opened') }}</th>
+                            <th class="py-1 pr-4">{{ $t('Page') }}</th>
+                            <th class="py-1 pr-4">{{ $t('Time on Page') }}</th>
+                            <th class="py-1 pr-4">{{ $t('Active') }}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -264,7 +262,7 @@
                               <span class="text-gray-800">{{ pageView.duration_label }}</span>
                               <span v-if="pageView.duration_source" :class="pageView.is_estimated ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'"
                                 class="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium">
-                                {{ pageView.is_estimated ? 'est.' : 'measured' }}
+                                {{ pageView.is_estimated ? $t('est.') : $t('measured') }}
                               </span>
                             </td>
                             <td class="py-1 pr-4 whitespace-nowrap text-gray-600">
@@ -278,7 +276,7 @@
                 </template>
                 <tr v-if="!sessions.data.length">
                   <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                    No Results Found
+                    {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -296,12 +294,12 @@
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
-                  <TableHead>Opened</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Page</TableHead>
-                  <TableHead>IP Address</TableHead>
-                  <TableHead>Time on Page</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead>{{ $t('Opened') }}</TableHead>
+                  <TableHead>{{ $t('User') }}</TableHead>
+                  <TableHead>{{ $t('Page') }}</TableHead>
+                  <TableHead>{{ $t('IP Address') }}</TableHead>
+                  <TableHead>{{ $t('Time on Page') }}</TableHead>
+                  <TableHead>{{ $t('Active') }}</TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -326,7 +324,7 @@
                     <span>{{ pageView.duration_label }}</span>
                     <span v-if="pageView.duration_source" :class="pageView.is_estimated ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'"
                       class="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium">
-                      {{ pageView.is_estimated ? 'est.' : 'measured' }}
+                      {{ pageView.is_estimated ? $t('est.') : $t('measured') }}
                     </span>
                   </TableData>
                   <TableData :currentIndex="pageViewIndex" :totalLength="pageViews.data.length" inputClass="text-center">
@@ -335,7 +333,7 @@
                 </tr>
                 <tr v-if="!pageViews.data.length">
                   <td colspan="7" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                    No Results Found
+                    {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -360,6 +358,7 @@ import TableHead from '@/Components/TableHead.vue';
 import { BackspaceIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import { Head, router } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
+import { t } from '@/i18n';
 
 const props = defineProps({
   view: String,
@@ -468,11 +467,11 @@ function toggleSession(session) {
 }
 
 function deviceLabel(deviceType) {
-  if (deviceType === 'desktop') return 'Desktop'
-  if (deviceType === 'mobile') return 'Mobile'
-  if (deviceType === 'tablet') return 'Tablet'
-  if (deviceType === 'bot') return 'Bot'
-  return 'Unknown'
+  if (deviceType === 'desktop') return t('Desktop')
+  if (deviceType === 'mobile') return t('Mobile')
+  if (deviceType === 'tablet') return t('Tablet')
+  if (deviceType === 'bot') return t('Bot')
+  return t('Unknown')
 }
 
 function deviceBadgeClass(deviceType) {

@@ -111,7 +111,7 @@ class DeliveryProductMappingController extends Controller
 
         if (! $platformRefNumberId) {
             throw ValidationException::withMessages([
-                'platform_ref_id' => 'Selected platform reference is invalid or inactive.',
+                'platform_ref_id' => __('Selected platform reference is invalid or inactive.'),
             ]);
         }
 

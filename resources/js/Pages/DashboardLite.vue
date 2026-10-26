@@ -1,12 +1,12 @@
 <template>
 
-    <Head title="Performance (Lite)" />
+    <Head :title="$t('Performance (Lite)')" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
             <div class="flex flex-col space-y-1">
                 <div class="flex space-x-2 items-center">
-                    Performance Dashboard (Lite)
+                    {{ $t('Performance Dashboard (Lite)') }}
                 </div>
             </div>
         </template>
@@ -26,8 +26,8 @@
                     v-if="productRestricted"
                     class="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
                 >
-                    <span class="font-semibold">Your products only.</span>
-                    Every figure below covers just the products you have access to, not the whole machine.
+                    <span class="font-semibold">{{ $t('Your products only.') }}</span>
+                    {{ $t('Every figure below covers just the products you have access to, not the whole machine.') }}
                 </div>
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-4">
@@ -37,24 +37,24 @@
                         >
                             <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
-                                Show Filters
+                                {{ $t('Show Filters') }}
                             </span>
                         </Button>
                     </div>
                     <div class="p-4 mx-2" v-if="showFilters">
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                        <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                            Machine ID
+                        <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                            {{ $t('Machine ID') }}
                             <span class="text-[9px]">
-                                ("," for multiple)
+                                {{ $t('("," for multiple)') }}
                             </span>
                         </SearchInput>
-                        <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                            Site
+                        <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                            {{ $t('Site') }}
                         </SearchInput>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Machine Model
+                                {{ $t('Machine Model') }}
                             </label>
                             <MultiSelect
                                 v-model="filters.vendModels"
@@ -62,7 +62,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="value"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 mode="tags"
                                 class="mt-1"
@@ -71,7 +71,7 @@
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Machine Prefix
+                                {{ $t('Machine Prefix') }}
                             </label>
                             <MultiSelect
                                 v-model="filters.vendPrefixes"
@@ -79,7 +79,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="value"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 mode="tags"
                                 class="mt-1"
@@ -91,7 +91,7 @@
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Location Type
+                                {{ $t('Location Type') }}
                             </label>
                             <MultiSelect
                                 v-model="filters.locationType"
@@ -99,7 +99,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="name"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 class="mt-1"
                             >
@@ -107,7 +107,7 @@
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Product
+                                {{ $t('Product') }}
                             </label>
                             <MultiSelect
                                 v-model="filters.products"
@@ -115,7 +115,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="name"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 class="mt-1"
                                 mode="tags"
@@ -125,7 +125,7 @@
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Product Category
+                                {{ $t('Product Category') }}
                             </label>
                             <MultiSelect
                                 v-model="filters.productCategories"
@@ -133,7 +133,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="name"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 class="mt-1"
                                 mode="tags"
@@ -142,7 +142,7 @@
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Product Category Group
+                                {{ $t('Product Category Group') }}
                             </label>
                             <MultiSelect
                                 v-model="filters.productCategoryGroups"
@@ -150,7 +150,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="name"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 class="mt-1"
                                 mode="tags"
@@ -167,7 +167,7 @@
                                 >
                                     <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                                     <span>
-                                        Search
+                                        {{ $t('Search') }}
                                     </span>
                                 </Button>
                                 <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -175,7 +175,7 @@
                                 >
                                     <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true"/>
                                     <span>
-                                        Hide Filters
+                                        {{ $t('Hide Filters') }}
                                     </span>
                                 </Button>
                             </div>
@@ -185,7 +185,7 @@
 
 
                     <div v-if="!hasSearched" class="mt-2 mb-4 mx-4 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
-                        Use the available filters and click <span class="font-semibold">Search</span> to load performance data.
+                        {{ $t('Use the available filters and click') }} <span class="font-semibold">{{ $t('Search') }}</span> {{ $t('to load performance data.') }}
                     </div>
 
                     <div v-if="hasSearched" class="p-1 py-4 bg-white border-b border-gray-200 flex flex-col space-y-6">
@@ -196,23 +196,23 @@
                         <div class="border rounded-md p-4 bg-gray-50">
                             <div class="flex justify-between items-center mb-4">
                                 <div class="flex items-center space-x-3">
-                                    <h3 class="text-lg font-medium text-gray-900">Historical Analysis</h3>
+                                    <h3 class="text-lg font-medium text-gray-900">{{ $t('Historical Analysis') }}</h3>
                                     <!-- Years toggle -->
                                     <div class="flex rounded-md overflow-hidden border border-gray-300 shadow-sm text-sm font-medium">
                                         <button
                                             @click="() => { if (yearsBack !== 2) { yearsBack = 2; onSearchFilterUpdated(); } }"
                                             :class="yearsBack === 2 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
                                             class="px-3 py-1.5 transition-colors"
-                                        >2 Yrs</button>
+                                        >{{ $t('2 Yrs') }}</button>
                                         <button
                                             @click="() => { if (yearsBack !== 3) { yearsBack = 3; onSearchFilterUpdated(); } }"
                                             :class="yearsBack === 3 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
                                             class="px-3 py-1.5 border-l border-gray-300 transition-colors"
-                                        >3 Yrs</button>
+                                        >{{ $t('3 Yrs') }}</button>
                                     </div>
                                 </div>
                                 <div class="flex space-x-2 items-center">
-                                    <span class="text-gray-700 font-medium">Chosen Month</span>
+                                    <span class="text-gray-700 font-medium">{{ $t('Chosen Month') }}</span>
                                     <select v-model="filters.monthYear" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                                         <option v-for="option in monthYearOptions" :key="option.value" :value="option.value">
                                             {{ option.label }}
@@ -221,12 +221,12 @@
                                     <Button class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         @click="onSearchFilterUpdated()"
                                     >
-                                        Apply
+                                        {{ $t('Apply') }}
                                     </Button>
                                 </div>
                             </div>
 
-                            <h4 class="text-gray-900 font-medium mb-2">Sales Comparison (Last Year vs Chosen Month Year)</h4>
+                            <h4 class="text-gray-900 font-medium mb-2">{{ $t('Sales Comparison (Last Year vs Chosen Month Year)') }}</h4>
                             <Graph
                                 :key="componentKey5"
                                 type="bar"
@@ -236,7 +236,7 @@
                             >
                             </Graph>
 
-                            <h4 class="text-gray-900 font-medium mb-2 mt-5">Last Month vs Chosen Month</h4>
+                            <h4 class="text-gray-900 font-medium mb-2 mt-5">{{ $t('Last Month vs Chosen Month') }}</h4>
                             <Graph
                                 :key="componentKey1"
                                 type="bar"
@@ -270,12 +270,12 @@
                             <div class="pt-5 my-1 mx-4 px-4">
                                 <p class="text-sm flex justify-between">
                                     <div>
-                                        Monthly Analytics By Criteria
+                                        {{ $t('Monthly Analytics By Criteria') }}
                                     </div>
                                 </p>
                                 <div class="pb-3 mb-2">
                                     <div class="sm:hidden">
-                                        <label for="tabs" class="sr-only">Select a tab</label>
+                                        <label for="tabs" class="sr-only">{{ $t('Select a tab') }}</label>
                                         <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
                                             <option v-for="tab in tabs" :key="tab" :value="tab.href" :selected="tab.current">
                                                 {{ tab.name }}
@@ -284,7 +284,7 @@
                                     </div>
                                     <div class="hidden sm:block">
                                         <div class="border-b border-gray-200">
-                                            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                                            <nav class="-mb-px flex space-x-8" :aria-label="$t('Tabs')">
                                                 <span v-for="tab in tabs" :key="tab.name"
                                                 class="hover:cursor-pointer"
                                                 :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
@@ -304,7 +304,7 @@
                                             <thead class="bg-gray-50">
                                                 <tr>
                                                     <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900">
-                                                        Name
+                                                        {{ $t('Name') }}
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
                                                     </th>
@@ -324,7 +324,7 @@
                                                         {{ itemIndex }}
                                                     </td>
                                                     <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                        Daily Sales/ VM
+                                                        {{ $t('Daily Sales/ VM') }}
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
                                                         <span v-for="(data, dataIndex) in item">
@@ -341,7 +341,7 @@
                                                 </tr>
                                                 <tr>
                                                     <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                        Machine Count
+                                                        {{ $t('Machine Count') }}
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
                                                         <span v-for="(data, dataIndex) in item">
@@ -357,7 +357,7 @@
                                                 </tr>
                                                 <tr>
                                                     <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                        Total Sales
+                                                        {{ $t('Total Sales') }}
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
                                                         <span v-for="(data, dataIndex) in item">
@@ -373,7 +373,7 @@
                                                 </tr>
                                                 <tr v-if="!bestPerformerGraphData.data.length">
                                                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                                                        No Results Found
+                                                        {{ $t('No Results Found') }}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -387,7 +387,7 @@
 
                         <div class="border rounded-md p-4 bg-blue-50 mt-6">
                             <div class="mb-4">
-                                <h3 class="text-lg font-medium text-gray-900">Current Stat</h3>
+                                <h3 class="text-lg font-medium text-gray-900">{{ $t('Current Stat') }}</h3>
                             </div>
                         <div class="pt-5 flex justify-center">
                             <div class="w-full md:w-2/3 lg:w-1/2">
@@ -404,10 +404,10 @@
                             <div class="w-full lg:w-1/2 my-1 px-3 lg:px-2">
                                 <p class="text-sm flex justify-between">
                                     <div>
-                                        Past 30 Days - Top {{ performerLimit }} Best Performance
+                                        {{ $t('Past 30 Days - Top :count Best Performance', { count: performerLimit }) }}
                                     </div>
                                     <div>
-                                        Based on {{ vendCount }} active machine(s)
+                                        {{ $t('Based on :count active machine(s)', { count: vendCount }) }}
                                     </div>
                                 </p>
                                 <div class="mt-2 flow-root">
@@ -421,13 +421,13 @@
                                                         #
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Vending Machine
+                                                        {{ $t('Vending Machine') }}
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Amount({{ operatorCountry.currency_symbol }})
+                                                        {{ $t('Amount(:currency)', { currency: operatorCountry.currency_symbol }) }}
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Sales(#)
+                                                        {{ $t('Sales(#)') }}
                                                     </th>
                                                 </tr>
                                             </thead>
@@ -463,7 +463,7 @@
                                                 </tr>
                                                 <tr v-if="!bestPerformerGraphData.data.length">
                                                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                                                        No Results Found
+                                                        {{ $t('No Results Found') }}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -479,10 +479,10 @@
                                         :disabled="performerLoading"
                                     >
                                         <span v-if="performerLoading">
-                                            Loading...
+                                            {{ $t('Loading...') }}
                                         </span>
                                         <span v-else>
-                                            Load Top 50
+                                            {{ $t('Load Top 50') }}
                                         </span>
                                     </Button>
                                 </div>
@@ -490,10 +490,10 @@
                             <div class="w-full lg:w-1/2 my-1 px-3 lg:px-2">
                                 <p class="text-sm flex justify-between">
                                     <div>
-                                        Past 30 Days - Top {{ worstPerformerLimit }} Worst Performance
+                                        {{ $t('Past 30 Days - Top :count Worst Performance', { count: worstPerformerLimit }) }}
                                     </div>
                                     <div>
-                                        Based on {{ vendCount }} active machine(s)
+                                        {{ $t('Based on :count active machine(s)', { count: vendCount }) }}
                                     </div>
                                 </p>
                                 <div class="mt-2 flow-root">
@@ -507,13 +507,13 @@
                                                         #
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Vending Machine
+                                                        {{ $t('Vending Machine') }}
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Amount({{ operatorCountry.currency_symbol }})
+                                                        {{ $t('Amount(:currency)', { currency: operatorCountry.currency_symbol }) }}
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Sales(#)
+                                                        {{ $t('Sales(#)') }}
                                                     </th>
                                                 </tr>
                                             </thead>
@@ -549,7 +549,7 @@
                                                 </tr>
                                                 <tr v-if="!worstPerformerGraphData.data.length">
                                                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                                                        No Results Found
+                                                        {{ $t('No Results Found') }}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -565,10 +565,10 @@
                                         :disabled="worstPerformerLoading"
                                     >
                                         <span v-if="worstPerformerLoading">
-                                            Loading...
+                                            {{ $t('Loading...') }}
                                         </span>
                                         <span v-else>
-                                            Load Bottom 50
+                                            {{ $t('Load Bottom 50') }}
                                         </span>
                                     </Button>
                                 </div>
@@ -595,6 +595,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
     import { hiplDefaultOperators } from '@/constants/defaultOperators';
     import moment from 'moment';
     import { vendCodeLabel } from '@/utils/vendCode';
+    import { t } from '@/i18n';
 
     const props = defineProps({
         productRestricted: Boolean,
@@ -671,8 +672,8 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
     const hasSearched = ref(props.autoLoad ?? false)
     const showFilters = ref(!hasSearched.value)
     const tabs = ref([
-        { name: 'Location Type', slug: 'location-type', current: true, href: '#' },
-        { name: 'Operator', slug: 'operator', current: false, href: '#' },
+        { name: t('Location Type'), slug: 'location-type', current: true, href: '#' },
+        { name: t('Operator'), slug: 'operator', current: false, href: '#' },
     ])
 
     const dayGraphData = ref([]);
@@ -827,7 +828,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Sales(' + operatorCountry.currency_symbol +')'
+                    text: t('Sales(:currency)', { currency: operatorCountry.currency_symbol })
                 },
                 beginAtZero: true
 
@@ -836,7 +837,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
                 position: 'right',
                 title: {
                     display: true,
-                    text: 'Sales(#)'
+                    text: t('Sales(#)')
                 },
                 beginAtZero: true
             },
@@ -844,7 +845,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         plugins: {
             title: {
                 display: true,
-                text: 'Sales by Days'
+                text: t('Sales by Days')
             },
             legend: {
                 reverse: false,
@@ -888,7 +889,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Sales(' + operatorCountry.currency_symbol +')'
+                    text: t('Sales(:currency)', { currency: operatorCountry.currency_symbol })
                 },
                 beginAtZero: true
             },
@@ -896,7 +897,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         plugins: {
             title: {
                 display: true,
-                text: 'Sales Comparison'
+                text: t('Sales Comparison')
             },
             legend: {
                 reverse: false,
@@ -923,7 +924,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Sales(' + operatorCountry.currency_symbol +')'
+                    text: t('Sales(:currency)', { currency: operatorCountry.currency_symbol })
                 },
                 beginAtZero: true
 
@@ -932,7 +933,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
                 position: 'right',
                 title: {
                     display: true,
-                    text: 'Sales(#)'
+                    text: t('Sales(#)')
                 },
                 beginAtZero: true
             },
@@ -940,7 +941,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         plugins: {
             title: {
                 display: true,
-                text: 'Sales by Months'
+                text: t('Sales by Months')
             },
             legend: {
                 reverse: false,
@@ -962,7 +963,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
             },
             title: {
                 display: true,
-                text: 'Past 7 Days - 10 Best Sellers'
+                text: t('Past 7 Days - 10 Best Sellers')
             },
             tooltip: {
                 callbacks: {
@@ -998,7 +999,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Count(#)'
+                    text: t('Count(#)')
                 },
                 beginAtZero: true
 
@@ -1007,7 +1008,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         plugins: {
             title: {
                 display: true,
-                text: 'Average Number of Vending Machines (Site) in operation, by Month'
+                text: t('Average Number of Vending Machines (Site) in operation, by Month')
             },
             legend: {
                 labels: {
@@ -1022,19 +1023,19 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 
     onBeforeMount(() => {
         locationTypeOptions.value = [
-            {id: 'all', name: 'All'},
+            {id: 'all', name: t('All')},
             ...props.locationTypeOptions.data.map((data) => {return {id: data.id, name: data.name}})
         ]
         operatorOptions.value = [
-            {id: 'all', full_name: 'All'},
+            {id: 'all', full_name: t('All')},
             ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
         ]
         vendModelOptions.value = [
-            {id: 'all', value: 'All'},
+            {id: 'all', value: t('All')},
             ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
         ]
         vendPrefixOptions.value = [
-            {id: 'single-ud', value: 'Single UD'},
+            {id: 'single-ud', value: t('Single UD')},
 			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	    ]
         generateMonthYearOptions();
@@ -1352,11 +1353,11 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         const productDataArray = Array.isArray(productGraphData.value) ? productGraphData.value : (productGraphData.value.data || [])
 
         productGraphDatasets.value.push({
-            label: 'Sales',
+            label: t('Sales'),
             data: productDataArray.map((data) => {return data.count}),
             backgroundColor: generalColors,
         })
-        productGraphLabels.value = productDataArray.map((data) => {return data.product ? data.product.code + ' - ' + data.product.name : 'Unknown Product'})
+        productGraphLabels.value = productDataArray.map((data) => {return data.product ? data.product.code + ' - ' + data.product.name : t('Unknown Product')})
 
         bestPerformerGraphData.value = JSON.parse(JSON.stringify(props.performerGraphData))
         worstPerformerGraphData.value = JSON.parse(JSON.stringify(props.worstPerformerGraphData))
@@ -1539,7 +1540,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 
             // Dataset 4: Last Year (Gray)
             salesComparisonGraphDatasets.value.push({
-                label: 'Last Year (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(lastYearData)),
+                label: t('Last Year (:currency)', { currency: operatorCountry.currency_symbol }) + ' ' + formatCurrency(sumData(lastYearData)),
                 data: lastYearData,
                 borderColor: 'rgba(107, 114, 128, 1)', // Gray
                 backgroundColor: 'rgba(107, 114, 128, 0.1)',
@@ -1557,7 +1558,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
             // Dataset 5: 2 Years Ago (Purple) — only shown in 3yr mode
             if (hasTwoYearsAgo) {
                 salesComparisonGraphDatasets.value.push({
-                    label: '2 Years Ago (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(twoYearsAgoData)),
+                    label: t('2 Years Ago (:currency)', { currency: operatorCountry.currency_symbol }) + ' ' + formatCurrency(sumData(twoYearsAgoData)),
                     data: twoYearsAgoData,
                     borderColor: 'rgba(168, 85, 247, 1)', // Purple
                     backgroundColor: 'rgba(168, 85, 247, 0.1)',

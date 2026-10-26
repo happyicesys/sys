@@ -19,12 +19,15 @@
 // Light tints, one step apart from each other and readable under gray-800
 // text. `blue` is the shade the badge has always used, which is why it is
 // also what a package with no colour falls back to.
+import { t } from '@/i18n'
+
+// `name` is a getter: this module is imported before the user's language is loaded.
 export const TELCO_COLORS = [
-  { id: 'yellow', name: 'Yellow', hex: '#FEF08A' },
-  { id: 'orange', name: 'Orange', hex: '#FED7AA' },
-  { id: 'white', name: 'White', hex: '#FFFFFF' },
-  { id: 'purple', name: 'Purple', hex: '#E9D5FF' },
-  { id: 'blue', name: 'Blue', hex: '#DBEAFE' },
+  { id: 'yellow', get name() { return t('Yellow') }, hex: '#FEF08A' },
+  { id: 'orange', get name() { return t('Orange') }, hex: '#FED7AA' },
+  { id: 'white', get name() { return t('White') }, hex: '#FFFFFF' },
+  { id: 'purple', get name() { return t('Purple') }, hex: '#E9D5FF' },
+  { id: 'blue', get name() { return t('Blue') }, hex: '#DBEAFE' },
 ]
 
 // bg-blue-100 / gray-300 — the badge's look before colours existed.
@@ -41,7 +44,7 @@ export function telcoColor(color) {
 export function telcoColorName(color) {
   const option = telcoColor(color)
 
-  return option ? option.name : 'Default'
+  return option ? option.name : t('Default')
 }
 
 /**

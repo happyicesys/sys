@@ -2,10 +2,12 @@
 // One table so the job page, the route page and the rows agree on the wording,
 // the colours and the URLs. Keys are the server's stop types
 // (App\Support\OpsJobStopRegistry).
+import { t, tk } from '@/i18n'
+
 export const STOP_TYPES = {
   service_notice: {
-    label: 'Service Notice',
-    badge: 'SERVICE',
+    label: tk('Service Notice'),
+    badge: tk('SERVICE'),
     basePath: '/service-notices',
     rowClasses: ['bg-amber-50', 'bg-amber-100'],
     badgeClass: 'bg-amber-600 text-white',
@@ -14,8 +16,8 @@ export const STOP_TYPES = {
     buttonClass: 'bg-amber-500 hover:bg-amber-600 text-white',
   },
   stock_check: {
-    label: 'Stock Count',
-    badge: 'COUNT',
+    label: tk('Stock Count'),
+    badge: tk('COUNT'),
     basePath: '/stock-checks',
     rowClasses: ['bg-cyan-50', 'bg-cyan-100'],
     badgeClass: 'bg-cyan-700 text-white',
@@ -40,7 +42,7 @@ export function stopStatusClass(status) {
 export function firstErrors(error) {
   const errors = error?.response?.data?.errors
   if (!errors) {
-    return { _: error?.response?.data?.message || 'Something went wrong. Please try again.' }
+    return { _: error?.response?.data?.message || t('Something went wrong. Please try again.') }
   }
   return Object.fromEntries(Object.entries(errors).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]))
 }

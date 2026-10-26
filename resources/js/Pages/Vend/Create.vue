@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Create New Machine
+            {{ $t('Create New Machine') }}
           </span>
         </div>
       </template>
@@ -13,7 +13,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 pb-2">
             <div class="sm:col-span-6">
               <FormInput v-model="form.code" :error="form.errors.code" required="true">
-                 Machine ID
+                 {{ $t('Machine ID') }}
               </FormInput>
               <!-- <div class="flex space-x-2">
                 <FormInput v-model="form.code" :error="form.errors.code" required="true">
@@ -33,12 +33,12 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name">
-                Name (Leave Blank if Bind from CMS)
+                {{ $t('Name (Leave Blank if Bind from CMS)') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
-                Private Key
+                {{ $t('Private Key') }}
               </FormInput>
             </div>
           </div>
@@ -51,7 +51,7 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button
@@ -61,7 +61,7 @@
               >
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>

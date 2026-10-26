@@ -1,10 +1,10 @@
 <template>
-  <Head title="Warehouse Qty (via API) & Planning" />
+  <Head :title="$t('Warehouse Qty (via API) & Planning')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Warehouse Qty (via API) & Planning
+        {{ $t('Warehouse Qty (via API) & Planning') }}
       </h2>
     </template>
 
@@ -14,18 +14,18 @@
           <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
             <div class="py-4">
               <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                  <SearchInput placeholderStr="Product ID/ Code" v-model="filters.product_code">
-                    Product ID
+                  <SearchInput :placeholderStr="$t('Product ID/ Code')" v-model="filters.product_code">
+                    {{ $t('Product ID') }}
                   </SearchInput>
-                  <SearchInput placeholderStr="Product Name" v-model="filters.product_name">
-                    Product Name
+                  <SearchInput :placeholderStr="$t('Product Name')" v-model="filters.product_name">
+                    {{ $t('Product Name') }}
                   </SearchInput>
                   <div v-if="canSeeFilters">
                     <OperatorFilter v-model="filters.operators" />
                   </div>
                   <div v-if="canSeeFilters">
                     <label for="text" class="block text-sm font-medium text-gray-700">
-                      Is Available?
+                      {{ $t('Is Available?') }}
                     </label>
                     <MultiSelect
                       v-model="filters.is_available"
@@ -33,7 +33,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     >
@@ -48,14 +48,14 @@
             >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                    Search
+                    {{ $t('Search') }}
                 </span>
             </Button>
                       <Button v-if="canExport" class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onExcelExportClicked()"
                       >
                         <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
-                        <span>Export Excel</span>
+                        <span>{{ $t('Export Excel') }}</span>
                       </Button>
                       <!-- Unread Remarks toggle: shows only products whose
                            Remarks changed (by someone else) since your last
@@ -67,7 +67,7 @@
                         @click.prevent="toggleUnread()"
                       >
                         <BellAlertIcon :class="['h-4 w-4', unreadMode ? 'text-white' : 'text-red-500']" aria-hidden="true"/>
-                        <span>{{ unreadMode ? 'Show All' : 'Unread' }}</span>
+                        <span>{{ unreadMode ? $t('Show All') : $t('Unread') }}</span>
                         <span v-if="props.unreadCount > 0"
                           :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                             unreadMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
@@ -83,7 +83,7 @@
                         @click.prevent="toggleMentioned()"
                       >
                         <AtSymbolIcon :class="['h-4 w-4', mentionMode ? 'text-white' : 'text-indigo-500']" aria-hidden="true"/>
-                        <span>{{ mentionMode ? 'Show All' : 'Me Mentioned' }}</span>
+                        <span>{{ mentionMode ? $t('Show All') : $t('Me Mentioned') }}</span>
                         <span v-if="props.mentionCount > 0"
                           :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                             mentionMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
@@ -93,10 +93,10 @@
                   </div>
                   <div class="flex flex-col gap-2 items-end">
                       <span class="text-xs text-gray-500 self-center">
-                          {{ products.data.length }} products found
+                          {{ $t(':count products found', { count: products.data.length }) }}
                       </span>
                       <div class="flex flex-row items-center gap-2" v-if="canSeePlanning">
-                        <label class="text-xs font-semibold text-gray-700">Planning Date</label>
+                        <label class="text-xs font-semibold text-gray-700">{{ $t('Planning Date') }}</label>
                         <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated" :minDate="today">
                             <template #trigger>
                                 <span class="p-1 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-100 flex flex-row gap-2 justify-center items-center h-full text-xs">
@@ -115,7 +115,7 @@
                   <tr v-if="canSeePlanning">
                     <th colspan="9" class="bg-gray-100"></th>
                     <th colspan="3" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
-                      Planning
+                      {{ $t('Planning') }}
                     </th>
                   </tr>
                   <tr>
@@ -123,11 +123,11 @@
                       #
                     </th>
                     <th scope="col" class="th-header w-[5%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      Image
+                      {{ $t('Image') }}
                     </th>
                     <th scope="col" class="th-header w-[20%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
                       <div class="flex items-center justify-center gap-1">
-                        Product
+                        {{ $t('Product') }}
                         <span v-if="filters.sortKey === 'code'">
                           <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                              <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -139,12 +139,12 @@
                       </div>
                     </th>
                     <th scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      Available in # of VM <br>
-                      <span class="font-normal text-gray-600">(machines carrying SKU, with stock)</span>
+                      {{ $t('Available in # of VM') }} <br>
+                      <span class="font-normal text-gray-600">{{ $t('(machines carrying SKU, with stock)') }}</span>
                     </th>
                     <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                       <div class="flex items-center justify-center gap-1">
-                          <span>Daily Sold Qty</span>
+                          <span>{{ $t('Daily Sold Qty') }}</span>
                           <span v-if="filters.sortKey === 'avg_seven_days_count'">
                               <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -154,15 +154,15 @@
                               </svg>
                           </span>
                       </div>
-                      <span class="font-normal text-gray-600">(average last 7days)</span>
+                      <span class="font-normal text-gray-600">{{ $t('(average last 7days)') }}</span>
                       <br>
-                      <span class="font-semibold text-gray-900">Y'day sold</span>
+                      <span class="font-semibold text-gray-900">{{ $t("Y'day sold") }}</span>
                     </th>
 
                     <!-- Last incoming: CMS's last Stock In batch, or the ledger's last incoming movement. Sorted by date. -->
                     <th scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('last_incoming_at')">
                       <div class="flex items-center justify-center gap-1">
-                          <span>Last incoming</span>
+                          <span>{{ $t('Last incoming') }}</span>
                           <span v-if="filters.sortKey === 'last_incoming_at'">
                               <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -172,37 +172,37 @@
                               </svg>
                           </span>
                       </div>
-                      <span class="font-normal text-gray-600">(Qty, Date)</span>
+                      <span class="font-normal text-gray-600">{{ $t('(Qty, Date)') }}</span>
                       <br>
-                      <span class="font-semibold text-gray-900">Last 2 incoming</span>
+                      <span class="font-semibold text-gray-900">{{ $t('Last 2 incoming') }}</span>
                     </th>
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      Qty in Warehouse <br>
-                      <span class="font-normal text-gray-600">(from API)</span>
+                      {{ $t('Qty in Warehouse') }} <br>
+                      <span class="font-normal text-gray-600">{{ $t('(from API)') }}</span>
                     </th>
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      Picked Qty <br>
-                      <span class="font-normal text-gray-600">(not yet sync API)</span>
+                      {{ $t('Picked Qty') }} <br>
+                      <span class="font-normal text-gray-600">{{ $t('(not yet sync API)') }}</span>
                     </th>
                     <th scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
                       <div class="flex items-center justify-center gap-1">
-                          <span>Remaining Qty</span>
-                          <ExclamationCircleIcon class="min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: 'Red = Remaining Qty not enough to cover \'To Pick Qty\' as in Planning Date', html: true }"></ExclamationCircleIcon>
+                          <span>{{ $t('Remaining Qty') }}</span>
+                          <ExclamationCircleIcon class="min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: $t('Red = Remaining Qty not enough to cover \'To Pick Qty\' as in Planning Date'), html: true }"></ExclamationCircleIcon>
                       </div>
-                      <span class="font-normal text-[10px] text-gray-600">(Qty in Warehouse, minus Picked Qty)</span>
+                      <span class="font-normal text-[10px] text-gray-600">{{ $t('(Qty in Warehouse, minus Picked Qty)') }}</span>
                     </th>
                     <th v-if="canSeePlanning" scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      To Pick Qty <br>
+                      {{ $t('To Pick Qty') }} <br>
                       <!-- Live Update note similar to ProductMovement if desired, or just keep header simple -->
-                      <span class="font-normal text-xs text-gray-600">(Live Update)</span>
+                      <span class="font-normal text-xs text-gray-600">{{ $t('(Live Update)') }}</span>
                     </th>
                     <th v-if="canSeePlanning" scope="col" class="th-header w-[7%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      Needed by # of VM <br>
-                      <span class="font-normal text-xs text-gray-600">(machines with To Pick Qty)</span>
+                      {{ $t('Needed by # of VM') }} <br>
+                      <span class="font-normal text-xs text-gray-600">{{ $t('(machines with To Pick Qty)') }}</span>
                     </th>
                     <th v-if="canSeePlanning" scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                      Capped Qty per Channel <br>
-                      <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Planning Date & 4 Days Onwards)</span>
+                      {{ $t('Capped Qty per Channel') }} <br>
+                      <span class="font-normal text-xs text-gray-600">{{ $t('(max Qty after Refilling on Planning Date & 4 Days Onwards)') }}</span>
                     </th>
                   </tr>
                 </thead>
@@ -223,7 +223,7 @@
                         <span class="font-bold" v-if="product.code">{{ product.code }}</span>
                         <span class="text-xs mb-1" v-if="product.name">{{ product.name }}</span>
                         <div class="flex items-center gap-1">
-                          <span class="text-green-700 font-bold text-xs">Available?</span>
+                          <span class="text-green-700 font-bold text-xs">{{ $t('Available?') }}</span>
                           <span v-if="product.is_available">
                             <CheckCircleIcon class="h-5 w-5 text-green-500" :class="canWriteAvailability ? 'hover:cursor-pointer hover:text-green-600' : 'cursor-default'" @click.prevent="onIsAvailableClicked(product)" />
                           </span>
@@ -248,7 +248,7 @@
                                   :users="mentionableUsers"
                                   :rows="1"
                                   :autogrow="true"
-                                  placeholder="Remarks"
+                                  :placeholder="$t('Remarks')"
                                   textarea-class="text-xs text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full resize-none overflow-hidden"
                               />
                               <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
@@ -260,13 +260,13 @@
                               v-if="product.is_parent_sku"
                               class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white"
                             >
-                              Blind housing
+                              {{ $t('Blind housing') }}
                             </span>
                             <span
                               v-else-if="product.blind_parent_codes && product.blind_parent_codes.length"
                               class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700"
                             >
-                              child of {{ product.blind_parent_codes.join(', ') }}
+                              {{ $t('child of :codes', { codes: product.blind_parent_codes.join(', ') }) }}
                             </span>
                             <BlindFlavourChips v-if="product.is_parent_sku" :product="product" />
                         </div>
@@ -278,7 +278,7 @@
                         v-if="product.available_vend_count > 0"
                         type="button"
                         class="text-sm sm:text-lg font-bold text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-4 hover:text-indigo-700 hover:decoration-indigo-400"
-                        v-tooltip="{ content: 'Click for every machine carrying this SKU, with site and refilling route.' }"
+                        v-tooltip="{ content: $t('Click for every machine carrying this SKU, with site and refilling route.') }"
                         @click.prevent="onVendDrillClicked(product, 'all')"
                       >
                         {{ Number(product.available_vend_count).toLocaleString() }}
@@ -289,12 +289,12 @@
                           v-if="Number(product.available_vend_with_stock_count ?? 0) > 0"
                           type="button"
                           class="underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-indigo-700 hover:decoration-indigo-400"
-                          v-tooltip="{ content: 'Click for the machines still holding stock of this SKU.' }"
+                          v-tooltip="{ content: $t('Click for the machines still holding stock of this SKU.') }"
                           @click.prevent="onVendDrillClicked(product, 'with_stock')"
                         >
-                          {{ Number(product.available_vend_with_stock_count).toLocaleString() }} with stock
+                          {{ $t(':count with stock', { count: Number(product.available_vend_with_stock_count).toLocaleString() }) }}
                         </button>
-                        <span v-else>0 with stock</span>
+                        <span v-else>{{ $t(':count with stock', { count: 0 }) }}</span>
                       </div>
                       <!-- Low stock: machines whose total qty of this SKU is <= 2 (incl. empty). Click for the machine list. -->
                       <div v-if="product.available_vend_count > 0" class="mt-1">
@@ -302,14 +302,14 @@
                           v-if="Number(product.available_vend_low_stock_count ?? 0) > 0"
                           type="button"
                           class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2.5 py-1 text-xs sm:text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 shadow-sm transition-colors hover:bg-red-100 hover:ring-red-300"
-                          v-tooltip="{ content: 'Machines whose total stock of this SKU is 2 or less (empty included). Click for the machine list with refilling routes.' }"
+                          v-tooltip="{ content: $t('Machines whose total stock of this SKU is 2 or less (empty included). Click for the machine list with refilling routes.') }"
                           @click.prevent="onVendDrillClicked(product, 'low')"
                         >
                           <ExclamationTriangleIcon class="h-4 w-4 text-red-500" aria-hidden="true" />
-                          {{ Number(product.available_vend_low_stock_count).toLocaleString() }} at &le;2
+                          {{ $t(':count at ≤2', { count: Number(product.available_vend_low_stock_count).toLocaleString() }) }}
                         </button>
                         <span v-else class="inline-flex items-center whitespace-nowrap rounded-full bg-gray-50 px-2.5 py-1 text-xs sm:text-sm text-gray-400 ring-1 ring-inset ring-gray-200">
-                          0 at &le;2
+                          {{ $t(':count at ≤2', { count: 0 }) }}
                         </span>
                       </div>
                     </td>
@@ -319,8 +319,8 @@
                       </div>
                       <!-- Y'day sold: same measure as the 7-day average above it, for yesterday alone. -->
                       <div class="text-xs sm:text-sm font-semibold mt-0.5" :class="[product.is_available ? 'text-gray-900' : 'text-gray-400']"
-                        v-tooltip="{ content: 'Sold yesterday (' + yesterdayLabel + '), counted the same way as the 7-day average above.' }">
-                        Y'day {{ Number(product.yesterday_sold_count ?? 0).toLocaleString() }}
+                        v-tooltip="{ content: $t('Sold yesterday (:date), counted the same way as the 7-day average above.', { date: yesterdayLabel }) }">
+                        {{ $t("Y'day :count", { count: Number(product.yesterday_sold_count ?? 0).toLocaleString() }) }}
                       </div>
                     </td>
 
@@ -343,12 +343,12 @@
                       <div v-if="product.warehouse_qty_source === 'ledger'" class="mt-0.5">
                         <Link v-if="canReadLedger" :href="'/products/movements?product_code=' + product.code + '&warehouse_qty_source=ledger&operators[]=all'"
                           class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                          title="Warehouse qty is the self-system ledger (manual incoming − picks), not CMS. Click to key incoming / see history.">Self-system ledger</Link>
+                          :title="$t('Warehouse qty is the self-system ledger (manual incoming − picks), not CMS. Click to key incoming / see history.')">{{ $t('Self-system ledger') }}</Link>
                         <!-- Same badge, no link: the ledger page is gated on `read products`,
                              which a viewer of this page need not hold (prod_owner). -->
                         <span v-else
                           class="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800"
-                          title="Warehouse qty is the self-system ledger (manual incoming − picks), not CMS.">Self-system ledger</span>
+                          :title="$t('Warehouse qty is the self-system ledger (manual incoming − picks), not CMS.')">{{ $t('Self-system ledger') }}</span>
                       </div>
                     </td>
                     <!-- Picked Qty (Gray) -->
@@ -373,11 +373,11 @@
                     <td v-if="canSeePlanning" class="p-1 sm:p-3 text-center">
                       <div class="flex flex-col items-center gap-1">
                         <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !canWriteAvailability" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
-                          <option :value="null">No</option>
+                          <option :value="null">{{ $t('No') }}</option>
                           <option v-for="n in 25 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
                         <span class="text-[10px] text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
-                          from Yesterday
+                          {{ $t('from Yesterday') }}
                         </span>
                         <span class="text-[10px] text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].createdBy">
                           {{ product.productLimits[0].createdBy.name }}
@@ -393,9 +393,9 @@
                   <tr class="bg-gray-50 font-bold">
                     <td colspan="3" class="p-1 sm:p-3 text-left text-gray-900">
                       <div class="flex flex-col space-y-1 items-start">
-                        <span>Total Pcs</span>
-                        <span>Total Cost$</span>
-                        <span class="text-gray-900">Stock Value</span>
+                        <span>{{ $t('Total Pcs') }}</span>
+                        <span>{{ $t('Total Cost$') }}</span>
+                        <span class="text-gray-900">{{ $t('Stock Value') }}</span>
                       </div>
                     </td>
                     <!-- Available in # of VM: no total — the same machine carries many SKUs -->
@@ -462,7 +462,7 @@
       </template>
       <div class="text-sm">
         <div v-if="vendDrillLoading" class="py-8 text-center text-gray-500">
-          Loading...
+          {{ $t('Loading...') }}
         </div>
         <div v-else-if="vendDrillVends.length === 0" class="py-8 text-center text-gray-500">
           {{ vendDrillScopes[vendDrillScope].empty }}
@@ -505,9 +505,9 @@
                 <td class="p-2 text-left text-xs whitespace-nowrap">
                   <template v-if="vend.last_job_date">
                     <span class="text-gray-800">{{ moment(vend.last_job_date).format('YYYY-MM-DD') }}</span>
-                    <span class="text-gray-500"> ({{ vend.last_job_days_ago }}d ago)</span>
+                    <span class="text-gray-500"> ({{ $t(':daysd ago', { daysd: vend.last_job_days_ago + 'd', days: vend.last_job_days_ago }) }})</span>
                   </template>
-                  <span v-else class="text-gray-400">never</span>
+                  <span v-else class="text-gray-400">{{ $t('never') }}</span>
                 </td>
                 <td class="p-2 text-right text-xs whitespace-nowrap">
                   <span v-if="vend.zone_name" class="inline-block rounded bg-sky-100 px-1.5 py-0.5 font-semibold text-sky-800">
@@ -538,6 +538,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';
 import BlindFlavourChips from '@/Components/BlindFlavourChips.vue';
 import Modal from '@/Components/Modal.vue';
+import { t } from '@/i18n';
 const props = defineProps({
   operatorOptions: Object,
   products: Object,
@@ -597,18 +598,18 @@ const yesterdayLabel = moment().subtract(1, 'days').format('YYMMDD');
 // Age of the "Last incoming" date by the user's local calendar day: today / 1d ago / Nd ago.
 const daysAgoLabel = (date) => {
   const days = moment().startOf('day').diff(moment(date).startOf('day'), 'days');
-  return days <= 0 ? 'today' : `${days}d ago`;
+  return days <= 0 ? t('today') : t(':daysd ago', { daysd: days + 'd', days });
 };
 
 const booleanOptions = ref([])
 onMounted(() => {
   booleanOptions.value = [
-    {id: 'all', value: 'All'},
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'all', value: t('All')},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
   ]
   operatorOptions.value = [
-			{id: 'all', full_name: 'All'},
+			{id: 'all', full_name: t('All')},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   filters.value.operators = authOperator ? [
@@ -725,9 +726,9 @@ function getDailySoldQtyTotalCost() {
 // "Available in # of VM" drill-down modal: the machines behind one of the
 // cell's three figures. Scopes mirror ProductController::availableVendCounts.
 const vendDrillScopes = {
-  all: { title: 'Machines carrying this SKU', empty: 'No machines carry this SKU.' },
-  with_stock: { title: 'Machines with stock', empty: 'No machines hold stock of this SKU.' },
-  low: { title: 'Machines with stock <= 2', empty: 'No machines with stock <= 2.' },
+  all: { title: t('Machines carrying this SKU'), empty: t('No machines carry this SKU.') },
+  with_stock: { title: t('Machines with stock'), empty: t('No machines hold stock of this SKU.') },
+  low: { title: t('Machines with stock <= 2'), empty: t('No machines with stock <= 2.') },
 }
 const vendDrillScope = ref('low')
 const vendDrillOpen = ref(false)
@@ -739,11 +740,11 @@ const vendDrillVends = ref([])
 // route, then site) — clicking it puts the list back the way it arrived.
 const vendDrillColumns = [
   { key: 'index', label: '#', align: 'text-left', justify: 'justify-start' },
-  { key: 'vend_code', label: 'Machine', align: 'text-left', justify: 'justify-start' },
-  { key: 'site_name', label: 'Site', align: 'text-left', justify: 'justify-start' },
-  { key: 'qty', label: 'Stock Left', align: 'text-center', justify: 'justify-center' },
-  { key: 'last_job_date', label: 'Last Job', align: 'text-left', justify: 'justify-start' },
-  { key: 'zone_name', label: 'Refilling Route', align: 'text-right', justify: 'justify-end' },
+  { key: 'vend_code', label: t('Machine'), align: 'text-left', justify: 'justify-start' },
+  { key: 'site_name', label: t('Site'), align: 'text-left', justify: 'justify-start' },
+  { key: 'qty', label: t('Stock Left'), align: 'text-center', justify: 'justify-center' },
+  { key: 'last_job_date', label: t('Last Job'), align: 'text-left', justify: 'justify-start' },
+  { key: 'zone_name', label: t('Refilling Route'), align: 'text-right', justify: 'justify-end' },
 ]
 const vendDrillSortKey = ref('index')
 const vendDrillSortAsc = ref(true)

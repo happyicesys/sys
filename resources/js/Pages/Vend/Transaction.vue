@@ -1,12 +1,12 @@
 
 <template>
 
-  <Head title="VM Transactions" />
+  <Head :title="$t('VM Transactions')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Sales Transactions
+              {{ $t('Sales Transactions') }}
           </h2>
       </template>
 
@@ -15,23 +15,23 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
-                <SearchInput placeholderStr="Order ID" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
-                    Order ID
+                <SearchInput :placeholderStr="$t('Order ID')" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Order ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                    Machine ID
+                <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Machine ID') }}
                     <span class="text-[9px]">
-                        ("," for multiple)
+                        {{ $t('("," for multiple)') }}
                     </span>
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
-                    Channel ID
+                <SearchInput :placeholderStr="$t('Channel ID')" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Channel ID') }}
                     <span class="text-[9px]">
-                        ("," for multiple)
+                        {{ $t('("," for multiple)') }}
                     </span>
                 </SearchInput>
             </div>
@@ -39,7 +39,7 @@
                 <DatePicker
                     v-model="filters.date_from"
                 >
-                    From
+                    {{ $t('From') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
@@ -47,12 +47,12 @@
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
                 >
-                    To
+                    {{ $t('To') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Channel Errors
+                    {{ $t('Channel Errors') }}
                 </label>
                 <MultiSelect
                     v-model="filters.errors"
@@ -60,7 +60,7 @@
                     valueProp="id"
                     label="desc"
                     mode="tags"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -68,14 +68,14 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Payment Method
+                   {{ $t('Payment Method') }}
                 </label>
                 <MultiSelect
                     v-model="filters.paymentMethods"
                     :options="paymentMethodOptions"
                     valueProp="id"
                     label="name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -87,7 +87,7 @@
                  synthetic entries. See paymentMethodOptions below. -->
             <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Category
+                    {{ $t('Category') }}
                 </label>
                 <MultiSelect
                     v-model="filters.categories"
@@ -96,7 +96,7 @@
                     valueProp="id"
                     label="name"
                     mode="tags"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -104,7 +104,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Group
+                    {{ $t('Group') }}
                 </label>
                 <MultiSelect
                     v-model="filters.categoryGroups"
@@ -113,35 +113,35 @@
                     valueProp="id"
                     label="name"
                     mode="tags"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
                 </MultiSelect>
             </div> -->
             <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" @keyup.enter="onSearchFilterUpdated()">
-                    Cust ID
+                <SearchInput :placeholderStr="$t('Cust ID')" v-model="filters.customer_code" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Cust ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" @keyup.enter="onSearchFilterUpdated()">
-                    Cust Name
+                <SearchInput :placeholderStr="$t('Cust Name')" v-model="filters.customer_name" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Cust Name') }}
                 </SearchInput>
             </div> -->
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                    Site
+                <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Site') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
-                    Product ID
+                <SearchInput :placeholderStr="$t('Product ID')" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Product ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Product Name" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
-                    Product Name
+                <SearchInput :placeholderStr="$t('Product Name')" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Product Name') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
@@ -149,7 +149,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Site Binded?
+                    {{ $t('Site Binded?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_binded_customer"
@@ -157,7 +157,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -165,7 +165,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Payment Status
+                    {{ $t('Payment Status') }}
                 </label>
                 <MultiSelect
                     v-model="filters.payment_status"
@@ -173,7 +173,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -181,7 +181,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Dispense Status
+                    {{ $t('Dispense Status') }}
                 </label>
                 <!-- Request key stays is_payment_received (bookmarked URLs); it has
                      always filtered on the dispense outcome — see the scope. -->
@@ -191,7 +191,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -199,7 +199,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Location Type
+                    {{ $t('Location Type') }}
                 </label>
                 <MultiSelect
                     v-model="filters.location_type_id"
@@ -207,7 +207,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -215,7 +215,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Machine Prefix
+                    {{ $t('Machine Prefix') }}
                 </label>
                 <MultiSelect
                     v-model="filters.vendPrefixes"
@@ -223,7 +223,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -232,7 +232,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Auto Refunded?
+                    {{ $t('Auto Refunded?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_refunded"
@@ -240,7 +240,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -248,7 +248,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Settle Sync?
+                    {{ $t('Settle Sync?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.settle_sync"
@@ -256,20 +256,20 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
                 </MultiSelect>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
-                <SearchInput placeholderStr="Refund Request" v-model="filters.refund_request" @keyup.enter="onSearchFilterUpdated()">
-                    Refund Request
+                <SearchInput :placeholderStr="$t('Refund Request')" v-model="filters.refund_request" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Refund Request') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    TXN_SRC
+                    {{ $t('TXN_SRC') }}
                 </label>
                 <MultiSelect
                     v-model="filters.interface_type"
@@ -277,7 +277,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -285,7 +285,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Multiple?
+                    {{ $t('Is Multiple?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_multiple"
@@ -293,20 +293,20 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
                 </MultiSelect>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="APK Ver" v-model="filters.apk_ver" @keyup.enter="onSearchFilterUpdated()">
-                    APK Ver
+                <SearchInput :placeholderStr="$t('APK Ver')" v-model="filters.apk_ver" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('APK Ver') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Machine Contract
+                    {{ $t('Machine Contract') }}
                 </label>
                 <MultiSelect
                     v-model="filters.vendContracts"
@@ -314,7 +314,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     mode="tags"
                     class="mt-1"
@@ -323,7 +323,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Member?
+                    {{ $t('Is Member?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_member"
@@ -331,25 +331,25 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
                 </MultiSelect>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
-                <SearchInput placeholderStr="Member ID" v-model="filters.member_code" @keyup.enter="onSearchFilterUpdated()">
-                    Member ID
+                <SearchInput :placeholderStr="$t('Member ID')" v-model="filters.member_code" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Member ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
-                <SearchInput placeholderStr="HID Card ID" v-model="filters.hid_card_id" @keyup.enter="onSearchFilterUpdated()">
-                    HID Card ID
+                <SearchInput :placeholderStr="$t('HID Card ID')" v-model="filters.hid_card_id" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('HID Card ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Voucher?
+                    {{ $t('Is Voucher?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_voucher"
@@ -357,7 +357,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -365,7 +365,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Machine Model
+                    {{ $t('Machine Model') }}
                 </label>
                 <MultiSelect
                     v-model="filters.vendModels"
@@ -373,7 +373,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -382,14 +382,14 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label class="block text-sm font-medium text-gray-700">
-                    Campaign Label(s)
+                    {{ $t('Campaign Label(s)') }}
                 </label>
                 <MultiSelect
                     v-model="filters.tag"
                     :options="tagOptions"
                     valueProp="id"
                     label="name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 />
@@ -404,7 +404,7 @@
                         >
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
-                                Search
+                                {{ $t('Search') }}
                             </span>
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -413,14 +413,14 @@
                         >
                             <span v-if="!showAllFilters" class="flex">
                                 <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
-                                Show
+                                {{ $t('Show') }}
                             </span>
                             <span v-if="showAllFilters" class="flex">
                                 <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true"/>
-                                Hide
+                                {{ $t('Hide') }}
                             </span>
                             <span>
-                                All Filters
+                                {{ $t('All Filters') }}
                             </span>
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -428,7 +428,7 @@
                         >
                             <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
-                                Reset
+                                {{ $t('Reset') }}
                             </span>
                         </Button>
                         <!-- <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -443,7 +443,7 @@
                                     </svg>
                                 </div>
                                 <span>
-                                    Export Excel
+                                    {{ $t('Export Excel') }}
                                 </span>
                             </div>
                         </Button> -->
@@ -459,20 +459,20 @@
                                     <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908Z" fill="currentColor"/>
                                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                                 </svg>
-                                <span>Export CSV</span>
+                                <span>{{ $t('Export CSV') }}</span>
                             </div>
                         </Button>
                     </div>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                        <span>Showing</span>
+                        <span>{{ $t('Showing') }}</span>
                         <span class="font-medium">{{ vendTransactions.meta.from ?? 0 }}</span>
-                        <span>to</span>
+                        <span>{{ $t('to') }}</span>
                         <span class="font-medium">{{ vendTransactions.meta.to ?? 0 }}</span>
-                        <span>of</span>
+                        <span>{{ $t('of') }}</span>
                         <span class="font-medium">{{ vendTransactions.meta.total }}</span>
-                        <span>results</span>
+                        <span>{{ $t('results') }}</span>
                     </p>
                     <MultiSelect
                         v-model="filters.numberPerPage"
@@ -480,7 +480,7 @@
                         trackBy="id"
                         valueProp="id"
                         label="value"
-                        placeholder="Select"
+                        :placeholder="$t('Select')"
                         open-direction="bottom"
                         class="mt-1"
                         @selected="onSearchFilterUpdated"
@@ -490,7 +490,7 @@
             </div>
 
             <div v-if="latestExports.length" class="m-2 max-w-full md:max-w-2xl lg:max-w-xl mx-start">
-            <h4 class="text-md font-semibold text-gray-900 mt-2">Recent CSV Exports</h4>
+            <h4 class="text-md font-semibold text-gray-900 mt-2">{{ $t('Recent CSV Exports') }}</h4>
             <ul role="list" class="space-y-1">
                 <li
                 v-for="latestExport in latestExports"
@@ -515,20 +515,20 @@
                         {{ latestExport.filename }}
                     </p>
                     <span v-if="latestExport.status === 'completed' && latestExport.attachment?.full_url" class="text-xs text-indigo-600 hover:underline">
-                        <a :href="latestExport.attachment.full_url" target="_blank">Download</a>
+                        <a :href="latestExport.attachment.full_url" target="_blank">{{ $t('Download') }}</a>
                     </span>
                     <span v-else-if="latestExport.status === 'failed'" class="text-xs text-red-500 italic">
-                        Failed
+                        {{ $t('Failed') }}
                     </span>
                     <span v-else class="text-xs italic text-gray-500">
-                        Processing...
+                        {{ $t('Processing...') }}
                     </span>
                     </div>
 
                     <button
                     @click="deleteExport(latestExport.id)"
                     class="text-gray-400 hover:text-red-600 ml-2"
-                    title="Remove"
+                    :title="$t('Remove')"
                     >
                     <XMarkIcon class="h-5 w-5" />
                     </button>
@@ -542,7 +542,7 @@
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
         <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Total Sales {{ operatorCountry.currency_symbol }}</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Total Sales') }} {{ operatorCountry.currency_symbol }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div>
                         {{((totals['success_amount'] ? totals['success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -554,19 +554,18 @@
                       amount rather than quietly over-reporting.
                     -->
                     <div v-if="totals['product_restricted']" class="mt-1 rounded bg-amber-50 border border-amber-200 px-2 py-1">
-                        <div class="text-xs font-medium text-amber-800">Your products only</div>
+                        <div class="text-xs font-medium text-amber-800">{{ $t('Your products only') }}</div>
                         <div class="text-base font-semibold text-amber-900">
                             {{((totals['product_attributed_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                         </div>
                         <!-- Only when a mixed basket actually contributed, or the line reads "0.00 belongs to other parties", which is noise. -->
                         <div class="text-xs font-normal text-amber-700 leading-snug" v-if="totals['product_excluded_amount'] > 0">
-                            {{((totals['product_excluded_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-                            of the listed baskets belongs to other parties. Mixed-basket rows below show the full basket amount.
+                            {{ $t(':amount of the listed baskets belongs to other parties. Mixed-basket rows below show the full basket amount.', { amount: ((totals['product_excluded_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }) }}
                         </div>
                     </div>
                     <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Cash:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Cash:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['cash_amount'] ? totals['cash_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 <span class="text-xs text-gray-500">
@@ -575,7 +574,7 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Cashless Terminal:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Cashless Terminal:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['cashless_terminal_amount'] ? totals['cashless_terminal_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 <span class="text-xs text-gray-500">
@@ -584,7 +583,7 @@
                             </span>
                         </div>
                          <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">QR Payment Gateway:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('QR Payment Gateway:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['qr_payment_amount'] ? totals['qr_payment_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 <span class="text-xs text-gray-500">
@@ -593,7 +592,7 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Delivery Platform (Grab):</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Delivery Platform (Grab):') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['delivery_platform_success_amount'] ? totals['delivery_platform_success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 <span class="text-xs text-gray-500">
@@ -605,7 +604,7 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Transaction Count (Successful)</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Transaction Count (Successful)') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div>
                         {{(totals['success_payment_count'] ? totals['success_payment_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -615,7 +614,7 @@
                     </div>
                     <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Cash:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Cash:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['cash_count'] ? totals['cash_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 <span class="text-xs text-gray-500">
@@ -624,7 +623,7 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Cashless Terminal:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Cashless Terminal:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['cashless_terminal_count'] ? totals['cashless_terminal_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 <span class="text-xs text-gray-500">
@@ -633,7 +632,7 @@
                             </span>
                         </div>
                          <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">QR Payment Gateway:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('QR Payment Gateway:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['qr_payment_count'] ? totals['qr_payment_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 <span class="text-xs text-gray-500">
@@ -642,7 +641,7 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Delivery Platform (Grab):</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Delivery Platform (Grab):') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['delivery_platform_success_count'] ? totals['delivery_platform_success_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 <span class="text-xs text-gray-500">
@@ -651,7 +650,7 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Total Payment Count:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('Total Payment Count:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['total_transaction_count'] ? totals['total_transaction_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                             </span>
@@ -660,7 +659,7 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Multiple Purchases Transaction Count</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Multiple Purchases Transaction Count') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div>
                         {{((totals['multiple_count_machine'] || 0) + (totals['multiple_count_delivery_platform'] || 0)).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -670,7 +669,7 @@
                     </div>
                     <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">From Machine:</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('From Machine:') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['multiple_count_machine'] ? totals['multiple_count_machine'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 <span class="text-xs text-gray-500">
@@ -679,7 +678,7 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">From Delivery Platform (Grab):</span>
+                            <span class="text-xs font-medium text-gray-500">{{ $t('From Delivery Platform (Grab):') }}</span>
                             <span class="text-lg font-semibold text-gray-800">
                                 {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 <span class="text-xs text-gray-500">
@@ -692,12 +691,12 @@
             </div>
 
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Total Qty</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Total Qty') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex flex-col">
                         <div class="flex justify-between items-center space-x-2">
                             <span class="text-xs font-medium text-gray-600">
-                                Dispensed:
+                                {{ $t('Dispensed:') }}
                             </span>
                              <span class="text-lg">
                                 {{Number(totals['success_total_qty'] ? totals['success_total_qty'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -705,7 +704,7 @@
                         </div>
                          <div class="flex justify-between items-center space-x-2">
                             <span class="text-xs font-medium text-gray-600">
-                                Purchased:
+                                {{ $t('Purchased:') }}
                             </span>
                              <span class="text-lg">
                                 {{Number(totals['total_qty'] ? totals['total_qty'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -713,7 +712,7 @@
                         </div>
                          <div class="flex justify-between items-center space-x-2 border-t pt-1 mt-1 border-gray-300">
                             <span class="text-xs font-medium text-gray-600">
-                                Rate:
+                                {{ $t('Rate:') }}
                             </span>
                              <span class="text-lg">
                                 {{(totals['success_total_qty_rate'] ? totals['success_total_qty_rate'] : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}%
@@ -735,76 +734,76 @@
                             #
                         </TableHead>
                         <TableHead>
-                            Order ID
+                            {{ $t('Order ID') }}
                         </TableHead>
                         <TableHeadSort modelName="transaction_datetime" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('transaction_datetime')">
-                            Transaction DateTime
+                            {{ $t('Transaction DateTime') }}
                         </TableHeadSort>
                         <TableHead>
-                            Machine ID
+                            {{ $t('Machine ID') }}
                         </TableHead>
                         <TableHead>
-                            Machine Prefix
+                            {{ $t('Machine Prefix') }}
                         </TableHead>
                         <TableHead>
-                            Site
+                            {{ $t('Site') }}
                         </TableHead>
                         <TableHead>
-                            Operator
+                            {{ $t('Operator') }}
                         </TableHead>
                         <TableHead>
-                            Channel
+                            {{ $t('Channel') }}
                         </TableHead>
                         <TableHead>
-                            Product ID
+                            {{ $t('Product ID') }}
                         </TableHead>
                         <TableHead>
-                            Product Name
+                            {{ $t('Product Name') }}
                         </TableHead>
                         <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount', true)">
-                            Amount {{ operatorCountry.currency_symbol }}
+                            {{ $t('Amount') }} {{ operatorCountry.currency_symbol }}
                         </TableHeadSort>
                         <TableHead>
-                            Payment Method
+                            {{ $t('Payment Method') }}
                         </TableHead>
                         <TableHead>
-                            Payment Status
+                            {{ $t('Payment Status') }}
                         </TableHead>
                         <TableHead>
-                            Dispense Status
+                            {{ $t('Dispense Status') }}
                         </TableHead>
                         <TableHead>
-                            Settle Sync
+                            {{ $t('Settle Sync') }}
                         </TableHead>
                         <TableHead>
-                            Settlement Date
+                            {{ $t('Settlement Date') }}
                         </TableHead>
                         <TableHead>
-                            AI Recognition
+                            {{ $t('AI Recognition') }}
                         </TableHead>
                         <TableHead>
-                            Channels Error
+                            {{ $t('Channels Error') }}
                         </TableHead>
                         <TableHead>
-                            Auto-refunded?
+                            {{ $t('Auto-refunded?') }}
                         </TableHead>
                         <TableHead>
-                            Refund Request
+                            {{ $t('Refund Request') }}
                         </TableHead>
                         <TableHead>
-                            TXN_SRC
+                            {{ $t('TXN_SRC') }}
                         </TableHead>
                         <TableHead>
-                            Member ID
+                            {{ $t('Member ID') }}
                         </TableHead>
                         <TableHead>
-                            HID Card ID
+                            {{ $t('HID Card ID') }}
                         </TableHead>
                         <TableHead>
-                            Voucher
+                            {{ $t('Voucher') }}
                         </TableHead>
                         <TableHead>
-                            Campaign Label(s)
+                            {{ $t('Campaign Label(s)') }}
                         </TableHead>
                       </tr>
                   </thead>
@@ -837,7 +836,7 @@
                             </span>
                             <!-- What the machine runs now, coloured as on the Operation Dashboard (Brian, 2026-10-17). -->
                             <div v-if="vendTransaction.machine_campaigns" class="mt-0.5 flex flex-col gap-0.5">
-                                <span v-if="vendTransaction.machine_campaigns.happy_hour" class="rounded px-0.5 py-0.5 text-xs border w-fit bg-amber-100 text-amber-800 border-amber-300 font-semibold">HappyHour</span>
+                                <span v-if="vendTransaction.machine_campaigns.happy_hour" class="rounded px-0.5 py-0.5 text-xs border w-fit bg-amber-100 text-amber-800 border-amber-300 font-semibold">{{ $t('HappyHour') }}</span>
                                 <span v-for="name in vendTransaction.machine_campaigns.campaigns" :key="name" class="rounded px-0.5 py-0.5 text-xs border w-fit bg-pink-100 text-pink-800 border-pink-300">{{ name }}</span>
                             </div>
                         </TableData>
@@ -866,7 +865,7 @@
                                  report only partly covers. -->
                             {{ vendTransaction.payment_method_name }}<span v-if="vendTransaction.card_terminal_company || vendTransaction.cashless_mfg"
                                 :title="vendTransaction.card_terminal_company && vendTransaction.cashless_mfg && vendTransaction.card_terminal_company !== vendTransaction.cashless_mfg
-                                    ? 'Card terminal supplier: ' + vendTransaction.card_terminal_company + '. The machine reports only \'' + vendTransaction.cashless_mfg + '\' for the whole NETS family.'
+                                    ? $t('Card terminal supplier: :supplier. The machine reports only \':mfg\' for the whole NETS family.', { supplier: vendTransaction.card_terminal_company, mfg: vendTransaction.cashless_mfg })
                                     : null"> ({{ vendTransaction.card_terminal_company || vendTransaction.cashless_mfg }})</span>
                             <!-- A CAPABILITY of the terminal that took this money: it voids a
                                  failed single-item sale by itself (Data Management → Card
@@ -876,10 +875,8 @@
                                  for a Yes terminal; No/unknown is the ordinary case. -->
                             <div v-if="vendTransaction.card_terminal_will_auto_refund === true" class="mt-1">
                                 <span class="inline-flex items-center whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                    :title="'Terminal ' + vendTransaction.card_terminal_unit_id
-                                        + (vendTransaction.card_terminal_batch ? ' · ' + vendTransaction.card_terminal_batch : '')
-                                        + ' — the supplier\'s list says this terminal voids a failed single-item sale by itself. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column.'">
-                                    Auto refund
+                                    :title="$t('Terminal :terminal — the supplier\'s list says this terminal voids a failed single-item sale by itself. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column.', { terminal: vendTransaction.card_terminal_unit_id + (vendTransaction.card_terminal_batch ? ' · ' + vendTransaction.card_terminal_batch : '') })">
+                                    {{ $t('Auto refund') }}
                                 </span>
                             </div>
                         </TableData>
@@ -896,23 +893,23 @@
                                   class="inline-flex rounded px-1.5 py-0.5 text-xs font-medium border cursor-help"
                                   :class="vendTransaction.payment_status === 'Unpaid' ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-purple-50 text-purple-700 border-purple-200'"
                                   v-tooltip="vendTransaction.payment_note">
-                                {{ vendTransaction.payment_status }}
+                                {{ $t(vendTransaction.payment_status) }}
                             </span>
                             <div v-else class="flex justify-center">
-                                <CheckCircleIcon v-if="saleStatusIcon(vendTransaction.payment_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="vendTransaction.payment_status" />
-                                <XCircleIcon v-else-if="saleStatusIcon(vendTransaction.payment_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="vendTransaction.payment_status" />
+                                <CheckCircleIcon v-if="saleStatusIcon(vendTransaction.payment_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="$t(vendTransaction.payment_status)" />
+                                <XCircleIcon v-else-if="saleStatusIcon(vendTransaction.payment_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="$t(vendTransaction.payment_status)" />
                                 <span v-else class="font-medium" :class="saleStatusClass(vendTransaction.payment_status)">
-                                    {{ vendTransaction.payment_status }}
+                                    {{ $t(vendTransaction.payment_status) }}
                                 </span>
                             </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <!-- Blank on a multiple purchase: each item row below carries its own verdict. -->
                             <div class="flex justify-center">
-                                <CheckCircleIcon v-if="saleStatusIcon(vendTransaction.dispense_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="vendTransaction.dispense_status" />
-                                <XCircleIcon v-else-if="saleStatusIcon(vendTransaction.dispense_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="vendTransaction.dispense_status" />
+                                <CheckCircleIcon v-if="saleStatusIcon(vendTransaction.dispense_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="$t(vendTransaction.dispense_status)" />
+                                <XCircleIcon v-else-if="saleStatusIcon(vendTransaction.dispense_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="$t(vendTransaction.dispense_status)" />
                                 <span v-else class="font-medium" :class="saleStatusClass(vendTransaction.dispense_status)">
-                                    {{ vendTransaction.dispense_status }}
+                                    {{ $t(vendTransaction.dispense_status) }}
                                 </span>
                             </div>
                         </TableData>
@@ -927,13 +924,13 @@
                                     v-if="vendTransaction.card_settlement_synced_at"
                                     class="h-4 w-4 text-green-500"
                                     aria-hidden="true"
-                                    :title="'Settlement synced ' + vendTransaction.card_settlement_synced_at"
+                                    :title="$t('Settlement synced :time', { time: vendTransaction.card_settlement_synced_at })"
                                 />
                                 <XMarkIcon
                                     v-else
                                     class="h-4 w-4 text-gray-400"
                                     aria-hidden="true"
-                                    title="Not yet confirmed by a settlement report"
+                                    :title="$t('Not yet confirmed by a settlement report')"
                                 />
                             </div>
                             <div class="flex justify-center" v-else-if="vendTransaction.payment_method_gateway_id !== null">
@@ -941,13 +938,13 @@
                                     v-if="vendTransaction.payment_gateway_log_status === 2 || vendTransaction.payment_gateway_log_status === 98"
                                     class="h-4 w-4 text-green-500"
                                     aria-hidden="true"
-                                    :title="'Approved by gateway ' + (vendTransaction.payment_gateway_approved_at || '') + (vendTransaction.payment_gateway_log_status === 98 ? ' — later refunded' : '')"
+                                    :title="vendTransaction.payment_gateway_log_status === 98 ? $t('Approved by gateway :time — later refunded', { time: vendTransaction.payment_gateway_approved_at || '' }) : $t('Approved by gateway :time', { time: vendTransaction.payment_gateway_approved_at || '' })"
                                 />
                                 <XMarkIcon
                                     v-else
                                     class="h-4 w-4 text-gray-400"
                                     aria-hidden="true"
-                                    :title="vendTransaction.payment_gateway_log_status === 99 ? 'Declined by gateway' : 'No gateway approval on record'"
+                                    :title="vendTransaction.payment_gateway_log_status === 99 ? $t('Declined by gateway') : $t('No gateway approval on record')"
                                 />
                             </div>
                         </TableData>
@@ -1000,8 +997,8 @@
                                      our wait (videos in → sent) and the AI's own turnaround (sent → result). -->
                                 <span v-if="vendTransaction.ai_recognition.ai_seconds !== null"
                                     class="text-[9px] text-gray-500 whitespace-nowrap">
-                                    AI {{ formatDuration(vendTransaction.ai_recognition.ai_seconds) }}<template
-                                        v-if="vendTransaction.ai_recognition.total_seconds !== null && vendTransaction.ai_recognition.total_seconds > vendTransaction.ai_recognition.ai_seconds"> · wait {{ formatDuration(vendTransaction.ai_recognition.total_seconds - vendTransaction.ai_recognition.ai_seconds) }}</template>
+                                    {{ $t('AI :duration', { duration: formatDuration(vendTransaction.ai_recognition.ai_seconds) }) }}<template
+                                        v-if="vendTransaction.ai_recognition.total_seconds !== null && vendTransaction.ai_recognition.total_seconds > vendTransaction.ai_recognition.ai_seconds"> · {{ $t('wait :duration', { duration: formatDuration(vendTransaction.ai_recognition.total_seconds - vendTransaction.ai_recognition.ai_seconds) }) }}</template>
                                 </span>
                             </div>
                             <!-- Our own recording of the door session (camera 5), uploaded by the
@@ -1011,8 +1008,8 @@
                                 <a v-for="clip in vendTransaction.door_clips" :key="clip.id" :href="clip.url"
                                     target="_blank" rel="noopener noreferrer"
                                     class="text-[10px] text-blue-600 hover:underline whitespace-nowrap"
-                                    title="Our camera recording of this door visit">
-                                    ▶ Cam {{ clip.camera_id }}<span v-if="clip.seconds !== null"> · {{ formatDuration(clip.seconds) }}</span>
+                                    :title="$t('Our camera recording of this door visit')">
+                                    {{ $t('▶ Cam :camera', { camera: clip.camera_id }) }}<span v-if="clip.seconds !== null"> · {{ formatDuration(clip.seconds) }}</span>
                                 </a>
                             </div>
                         </TableData>
@@ -1029,7 +1026,7 @@
                                     v-if="vendTransaction.refund_type === 'auto' || vendTransaction.is_refunded"
                                     class="h-4 w-4 text-green-500"
                                     aria-hidden="true"
-                                    :title="'Auto refund'
+                                    :title="$t('Auto refund')
                                         + (vendTransaction.auto_refund_source_label ? ' — ' + vendTransaction.auto_refund_source_label : '')
                                         + (vendTransaction.refund_reference ? ' — ' + vendTransaction.refund_reference : '')"
                                 />
@@ -1054,8 +1051,8 @@
                                      the sale is counted as already refunded (the tick above). -->
                                 <span v-if="vendTransaction.na_in_nets"
                                     class="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-                                    title="No line in the NETS report for this failed vend, on a terminal the report fully covers — the charge was voided before batch upload, so it counts as already refunded.">
-                                    NA in NETS
+                                    :title="$t('No line in the NETS report for this failed vend, on a terminal the report fully covers — the charge was voided before batch upload, so it counts as already refunded.')">
+                                    {{ $t('NA in NETS') }}
                                 </span>
                             </div>
                         </TableData>
@@ -1065,7 +1062,7 @@
                                 :href="'/refunds/' + vendTransaction.refund_request_id"
                                 target="_blank"
                                 class="inline-flex flex-col items-center gap-0.5 group"
-                                :title="'View refund request ' + vendTransaction.refund_request_reference"
+                                :title="$t('View refund request :reference', { reference: vendTransaction.refund_request_reference })"
                             >
                                 <span
                                     class="text-xs font-semibold text-indigo-600 group-hover:underline"
@@ -1117,7 +1114,7 @@
                                 v-for="tag in normalizedLabels(vendTransaction)"
                                 :key="(tag.id ?? tag.slug ?? tag) + '-' + vendTransaction.id"
                                 class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs border w-fit hover:cursor-default border-indigo-300 bg-indigo-100 text-indigo-800"
-                                title="Label"
+                                :title="$t('Label')"
                             >
                                 <span class="font-semibold grow-0">
                                 {{ displayTagName(tag) }}
@@ -1151,7 +1148,7 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-right bg-gray-100">
                             <span v-if="vendTransactionItem.amount !== null && vendTransactionItem.amount !== undefined"
                                 :class="vendTransactionItem.amount === 0 ? 'text-gray-400' : ''"
-                                :title="vendTransactionItem.amount === 0 ? 'Not dispensed: no revenue booked for this line' : (vendTransactionItem.happy_hour ? 'Happy Hour price' : 'Selling price of this item')">
+                                :title="vendTransactionItem.amount === 0 ? $t('Not dispensed: no revenue booked for this line') : (vendTransactionItem.happy_hour ? $t('Happy Hour price') : $t('Selling price of this item'))">
                                 {{ vendTransactionItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                             </span>
                         </TableData>
@@ -1164,10 +1161,10 @@
                         <!-- Dispense Status: this line's own verdict -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <div class="flex justify-center">
-                                <CheckCircleIcon v-if="saleStatusIcon(vendTransactionItem.dispense_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="vendTransactionItem.dispense_status" />
-                                <XCircleIcon v-else-if="saleStatusIcon(vendTransactionItem.dispense_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="vendTransactionItem.dispense_status" />
+                                <CheckCircleIcon v-if="saleStatusIcon(vendTransactionItem.dispense_status) === 'check'" class="h-4 w-4 text-green-500" aria-hidden="true" :title="$t(vendTransactionItem.dispense_status)" />
+                                <XCircleIcon v-else-if="saleStatusIcon(vendTransactionItem.dispense_status) === 'cross'" class="h-4 w-4 text-red-500" aria-hidden="true" :title="$t(vendTransactionItem.dispense_status)" />
                                 <span v-else class="font-medium" :class="saleStatusClass(vendTransactionItem.dispense_status)">
-                                    {{ vendTransactionItem.dispense_status }}
+                                    {{ $t(vendTransactionItem.dispense_status) }}
                                 </span>
                             </div>
                         </TableData>
@@ -1204,7 +1201,7 @@
                                 :href="'/refunds/' + vendTransactionItem.refund_request_id"
                                 target="_blank"
                                 class="inline-flex flex-col items-center gap-0.5 group"
-                                :title="'View refund request ' + vendTransactionItem.refund_request_reference"
+                                :title="$t('View refund request :reference', { reference: vendTransactionItem.refund_request_reference })"
                             >
                                 <span
                                     class="text-xs font-semibold text-indigo-600 group-hover:underline"
@@ -1234,7 +1231,7 @@
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
                         <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                         </td>
                     </tr>
                   </tbody>
@@ -1267,6 +1264,7 @@
 </style>
 
 <script setup>
+import { t } from '@/i18n';
 import HappyHourBadge from '@/Components/HappyHourBadge.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
@@ -1312,14 +1310,14 @@ const refundedOptions = ref([])
 // Refund-request status → label/colour, mirrored from the Refund pages so the
 // "Refund Request" column stays visually in sync with the refund status page.
 const refundStatusLabels = {
-    submitted: 'Received',
-    auto_resolved: 'Auto-resolved',
-    verified: 'Verified',
-    rejected: 'Rejected',
-    approved: 'Approved',
-    pending_transfer_info: 'Pending info',
-    scheduled: 'Scheduled',
-    completed: 'Completed',
+    submitted: t('Received'),
+    auto_resolved: t('Auto-resolved'),
+    verified: t('Verified'),
+    rejected: t('Rejected'),
+    approved: t('Approved'),
+    pending_transfer_info: t('Pending info'),
+    scheduled: t('Scheduled'),
+    completed: t('Completed'),
 }
 const refundStatusLabel = (s) => refundStatusLabels[s] || s
 
@@ -1329,15 +1327,15 @@ const refundStatusLabel = (s) => refundStatusLabels[s] || s
 // line) or never took it (the terminal voided before batch). Gateway refunds keep
 // just the tick and its tooltip — the rail is already obvious from Payment Status.
 const autoRefundBadges = {
-    settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
+    settlement_report_reversal: { text: t('NETS reversal'), class: 'bg-green-100 text-green-800' },
 }
 
 // WHO fired a gateway refund (App\Support\AutoRefundSource::trigger): our own
 // rules, a person on our side, or the customer forcing it through a chargeback.
 const autoRefundTriggerLabel = (trigger) => ({
-    server: 'Server',
-    admin: 'By admin',
-    customer: 'By user',
+    server: t('Server'),
+    admin: t('By admin'),
+    customer: t('By user'),
 }[trigger] ?? '')
 // Payment Status / Dispense Status cell colour. Labels come from
 // App\Support\SaleStatus: Paid / Settled + Dispensed green, Refunded + Failed
@@ -1346,19 +1344,19 @@ const autoRefundTriggerLabel = (trigger) => ({
 // Retained credit) stays as text, and blank stays blank.
 // AI Recognition cell. The verdict when there is one, else where the check stands.
 const aiVerdictBadges = {
-    match: { label: 'Correct', cls: 'bg-green-100 text-green-800 border-green-300' },
-    took_more: { label: 'Took extra', cls: 'bg-red-100 text-red-800 border-red-300' },
-    took_less: { label: 'Took less', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
-    mixed: { label: 'Items differ', cls: 'bg-red-100 text-red-800 border-red-300' },
-    unrecognised: { label: "Can't tell", cls: 'bg-gray-100 text-gray-700 border-gray-300' },
-    incomplete: { label: "Can't check", cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    match: { label: t('Correct'), cls: 'bg-green-100 text-green-800 border-green-300' },
+    took_more: { label: t('Took extra'), cls: 'bg-red-100 text-red-800 border-red-300' },
+    took_less: { label: t('Took less'), cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+    mixed: { label: t('Items differ'), cls: 'bg-red-100 text-red-800 border-red-300' },
+    unrecognised: { label: t('Can\'t tell'), cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    incomplete: { label: t('Can\'t check'), cls: 'bg-gray-100 text-gray-700 border-gray-300' },
 }
 const aiStatusBadges = {
-    pending: { label: 'Not checked yet', cls: 'bg-gray-100 text-gray-700 border-gray-300' },
-    submitting: { label: 'Checking…', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
-    submitted: { label: 'Checking…', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-    completed: { label: 'Checked', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-    failed: { label: 'Check failed', cls: 'bg-red-100 text-red-800 border-red-300' },
+    pending: { label: t('Not checked yet'), cls: 'bg-gray-100 text-gray-700 border-gray-300' },
+    submitting: { label: t('Checking…'), cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+    submitted: { label: t('Checking…'), cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    completed: { label: t('Checked'), cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    failed: { label: t('Check failed'), cls: 'bg-red-100 text-red-800 border-red-300' },
 }
 const aiRecognitionBadge = (ai) => (ai.verdict && aiVerdictBadges[ai.verdict])
     || aiStatusBadges[ai.status]
@@ -1370,14 +1368,14 @@ const formatDuration = (seconds) => {
     return h ? h + 'h ' + m + 'm' : m + 'm ' + String(s).padStart(2, '0') + 's'
 }
 const aiRecognitionTooltip = (ai) => [
-    'Camera check of door opening ' + ai.trade_id,
-    ai.received_at ? 'Video received ' + ai.received_at : null,
-    ai.submitted_at ? 'Sent for checking ' + ai.submitted_at : null,
-    ai.completed_at ? 'Result back ' + ai.completed_at : null,
-    ai.total_seconds !== null ? 'Took ' + formatDuration(ai.total_seconds) + ' in total' : null,
-    ai.total_seconds !== null && ai.ai_seconds !== null ? '  · waiting before check: ' + formatDuration(ai.total_seconds - ai.ai_seconds) : null,
-    ai.ai_seconds !== null ? '  · checking: ' + formatDuration(ai.ai_seconds) : null,
-    ...(ai.mismatch || []).map((l) => (l.code || 'product ' + l.product_id) + ': paid for ' + l.paid + ', camera saw ' + l.taken + ' taken'),
+    t('Camera check of door opening :trade', { trade: ai.trade_id }),
+    ai.received_at ? t('Video received :time', { time: ai.received_at }) : null,
+    ai.submitted_at ? t('Sent for checking :time', { time: ai.submitted_at }) : null,
+    ai.completed_at ? t('Result back :time', { time: ai.completed_at }) : null,
+    ai.total_seconds !== null ? t('Took :duration in total', { duration: formatDuration(ai.total_seconds) }) : null,
+    ai.total_seconds !== null && ai.ai_seconds !== null ? '  · ' + t('waiting before check: :duration', { duration: formatDuration(ai.total_seconds - ai.ai_seconds) }) : null,
+    ai.ai_seconds !== null ? '  · ' + t('checking: :duration', { duration: formatDuration(ai.ai_seconds) }) : null,
+    ...(ai.mismatch || []).map((l) => t(':product: paid for :paid, camera saw :taken taken', { product: l.code || t('product :id', { id: l.product_id }), paid: l.paid, taken: l.taken })),
     ai.reason,
 ].filter(Boolean).join('\n')
 
@@ -1429,7 +1427,7 @@ onMounted(() => {
     // intervalId = setInterval(fetchLatestExports, 15000);
     filters.value.visited = true
     vendChannelErrorOptions.value = [
-        {'id': 'errors_only', 'desc': 'Errors Only'},
+        {'id': 'errors_only', 'desc': t('Errors Only')},
         ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
     ]
     // The standalone "Credit Card" entry is replaced by one synthetic
@@ -1440,87 +1438,87 @@ onMounted(() => {
     // The standalone Card Terminal filter was removed as part of this change.
     const terminalNames = (props.cardTerminalOptions?.data ?? [])
     paymentMethodOptions.value = [
-        {id: 'all', name: 'All'},
+        {id: 'all', name: t('All')},
         ...props.paymentMethods.data
             .filter((pm) => pm.name !== 'Credit Card')
             .map((pm) => ({id: pm.id, name: pm.name})),
-        ...terminalNames.map((t) => ({id: `cc:${t}`, name: `Credit Card (${t})`})),
+        ...terminalNames.map((terminal) => ({id: `cc:${terminal}`, name: t('Credit Card (:terminal)', { terminal })})),
     ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
-        { id: 'All', value: 'All' },
+        { id: 'All', value: t('All') },
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethods = [paymentMethodOptions.value[0]]
 
     booleanOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'true', value: 'Yes'},
-        {id: 'false', value: 'No'},
+        {id: 'all', value: t('All')},
+        {id: 'true', value: t('Yes')},
+        {id: 'false', value: t('No')},
     ]
     refundedOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'true', value: 'Refunded (any)'},
-        {id: 'auto', value: 'Auto'},
-        {id: 'manual', value: 'Manual (RF)'},
-        {id: 'false', value: 'Not refunded'},
+        {id: 'all', value: t('All')},
+        {id: 'true', value: t('Refunded (any)')},
+        {id: 'auto', value: t('Auto')},
+        {id: 'manual', value: t('Manual (RF)')},
+        {id: 'false', value: t('Not refunded')},
     ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     latestExports.value = props.latestExports
     locationTypeOptions.value = [
-        {id: 'all', value: 'All'},
+        {id: 'all', value: t('All')},
         ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
+        {id: 'all', full_name: t('All')},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
     ]
     successfulOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'true', value: 'Dispensed'},
-        {id: 'false', value: 'Failed'},
+        {id: 'all', value: t('All')},
+        {id: 'true', value: t('Dispensed')},
+        {id: 'false', value: t('Failed')},
         // Both render a blank Dispense cell; the ids are the request contract (bookmarked URLs).
-        {id: 'pending', value: 'No TRADE yet (payment pending)'},
-        {id: 'no_report', value: 'No TRADE (Error Code NA)'},
+        {id: 'pending', value: t('No TRADE yet (payment pending)')},
+        {id: 'no_report', value: t('No TRADE (Error Code NA)')},
     ]
     // Mirrors App\Support\SaleStatus payment labels (VendTransaction scope `payment_status`).
     paymentStatusOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'paid', value: 'Paid'},
-        {id: 'settled', value: 'Settled'},
-        {id: 'refunded', value: 'Refunded'},
-        {id: 'unpaid', value: 'Unpaid (goods taken, not paid)'},
-        {id: 'unconfirmed', value: 'Unconfirmed (blank)'},
-        {id: 'retained_credit', value: 'Retained credit'},
-        {id: 're_vended', value: 'Re-vended'},
+        {id: 'all', value: t('All')},
+        {id: 'paid', value: t('Paid')},
+        {id: 'settled', value: t('Settled')},
+        {id: 'refunded', value: t('Refunded')},
+        {id: 'unpaid', value: t('Unpaid (goods taken, not paid)')},
+        {id: 'unconfirmed', value: t('Unconfirmed (blank)')},
+        {id: 'retained_credit', value: t('Retained credit')},
+        {id: 're_vended', value: t('Re-vended')},
     ]
     filters.value.payment_status = paymentStatusOptions.value[0]
     tagOptions.value = [
-        { id: 'all', name: 'All' },       // default
-        { id: 'any', name: 'Any' },
+        { id: 'all', name: t('All') },       // default
+        { id: 'any', name: t('Any') },
         // Happy Hour first: "★ Happy Hour (all)", then one "★ <campaign name>" per campaign (CampaignLabelFilter).
         ...props.happyHourLabelOptions,
         ...props.tagOptions.data.map(t => ({ id: t.id, name: t.name }))
     ];
     vendContractOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     vendModelOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     vendPrefixOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'single-ud', value: 'Single UD'},
+        {id: 'all', value: t('All')},
+        {id: 'single-ud', value: t('Single UD')},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     vmcByteOptions.value = [
-        {id: 'all', value: 'All'},
+        {id: 'all', value: t('All')},
         {id: '0', value: '0'},
         {id: '1', value: '1'},
         {id: '50', value: '50'},
@@ -1706,7 +1704,7 @@ function onExportCsvClicked() {
         responseType: 'blob',
     })
     .then(response => {
-        toast.success("Exporting, please visit back or refresh after a while", {
+        toast.success(t('Exporting, please visit back or refresh after a while'), {
         timeout: 5000
       });
 
@@ -1898,9 +1896,9 @@ function onTagsChanged(val) {
   const hasAny = val.some(t => (t.id ?? t) === 'any');
 
   if (hasAll && val.length > 1) {
-    filters.value.tags = [{ id: 'all', name: 'All' }];
+    filters.value.tags = [{ id: 'all', name: t('All') }];
   } else if (hasAny && val.length > 1) {
-    filters.value.tags = [{ id: 'any', name: 'Any' }];
+    filters.value.tags = [{ id: 'any', name: t('Any') }];
   }
 }
 

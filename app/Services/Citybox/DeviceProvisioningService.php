@@ -92,13 +92,13 @@ class DeviceProvisioningService
 
         return $codes->map(function (?VendCode $code) use ($holders) {
             if (! $code) {
-                return ['label' => null, 'error' => 'no machine ID in the OPS Pro name (expected like C6003)'];
+                return ['label' => null, 'error' => __('no machine ID in the OPS Pro name (expected like C6003)')];
             }
             $label = $code->toLabel();
 
             return [
                 'label' => $label,
-                'error' => isset($holders[$label]) ? "machine ID {$label} is already used by vend #{$holders[$label]}" : null,
+                'error' => isset($holders[$label]) ? __('machine ID :label is already used by vend #:id', ['label' => $label, 'id' => $holders[$label]]) : null,
             ];
         })->all();
     }

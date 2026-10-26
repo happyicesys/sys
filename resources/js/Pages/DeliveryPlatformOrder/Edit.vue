@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Platform Order" />
+  <Head :title="$t('Delivery Platform Order')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Edit Delivery Platform Order
+        {{ $t('Edit Delivery Platform Order') }}
         <span v-if="type == 'update'">
           {{ form.order_id }}  {{ form.short_order_id }}
         </span>
@@ -35,7 +35,7 @@
               </div>
               <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Order ID
+                  {{ $t('Order ID') }}
                 </label>
                 <div class="mt-1">
                   <a :href="'/delivery-platform-orders?order_id=' + form.order_id" target="_blank">
@@ -50,7 +50,7 @@
               </div>
               <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Short Order ID
+                  {{ $t('Short Order ID') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -63,7 +63,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Platform
+                  {{ $t('Delivery Platform') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -76,7 +76,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Order Datetime
+                  {{ $t('Order Datetime') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -89,7 +89,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vending Machine
+                  {{ $t('Vending Machine') }}
                 </label>
                 <div class="mt-1" v-if="form.deliveryProductMappingVend && form.deliveryProductMappingVend.vend">
                   <a :href="'/vends?codes=' + form.deliveryProductMappingVend.vend.code" target="_blank" v-if="permissions.includes('read machine-view')">
@@ -112,7 +112,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Product Mapping
+                  {{ $t('Delivery Product Mapping') }}
                 </label>
                 <div class="mt-1" v-if="form.deliveryProductMappingVend && form.deliveryProductMappingVend.deliveryProductMapping">
                   <a :href="'/delivery-product-mappings/' + form.deliveryProductMappingVend.deliveryProductMapping.id + '/edit'" target="_blank">
@@ -127,7 +127,7 @@
               </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                  Remarks
+                  {{ $t('Remarks') }}
                 </FormTextarea>
               </div>
 
@@ -139,14 +139,14 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
                   <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save
+                      {{ $t('Save') }}
                     </span>
                   </Button>
                 </div>
@@ -159,7 +159,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Order Item(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Order Item(s)') }} </span>
                   </div>
                 </div>
               </div>
@@ -187,7 +187,7 @@
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>
-                      Request to Cancel Order
+                      {{ $t('Request to Cancel Order') }}
                     </span>
                   </Button>
 
@@ -198,7 +198,7 @@
                   >
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save Order
+                      {{ $t('Save Order') }}
                     </span>
                   </Button>
                 </div>
@@ -206,7 +206,7 @@
 
               <div class="sm:col-span-3" v-if="form.id && editOrderItems">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product
+                  {{ $t('Product') }}
                 </label>
                 <MultiSelect
                   v-model="form.delivery_platform_product_mapping_item_id"
@@ -214,7 +214,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -224,8 +224,8 @@
                 </div>
               </div>
               <div class="sm:col-span-2" v-if="form.id && editOrderItems">
-                <FormInput v-model="form.qty" :error="form.errors.qty" placeholderStr="Qty">
-                  Qty
+                <FormInput v-model="form.qty" :error="form.errors.qty" :placeholderStr="$t('Qty')">
+                  {{ $t('Qty') }}
                 </FormInput>
               </div>
 
@@ -239,7 +239,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -255,19 +255,19 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Thumbnail
+                            {{ $t('Thumbnail') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Product
+                            {{ $t('Product') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Channel(s)
+                            {{ $t('Channel(s)') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Qty
+                            {{ $t('Qty') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Price
+                            {{ $t('Price') }}
                           </th>
                           <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
@@ -342,7 +342,7 @@
                         </tr>
                         <tr v-if="props.deliveryPlatformOrder.data.deliveryPlatformOrderItems && props.deliveryPlatformOrder.data.campaign_json">
                           <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
-                            Promo
+                            {{ $t('Promo') }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-right col-span-1">
                             -{{ props.deliveryPlatformOrder.data.promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -350,7 +350,7 @@
                         </tr>
                         <tr v-if="props.deliveryPlatformOrder.data.deliveryPlatformOrderItems">
                           <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
-                            Subtotal
+                            {{ $t('Subtotal') }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-right col-span-1">
                             {{ props.deliveryPlatformOrder.data.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -358,7 +358,7 @@
                         </tr>
                         <tr v-if="!props.deliveryPlatformOrder.data.deliveryPlatformOrderItems || !props.deliveryPlatformOrder.data.deliveryPlatformOrderItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                            No Records Found
+                            {{ $t('No Records Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -385,6 +385,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, CheckCircleIcon, PencilSquareIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 
 const props = defineProps({
   deliveryPlatformOrder: Object,
@@ -421,7 +422,7 @@ function onEditDeliveryOrderItemsClicked() {
 }
 
 function onRequestCancelOrderClicked() {
-  let approvalText = 'Are you sure to request to cancel this order?'
+  let approvalText = t('Are you sure to request to cancel this order?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;
@@ -435,7 +436,7 @@ function onRequestCancelOrderClicked() {
 }
 
 function onSaveDeliveryOrderItemsClicked() {
-  let approvalText = 'Are you sure to edit this order?'
+  let approvalText = t('Are you sure to edit this order?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;

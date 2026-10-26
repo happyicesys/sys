@@ -1,15 +1,15 @@
 <template>
-  <Head title="Sites Summary" />
+  <Head :title="$t('Sites Summary')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex flex-col">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          Site Summary (&amp; Communication on Cust Note)
+          {{ $t('Site Summary (& Communication on Cust Note)') }}
         </h2>
         <p class="text-sm text-black leading-tight mt-1">
-          (Data fr 230101).<br />
-          First calculation based on 2605 terms
+          {{ $t('(Data fr 230101).') }}<br />
+          {{ $t('First calculation based on 2605 terms') }}
         </p>
       </div>
     </template>
@@ -18,44 +18,44 @@
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput v-if="showAllFilters" placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
-          <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
-          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer">Site</SearchInput>
+          <SearchInput v-if="showAllFilters" :placeholderStr="$t('ID')" v-model="filters.ref_id">{{ $t('Site ID') }}</SearchInput>
+          <SearchInput :placeholderStr="$t('ID')" v-model="filters.vend_code">{{ $t('Machine ID') }}</SearchInput>
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer">{{ $t('Site') }}</SearchInput>
           <!-- Billing Company — moved behind "Show All Filters" (no longer a
                default filter); Site Status takes its place in the default row. -->
-          <SearchInput v-if="showAllFilters" placeholderStr="Company" v-model="filters.billing_company">Billing Company</SearchInput>
+          <SearchInput v-if="showAllFilters" :placeholderStr="$t('Company')" v-model="filters.billing_company">{{ $t('Billing Company') }}</SearchInput>
           <!-- Hidden filter: locate the site owning a settlement ledger
                reference (e.g. LF-000351). Enter the FULL reference. -->
-          <SearchInput v-if="showAllFilters" placeholderStr="e.g. LF-000351" v-model="filters.settlement_ref">Payment Ref</SearchInput>
+          <SearchInput v-if="showAllFilters" :placeholderStr="$t('e.g. :example', { example: 'LF-000351' })" v-model="filters.settlement_ref">{{ $t('Payment Ref') }}</SearchInput>
 
           <!-- Site Status — now a DEFAULT filter (always visible). -->
           <div>
-            <label class="block text-sm font-medium text-gray-700">Site Status</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Site Status') }}</label>
             <MultiSelect
               v-model="filters.status"
               :options="statusOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Tags</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Tags') }}</label>
             <MultiSelect
               v-model="filters.tags"
               :options="tagOptions"
               trackBy="id" valueProp="id" label="name" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <div v-if="showAllFilters && permissions.includes('admin-access customers') && cmsEndpoint">
-            <label class="block text-sm font-medium text-gray-700">Is From CMS</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Is From CMS') }}</label>
             <MultiSelect
               v-model="filters.is_cms"
               :options="booleanOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
@@ -64,39 +64,39 @@
           </div>
 
           <div v-if="showAllFilters">
-            <label class="block text-sm font-medium text-gray-700">Machine Prefix</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Machine Prefix') }}</label>
             <MultiSelect
               v-model="filters.vendPrefixes"
               :options="vendPrefixOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <div v-if="showAllFilters && permissions.includes('admin-access customers')">
-            <label class="block text-sm font-medium text-gray-700">Location Type</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Location Type') }}</label>
             <MultiSelect
               v-model="filters.location_types"
               :options="locationTypeOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <!-- NEW: Period Report -->
           <div>
             <label class="block text-sm font-medium text-gray-700">
-              Period Report
+              {{ $t('Period Report') }}
             </label>
             <MultiSelect
               v-model="filters.period_report"
               :options="periodReportLocalOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
               :canDeselect="false"
             />
             <p class="text-[10px] text-gray-500 mt-1">
-              Default: Current month, recomputed daily ~01:00 (yesterday).
+              {{ $t('Default: Current month, recomputed daily ~01:00 (yesterday).') }}
             </p>
           </div>
 
@@ -109,7 +109,7 @@
           -->
           <div v-if="filters.period_report?.id === 'custom'">
             <label class="block text-sm font-medium text-gray-700">
-              Custom Range (From)
+              {{ $t('Custom Range (From)') }}
             </label>
             <input
               type="month"
@@ -119,7 +119,7 @@
           </div>
           <div v-if="filters.period_report?.id === 'custom'">
             <label class="block text-sm font-medium text-gray-700">
-              Custom Range (To)
+              {{ $t('Custom Range (To)') }}
             </label>
             <input
               type="month"
@@ -131,13 +131,13 @@
           <!-- Placement Contract Type filter (multi-select tags) -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Placement Contract Type
+              {{ $t('Placement Contract Type') }}
             </label>
             <MultiSelect
               v-model="filters.contract_commission_types"
               :options="contractCommissionTypeLocalOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
@@ -149,13 +149,13 @@
           -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Contract Attachment?
+              {{ $t('Contract Attachment?') }}
             </label>
             <MultiSelect
               v-model="filters.contract_attachment"
               :options="contractAttachmentOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
           <!--
@@ -166,37 +166,37 @@
           -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Contract changes (same month)?
+              {{ $t('Contract changes (same month)?') }}
             </label>
             <MultiSelect
               v-model="filters.replicated_only"
               :options="replicatedOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
           <!-- Period Locked? — All / Yes (locked) / No (unlocked). -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Period Locked?
+              {{ $t('Period Locked?') }}
             </label>
             <MultiSelect
               v-model="filters.period_locked"
               :options="lockedPaidOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
           <!-- Location Fee Paid? — All / Yes (paid) / No (unpaid). -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Location Fee Paid?
+              {{ $t('Location Fee Paid?') }}
             </label>
             <MultiSelect
               v-model="filters.location_fee_paid"
               :options="lockedPaidOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
           <!--
@@ -207,7 +207,7 @@
           -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Payment Date (From)
+              {{ $t('Payment Date (From)') }}
             </label>
             <input
               type="date"
@@ -217,7 +217,7 @@
           </div>
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
-              Payment Date (To)
+              {{ $t('Payment Date (To)') }}
             </label>
             <input
               type="date"
@@ -235,7 +235,7 @@
                 @click="onSearchFilterUpdated"
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
-                <span>Search</span>
+                <span>{{ $t('Search') }}</span>
               </Button>
               <!-- Show / Hide All Filters — by default only Machine ID, Site,
                    Site Status, Tags and Period Report show; this toggle reveals
@@ -247,13 +247,13 @@
               >
                 <span v-if="!showAllFilters" class="flex">
                   <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true" />
-                  Show
+                  {{ $t('Show') }}
                 </span>
                 <span v-if="showAllFilters" class="flex">
                   <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true" />
-                  Hide
+                  {{ $t('Hide') }}
                 </span>
-                <span>All Filters</span>
+                <span>{{ $t('All Filters') }}</span>
               </Button>
               <Button
                 class="inline-flex space-x-1 items-center whitespace-nowrap rounded-md border border-sky bg-sky-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400"
@@ -261,7 +261,7 @@
                 v-if="hasAnyAddressWithCoords"
               >
                 <MapPinIcon class="h-4 w-4" aria-hidden="true" />
-                <span>Show Map Markers</span>
+                <span>{{ $t('Show Map Markers') }}</span>
               </Button>
               <Button type="button" class="inline-flex items-center whitespace-nowrap rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
                 @click.prevent="onExportExcelClicked()">
@@ -273,7 +273,7 @@
                       <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                     </svg>
                   </div>
-                  <span>Export Excel</span>
+                  <span>{{ $t('Export Excel') }}</span>
                 </div>
               </Button>
               <!--
@@ -289,7 +289,7 @@
                 type="button"
                 class="inline-flex items-center whitespace-nowrap rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
                 :disabled="!selectedReportRows.length || batchReportLoading"
-                v-tooltip="selectedReportRows.length ? 'Build a combined report email for the ticked machines' : 'Tick one or more rows that have Report Content first'"
+                v-tooltip="selectedReportRows.length ? $t('Build a combined report email for the ticked machines') : $t('Tick one or more rows that have Report Content first')"
                 @click.prevent="onExportBatchReportClicked()"
               >
                 <div class="flex items-center space-x-1">
@@ -298,7 +298,7 @@
                     <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                   </svg>
-                  <span>Export Batch Report Content{{ selectedReportRows.length ? ` (${selectedReportRows.length})` : '' }}</span>
+                  <span>{{ $t('Export Batch Report Content') }}{{ selectedReportRows.length ? ` (${selectedReportRows.length})` : '' }}</span>
                 </div>
               </Button>
               <!--
@@ -310,12 +310,12 @@
                 type="button"
                 class="inline-flex items-center whitespace-nowrap rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 :disabled="!selectedPaidReportRows.length || paidReportLoading"
-                v-tooltip="selectedPaidReportRows.length ? 'Build payment-advice emails for the ticked paid sites' : 'Tick one or more rows that were paid via a Site Settlement first'"
+                v-tooltip="selectedPaidReportRows.length ? $t('Build payment-advice emails for the ticked paid sites') : $t('Tick one or more rows that were paid via a Site Settlement first')"
                 @click.prevent="onExportBatchPaidReportClicked()"
               >
                 <div class="flex items-center space-x-1">
                   <DocumentTextIcon class="h-4 w-4" aria-hidden="true" />
-                  <span>Export Batch Paid Report{{ selectedPaidReportRows.length ? ` (${selectedPaidReportRows.length})` : '' }}</span>
+                  <span>{{ $t('Export Batch Paid Report') }}{{ selectedPaidReportRows.length ? ` (${selectedPaidReportRows.length})` : '' }}</span>
                 </div>
               </Button>
               <!-- Unread Site-Note toggle: shows only sites whose Site Note
@@ -328,7 +328,7 @@
                 @click.prevent="toggleUnread()"
               >
                 <BellAlertIcon :class="['h-4 w-4', unreadMode ? 'text-white' : 'text-red-500']" aria-hidden="true" />
-                <span>{{ unreadMode ? 'Show All' : 'Unread Cust Note' }}</span>
+                <span>{{ unreadMode ? $t('Show All') : $t('Unread Cust Note') }}</span>
                 <span v-if="props.unreadCount > 0"
                   :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                     unreadMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
@@ -345,7 +345,7 @@
                 @click.prevent="toggleMentioned()"
               >
                 <AtSymbolIcon :class="['h-4 w-4', mentionMode ? 'text-white' : 'text-indigo-500']" aria-hidden="true" />
-                <span>{{ mentionMode ? 'Show All' : 'me only' }}</span>
+                <span>{{ mentionMode ? $t('Show All') : $t('me only') }}</span>
                 <span v-if="props.mentionCount > 0"
                   :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                     mentionMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
@@ -385,25 +385,25 @@
               </Button> -->
             </div>
             <p class="text-xs text-gray-600 mt-2">
-              Period range: <span class="font-medium">{{ rangeStart }}</span> &nbsp;→&nbsp;
+              {{ $t('Period range:') }} <span class="font-medium">{{ rangeStart }}</span> &nbsp;→&nbsp;
               <span class="font-medium">{{ rangeEnd }}</span>
             </p>
           </div>
           <div class="flex flex-col space-y-2">
             <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-              <span>Showing</span>
+              <span>{{ $t('Showing') }}</span>
               <span class="font-medium">{{ summaries.meta?.from ?? 0 }}</span>
-              <span>to</span>
+              <span>{{ $t('to') }}</span>
               <span class="font-medium">{{ summaries.meta?.to ?? 0 }}</span>
-              <span>of</span>
+              <span>{{ $t('of') }}</span>
               <span class="font-medium">{{ summaries.meta?.total ?? 0 }}</span>
-              <span>results</span>
+              <span>{{ $t('results') }}</span>
             </p>
             <MultiSelect
               v-model="filters.numberPerPage"
               :options="numberPerPageOptions"
               trackBy="id" valueProp="id" label="value"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
               @selected="onSearchFilterUpdated"
             />
           </div>
@@ -434,25 +434,25 @@
           -->
           <div class="lg:col-span-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 bg-gray-700 px-4 py-1.5">
-              <h3 class="text-sm font-semibold text-white">Aggregate Totals</h3>
+              <h3 class="text-sm font-semibold text-white">{{ $t('Aggregate Totals') }}</h3>
             </div>
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y divide-gray-100 sm:divide-y-0">
               <div class="px-4 py-2 sm:border-b sm:border-gray-100 sm:border-r">
-                <dt class="truncate text-xs font-medium text-gray-500">Total Sales <span class="text-gray-400">w/ GST, (excl GST)</span></dt>
+                <dt class="truncate text-xs font-medium text-gray-500">{{ $t('Total Sales') }} <span class="text-gray-400">{{ $t('w/ GST, (excl GST)') }}</span></dt>
                 <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
                   {{ formatMoney(totals.sales_cents) }}
                   <span v-if="totals.sales_excl_gst_cents != null && totals.sales_excl_gst_cents !== totals.sales_cents" class="text-xs font-normal text-indigo-600">( {{ formatMoney(totals.sales_excl_gst_cents) }} )</span>
                 </dd>
               </div>
               <div class="px-4 py-2 sm:border-b sm:border-gray-100 lg:border-r">
-                <dt class="truncate text-xs font-medium text-gray-500">Total Gross Earning</dt>
+                <dt class="truncate text-xs font-medium text-gray-500">{{ $t('Total Gross Earning') }}</dt>
                 <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
                   {{ formatMoney(totals.gross_earning_cents) }}
                   <span v-if="pctOfSales(totals.gross_earning_cents)" class="text-xs font-normal text-indigo-600">( {{ pctOfSales(totals.gross_earning_cents) }} )</span>
                 </dd>
               </div>
               <div class="px-4 py-2 sm:border-b sm:border-gray-100 sm:border-r lg:border-r-0">
-                <dt class="truncate text-xs font-medium text-gray-500">Total Location Fees</dt>
+                <dt class="truncate text-xs font-medium text-gray-500">{{ $t('Total Location Fees') }}</dt>
                 <dd
                   class="mt-0.5 text-lg font-semibold tracking-normal"
                   :class="(totals.location_fees_cents || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
@@ -461,11 +461,11 @@
                   <span v-if="pctOfSales(totals.location_fees_cents)" class="text-xs font-normal text-indigo-600">( {{ pctOfSales(totals.location_fees_cents) }} )</span>
                 </dd>
                 <p v-if="totals.has_to_date_proration" class="text-[10px] text-sky-700">
-                  Current month accrued to date
+                  {{ $t('Current month accrued to date') }}
                 </p>
               </div>
               <div class="px-4 py-2 sm:border-r">
-                <dt class="truncate text-xs font-medium text-gray-500">Total Vend Earnings</dt>
+                <dt class="truncate text-xs font-medium text-gray-500">{{ $t('Total Vend Earnings') }}</dt>
                 <dd
                   class="mt-0.5 text-lg font-semibold tracking-normal"
                   :class="(totals.location_earning_cents || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
@@ -474,7 +474,7 @@
                   <span v-if="pctOfSales(totals.location_earning_cents)" class="text-xs font-normal text-indigo-600">( {{ pctOfSales(totals.location_earning_cents) }} )</span>
                 </dd>
                 <p v-if="totals.has_to_date_proration" class="text-[10px] text-sky-700">
-                  Current month accrued to date
+                  {{ $t('Current month accrued to date') }}
                 </p>
               </div>
               <!--
@@ -482,17 +482,17 @@
                 set as the money totals above.
               -->
               <div class="px-4 py-2 lg:border-r">
-                <dt class="truncate text-xs font-medium text-gray-500"># without Contract Attachment</dt>
+                <dt class="truncate text-xs font-medium text-gray-500">{{ $t('# without Contract Attachment') }}</dt>
                 <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
                   {{ totals.no_contract_attachment_count || 0 }}
                 </dd>
               </div>
               <div class="px-4 py-2">
-                <dt class="truncate text-xs font-medium text-gray-500"># To Be Expired in 30ds</dt>
+                <dt class="truncate text-xs font-medium text-gray-500">{{ $t('# To Be Expired in 30ds') }}</dt>
                 <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
                   {{ totals.expiring_in_30d_count || 0 }}
                 </dd>
-                <dd class="text-[10px] italic text-gray-400">excludes auto-renewal contracts</dd>
+                <dd class="text-[10px] italic text-gray-400">{{ $t('excludes auto-renewal contracts') }}</dd>
               </div>
             </dl>
           </div>
@@ -506,32 +506,32 @@
           -->
           <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 bg-gray-700 px-4 py-1.5">
-              <h3 class="text-sm font-semibold text-white">Payment to Loc Fees</h3>
+              <h3 class="text-sm font-semibold text-white">{{ $t('Payment to Loc Fees') }}</h3>
             </div>
             <table class="w-full table-fixed">
               <thead>
                 <tr class="border-b border-gray-200 bg-gray-50">
                   <th class="w-2/5 px-3 py-1 text-left align-bottom">
-                    <span class="text-[10px] font-normal italic text-gray-500">owed to site owners</span>
+                    <span class="text-[10px] font-normal italic text-gray-500">{{ $t('owed to site owners') }}</span>
                   </th>
                   <th class="w-[30%] px-3 py-1 text-center align-bottom">
-                    <span class="block text-[11px] font-semibold uppercase tracking-wide text-gray-700">All-time</span>
-                    <span class="block text-[10px] font-normal italic text-gray-500">excl current period</span>
+                    <span class="block text-[11px] font-semibold uppercase tracking-wide text-gray-700">{{ $t('All-time') }}</span>
+                    <span class="block text-[10px] font-normal italic text-gray-500">{{ $t('excl current period') }}</span>
                   </th>
                   <th class="w-[30%] border-l border-gray-200 px-3 py-1 text-center align-bottom">
-                    <span class="block text-[11px] font-semibold uppercase tracking-wide text-indigo-600">Shown Period</span>
+                    <span class="block text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{{ $t('Shown Period') }}</span>
                     <span class="block text-[10px] font-normal italic text-gray-500">{{ ymd6(rangeStart) }} → {{ ymd6(rangeEnd) }}</span>
                   </th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
                 <tr class="bg-gray-50/60">
-                  <td class="px-3 py-1.5 text-xs font-semibold text-gray-700">Total Loc Fees</td>
+                  <td class="px-3 py-1.5 text-xs font-semibold text-gray-700">{{ $t('Total Loc Fees') }}</td>
                   <td class="px-3 py-1.5 text-center text-base font-semibold tracking-normal text-gray-900">{{ formatMoney(totalLocFeesAllTimeCents) }}</td>
                   <td class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal text-gray-900">{{ formatMoney(totalLocFeesPeriodCents) }}</td>
                 </tr>
                 <tr>
-                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Total Outstanding</td>
+                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">{{ $t('Total Outstanding') }}</td>
                   <td
                     class="px-3 py-1.5 text-center text-base font-semibold tracking-normal"
                     :class="(totals.outstanding_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
@@ -542,12 +542,12 @@
                   >{{ formatMoney(totals.outstanding_period_cents) }}</td>
                 </tr>
                 <tr>
-                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Paid amount</td>
+                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">{{ $t('Paid amount') }}</td>
                   <td class="px-3 py-1.5 text-center text-base font-semibold tracking-normal text-emerald-700">{{ formatMoney(totals.paid_cents) }}</td>
                   <td class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal text-emerald-700">{{ formatMoney(totals.paid_period_cents) }}</td>
                 </tr>
                 <tr>
-                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Waived amount</td>
+                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">{{ $t('Waived amount') }}</td>
                   <td class="px-3 py-1.5 text-center text-base font-semibold tracking-normal text-amber-600">{{ formatMoney(totals.waived_cents) }}</td>
                   <td class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal text-amber-600">{{ formatMoney(totals.waived_period_cents) }}</td>
                 </tr>
@@ -569,17 +569,17 @@
         class="sticky top-0 z-40 mt-4 flex flex-wrap items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-md"
       >
         <span class="text-sm font-semibold text-emerald-900">
-          {{ selectedRows.length }} row(s) selected on this page
+          {{ $t(':count row(s) selected on this page', { count: selectedRows.length }) }}
         </span>
         <Button
           type="button"
           class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-amber-100 hover:bg-amber-200 text-amber-800 ring-1 ring-inset ring-amber-300 disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="!selectedLockRows.length || batchSubmitting"
-          v-tooltip="selectedLockRows.length ? '' : 'No selected rows are eligible to Lock'"
+          v-tooltip="selectedLockRows.length ? '' : $t('No selected rows are eligible to Lock')"
           @click="showBatchLockModal = true"
         >
           <LockClosedIcon class="h-3.5 w-3.5" aria-hidden="true" />
-          <span>Lock ({{ selectedLockRows.length }})</span>
+          <span>{{ $t('Lock (:count)', { count: selectedLockRows.length }) }}</span>
         </Button>
         <!--
           Batch Mark Paid and Push to Settlement removed per request — these
@@ -592,7 +592,7 @@
           class="ml-auto rounded-md px-3 py-2 text-xs font-semibold bg-white hover:bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300"
           @click="clearBatchSelection"
         >
-          Clear selection
+          {{ $t('Clear selection') }}
         </Button>
       </div>
 
@@ -640,7 +640,7 @@
                       :checked="allPageSelected"
                       :indeterminate="somePageSelected && !allPageSelected"
                       :disabled="!selectableRows.length"
-                      v-tooltip="'Select / deselect all selectable rows on this page'"
+                      v-tooltip="$t('Select / deselect all selectable rows on this page')"
                       @change="toggleSelectAllPage"
                     />
                   </TableHead>
@@ -648,16 +648,16 @@
                   <TableHead :frozen="true" :frozenLeft="canLock ? '90px' : '50px'" inputClass="w-[170px] min-w-[170px] border-r-2 border-gray-500">
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="site_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('site_status')">
-                        Site Status
+                        {{ $t('Site Status') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
-                        Site Name
+                        {{ $t('Site Name') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
-                        Ref Price
+                        {{ $t('Ref Price') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
-                        Begin Date
+                        {{ $t('Begin Date') }}
                       </SingleSortItem>
                       <!--
                         Avg Mthly Sales — cumulative running average of monthly
@@ -666,53 +666,53 @@
                         for the current month, frozen once a month completes.
                       -->
                       <SingleSortItem modelName="avg_monthly_sales" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('avg_monthly_sales')">
-                        Avg Mthly Sales
+                        {{ $t('Avg Mthly Sales') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="contract_attachment" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_attachment')">
-                        Contract Attachment
+                        {{ $t('Contract Attachment') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead inputClass="w-[220px] max-w-[220px]">
                     <div class="flex flex-col space-y-1">
-                      <span>Site Address</span>
-                      <span>Billing Company</span>
-                      <span>Billing Contact Person</span>
+                      <span>{{ $t('Site Address') }}</span>
+                      <span>{{ $t('Billing Company') }}</span>
+                      <span>{{ $t('Billing Contact Person') }}</span>
                     </div>
                   </TableHead>
                   <TableHead>
                     <SingleSortItem modelName="machine_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('machine_id')">
-                      Machine ID
+                      {{ $t('Machine ID') }}
                     </SingleSortItem>
                   </TableHead>
                   <TableHead>
                     <SingleSortItem modelName="machine_prefix" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('machine_prefix')">
-                      Machine Prefix
+                      {{ $t('Machine Prefix') }}
                     </SingleSortItem>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
-                      <span>Period Report</span>
+                      <span>{{ $t('Period Report') }}</span>
                       <SingleSortItem modelName="year_month" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('year_month')">
-                        YYMM
+                        {{ $t('YYMM') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
-                      <span>Period</span>
+                      <span>{{ $t('Period') }}</span>
                       <SingleSortItem modelName="period_start" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('period_start')">
-                        Start Date
+                        {{ $t('Start Date') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="period_end" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('period_end')">
-                        End Date
+                        {{ $t('End Date') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="sales_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sales_cents')">
-                        Sales ($)
+                        {{ $t('Sales ($)') }}
                       </SingleSortItem>
                       <!--
                         Two sub-labels mirror the cell layout:
@@ -724,74 +724,74 @@
                                        de-grossed figure used by PS math)
                       -->
                       <span class="text-[11px] text-gray-500 inline-flex items-center justify-center gap-0.5">
-                        (w/ GST)
+                        {{ $t('(w/ GST)') }}
                         <ExclamationCircleIcon
                           class="min-w-4 w-4 h-4 text-sky-500 cursor-help"
-                          v-tooltip="{ content: 'The w/GST figure is highlighted by its full-month run-rate vs Avg Mthly Sales.<br>Current month: sales &divide; days elapsed &times; days in the month (projected to a full month).<br>Past months: actual sales used as-is.<br><span style=&quot;color:#16a34a&quot;>Green</span> = above average &nbsp; <span style=&quot;color:#dc2626&quot;>Red</span> = below average', html: true }"
+                          v-tooltip="{ content: salesRunRateTip, html: true }"
                         />
                       </span>
-                      <span>(excl GST)</span>
+                      <span>{{ $t('(excl GST)') }}</span>
                     </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="gross_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('gross_earning_cents')">
-                        Gross Earing
+                        {{ $t('Gross Earing') }}
                       </SingleSortItem>
-                      <span >(excl GST)</span>
+                      <span >{{ $t('(excl GST)') }}</span>
                       <SingleSortItem modelName="gross_earning_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('gross_earning_rate')">
-                        Rate
+                        {{ $t('Rate') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <SingleSortItem modelName="job_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('job_count')">
-                      # of Job
+                      {{ $t('# of Job') }}
                     </SingleSortItem>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
                       <SingleSortItem modelName="contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_commission_type')">
-                        Placement Contract Type
+                        {{ $t('Placement Contract Type') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="contract_commission_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_commission_value')">
-                        Location Fees Rate
+                        {{ $t('Location Fees Rate') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
                       <SingleSortItem modelName="location_fees_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_fees_cents')">
-                        Location Fees
+                        {{ $t('Location Fees') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="external_subsidize" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('external_subsidize')">
-                        External Subsidize
+                        {{ $t('External Subsidize') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="net_loc_fee" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('net_loc_fee')">
-                        Net Loc Fee
+                        {{ $t('Net Loc Fee') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="location_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_earning_cents')">
-                        Vend Earning
+                        {{ $t('Vend Earning') }}
                       </SingleSortItem>
                       <SingleSortItem modelName="location_earning_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_earning_rate')">
-                        Rate
+                        {{ $t('Rate') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <SingleSortItem modelName="accumulate_vending_earning" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning')">
-                      Accumulate Vend Earning
+                      {{ $t('Accumulate Vend Earning') }}
                     </SingleSortItem>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
-                      <span>Loc Grading</span>
+                      <span>{{ $t('Loc Grading') }}</span>
                       <SingleSortItem modelName="location_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type')">
-                        Location Type
+                        {{ $t('Location Type') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
@@ -805,27 +805,27 @@
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_until')">
-                        Contract End Date
+                        {{ $t('Contract End Date') }}
                       </SingleSortItem>
-                      <span>Auto Renewal?</span>
-                      <span>Notice Period</span>
+                      <span>{{ $t('Auto Renewal?') }}</span>
+                      <span>{{ $t('Notice Period') }}</span>
                     </div>
                   </TableHead>
                   <TableHead inputClass="min-w-[150px] max-w-[150px]">
                     <div class="flex flex-col space-y-1">
-                      <span>Site Tag</span>
-                      <span>Site Note</span>
+                      <span>{{ $t('Site Tag') }}</span>
+                      <span>{{ $t('Site Note') }}</span>
                       <!-- Note Last Updated — sortable on customers.notes_updated_at.
                            Drives the page's default sort (latest → oldest). -->
                       <SingleSortItem modelName="notes_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('notes_updated_at')">
-                        Note Last Updated
+                        {{ $t('Note Last Updated') }}
                       </SingleSortItem>
                     </div>
                   </TableHead>
                   <!-- Period Verify & Lock — action-triggered freeze of this
                        month's figures. Sits after Site Tag/Note; Action
                        remains the rightmost column. -->
-                  <TableHead>Period Verify & Lock</TableHead>
+                  <TableHead>{{ $t('Period Verify & Lock') }}</TableHead>
                   <TableHead>
                     <template v-if="bulkMode">
                       <label class="inline-flex items-center space-x-1 cursor-pointer">
@@ -835,24 +835,24 @@
                           :checked="isAllInvoiceableSelected()"
                           @change="toggleSelectAllInvoiceable()"
                         />
-                        <span>Select</span>
+                        <span>{{ $t('Select') }}</span>
                       </label>
                     </template>
                     <template v-else>
                       <div class="flex flex-col space-y-1">
-                        <span>Action</span>
+                        <span>{{ $t('Action') }}</span>
                         <!-- Outstanding ($) — sorts by the per-site settlement
                              balance (the Payment-History pill amount). Sits
                              between Action and the Loc Fee remarks. -->
                         <SingleSortItem modelName="outstanding" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('outstanding')">
-                          Outstanding($)
+                          {{ $t('Outstanding($)') }}
                         </SingleSortItem>
                         <!-- Remarks for Loc Fees lives in this column (bottom
                              of the cell). One box per Site; sortable by the
                              last-updated timestamp. -->
-                        <span>Remarks for Loc Fees</span>
+                        <span>{{ $t('Remarks for Loc Fees') }}</span>
                         <SingleSortItem modelName="loc_fee_remarks_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('loc_fee_remarks_updated_at')">
-                          Remarks Last Updated
+                          {{ $t('Remarks Last Updated') }}
                         </SingleSortItem>
                       </div>
                     </template>
@@ -936,7 +936,7 @@
                           :class="row.customer.status_name === 'Removed'
                             ? 'bg-red-50 text-red-700 border-2 border-red-500 font-semibold'
                             : 'font-medium border ' + siteStatusBadgeClass(row.customer.status_id)"
-                          v-tooltip="row.customer.status_name === 'Removed' && row.removed_date ? ('Removed on ' + formatYYMMDD(row.removed_date)) : null"
+                          v-tooltip="row.customer.status_name === 'Removed' && row.removed_date ? $t('Removed on :date', { date: formatYYMMDD(row.removed_date) }) : null"
                         >
                           {{ row.customer.status_name }}<template v-if="row.customer.status_name === 'Removed' && row.removed_date">&nbsp;{{ formatYYMMDD(row.removed_date) }}</template>
                         </span>
@@ -971,9 +971,9 @@
                         <span
                           v-if="isFirstRowForCustomer(rowIndex) && row.upcoming_term"
                           class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit bg-amber-100 text-amber-800 border-amber-300"
-                          v-tooltip="'Upcoming term effective ' + formatYYMMDD(row.upcoming_term.effective_date)"
+                          v-tooltip="$t('Upcoming term effective :date', { date: formatYYMMDD(row.upcoming_term.effective_date) })"
                         >
-                          Upcoming Term
+                          {{ $t('Upcoming Term') }}
                         </span>
                         <!--
                           Activation badge — site went active mid-month this
@@ -985,9 +985,9 @@
                         <span
                           v-if="row.is_activated_in_period && row.active_date"
                           class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit bg-orange-100 text-orange-800 border-orange-300"
-                          v-tooltip="'Active from ' + formatYYMMDD(row.active_date) + ' — rental/utility prorated for the partial month.'"
+                          v-tooltip="$t('Active from :date — rental/utility prorated for the partial month.', { date: formatYYMMDD(row.active_date) })"
                         >
-                          Active {{ formatYYMMDD(row.active_date) }}
+                          {{ $t('Active :date', { date: formatYYMMDD(row.active_date) }) }}
                         </span>
                       </div>
                       <!--
@@ -1011,7 +1011,7 @@
                       <span
                         v-if="row.avg_monthly_sales_cents != null"
                         class="text-xs text-gray-700 mt-1 inline-flex items-center"
-                        v-tooltip="'Average monthly sales to date (frozen once the month completes). Arrow compares vs the previous month average.'"
+                        v-tooltip="$t('Average monthly sales to date (frozen once the month completes). Arrow compares vs the previous month average.')"
                       >
                         {{ formatMoney(row.avg_monthly_sales_cents) }}
                         <TrendIcon :dir="trendAvgSales(row)" />
@@ -1042,22 +1042,22 @@
                           target="_blank"
                           rel="noopener noreferrer"
                           class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit bg-green-100 text-green-800 border-green-300 hover:bg-green-200"
-                          :title="row.customer.latest_contract.name || 'Contract Attachment'"
+                          :title="row.customer.latest_contract.name || $t('Contract Attachment')"
                         >
-                          Contract
+                          {{ $t('Contract') }}
                         </a>
                         <span
                           v-else
                           class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit bg-red-100 text-red-800 border-red-300"
                         >
-                          No Contract
+                          {{ $t('No Contract') }}
                         </span>
                         <button
                           v-if="isFirstRowForCustomer(rowIndex) && row.customer?.id"
                           type="button"
                           @click.prevent="openBindingHistory(row.customer)"
                           class="inline-flex items-center justify-center rounded bg-yellow-400 hover:bg-yellow-500 text-gray-800 p-0.5 w-fit h-fit border border-yellow-500"
-                          v-tooltip="'Machine binding history'"
+                          v-tooltip="$t('Machine binding history')"
                         >
                           <ClockIcon class="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -1109,16 +1109,16 @@
                           target="_blank"
                           :href="'/vends/customers?codes=' + encodeURIComponent(row.machine_vend.code)"
                           class="text-blue-700 hover:underline"
-                          v-tooltip="'Open this machine in the Ops Dashboard'"
+                          v-tooltip="$t('Open this machine in the Ops Dashboard')"
                         >
                           {{ row.machine_vend.code }}
                         </a>
-                        <span v-else class="text-gray-900" v-tooltip="'Machine attached during this period (frozen)'">{{ row.machine_vend.code }}</span>
+                        <span v-else class="text-gray-900" v-tooltip="$t('Machine attached during this period (frozen)')">{{ row.machine_vend.code }}</span>
                         <span
                           v-if="row.is_new_machine"
                           class="inline-flex items-center rounded px-1 py-0 text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300"
-                          v-tooltip="'Machine changed mid-month'"
-                        >New</span>
+                          v-tooltip="$t('Machine changed mid-month')"
+                        >{{ $t('New') }}</span>
                       </span>
                     </template>
                     <template v-else-if="row.customer?.vends && row.customer.vends.length > 1">
@@ -1129,7 +1129,7 @@
                             target="_blank"
                             :href="'/vends/customers?codes=' + encodeURIComponent(v.code)"
                             class="text-blue-700 hover:underline"
-                            v-tooltip="'Open this machine in the Ops Dashboard'"
+                            v-tooltip="$t('Open this machine in the Ops Dashboard')"
                           >
                             {{ v.code }}
                           </a>
@@ -1143,7 +1143,7 @@
                         target="_blank"
                         :href="'/vends/customers?codes=' + encodeURIComponent(row.customer.vend.code)"
                         class="text-blue-700 hover:underline"
-                        v-tooltip="'Open this machine in the Ops Dashboard'"
+                        v-tooltip="$t('Open this machine in the Ops Dashboard')"
                       >
                         {{ row.customer.vend.code }}
                       </a>
@@ -1221,7 +1221,7 @@
                           ? 'inline-block border-2 border-green-500 rounded px-1 text-green-700 font-semibold'
                           : ''"
                         v-tooltip="row.is_activated_in_period && row.active_date
-                          ? ('Active from ' + formatYYMMDD(row.active_date) + ' — billed from the active date, not the 1st.')
+                          ? $t('Active from :date — billed from the active date, not the 1st.', { date: formatYYMMDD(row.active_date) })
                           : null"
                       >
                         {{ formatYYMMDD(row.is_activated_in_period && row.active_date ? row.active_date : row.period_start) }}
@@ -1243,9 +1243,9 @@
                           ? 'inline-block border-2 border-red-500 rounded px-1 text-red-700 font-semibold'
                           : ''"
                         v-tooltip="row.is_removed_in_period && row.removed_date
-                          ? ('Removed on ' + formatYYMMDD(row.removed_date) + ' — final billable period; rental/utility prorated to the last active day. No rows after this month.')
+                          ? $t('Removed on :date — final billable period; rental/utility prorated to the last active day. No rows after this month.', { date: formatYYMMDD(row.removed_date) })
                           : (row.is_replaced_machine
-                            ? ('Machine replaced — last billable day on this machine before the swap; rental/utility prorated to here. The replacement machine continues on the next row.')
+                            ? $t('Machine replaced — last billable day on this machine before the swap; rental/utility prorated to here. The replacement machine continues on the next row.')
                             : null)"
                       >
                         {{ formatYYMMDD(row.is_removed_in_period && row.removed_date ? row.removed_date : row.period_end) }}
@@ -1328,13 +1328,13 @@
                     <div class="flex flex-col items-center space-y-0.5 text-xs" v-if="row.contract_commission_type">
                       <span class="font-semibold inline-flex items-center">
                         {{ contractTypeLabel(row.contract_commission_type) }}
-                        <span v-if="row.contract_diff?.placement_type" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
+                        <span v-if="row.contract_diff?.placement_type" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="$t('Changed from the previous period')">{{ $t('New') }}</span>
                       </span>
                       <span v-if="row.contract_commission_value != null">
                         <span v-if="['PS','PS+U','PSORU'].includes(row.contract_commission_type)">
                           {{ Number(row.contract_commission_value) }}%<span
                             v-if="row.contract_commission_value2 != null && ['PS+U','PSORU'].includes(row.contract_commission_type)"
-                          >{{ row.contract_commission_type === 'PSORU' ? ' or ' : '+' }}${{ Number(row.contract_commission_value2) }}</span>
+                          >{{ row.contract_commission_type === 'PSORU' ? ' ' + $t('or') + ' ' : '+' }}${{ Number(row.contract_commission_value2) }}</span>
                         </span>
                         <span v-else>
                           ${{ Number(row.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}<span
@@ -1343,7 +1343,7 @@
                         </span>
                       </span>
                       <span v-if="row.contract_ps_term != null && ['PS','PS+U','PSORU'].includes(row.contract_commission_type)" class="text-gray-400">
-                        PS Term: {{ Number(row.contract_ps_term) }}%
+                        {{ $t('PS Term: :pct%', { pct: Number(row.contract_ps_term) }) }}
                       </span>
                     </div>
                   </TableData>
@@ -1368,7 +1368,7 @@
                         <span
                           v-if="row.loc_fee_prorated_to_date"
                           class="mt-0.5 inline-flex items-center whitespace-nowrap px-1 py-0 rounded text-[9px] font-semibold bg-sky-100 text-sky-800 border border-sky-300"
-                          v-tooltip="`Prorated to date — ${row.to_date_days}/${row.month_total_days} days of this month elapsed. The flat fee accrues daily and shows the full month once the month closes.`"
+                          v-tooltip="$t('Prorated to date — :days/:total days of this month elapsed. The flat fee accrues daily and shows the full month once the month closes.', { days: row.to_date_days, total: row.month_total_days })"
                         >
                           {{ row.to_date_days }}/{{ row.month_total_days }} d
                         </span>
@@ -1376,7 +1376,7 @@
                           v-if="row.contract_commission_type === 'S'"
                           class="text-[10px] text-emerald-600 leading-tight"
                         >
-                          Subsidy income
+                          {{ $t('Subsidy income') }}
                         </div>
                       </div>
                       <!-- External Subsidize — per-segment snapshot; shown only
@@ -1384,7 +1384,7 @@
                            previous period (e.g. none → a subsidy). -->
                       <span class="text-gray-600 inline-flex items-center">
                         {{ externalSubsidizeCents(row) ? formatMoney(externalSubsidizeCents(row)) : '—' }}
-                        <span v-if="row.contract_diff?.external_subsidize" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
+                        <span v-if="row.contract_diff?.external_subsidize" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="$t('Changed from the previous period')">{{ $t('New') }}</span>
                       </span>
                       <!-- Net Loc Fee = Location Fees − External Subsidize -->
                       <span
@@ -1442,7 +1442,7 @@
                       <span
                         v-if="hasAnyLocationGrading(row.customer)"
                         class="text-gray-700"
-                        v-tooltip="{ content: 'Placement / Access / Flexibility', html: true }"
+                        v-tooltip="{ content: $t('Placement / Access / Flexibility'), html: true }"
                       >
                         {{ row.customer?.location_grading?.placement || '-' }}, {{ row.customer?.location_grading?.access || '-' }}, {{ row.customer?.location_grading?.flexibility || '-' }}
                       </span>
@@ -1471,22 +1471,22 @@
                           {{ formatYYMMDD(row.customer.contract_until) }}
                         </span>
                         <span v-else class="text-gray-400">—</span>
-                        <span v-if="row.contract_diff?.contract_until" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
+                        <span v-if="row.contract_diff?.contract_until" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="$t('Changed from the previous period')">{{ $t('New') }}</span>
                       </span>
                       <span class="inline-flex items-center justify-center">
                         <CheckCircleIcon
                           v-if="row.customer?.contract_auto_renewal"
                           class="h-5 w-5 text-green-600"
                           aria-hidden="true"
-                          v-tooltip="'Auto Renewal: Yes'"
+                          v-tooltip="$t('Auto Renewal: Yes')"
                         />
                         <XCircleIcon
                           v-else
                           class="h-5 w-5 text-red-600"
                           aria-hidden="true"
-                          v-tooltip="'Auto Renewal: No'"
+                          v-tooltip="$t('Auto Renewal: No')"
                         />
-                        <span v-if="row.contract_diff?.auto_renewal" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
+                        <span v-if="row.contract_diff?.auto_renewal" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="$t('Changed from the previous period')">{{ $t('New') }}</span>
                       </span>
                       <span class="inline-flex items-center">
                         <span
@@ -1496,7 +1496,7 @@
                           {{ row.customer.contract_notice_period }}
                         </span>
                         <span v-else class="text-gray-400">—</span>
-                        <span v-if="row.contract_diff?.notice_period" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
+                        <span v-if="row.contract_diff?.notice_period" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="$t('Changed from the previous period')">{{ $t('New') }}</span>
                       </span>
                     </div>
                   </TableData>
@@ -1558,7 +1558,7 @@
                           :users="mentionableUsers"
                           :rows="4"
                           :autogrow="true"
-                          placeholder="Notes"
+                          :placeholder="$t('Notes')"
                           textarea-class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
                         />
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
@@ -1602,9 +1602,9 @@
                       target="_blank"
                       rel="noopener"
                       class="inline-flex items-center justify-center text-center px-2 py-1 !text-[10px] font-semibold leading-tight bg-yellow-300 hover:bg-yellow-400 text-yellow-900 rounded shadow-sm border border-yellow-500 max-w-[64px] whitespace-normal break-words"
-                      v-tooltip="'Open Site Summary for this site only, showing all periods (new tab)'"
+                      v-tooltip="$t('Open Site Summary for this site only, showing all periods (new tab)')"
                     >
-                      Show all Periods
+                      {{ $t('Show all Periods') }}
                     </a>
                     <template v-if="row.is_locked">
                       <div class="flex flex-col items-center space-y-1">
@@ -1628,17 +1628,17 @@
                         -->
                         <div class="text-[10px] leading-tight text-center">
                           <div class="text-amber-900 font-medium">
-                            <span class="font-bold">Locked</span> {{ formatYYMMDDHM(row.locked_at) }}
-                            <span v-if="row.locked_by_user">by {{ row.locked_by_user.name }}</span>
+                            <span class="font-bold">{{ $t('Locked') }}</span> {{ formatYYMMDDHM(row.locked_at) }}
+                            <span v-if="row.locked_by_user">{{ $t('by :name', { name: row.locked_by_user.name }) }}</span>
                           </div>
                           <div v-if="row.is_paid" class="text-emerald-700">
-                            <span class="font-semibold">Paid</span> {{ formatYYMMDDHM(row.paid_at) }}
-                            <span v-if="row.paid_by_user">by {{ row.paid_by_user.name }}</span>
+                            <span class="font-semibold">{{ $t('Paid') }}</span> {{ formatYYMMDDHM(row.paid_at) }}
+                            <span v-if="row.paid_by_user">{{ $t('by :name', { name: row.paid_by_user.name }) }}</span>
                           </div>
                           <!-- Actual payment date from the Paid popup (may
                                differ from the click timestamp above). -->
                           <div v-if="row.is_paid && row.paid_date" class="text-emerald-700">
-                            <span class="font-semibold">Pymt</span> {{ moment(row.paid_date).format('YYMMDD') }}
+                            <span class="font-semibold">{{ $t('Pymt') }}</span> {{ moment(row.paid_date).format('YYMMDD') }}
                           </div>
                           <!-- Paid via a Site Settlement — its reference, green. -->
                           <div v-if="row.is_paid && row.commission_settlement_id && row.settlement_reference" class="mt-0.5">
@@ -1646,7 +1646,7 @@
                               :href="'/site-settlements/' + row.commission_settlement_id"
                               target="_blank"
                               class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold border border-emerald-300 hover:bg-emerald-200"
-                              v-tooltip="'Paid via Site Settlement'"
+                              v-tooltip="$t('Paid via Site Settlement')"
                             >
                               {{ row.settlement_reference }}
                             </a>
@@ -1657,14 +1657,14 @@
                           <div v-if="row.is_waived" class="mt-0.5">
                             <span
                               class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-semibold border border-purple-300"
-                              v-tooltip="row.waived_remarks || 'Waived'"
+                              v-tooltip="row.waived_remarks || $t('Waived')"
                             >
-                              Waived
+                              {{ $t('Waived') }}
                             </span>
                           </div>
                           <div v-if="!row.is_paid && row.last_unpaid_at" class="text-red-700">
-                            <span class="font-semibold">Unpaid</span> {{ formatYYMMDDHM(row.last_unpaid_at) }}
-                            <span v-if="row.last_unpaid_by_user">by {{ row.last_unpaid_by_user.name }}</span>
+                            <span class="font-semibold">{{ $t('Unpaid') }}</span> {{ formatYYMMDDHM(row.last_unpaid_at) }}
+                            <span v-if="row.last_unpaid_by_user">{{ $t('by :name', { name: row.last_unpaid_by_user.name }) }}</span>
                           </div>
                         </div>
                         <!-- Unlock — hidden while Paid; user must Undo Verify
@@ -1677,7 +1677,7 @@
                           @click="onUnlockClicked(row)"
                         >
                           <LockOpenIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>Unlock</span>
+                          <span>{{ $t('Unlock') }}</span>
                         </Button>
                         <!-- Paid — only visible on a locked+unpaid row, and
                              only from the paid-tracking cutoff (2605) onward;
@@ -1687,11 +1687,11 @@
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm border border-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           :disabled="lockingFor.has(row.id)"
-                          v-tooltip="'Confirm the location fee for this period has been paid'"
+                          v-tooltip="$t('Confirm the location fee for this period has been paid')"
                           @click="onPaidClicked(row)"
                         >
                           <CheckBadgeIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>Loc Fees paid?</span>
+                          <span>{{ $t('Loc Fees paid?') }}</span>
                         </Button>
                         <!-- Staged into a Site Settlement — it's paid from the
                              settlement page, not here. Badge links to it. -->
@@ -1700,9 +1700,9 @@
                           :href="'/site-settlements/' + row.commission_settlement_id"
                           target="_blank"
                           class="inline-flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-semibold leading-tight rounded bg-yellow-200 text-yellow-900 hover:bg-yellow-300 text-center"
-                          v-tooltip="'This period is in a Site Settlement — mark it paid from the settlement page.'"
+                          v-tooltip="$t('This period is in a Site Settlement — mark it paid from the settlement page.')"
                         >
-                          <span>Settlement in progress</span>
+                          <span>{{ $t('Settlement in progress') }}</span>
                           <span v-if="row.settlement_reference">{{ row.settlement_reference }}</span>
                         </a>
                         <!-- Unpaid — only visible on a locked+paid row.
@@ -1712,11 +1712,11 @@
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight bg-red-100 hover:bg-red-200 text-red-800 rounded"
                           :disabled="lockingFor.has(row.id)"
-                          v-tooltip="'Reverse the paid status for this period'"
+                          v-tooltip="$t('Reverse the paid status for this period')"
                           @click="onUnpaidClicked(row)"
                         >
                           <XCircleIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>Undo Verify Paid</span>
+                          <span>{{ $t('Undo Verify Paid') }}</span>
                         </Button>
                       </div>
                     </template>
@@ -1729,11 +1729,11 @@
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
                           :disabled="lockingFor.has(row.id)"
-                          v-tooltip="row.is_current_month ? 'Site removed ' + (row.removed_date || '') + ' — lock this prorated (current-month) period early' : null"
+                          v-tooltip="row.is_current_month ? $t('Site removed :date — lock this prorated (current-month) period early', { date: row.removed_date || '' }) : null"
                           @click="onLockClicked(row)"
                         >
                           <LockOpenIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>Lock</span>
+                          <span>{{ $t('Lock') }}</span>
                         </Button>
                         <!--
                           Last-unlocked caption — appears immediately after
@@ -1742,8 +1742,8 @@
                           visible right in the cell, not buried in a tooltip.
                         -->
                         <div v-if="row.last_unlocked_at" class="text-[10px] text-gray-500 leading-tight text-center">
-                          <span class="font-semibold">Unlocked</span> {{ formatYYMMDDHM(row.last_unlocked_at) }}
-                          <span v-if="row.last_unlocked_by_user">by {{ row.last_unlocked_by_user.name }}</span>
+                          <span class="font-semibold">{{ $t('Unlocked') }}</span> {{ formatYYMMDDHM(row.last_unlocked_at) }}
+                          <span v-if="row.last_unlocked_by_user">{{ $t('by :name', { name: row.last_unlocked_by_user.name }) }}</span>
                         </div>
                       </div>
                     </template>
@@ -1773,7 +1773,7 @@
                         :value="rowKey(row)"
                         v-model="selectedRowKeys"
                       />
-                      <span v-else class="text-xs text-gray-400" v-tooltip="'Not invoiceable (F/S, missing person_id, or incomplete contract)'">—</span>
+                      <span v-else class="text-xs text-gray-400" v-tooltip="$t('Not invoiceable (F/S, missing person_id, or incomplete contract)')">—</span>
                     </template>
                     <div v-else class="flex flex-col items-stretch space-y-1">
                       <!--
@@ -1801,11 +1801,11 @@
                         ]"
                         :disabled="!row.customer?.has_report_content"
                         v-tooltip="!row.customer?.has_report_content
-                          ? 'Free Placement / Subsidized Plan have no report content; other types need a complete contract'
-                          : 'Preview the report content that will be emailed'"
+                          ? $t('Free Placement / Subsidized Plan have no report content; other types need a complete contract')
+                          : $t('Preview the report content that will be emailed')"
                         @click="onReportContentClicked(row)"
                       >
-                        <span>Report Content</span>
+                        <span>{{ $t('Report Content') }}</span>
                       </Button>
                       <!--
                         "Email" status badge — only on rows whose Site has a
@@ -1825,11 +1825,11 @@
                           ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'"
                         v-tooltip="row.report_emailed_at
-                          ? `Report emailed for this period to ${row.customer.report_email}`
-                          : `Not yet emailed for this period — ${row.customer.report_email}`"
+                          ? $t('Report emailed for this period to :email', { email: row.customer.report_email })
+                          : $t('Not yet emailed for this period — :email', { email: row.customer.report_email })"
                       >
                         <EnvelopeIcon class="w-3 h-3" />
-                        <span>{{ row.report_emailed_at ? 'Email (sent)' : 'Email (not yet)' }}</span>
+                        <span>{{ row.report_emailed_at ? $t('Email (sent)') : $t('Email (not yet)') }}</span>
                       </span>
                       <!--
                         Copy Content — for Sites with NO report-email opt-in
@@ -1845,11 +1845,11 @@
                         type="button"
                         class="inline-flex items-center justify-center space-x-1 self-center mt-1 px-2 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700"
                         :disabled="copyingContentFor.has(row.customer.id)"
-                        v-tooltip="'Copy this report content to the clipboard'"
+                        v-tooltip="$t('Copy this report content to the clipboard')"
                         @click="onRowCopyContentClicked(row)"
                       >
                         <ClipboardDocumentIcon class="w-3 h-3" />
-                        <span>Copy Content</span>
+                        <span>{{ $t('Copy Content') }}</span>
                       </Button>
                       <!--
                         Last-email audit — surfaces the same "Last sent by X
@@ -1864,9 +1864,9 @@
                         v-if="row.report_emailed_at"
                         class="text-[10px] text-gray-600 leading-tight text-center mt-1"
                       >
-                        Last sent by
-                        <span class="font-medium text-gray-800">{{ row.report_emailed_by_user?.name || 'someone' }}</span>
-                        on
+                        {{ $t('Last sent by') }}
+                        <span class="font-medium text-gray-800">{{ row.report_emailed_by_user?.name || $t('someone') }}</span>
+                        {{ $t('on') }}
                         <span class="font-medium text-gray-800">{{ row.report_emailed_at }}</span>
                       </div>
 
@@ -1911,11 +1911,11 @@
                         <Button
                           type="button"
                           class="w-full inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800"
-                          v-tooltip="'View this site\'s settlement / payment history'"
+                          v-tooltip="$t('View this site\'s settlement / payment history')"
                           @click="openPaymentHistory(row.customer)"
                         >
                           <BanknotesIcon class="w-4 h-4 shrink-0" aria-hidden="true" />
-                          <span>Payment History</span>
+                          <span>{{ $t('Payment History') }}</span>
                         </Button>
                         <div class="mt-1 text-center">
                           <span
@@ -1945,7 +1945,7 @@
                           @change="onLocFeeRemarksChanged(row.customer)"
                           :rows="3"
                           :autogrow="true"
-                          placeholder="Remarks for Loc Fees"
+                          :placeholder="$t('Remarks for Loc Fees')"
                           textarea-class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
                         />
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.loc_fee_remarks_updated_by_user">
@@ -1958,7 +1958,7 @@
 
                 <tr v-if="!summaries.data?.length">
                   <td colspan="19" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
-                    No Results Found — try a broader Period Report or fewer filters.
+                    {{ $t('No Results Found — try a broader Period Report or fewer filters.') }}
                   </td>
                 </tr>
               </tbody>
@@ -1991,12 +1991,12 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <DocumentTextIcon class="w-5 h-5 text-blue-600" />
-          <span>Performance Report Preview</span>
+          <span>{{ $t('Performance Report Preview') }}</span>
         </div>
       </template>
       <template #default>
         <div v-if="reportContentLoading" class="text-center py-10 text-gray-500">
-          <div class="animate-pulse text-sm">Loading report content…</div>
+          <div class="animate-pulse text-sm">{{ $t('Loading report content…') }}</div>
         </div>
 
         <div v-else-if="reportContent" class="text-sm">
@@ -2099,14 +2099,14 @@
                   :class="line.formula_internal
                     ? 'text-gray-400 line-through text-sm italic'
                     : 'text-gray-600 text-sm'"
-                  :title="line.formula_internal ? 'Internal calculation — not shown to customer in the final report' : null"
+                  :title="line.formula_internal ? $t('Internal calculation — not shown to customer in the final report') : null"
                 >{{ line.formula }}</span>
                 <span
                   v-if="line.formula_internal"
                   class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 align-middle"
-                  title="Internal calculation — not shown to customer in the final report"
+                  :title="$t('Internal calculation — not shown to customer in the final report')"
                 >
-                  Admin only
+                  {{ $t('Admin only') }}
                 </span>
                 <span class="text-gray-400 mx-1.5 text-base">=</span>
                 <span class="text-gray-900 font-bold text-lg">{{ line.value }}</span>
@@ -2123,8 +2123,8 @@
             v-if="reportContent.lines?.some(l => l.formula_internal)"
             class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3 leading-snug"
           >
-            <span class="font-semibold">Note:</span>
-            Greyed-out formulas (tagged <span class="font-semibold">Admin only</span>) reflect internal PS Term adjustments to gross sales and will <span class="font-semibold">not</span> appear in the report sent to the customer — only the resolved value on the right will.
+            <span class="font-semibold">{{ $t('Note:') }}</span>
+            {{ $t('Greyed-out formulas (tagged') }} <span class="font-semibold">{{ $t('Admin only') }}</span>{{ $t(') reflect internal PS Term adjustments to gross sales and will') }} <span class="font-semibold">{{ $t('not') }}</span> {{ $t('appear in the report sent to the customer — only the resolved value on the right will.') }}
           </div>
 
           <!-- Total banner -->
@@ -2163,17 +2163,17 @@
           >
             <div class="text-xs text-gray-600">
               <template v-if="reportContentRow?.report_emailed_at">
-                Last sent by
+                {{ $t('Last sent by') }}
                 <span class="font-medium text-gray-800">
-                  {{ reportContentRow.report_emailed_by_user?.name || 'someone' }}
+                  {{ reportContentRow.report_emailed_by_user?.name || $t('someone') }}
                 </span>
-                on
+                {{ $t('on') }}
                 <span class="font-medium text-gray-800">
                   {{ reportContentRow.report_emailed_at }}
                 </span>
               </template>
               <template v-else>
-                Not yet emailed for this period.
+                {{ $t('Not yet emailed for this period.') }}
               </template>
             </div>
             <div
@@ -2184,34 +2184,34 @@
                 type="button"
                 class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800"
                 :disabled="sendingReportFor.has(reportContentRow.customer.id)"
-                v-tooltip="'Open your mail client to send this report, and record the send'"
+                v-tooltip="$t('Open your mail client to send this report, and record the send')"
                 @click="onModalEmailClicked"
               >
                 <EnvelopeIcon class="w-4 h-4" />
-                <span>Email</span>
+                <span>{{ $t('Email') }}</span>
               </Button>
               <Button
                 type="button"
                 class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800"
-                v-tooltip="'Copy the email address, subject and content so you can paste it into webmail (e.g. Gmail)'"
+                v-tooltip="$t('Copy the email address, subject and content so you can paste it into webmail (e.g. Gmail)')"
                 @click="onModalCopyEmailClicked"
               >
                 <ClipboardDocumentIcon class="w-4 h-4" />
-                <span>Copy Email Content</span>
+                <span>{{ $t('Copy Email Content') }}</span>
               </Button>
             </div>
             <span
               v-else
               class="text-[11px] text-gray-400 italic"
-              v-tooltip="'Site has no report-email address / opt-in. Set it on the Site Edit page first.'"
+              v-tooltip="$t('Site has no report-email address / opt-in. Set it on the Site Edit page first.')"
             >
-              Email not enabled on this customer
+              {{ $t('Email not enabled on this customer') }}
             </span>
           </div>
         </div>
 
         <div v-else class="text-center py-10 text-gray-500 text-sm">
-          No content available for this customer.
+          {{ $t('No content available for this customer.') }}
         </div>
       </template>
     </Modal>
@@ -2227,27 +2227,27 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <DocumentTextIcon class="w-5 h-5 text-blue-600" />
-          <span>Batch Report Content<template v-if="batchReportMachineCount"> ({{ batchReportMachineCount }} machine{{ batchReportMachineCount === 1 ? '' : 's' }})</template></span>
+          <span>{{ $t('Batch Report Content') }}<template v-if="batchReportMachineCount"> ({{ $tc(':count machine|:count machines', batchReportMachineCount) }})</template></span>
         </div>
       </template>
       <template #default>
         <div v-if="batchReportLoading" class="text-center py-10 text-gray-500">
-          <div class="animate-pulse text-sm">Building batch report…</div>
+          <div class="animate-pulse text-sm">{{ $t('Building batch report…') }}</div>
         </div>
 
         <div v-else-if="batchReportText" class="text-sm">
           <div class="flex items-center justify-between gap-2 mb-3">
             <p class="text-xs text-gray-500">
-              Combined report for one client — review, then copy and paste into the email to the site owner.
+              {{ $t('Combined report for one client — review, then copy and paste into the email to the site owner.') }}
             </p>
             <Button
               type="button"
               class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 shrink-0"
-              v-tooltip="'Copy the combined report content to the clipboard'"
+              v-tooltip="$t('Copy the combined report content to the clipboard')"
               @click="onCopyBatchReportClicked"
             >
               <ClipboardDocumentIcon class="w-4 h-4" />
-              <span>Copy Content</span>
+              <span>{{ $t('Copy Content') }}</span>
             </Button>
           </div>
           <pre class="whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800 text-[13px] leading-relaxed font-sans max-h-[60vh] overflow-auto">{{ batchReportText }}</pre>
@@ -2257,7 +2257,7 @@
         </div>
 
         <div v-else class="text-center py-10 text-gray-500 text-sm">
-          No report content could be built for the selected rows.
+          {{ $t('No report content could be built for the selected rows.') }}
         </div>
       </template>
     </Modal>
@@ -2267,31 +2267,31 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <DocumentTextIcon class="w-5 h-5 text-emerald-600" />
-          <span>Batch Paid Report</span>
+          <span>{{ $t('Batch Paid Report') }}</span>
         </div>
       </template>
       <template #default>
         <div v-if="paidReportLoading" class="text-center py-10 text-gray-500">
-          <div class="animate-pulse text-sm">Building paid report…</div>
+          <div class="animate-pulse text-sm">{{ $t('Building paid report…') }}</div>
         </div>
         <div v-else-if="paidReportText" class="text-sm">
           <div class="flex items-center justify-between gap-2 mb-3">
             <p class="text-xs text-gray-500">
-              Payment-advice email per paid site — review, then copy and send to each site owner.
+              {{ $t('Payment-advice email per paid site — review, then copy and send to each site owner.') }}
             </p>
             <Button
               type="button"
               class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 shrink-0"
-              v-tooltip="'Copy all payment advices to the clipboard'"
+              v-tooltip="$t('Copy all payment advices to the clipboard')"
               @click="copyPaidReport"
             >
               <ClipboardDocumentIcon class="w-4 h-4" />
-              <span>Copy</span>
+              <span>{{ $t('Copy') }}</span>
             </Button>
           </div>
           <pre class="whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800 text-[13px] leading-relaxed font-sans max-h-[60vh] overflow-auto">{{ paidReportText }}</pre>
         </div>
-        <div v-else class="text-center py-10 text-gray-500 text-sm">No paid rows to report.</div>
+        <div v-else class="text-center py-10 text-gray-500 text-sm">{{ $t('No paid rows to report.') }}</div>
       </template>
     </Modal>
 
@@ -2306,19 +2306,19 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
-          <span>Send to Settlement / Mark as Paid / Mark as Waived</span>
+          <span>{{ $t('Send to Settlement / Mark as Paid / Mark as Waived') }}</span>
         </div>
       </template>
       <template #default>
         <div class="text-sm text-left">
           <p class="mb-4 text-gray-700">
-            Mark <span class="font-semibold">{{ paidModalLabel }}</span> as
-            {{ paidModalWaived ? 'Waived' : 'Paid' }}?
+            {{ $t('Mark') }} <span class="font-semibold">{{ paidModalLabel }}</span>
+            {{ paidModalWaived ? $t('as Waived?') : $t('as Paid?') }}
           </p>
           <div class="flex items-start gap-6">
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1" for="paid-date-input">
-                Payment date
+                {{ $t('Payment date') }}
               </label>
               <input
                 id="paid-date-input"
@@ -2327,7 +2327,7 @@
                 class="w-48 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
               />
               <p class="text-[11px] text-gray-500 mt-1">
-                Leave empty to use today's date.
+                {{ $t('Leave empty to use today\'s date.') }}
               </p>
 
               <!--
@@ -2337,7 +2337,7 @@
                 Loc Fee; the admin can override with the real figure.
               -->
               <label class="block text-xs font-medium text-gray-600 mb-1 mt-3" for="paid-amount-input">
-                {{ paidModalWaived ? 'Amount waived' : 'Amount paid' }}
+                {{ paidModalWaived ? $t('Amount waived') : $t('Amount paid') }}
               </label>
               <div class="relative w-48">
                 <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400 text-sm">$</span>
@@ -2352,7 +2352,7 @@
                 />
               </div>
               <p class="text-[11px] text-gray-500 mt-1">
-                Recorded in Payment History. Leave 0 to skip a ledger entry.
+                {{ $t('Recorded in Payment History. Leave 0 to skip a ledger entry.') }}
               </p>
             </div>
             <div class="flex-1">
@@ -2362,17 +2362,17 @@
                   v-model="paidModalWaived"
                   class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                Waived?
+                {{ $t('Waived?') }}
               </label>
               <textarea
                 v-model="paidModalRemarks"
                 rows="3"
                 :disabled="!paidModalWaived"
-                :placeholder="paidModalWaived ? 'Reason for waiving (required)' : 'Tick Waived to add a reason'"
+                :placeholder="paidModalWaived ? $t('Reason for waiving (required)') : $t('Tick Waived to add a reason')"
                 class="block w-full rounded border-gray-300 text-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100 disabled:text-gray-400"
               ></textarea>
               <p v-if="paidModalWaived" class="text-[11px] text-purple-600 mt-1">
-                Remark is required when waiving.
+                {{ $t('Remark is required when waiving.') }}
               </p>
             </div>
           </div>
@@ -2385,13 +2385,13 @@
           -->
           <div class="mt-4">
             <label class="block text-xs font-medium text-gray-600 mb-1" for="paid-comment-input">
-              Comment <span class="font-normal text-gray-400">(optional)</span>
+              {{ $t('Comment') }} <span class="font-normal text-gray-400">{{ $t('(optional)') }}</span>
             </label>
             <textarea
               id="paid-comment-input"
               v-model="paidModalComment"
               rows="2"
-              placeholder="Add a note for this entry — shows in Payment History"
+              :placeholder="$t('Add a note for this entry — shows in Payment History')"
               class="block w-full rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
             ></textarea>
           </div>
@@ -2414,13 +2414,13 @@
             <div class="flex items-center justify-between">
               <div>
                 <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">
-                  {{ balanceState(paidModalOutstanding) === 'credit' ? 'Credit balance with this site' : 'Outstanding owed to this site' }}
+                  {{ balanceState(paidModalOutstanding) === 'credit' ? $t('Credit balance with this site') : $t('Outstanding owed to this site') }}
                 </div>
                 <div
                   class="text-xl font-bold"
                   :class="{ 'text-rose-600': balanceState(paidModalOutstanding) === 'owing', 'text-emerald-600': balanceState(paidModalOutstanding) === 'settled', 'text-sky-600': balanceState(paidModalOutstanding) === 'credit' }"
                 >
-                  {{ formatMoney(Math.abs(paidModalOutstanding)) }}<span v-if="balanceState(paidModalOutstanding) === 'credit'" class="ml-1 text-sm font-semibold">CR</span>
+                  {{ formatMoney(Math.abs(paidModalOutstanding)) }}<span v-if="balanceState(paidModalOutstanding) === 'credit'" class="ml-1 text-sm font-semibold">{{ $t('CR') }}</span>
                 </div>
               </div>
               <button
@@ -2429,19 +2429,19 @@
                 @click="openPaymentHistoryFromPaid"
               >
                 <BanknotesIcon class="h-4 w-4" />
-                View Payment History
+                {{ $t('View Payment History') }}
               </button>
             </div>
             <div v-if="paidModalAmountCents > 0" class="mt-2 border-t border-dashed border-gray-200 pt-2 text-[11px] text-gray-600">
-              After this {{ paidModalWaived ? 'waiver' : 'payment' }} of
+              {{ paidModalWaived ? $t('After this waiver of') : $t('After this payment of') }}
               <span class="font-semibold text-gray-800">{{ formatMoney(paidModalAmountCents) }}</span>,
               <template v-if="(paidModalOutstanding - paidModalAmountCents) < 0">
-                this site goes into credit by
+                {{ $t('this site goes into credit by') }}
                 <span class="font-semibold text-sky-600">{{ formatMoney(Math.abs(paidModalOutstanding - paidModalAmountCents)) }}</span>
-                (offsets upcoming fees)
+                {{ $t('(offsets upcoming fees)') }}
               </template>
               <template v-else>
-                remaining ≈
+                {{ $t('remaining ≈') }}
                 <span class="font-semibold" :class="(paidModalOutstanding - paidModalAmountCents) > 0 ? 'text-rose-600' : 'text-emerald-600'">
                   {{ formatMoney(paidModalOutstanding - paidModalAmountCents) }}
                 </span>
@@ -2450,8 +2450,7 @@
           </div>
 
           <p class="text-[11px] text-gray-500 mt-3">
-            This records the payment date + actor against the locked snapshot.
-            The Unlock button will be blocked until the row is Unpaid again.
+            {{ $t('This records the payment date + actor against the locked snapshot. The Unlock button will be blocked until the row is Unpaid again.') }}
           </p>
           <div class="flex justify-end space-x-2 mt-5">
             <Button
@@ -2459,7 +2458,7 @@
               class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
               @click="onPaidModalClose"
             >
-              Cancel
+              {{ $t('Cancel') }}
             </Button>
             <!--
               Waived  -> single Confirm Waived (posts a waiver via the paid
@@ -2475,7 +2474,7 @@
               @click="onPaidModalConfirm(false)"
             >
               <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Confirm Waived</span>
+              <span>{{ $t('Confirm Waived') }}</span>
             </Button>
             <template v-else>
               <Button
@@ -2485,7 +2484,7 @@
                 @click="onPaidModalConfirm(true)"
               >
                 <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Mark as Paid</span>
+                <span>{{ $t('Mark as Paid') }}</span>
               </Button>
               <Button
                 type="button"
@@ -2494,7 +2493,7 @@
                 @click="onPaidModalConfirm(false)"
               >
                 <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Send to Settlement</span>
+                <span>{{ $t('Send to Settlement') }}</span>
               </Button>
             </template>
           </div>
@@ -2510,18 +2509,16 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <LockClosedIcon class="w-5 h-5 text-amber-600" />
-          <span>Batch Lock</span>
+          <span>{{ $t('Batch Lock') }}</span>
         </div>
       </template>
       <template #default>
         <div class="text-sm text-left">
           <p class="mb-3 text-gray-700">
-            Lock <span class="font-semibold">{{ selectedLockRows.length }}</span> selected period(s)?
+            {{ $t('Lock') }} <span class="font-semibold">{{ selectedLockRows.length }}</span> {{ $t('selected period(s)?') }}
           </p>
           <p class="text-[11px] text-gray-500">
-            Each period's live figures (current contract applied to that
-            month's sales/gross) are frozen into a snapshot — same as
-            clicking Lock on each row individually.
+            {{ $t('Each period\'s live figures (current contract applied to that month\'s sales/gross) are frozen into a snapshot — same as clicking Lock on each row individually.') }}
           </p>
           <div class="flex justify-end space-x-2 mt-5">
             <Button
@@ -2529,7 +2526,7 @@
               class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
               @click="showBatchLockModal = false"
             >
-              Cancel
+              {{ $t('Cancel') }}
             </Button>
             <Button
               type="button"
@@ -2538,7 +2535,7 @@
               @click="onBatchLockConfirm"
             >
               <LockClosedIcon class="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Confirm Lock ({{ selectedLockRows.length }})</span>
+              <span>{{ $t('Confirm Lock (:count)', { count: selectedLockRows.length }) }}</span>
             </Button>
           </div>
         </div>
@@ -2554,16 +2551,16 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
-          <span>Batch Mark as Paid</span>
+          <span>{{ $t('Batch Mark as Paid') }}</span>
         </div>
       </template>
       <template #default>
         <div class="text-sm text-left">
           <p class="mb-4 text-gray-700">
-            Mark <span class="font-semibold">{{ selectedPaidRows.length }}</span> selected period(s) as Paid?
+            {{ $t('Mark') }} <span class="font-semibold">{{ selectedPaidRows.length }}</span> {{ $t('selected period(s) as Paid?') }}
           </p>
           <label class="block text-xs font-medium text-gray-600 mb-1" for="batch-paid-date-input">
-            Payment date (applied to ALL selected rows)
+            {{ $t('Payment date (applied to ALL selected rows)') }}
           </label>
           <input
             id="batch-paid-date-input"
@@ -2572,21 +2569,20 @@
             class="w-48 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
           />
           <p class="text-[11px] text-gray-500 mt-1">
-            Leave empty to use today's date.
+            {{ $t('Leave empty to use today\'s date.') }}
           </p>
           <div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2">
             <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600">Payment recorded per period</span>
-              <span class="font-semibold text-emerald-700">{{ formatMoney(selectedPaidNetTotal) }} total</span>
+              <span class="text-gray-600">{{ $t('Payment recorded per period') }}</span>
+              <span class="font-semibold text-emerald-700">{{ $t(':amount total', { amount: formatMoney(selectedPaidNetTotal) }) }}</span>
             </div>
             <p class="mt-1 text-[11px] text-gray-500">
-              Each period's payment is recorded in Payment History as its
-              <span class="font-medium">Net Location Fee</span>. Periods with no fee are skipped.
+              {{ $t('Each period\'s payment is recorded in Payment History as its') }}
+              <span class="font-medium">{{ $t('Net Location Fee') }}</span>{{ $t('. Periods with no fee are skipped.') }}
             </p>
           </div>
           <p class="text-[11px] text-gray-500 mt-3">
-            This records the payment date + actor against each locked
-            snapshot. Unlock will be blocked on these rows until Unpaid.
+            {{ $t('This records the payment date + actor against each locked snapshot. Unlock will be blocked on these rows until Unpaid.') }}
           </p>
           <div class="flex justify-end space-x-2 mt-5">
             <Button
@@ -2594,7 +2590,7 @@
               class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
               @click="showBatchPaidModal = false"
             >
-              Cancel
+              {{ $t('Cancel') }}
             </Button>
             <Button
               type="button"
@@ -2603,7 +2599,7 @@
               @click="onBatchPaidConfirm"
             >
               <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Confirm Paid ({{ selectedPaidRows.length }})</span>
+              <span>{{ $t('Confirm Paid (:count)', { count: selectedPaidRows.length }) }}</span>
             </Button>
           </div>
         </div>
@@ -2613,21 +2609,21 @@
     <!-- Machine binding history popup (per site) -->
     <Modal :open="bindingHistoryOpen" @modalClose="bindingHistoryOpen = false">
       <template #header>
-        <span>Machine Binding History — {{ bindingHistorySite }}</span>
+        <span>{{ $t('Machine Binding History — :site', { site: bindingHistorySite }) }}</span>
       </template>
       <div class="text-left">
-        <div v-if="bindingHistoryLoading" class="text-sm text-gray-500 py-4 text-center">Loading…</div>
+        <div v-if="bindingHistoryLoading" class="text-sm text-gray-500 py-4 text-center">{{ $t('Loading…') }}</div>
         <div v-else-if="!bindingHistory.length" class="text-sm text-gray-500 py-4 text-center">
-          No machine binding history for this site.
+          {{ $t('No machine binding history for this site.') }}
         </div>
         <table v-else class="w-full text-sm">
           <thead>
             <tr class="text-left text-xs text-gray-500 border-b">
-              <th class="py-1 pr-3">Date / Time</th>
-              <th class="py-1 pr-3">Action</th>
-              <th class="py-1 pr-3">Machine ID</th>
-              <th class="py-1 pr-3">Prefix</th>
-              <th class="py-1">By</th>
+              <th class="py-1 pr-3">{{ $t('Date / Time') }}</th>
+              <th class="py-1 pr-3">{{ $t('Action') }}</th>
+              <th class="py-1 pr-3">{{ $t('Machine ID') }}</th>
+              <th class="py-1 pr-3">{{ $t('Prefix') }}</th>
+              <th class="py-1">{{ $t('By') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -2637,7 +2633,7 @@
                 <span
                   class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border"
                   :class="b.is_binding ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-700 border-red-300'"
-                >{{ b.is_binding ? 'Bound' : 'Unbound' }}</span>
+                >{{ b.is_binding ? $t('Bound') : $t('Unbound') }}</span>
               </td>
               <td class="py-1 pr-3 font-medium">{{ b.vend_code || '—' }}</td>
               <td class="py-1 pr-3">{{ b.vend_prefix || '—' }}</td>
@@ -2661,7 +2657,7 @@
             <BanknotesIcon class="h-5 w-5" />
           </span>
           <div class="leading-tight">
-            <div class="text-base font-semibold text-gray-900">Payment History</div>
+            <div class="text-base font-semibold text-gray-900">{{ $t('Payment History') }}</div>
             <div class="text-xs font-normal text-gray-500">{{ settlementSite }}</div>
           </div>
         </div>
@@ -2680,31 +2676,31 @@
             <Button
               type="button"
               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition-colors"
-              v-tooltip="'Add a Waived credit to this site\'s ledger'"
+              v-tooltip="$t('Add a Waived credit to this site\'s ledger')"
               @click="startAddSettlement('waiver')"
             >
               <PlusIcon class="h-4 w-4" />
-              <span>Record Waived</span>
+              <span>{{ $t('Record Waived') }}</span>
             </Button>
             <Button
               type="button"
               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-slate-600 hover:bg-slate-700 text-white shadow-sm transition-colors"
-              v-tooltip="'Add a free-form adjustment (charge or credit) to this site\'s ledger'"
+              v-tooltip="$t('Add a free-form adjustment (charge or credit) to this site\'s ledger')"
               @click="startAddSettlement('adjustment')"
             >
               <PlusIcon class="h-4 w-4" />
-              <span>Record Adjustment</span>
+              <span>{{ $t('Record Adjustment') }}</span>
             </Button>
           </div>
           <div v-else></div>
 
           <!-- Export (only meaningful once there are rows) -->
           <div v-if="settlementRows.length" class="flex items-center gap-2">
-            <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Export</span>
+            <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{{ $t('Export') }}</span>
             <Button
               type="button"
               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
-              v-tooltip="'Open a printable Statement of Account (Save as PDF)'"
+              v-tooltip="$t('Open a printable Statement of Account (Save as PDF)')"
               @click="exportSettlementsPdf"
             >
               <DocumentTextIcon class="h-4 w-4 text-indigo-500" />
@@ -2713,7 +2709,7 @@
             <Button
               type="button"
               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
-              v-tooltip="'Download this ledger as an Excel file'"
+              v-tooltip="$t('Download this ledger as an Excel file')"
               @click="exportSettlementsExcel"
             >
               <ArrowDownTrayIcon class="h-4 w-4 text-indigo-500" />
@@ -2740,7 +2736,7 @@
           </div>
           <div class="flex flex-wrap items-end gap-3">
             <div>
-              <label class="block text-[11px] font-medium text-gray-500 mb-1">Date</label>
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ $t('Date') }}</label>
               <input
                 v-model="addSettlementDate"
                 type="date"
@@ -2749,17 +2745,17 @@
             </div>
             <!-- Direction — adjustment only (charge vs credit). -->
             <div v-if="addingSettlement === 'adjustment'">
-              <label class="block text-[11px] font-medium text-gray-500 mb-1">Type</label>
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ $t('Type') }}</label>
               <select
                 v-model="addSettlementDirection"
                 class="w-44 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
               >
-                <option value="credit">Credit — reduce what we owe</option>
-                <option value="debit">Charge — increase what we owe</option>
+                <option value="credit">{{ $t('Credit — reduce what we owe') }}</option>
+                <option value="debit">{{ $t('Charge — increase what we owe') }}</option>
               </select>
             </div>
             <div class="flex-1 min-w-[200px]">
-              <label class="block text-[11px] font-medium text-gray-500 mb-1">Description</label>
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ $t('Description') }}</label>
               <input
                 v-model="addSettlementDescription"
                 type="text"
@@ -2768,7 +2764,7 @@
               />
             </div>
             <div>
-              <label class="block text-[11px] font-medium text-gray-500 mb-1">Amount</label>
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ $t('Amount') }}</label>
               <div class="relative w-40">
                 <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400 text-sm">$</span>
                 <input
@@ -2779,17 +2775,17 @@
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <Button type="button" class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700" @click="cancelAddSettlement">Cancel</Button>
+              <Button type="button" class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700" @click="cancelAddSettlement">{{ $t('Cancel') }}</Button>
               <Button
                 type="button"
                 class="inline-flex items-center gap-1 px-3 py-2 text-xs text-white"
                 :class="addFormSubmitClass"
                 :disabled="addSettlementSaving"
                 @click="submitAddSettlement"
-              >{{ addSettlementSaving ? 'Adding…' : 'Add entry' }}</Button>
+              >{{ addSettlementSaving ? $t('Adding…') : $t('Add entry') }}</Button>
             </div>
           </div>
-          <p class="mt-2 text-[11px] text-gray-400">Posts to this ledger only — it does not change any period's Paid status.</p>
+          <p class="mt-2 text-[11px] text-gray-400">{{ $t('Posts to this ledger only — it does not change any period\'s Paid status.') }}</p>
         </div>
 
         <!--
@@ -2815,13 +2811,13 @@
             ></span>
             <div>
               <div class="text-[11px] font-medium uppercase tracking-wider text-gray-500">
-                {{ settlementState === 'credit' ? 'Credit Balance' : 'Current Outstanding' }}
+                {{ settlementState === 'credit' ? $t('Credit Balance') : $t('Current Outstanding') }}
               </div>
               <div
                 class="mt-0.5 text-3xl font-bold tracking-tight"
                 :class="{ 'text-rose-600': settlementState === 'owing', 'text-emerald-600': settlementState === 'settled', 'text-sky-600': settlementState === 'credit' }"
               >
-                {{ formatMoney(Math.abs(settlementOutstanding)) }}<span v-if="settlementState === 'credit'" class="ml-1 text-base font-semibold">CR</span>
+                {{ formatMoney(Math.abs(settlementOutstanding)) }}<span v-if="settlementState === 'credit'" class="ml-1 text-base font-semibold">{{ $t('CR') }}</span>
               </div>
             </div>
           </div>
@@ -2834,7 +2830,7 @@
               {{ settlementStatusLabel }}
             </span>
             <div v-if="settlementSince" class="mt-1.5 text-[11px] text-gray-400">
-              Tracked since {{ moment(settlementSince).format('DD MMM YYYY') }}
+              {{ $t('Tracked since :date', { date: moment(settlementSince).format('DD MMM YYYY') }) }}
             </div>
           </div>
         </div>
@@ -2842,7 +2838,7 @@
         <!-- Credit explainer — only when overpaid. -->
         <div v-if="!settlementLoading && settlementState === 'credit'" class="-mt-3 mb-5 flex items-start gap-2 px-1 text-[11px] text-sky-700">
           <CheckCircleIcon class="mt-px h-3.5 w-3.5 shrink-0" />
-          <span>Overpaid by {{ formatMoney(Math.abs(settlementOutstanding)) }} — this credit carries forward and offsets upcoming location fees.</span>
+          <span>{{ $t('Overpaid by :amount — this credit carries forward and offsets upcoming location fees.', { amount: formatMoney(Math.abs(settlementOutstanding)) }) }}</span>
         </div>
 
         <!-- Loading skeleton -->
@@ -2855,8 +2851,8 @@
         <!-- Empty state -->
         <div v-else-if="!settlementRows.length" class="py-12 text-center">
           <BanknotesIcon class="mx-auto h-9 w-9 text-gray-300" />
-          <p class="mt-2 text-sm text-gray-500">No settlement records yet for this site.</p>
-          <p class="mt-1 text-xs text-gray-400">Monthly location fees will appear here once accrued.</p>
+          <p class="mt-2 text-sm text-gray-500">{{ $t('No settlement records yet for this site.') }}</p>
+          <p class="mt-1 text-xs text-gray-400">{{ $t('Monthly location fees will appear here once accrued.') }}</p>
         </div>
 
         <!-- Ledger -->
@@ -2865,25 +2861,25 @@
             <table class="w-full border-collapse">
               <thead class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
                 <tr class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  <th class="px-4 py-2.5 text-left">Ref</th>
+                  <th class="px-4 py-2.5 text-left">{{ $t('Ref') }}</th>
                   <th class="px-3 py-2.5 text-left">
                     <button
                       type="button"
                       class="inline-flex items-center gap-1 font-semibold uppercase tracking-wider text-gray-500 hover:text-indigo-600"
-                      v-tooltip="'Sort by date'"
+                      v-tooltip="$t('Sort by date')"
                       @click="toggleSettlementSort"
                     >
-                      Date
+                      {{ $t('Date') }}
                       <ChevronDownIcon
                         class="h-3 w-3 transition-transform"
                         :class="{ 'rotate-180': settlementSortDir === 'asc' }"
                       />
                     </button>
                   </th>
-                  <th class="px-3 py-2.5 text-left">Description</th>
-                  <th class="whitespace-nowrap px-3 py-2.5 text-right">Debit</th>
-                  <th class="whitespace-nowrap px-3 py-2.5 text-right">Credit</th>
-                  <th class="whitespace-nowrap px-4 py-2.5 text-right">Balance</th>
+                  <th class="px-3 py-2.5 text-left">{{ $t('Description') }}</th>
+                  <th class="whitespace-nowrap px-3 py-2.5 text-right">{{ $t('Debit') }}</th>
+                  <th class="whitespace-nowrap px-3 py-2.5 text-right">{{ $t('Credit') }}</th>
+                  <th class="whitespace-nowrap px-4 py-2.5 text-right">{{ $t('Balance') }}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
@@ -2902,7 +2898,7 @@
                           v-if="isSettlementEditable(s) && editingSettlementId !== s.id"
                           type="button"
                           class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-indigo-600"
-                          v-tooltip="'Edit this entry'"
+                          v-tooltip="$t('Edit this entry')"
                           @click="startEditSettlement(s)"
                         >
                           <PencilSquareIcon class="h-3.5 w-3.5" />
@@ -2912,7 +2908,7 @@
                           type="button"
                           class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-rose-600"
                           :disabled="deletingSettlementId === s.id"
-                          v-tooltip="'Delete this entry'"
+                          v-tooltip="$t('Delete this entry')"
                           @click="deleteSettlementRow(s)"
                         >
                           <TrashIcon class="h-3.5 w-3.5" />
@@ -2921,10 +2917,10 @@
                       <div v-if="s.remarks" class="mt-0.5 line-clamp-1 text-[11px] text-gray-400" v-tooltip="s.remarks">{{ s.remarks }}</div>
                       <!-- Who triggered this entry + when (creation audit). -->
                       <div v-if="s.created_by || s.created_at" class="mt-0.5 text-[10px] text-gray-400">
-                        By {{ s.created_by || 'system' }}<span v-if="s.created_at"> · {{ moment(s.created_at).format('DD MMM YY, h:mma') }}</span>
+                        {{ $t('By :name', { name: s.created_by || $t('system') }) }}<span v-if="s.created_at"> · {{ moment(s.created_at).format('DD MMM YY, h:mma') }}</span>
                       </div>
                       <div v-if="s.edited_by" class="mt-0.5 text-[10px] text-amber-600">
-                        Edited by {{ s.edited_by }}<span v-if="s.edited_at"> · {{ moment(s.edited_at).format('DD MMM YY, h:mma') }}</span>
+                        {{ $t('Edited by :name', { name: s.edited_by }) }}<span v-if="s.edited_at"> · {{ moment(s.edited_at).format('DD MMM YY, h:mma') }}</span>
                       </div>
                     </td>
                     <td class="px-3 py-3 text-right align-top tabular-nums" :class="s.debit_cents ? 'font-medium text-gray-800' : 'text-gray-300'">
@@ -2934,7 +2930,7 @@
                       {{ s.credit_cents ? '−' + formatMoney(s.credit_cents) : '—' }}
                     </td>
                     <td class="px-4 py-3 text-right align-top font-semibold tabular-nums text-gray-900">
-                      {{ formatMoney(Math.abs(s.balance_cents)) }}<span v-if="s.balance_cents < 0" class="ml-0.5 align-top text-[10px] font-medium text-sky-600">CR</span>
+                      {{ formatMoney(Math.abs(s.balance_cents)) }}<span v-if="s.balance_cents < 0" class="ml-0.5 align-top text-[10px] font-medium text-sky-600">{{ $t('CR') }}</span>
                     </td>
                   </tr>
                   <!-- Inline editor (opening balance / adjustment) -->
@@ -2942,7 +2938,7 @@
                     <td colspan="6" class="px-4 py-3">
                       <div class="flex flex-wrap items-end gap-3">
                         <div>
-                          <label class="block text-[11px] font-medium text-gray-500 mb-1">Amount</label>
+                          <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ $t('Amount') }}</label>
                           <div class="relative w-40">
                             <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400 text-sm">$</span>
                             <input
@@ -2953,24 +2949,24 @@
                           </div>
                         </div>
                         <div class="flex-1 min-w-[180px]">
-                          <label class="block text-[11px] font-medium text-gray-500 mb-1">Remarks</label>
+                          <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ $t('Remarks') }}</label>
                           <input
                             v-model="editSettlementRemarks"
-                            type="text" placeholder="Optional note"
+                            type="text" :placeholder="$t('Optional note')"
                             class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
                           />
                         </div>
                         <div class="flex items-center gap-2">
-                          <Button type="button" class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700" @click="cancelEditSettlement">Cancel</Button>
+                          <Button type="button" class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700" @click="cancelEditSettlement">{{ $t('Cancel') }}</Button>
                           <Button
                             type="button"
                             class="inline-flex items-center gap-1 px-3 py-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                             :disabled="editSettlementSaving"
                             @click="saveEditSettlement(s)"
-                          >Save</Button>
+                          >{{ $t('Save') }}</Button>
                         </div>
                       </div>
-                      <p class="mt-1.5 text-[11px] text-gray-400">Editing the amount re-derives every balance below it.</p>
+                      <p class="mt-1.5 text-[11px] text-gray-400">{{ $t('Editing the amount re-derives every balance below it.') }}</p>
                     </td>
                   </tr>
                 </template>
@@ -2981,9 +2977,9 @@
 
         <!-- Legend -->
         <div v-if="!settlementLoading && settlementRows.length" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
-          <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-gray-300"></span>Debit — increases what we owe</span>
-          <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Credit — a verified payment or waiver</span>
-          <span class="ml-auto">Location fees post on the 1st of each month.</span>
+          <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-gray-300"></span>{{ $t('Debit — increases what we owe') }}</span>
+          <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>{{ $t('Credit — a verified payment or waiver') }}</span>
+          <span class="ml-auto">{{ $t('Location fees post on the 1st of each month.') }}</span>
         </div>
 
         <!-- Change history — audit trail of payments, waivers, reversals, edits. -->
@@ -2994,7 +2990,7 @@
             @click="showSettlementLogs = !showSettlementLogs"
           >
             <ClockIcon class="h-4 w-4 text-gray-400" />
-            Change history ({{ settlementLogs.length }})
+            {{ $t('Change history (:count)', { count: settlementLogs.length }) }}
             <ChevronDoubleDownIcon v-if="!showSettlementLogs" class="h-3.5 w-3.5" />
             <ChevronDoubleUpIcon v-else class="h-3.5 w-3.5" />
           </button>
@@ -3026,7 +3022,7 @@
                 </template>
                 <span v-if="lg.note" class="text-gray-400"> · {{ lg.note }}</span>
                 <div class="text-[10px] text-gray-400">
-                  by {{ lg.by || (lg.source === 'cron' ? 'system' : (lg.source === 'seed' ? 'seed' : 'someone')) }}<span v-if="lg.at"> · {{ moment(lg.at).format('DD MMM YY, h:mma') }}</span>
+                  {{ $t('by :name', { name: lg.by || (lg.source === 'cron' ? $t('system') : (lg.source === 'seed' ? $t('seed') : $t('someone'))) }) }}<span v-if="lg.at"> · {{ moment(lg.at).format('DD MMM YY, h:mma') }}</span>
                 </div>
               </div>
             </li>
@@ -3057,6 +3053,10 @@ import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from 'vue-toastification';
 import { vTooltip } from 'floating-vue';
 import moment from 'moment';
+import { t, tc, tk } from '@/i18n';
+
+// The (w/ GST) header tooltip (HTML, shown with html: true).
+const salesRunRateTip = t('The w/GST figure is highlighted by its full-month run-rate vs Avg Mthly Sales.<br>Current month: sales &divide; days elapsed &times; days in the month (projected to a full month).<br>Past months: actual sales used as-is.<br><span style="color:#16a34a">Green</span> = above average &nbsp; <span style="color:#dc2626">Red</span> = below average');
 
 const props = defineProps({
   summaries: Object,
@@ -3246,13 +3246,13 @@ function clearBatchSelection() {
 // row can qualify for more than one), or explains why it isn't selectable.
 function batchCheckboxTooltip(row) {
   const actions = [];
-  if (isLockEligibleRow(row)) actions.push('Lock');
-  if (isReportEligibleRow(row)) actions.push('Export Report Content');
-  if (actions.length) return 'Select for batch: ' + actions.join(' / ');
-  if (row.is_current_month) return 'Current month — cannot lock yet';
-  if (row.is_locked && row.is_paid) return 'Already Paid';
-  if (row.is_locked && !isPaidEligiblePeriod(row)) return 'Locked — period predates paid tracking (2605)';
-  return 'No report content (Free / Subsidized) and no pending Lock/Paid action';
+  if (isLockEligibleRow(row)) actions.push(t('Lock'));
+  if (isReportEligibleRow(row)) actions.push(t('Export Report Content'));
+  if (actions.length) return t('Select for batch: :actions', { actions: actions.join(' / ') });
+  if (row.is_current_month) return t('Current month — cannot lock yet');
+  if (row.is_locked && row.is_paid) return t('Already Paid');
+  if (row.is_locked && !isPaidEligiblePeriod(row)) return t('Locked — period predates paid tracking (2605)');
+  return t('No report content (Free / Subsidized) and no pending Lock/Paid action');
 }
 
 function onBatchPaidClicked() {
@@ -3277,12 +3277,12 @@ const pushingSettlement = ref(false);
 function onPushToSettlement() {
   const ids = selectedPaidRows.value.map((r) => r.id);
   if (!ids.length || pushingSettlement.value) return;
-  if (!confirm(`Push ${ids.length} row(s) into their Site Settlement?`)) return;
+  if (!confirm(t('Push :count row(s) into their Site Settlement?', { count: ids.length }))) return;
   pushingSettlement.value = true;
   router.post('/site-settlements/push', { ids }, {
     preserveScroll: true,
-    onSuccess: () => { clearBatchSelection(); toast.success('Rows pushed to Site Settlement.', { timeout: 4000 }); },
-    onError: (e) => { toast.error(e.settlement || Object.values(e)[0] || 'Failed to push.', { timeout: 5000 }); },
+    onSuccess: () => { clearBatchSelection(); toast.success(t('Rows pushed to Site Settlement.'), { timeout: 4000 }); },
+    onError: (e) => { toast.error(e.settlement || Object.values(e)[0] || t('Failed to push.'), { timeout: 5000 }); },
     onFinish: () => { pushingSettlement.value = false; },
   });
 }
@@ -3301,9 +3301,9 @@ async function onExportCimbClicked() {
     const a = document.createElement('a');
     a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    toast.success(`CIMB file exported (${ids.length} row(s) selected). Verify Paid after the bank run succeeds.`, { timeout: 5000 });
+    toast.success(t('CIMB file exported (:count row(s) selected). Verify Paid after the bank run succeeds.', { count: ids.length }), { timeout: 5000 });
   } catch (e) {
-    let msg = 'Export failed. Please try again.';
+    let msg = t('Export failed. Please try again.');
     if (e.response && e.response.status === 422) {
       // responseType is blob, so the JSON error body arrives as a Blob.
       try {
@@ -3332,10 +3332,10 @@ function onBatchLockConfirm() {
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => {
-      toast.success(`Locked ${ids.length} period(s).`, { timeout: 3000 });
+      toast.success(t('Locked :count period(s).', { count: ids.length }), { timeout: 3000 });
       clearBatchSelection();
     },
-    onError: (errors) => toast.error(errors?.batch || 'Failed to batch lock.', { timeout: 4000 }),
+    onError: (errors) => toast.error(errors?.batch || t('Failed to batch lock.'), { timeout: 4000 }),
     onFinish: () => { batchSubmitting.value = false; },
   });
 }
@@ -3354,10 +3354,10 @@ function onBatchPaidConfirm() {
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => {
-      toast.success(`Marked ${ids.length} period(s) Paid.`, { timeout: 3000 });
+      toast.success(t('Marked :count period(s) Paid.', { count: ids.length }), { timeout: 3000 });
       clearBatchSelection();
     },
-    onError: (errors) => toast.error(errors?.batch || errors?.paid_date || 'Failed to batch mark Paid.', { timeout: 4000 }),
+    onError: (errors) => toast.error(errors?.batch || errors?.paid_date || t('Failed to batch mark Paid.'), { timeout: 4000 }),
     onFinish: () => { batchSubmitting.value = false; },
   });
 }
@@ -3519,46 +3519,46 @@ onMounted(() => {
     .filter((s) => s.id !== 'all')
     .map((s) => ({ id: s.id, value: s.name }));
   booleanOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Yes' },
-    { id: 'false', value: 'No' },
+    { id: 'all', value: t('All') },
+    { id: 'true', value: t('Yes') },
+    { id: 'false', value: t('No') },
   ];
   contractAttachmentOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Yes' },
-    { id: 'false', value: 'No' },
+    { id: 'all', value: t('All') },
+    { id: 'true', value: t('Yes') },
+    { id: 'false', value: t('No') },
   ];
   replicatedOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'false', value: 'No' },
-    { id: 'true', value: 'Changes only' },
+    { id: 'all', value: t('All') },
+    { id: 'false', value: t('No') },
+    { id: 'true', value: t('Changes only') },
   ];
   lockedPaidOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Yes' },
-    { id: 'false', value: 'No' },
+    { id: 'all', value: t('All') },
+    { id: 'true', value: t('Yes') },
+    { id: 'false', value: t('No') },
   ];
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ];
   filters.value.numberPerPage = numberPerPageOptions.value[0];
 
   tagOptions.value = (props.tags?.data ?? []).map((d) => ({ id: d.id, name: d.name }));
   locationTypeOptions.value = [
-    { id: 'all', value: 'All' },
+    { id: 'all', value: t('All') },
     ...(props.locationTypeOptions?.data ?? []).map((d) => ({ id: d.id, value: d.name })),
   ];
   operatorOptions.value = [
-    { id: 'all', full_name: 'All' },
+    { id: 'all', full_name: t('All') },
     ...props.operatorOptions.data.map((data) => {
       return { id: data.id, code: data.code, full_name: data.full_name };
     }),
   ];
   vendPrefixOptions.value = [
-    { id: 'single-ud', value: 'Single UD' },
+    { id: 'single-ud', value: t('Single UD') },
     ...(props.vendPrefixOptions?.data ?? []).map((d) => ({ id: d.id, value: d.name })),
   ];
 
@@ -3685,14 +3685,14 @@ function formatDate(d) {
 // (mirrors Customer/Edit.vue's commissionTypeOptions).
 function contractTypeLabel(type) {
   switch (type) {
-    case 'F':     return 'Free Placement';
-    case 'S':     return 'Subsidized Plan';
-    case 'R':     return 'Fix Rental';
-    case 'U':     return 'Utility only';
+    case 'F':     return t('Free Placement');
+    case 'S':     return t('Subsidized Plan');
+    case 'R':     return t('Fix Rental');
+    case 'U':     return t('Utility only');
     case 'R+U':   return 'R + U';
     case 'PS':    return 'PS';
     case 'PS+U':  return 'PS + U';
-    case 'PSORU': return 'PS OR U';
+    case 'PSORU': return t('PS OR U');
     default:      return type ?? '';
   }
 }
@@ -3922,11 +3922,12 @@ function salesTooltip(row) {
   if (!dir) return '';
   const proj = projectedSalesCents(row);
   const avg = Number(row.avg_monthly_sales_cents);
-  const word = dir === 'above' ? 'Above' : 'Below';
   const projLabel = proj !== Number(row.sales_cents)
-    ? `projected full-month ${formatMoney(proj)}`
+    ? t('projected full-month :amount', { amount: formatMoney(proj) })
     : formatMoney(proj);
-  return `${word} Avg Mthly Sales (${projLabel} vs avg ${formatMoney(avg)})`;
+  return dir === 'above'
+    ? t('Above Avg Mthly Sales (:projected vs avg :avg)', { projected: projLabel, avg: formatMoney(avg) })
+    : t('Below Avg Mthly Sales (:projected vs avg :avg)', { projected: projLabel, avg: formatMoney(avg) });
 }
 
 /**
@@ -4137,9 +4138,9 @@ async function onModalCopyEmailClicked() {
   }
 
   if (ok) {
-    toast.success('Email address, subject and content copied to clipboard.', { timeout: 3500 });
+    toast.success(t('Email address, subject and content copied to clipboard.'), { timeout: 3500 });
   } else {
-    toast.error('Could not copy to clipboard. Please copy manually.', { timeout: 4500 });
+    toast.error(t('Could not copy to clipboard. Please copy manually.'), { timeout: 4500 });
   }
 }
 
@@ -4197,7 +4198,7 @@ function onModalEmailClicked() {
           report_emailed_by_user: data.report_emailed_by_user || reportContentRow.value.report_emailed_by_user,
         };
       }
-      toast.success(data.message || 'Send recorded.', { timeout: 3500 });
+      toast.success(data.message || t('Send recorded.'), { timeout: 3500 });
     })
     .catch((err) => {
       // Roll back the optimistic update so the audit line reflects truth.
@@ -4206,7 +4207,7 @@ function onModalEmailClicked() {
       }
       const msg = err?.response?.data?.message
         || err?.response?.data?.errors?.send_performance_report?.[0]
-        || 'Failed to record the send. Please try again.';
+        || t('Failed to record the send. Please try again.');
       toast.error(msg, { timeout: 4500 });
     })
     .finally(() => {
@@ -4357,12 +4358,12 @@ function toggleSettlementSort() {
 }
 
 const SETTLEMENT_LOG_LABELS = {
-  payment: 'Payment recorded',
-  waiver: 'Waived',
-  payment_reversed: 'Payment reversed',
-  edited: 'Entry edited',
-  created: 'Entry created',
-  deleted: 'Entry deleted',
+  payment: t('Payment recorded'),
+  waiver: t('Waived'),
+  payment_reversed: t('Payment reversed'),
+  edited: t('Entry edited'),
+  created: t('Entry created'),
+  deleted: t('Entry deleted'),
 };
 function settlementLogLabel(action) {
   return SETTLEMENT_LOG_LABELS[action] || action || '—';
@@ -4405,16 +4406,16 @@ const addFormSubmitClass = computed(() => ({
 const addFormHint = computed(() => {
   if (addingSettlement.value === 'adjustment') {
     return addSettlementDirection.value === 'debit'
-      ? 'New charge — increases what we owe this site.'
-      : 'New credit — reduces what we owe this site.';
+      ? t('New charge — increases what we owe this site.')
+      : t('New credit — reduces what we owe this site.');
   }
-  return 'New credit entry — reduces what we owe this site.';
+  return t('New credit entry — reduces what we owe this site.');
 });
 const addFormPlaceholder = computed(() => ({
-  payment: 'e.g. Payment — bank transfer',
-  waiver: 'e.g. Waived — goodwill May 2026',
-  adjustment: 'e.g. Adjustment — correction for Apr 2026',
-}[addingSettlement.value] || 'Description'));
+  payment: t('e.g. Payment — bank transfer'),
+  waiver: t('e.g. Waived — goodwill May 2026'),
+  adjustment: t('e.g. Adjustment — correction for Apr 2026'),
+}[addingSettlement.value] || t('Description')));
 
 function isSettlementEditable(s) {
   if (!canEditSettlement.value) return false;
@@ -4447,17 +4448,17 @@ function submitAddSettlement() {
   const type = addingSettlement.value;
   if (!type) return;
   if (!addSettlementDate.value) {
-    toast.error('Please choose a date.', { timeout: 3500 });
+    toast.error(t('Please choose a date.'), { timeout: 3500 });
     return;
   }
   const desc = (addSettlementDescription.value || '').trim();
   if (!desc) {
-    toast.error('Please enter a description.', { timeout: 3500 });
+    toast.error(t('Please enter a description.'), { timeout: 3500 });
     return;
   }
   const cents = Math.round((Number(addSettlementAmount.value) || 0) * minorPerUnit);
   if (!(cents > 0)) {
-    toast.error('Amount must be greater than zero.', { timeout: 3500 });
+    toast.error(t('Amount must be greater than zero.'), { timeout: 3500 });
     return;
   }
   addSettlementSaving.value = true;
@@ -4473,26 +4474,26 @@ function submitAddSettlement() {
       cancelAddSettlement();
       reloadOpenSettlements();
       router.reload({ only: ['summaries', 'settlementBalances'], preserveScroll: true, preserveState: true });
-      toast.success(res?.data?.message || 'Entry added.', { timeout: 2500 });
+      toast.success(res?.data?.message || t('Entry added.'), { timeout: 2500 });
     })
     .catch((error) => {
-      toast.error(error?.response?.data?.message || 'Failed to add entry.', { timeout: 4500 });
+      toast.error(error?.response?.data?.message || t('Failed to add entry.'), { timeout: 4500 });
     })
     .finally(() => { addSettlementSaving.value = false; });
 }
 
 function deleteSettlementRow(s) {
   if (deletingSettlementId.value) return;
-  if (!window.confirm('Delete this ' + settlementTypeLabel(s.entry_type).toLowerCase() + ' entry? This cannot be undone.')) return;
+  if (!window.confirm(t('Delete this :type entry? This cannot be undone.', { type: settlementTypeLabel(s.entry_type).toLowerCase() }))) return;
   deletingSettlementId.value = s.id;
   axios.post('/customers/settlements/' + s.id + '/delete')
     .then((res) => {
       reloadOpenSettlements();
       router.reload({ only: ['summaries', 'settlementBalances'], preserveScroll: true, preserveState: true });
-      toast.success(res?.data?.message || 'Entry deleted.', { timeout: 2500 });
+      toast.success(res?.data?.message || t('Entry deleted.'), { timeout: 2500 });
     })
     .catch((error) => {
-      toast.error(error?.response?.data?.message || 'Failed to delete entry.', { timeout: 4500 });
+      toast.error(error?.response?.data?.message || t('Failed to delete entry.'), { timeout: 4500 });
     })
     .finally(() => { deletingSettlementId.value = null; });
 }
@@ -4521,10 +4522,10 @@ function saveEditSettlement(s) {
       cancelEditSettlement();
       reloadOpenSettlements(); // re-derive balances in the modal
       router.reload({ only: ['summaries', 'settlementBalances'], preserveScroll: true, preserveState: true });
-      toast.success('Settlement updated.', { timeout: 2500 });
+      toast.success(t('Settlement updated.'), { timeout: 2500 });
     })
     .catch((error) => {
-      toast.error(error?.response?.data?.message || 'Failed to update settlement.', { timeout: 4500 });
+      toast.error(error?.response?.data?.message || t('Failed to update settlement.'), { timeout: 4500 });
     })
     .finally(() => { editSettlementSaving.value = false; });
 }
@@ -4561,9 +4562,9 @@ const settlementState = computed(() => {
   return 'settled';
 });
 const settlementStatusLabel = computed(() => ({
-  owing: 'We owe the site owner',
-  settled: 'Fully settled',
-  credit: 'In credit · overpaid',
+  owing: t('We owe the site owner'),
+  settled: t('Fully settled'),
+  credit: t('In credit · overpaid'),
 }[settlementState.value]));
 
 // Shared three-state helper for any signed balance (cents): owe / settled /
@@ -4582,7 +4583,7 @@ function balancePillClass(cents) {
   }[balanceState(cents)];
 }
 function balancePillLabel(cents) {
-  return { owing: 'Owe ', settled: 'Settled ', credit: 'Credit ' }[balanceState(cents)];
+  return { owing: t('Owe') + ' ', settled: t('Settled') + ' ', credit: t('Credit') + ' ' }[balanceState(cents)];
 }
 
 // Live outstanding for the button pill — read from the server-provided map
@@ -4594,11 +4595,11 @@ function outstandingFor(customer) {
 }
 
 const SETTLEMENT_TYPE_LABELS = {
-  opening_balance: 'Opening',
-  location_fee: 'Loc Fee',
-  payment: 'Payment',
-  waiver: 'Waived',
-  adjustment: 'Adjust',
+  opening_balance: t('Opening'),
+  location_fee: t('Loc Fee'),
+  payment: t('Payment'),
+  waiver: t('Waived'),
+  adjustment: t('Adjust'),
 };
 function settlementTypeLabel(type) {
   return SETTLEMENT_TYPE_LABELS[type] || type || '—';
@@ -4698,13 +4699,13 @@ function sortTable(sortKey) {
 // the user can still see the most recent reversal at a glance.
 function lockedTooltip(row) {
   if (!row?.is_locked) return '';
-  const who = row.locked_by_user?.name || 'someone';
+  const who = row.locked_by_user?.name || t('someone');
   const when = row.locked_at ? moment(row.locked_at).format('YYMMDD hh:mma') : '';
-  let tip = when ? `Locked by ${who} (${when})` : `Locked by ${who}`;
+  let tip = when ? t('Locked by :name (:time)', { name: who, time: when }) : t('Locked by :name', { name: who });
   if (row.last_unlocked_at) {
-    const ulWho = row.last_unlocked_by_user?.name || 'someone';
+    const ulWho = row.last_unlocked_by_user?.name || t('someone');
     const ulWhen = moment(row.last_unlocked_at).format('YYMMDD hh:mma');
-    tip += `\nLast unlocked by ${ulWho} (${ulWhen})`;
+    tip += '\n' + t('Last unlocked by :name (:time)', { name: ulWho, time: ulWhen });
   }
   return tip;
 }
@@ -4713,16 +4714,16 @@ function lockedTooltip(row) {
 // most recent Unpaid event if there was one.
 function paidTooltip(row) {
   if (!row?.is_paid) return '';
-  const who = row.paid_by_user?.name || 'someone';
+  const who = row.paid_by_user?.name || t('someone');
   const when = row.paid_at ? moment(row.paid_at).format('YYMMDD hh:mma') : '';
-  let tip = when ? `Paid by ${who} (${when})` : `Paid by ${who}`;
+  let tip = when ? t('Paid by :name (:time)', { name: who, time: when }) : t('Paid by :name', { name: who });
   if (row.paid_date) {
-    tip += `\nPayment date: ${moment(row.paid_date).format('YYMMDD')}`;
+    tip += '\n' + t('Payment date: :date', { date: moment(row.paid_date).format('YYMMDD') });
   }
   if (row.last_unpaid_at) {
-    const upWho = row.last_unpaid_by_user?.name || 'someone';
+    const upWho = row.last_unpaid_by_user?.name || t('someone');
     const upWhen = moment(row.last_unpaid_at).format('YYMMDD hh:mma');
-    tip += `\nLast unpaid by ${upWho} (${upWhen})`;
+    tip += '\n' + t('Last unpaid by :name (:time)', { name: upWho, time: upWhen });
   }
   return tip;
 }
@@ -4735,7 +4736,7 @@ function onLockClicked(row) {
 
   const label = row.customer?.name || ('#' + row.customer?.id);
   const ok = confirm(
-    `Lock ${label} — ${periodReportLabel(row)}?\n\nThe contract details, figures and accumulated vend earning for this period will be frozen at their current values.`
+    t('Lock :label — :period?', { label, period: periodReportLabel(row) }) + '\n\n' + t('The contract details, figures and accumulated vend earning for this period will be frozen at their current values.')
   );
   if (!ok) return;
 
@@ -4748,8 +4749,8 @@ function onLockClicked(row) {
     only: ['summaries', 'totals'],
     preserveScroll: true,
     preserveState: true,
-    onSuccess: () => toast.success('Period locked.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.lock || 'Failed to lock period.', { timeout: 4000 }),
+    onSuccess: () => toast.success(t('Period locked.'), { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.lock || t('Failed to lock period.'), { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -4766,7 +4767,7 @@ function onUnlockClicked(row) {
 
   const label = row.customer?.name || ('#' + row.customer?.id);
   const ok = confirm(
-    `Unlock ${label} — ${periodReportLabel(row)}?\n\nThis period will go back to live figures based on the customer's current contract.`
+    t('Unlock :label — :period?', { label, period: periodReportLabel(row) }) + '\n\n' + t('This period will go back to live figures based on the customer\'s current contract.')
   );
   if (!ok) return;
 
@@ -4778,8 +4779,8 @@ function onUnlockClicked(row) {
     only: ['summaries', 'totals'],
     preserveScroll: true,
     preserveState: true,
-    onSuccess: () => toast.success('Period unlocked.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.unlock || 'Failed to unlock period.', { timeout: 4000 }),
+    onSuccess: () => toast.success(t('Period unlocked.'), { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.unlock || t('Failed to unlock period.'), { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -4864,7 +4865,7 @@ function onPaidModalConfirm(directPaid = false) {
   const isWaived = paidModalWaived.value;
   const remarks = (paidModalRemarks.value || '').trim();
   if (isWaived && !remarks) {
-    toast.error('Please enter a remark explaining why this period is waived.', { timeout: 4000 });
+    toast.error(t('Please enter a remark explaining why this period is waived.'), { timeout: 4000 });
     return;
   }
 
@@ -4902,8 +4903,8 @@ function onPaidModalConfirm(directPaid = false) {
       only: ['summaries', 'settlementBalances'],
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => toast.success(isWaived ? 'Period marked Waived.' : 'Period marked Paid.', { timeout: 3000 }),
-      onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || (isWaived ? 'Failed to waive.' : 'Failed to mark paid.'), { timeout: 4000 }),
+      onSuccess: () => toast.success(isWaived ? t('Period marked Waived.') : t('Period marked Paid.'), { timeout: 3000 }),
+      onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || (isWaived ? t('Failed to waive.') : t('Failed to mark paid.')), { timeout: 4000 }),
       onFinish: () => lockingFor.value.delete(row.id),
     });
   } else {
@@ -4914,8 +4915,8 @@ function onPaidModalConfirm(directPaid = false) {
       only: ['summaries'],
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => toast.success('Sent to Site Settlement.', { timeout: 3000 }),
-      onError: (errors) => toast.error(errors?.settlement || Object.values(errors || {})[0] || 'Failed to send to settlement.', { timeout: 4000 }),
+      onSuccess: () => toast.success(t('Sent to Site Settlement.'), { timeout: 3000 }),
+      onError: (errors) => toast.error(errors?.settlement || Object.values(errors || {})[0] || t('Failed to send to settlement.'), { timeout: 4000 }),
       onFinish: () => lockingFor.value.delete(row.id),
     });
   }
@@ -4929,7 +4930,7 @@ function onUnpaidClicked(row) {
 
   const label = row.customer?.name || ('#' + row.customer?.id);
   const ok = confirm(
-    `Mark ${label} — ${periodReportLabel(row)} as Unpaid?\n\nClears the paid timestamp. After this, the Unlock button will be available again.`
+    t('Mark :label — :period as Unpaid?', { label, period: periodReportLabel(row) }) + '\n\n' + t('Clears the paid timestamp. After this, the Unlock button will be available again.')
   );
   if (!ok) return;
 
@@ -4943,8 +4944,8 @@ function onUnpaidClicked(row) {
     only: ['summaries', 'settlementBalances'],
     preserveScroll: true,
     preserveState: true,
-    onSuccess: () => toast.success('Period marked Unpaid.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.unpaid || 'Failed to mark Unpaid.', { timeout: 4000 }),
+    onSuccess: () => toast.success(t('Period marked Unpaid.'), { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.unpaid || t('Failed to mark Unpaid.'), { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -5055,7 +5056,7 @@ function onReportContentClicked(row) {
     reportContent.value = res?.data ?? null;
   }).catch(err => {
     const msg = err?.response?.data?.message
-      || 'Failed to load report content. Please try again.';
+      || t('Failed to load report content. Please try again.');
     toast.error(msg, { timeout: 4000 });
     showReportContentModal.value = false;
   }).finally(() => {
@@ -5136,7 +5137,7 @@ async function onRowCopyContentClicked(row) {
     });
     const content = res?.data ?? null;
     if (!content || content.is_available === false) {
-      toast.error('No report content available to copy for this row.', { timeout: 4000 });
+      toast.error(t('No report content available to copy for this row.'), { timeout: 4000 });
       return;
     }
 
@@ -5168,13 +5169,13 @@ async function onRowCopyContentClicked(row) {
     }
 
     if (ok) {
-      toast.success('Report content copied to clipboard.', { timeout: 3500 });
+      toast.success(t('Report content copied to clipboard.'), { timeout: 3500 });
     } else {
-      toast.error('Could not copy to clipboard. Please copy manually.', { timeout: 4500 });
+      toast.error(t('Could not copy to clipboard. Please copy manually.'), { timeout: 4500 });
     }
   } catch (err) {
     const msg = err?.response?.data?.message
-      || 'Failed to load report content. Please try again.';
+      || t('Failed to load report content. Please try again.');
     toast.error(msg, { timeout: 4000 });
   } finally {
     copyingContentFor.value.delete(cust.id);
@@ -5233,16 +5234,16 @@ function onExportBatchPaidReportClicked() {
         b.body,
       ].join('\n'));
       paidReportText.value = blocks.join('\n\n' + '='.repeat(60) + '\n\n');
-      if (!blocks.length) paidReportText.value = 'No paid rows to report.';
+      if (!blocks.length) paidReportText.value = t('No paid rows to report.');
     })
-    .catch(() => { paidReportText.value = ''; toast.error('Failed to build the paid report.', { timeout: 4000 }); })
+    .catch(() => { paidReportText.value = ''; toast.error(t('Failed to build the paid report.'), { timeout: 4000 }); })
     .finally(() => { paidReportLoading.value = false; });
 }
 async function copyPaidReport() {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(paidReportText.value || '');
-      toast.success('Copied to clipboard.', { timeout: 2000 });
+      toast.success(t('Copied to clipboard.'), { timeout: 2000 });
     }
   } catch (_) { /* ignore */ }
 }
@@ -5389,12 +5390,12 @@ function onExportBatchReportClicked() {
       batchReportText.value = lines.join('\r\n');
       batchReportMachineCount.value = included;
       batchReportSkipped.value = skipped
-        ? `${skipped} selected row(s) had no renderable report content and were skipped.`
+        ? t(':count selected row(s) had no renderable report content and were skipped.', { count: skipped })
         : '';
     })
     .catch(err => {
       const msg = err?.response?.data?.message
-        || 'Failed to build the batch report. Please try again.';
+        || t('Failed to build the batch report. Please try again.');
       toast.error(msg, { timeout: 4000 });
       showBatchReportModal.value = false;
     })
@@ -5433,9 +5434,9 @@ async function onCopyBatchReportClicked() {
   }
 
   if (ok) {
-    toast.success('Batch report content copied to clipboard.', { timeout: 3500 });
+    toast.success(t('Batch report content copied to clipboard.'), { timeout: 3500 });
   } else {
-    toast.error('Could not copy to clipboard. Please copy manually.', { timeout: 4500 });
+    toast.error(t('Could not copy to clipboard. Please copy manually.'), { timeout: 4500 });
   }
 }
 
@@ -5546,13 +5547,13 @@ function onCreateApiInvoiceClicked(row) {
 
   const periodLine = `${row.period_start} → ${row.period_end}`;
   const msg = existing
-    ? `An API Invoice already exists for ${cust.name}\n` +
-      `Period: ${periodLine}\n` +
-      `Existing transaction: #${existing.cms_transaction_id}\n\n` +
-      `Re-create now? (a new invoice will be created in CMS)`
-    : `Create API Invoice for ${cust.name}\n` +
-      `Period: ${periodLine}\n\n` +
-      `Proceed?`;
+    ? t('An API Invoice already exists for :name', { name: cust.name }) + '\n' +
+      t('Period: :period', { period: periodLine }) + '\n' +
+      t('Existing transaction: #:id', { id: existing.cms_transaction_id }) + '\n\n' +
+      t('Re-create now? (a new invoice will be created in CMS)')
+    : t('Create API Invoice for :name', { name: cust.name }) + '\n' +
+      t('Period: :period', { period: periodLine }) + '\n\n' +
+      t('Proceed?');
 
   if (!confirm(msg)) return;
 
@@ -5569,13 +5570,13 @@ function onCreateApiInvoiceClicked(row) {
       preserveScroll: true,
       onSuccess: (page) => {
         const flashed = page?.props?.flash?.success;
-        toast.success(flashed || 'API Invoice queued.', { timeout: 3500 });
+        toast.success(flashed || t('API Invoice queued.'), { timeout: 3500 });
       },
       onError: (errors) => {
         const msg = errors?.sync_cms_invoice
           || errors?.period_start
           || errors?.period_end
-          || 'Failed to queue API Invoice. Please try again.';
+          || t('Failed to queue API Invoice. Please try again.');
         toast.error(msg, { timeout: 4500 });
       },
       onFinish: () => {
@@ -5597,16 +5598,16 @@ function onBulkCreateApiInvoicesClicked() {
     .filter((r) => isInvoiceable(r));
 
   if (!rows.length) {
-    toast.error('No invoiceable rows selected.', { timeout: 3000 });
+    toast.error(t('No invoiceable rows selected.'), { timeout: 3000 });
     return;
   }
 
   const reCreateCount = rows.filter((r) => existingInvoice(r)).length;
   const msg = reCreateCount > 0
-    ? `Create API Invoice for ${rows.length} row(s)?\n` +
-      `${reCreateCount} of these already have an existing invoice and will be RE-CREATED in CMS.\n\n` +
-      `Proceed?`
-    : `Create API Invoice for ${rows.length} row(s)?\n\nProceed?`;
+    ? t('Create API Invoice for :count row(s)?', { count: rows.length }) + '\n' +
+      t(':count of these already have an existing invoice and will be RE-CREATED in CMS.', { count: reCreateCount }) + '\n\n' +
+      t('Proceed?')
+    : t('Create API Invoice for :count row(s)?', { count: rows.length }) + '\n\n' + t('Proceed?');
 
   if (!confirm(msg)) return;
 
@@ -5626,7 +5627,7 @@ function onBulkCreateApiInvoicesClicked() {
       preserveScroll: true,
       onSuccess: (page) => {
         const flashed = page?.props?.flash?.success;
-        toast.success(flashed || 'API Invoices queued.', { timeout: 4500 });
+        toast.success(flashed || t('API Invoices queued.'), { timeout: 4500 });
         // Clear selection — server has accepted.
         selectedRowKeys.value = [];
         bulkMode.value = false;
@@ -5634,8 +5635,8 @@ function onBulkCreateApiInvoicesClicked() {
       onError: (errors) => {
         const msg = errors?.sync_cms_invoice
           || errors?.items
-          || 'Failed to queue API Invoices. Please try again.';
-        toast.error(typeof msg === 'string' ? msg : 'Validation error.', { timeout: 4500 });
+          || t('Failed to queue API Invoices. Please try again.');
+        toast.error(typeof msg === 'string' ? msg : t('Validation error.'), { timeout: 4500 });
       },
       onFinish: () => {
         bulkSubmitting.value = false;

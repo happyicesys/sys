@@ -12,7 +12,7 @@
         v-if="editable"
         type="button"
         class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 shadow"
-        title="Remove"
+        :title="$t('Remove')"
         @click="remove(file)"
       >
         <XMarkIcon class="h-4 w-4" />
@@ -25,7 +25,7 @@
       :class="{ 'opacity-50 cursor-wait': uploading }"
     >
       <CameraIcon class="h-6 w-6" />
-      <span class="text-[10px] leading-tight">{{ uploading ? 'Uploading…' : 'Add' }}</span>
+      <span class="text-[10px] leading-tight">{{ uploading ? $t('Uploading…') : $t('Add') }}</span>
       <input type="file" class="hidden" :accept="accept" :capture="capture || undefined" :disabled="uploading" @change="upload" />
     </label>
   </div>
@@ -36,6 +36,7 @@
 import { CameraIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 import { ref } from 'vue'
 import { firstErrors } from './stopTypes'
+import { t } from '@/i18n'
 
 const MAX_BYTES = 20 * 1024 * 1024 // the server's limit; say so before a slow mobile upload, not after
 
@@ -64,7 +65,7 @@ function upload(event) {
 
   error.value = ''
   if (file.size > MAX_BYTES) {
-    error.value = 'That file is over 20 MB.'
+    error.value = t('That file is over 20 MB.')
     return
   }
 
@@ -80,7 +81,7 @@ function upload(event) {
 }
 
 function remove(file) {
-  if (!confirm('Remove this file?')) return
+  if (!confirm(t('Remove this file?'))) return
   error.value = ''
   axios.delete(props.deleteUrl(file))
     .then(({ data }) => emit('changed', data))

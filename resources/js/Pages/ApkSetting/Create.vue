@@ -1,9 +1,9 @@
 <template>
-  <Head title="Create UI Setting" />
+  <Head :title="$t('Create UI Setting')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create UI Setting
+        {{ $t('Create UI Setting') }}
       </h2>
     </template>
 
@@ -15,13 +15,13 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-5">
               <FormInput v-model="form.name" :error="form.errors.name">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
 
             <div class="sm:col-span-5">
               <FormTextarea v-model="form.remarks">
-                Remarks
+                {{ $t('Remarks') }}
               </FormTextarea>
             </div>
 
@@ -33,7 +33,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Create UI Setting
+                    {{ $t('Create UI Setting') }}
                   </span>
                 </Button>
               </span>
@@ -56,6 +56,7 @@ import { CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
     operatorOptions: Object,
@@ -88,12 +89,12 @@ function submit() {
   form.value
     .post('/apk-settings/store', {
     onSuccess: () => {
-      toast.success("Successfully created, please continue to edit the settings", {
+      toast.success(t("Successfully created, please continue to edit the settings"), {
         timeout: 3000
       });
     },
     onError: (errors) => {
-      toast.error(Object.values(errors)[0] ?? "Please check the form", {
+      toast.error(Object.values(errors)[0] ?? t("Please check the form"), {
         timeout: 5000
       });
     },

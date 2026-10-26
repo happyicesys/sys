@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Menu Config" />
+  <Head :title="$t('Menu Config')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Setting Charts
+        {{ $t('Setting Charts') }}
       </h2>
     </template>
 
@@ -17,17 +17,17 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Prefix
+							{{ $t('Machine Prefix') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendPrefixes"
@@ -35,7 +35,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							mode="tags"
 							class="mt-1"
@@ -44,7 +44,7 @@
 					</div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Version
+              {{ $t('Version') }}
             </label>
             <MultiSelect
               v-model="filters.version"
@@ -52,7 +52,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -60,7 +60,7 @@
           </div>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Status
+							{{ $t('Machine Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendStatus"
@@ -68,7 +68,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -76,7 +76,7 @@
 					</div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Setting Chart Status
+              {{ $t('Setting Chart Status') }}
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -84,7 +84,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -101,20 +101,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ vendConfigs.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ vendConfigs.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ vendConfigs.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -122,7 +122,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -142,25 +142,25 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-sky-200">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="version" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('version')">
-                      Latest Version
+                      {{ $t('Latest Version') }}
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      {{ $t('Desc') }}
                     </TableHead>
                     <TableHead>
-                      Compatible
+                      {{ $t('Compatible') }}
                     </TableHead>
                     <TableHead>
-                      Machine Count
+                      {{ $t('Machine Count') }}
                     </TableHead>
                     <TableHead>
-                      Latest Attachment
+                      {{ $t('Latest Attachment') }}
                     </TableHead>
                     <TableHead>
-                      Machine Prefixes
+                      {{ $t('Machine Prefixes') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -180,7 +180,7 @@
                           >
                             <div class="flex flex-col">
                                 <span class="font-semibold grow-0">
-                                  {{ vendConfig.is_active ? 'Active' : 'Inactive' }}
+                                  {{ vendConfig.is_active ? $t('Active') : $t('Inactive') }}
                                 </span>
                             </div>
                           </div>
@@ -238,7 +238,7 @@
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
-                                  Edit
+                                  {{ $t('Edit') }}
                               </span>
                             </Button>
                           </Link>
@@ -254,11 +254,11 @@
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
                               <span>
-                                  Delete
+                                  {{ $t('Delete') }}
                               </span>
                             </span>
                             <span v-if="vendConfig.vendPrefixes && vendConfig.vendPrefixes.length > 0">
-                              (Binded)
+                              {{ $t('(Binded)') }}
                             </span>
                           </Button>
                         </div>
@@ -266,7 +266,7 @@
                       </tr>
                 <tr v-if="!vendConfigs.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -312,6 +312,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   operatorOptions: [Array, Object],
@@ -332,8 +333,8 @@ const filters = ref({
 })
 const attachments = ref([])
 const booleanOptions = ref([
-    {id: 'true', value: 'Active'},
-    {id: 'false', value: 'Inactive'},
+    {id: 'true', value: t('Active')},
+    {id: 'false', value: t('Inactive')},
 ])
 const model = ref()
 const showAttachmentOverviewModal = ref(false)
@@ -351,24 +352,24 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   vendPrefixOptions.value = [
-    {id: 'single-ud', value: 'Single UD'},
+    {id: 'single-ud', value: t('Single UD')},
     ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   versionOptions.value = [
-    { id: 'all', value: 'All' },
+    { id: 'all', value: t('All') },
     { id: '-', value: '-' },
     ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
   ]
   vendStatusOptions.value = [
-			{id: 'all', value: 'All'},
-			{id: 'factory', value: 'Factory (JB)'},
-			{id: 'active', value: 'Active'},
-			{id: 'inactive', value: 'Not Active'},
-			{id: 'disposed', value: 'Disposed'},
-      {id: 'sold', value: 'Sold'},
+			{id: 'all', value: t('All')},
+			{id: 'factory', value: t('Factory (JB)')},
+			{id: 'active', value: t('Active')},
+			{id: 'inactive', value: t('Not Active')},
+			{id: 'disposed', value: t('Disposed')},
+      {id: 'sold', value: t('Sold')},
 	]
 
   filters.value.is_active = booleanOptions.value[0]
@@ -389,16 +390,16 @@ function onAttachmentOverviewClicked(vendConfig) {
 }
 
 function onDeleteClicked(vendConfig) {
-  const approval = confirm('Are you sure to delete ' + vendConfig.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: vendConfig.name }));
   if (!approval) {
       return;
   }
   router.delete('/vend-configs/' + vendConfig.id, {
     onSuccess: () => {
-      toast.success("Setting chart deleted successfully", { timeout: 3000 })
+      toast.success(t('Setting chart deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete setting chart", { timeout: 3000 })
+      toast.error(t('Failed to delete setting chart'), { timeout: 3000 })
     }
   })
 }

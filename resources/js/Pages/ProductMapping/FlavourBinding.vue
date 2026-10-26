@@ -9,10 +9,10 @@
           class="h-6 w-6 rounded-md object-contain bg-white p-0.5 border border-indigo-200"
           alt=""
         />
-        <span>Blind flavours — {{ item.product.code }} {{ item.product.name }}</span>
+        <span>{{ $t('Blind flavours — :product', { product: item.product.code + ' ' + item.product.name }) }}</span>
       </h4>
       <div class="flex items-center gap-2 text-xs text-gray-600">
-        <label class="whitespace-nowrap">How many flavours in total?</label>
+        <label class="whitespace-nowrap">{{ $t('How many flavours in total?') }}</label>
         <input
           type="number" min="0" max="20"
           class="w-16 rounded border-gray-300 text-sm py-1"
@@ -20,7 +20,7 @@
           @change="applyCount"
         />
         <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs" @click="distributeEven">
-          Even split
+          {{ $t('Even split') }}
         </Button>
       </div>
     </div>
@@ -28,8 +28,8 @@
     <table class="w-full text-sm">
       <thead>
         <tr class="text-xs text-gray-500 border-b">
-          <th class="text-left py-1 w-1/2">Flavour</th>
-          <th class="text-left py-1">Weight %</th>
+          <th class="text-left py-1 w-1/2">{{ $t('Flavour') }}</th>
+          <th class="text-left py-1">{{ $t('Weight %') }}</th>
           <th class="py-1"></th>
         </tr>
       </thead>
@@ -53,7 +53,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="— select flavour —"
+                  :placeholder="$t('— select flavour —')"
                   open-direction="bottom"
                   :model-value="optionFor(row)"
                   @selected="(opt) => onFlavourSelected(row, opt)"
@@ -73,22 +73,22 @@
           </td>
           <td class="py-1 text-right">
             <button type="button" class="text-red-500 hover:text-red-700 text-xs" @click="removeRow(idx)">
-              remove
+              {{ $t('remove') }}
             </button>
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td colspan="3" class="py-2 text-xs text-gray-400">No flavours bound yet.</td>
+          <td colspan="3" class="py-2 text-xs text-gray-400">{{ $t('No flavours bound yet.') }}</td>
         </tr>
       </tbody>
     </table>
 
     <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
       <button type="button" class="text-xs text-indigo-600 hover:text-indigo-800" @click="addRow">
-        + Add flavour
+        {{ $t('+ Add flavour') }}
       </button>
       <div class="text-xs font-semibold" :class="totalOk ? 'text-green-600' : 'text-red-500'">
-        Total: {{ total }}% {{ rows.length ? (totalOk ? '✓' : '✗') : '' }}
+        {{ $t('Total: :total%', { total }) }} {{ rows.length ? (totalOk ? '✓' : '✗') : '' }}
       </div>
     </div>
 
@@ -102,7 +102,7 @@
         :disabled="!canSave || saving"
         @click="save"
       >
-        {{ saving ? 'Saving…' : 'Save flavours' }}
+        {{ saving ? $t('Saving…') : $t('Save flavours') }}
       </Button>
     </div>
   </div>
@@ -114,6 +114,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
+import { t } from '@/i18n';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -148,7 +149,7 @@ const missingCostWarning = computed(() => {
     .map((r) => props.flavourOptions.find((o) => o.id === r.child_product_id))
     .filter((o) => o && o.has_current_unit_cost === false);
   if (!missing.length) return '';
-  return 'Some flavours have no unit cost yet — set it before this housing goes live.';
+  return t('Some flavours have no unit cost yet — set it before this housing goes live.');
 });
 
 // Searchable options for MultiSelect: { id, full_name, thumbnail_url }.
@@ -218,8 +219,8 @@ function save() {
   error.value = '';
   if (!canSave.value) {
     error.value = rows.value.length && !allSelected.value
-      ? 'Every flavour row must have a flavour selected.'
-      : 'Flavour ratios must add up to exactly 100%.';
+      ? t('Every flavour row must have a flavour selected.')
+      : t('Flavour ratios must add up to exactly 100%.');
     return;
   }
   saving.value = true;
@@ -235,9 +236,9 @@ function save() {
     {
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => toast.success('Flavours saved.'),
+      onSuccess: () => toast.success(t('Flavours saved.')),
       onError: (errs) => {
-        error.value = errs.children || 'Could not save flavours.';
+        error.value = errs.children || t('Could not save flavours.');
       },
       onFinish: () => { saving.value = false; },
     }

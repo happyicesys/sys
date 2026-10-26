@@ -1,9 +1,9 @@
 <template>
-  <Head title="Delivery Product Mapping" />
+  <Head :title="$t('Delivery Product Mapping')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ typeName }} Delivery Product Mapping
+        {{ typeName === 'Create New' ? $t('Create New Delivery Product Mapping') : (typeName === 'Edit' ? $t('Edit Delivery Product Mapping') : $t('Delivery Product Mapping')) }}
         <span v-if="type == 'update'">
           {{ deliveryProductMapping.name }}
         </span>
@@ -18,12 +18,12 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
                 <FormInput v-model="form.name" :error="form.errors.name">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -36,7 +36,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Platform
+                  {{ $t('Delivery Platform') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -49,7 +49,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Platform Category
+                  {{ $t('Platform Category') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -62,7 +62,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Refer to Product Mapping
+                  {{ $t('Refer to Product Mapping') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -75,17 +75,17 @@
               </div>
               <div class="sm:col-span-3">
                 <FormInput v-model="form.reserved_percent" :error="form.errors.reserved_percent">
-                  Reserved Percentage (%)
+                  {{ $t('Reserved Percentage (%)') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
                 <FormInput v-model="form.reserved_qty" :error="form.errors.reserved_qty">
-                  Reserved Quantity
+                  {{ $t('Reserved Quantity') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="reserved" class="italic text-blue-800">
-                  By setting "Reserved Percentage" and "Reserved Quantity", the sellable qty equivalent to whichever higher. If lower than reserved, channel becomes inactive, both default value are 0.
+                  {{ $t('By setting "Reserved Percentage" and "Reserved Quantity", the sellable qty equivalent to whichever higher. If lower than reserved, channel becomes inactive, both default value are 0.') }}
                 </label>
               </div>
               <div class="sm:col-span-6">
@@ -96,7 +96,7 @@
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
-                      Back
+                      {{ $t('Back') }}
                     </span>
                   </Button>
                 </Link>
@@ -106,7 +106,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -118,19 +118,19 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Delivery Platform Product(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Delivery Platform Product(s)') }} </span>
                   </div>
                 </div>
               </div>
 
               <div v-if="form.id">
-                <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
-                  Channel ID
+                <FormInput v-model="form.channel_code" :error="form.errors.channel_code" :placeholderStr="$t('Channel ID')">
+                  {{ $t('Channel ID') }}
                 </FormInput>
               </div>
               <div v-if="form.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product
+                  {{ $t('Product') }}
                 </label>
                 <MultiSelect
                   v-model="form.product_id"
@@ -138,7 +138,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -148,13 +148,13 @@
                 </div>
               </div>
               <div v-if="form.id">
-                <FormInput v-model="form.amount" :error="form.errors.amount" placeholderStr="Platform Price">
-                  Price
+                <FormInput v-model="form.amount" :error="form.errors.amount" :placeholderStr="$t('Platform Price')">
+                  {{ $t('Price') }}
                 </FormInput>
               </div>
               <div v-if="form.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  SubCategory
+                  {{ $t('SubCategory') }}
                 </label>
                 <MultiSelect
                   v-model="form.sub_category_json"
@@ -162,7 +162,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -179,7 +179,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -195,25 +195,25 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Channel ID
+                            {{ $t('Channel ID') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Thumbnail
+                            {{ $t('Thumbnail') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Product
+                            {{ $t('Product') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Status
+                            {{ $t('Status') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Price
+                            {{ $t('Price') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            SubCategory
+                            {{ $t('SubCategory') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Action
+                            {{ $t('Action') }}
                           </th>
                         </tr>
                       </thead>
@@ -240,10 +240,10 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingItem.is_active == 1">
-                              Active
+                              {{ $t('Active') }}
                             </span>
                             <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingItem.is_active == 0">
-                              Paused
+                              {{ $t('Paused') }}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
@@ -259,14 +259,14 @@
                             >
                               <PencilSquareIcon class="w-3 h-3"></PencilSquareIcon>
                               <span class="text-xs">
-                                Edit
+                                {{ $t('Edit') }}
                               </span>
                             </Button>
                           </td>
                         </tr>
                         <tr v-if="!props.deliveryProductMapping.data.deliveryProductMappingItems || !props.deliveryProductMapping.data.deliveryProductMappingItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                            No Records Found
+                            {{ $t('No Records Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -296,7 +296,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onBundleSalesSelected"
@@ -323,7 +323,7 @@
               </span>
               <span v-if="form.promo_label" class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product
+                  {{ $t('Product') }}
                 </label>
                 <MultiSelect
                   v-model="form.delivery_product_mapping_item_id"
@@ -331,7 +331,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -348,7 +348,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -417,7 +417,7 @@
                                   (Channel) Product
                                 </TableHead>
                                 <TableHead>
-                                  Action
+                                  {{ $t('Action') }}
                                 </TableHead>
                               </tr>
                             </thead>
@@ -483,14 +483,14 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Vending Machine Binding </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Vending Machine Binding') }} </span>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-3" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vending Machine
+                  {{ $t('Vending Machine') }}
                 </label>
                 <MultiSelect
                   v-model="form.vend_id"
@@ -498,7 +498,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -510,7 +510,7 @@
 
               <div class="sm:col-span-2" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Platform ID (Store ID)
+                  {{ $t('Platform ID (Store ID)') }}
                 </label>
                 <MultiSelect
                   v-model="form.platform_ref_number"
@@ -518,7 +518,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="ref_number"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -538,7 +538,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -550,7 +550,7 @@
                 >
                   <PauseCircleIcon class="w-3 h-3"></PauseCircleIcon>
                   <span class="text-xs">
-                    Pause All VM
+                    {{ $t('Pause All VM') }}
                   </span>
                 </Button>
               </div>
@@ -566,20 +566,20 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Machine ID <br>
-                            (Platform Ref ID)
+                            {{ $t('Machine ID') }} <br>
+                            {{ $t('(Platform Ref ID)') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Machine Name
+                            {{ $t('Machine Name') }}
                           </th>
                           <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Channel Status
                           </th> -->
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            VM Status
+                            {{ $t('VM Status') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Action
+                            {{ $t('Action') }}
                           </th>
                         </tr>
                       </thead>
@@ -623,10 +623,10 @@
                           </td> -->
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
-                              Operating
+                              {{ $t('Operating') }}
                             </span>
                             <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
-                              Paused
+                              {{ $t('Paused') }}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-2 text-xs text-center p-3">
@@ -639,10 +639,10 @@
                                 <PauseCircleIcon class="w-3 h-3" v-if="deliveryProductMappingVend.is_active"></PauseCircleIcon>
                                 <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
                                 <span class="text-xs" v-if="deliveryProductMappingVend.is_active">
-                                  Pause VM
+                                  {{ $t('Pause VM') }}
                                 </span>
                                 <span class="text-xs" v-else>
-                                  Resume VM
+                                  {{ $t('Resume VM') }}
                                 </span>
                               </Button>
                               <Button
@@ -651,14 +651,14 @@
                                 @click.prevent="unbindVend(deliveryProductMappingVend.id)"
                               >
                                 <XCircleIcon class="w-3 h-3" ></XCircleIcon>
-                                <span class="text-xs">Unbind VM</span>
+                                <span class="text-xs">{{ $t('Unbind VM') }}</span>
                               </Button>
                             </div>
                           </td>
                         </tr>
                         <tr v-if="!props.deliveryProductMapping.data.deliveryProductMappingVends.length">
                           <td colspan="6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                            No Records Found
+                            {{ $t('No Records Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -740,6 +740,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon,
 import { ref, onMounted, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
@@ -903,10 +904,10 @@ function addDeliveryProductMappingItem() {
         product_id: form.value.product_id ? form.value.product_id.id : null,
     },{
         onSuccess: () => {
-          toast.success("Product mapping item added successfully", { timeout: 3000 })
+          toast.success(t('Product mapping item added successfully'), { timeout: 3000 })
         },
         onError: () => {
-          toast.error("Failed to add product mapping item", { timeout: 3000 })
+          toast.error(t('Failed to add product mapping item'), { timeout: 3000 })
         },
         preserveState: false,
         preserveScroll: true,
@@ -929,10 +930,10 @@ function bindVend(vendId) {
       delivery_platform_ref_number_id: platformRefNumberId,
     }, {
     onSuccess: () => {
-      toast.success("Machine bound successfully", { timeout: 3000 })
+      toast.success(t('Machine bound successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to bind machine", { timeout: 3000 })
+      toast.error(t('Failed to bind machine'), { timeout: 3000 })
     },
     preserveState: false,
     preserveScroll: true,
@@ -971,16 +972,16 @@ function removeBundleSalesItem(bundleSalesItemIndex) {
 }
 
 function removeDeliveryProductMappingBulk(deliveryProductMappingBulkID) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
   router.delete('/delivery-product-mappings/bulks/' + deliveryProductMappingBulkID, {
       onSuccess: () => {
-        toast.success("Bundle deleted successfully", { timeout: 3000 })
+        toast.success(t('Bundle deleted successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to delete bundle", { timeout: 3000 })
+        toast.error(t('Failed to delete bundle'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -1008,10 +1009,10 @@ function saveBundleSales()
       total_qty: form.value.total_qty,
   }, {
       onSuccess: () => {
-        toast.success("Bundle sales saved successfully", { timeout: 3000 })
+        toast.success(t('Bundle sales saved successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to save bundle sales", { timeout: 3000 })
+        toast.error(t('Failed to save bundle sales'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -1041,10 +1042,10 @@ function togglePauseAllVends() {
   }
   router.post('/delivery-product-mappings/' + form.value.id + '/toggle-pause-all-vends', {}, {
       onSuccess: () => {
-        toast.success("All vends paused/resumed successfully", { timeout: 3000 })
+        toast.success(t('All vends paused/resumed successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to pause/resume all vends", { timeout: 3000 })
+        toast.error(t('Failed to pause/resume all vends'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -1060,10 +1061,10 @@ function togglePauseVend(deliveryProductMappingVend) {
   }
   router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {}, {
       onSuccess: () => {
-        toast.success("Machine paused/resumed successfully", { timeout: 3000 })
+        toast.success(t('Machine paused/resumed successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to pause/resume machine", { timeout: 3000 })
+        toast.error(t('Failed to pause/resume machine'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -1072,18 +1073,18 @@ function togglePauseVend(deliveryProductMappingVend) {
 }
 
 function unbindVend(deliveryProductMappingVendId) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
   router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
       onSuccess: () => {
-        toast.success("Machine unbound successfully", { timeout: 3000 })
+        toast.success(t('Machine unbound successfully'), { timeout: 3000 })
         router.reload({only: ['unbindedVendOptions']})
         unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
       },
       onError: () => {
-        toast.error("Failed to unbind machine", { timeout: 3000 })
+        toast.error(t('Failed to unbind machine'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,

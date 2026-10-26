@@ -26,7 +26,7 @@
       <!-- Custom colour / hex / clear / preview -->
       <div class="flex flex-wrap items-center gap-2">
         <label class="inline-flex items-center space-x-1 text-xs text-gray-600">
-          <span>Custom</span>
+          <span>{{ $t('Custom') }}</span>
           <input
             type="color"
             class="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
@@ -51,19 +51,19 @@
           class="text-xs text-gray-500 underline hover:text-gray-700"
           @click="select(null)"
         >
-          Clear
+          {{ $t('Clear') }}
         </button>
 
         <span
           class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
           :style="stickerBadgeStyle(modelValue)"
         >
-          {{ previewText || 'Preview' }}
+          {{ previewText || $t('Preview') }}
         </span>
       </div>
 
       <p class="text-xs text-gray-500">
-        Leave empty for no colour — the sticker then shows as a plain white badge.
+        {{ $t('Leave empty for no colour — the sticker then shows as a plain white badge.') }}
       </p>
 
       <div class="text-sm text-red-600" v-if="error">

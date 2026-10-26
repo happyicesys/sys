@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col space-y-1">
           <span class="text-gray-700">
-            Delivery Order {{ deliveryPlatformOrder.short_order_id }} Status
+            {{ $t('Delivery Order :id Status', { id: deliveryPlatformOrder.short_order_id }) }}
           </span>
           <span v-if="deliveryPlatformOrder.vend_code">
             {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
@@ -23,10 +23,10 @@
                         #
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Datetime
+                        {{ $t('Datetime') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Status
+                        {{ $t('Status') }}
                       </th>
                     </tr>
                   </thead>

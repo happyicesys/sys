@@ -863,7 +863,7 @@ class ProductMappingController extends Controller
         // — multiple products per level — are a different editor, not this flip).
         if (($productMapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) === Vend::MACHINE_TYPE_SMART_CHILLER) {
             throw ValidationException::withMessages([
-                'is_smart' => 'This is a Smart Chiller mapping — the Smart Freezer planogram toggle does not apply to it.',
+                'is_smart' => __('This is a Smart Chiller mapping — the Smart Freezer planogram toggle does not apply to it.'),
             ]);
         }
 
@@ -875,7 +875,7 @@ class ProductMappingController extends Controller
             $dupes = $this->duplicateChannelCodes($productMapping->productMappingItems->pluck('channel_code'));
             if (! empty($dupes)) {
                 throw ValidationException::withMessages([
-                    'is_smart' => 'Cannot convert to Smart Freezer: duplicate channel(s) '.implode(', ', $dupes).'. Resolve them in the vending table first — a planogram needs one product per channel.',
+                    'is_smart' => __('Cannot convert to Smart Freezer: duplicate channel(s) :channels. Resolve them in the vending table first — a planogram needs one product per channel.', ['channels' => implode(', ', $dupes)]),
                 ]);
             }
         }
@@ -962,7 +962,7 @@ class ProductMappingController extends Controller
         if ($mapping->isSmartChiller()) {
             if (! $parsed || ! \App\Services\Citybox\ChillerPlanogram::isChillerCode($parsed['code'])) {
                 throw ValidationException::withMessages([
-                    $field => "Channel {$channelCode} is not a chiller channel — use 101–599 (first digit = layer), optionally with one letter when a position holds several SKUs (101A, 101B).",
+                    $field => __('Channel :channel is not a chiller channel — use 101–599 (first digit = layer), optionally with one letter when a position holds several SKUs (101A, 101B).', ['channel' => $channelCode]),
                 ]);
             }
 
@@ -970,7 +970,7 @@ class ProductMappingController extends Controller
         }
         if ($mapping->is_smart && $parsed && $parsed['suffix'] !== null) {
             throw ValidationException::withMessages([
-                $field => "Channel {$channelCode}: a Smart Freezer slot is a whole number (its APK sends the slot as a number) — lettered positions are not supported on freezers yet.",
+                $field => __('Channel :channel: a Smart Freezer slot is a whole number (its APK sends the slot as a number) — lettered positions are not supported on freezers yet.', ['channel' => $channelCode]),
             ]);
         }
     }
@@ -990,7 +990,7 @@ class ProductMappingController extends Controller
         $linked = \App\Models\CityboxProduct::where('product_id', $productId)->where('is_delisted', false)->exists();
         if (! $linked) {
             throw ValidationException::withMessages([
-                $field => 'That product is not in CityBox\'s catalogue, so a chiller cannot sell it.',
+                $field => __('That product is not in CityBox\'s catalogue, so a chiller cannot sell it.'),
             ]);
         }
     }
@@ -1007,7 +1007,7 @@ class ProductMappingController extends Controller
 
         if ((clone $others)->where('channel_code', $channelCode)->exists()) {
             throw ValidationException::withMessages([
-                'channel_code' => "Channel {$channelCode} is already used in this planogram. Each slot can hold only one product.",
+                'channel_code' => __('Channel :channel is already used in this planogram. Each slot can hold only one product.', ['channel' => $channelCode]),
             ]);
         }
 
@@ -1253,7 +1253,7 @@ class ProductMappingController extends Controller
                 );
                 if (! empty($dupes)) {
                     throw ValidationException::withMessages([
-                        'productMappingItems' => 'Duplicate channel(s) '.implode(', ', $dupes).' — each slot can hold only one product.',
+                        'productMappingItems' => __('Duplicate channel(s) :channels — each slot can hold only one product.', ['channels' => implode(', ', $dupes)]),
                     ]);
                 }
                 foreach ($request->productMappingItems as $row) {
@@ -1311,7 +1311,7 @@ class ProductMappingController extends Controller
         // No bound smart freezers (vending, chiller): plain confirmation. A silent
         // redirect-back looked like nothing happened (Brian, 2026-09-23).
         if ($targets === 0) {
-            return $redirect->with('success', 'Product mapping saved.');
+            return $redirect->with('success', __('Product mapping saved.'));
         }
 
         // Some or all nudges could not even be queued: say so, and name the fallback.
@@ -1320,12 +1320,11 @@ class ProductMappingController extends Controller
         if ($pushed < $targets) {
             return $redirect->with(
                 'error',
-                'Saved, but the menu refresh could not be sent to '.($targets - $pushed)." of {$targets} smart freezer(s). "
-                .'Use "Push Products Info to Machine" on the affected machine(s).'
+                __('Saved, but the menu refresh could not be sent to :failed of :total smart freezer(s). Use "Push Products Info to Machine" on the affected machine(s).', ['failed' => $targets - $pushed, 'total' => $targets])
             );
         }
 
-        return $redirect->with('success', "Saved. Menu refresh pushed to {$pushed} smart freezer(s).");
+        return $redirect->with('success', __('Saved. Menu refresh pushed to :count smart freezer(s).', ['count' => $pushed]));
     }
 
     public function updateItem(Request $request, $productMappingItemID)

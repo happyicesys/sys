@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.productMapping">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.productMapping">
             {{ props.productMapping.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Product Mapping
+            {{ $t('Create New Product Mapping') }}
           </span>
         </div>
       </template>
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                Remarks
+                {{ $t('Remarks') }}
               </FormTextarea>
             </div>
 
@@ -43,7 +43,7 @@
             -->
             <div class="sm:col-span-6" v-if="type === 'create'">
               <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">
-                Mapping Type
+                {{ $t('Mapping Type') }}
               </label>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <label
@@ -52,8 +52,8 @@
                 >
                   <input type="radio" value="vending_machine" v-model="form.machine_type" class="mt-1" />
                   <span class="flex flex-col">
-                    <span class="text-sm font-semibold text-gray-900">Vending Machine</span>
-                    <span class="text-xs text-gray-500">Numeric channels (11, 12, 13…). Classic channel-row editor.</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ $t('Vending Machine') }}</span>
+                    <span class="text-xs text-gray-500">{{ $t('Numeric channels (11, 12, 13…). Classic channel-row editor.') }}</span>
                   </span>
                 </label>
                 <label
@@ -62,8 +62,8 @@
                 >
                   <input type="radio" value="smart_freezer" v-model="form.machine_type" class="mt-1" />
                   <span class="flex flex-col">
-                    <span class="text-sm font-semibold text-gray-900">Smart Freezer</span>
-                    <span class="text-xs text-gray-500">Basket grid (11, 12, 21…). 6 baskets × up to 4 divisions.</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ $t('Smart Freezer') }}</span>
+                    <span class="text-xs text-gray-500">{{ $t('Basket grid (11, 12, 21…). 6 baskets × up to 4 divisions.') }}</span>
                   </span>
                 </label>
                 <label
@@ -72,8 +72,8 @@
                 >
                   <input type="radio" value="smart_chiller" v-model="form.machine_type" class="mt-1" />
                   <span class="flex flex-col">
-                    <span class="text-sm font-semibold text-gray-900">Smart Chiller</span>
-                    <span class="text-xs text-gray-500">CityBox chillers. Channels 101–599 (first digit = layer), CityBox products only; bindable to Smart Chiller machines and shareable between them.</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ $t('Smart Chiller') }}</span>
+                    <span class="text-xs text-gray-500">{{ $t('CityBox chillers. Channels 101–599 (first digit = layer), CityBox products only; bindable to Smart Chiller machines and shareable between them.') }}</span>
                   </span>
                 </label>
               </div>
@@ -85,19 +85,19 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Vend Channels Product Mapping </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Vend Channels Product Mapping') }} </span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-2" v-if="form.id">
-              <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
-                Channel ID
+              <FormInput v-model="form.channel_code" :error="form.errors.channel_code" :placeholderStr="$t('Channel ID')">
+                {{ $t('Channel ID') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Product
+                {{ $t('Product') }}
               </label>
               <MultiSelect
                 v-model="form.product_id"
@@ -105,7 +105,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -125,7 +125,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -141,22 +141,22 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Channel Code
+                          {{ $t('Channel Code') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Thumbnail
+                          {{ $t('Thumbnail') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Product
+                          {{ $t('Product') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Category
+                          {{ $t('Category') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Group
+                          {{ $t('Group') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -202,7 +202,7 @@
                       </tr>
                       <tr v-if="!productMappingItems.length">
                         <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                          No Records Found
+                          {{ $t('No Records Found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -223,19 +223,19 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
                 <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                 <span>
-                  Replicate
+                  {{ $t('Replicate') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -247,6 +247,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
@@ -310,11 +311,11 @@ function submit() {
     form.value
     .post('/product-mappings/create', {
       onSuccess: () => {
-        toast.success("Product mapping created successfully", { timeout: 3000 })
+        toast.success(t('Product mapping created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create product mapping", { timeout: 3000 })
+        toast.error(t('Failed to create product mapping'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -334,11 +335,11 @@ function submit() {
       onSuccess: (page) => {
         const flash = page?.props?.flash
         if (flash?.error) toast.error(flash.error, { timeout: 8000 })
-        else toast.success(flash?.success || "Product mapping updated successfully", { timeout: 3000 })
+        else toast.success(flash?.success || t('Product mapping updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update product mapping", { timeout: 3000 })
+        toast.error(t('Failed to update product mapping'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -368,11 +369,11 @@ function replicateProductMapping() {
     preserveState: true,
     replace: true,
     onSuccess: (page) => {
-      toast.success("Product mapping replicated successfully", { timeout: 3000 })
+      toast.success(t('Product mapping replicated successfully'), { timeout: 3000 })
       emit('modalClose')
     },
     onError: () => {
-      toast.error("Failed to replicate product mapping", { timeout: 3000 })
+      toast.error(t('Failed to replicate product mapping'), { timeout: 3000 })
     },
   })
 }

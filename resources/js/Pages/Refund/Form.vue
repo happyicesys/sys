@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { Head } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 
 const props = defineProps({
     machineID: { type: String, default: '' },
@@ -28,7 +29,7 @@ const machineResolved = ref(props.machineFound);
 
 const step = ref('enter_machine');
 const loading = ref(false);
-const BLOCKED_MSG = 'This machine is no longer in service, so we can\'t take a refund request for it. Please check the Machine ID printed on the machine.';
+const BLOCKED_MSG = t('This machine is no longer in service, so we can\'t take a refund request for it. Please check the Machine ID printed on the machine.');
 // A dead machine's QR still resolves the page — say why instead of "not found".
 const errorMsg = ref(props.machineBlocked ? BLOCKED_MSG : '');
 
@@ -85,10 +86,10 @@ function startManual() {
     step.value = '4c';
 }
 const manualPayMethods = [
-    { value: 'PayNow / QR code', label: 'PayNow / QR code' },
-    { value: 'Credit / debit card', label: 'Credit / debit card (tap)' },
-    { value: 'Cash / coins', label: 'Cash / coins' },
-    { value: 'Not sure', label: 'Not sure' },
+    { value: 'PayNow / QR code', label: t('PayNow / QR code') },
+    { value: 'Credit / debit card', label: t('Credit / debit card (tap)') },
+    { value: 'Cash / coins', label: t('Cash / coins') },
+    { value: 'Not sure', label: t('Not sure') },
 ];
 
 async function loadMachineProducts() {
@@ -109,11 +110,11 @@ const photoPreviews = ref([]);   // { url, isVideo }[]
 function onPhotos(e) {
     const files = Array.from(e.target.files || []);
     for (const f of files) {
-        if (photos.value.length >= MAX_PHOTOS) { errorMsg.value = `You can add up to ${MAX_PHOTOS} files.`; break; }
+        if (photos.value.length >= MAX_PHOTOS) { errorMsg.value = t('You can add up to :count files.', { count: MAX_PHOTOS }); break; }
         const isImg = f.type && f.type.startsWith('image/');
         const isVid = f.type && f.type.startsWith('video/');
-        if (!isImg && !isVid) { errorMsg.value = 'Only photos or videos are allowed.'; continue; }
-        if (f.size > MAX_MB * 1024 * 1024) { errorMsg.value = `Each file must be under ${MAX_MB} MB.`; continue; }
+        if (!isImg && !isVid) { errorMsg.value = t('Only photos or videos are allowed.'); continue; }
+        if (f.size > MAX_MB * 1024 * 1024) { errorMsg.value = t('Each file must be under :size MB.', { size: MAX_MB }); continue; }
         photos.value.push(f);
         photoPreviews.value.push({ url: URL.createObjectURL(f), isVideo: isVid });
     }
@@ -146,9 +147,9 @@ const fmtCustomLabel = computed(() => (customDate.value ? fmtDate(new Date(custo
 const dayValue = computed(() => (dayMode.value === 'custom' ? customDate.value : dayMode.value));
 // human label used in copy ("...purchases <label>")
 const dayLabel = computed(() => {
-    if (dayMode.value === 'today') return 'today';
-    if (dayMode.value === 'yesterday') return 'yesterday';
-    if (customDate.value) return 'on ' + fmtDate(new Date(customDate.value + 'T00:00:00'));
+    if (dayMode.value === 'today') return t('today');
+    if (dayMode.value === 'yesterday') return t('yesterday');
+    if (customDate.value) return t('on :date', { date: fmtDate(new Date(customDate.value + 'T00:00:00')) });
     return '';
 });
 
@@ -195,11 +196,11 @@ const itemGroups = computed(() => {
 });
 
 const titles = {
-    2: 'When?', 3: 'Amount', 4: 'Your Purchase', '4b': 'Not Found',
-    '4c': 'Manual Review', 5: 'Problem Item(s)', 6: 'What Happened?', 7: 'Refund Payout',
-    8: 'Review', 9: 'Done', enter_machine: 'Machine ID',
+    2: t('When?'), 3: t('Amount'), 4: t('Your Purchase'), '4b': t('Not Found'),
+    '4c': t('Manual Review'), 5: t('Problem Item(s)'), 6: t('What Happened?'), 7: t('Refund Payout'),
+    8: t('Review'), 9: t('Done'), enter_machine: t('Machine ID'),
 };
-const title = computed(() => titles[step.value] || 'Refund');
+const title = computed(() => titles[step.value] || t('Refund'));
 
 // progress (steps 2..8 -> 7 dots; the current step lights up)
 const order = [2, 3, 4, 5, 6, 7, 8];
@@ -264,7 +265,7 @@ function onMachineIdInput(e) {
 // link) + the customer's name, then resolve and jump straight to the hero.
 async function startRefund() {
     errorMsg.value = '';
-    if (!customerName.value || !customerName.value.trim()) { errorMsg.value = 'Please enter your name.'; return; }
+    if (!customerName.value || !customerName.value.trim()) { errorMsg.value = t('Please enter your name.'); return; }
 
     // Machine already confirmed via the QR link — no need to re-enter/re-check the ID.
     if (machineResolved.value && machineId.value) {
@@ -276,7 +277,7 @@ async function startRefund() {
     }
 
     const code = (machineId.value || '').trim();
-    if (!/^\d{4}$/.test(code)) { errorMsg.value = 'Please enter the 4-digit Machine ID.'; return; }
+    if (!/^\d{4}$/.test(code)) { errorMsg.value = t('Please enter the 4-digit Machine ID.'); return; }
     loading.value = true;
     try {
         const { data } = await window.axios.post('/refund/resolve', { machineID: code });
@@ -289,10 +290,10 @@ async function startRefund() {
         } else if (data.blocked) {
             errorMsg.value = BLOCKED_MSG;
         } else {
-            errorMsg.value = "We couldn't find that Machine ID. Please check the number on the machine and try again.";
+            errorMsg.value = t('We couldn\'t find that Machine ID. Please check the number on the machine and try again.');
         }
     } catch (e) {
-        errorMsg.value = 'Something went wrong. Please try again.';
+        errorMsg.value = t('Something went wrong. Please try again.');
     } finally {
         loading.value = false;
     }
@@ -329,7 +330,7 @@ async function openPinnedOrder() {
 
 async function fetchCandidates() {
     errorMsg.value = '';
-    if (!amount.value || parseFloat(amount.value) <= 0) { errorMsg.value = 'Please enter the amount you paid.'; return; }
+    if (!amount.value || parseFloat(amount.value) <= 0) { errorMsg.value = t('Please enter the amount you paid.'); return; }
     loading.value = true;
     try {
         const { data } = await window.axios.post('/refund/candidates', {
@@ -338,7 +339,7 @@ async function fetchCandidates() {
         candidates.value = data.candidates || [];
         step.value = candidates.value.length ? 4 : '4b';
     } catch (e) {
-        errorMsg.value = 'Something went wrong. Please try again.';
+        errorMsg.value = t('Something went wrong. Please try again.');
     } finally {
         loading.value = false;
     }
@@ -381,41 +382,41 @@ function next() {
     errorMsg.value = '';
     const s = step.value;
     if (s === 2) {
-        if (dayMode.value === 'custom' && !customDate.value) { errorMsg.value = 'Please pick the date you bought.'; return; }
+        if (dayMode.value === 'custom' && !customDate.value) { errorMsg.value = t('Please pick the date you bought.'); return; }
         step.value = 3; return;
     }
     if (s === 3) { manualMode.value = false; fetchCandidates(); return; }
     if (s === 4) {
-        if (!selected.value) { errorMsg.value = 'Please pick your purchase.'; return; }
+        if (!selected.value) { errorMsg.value = t('Please pick your purchase.'); return; }
         step.value = multiItem.value ? 5 : 6;
         return;
     }
     if (s === 5) {
-        if (selectedItemIds.value.length === 0) { errorMsg.value = 'Select at least one item.'; return; }
+        if (selectedItemIds.value.length === 0) { errorMsg.value = t('Select at least one item.'); return; }
         step.value = 6; return;
     }
     if (s === 6) {
-        if (photos.value.length === 0) { errorMsg.value = 'Please add at least one photo or a short video.'; return; }
-        if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you on your refund.'; return; }
+        if (photos.value.length === 0) { errorMsg.value = t('Please add at least one photo or a short video.'); return; }
+        if (!emailValid(contactEmail.value)) { errorMsg.value = t('Please enter a valid email so we can update you on your refund.'); return; }
         step.value = isAuto.value ? 8 : 7; return;
     }
     if (s === 7) {
         if (refundMethod.value === 'paypal') {
             if (!payoutDestination.value || !payoutDestination.value.trim()) {
-                errorMsg.value = 'Please enter your PayPal email address.';
+                errorMsg.value = t('Please enter your PayPal email address.');
                 return;
             }
             if (!emailValid(payoutDestination.value)) {
-                errorMsg.value = 'Please enter a valid PayPal email address.';
+                errorMsg.value = t('Please enter a valid PayPal email address.');
                 return;
             }
         } else {
             if (!payoutDestination.value || !payoutDestination.value.trim()) {
-                errorMsg.value = 'Please enter your PayNow mobile number.';
+                errorMsg.value = t('Please enter your PayNow mobile number.');
                 return;
             }
             if (!sgMobileValid(payoutDestination.value)) {
-                errorMsg.value = 'Please enter a valid Singapore mobile number (8 digits starting with 8 or 9).';
+                errorMsg.value = t('Please enter a valid Singapore mobile number (8 digits starting with 8 or 9).');
                 return;
             }
         }
@@ -428,14 +429,14 @@ function next() {
     if (s === '4c') {
         // Every manual-review field is compulsory (2026-08-24) — the team can't
         // check a claim against machine records without them.
-        if (!manualTime.value) { errorMsg.value = 'Please tell us roughly what time you bought it.'; return; }
+        if (!manualTime.value) { errorMsg.value = t('Please tell us roughly what time you bought it.'); return; }
         const paid = parseFloat(manualAmount.value);
-        if (!manualAmount.value || isNaN(paid) || paid <= 1) { errorMsg.value = 'Please enter the total amount you paid (must be more than $1).'; return; }
-        if (!manualPayMethod.value) { errorMsg.value = 'Please select how you paid.'; return; }
-        if (manualItems.value.length === 0 && !manualNotSure.value) { errorMsg.value = 'Please add the affected item(s) — or pick "Not sure / not listed".'; return; }
-        if (!manualText.value.trim()) { errorMsg.value = 'Please explain what happened.'; return; }
-        if (photos.value.length === 0) { errorMsg.value = 'Please add at least one photo or a short video.'; return; }
-        if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you.'; return; }
+        if (!manualAmount.value || isNaN(paid) || paid <= 1) { errorMsg.value = t('Please enter the total amount you paid (must be more than $1).'); return; }
+        if (!manualPayMethod.value) { errorMsg.value = t('Please select how you paid.'); return; }
+        if (manualItems.value.length === 0 && !manualNotSure.value) { errorMsg.value = t('Please add the affected item(s) — or pick "Not sure / not listed".'); return; }
+        if (!manualText.value.trim()) { errorMsg.value = t('Please explain what happened.'); return; }
+        if (photos.value.length === 0) { errorMsg.value = t('Please add at least one photo or a short video.'); return; }
+        if (!emailValid(contactEmail.value)) { errorMsg.value = t('Please enter a valid email so we can update you.'); return; }
         step.value = 7; return;
     }
     if (s === 9) { window.location.reload(); return; }
@@ -480,14 +481,14 @@ async function submit() {
         result.value = data;
         step.value = 9;
     } catch (e) {
-        errorMsg.value = firstError(e, 'Submission failed. Please try again.');
+        errorMsg.value = firstError(e, t('Submission failed. Please try again.'));
     } finally {
         loading.value = false;
     }
 }
 
 async function submitManual() {
-    if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you.'; return; }
+    if (!emailValid(contactEmail.value)) { errorMsg.value = t('Please enter a valid email so we can update you.'); return; }
     loading.value = true; errorMsg.value = '';
     try {
         const fd = new FormData();
@@ -522,7 +523,7 @@ async function submitManual() {
         // Surface the server's own reason (same as the matched path) — the
         // generic message used to hide field errors like an unusable PayNow
         // number, leaving the customer with nothing to correct.
-        errorMsg.value = firstError(e, 'Submission failed. Please try again.');
+        errorMsg.value = firstError(e, t('Submission failed. Please try again.'));
     } finally {
         loading.value = false;
     }
@@ -530,16 +531,16 @@ async function submitManual() {
 </script>
 
 <template>
-<Head title="Refund Request" />
+<Head :title="$t('Refund Request')" />
 <div class="screen">
     <div class="appbar">
         <div class="ttl">{{ title }}</div>
         <div class="sitecard" v-if="machineResolved">
             <span class="pin">📍</span>
             <div class="sitewrap">
-                <div class="sitename">{{ siteName || machineName || ('Machine ' + machineId) }}</div>
+                <div class="sitename">{{ siteName || machineName || $t('Machine :id', { id: machineId }) }}</div>
                 <div class="sitemeta">
-                    <span v-if="siteName && machineName">{{ machineName }} · </span>Machine ID {{ machineId }}
+                    <span v-if="siteName && machineName">{{ machineName }} · </span>{{ $t('Machine ID :id', { id: machineId }) }}
                 </div>
             </div>
         </div>
@@ -576,42 +577,42 @@ async function submitManual() {
                         <rect x="11" y="58" width="38" height="9" rx="2" fill="#0b5c56"/>
                     </svg>
                 </div>
-                <div class="h2">Which machine?</div>
-                <p class="p" style="text-align:center">Enter the <b>Machine ID</b> printed on the vending machine (usually near the QR sticker or on the front panel), and your name to start.</p>
+                <div class="h2">{{ $t('Which machine?') }}</div>
+                <p class="p" style="text-align:center">{{ $t('Enter the') }} <b>{{ $t('Machine ID') }}</b> {{ $t('printed on the vending machine (usually near the QR sticker or on the front panel), and your name to start.') }}</p>
             </div>
             <template v-if="!machineResolved">
-                <label class="fld">Machine ID <span class="req">*</span></label>
-                <input class="inp" v-model="machineId" inputmode="numeric" maxlength="4" placeholder="e.g. 1234" @input="onMachineIdInput" @keyup.enter="startRefund" />
+                <label class="fld">{{ $t('Machine ID') }} <span class="req">*</span></label>
+                <input class="inp" v-model="machineId" inputmode="numeric" maxlength="4" :placeholder="$t('e.g. :value', { value: '1234' })" @input="onMachineIdInput" @keyup.enter="startRefund" />
             </template>
-            <label class="fld">Your name <span class="req">*</span></label>
-            <input class="inp" v-model="customerName" placeholder="Enter your name" @keyup.enter="startRefund" autocapitalize="words" />
-            <button class="btn" style="margin-top:14px" @click="startRefund" :disabled="loading">{{ loading ? 'Checking…' : 'Continue' }}</button>
+            <label class="fld">{{ $t('Your name') }} <span class="req">*</span></label>
+            <input class="inp" v-model="customerName" :placeholder="$t('Enter your name')" @keyup.enter="startRefund" autocapitalize="words" />
+            <button class="btn" style="margin-top:14px" @click="startRefund" :disabled="loading">{{ loading ? $t('Checking…') : $t('Continue') }}</button>
         </div>
 
         <!-- 2 day -->
         <div v-else-if="step === 2">
-            <div class="h2">When did you buy?</div>
-            <p class="p">This helps us find your purchase quickly.</p>
-            <div class="bigcard" :class="{ sel: dayMode === 'today' }" @click="dayMode = 'today'"><span class="e">☀️</span><div><b>Today</b><small>{{ todayLabel }}</small></div></div>
-            <div class="bigcard" :class="{ sel: dayMode === 'yesterday' }" @click="dayMode = 'yesterday'"><span class="e">🌙</span><div><b>Yesterday</b><small>{{ yesterdayLabel }}</small></div></div>
-            <div v-if="showCustomDate" class="bigcard" :class="{ sel: dayMode === 'custom' }" @click="dayMode = 'custom'"><span class="e">📅</span><div><b>Another date</b><small>{{ dayMode === 'custom' && customDate ? fmtCustomLabel : 'Pick the day you bought' }}</small></div></div>
+            <div class="h2">{{ $t('When did you buy?') }}</div>
+            <p class="p">{{ $t('This helps us find your purchase quickly.') }}</p>
+            <div class="bigcard" :class="{ sel: dayMode === 'today' }" @click="dayMode = 'today'"><span class="e">☀️</span><div><b>{{ $t('Today') }}</b><small>{{ todayLabel }}</small></div></div>
+            <div class="bigcard" :class="{ sel: dayMode === 'yesterday' }" @click="dayMode = 'yesterday'"><span class="e">🌙</span><div><b>{{ $t('Yesterday') }}</b><small>{{ yesterdayLabel }}</small></div></div>
+            <div v-if="showCustomDate" class="bigcard" :class="{ sel: dayMode === 'custom' }" @click="dayMode = 'custom'"><span class="e">📅</span><div><b>{{ $t('Another date') }}</b><small>{{ dayMode === 'custom' && customDate ? fmtCustomLabel : $t('Pick the day you bought') }}</small></div></div>
             <div v-if="showCustomDate && dayMode === 'custom'">
                 <input class="inp" type="date" v-model="customDate" :min="minDateStr" :max="maxDateStr" />
-                <p class="p" style="margin-top:6px">You can request a refund for purchases in the last {{ maxLookbackDays }} days.</p>
+                <p class="p" style="margin-top:6px">{{ $t('You can request a refund for purchases in the last :days days.', { days: maxLookbackDays }) }}</p>
             </div>
         </div>
 
         <!-- 3 amount -->
         <div v-else-if="step === 3">
-            <div class="h2">How much did you pay?</div>
-            <p class="p">Enter the amount shown on the machine or your bank app.</p>
+            <div class="h2">{{ $t('How much did you pay?') }}</div>
+            <p class="p">{{ $t('Enter the amount shown on the machine or your bank app.') }}</p>
             <div class="amtbox"><span class="cur">$</span><input ref="amtInputRef" class="amtinput" type="text" inputmode="numeric" :value="amount" @input="onAmountInput" placeholder="0.00" /></div>
         </div>
 
         <!-- 4 candidates -->
         <div v-else-if="step === 4">
-            <div class="h2">Is this your purchase?</div>
-            <p class="p">We found these <b>${{ amount }}</b> purchases <b>{{ dayLabel }}</b>. Tap yours.</p>
+            <div class="h2">{{ $t('Is this your purchase?') }}</div>
+            <p class="p">{{ $t('We found these') }} <b>${{ amount }}</b> {{ $t('purchases') }} <b>{{ dayLabel }}</b>{{ $t('. Tap yours.') }}</p>
             <div v-for="(c, idx) in candidates" :key="idx" class="txn" :class="{ sel: selected === c }" @click="chooseCandidate(c)">
                 <div class="top"><span class="pill">{{ c.payment_method || c.payment_channel }}</span><span class="amt">${{ Number(c.amount).toFixed(2) }}</span></div>
                 <div class="prodlist" v-if="c.items && c.items.length">
@@ -620,66 +621,66 @@ async function submitManual() {
                             <img v-if="it.product_image_url" :src="it.product_image_url" alt="" loading="lazy" />
                             <span v-else>🥡</span>
                         </span>
-                        <span class="pname">{{ it.product_name }}<span v-if="it.vend_channel_code" class="chan">Channel #{{ it.vend_channel_code }}</span></span>
+                        <span class="pname">{{ it.product_name }}<span v-if="it.vend_channel_code" class="chan">{{ $t('Channel #:code', { code: it.vend_channel_code }) }}</span></span>
                     </div>
                 </div>
                 <div class="meta">
                     <span>🕘 {{ c.datetime_label || c.datetime }}</span>
-                    <span v-if="c.is_auto_refund_channel" class="pill warn">Auto-refund (Nayax)</span>
-                    <span v-if="c.already_refunded" class="pill bad">Already refunded</span>
+                    <span v-if="c.is_auto_refund_channel" class="pill warn">{{ $t('Auto-refund (Nayax)') }}</span>
+                    <span v-if="c.already_refunded" class="pill bad">{{ $t('Already refunded') }}</span>
                 </div>
             </div>
-            <a class="nolink" href="#" @click.prevent="step = '4b'">None of these / can't find it →</a>
+            <a class="nolink" href="#" @click.prevent="step = '4b'">{{ $t('None of these / can\'t find it →') }}</a>
         </div>
 
         <!-- 4b not found -->
         <div v-else-if="step === '4b'">
             <div class="emptywrap">
                 <div class="e">🔍</div>
-                <div class="h2">We couldn't find that purchase</div>
-                <p class="p" style="text-align:center">No <b>${{ amount }}</b> purchase {{ dayLabel }} at this machine. Try a different amount or day — or send it for manual checking.</p>
+                <div class="h2">{{ $t('We couldn\'t find that purchase') }}</div>
+                <p class="p" style="text-align:center">{{ $t('No $:amount purchase :day at this machine. Try a different amount or day — or send it for manual checking.', { amount, day: dayLabel }) }}</p>
             </div>
-            <button class="btn ghost" @click="step = 3">↩ Change amount / day</button>
-            <button class="btn" style="margin-top:10px" @click="showNoTxnInfo = true">Submit for manual review →</button>
+            <button class="btn ghost" @click="step = 3">{{ $t('↩ Change amount / day') }}</button>
+            <button class="btn" style="margin-top:10px" @click="showNoTxnInfo = true">{{ $t('Submit for manual review →') }}</button>
 
             <!-- reassurance: a no-match usually means the payment never went through -->
             <div v-if="showNoTxnInfo" class="modal-mask" @click.self="showNoTxnInfo = false">
                 <div class="modal">
                     <div class="modal-e">💡</div>
-                    <div class="h2" style="text-align:center"><span class="hlred">Can't find</span> your transaction in our record?<br>Most likely the payment has <span class="hlred">NOT</span> gone through</div>
+                    <div class="h2" style="text-align:center"><span class="hlred">{{ $t('Can\'t find') }}</span> {{ $t('your transaction in our record?') }}<br>{{ $t('Most likely the payment has') }} <span class="hlred">{{ $t('NOT') }}</span> {{ $t('gone through') }}</div>
                     <div class="tipcard">
-                        <div class="tiprow"><span class="tipico">📱</span><span><b>PayNow / QR:</b> the bank usually <b>refunds it by itself</b> — check your banking app (up to 1–2 working days).</span></div>
-                        <div class="tiprow"><span class="tipico">💳</span><span><b>Card (tap):</b> money is only <b>on hold</b> — the bank releases it within a few days.</span></div>
+                        <div class="tiprow"><span class="tipico">📱</span><span><b>{{ $t('PayNow / QR:') }}</b> {{ $t('the bank usually') }} <b>{{ $t('refunds it by itself') }}</b> {{ $t('— check your banking app (up to 1–2 working days).') }}</span></div>
+                        <div class="tiprow"><span class="tipico">💳</span><span><b>{{ $t('Card (tap):') }}</b> {{ $t('money is only') }} <b>{{ $t('on hold') }}</b> {{ $t('— the bank releases it within a few days.') }}</span></div>
                     </div>
-                    <button class="btn" style="margin-top:14px" @click="showNoTxnInfo = false">OK, I'll check my bank app first</button>
-                    <button class="btn ghost" @click="startManual">I checked — money was taken and not returned</button>
+                    <button class="btn" style="margin-top:14px" @click="showNoTxnInfo = false">{{ $t('OK, I\'ll check my bank app first') }}</button>
+                    <button class="btn ghost" @click="startManual">{{ $t('I checked — money was taken and not returned') }}</button>
                 </div>
             </div>
         </div>
 
         <!-- 4c manual -->
         <div v-else-if="step === '4c'">
-            <div class="h2">Tell us what happened</div>
-            <p class="p">Our team will check this against the machine records and get back to you.</p>
+            <div class="h2">{{ $t('Tell us what happened') }}</div>
+            <p class="p">{{ $t('Our team will check this against the machine records and get back to you.') }}</p>
 
-            <label class="fld">Around what time? <span class="req">*</span> <span class="dayhint">({{ dayLabel }})</span></label>
+            <label class="fld">{{ $t('Around what time?') }} <span class="req">*</span> <span class="dayhint">({{ dayLabel }})</span></label>
             <input class="inp" type="time" v-model="manualTime" />
 
-            <label class="fld">Total amount paid <span class="req">*</span> <span class="dayhint">(total from your bill)</span></label>
+            <label class="fld">{{ $t('Total amount paid') }} <span class="req">*</span> <span class="dayhint">{{ $t('(total from your bill)') }}</span></label>
             <div class="amtrow"><span class="cur2">$</span><input class="inp amt2" type="text" inputmode="numeric" :value="manualAmount" @input="onManualAmountInput" placeholder="0.00" /></div>
 
-            <label class="fld">How did you pay? <span class="req">*</span></label>
+            <label class="fld">{{ $t('How did you pay?') }} <span class="req">*</span></label>
             <select class="inp" v-model="manualPayMethod">
-                <option value="" disabled>Select payment method…</option>
+                <option value="" disabled>{{ $t('Select payment method…') }}</option>
                 <option v-for="m in manualPayMethods" :key="m.value" :value="m.value">{{ m.label }}</option>
             </select>
 
-            <label class="fld">Affected Items? <span class="req">*</span> <span class="dayhint">(add all affected items)</span></label>
+            <label class="fld">{{ $t('Affected Items?') }} <span class="req">*</span> <span class="dayhint">{{ $t('(add all affected items)') }}</span></label>
 
             <!-- "Not sure / not listed" registered as the answer -->
             <div v-if="manualNotSure" class="itemrow">
                 <span class="ddthumb">❔</span>
-                <span class="ddinfo"><span class="ddname">Not sure / not listed</span></span>
+                <span class="ddinfo"><span class="ddname">{{ $t('Not sure / not listed') }}</span></span>
                 <button type="button" class="itemrm" @click="manualNotSure = false">×</button>
             </div>
 
@@ -689,7 +690,7 @@ async function submitManual() {
                 <span class="ddinfo">
                     <span class="ddname">{{ it.name }}</span>
                     <span class="ddmeta">
-                        <span class="ddchan" v-if="it.channel_code">Channel #{{ it.channel_code }}</span>
+                        <span class="ddchan" v-if="it.channel_code">{{ $t('Channel #:code', { code: it.channel_code }) }}</span>
                         <span class="ddprice-inline" v-if="it.price_cents">${{ (it.price_cents / 100).toFixed(2) }}</span>
                     </span>
                 </span>
@@ -703,47 +704,47 @@ async function submitManual() {
 
             <div class="proddd">
                 <button type="button" class="inp ddbtn" @click="prodOpen = !prodOpen">
-                    <span class="ddname muted">{{ (manualItems.length || manualNotSure) ? 'Add another item…' : 'Select a product…' }}</span>
+                    <span class="ddname muted">{{ (manualItems.length || manualNotSure) ? $t('Add another item…') : $t('Select a product…') }}</span>
                     <span class="caret">▾</span>
                 </button>
                 <div v-if="prodOpen" class="ddlist">
                     <div class="ddopt" @click="addManualItem(null)">
-                        <span class="ddthumb">❔</span><span class="ddname muted">Not sure / not listed</span>
+                        <span class="ddthumb">❔</span><span class="ddname muted">{{ $t('Not sure / not listed') }}</span>
                     </div>
                     <div v-for="p in machineProducts" :key="p.product_id + '-' + p.channel_code" class="ddopt" @click="addManualItem(p)">
                         <span class="ddthumb"><img v-if="p.image_url" :src="p.image_url" alt="" loading="lazy" /><span v-else>🥡</span></span>
                         <span class="ddinfo">
                             <span class="ddname">{{ p.name }}</span>
-                            <span class="ddchan" v-if="p.channel_code">Channel #{{ p.channel_code }}</span>
+                            <span class="ddchan" v-if="p.channel_code">{{ $t('Channel #:code', { code: p.channel_code }) }}</span>
                         </span>
                         <span class="ddprice" v-if="p.price_cents">${{ (p.price_cents / 100).toFixed(2) }}</span>
                     </div>
                 </div>
             </div>
 
-            <label class="fld">Explain what happened <span class="req">*</span></label>
-            <textarea class="inp bigta" rows="6" v-model="manualText" placeholder="e.g. I paid $3.50 by PayNow around 2pm, the machine showed 'dispensing' but nothing came out."></textarea>
-            <label class="fld">Email <span class="req">*</span></label>
+            <label class="fld">{{ $t('Explain what happened') }} <span class="req">*</span></label>
+            <textarea class="inp bigta" rows="6" v-model="manualText" :placeholder="$t('e.g. I paid $3.50 by PayNow around 2pm, the machine showed \'dispensing\' but nothing came out.')"></textarea>
+            <label class="fld">{{ $t('Email') }} <span class="req">*</span></label>
             <input class="inp" type="email" v-model="contactEmail" placeholder="you@email.com" />
-            <label class="fld">Photos or video <span class="req">*</span> <span class="dayhint">— up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each</span></label>
+            <label class="fld">{{ $t('Photos or video') }} <span class="req">*</span> <span class="dayhint">{{ $t('— up to :count, max :size MB each', { count: MAX_PHOTOS, size: MAX_MB }) }}</span></label>
             <div class="photogrid">
                 <div v-for="(p, i) in photoPreviews" :key="i" class="thumb">
                     <video v-if="p.isVideo" :src="p.url" class="thumbmedia" muted playsinline></video>
-                    <img v-else :src="p.url" class="thumbmedia" alt="attachment" />
+                    <img v-else :src="p.url" class="thumbmedia" :alt="$t('attachment')" />
                     <span v-if="p.isVideo" class="vbadge">▶</span>
                     <button type="button" class="rm" @click="removePhoto(i)">×</button>
                 </div>
                 <label v-if="photos.length < MAX_PHOTOS" class="addphoto">
                     <input type="file" accept="image/*,video/*" multiple class="hidden-file" @change="onPhotos" />
-                    <span>📷</span><small>Add</small>
+                    <span>📷</span><small>{{ $t('Add') }}</small>
                 </label>
             </div>
         </div>
 
         <!-- 5 items (identical items collapse into one clean row; failed unit bound server-side) -->
         <div v-else-if="step === 5">
-            <div class="h2">Which item had a problem?</div>
-            <p class="p">Tap the item that didn't come out.</p>
+            <div class="h2">{{ $t('Which item had a problem?') }}</div>
+            <p class="p">{{ $t('Tap the item that didn\'t come out.') }}</p>
             <div v-for="(it, idx) in selected.items" :key="idx" class="chk"
                  :class="{ sel: selectedRawIds.includes(it.vend_transaction_item_id), disabled: it.is_refunded || !it.vend_transaction_item_id }"
                  @click="(!it.is_refunded && it.vend_transaction_item_id) && toggleRaw(it.vend_transaction_item_id)">
@@ -754,101 +755,101 @@ async function submitManual() {
                 </div>
                 <div class="ci">
                     <b>{{ it.product_name }}</b>
-                    <small v-if="it.vend_channel_code">Channel #{{ it.vend_channel_code }}</small>
+                    <small v-if="it.vend_channel_code">{{ $t('Channel #:code', { code: it.vend_channel_code }) }}</small>
                 </div>
-                <span v-if="it.is_refunded" class="pill bad">Refunded</span>
+                <span v-if="it.is_refunded" class="pill bad">{{ $t('Refunded') }}</span>
                 <span v-else class="iprice">${{ ((it.unit_price_cents || 0) / 100).toFixed(2) }}</span>
             </div>
         </div>
 
         <!-- 6 reason -->
         <div v-else-if="step === 6">
-            <div class="h2">What happened?</div>
-            <p class="p">Helps us verify faster.</p>
-            <label class="fld">Reason</label>
+            <div class="h2">{{ $t('What happened?') }}</div>
+            <p class="p">{{ $t('Helps us verify faster.') }}</p>
+            <label class="fld">{{ $t('Reason') }}</label>
             <select class="inp" v-model="reasonCode">
                 <option v-for="r in reasonCodes" :key="r.code" :value="r.code">{{ r.label }}</option>
             </select>
-            <label class="fld">Add a note (optional)</label>
-            <textarea class="inp" rows="3" v-model="reasonText" placeholder="Anything else we should know?"></textarea>
-            <label class="fld">Photo or video <span class="req">*</span></label>
-            <p class="p" style="margin-top:0">A photo or short video of the machine or screen helps us verify. Up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each.</p>
+            <label class="fld">{{ $t('Add a note (optional)') }}</label>
+            <textarea class="inp" rows="3" v-model="reasonText" :placeholder="$t('Anything else we should know?')"></textarea>
+            <label class="fld">{{ $t('Photo or video') }} <span class="req">*</span></label>
+            <p class="p" style="margin-top:0">{{ $t('A photo or short video of the machine or screen helps us verify. Up to :count, max :size MB each.', { count: MAX_PHOTOS, size: MAX_MB }) }}</p>
             <div class="photogrid">
                 <div v-for="(p, i) in photoPreviews" :key="i" class="thumb">
                     <video v-if="p.isVideo" :src="p.url" class="thumbmedia" muted playsinline></video>
-                    <img v-else :src="p.url" class="thumbmedia" alt="attachment" />
+                    <img v-else :src="p.url" class="thumbmedia" :alt="$t('attachment')" />
                     <span v-if="p.isVideo" class="vbadge">▶</span>
                     <button type="button" class="rm" @click="removePhoto(i)">×</button>
                 </div>
                 <label v-if="photos.length < MAX_PHOTOS" class="addphoto">
                     <input type="file" accept="image/*,video/*" multiple class="hidden-file" @change="onPhotos" />
-                    <span>📷</span><small>Add</small>
+                    <span>📷</span><small>{{ $t('Add') }}</small>
                 </label>
             </div>
-            <label class="fld">Email <span class="req">*</span></label>
+            <label class="fld">{{ $t('Email') }} <span class="req">*</span></label>
             <input class="inp" type="email" v-model="contactEmail" placeholder="you@email.com" />
-            <p class="p" style="margin-top:6px">We'll email you updates on your refund.</p>
+            <p class="p" style="margin-top:6px">{{ $t('We\'ll email you updates on your refund.') }}</p>
         </div>
 
         <!-- 7 payout (PayNow mobile or PayPal) -->
         <div v-else-if="step === 7">
-            <div class="h2">How should we refund you?</div>
-            <p class="p">Choose your preferred refund method.</p>
+            <div class="h2">{{ $t('How should we refund you?') }}</div>
+            <p class="p">{{ $t('Choose your preferred refund method.') }}</p>
             <div class="methodsel">
                 <button type="button" class="mopt" :class="{ sel: refundMethod === 'paynow' }" @click="setMethod('paynow')">
                     <span class="micon">🇸🇬</span>
-                    <span class="mtxt"><b>PayNow</b><small>Singapore mobile number</small></span>
+                    <span class="mtxt"><b>PayNow</b><small>{{ $t('Singapore mobile number') }}</small></span>
                 </button>
                 <button type="button" class="mopt" :class="{ sel: refundMethod === 'paypal' }" @click="setMethod('paypal')">
                     <span class="micon">🌐</span>
-                    <span class="mtxt"><b>PayPal</b><small>For overseas / foreign cards</small></span>
+                    <span class="mtxt"><b>PayPal</b><small>{{ $t('For overseas / foreign cards') }}</small></span>
                 </button>
             </div>
 
             <template v-if="refundMethod === 'paynow'">
-                <label class="fld">PayNow mobile number</label>
-                <input class="inp" type="tel" inputmode="tel" v-model="payoutDestination" placeholder="e.g. 9123 4567" />
-                <p class="p" style="margin-top:6px">Make sure this number is registered for PayNow.</p>
+                <label class="fld">{{ $t('PayNow mobile number') }}</label>
+                <input class="inp" type="tel" inputmode="tel" v-model="payoutDestination" :placeholder="$t('e.g. :value', { value: '9123 4567' })" />
+                <p class="p" style="margin-top:6px">{{ $t('Make sure this number is registered for PayNow.') }}</p>
             </template>
             <template v-else>
-                <label class="fld">PayPal email address</label>
+                <label class="fld">{{ $t('PayPal email address') }}</label>
                 <input class="inp" type="email" inputmode="email" v-model="payoutDestination" placeholder="you@email.com" />
-                <p class="p" style="margin-top:6px">We'll send your refund to this PayPal account.</p>
+                <p class="p" style="margin-top:6px">{{ $t('We\'ll send your refund to this PayPal account.') }}</p>
             </template>
         </div>
 
         <!-- 8 review -->
         <div v-else-if="step === 8">
-            <div class="h2">Review your request</div>
-            <p class="p">Please confirm the details below.</p>
-            <div class="banner info" v-if="isAuto">✅ This was paid via <b>Nayax</b> — your refund is processed <b>automatically</b> to your card. No PayNow needed.</div>
+            <div class="h2">{{ $t('Review your request') }}</div>
+            <p class="p">{{ $t('Please confirm the details below.') }}</p>
+            <div class="banner info" v-if="isAuto">{{ $t('✅ This was paid via') }} <b>Nayax</b> {{ $t('— your refund is processed') }} <b>{{ $t('automatically') }}</b> {{ $t('to your card. No PayNow needed.') }}</div>
             <div class="review">
-                <div class="row" v-if="siteName"><span>Site</span><b>{{ siteName }}</b></div>
-                <div class="row"><span>Machine</span><b>{{ machineId }}</b></div>
-                <div class="row"><span>Purchase</span><b>${{ Number(selected.amount).toFixed(2) }} · {{ selected.datetime_label || dayLabel }}</b></div>
-                <div class="row"><span>Refund</span><b>${{ selectedAmount }}</b></div>
-                <div class="row"><span>Reason</span><b>{{ (reasonCodes.find(r => r.code === reasonCode) || {}).label }}</b></div>
-                <div class="row" v-if="!isAuto"><span>Refund to</span><b>{{ refundMethod === 'paypal' ? 'PayPal' : 'PayNow' }} · {{ payoutDestination }}</b></div>
+                <div class="row" v-if="siteName"><span>{{ $t('Site') }}</span><b>{{ siteName }}</b></div>
+                <div class="row"><span>{{ $t('Machine') }}</span><b>{{ machineId }}</b></div>
+                <div class="row"><span>{{ $t('Purchase') }}</span><b>${{ Number(selected.amount).toFixed(2) }} · {{ selected.datetime_label || dayLabel }}</b></div>
+                <div class="row"><span>{{ $t('Refund') }}</span><b>${{ selectedAmount }}</b></div>
+                <div class="row"><span>{{ $t('Reason') }}</span><b>{{ (reasonCodes.find(r => r.code === reasonCode) || {}).label }}</b></div>
+                <div class="row" v-if="!isAuto"><span>{{ $t('Refund to') }}</span><b>{{ refundMethod === 'paypal' ? 'PayPal' : 'PayNow' }} · {{ payoutDestination }}</b></div>
             </div>
         </div>
 
         <!-- 9 confirmation -->
         <div v-else-if="step === 9" class="conf">
             <div class="check">✓</div>
-            <div class="h2" style="font-size:18px">{{ result && result.auto_resolved ? 'Already being refunded!' : 'Request submitted!' }}</div>
-            <p class="p" style="text-align:center" v-if="result && result.auto_resolved">Our records show this was refunded automatically. No further action needed.</p>
-            <p class="p" style="text-align:center" v-else>Save your reference number — quote it in any follow-up.</p>
+            <div class="h2" style="font-size:18px">{{ result && result.auto_resolved ? $t('Already being refunded!') : $t('Request submitted!') }}</div>
+            <p class="p" style="text-align:center" v-if="result && result.auto_resolved">{{ $t('Our records show this was refunded automatically. No further action needed.') }}</p>
+            <p class="p" style="text-align:center" v-else>{{ $t('Save your reference number — quote it in any follow-up.') }}</p>
             <div class="ref">{{ result ? result.reference : '' }}</div>
-            <p class="p" style="text-align:center">We'll notify you by email about your refund.</p>
+            <p class="p" style="text-align:center">{{ $t('We\'ll notify you by email about your refund.') }}</p>
         </div>
     </div>
 
     <div class="footer" v-if="step !== 'enter_machine' && step !== '4b'">
         <button class="btn" @click="next" :disabled="loading">
-            {{ loading ? 'Please wait…' : (step === 8 || (step === 7 && manualMode)) ? 'Submit request' : step === 9 ? 'Done' : 'Continue' }}
+            {{ loading ? $t('Please wait…') : (step === 8 || (step === 7 && manualMode)) ? $t('Submit request') : step === 9 ? $t('Done') : $t('Continue') }}
         </button>
-        <button class="btn ghost" v-if="step !== 9 && step !== '4c'" @click="back">Back</button>
-        <button class="btn ghost" v-if="step === '4c'" @click="step = '4b'">Back</button>
+        <button class="btn ghost" v-if="step !== 9 && step !== '4c'" @click="back">{{ $t('Back') }}</button>
+        <button class="btn ghost" v-if="step === '4c'" @click="step = '4b'">{{ $t('Back') }}</button>
     </div>
 
     <div class="brandfoot"><img src="/img/logo.png" alt="HappyIce" /></div>

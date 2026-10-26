@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Daily Jobs" />
+  <Head :title="$t('Daily Jobs')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Daily Jobs
+        {{ $t('Daily Jobs') }}
       </h2>
     </template>
 
@@ -17,7 +17,7 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
           <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -31,20 +31,20 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 mt-2">
             <div class="col-span-5 md:col-span-1">
-              <SearchInput placeholderStr="Job ID#" v-model="filters.ops_job_item_ref_id" class="block text-sm font-medium text-gray-700">
-                Job ID#
+              <SearchInput :placeholderStr="$t('Job ID#')" v-model="filters.ops_job_item_ref_id" class="block text-sm font-medium text-gray-700">
+                {{ $t('Job ID#') }}
 					    </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-              <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code" class="block text-sm font-medium text-gray-700">
-                Machine ID#
+              <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code" class="block text-sm font-medium text-gray-700">
+                {{ $t('Machine ID#') }}
 					    </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
                     v-model="filters.date_from"
                 >
-                  From
+                  {{ $t('From') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
@@ -52,19 +52,19 @@
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
                 >
-                  To
+                  {{ $t('To') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Delivery By
+                   {{ $t('Delivery By') }}
                 </label>
                 <MultiSelect
                     v-model="filters.delivered_by"
                     :options="userOptions"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     :disabled="isDriver"
@@ -73,14 +73,14 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Created By
+                   {{ $t('Created By') }}
                 </label>
                 <MultiSelect
                     v-model="filters.created_by"
                     :options="userOptions"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -100,20 +100,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ opsJobs.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ opsJobs.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ opsJobs.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -121,7 +121,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -143,54 +143,54 @@
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <SingleSortItem modelName="date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date')">
-                          Date
+                          {{ $t('Date') }}
                         </SingleSortItem>
                         <span>
-                          Deliver By
+                          {{ $t('Deliver By') }}
                         </span>
                         <span>
-                          # of Job
+                          {{ $t('# of Job') }}
                         </span>
                         <span>
-                          Refillable Value
+                          {{ $t('Refillable Value') }}
                         </span>
                         <span>
-                          (Qty)
+                          {{ $t('(Qty)') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Jobs
+                          {{ $t('Jobs') }}
                         </span>
                         <SingleSortItem modelName="ops_job_items_delivered_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_delivered_count_percentage')">
-                          Picked(%)
+                          {{ $t('Picked(%)') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="ops_job_items_delivered_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_delivered_count_percentage')">
-                          Stock-in(%)
+                          {{ $t('Stock-in(%)') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="ops_job_items_verified_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_verified_count_percentage')">
-                          Verified(%)
+                          {{ $t('Verified(%)') }}
                         </SingleSortItem>
                         <SingleSortItem v-if="isCmsUrlSet" modelName="cms_transaction_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('cms_transaction_percentage')">
-                          API Invoices(%)
+                          {{ $t('API Invoices(%)') }}
                         </SingleSortItem>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Picked
+                          {{ $t('Picked') }}
                         </span>
                         <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
-                          Value
+                          {{ $t('Value') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="picked_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_count')">
-                          Qty
+                          {{ $t('Qty') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="picked_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_cost')">
-                          Cost
+                          {{ $t('Cost') }}
                         </SingleSortItem>
                         <!-- <SingleSortItem modelName="picked_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_cost')">
                           Gross Margin
@@ -200,16 +200,16 @@
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Stock-in
+                          {{ $t('Stock-in') }}
                         </span>
                         <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                          Value
+                          {{ $t('Value') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="stock_in_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_count')">
-                          Qty
+                          {{ $t('Qty') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="stock_in_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_cost')">
-                          Cost
+                          {{ $t('Cost') }}
                         </SingleSortItem>
                         <!-- <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
                           Gross Margin
@@ -219,17 +219,17 @@
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Stock-out <br>
-                          (Transactions)
+                          {{ $t('Stock-out') }} <br>
+                          {{ $t('(Transactions)') }}
                         </span>
                         <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
-                          Total Amount$
+                          {{ $t('Total Amount$') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
-                          Qty
+                          {{ $t('Qty') }}
                         </SingleSortItem>
                         <!-- <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
-                          Cost
+                          {{ $t('Cost') }}
                         </SingleSortItem> -->
                         <!-- <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
                           Gross Margin
@@ -239,29 +239,29 @@
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Cash Amount
+                          {{ $t('Cash Amount') }}
                         </span>
                         <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                          Cash Collected (fr VM)
+                          {{ $t('Cash Collected (fr VM)') }}
                         </SingleSortItem>
                         <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
-                          CashAmt$ (VMC)
+                          {{ $t('CashAmt$ (VMC)') }}
                         </SingleSortItem>
                         <span>
-                          % Cash Collected/ CashAmt$
+                          {{ $t('% Cash Collected/ CashAmt$') }}
                         </span>
                         <SingleSortItem modelName="delta_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delta_cash_amount')">
-                          Cash Adjustment
+                          {{ $t('Cash Adjustment') }}
                         </SingleSortItem>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Created By
+                          {{ $t('Created By') }}
                         </span>
                         <span>
-                          Created At
+                          {{ $t('Created At') }}
                         </span>
                       </div>
                     </TableHead>
@@ -424,11 +424,11 @@
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
                               <span>
-                                  Delete
+                                  {{ $t('Delete') }}
                               </span>
                             </span>
                             <span v-if="opsJob.vendPrefixes && opsJob.vendPrefixes.length > 0">
-                              (Binded)
+                              {{ $t('(Binded)') }}
                             </span>
                           </Button>
                         </div>
@@ -436,7 +436,7 @@
                       </tr>
                 <tr v-if="!opsJobs.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -484,6 +484,7 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import moment from 'moment';
 
 const props = defineProps({
@@ -528,10 +529,10 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
   ]
   userOptions.value = [
@@ -564,16 +565,16 @@ function onCreateAddressClicked() {
 }
 
 function onDeleteClicked(opsJob) {
-  const approval = confirm('Are you sure to delete ' + opsJob.code + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: opsJob.code }));
   if (!approval) {
       return;
   }
   router.delete('/ops-jobs/' + opsJob.id, {
     onSuccess: () => {
-      toast.success("Ops job deleted successfully", { timeout: 3000 })
+      toast.success(t('Ops job deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete ops job", { timeout: 3000 })
+      toast.error(t('Failed to delete ops job'), { timeout: 3000 })
     }
   })
 }

@@ -4917,7 +4917,7 @@ class VendController extends Controller
             }
         }
 
-        return back()->with('message', 'Export started! You can check it later in the export list.');
+        return back()->with('message', __('Export started! You can check it later in the export list.'));
     }
 
     public function exportTransactionExcel(Request $request)
@@ -6073,7 +6073,7 @@ class VendController extends Controller
 
         if ($unitId && ! $unit) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'card_terminal_unit_id' => 'Unknown card terminal.',
+                'card_terminal_unit_id' => __('Unknown card terminal.'),
             ]);
         }
 
@@ -6516,7 +6516,7 @@ class VendController extends Controller
                         ->contains(fn ($productId) => ! ProductAccess::allows($allowedProductIds, $productId));
 
                 if ($blockedChange) {
-                    abort(403, 'You do not have access to one of the products in this channel change.');
+                    abort(403, __('You do not have access to one of the products in this channel change.'));
                 }
 
                 $vendChannel = VendChannel::findOrFail($channel['id']);

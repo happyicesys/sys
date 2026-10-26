@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.simcard">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.simcard">
             {{ props.simcard.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Simcard
+            {{ $t('Create New Simcard') }}
           </span>
         </div>
       </template>
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.code" :error="form.errors.code" required="true">
-                Simcard Number
+                {{ $t('Simcard Number') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                SimCard Package
+                {{ $t('SimCard Package') }}
               </label>
               <MultiSelect
                 v-model="form.telco_id"
@@ -32,7 +32,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -43,19 +43,19 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
-                Phone Number
+                {{ $t('Phone Number') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.msisdn" :error="form.errors.msisdn">
-                MSISDN
+                {{ $t('MSISDN') }}
               </FormInput>
             </div>
           </div>
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 mt-3">
             <div class="sm:col-span-6">
               <label for="vend_id" class="flex justify-start text-sm font-medium text-gray-700">
-                Machine ID
+                {{ $t('Machine ID') }}
               </label>
               <MultiSelect
                 v-model="form.vend_id"
@@ -63,7 +63,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select Machine"
+                :placeholder="$t('Select Machine')"
                 open-direction="bottom"
                 class="mt-1"
                 :searchable="true"
@@ -82,13 +82,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -100,6 +100,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
@@ -179,11 +180,11 @@ function submit() {
     })
     .post('/simcards/store', {
       onSuccess: () => {
-        toast.success("Simcard created successfully", { timeout: 3000 })
+        toast.success(t('Simcard created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create simcard", { timeout: 3000 })
+        toast.error(t('Failed to create simcard'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -201,11 +202,11 @@ function submit() {
     })
       .post('/simcards/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Simcard updated successfully", { timeout: 3000 })
+        toast.success(t('Simcard updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update simcard", { timeout: 3000 })
+        toast.error(t('Failed to update simcard'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

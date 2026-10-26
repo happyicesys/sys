@@ -6,6 +6,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 import { netsReportBadge } from '@/constants/netsReportBadge';
+import { t } from '@/i18n';
 
 const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
@@ -14,10 +15,10 @@ const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (pag
 // straight from the list once the payout has gone through. Posts to the same
 // /complete endpoint (guarded by `update refunds`), then reloads in place.
 const completing = ref(null); // id being completed, to disable just that button
-function markDone(t) {
-    if (!confirm('Mark ' + t.reference + ' as refund done? This emails the customer their completion notice.')) return;
-    completing.value = t.id;
-    router.post('/refunds/' + t.id + '/complete', {}, {
+function markDone(ticket) {
+    if (!confirm(t('Mark :ref as refund done? This emails the customer their completion notice.', { ref: ticket.reference }))) return;
+    completing.value = ticket.id;
+    router.post('/refunds/' + ticket.id + '/complete', {}, {
         preserveScroll: true,
         onFinish: () => { completing.value = null; },
     });
@@ -49,15 +50,15 @@ const selected = ref([]);
 // sources get one, because on a card sale the "Yes" alone does not say whether
 // NETS returned the money or never took it.
 const autoRefundBadges = {
-    settlement_report_reversal: { text: 'NETS reversal', class: 'bg-green-100 text-green-800' },
+    settlement_report_reversal: { text: t('NETS reversal'), class: 'bg-green-100 text-green-800' },
 }
 
 // Same three words as Sales Transactions: our rules, a person here, or the
 // customer forcing it through a chargeback.
 const autoRefundTriggerLabel = (trigger) => ({
-    server: 'Server',
-    admin: 'By admin',
-    customer: 'By user',
+    server: t('Server'),
+    admin: t('By admin'),
+    customer: t('By user'),
 }[trigger] ?? '')
 
 const eligible = (t) => toNum(t.final_refund_amount) > 0
@@ -67,12 +68,12 @@ const pushing = ref(false);
 const pushMsg = ref('');
 function pushToSettlement() {
     const ids = paynowSelectedIds.value;
-    if (!ids.length) { pushMsg.value = 'Select at least one Approved PayNow ticket.'; return; }
-    if (!confirm('Push ' + ids.length + ' approved PayNow refund(s) into their Refund Settlement?')) return;
+    if (!ids.length) { pushMsg.value = t('Select at least one Approved PayNow ticket.'); return; }
+    if (!confirm(t('Push :count approved PayNow refund(s) into their Refund Settlement?', { count: ids.length }))) return;
     pushing.value = true; pushMsg.value = '';
     router.post('/refund-settlements/push', { ticket_ids: ids }, {
         preserveScroll: true,
-        onError: (errors) => { pushMsg.value = errors.settlement || Object.values(errors)[0] || 'Failed to push.'; },
+        onError: (errors) => { pushMsg.value = errors.settlement || Object.values(errors)[0] || t('Failed to push.'); },
         // Clear only the pushed (PayNow) tickets — any PayPal ones stay selected.
         onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
         onFinish: () => { pushing.value = false; },
@@ -83,12 +84,12 @@ function pushToSettlement() {
 const marking = ref(false);
 function markDonePaypal() {
     const ids = paypalDoneIds.value;
-    if (!ids.length) { pushMsg.value = 'Select at least one Approved PayPal ticket.'; return; }
-    if (!confirm('Mark ' + ids.length + ' PayPal refund(s) as done? This emails each customer their completion notice.')) return;
+    if (!ids.length) { pushMsg.value = t('Select at least one Approved PayPal ticket.'); return; }
+    if (!confirm(t('Mark :count PayPal refund(s) as done? This emails each customer their completion notice.', { count: ids.length }))) return;
     marking.value = true; pushMsg.value = '';
     router.post('/refunds/batch/complete', { ticket_ids: ids }, {
         preserveScroll: true,
-        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to mark done.'; },
+        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || t('Failed to mark done.'); },
         // Clear only the marked (PayPal) tickets — any PayNow ones stay selected.
         onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
         onFinish: () => { marking.value = false; },
@@ -101,12 +102,12 @@ function markDonePaypal() {
 const flagging = ref(false);
 function markInsufficientInfoPaypal() {
     const ids = paypalFlagIds.value;
-    if (!ids.length) { pushMsg.value = 'Select at least one Approved PayPal ticket.'; return; }
-    if (!confirm('Flag ' + ids.length + ' PayPal refund(s) as Insufficient Info (e.g. wrong PayPal email)? No email is sent — handle the payout by hand, then mark it done.')) return;
+    if (!ids.length) { pushMsg.value = t('Select at least one Approved PayPal ticket.'); return; }
+    if (!confirm(t('Flag :count PayPal refund(s) as Insufficient Info (e.g. wrong PayPal email)? No email is sent — handle the payout by hand, then mark it done.', { count: ids.length }))) return;
     flagging.value = true; pushMsg.value = '';
     router.post('/refunds/batch/insufficient-info', { ticket_ids: ids }, {
         preserveScroll: true,
-        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to flag.'; },
+        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || t('Failed to flag.'); },
         onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
         onFinish: () => { flagging.value = false; },
     });
@@ -141,7 +142,7 @@ const paypalFlagIds = computed(() => selectedTickets.value.filter((t) => t.refun
 // pseudo-status handled by the backend (it skips the status filter entirely), so it
 // shows every ticket including Completed — unlike an empty selection, which applies
 // the default view (all statuses except Completed).
-const statusOptions = ref([{ id: 'all', value: 'All' }, ...Object.entries(props.statuses).map(([id, value]) => ({ id, value }))]);
+const statusOptions = ref([{ id: 'all', value: t('All') }, ...Object.entries(props.statuses).map(([id, value]) => ({ id, value }))]);
 
 // Per-page selector — same options + component (MultiSelect) as Vend/CustomerIndex.
 const numberPerPageOptions = ref([
@@ -150,7 +151,7 @@ const numberPerPageOptions = ref([
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
 ]);
 const fallbackPerPage = numberPerPageOptions.value.find((o) => o.id === 50) || numberPerPageOptions.value[0];
 const defaultPerPage = numberPerPageOptions.value.find((o) => String(o.id) === String(props.filters.numberPerPage)) || fallbackPerPage;
@@ -163,9 +164,9 @@ const defaultPerPage = numberPerPageOptions.value.find((o) => String(o.id) === S
 // that recorded none). Matches through the ticket's matched transaction.
 const cardMethod = (props.paymentMethods?.data ?? []).find((pm) => Number(pm.code) === 1);
 const paymentMethodOptions = ref([
-    { id: 'all', name: 'All' },
+    { id: 'all', name: t('All') },
     ...(props.paymentMethods?.data ?? []).map((pm) => ({ id: pm.id, name: pm.name })),
-    ...(props.cardTerminalOptions?.data ?? []).map((t) => ({ id: `cc:${t}`, name: `${cardMethod?.name ?? 'Card Terminal'} (${t})` })),
+    ...(props.cardTerminalOptions?.data ?? []).map((terminal) => ({ id: `cc:${terminal}`, name: `${cardMethod?.name ?? t('Card Terminal')} (${terminal})` })),
 ]);
 
 const filters = ref({
@@ -300,16 +301,16 @@ const manualPayMethodLines = (label) => String(label ?? '').trim().split(' / ');
 
 // Three system-validation checks mirrored from the ticket detail page's
 // "System validation" badges (green = the favourable state, red = otherwise).
-const validationChecks = (t) => [
-    { ok: !!t.had_channel_error, label: t.had_channel_error
-        ? 'Channel error: a vend/channel error was detected on the matched transaction — this supports the refund.'
-        : 'Channel error: no vend/channel error detected on the matched transaction.' },
-    { ok: !t.is_manual, label: t.is_manual
-        ? 'Match type: manually claimed — the transaction was matched by hand, not auto-verified.'
-        : 'Match type: auto-matched — the system matched this request to a transaction automatically.' },
-    { ok: !t.already_refunded, label: t.already_refunded
-        ? 'Refund status: already refunded — do NOT pay again.'
-        : 'Refund status: not yet refunded — safe to process.' },
+const validationChecks = (ticket) => [
+    { ok: !!ticket.had_channel_error, label: ticket.had_channel_error
+        ? t('Channel error: a vend/channel error was detected on the matched transaction — this supports the refund.')
+        : t('Channel error: no vend/channel error detected on the matched transaction.') },
+    { ok: !ticket.is_manual, label: ticket.is_manual
+        ? t('Match type: manually claimed — the transaction was matched by hand, not auto-verified.')
+        : t('Match type: auto-matched — the system matched this request to a transaction automatically.') },
+    { ok: !ticket.already_refunded, label: ticket.already_refunded
+        ? t('Refund status: already refunded — do NOT pay again.')
+        : t('Refund status: not yet refunded — safe to process.') },
 ];
 
 // ---- column sorting (client-side, current page) ----
@@ -371,10 +372,10 @@ const sortedRows = computed(() => {
 </script>
 
 <template>
-<Head title="Refunds" />
+<Head :title="$t('Refunds')" />
 <BreezeAuthenticatedLayout>
     <template #header>
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Refund Requests</h2>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $t('Refund Requests') }}</h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -382,9 +383,9 @@ const sortedRows = computed(() => {
         <div class="flex flex-wrap gap-2 mb-3">
             <span class="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 cursor-pointer transition"
                 :class="[statusClass('all'), (filters.status.length === 1 && filters.status[0].id === 'all') ? 'ring-2 ring-offset-1 ring-teal-500' : 'opacity-80 hover:opacity-100']"
-                title="Show every refund request, including Completed"
+                :title="$t('Show every refund request, including Completed')"
                 @click="pickStatus('all')">
-                All <b>{{ counts.all || 0 }}</b>
+                {{ $t('All') }} <b>{{ counts.all || 0 }}</b>
             </span>
             <span v-for="(label, key) in statuses" :key="key"
                 class="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 cursor-pointer transition"
@@ -399,15 +400,15 @@ const sortedRows = computed(() => {
         <div class="bg-white rounded-md border my-3 px-3 py-3">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-start">
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Search</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Search') }}</label>
                     <div class="mt-1">
-                        <input v-model="filters.search" type="text" placeholder="Ref / machine / email"
+                        <input v-model="filters.search" type="text" :placeholder="$t('Ref / machine / email')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Status</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Status') }}</label>
                     <MultiSelect
                         v-model="filters.status"
                         :options="statusOptions"
@@ -415,40 +416,40 @@ const sortedRows = computed(() => {
                         valueProp="id"
                         label="value"
                         mode="tags"
-                        placeholder="All except Completed"
+                        :placeholder="$t('All except Completed')"
                         open-direction="bottom"
                         class="mt-1"
                     />
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Date From</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Date From') }}</label>
                     <div class="mt-1">
                         <input type="date" v-model="filters.date_from"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Date To</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Date To') }}</label>
                     <div class="mt-1">
                         <input type="date" v-model="filters.date_to"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Refund Method</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Refund Method') }}</label>
                     <div class="mt-1">
                         <select v-model="filters.refund_method"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
-                            <option value="">All methods</option>
+                            <option value="">{{ $t('All methods') }}</option>
                             <option value="paynow">PayNow</option>
                             <option value="paypal">PayPal</option>
-                            <option value="nayax_auto">Nayax (auto)</option>
-                            <option value="none">None</option>
+                            <option value="nayax_auto">{{ $t('Nayax (auto)') }}</option>
+                            <option value="none">{{ $t('None') }}</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Payment Method</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Payment Method') }}</label>
                     <MultiSelect
                         v-model="filters.paymentMethods"
                         :options="paymentMethodOptions"
@@ -456,107 +457,107 @@ const sortedRows = computed(() => {
                         valueProp="id"
                         label="name"
                         mode="tags"
-                        placeholder="All"
+                        :placeholder="$t('All')"
                         open-direction="bottom"
                         class="mt-1"
                     />
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Site Name</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Site Name') }}</label>
                     <div class="mt-1">
-                        <input v-model="filters.site_name" type="text" placeholder="Site name / ID"
+                        <input v-model="filters.site_name" type="text" :placeholder="$t('Site name / ID')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Channel</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Channel') }}</label>
                     <div class="mt-1">
-                        <input v-model="filters.channel" type="text" placeholder="Channel code"
+                        <input v-model="filters.channel" type="text" :placeholder="$t('Channel code')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Product</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Product') }}</label>
                     <div class="mt-1">
-                        <input v-model="filters.product" type="text" placeholder="Product name"
+                        <input v-model="filters.product" type="text" :placeholder="$t('Product name')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Paid Amount ($)</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Paid Amount ($)') }}</label>
                     <div class="mt-1 flex items-center space-x-1">
-                        <input v-model="filters.paid_min" type="number" step="0.01" min="0" placeholder="Min"
+                        <input v-model="filters.paid_min" type="number" step="0.01" min="0" :placeholder="$t('Min')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                         <span class="text-gray-400">–</span>
-                        <input v-model="filters.paid_max" type="number" step="0.01" min="0" placeholder="Max"
+                        <input v-model="filters.paid_max" type="number" step="0.01" min="0" :placeholder="$t('Max')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">New / Repeat</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('New / Repeat') }}</label>
                     <div class="mt-1">
                         <select v-model="filters.repeat"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
-                            <option value="">All</option>
-                            <option value="new">New</option>
-                            <option value="repeat">Repeat</option>
+                            <option value="">{{ $t('All') }}</option>
+                            <option value="new">{{ $t('New') }}</option>
+                            <option value="repeat">{{ $t('Repeat') }}</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Prod Exit Sensor</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Prod Exit Sensor') }}</label>
                     <div class="mt-1">
                         <select v-model="filters.product_drop_sensor"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
-                            <option value="">All</option>
-                            <option value="enabled">Enabled</option>
-                            <option value="disabled">Disabled</option>
-                            <option value="unknown">Unknown / none</option>
+                            <option value="">{{ $t('All') }}</option>
+                            <option value="enabled">{{ $t('Enabled') }}</option>
+                            <option value="disabled">{{ $t('Disabled') }}</option>
+                            <option value="unknown">{{ $t('Unknown / none') }}</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Error Code</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Error Code') }}</label>
                     <div class="mt-1">
-                        <input v-model="filters.error_code" type="text" placeholder="Error code"
+                        <input v-model="filters.error_code" type="text" :placeholder="$t('Error code')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Settlement Ref</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Settlement Ref') }}</label>
                     <div class="mt-1">
-                        <input v-model="filters.settlement_ref" type="text" placeholder="Settlement / batch ref"
+                        <input v-model="filters.settlement_ref" type="text" :placeholder="$t('Settlement / batch ref')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                             @keyup.enter="applyFilters" />
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Refund Done</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Refund Done') }}</label>
                     <div class="mt-1">
                         <select v-model="filters.refund_done"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
-                            <option value="">All</option>
-                            <option value="completed">Completed</option>
-                            <option value="in_progress">In progress</option>
-                            <option value="insufficient_info">Insufficient Info</option>
-                            <option value="not_started">Not started</option>
+                            <option value="">{{ $t('All') }}</option>
+                            <option value="completed">{{ $t('Completed') }}</option>
+                            <option value="in_progress">{{ $t('In progress') }}</option>
+                            <option value="insufficient_info">{{ $t('Insufficient Info') }}</option>
+                            <option value="not_started">{{ $t('Not started') }}</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">Is Sent to Settlement?</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ $t('Is Sent to Settlement?') }}</label>
                     <div class="mt-1">
                         <select v-model="filters.sent_settlement"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
-                            <option value="">All</option>
-                            <option value="yes">Yes — in a settlement</option>
-                            <option value="no">No — not yet sent</option>
+                            <option value="">{{ $t('All') }}</option>
+                            <option value="yes">{{ $t('Yes — in a settlement') }}</option>
+                            <option value="no">{{ $t('No — not yet sent') }}</option>
                         </select>
                     </div>
                 </div>
@@ -568,38 +569,38 @@ const sortedRows = computed(() => {
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                             @click="applyFilters">
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
-                            <span>Search</span>
+                            <span>{{ $t('Search') }}</span>
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                             @click="clearFilters">
-                            <span>Clear</span>
+                            <span>{{ $t('Clear') }}</span>
                         </Button>
                         <Button type="button" class="inline-flex space-x-1 items-center rounded-md bg-white px-8 py-3 md:px-5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                            @click="exportExcel" title="Export the current filtered list to Excel">
+                            @click="exportExcel" :title="$t('Export the current filtered list to Excel')">
                             <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true" />
-                            <span>Export Excel</span>
+                            <span>{{ $t('Export Excel') }}</span>
                         </Button>
                     </div>
                 </div>
                 <div class="flex flex-col space-y-1">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                        <span>Showing</span>
+                        <span>{{ $t('Showing') }}</span>
                         <span class="font-medium">{{ tickets.from ?? 0 }}</span>
-                        <span>to</span>
+                        <span>{{ $t('to') }}</span>
                         <span class="font-medium">{{ tickets.to ?? 0 }}</span>
-                        <span>of</span>
+                        <span>{{ $t('of') }}</span>
                         <span class="font-medium">{{ tickets.total }}</span>
-                        <span>results</span>
+                        <span>{{ $t('results') }}</span>
                     </p>
                     <div class="md:w-48">
-                        <label class="block text-xs font-medium text-gray-700">Per page</label>
+                        <label class="block text-xs font-medium text-gray-700">{{ $t('Per page') }}</label>
                         <MultiSelect
                             v-model="filters.numberPerPage"
                             :options="numberPerPageOptions"
                             trackBy="id"
                             valueProp="id"
                             label="value"
-                            placeholder="Select"
+                            :placeholder="$t('Select')"
                             open-direction="bottom"
                             class="mt-1"
                             @selected="applyFilters"
@@ -613,26 +614,26 @@ const sortedRows = computed(() => {
              mark done here (paid manually). Only shows once a ticket is ticked. -->
         <div v-if="selected.length" class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3">
             <div class="flex items-center gap-3">
-                <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-                <span v-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
-                <span v-else-if="allPaypal" class="text-xs text-gray-500">PayPal — paid manually. Mark them done here (emails the customer), or flag Insufficient Info if the payout details are wrong. Not settled via CIMB.</span>
-                <span v-else class="text-xs text-gray-500">Mixed selection — PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.</span>
+                <span class="text-sm font-semibold text-teal-800">{{ $t(':count selected', { count: selected.length }) }}</span>
+                <span v-if="allPaynow" class="text-xs text-gray-500">{{ $t('PayNow — push into the Refund Settlement (the CIMB file is exported from there).') }}</span>
+                <span v-else-if="allPaypal" class="text-xs text-gray-500">{{ $t('PayPal — paid manually. Mark them done here (emails the customer), or flag Insufficient Info if the payout details are wrong. Not settled via CIMB.') }}</span>
+                <span v-else class="text-xs text-gray-500">{{ $t('Mixed selection — PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.') }}</span>
             </div>
             <div class="flex items-center gap-3 mt-3">
                 <button v-if="paynowSelectedIds.length" @click="pushToSettlement" :disabled="pushing"
                     class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                    {{ pushing ? 'Pushing…' : '➡ Send to Settlement (' + paynowSelectedIds.length + ')' }}
+                    {{ pushing ? $t('Pushing…') : $t('➡ Send to Settlement (:count)', { count: paynowSelectedIds.length }) }}
                 </button>
                 <button v-if="paypalDoneIds.length" @click="markDonePaypal" :disabled="marking"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
-                    {{ marking ? 'Marking…' : '✓ Mark as Done — PayPal (' + paypalDoneIds.length + ')' }}
+                    {{ marking ? $t('Marking…') : $t('✓ Mark as Done — PayPal (:count)', { count: paypalDoneIds.length }) }}
                 </button>
                 <button v-if="paypalFlagIds.length" @click="markInsufficientInfoPaypal" :disabled="flagging"
                     class="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
-                    title="PayPal only: the payout details are wrong (e.g. a bad PayPal email). Parks the ticket as Insufficient Info — no email is sent.">
-                    {{ flagging ? 'Flagging…' : '⚠ Mark Insufficient Info — PayPal (' + paypalFlagIds.length + ')' }}
+                    :title="$t('PayPal only: the payout details are wrong (e.g. a bad PayPal email). Parks the ticket as Insufficient Info — no email is sent.')">
+                    {{ flagging ? $t('Flagging…') : $t('⚠ Mark Insufficient Info — PayPal (:count)', { count: paypalFlagIds.length }) }}
                 </button>
-                <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
+                <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">{{ $t('Open Refund Settlement →') }}</a>
             </div>
             <span v-if="pushMsg" class="block mt-2 text-xs text-red-600">{{ pushMsg }}</span>
         </div>
@@ -642,36 +643,36 @@ const sortedRows = computed(() => {
             <table class="compact-table min-w-full text-xs">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
-                        <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" class="cursor-pointer" title="Select all Approved tickets on this page" /></th>
-                        <th colspan="8" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
-                        <th colspan="6" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
-                        <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
+                        <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" class="cursor-pointer" :title="$t('Select all Approved tickets on this page')" /></th>
+                        <th colspan="8" class="text-center px-4 py-2 border-b border-gray-200">{{ $t('Refund Request') }}</th>
+                        <th colspan="6" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">{{ $t('System self-checking') }}</th>
+                        <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">{{ $t('Refund Progress') }}</th>
                     </tr>
                     <tr class="[&>th]:cursor-pointer [&>th]:select-none [&>th]:text-center [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
-                        <th @click="sortTable('reference')" class="hover:text-gray-700">Refund ID{{ arrow('reference') }}</th>
-                        <th @click="sortTable('vend_code')" class="hover:text-gray-700 max-w-[160px]">Machine ID<br>Site Name{{ arrow('vend_code') }}</th>
-                        <th @click="sortTable('name')" class="hover:text-gray-700">Name{{ arrow('name') }}</th>
+                        <th @click="sortTable('reference')" class="hover:text-gray-700">{{ $t('Refund ID') }}{{ arrow('reference') }}</th>
+                        <th @click="sortTable('vend_code')" class="hover:text-gray-700 max-w-[160px]">{{ $t('Machine ID') }}<br>{{ $t('Site Name') }}{{ arrow('vend_code') }}</th>
+                        <th @click="sortTable('name')" class="hover:text-gray-700">{{ $t('Name') }}{{ arrow('name') }}</th>
                         <th @click="sortTable('submitted')" class="hover:text-gray-700 whitespace-nowrap">
-                            <div>RF Submitted{{ arrow('submitted') }}</div>
-                            <div class="text-[11px] font-normal text-gray-400">Transaction</div>
-                            <div class="text-[11px] font-normal text-gray-400">Delta xD, xH, xxm</div>
+                            <div>{{ $t('RF Submitted') }}{{ arrow('submitted') }}</div>
+                            <div class="text-[11px] font-normal text-gray-400">{{ $t('Transaction') }}</div>
+                            <div class="text-[11px] font-normal text-gray-400">{{ $t('Delta xD, xH, xxm') }}</div>
                         </th>
                         <th class="border-l border-gray-200 max-w-[140px]">
-                            <div>Channel</div>
-                            <div class="text-[11px] font-normal text-gray-400">Product Name</div>
+                            <div>{{ $t('Channel') }}</div>
+                            <div class="text-[11px] font-normal text-gray-400">{{ $t('Product Name') }}</div>
                         </th>
-                        <th @click="sortTable('paid')" class="hover:text-gray-700">Paid Amt<br>Pay Method{{ arrow('paid') }}</th>
-                        <th @click="sortTable('amount')" class="border-l border-gray-200 hover:text-gray-700">Refund Amt{{ arrow('amount') }}</th>
-                        <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund<br>Method{{ arrow('refund_method') }}</th>
-                        <th @click="sortTable('machine_rf_24h')" class="border-l border-gray-200 hover:text-gray-700">Machine L24h<br># of RF{{ arrow('machine_rf_24h') }}</th>
-                        <th @click="sortTable('repeat_flag')" class="hover:text-gray-700">New /<br>Repeat?{{ arrow('repeat_flag') }}</th>
-                        <th @click="sortTable('is_multiple')" class="hover:text-gray-700">Multiple /<br>Single?{{ arrow('is_multiple') }}</th>
-                        <th @click="sortTable('auto_refunded')" class="hover:text-gray-700">Auto<br>Refunded?{{ arrow('auto_refunded') }}</th>
-                        <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">Prod Exit<br>Sensor{{ arrow('product_drop_sensor') }}</th>
-                        <th @click="sortTable('error_code')" class="hover:text-gray-700">Error<br>Code{{ arrow('error_code') }}</th>
-                        <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">Validation{{ arrow('status') }}</th>
-                        <th @click="sortTable('batch')" class="hover:text-gray-700">Send to<br>Settlement{{ arrow('batch') }}</th>
-                        <th @click="sortTable('done')" class="hover:text-gray-700">Refund<br>Done?{{ arrow('done') }}</th>
+                        <th @click="sortTable('paid')" class="hover:text-gray-700">{{ $t('Paid Amt') }}<br>{{ $t('Pay Method') }}{{ arrow('paid') }}</th>
+                        <th @click="sortTable('amount')" class="border-l border-gray-200 hover:text-gray-700">{{ $t('Refund Amt') }}{{ arrow('amount') }}</th>
+                        <th @click="sortTable('refund_method')" class="hover:text-gray-700">{{ $t('Refund') }}<br>{{ $t('Method') }}{{ arrow('refund_method') }}</th>
+                        <th @click="sortTable('machine_rf_24h')" class="border-l border-gray-200 hover:text-gray-700">{{ $t('Machine L24h') }}<br>{{ $t('# of RF') }}{{ arrow('machine_rf_24h') }}</th>
+                        <th @click="sortTable('repeat_flag')" class="hover:text-gray-700">{{ $t('New /') }}<br>{{ $t('Repeat?') }}{{ arrow('repeat_flag') }}</th>
+                        <th @click="sortTable('is_multiple')" class="hover:text-gray-700">{{ $t('Multiple /') }}<br>{{ $t('Single?') }}{{ arrow('is_multiple') }}</th>
+                        <th @click="sortTable('auto_refunded')" class="hover:text-gray-700">{{ $t('Auto') }}<br>{{ $t('Refunded?') }}{{ arrow('auto_refunded') }}</th>
+                        <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">{{ $t('Prod Exit') }}<br>{{ $t('Sensor') }}{{ arrow('product_drop_sensor') }}</th>
+                        <th @click="sortTable('error_code')" class="hover:text-gray-700">{{ $t('Error') }}<br>{{ $t('Code') }}{{ arrow('error_code') }}</th>
+                        <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">{{ $t('Validation') }}{{ arrow('status') }}</th>
+                        <th @click="sortTable('batch')" class="hover:text-gray-700">{{ $t('Send to') }}<br>{{ $t('Settlement') }}{{ arrow('batch') }}</th>
+                        <th @click="sortTable('done')" class="hover:text-gray-700">{{ $t('Refund') }}<br>{{ $t('Done?') }}{{ arrow('done') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -679,20 +680,20 @@ const sortedRows = computed(() => {
                         <td class="px-3 py-3">
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
                                 :class="eligible(t) ? 'cursor-pointer' : 'cursor-not-allowed opacity-40 grayscale'"
-                                :title="!eligible(t) ? (t.status === 'approved' && !(toNum(t.final_refund_amount) > 0) ? 'Refund amount is $0.00 \u2014 set a Final Refund Amount greater than $0 before it can be sent to settlement' : 'Only Approved tickets (or a PayPal refund awaiting corrected info) with a refund amount can be actioned in a batch') : ''" />
+                                :title="!eligible(t) ? (t.status === 'approved' && !(toNum(t.final_refund_amount) > 0) ? $t('Refund amount is $0.00 — set a Final Refund Amount greater than $0 before it can be sent to settlement') : $t('Only Approved tickets (or a PayPal refund awaiting corrected info) with a refund amount can be actioned in a batch')) : ''" />
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <a :href="'/refunds/' + t.id" target="_blank"
                                 class="font-semibold text-teal-700 hover:underline" :class="t.is_dropped ? 'line-through text-gray-400' : ''"
-                                :title="t.is_dropped ? 'Dropped / closed (e.g. double submission)' : 'Open refund ticket in a new tab'">{{ t.reference }}</a>
-                            <span v-if="t.is_dropped" class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">dropped</span>
+                                :title="t.is_dropped ? $t('Dropped / closed (e.g. double submission)') : $t('Open refund ticket in a new tab')">{{ t.reference }}</a>
+                            <span v-if="t.is_dropped" class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">{{ $t('dropped') }}</span>
                         </td>
                         <td class="px-4 py-3 max-w-[160px]">
                             <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" @click.stop
-                                class="font-medium text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
+                                class="font-medium text-teal-700 hover:underline" :title="$t('Open in Operations Dashboard')">{{ t.vend_code }}</a>
                             <span v-else class="font-medium text-gray-800">—</span>
                             <span v-if="t.vend_prefix_name" class="ml-1 text-xs text-gray-500"
-                                v-tooltip="'VendPrefix (mapping) name of the machine.'">({{ t.vend_prefix_name }})</span>
+                                v-tooltip="$t('VendPrefix (mapping) name of the machine.')">({{ t.vend_prefix_name }})</span>
                             <br>
                             <span class="text-xs text-gray-600 break-words">{{ t.site_name || '—' }}</span>
                         </td>
@@ -706,12 +707,12 @@ const sortedRows = computed(() => {
                             <div class="text-gray-700">{{ t.submitted_at }}</div>
                             <div class="text-xs mt-1">
                                 <a v-if="t.matched && t.txn_link" :href="t.txn_link" target="_blank" @click.stop
-                                    class="text-teal-600 hover:text-teal-800 hover:underline">Txn: {{ t.txn_datetime || '—' }}</a>
-                                <span v-else-if="t.matched" class="text-gray-600">Txn: {{ t.txn_datetime || '—' }}</span>
+                                    class="text-teal-600 hover:text-teal-800 hover:underline">{{ $t('Txn: :time', { time: t.txn_datetime || '—' }) }}</a>
+                                <span v-else-if="t.matched" class="text-gray-600">{{ $t('Txn: :time', { time: t.txn_datetime || '—' }) }}</span>
                                 <a v-else-if="t.txn_link" :href="t.txn_link" target="_blank" @click.stop
                                     class="text-amber-600 italic hover:text-amber-800 hover:underline"
-                                    title="Open Sales Transactions for this machine on the customer's chosen day">pending match</a>
-                                <span v-else class="text-amber-600 italic">pending match</span>
+                                    :title="$t('Open Sales Transactions for this machine on the customer\'s chosen day')">{{ $t('pending match') }}</a>
+                                <span v-else class="text-amber-600 italic">{{ $t('pending match') }}</span>
                             </div>
                             <div v-if="t.matched && t.txn_delta" class="text-xs text-gray-500 mt-0.5">Δ {{ t.txn_delta }}</div>
                         </td>
@@ -727,7 +728,7 @@ const sortedRows = computed(() => {
                                 </div>
                             </div>
                             <div v-else-if="t.manual_affected_items && t.manual_affected_items.length" class="space-y-1 max-w-[140px] mx-auto italic text-amber-700"
-                                v-tooltip="'Keyed in by the customer on the manual form — not matched to a transaction yet'">
+                                v-tooltip="$t('Keyed in by the customer on the manual form — not matched to a transaction yet')">
                                 <div v-for="(it, i) in t.manual_affected_items" :key="'m' + i" class="text-xs leading-tight">
                                     <span class="font-medium">{{ it.channel || '—' }}</span>
                                     <span class="block break-words mt-1" :title="it.product_name || ''">{{ it.product_name || '—' }}</span>
@@ -739,7 +740,7 @@ const sortedRows = computed(() => {
                             <div class="text-gray-700">
                                 <template v-if="t.matched && t.paid_amount">${{ t.paid_amount }}</template>
                                 <span v-else-if="t.entered_amount" class="italic text-amber-700"
-                                    v-tooltip="'Amount keyed in by the customer on the manual form'">${{ t.entered_amount }}</span>
+                                    v-tooltip="$t('Amount keyed in by the customer on the manual form')">${{ t.entered_amount }}</span>
                                 <template v-else>—</template>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">
@@ -748,7 +749,7 @@ const sortedRows = computed(() => {
                                     <span v-if="payMethodParts(t.pay_method || t.payment_channel || '—').paren" class="block text-gray-500">{{ payMethodParts(t.pay_method || t.payment_channel || '—').paren }}</span>
                                 </template>
                                 <span v-else-if="t.manual_pay_method" class="italic text-amber-700"
-                                    v-tooltip="'Payment method keyed in by the customer on the manual form'">
+                                    v-tooltip="$t('Payment method keyed in by the customer on the manual form')">
                                     <span v-for="(part, i) in manualPayMethodLines(t.manual_pay_method)" :key="i" class="block">{{ part }}{{ i < manualPayMethodLines(t.manual_pay_method).length - 1 ? ' /' : '' }}</span>
                                 </span>
                                 <template v-else>—</template>
@@ -758,14 +759,14 @@ const sortedRows = computed(() => {
                                      sales are only partly in the report. -->
                                 <span v-if="t.matched && (t.card_terminal_company || t.pay_provider)" class="block text-gray-500"
                                     v-tooltip="t.card_terminal_company && t.pay_provider && t.card_terminal_company !== t.pay_provider
-                                        ? 'Card terminal supplier: ' + t.card_terminal_company + '. The machine reports only \'' + t.pay_provider + '\' for the whole NETS family.'
+                                        ? $t('Card terminal supplier: :company. The machine reports only \':provider\' for the whole NETS family.', { company: t.card_terminal_company, provider: t.pay_provider })
                                         : ''">({{ t.card_terminal_company || t.pay_provider }})</span>
                                 <!-- Own line, under the provider: the terminal that took this money
                                      voids a failed single vend by itself, so the report may already
                                      have made the customer whole. Flagged terminals only. -->
                                 <div v-if="t.matched && t.card_terminal_will_auto_refund === true" class="mt-1">
                                     <span class="inline-block whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800"
-                                        v-tooltip="'The supplier\'s list says terminal ' + t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') + ' voids a failed single-item sale before batch upload. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column. Check the NETS report before paying.'">Auto refund</span>
+                                        v-tooltip="$t('The supplier\'s list says terminal :terminal voids a failed single-item sale before batch upload. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is the Auto Refunded column. Check the NETS report before paying.', { terminal: t.card_terminal_unit_id + (t.card_terminal_batch ? ' · ' + t.card_terminal_batch : '') })">{{ $t('Auto refund') }}</span>
                                 </div>
                             </div>
                         </td>
@@ -781,9 +782,9 @@ const sortedRows = computed(() => {
                             <template v-if="t.matched || t.final_refund_overridden">
                                 <div>${{ t.final_refund_overridden ? t.final_refund_amount : t.amount }}</div>
                                 <div v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 mt-0.5"
-                                    v-tooltip="(t.matched ? 'Final refund amount overridden from the original claim of $' + t.amount + '.' : 'Final refund amount set by an admin (no matched transaction to derive a claim from).') + (t.final_refund_remarks ? ' Remark: ' + t.final_refund_remarks : '')">
-                                    <span v-if="t.matched"><span class="line-through text-gray-400">${{ t.amount }}</span> was</span>
-                                    <span v-else>admin-set</span>
+                                    v-tooltip="(t.matched ? $t('Final refund amount overridden from the original claim of $:amount.', { amount: t.amount }) : $t('Final refund amount set by an admin (no matched transaction to derive a claim from).')) + (t.final_refund_remarks ? ' ' + $t('Remark: :remark', { remark: t.final_refund_remarks }) : '')">
+                                    <span v-if="t.matched"><span class="line-through text-gray-400">${{ t.amount }}</span> {{ $t('was') }}</span>
+                                    <span v-else>{{ $t('admin-set') }}</span>
                                     <span v-if="t.final_refund_remarks" class="block text-gray-500 italic break-words">“{{ t.final_refund_remarks }}”</span>
                                 </div>
                             </template>
@@ -791,7 +792,7 @@ const sortedRows = computed(() => {
                                  claim (italic amber). It becomes payable only after matching or an
                                  admin-set Final Refund Amount — settlement still reads those, not this. -->
                             <span v-else-if="t.entered_amount" class="italic text-amber-700 font-normal"
-                                v-tooltip="'Claimed by the customer on the manual form — becomes payable only after matching or an admin-set Final Refund Amount'">${{ t.entered_amount }}</span>
+                                v-tooltip="$t('Claimed by the customer on the manual form — becomes payable only after matching or an admin-set Final Refund Amount')">${{ t.entered_amount }}</span>
                             <template v-else>—</template>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -800,8 +801,8 @@ const sortedRows = computed(() => {
                                 class="text-xs mt-1 cursor-help"
                                 :class="t.paynow_duplicate ? 'text-red-600 font-semibold' : 'text-gray-600'"
                                 v-tooltip="t.paynow_duplicate
-                                    ? 'Same PayNow number used on another refund within 60 days — possible duplicate/abuse. Verify before paying.'
-                                    : 'PayNow number the refund will be paid to.'">
+                                    ? $t('Same PayNow number used on another refund within 60 days — possible duplicate/abuse. Verify before paying.')
+                                    : $t('PayNow number the refund will be paid to.')">
                                 {{ t.payout_destination }}
                             </div>
                         </td>
@@ -810,7 +811,7 @@ const sortedRows = computed(() => {
                             <span v-if="t.machine_rf_24h != null"
                                 class="inline-flex items-center justify-center min-w-6 px-2 py-0.5 rounded-full text-xs font-semibold"
                                 :class="t.machine_rf_24h > 3 ? 'bg-red-100 text-red-700' : (t.machine_rf_24h > 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')"
-                                v-tooltip="t.machine_rf_24h + ' refund request(s) on this machine in the 24h up to this submission.'">
+                                v-tooltip="$t(':count refund request(s) on this machine in the 24h up to this submission.', { count: t.machine_rf_24h })">
                                 {{ t.machine_rf_24h }}
                             </span>
                             <span v-else class="text-gray-300">—</span>
@@ -819,21 +820,21 @@ const sortedRows = computed(() => {
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
                                 :class="t.repeat_flag ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
                                 v-tooltip="t.repeat_flag
-                                    ? ('Repeat: this order + channel was already claimed under ' + (t.repeat_ref || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
-                                    : 'New: this order + channel has not been claimed before.'">
-                                {{ t.repeat_flag ? 'Repeat' : 'New' }}
+                                    ? $t('Repeat: this order + channel was already claimed under :ref. Re-validate before payout to avoid a double refund.', { ref: t.repeat_ref || $t('an earlier request') })
+                                    : $t('New: this order + channel has not been claimed before.')">
+                                {{ t.repeat_flag ? $t('Repeat') : $t('New') }}
                             </span>
                             <span v-if="t.repeat_flag && t.repeat_ref"
                                 class="block text-[10px] font-semibold text-red-500 mt-0.5"
-                                v-tooltip="'Duplicates ' + t.repeat_ref">↺ {{ t.repeat_ref }}</span>
+                                v-tooltip="$t('Duplicates :ref', { ref: t.repeat_ref })">↺ {{ t.repeat_ref }}</span>
                         </td>
                         <!-- Multiple / Single purchase, read from the matched transaction. -->
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.is_multiple === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"
-                                v-tooltip="'Multiple purchase: more than one item was bought in this single transaction — check which item(s) the claim covers.'">Multiple</span>
+                                v-tooltip="$t('Multiple purchase: more than one item was bought in this single transaction — check which item(s) the claim covers.')">{{ $t('Multiple') }}</span>
                             <span v-else-if="t.is_multiple === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
-                                v-tooltip="'Single purchase: one item was bought in this transaction.'">Single</span>
-                            <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so multiple/single is unknown.'">—</span>
+                                v-tooltip="$t('Single purchase: one item was bought in this transaction.')">{{ $t('Single') }}</span>
+                            <span v-else class="text-gray-300" v-tooltip="$t('No matched transaction, so multiple/single is unknown.')">—</span>
                         </td>
                         <!-- Auto Refunded? — same rule, and the same two badges, as the
                              Sales Transactions page: the tick is the claim that money came
@@ -842,10 +843,10 @@ const sortedRows = computed(() => {
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <div class="flex flex-col items-center space-y-1">
                                 <span v-if="t.auto_refunded === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
-                                    v-tooltip="(t.auto_refund_source_label || 'The machine/gateway already refunded this transaction, or this is an auto-resolved / Nayax-auto ticket.') + ' Do NOT pay again.'">Yes</span>
+                                    v-tooltip="(t.auto_refund_source_label || $t('The machine/gateway already refunded this transaction, or this is an auto-resolved / Nayax-auto ticket.')) + ' ' + $t('Do NOT pay again.')">{{ $t('Yes') }}</span>
                                 <span v-else-if="t.auto_refunded === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
-                                    v-tooltip="'Not auto refunded — no automatic refund recorded on the matched transaction.'">No</span>
-                                <span v-else class="text-[11px] text-gray-400" v-tooltip="'No matched transaction, so an auto refund cannot be checked.'">No txn</span>
+                                    v-tooltip="$t('Not auto refunded — no automatic refund recorded on the matched transaction.')">{{ $t('No') }}</span>
+                                <span v-else class="text-[11px] text-gray-400" v-tooltip="$t('No matched transaction, so an auto refund cannot be checked.')">{{ $t('No txn') }}</span>
                                 <span v-if="autoRefundBadges[t.auto_refund_source]"
                                     class="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                     :class="autoRefundBadges[t.auto_refund_source].class"
@@ -866,19 +867,19 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
-                                v-tooltip="'Product Drop Sensor was Enabled on the machine at the time of the transaction.'">Enabled</span>
+                                v-tooltip="$t('Product Drop Sensor was Enabled on the machine at the time of the transaction.')">{{ $t('Enabled') }}</span>
                             <span v-else-if="t.product_drop_sensor === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
-                                v-tooltip="'Product Drop Sensor was Disabled on the machine at the time of the transaction.'">Disabled</span>
-                            <span v-else class="text-gray-300" v-tooltip="'No Product Drop Sensor reading recorded for this transaction.'">—</span>
+                                v-tooltip="$t('Product Drop Sensor was Disabled on the machine at the time of the transaction.')">{{ $t('Disabled') }}</span>
+                            <span v-else class="text-gray-300" v-tooltip="$t('No Product Drop Sensor reading recorded for this transaction.')">—</span>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.error_code" class="text-xs font-semibold text-amber-700"
-                                v-tooltip="t.error_desc || ('Error code ' + t.error_code)">{{ t.error_code }}</span>
+                                v-tooltip="t.error_desc || $t('Error code :code', { code: t.error_code })">{{ t.error_code }}</span>
                             <span v-else class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
-                                v-tooltip="'No error code recorded for this transaction.'">No</span>
+                                v-tooltip="$t('No error code recorded for this transaction.')">{{ $t('No') }}</span>
                         </td>
                         <td class="px-4 py-3 border-l border-gray-100 text-center">
-                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : (['scheduled', 'insufficient_info'].includes(t.status) ? 'approved' : t.status))">{{ t.is_dropped ? 'Dropped' : (statuses[['scheduled', 'insufficient_info'].includes(t.status) ? 'approved' : t.status] || t.status) }}</span>
+                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : (['scheduled', 'insufficient_info'].includes(t.status) ? 'approved' : t.status))">{{ t.is_dropped ? $t('Dropped') : (statuses[['scheduled', 'insufficient_info'].includes(t.status) ? 'approved' : t.status] || t.status) }}</span>
                             <span class="flex items-center justify-center gap-0.5 mt-1.5">
                                 <component :is="c.ok ? CheckCircleIcon : XCircleIcon" v-for="(c, i) in validationChecks(t)" :key="i"
                                     class="h-5 w-5" :class="c.ok ? 'text-green-600' : 'text-red-500'" v-tooltip="c.label" />
@@ -891,7 +892,7 @@ const sortedRows = computed(() => {
                         <td class="px-4 py-3 text-center" @click.stop>
                             <a v-if="t.batch && t.batch.is_settlement" :href="'/refund-settlements/' + t.batch.id" target="_blank"
                                 class="text-teal-700 text-xs font-semibold hover:underline leading-tight inline-block"
-                                title="Open the Refund Settlement">
+                                :title="$t('Open the Refund Settlement')">
                                 <span class="block whitespace-nowrap">{{ settlementRefTop(t.batch.reference) }}</span>
                                 <span class="block whitespace-nowrap">{{ settlementRefBottom(t.batch.reference) }}</span>
                             </a>
@@ -906,7 +907,7 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-center" @click.stop>
                             <template v-if="t.status === 'completed'">
-                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed</span>
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">{{ $t('✓ Completed') }}</span>
                                 <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
                                     <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
                                     <span class="block">{{ t.done_actor.at }}</span>
@@ -918,7 +919,7 @@ const sortedRows = computed(() => {
                                  batch-marks it done here. Red so it stands out for follow-up. -->
                             <template v-else-if="t.status === 'insufficient_info'">
                                 <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-red-600"
-                                    title="The bank could not pay this refund (bad / missing PayNow info). Handle the payout by hand, then tick the row and mark it done.">Insufficient Info</span>
+                                    :title="$t('The bank could not pay this refund (bad / missing PayNow info). Handle the payout by hand, then tick the row and mark it done.')">{{ $t('Insufficient Info') }}</span>
                                 <div v-if="t.insufficient_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
                                     <span class="block font-medium text-gray-600">{{ t.insufficient_actor.name }}</span>
                                     <span class="block">{{ t.insufficient_actor.at }}</span>
@@ -927,18 +928,18 @@ const sortedRows = computed(() => {
                             <!-- Per-row "Mark done" removed: completion is now batch-only via the
                                  toolbar action. "In progress" only once the refund has actually been
                                  sent to a settlement/batch (t.batch); approved-but-not-yet-sent shows "—". -->
-                            <span v-else-if="t.batch && ['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
+                            <span v-else-if="t.batch && ['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">{{ $t('In progress') }}</span>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="18" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="18" class="px-4 py-8 text-center text-gray-400">{{ $t('No refund tickets found.') }}</td></tr>
                 </tbody>
             </table>
         </div>
 
         <!-- pagination -->
         <div class="flex items-center justify-between mt-3 text-sm text-gray-600">
-            <span>Showing {{ tickets.from || 0 }}–{{ tickets.to || 0 }} of {{ tickets.total }}</span>
+            <span>{{ $t('Showing :from–:to of :total', { from: tickets.from || 0, to: tickets.to || 0, total: tickets.total }) }}</span>
             <div class="flex gap-1">
                 <template v-for="(l, i) in tickets.links" :key="i">
                     <Link v-if="l.url" :href="l.url" v-html="l.label" preserve-scroll

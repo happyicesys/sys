@@ -1,21 +1,21 @@
 <template>
   <div>
     <div class="flex items-center justify-between">
-      <label class="block text-sm font-medium text-gray-700">{{ label }}</label>
+      <label class="block text-sm font-medium text-gray-700">{{ $t(label) }}</label>
       <div class="flex items-center space-x-1 text-xs font-medium">
         <button
           type="button"
           :class="scope === 'all' ? activeClass : idleClass"
           @click="setScope('all')"
         >
-          All
+          {{ $t('All') }}
         </button>
         <button
           type="button"
           :class="scope === 'active' ? activeClass : idleClass"
           @click="setScope('active')"
         >
-          Active
+          {{ $t('Active') }}
         </button>
       </div>
     </div>
@@ -25,7 +25,7 @@
       trackBy="id"
       valueProp="id"
       label="full_name"
-      :placeholder="placeholder"
+      :placeholder="$t(placeholder)"
       open-direction="bottom"
       class="mt-1"
       mode="tags"
@@ -44,6 +44,7 @@
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { t } from '@/i18n';
 
 const emit = defineEmits(['update:modelValue', 'selected', 'select']);
 
@@ -68,7 +69,7 @@ const props = defineProps({
   // Pass [] to drop it.
   prepend: {
     type: Array,
-    default: () => ([{ id: 'all', full_name: 'All' }]),
+    default: () => ([{ id: 'all', full_name: t('All') }]),
   },
 });
 

@@ -50,14 +50,14 @@ class ZijiaAiTrainingController extends Controller
             (bool) ($data['start_new'] ?? false),
         );
 
-        return back()->with('success', 'AI training draft saved.');
+        return back()->with('success', __('AI training draft saved.'));
     }
 
     public function submit(Request $request, int $productId): RedirectResponse
     {
         $product = Product::findOrFail($productId);
         $application = $this->applications->current($product);
-        abort_if($application === null, 422, 'Save a draft first.');
+        abort_if($application === null, 422, __('Save a draft first.'));
 
         $application = $this->applications->submit($application, $request->user());
 

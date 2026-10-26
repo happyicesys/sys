@@ -10,10 +10,10 @@
                   #
                 </th>
                 <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id">
-                  Image
+                  {{ $t('Image') }}
                 </th>
                 <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id">
-                  Product
+                  {{ $t('Product') }}
                 </th>
                 <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                   <div class="flex justify-center">
@@ -23,7 +23,7 @@
                     <span v-if="profile && profile.base_currency">
                       ({{ profile.base_currency.currency_symbol }})
                     </span>
-                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Actual Price on Vending Machine')"></ExclamationCircleIcon>
                   </div>
                 </th>
                 <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -34,11 +34,11 @@
                     <span v-if="profile && profile.base_currency">
                       ({{ profile.base_currency.currency_symbol }})
                     </span>
-                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
+                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Discounted Price on 2nd Purchase')"></ExclamationCircleIcon>
                   </div>
                 </th>
                 <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                  Ref Price {{ form.selling_price_type ? form.selling_price_type.id : '' }}
+                  {{ $t('Ref Price') }} {{ form.selling_price_type ? form.selling_price_type.id : '' }}
                 </th>
               </tr>
             </thead>
@@ -72,7 +72,7 @@
               </tr>
               <tr v-if="!vendChannels || !vendChannels.length">
                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900" colspan="6">
-                  No Results Found
+                  {{ $t('No Results Found') }}
                 </td>
               </tr>
             </tbody>

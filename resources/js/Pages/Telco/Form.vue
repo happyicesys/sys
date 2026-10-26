@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.telco">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.telco">
             {{ props.telco.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New SimCard Package
+            {{ $t('Create New SimCard Package') }}
           </span>
         </div>
       </template>
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :error="form.errors.desc">
-                Desc
+                {{ $t('Desc') }}
               </FormTextarea>
             </div>
             <!-- Colour: tints this package's badge on the Operation
@@ -33,7 +33,7 @@
                  status on that page. See constants/telcoColors.js. -->
             <div class="sm:col-span-6">
               <label class="block text-sm font-medium text-gray-700">
-                Color (Operation Dashboard badge)
+                {{ $t('Color (Operation Dashboard badge)') }}
               </label>
               <div class="mt-1 flex flex-wrap gap-2">
                 <button
@@ -43,7 +43,7 @@
                   :style="telcoBadgeStyle(null)"
                   @click="form.color = null"
                 >
-                  <span>Default</span>
+                  <span>{{ $t('Default') }}</span>
                 </button>
                 <button
                   v-for="option in colorChoices"
@@ -65,7 +65,7 @@
                  package's Status column. Blank = no live status. -->
             <div class="sm:col-span-6">
               <label class="block text-sm font-medium text-gray-700">
-                Usage API
+                {{ $t('Usage API') }}
               </label>
               <MultiSelect
                 v-model="form.usage_provider"
@@ -73,7 +73,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="None (no live status)"
+                :placeholder="$t('None (no live status)')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -88,10 +88,10 @@
                 :error="form.errors.usage_endpoint"
                 :placeholderStr="selectedProviderEndpoint"
               >
-                API query link
+                {{ $t('API query link') }}
               </FormInput>
               <p class="mt-1 text-xs text-gray-500">
-                Leave blank to use the provider default ({{ selectedProviderEndpoint }}).
+                {{ $t('Leave blank to use the provider default (:endpoint).', { endpoint: selectedProviderEndpoint }) }}
               </p>
             </div>
           </div>
@@ -104,13 +104,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -132,6 +132,7 @@ import { TELCO_COLORS, telcoBadgeStyle } from '@/constants/telcoColors';
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   telco: Object,
@@ -188,11 +189,11 @@ function submit() {
     form.value
     .post('/telcos/create', {
       onSuccess: () => {
-        toast.success("SimCard Package created successfully", { timeout: 3000 })
+        toast.success(t('SimCard Package created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create SimCard Package", { timeout: 3000 })
+        toast.error(t('Failed to create SimCard Package'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -203,11 +204,11 @@ function submit() {
     form.value
       .post('/telcos/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("SimCard Package updated successfully", { timeout: 3000 })
+        toast.success(t('SimCard Package updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update SimCard Package", { timeout: 3000 })
+        toast.error(t('Failed to update SimCard Package'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

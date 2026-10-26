@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="product">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="product">
             {{ product.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Product
+            {{ $t('Create New Product') }}
           </span>
         </div>
       </template>
@@ -30,7 +30,7 @@
                   {{ form.progress.percentage }}%
                 </progress>
                 <span class="text-sm p-2 text-red-600">
-                  * Image file, max 500kb
+                  {{ $t('* Image file, max 500kb') }}
                 </span>
               </div>
               <div class="text-sm text-red-600" v-if="form.errors.thumbnail">
@@ -39,32 +39,32 @@
             </div>
             <div class="sm:col-span-2">
               <FormInput v-model="form.code" :error="form.errors.code" :disabled="!permissions.includes('update products')" required="true">
-                Code
+                {{ $t('Code') }}
               </FormInput>
             </div>
             <div class="sm:col-span-4">
               <FormInput v-model="form.name" :error="form.errors.name" :disabled="!permissions.includes('update products')" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :disabled="!permissions.includes('update products')" :error="form.errors.desc">
-                Desc
+                {{ $t('Desc') }}
               </FormTextarea>
             </div>
             <div class="sm:col-span-2">
               <FormInput v-model="form.measurement_count" :error="form.errors.measurement_count" :disabled="!permissions.includes('update products')">
-                Lowest Unit
+                {{ $t('Lowest Unit') }}
               </FormInput>
             </div>
             <div class="sm:col-span-2">
               <FormInput v-model="form.measurement_value" :error="form.errors.measurement_value" :disabled="!permissions.includes('update products')">
-                Volume/ Weight
+                {{ $t('Volume/ Weight') }}
               </FormInput>
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                UOM
+                {{ $t('UOM') }}
               </label>
               <MultiSelect
                 v-model="form.measurement_unit"
@@ -72,7 +72,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -86,7 +86,7 @@
                  there is no choice to offer (e.g. LSH). -->
             <div class="sm:col-span-2" v-if="isCmsUrlSet">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Qty in Warehouse from
+                {{ $t('Qty in Warehouse from') }}
               </label>
               <MultiSelect
                 v-model="form.warehouse_qty_source"
@@ -94,13 +94,13 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
               </MultiSelect>
               <p class="mt-1 text-xs text-gray-500">
-                CMS API (pulled) = the default for every product. Manual (self-system ledger) = you key incoming stock; picks deduct it<span v-if="isCityboxEnabled"> (CityBox SKUs)</span>.
+                {{ $t('CMS API (pulled) = the default for every product. Manual (self-system ledger) = you key incoming stock; picks deduct it') }}<span v-if="isCityboxEnabled"> {{ $t('(CityBox SKUs)') }}</span>.
               </p>
               <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
                 {{ form.errors.warehouse_qty_source }}
@@ -108,7 +108,7 @@
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Operator
+                {{ $t('Operator') }}
                 <span class="text-red-500">
                    *
                 </span>
@@ -119,7 +119,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -130,7 +130,7 @@
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Category
+                {{ $t('Category') }}
               </label>
               <MultiSelect
                 v-model="form.category_group_id"
@@ -138,7 +138,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -149,7 +149,7 @@
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                SubCategory
+                {{ $t('SubCategory') }}
               </label>
               <MultiSelect
                 v-model="form.category_id"
@@ -157,7 +157,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -171,7 +171,7 @@
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 <div>
                   <span>
-                    Campaign Labels
+                    {{ $t('Campaign Labels') }}
                   </span>
                   <!-- <span class="text-xs text-gray-500">
                     (Select one only)
@@ -185,7 +185,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -199,23 +199,23 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Unit Cost') }}</span>
                 </div>
               </div>
             </div>
             <div class="sm:col-span-3" v-if="form.id">
               <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
-                Unit Cost
+                {{ $t('Unit Cost') }}
                 <span class="text-xs text-gray-500">
-                  (before GST)
+                  {{ $t('(before GST)') }}
                 </span>
               </FormInput>
             </div>
             <div class="sm:col-span-3" v-if="form.id">
               <DatePicker v-model="form.date_from">
-                Start Date
+                {{ $t('Start Date') }}
                 <span class="text-[9px]">
-                  (Leave blank to start NOW)
+                  {{ $t('(Leave blank to start NOW)') }}
                 </span>
               </DatePicker>
             </div>
@@ -232,7 +232,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -247,13 +247,13 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Unit Cost <br>
+                            {{ $t('Unit Cost') }} <br>
                             <span class="text-xs text-gray-500">
-                              (before GST)
+                              {{ $t('(before GST)') }}
                             </span>
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Start Date
+                            {{ $t('Start Date') }}
                           </th>
                           <th></th>
                         </tr>
@@ -280,7 +280,7 @@
                         </tr>
                         <tr v-if="!unitCosts.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -295,18 +295,18 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Selling Price(s)</span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Selling Price(s)') }}</span>
                 </div>
               </div>
             </div>
             <div class="sm:col-span-3" v-if="form.id">
-              <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
-                Amount
+              <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" :placeholder="$t('Number')" required="true">
+                {{ $t('Amount') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Ref Price Type
+                {{ $t('Ref Price Type') }}
               </label>
               <MultiSelect
                 v-model="form.selling_price_type"
@@ -314,7 +314,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -333,7 +333,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -348,10 +348,10 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Amount
+                            {{ $t('Amount') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Ref Price Type
+                            {{ $t('Ref Price Type') }}
                           </th>
                           <th></th>
                         </tr>
@@ -378,7 +378,7 @@
                         </tr>
                         <tr v-if="!sellingPrices.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -393,13 +393,13 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Translated Name</span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Translated Name') }}</span>
                 </div>
               </div>
             </div>
             <div class="sm:col-span-3" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Language
+                {{ $t('Language') }}
               </label>
               <MultiSelect
                 v-model="form.language"
@@ -407,7 +407,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -415,7 +415,7 @@
             </div>
             <div class="sm:col-span-3" v-if="form.id">
               <FormInput v-model="form.translated_name" :error="form.errors.translated_name">
-                Translated Name
+                {{ $t('Translated Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6 flex justify-start" v-if="form.id">
@@ -431,7 +431,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -446,10 +446,10 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Language
+                            {{ $t('Language') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Translated Name
+                            {{ $t('Translated Name') }}
                           </th>
                           <th></th>
                         </tr>
@@ -476,7 +476,7 @@
                         </tr>
                         <tr v-if="!languages.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -495,7 +495,7 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="button" v-if="form.id && permissions.includes('update products')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
@@ -503,13 +503,13 @@
                   <span class="flex space-x-1 items-center" v-if="form.is_active">
                     <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
                     <span>
-                      Deactivate
+                      {{ $t('Deactivate') }}
                     </span>
                   </span>
                   <span class="flex space-x-1 items-center" v-else>
                     <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
                     <span>
-                      Activate
+                      {{ $t('Activate') }}
                     </span>
                   </span>
                 </div>
@@ -517,7 +517,7 @@
               <Button type="submit" v-if="permissions.includes('update products')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -549,6 +549,7 @@ import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import moment from 'moment';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   categories: Object,
@@ -571,8 +572,8 @@ const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
 const measurementUnitOptions = ref([]);
 const warehouseQtySourceOptions = ref([
-  { id: 'cms', name: 'CMS API (pulled)' },
-  { id: 'ledger', name: 'Manual (self-system ledger)' },
+  { id: 'cms', name: t('CMS API (pulled)') },
+  { id: 'ledger', name: t('Manual (self-system ledger)') },
 ]);
 const showUomModal = ref(false);
 const uomOptions = ref([]);
@@ -657,11 +658,11 @@ function submit() {
       }))
       .post('/products/create', {
         onSuccess: () => {
-          toast.success("Product created successfully", { timeout: 3000 })
+          toast.success(t('Product created successfully'), { timeout: 3000 })
           emit('modalClose');
         },
         onError: () => {
-          toast.error("Failed to create product", { timeout: 3000 })
+          toast.error(t('Failed to create product'), { timeout: 3000 })
         },
         preserveState: true,
         replace: true,
@@ -699,11 +700,11 @@ function submit() {
       })
       .post('/products/' + form.value.id + '/update', {
         onSuccess: () => {
-          toast.success("Product updated successfully", { timeout: 3000 })
+          toast.success(t('Product updated successfully'), { timeout: 3000 })
           emit('modalClose');
         },
         onError: () => {
-          toast.error("Failed to update product", { timeout: 3000 })
+          toast.error(t('Failed to update product'), { timeout: 3000 })
         },
         preserveScroll: true,
         preserveState: true,
@@ -715,11 +716,11 @@ function submit() {
 function toggleActivateDeactivate() {
   form.value.post('/products/' + form.value.id + '/toggle-activate-deactivate', {
     onSuccess: () => {
-      toast.success(form.value.is_active ? "Product deactivated successfully" : "Product activated successfully", { timeout: 3000 })
+      toast.success(form.value.is_active ? t('Product deactivated successfully') : t('Product activated successfully'), { timeout: 3000 })
       emit('modalClose');
     },
     onError: () => {
-      toast.error("Failed to toggle product status", { timeout: 3000 })
+      toast.error(t('Failed to toggle product status'), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
@@ -729,11 +730,11 @@ function toggleActivateDeactivate() {
 function onProductUomDeleted(productUom) {
   form.value.delete('/products/product-uoms/' + productUom.id, {
     onSuccess: () => {
-      toast.success("Product UOM deleted successfully", { timeout: 3000 })
+      toast.success(t('Product UOM deleted successfully'), { timeout: 3000 })
       emit('modalClose');
     },
     onError: () => {
-      toast.error("Failed to delete product UOM", { timeout: 3000 })
+      toast.error(t('Failed to delete product UOM'), { timeout: 3000 })
     },
     preserveState: true,
     resetOnSuccess: true,
@@ -794,11 +795,11 @@ function removeSellingPrice(sellingPrice) {
   if (sellingPrice.id) {
     form.value.delete('/products/selling-prices/' + sellingPrice.id, {
       onSuccess: () => {
-        toast.success("Selling price deleted successfully", { timeout: 3000 })
+        toast.success(t('Selling price deleted successfully'), { timeout: 3000 })
         emit('modalClose');
       },
       onError: () => {
-        toast.error("Failed to delete selling price", { timeout: 3000 })
+        toast.error(t('Failed to delete selling price'), { timeout: 3000 })
       },
       preserveState: true,
       resetOnSuccess: true,

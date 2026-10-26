@@ -15,11 +15,11 @@
           <p class="text-sm leading-4 text-gray-900 pt-2">
             <div class="flex flex-col space-y-1" v-if="item.show">
               <FormInput v-model="item.name" v-if="item.show">
-                Name
+                {{ $t('Name') }}
               </FormInput>
               <div>
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Ref Price
+                  {{ $t('Ref Price') }}
                 </label>
                 <MultiSelect
                   v-model="item.type"
@@ -27,7 +27,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >

@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Platform IDs" />
+  <Head :title="$t('Delivery Platform IDs')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform IDs
+        {{ $t('Delivery Platform IDs') }}
       </h2>
     </template>
 
@@ -15,7 +15,7 @@
           <Link href="/delivery-platform-ref-numbers/create" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Link>
         </div>
@@ -25,7 +25,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Vend Prefix
+              {{ $t('Vend Prefix') }}
             </label>
             <MultiSelect
               v-model="filters.vendPrefixes"
@@ -33,22 +33,22 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               mode="tags"
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="Platform ID" v-model="filters.ref_number">
-            Platform ID
+          <SearchInput :placeholderStr="$t('Platform ID')" v-model="filters.ref_number">
+            {{ $t('Platform ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.current_vend_code">
-            Current Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.current_vend_code">
+            {{ $t('Current Machine ID') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -56,7 +56,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -72,20 +72,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ deliveryPlatformRefNumbers.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ deliveryPlatformRefNumbers.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ deliveryPlatformRefNumbers.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -93,7 +93,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -113,28 +113,28 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="ref_number" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ref_number')">
-                      Platform ID
+                      {{ $t('Platform ID') }}
                     </TableHeadSort>
                     <TableHead>
-                      Binding Count
+                      {{ $t('Binding Count') }}
                     </TableHead>
                     <TableHeadSort modelName="current_vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('current_vend_code')">
-                      Current Machine ID
+                      {{ $t('Current Machine ID') }}
                     </TableHeadSort>
                     <TableHead>
-                      Vend Prefix
+                      {{ $t('Vend Prefix') }}
                     </TableHead>
                     <TableHead>
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHead>
                     <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">
-                      Status
+                      {{ $t('Status') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
-                      Created At
+                      {{ $t('Created At') }}
                     </TableHeadSort>
                     <TableHead>
-                      Remarks
+                      {{ $t('Remarks') }}
                     </TableHead>
                   </tr>
                 </thead>
@@ -187,7 +187,7 @@
             </table>
           </div>
           <div class="flex justify-end py-3">
-            <nav class="px-1 py-2" aria-label="Pagination" v-if="deliveryPlatformRefNumbers.meta.links.length > 3">
+            <nav class="px-1 py-2" :aria-label="$t('Pagination')" v-if="deliveryPlatformRefNumbers.meta.links.length > 3">
               <ol class="inline-flex items-center space-x-1">
                 <li v-for="(link, linkIndex) in deliveryPlatformRefNumbers.meta.links" :key="linkIndex">
                   <Link as="button" :href="link.url ? link.url : ''" class="relative inline-flex items-center rounded px-2.5 py-1 border text-sm font-medium hover:bg-gray-100" :class="[link.active ? 'z-10 border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-300 bg-white text-gray-500']">
@@ -204,6 +204,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -241,15 +242,15 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   booleanOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Active' },
-    { id: 'false', value: 'Inactive' },
+    { id: 'all', value: t('All') },
+    { id: 'true', value: t('Active') },
+    { id: 'false', value: t('Inactive') },
   ]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]

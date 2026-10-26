@@ -1,38 +1,38 @@
 
 <template>
-  <Head title="Machine Snapshot" />
+  <Head :title="$t('Machine Snapshot')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Machine Monthly Snapshot
+              {{ $t('Machine Monthly Snapshot') }}
           </h2>
           <p class="text-xs">
-            (Machine stats will be captured on the last day of every month)
+            {{ $t('(Machine stats will be captured on the last day of every month)') }}
           </p>
       </template>
 
       <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-              <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                Machine ID
+              <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                {{ $t('Machine ID') }}
                   <span class="text-[9px]">
-                      ("," for multiple)
+                      {{ $t('("," for multiple)') }}
                   </span>
               </SearchInput>
-              <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
-                  Channel ID
+              <SearchInput :placeholderStr="$t('Channel ID')" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+                  {{ $t('Channel ID') }}
                   <span class="text-[9px]">
-                      ("," for multiple)
+                      {{ $t('("," for multiple)') }}
                   </span>
               </SearchInput>
-              <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                  Site
+              <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                  {{ $t('Site') }}
               </SearchInput>
               <div>
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Machine Prefix
+                    {{ $t('Machine Prefix') }}
                 </label>
                 <MultiSelect
                     v-model="filters.vendPrefixes"
@@ -40,7 +40,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -52,7 +52,7 @@
             </div>
               <div v-if="permissions.includes('admin-access vends')">
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Site Binded?
+                      {{ $t('Site Binded?') }}
                   </label>
                   <MultiSelect
                       v-model="filters.is_binded_customer"
@@ -60,7 +60,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
@@ -68,7 +68,7 @@
               </div>
               <div v-if="permissions.includes('admin-access vends')">
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Operator
+                      {{ $t('Operator') }}
                   </label>
                   <MultiSelect
                       v-model="filters.operator"
@@ -76,7 +76,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="full_name"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
@@ -84,7 +84,7 @@
               </div>
               <div>
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Location Type
+                      {{ $t('Location Type') }}
                   </label>
                   <MultiSelect
                       v-model="filters.locationType"
@@ -92,7 +92,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
@@ -100,7 +100,7 @@
               </div>
               <div>
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                  Current Month
+                  {{ $t('Current Month') }}
                 </label>
                 <MultiSelect
                   v-model="filters.currentMonth"
@@ -108,7 +108,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -125,7 +125,7 @@
                       >
                           <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                           <span>
-                              Search
+                              {{ $t('Search') }}
                           </span>
                       </Button>
                       <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -139,7 +139,7 @@
                                     </svg>
                                 </div>
                                 <span>
-                                    Export Channels Excel
+                                    {{ $t('Export Channels Excel') }}
                                 </span>
                             </div>
                         </Button>
@@ -147,13 +147,13 @@
               </div>
               <div class="flex flex-col space-y-1">
                   <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                      <span>Showing</span>
+                      <span>{{ $t('Showing') }}</span>
                       <span class="font-medium">{{ vendSnapshots.meta.from ?? 0 }}</span>
-                      <span>to</span>
+                      <span>{{ $t('to') }}</span>
                       <span class="font-medium">{{ vendSnapshots.meta.to ?? 0 }}</span>
-                      <span>of</span>
+                      <span>{{ $t('of') }}</span>
                       <span class="font-medium">{{ vendSnapshots.meta.total }}</span>
-                      <span>results</span>
+                      <span>{{ $t('results') }}</span>
                   </p>
                   <MultiSelect
                       v-model="filters.numberPerPage"
@@ -161,7 +161,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                       @selected="onSearchFilterUpdated"
@@ -181,23 +181,23 @@
                               #
                           </TableHead>
                           <TableHeadSort modelName="vend_snapshots.month_number" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_snapshots.month_number')">
-                            Month
+                            {{ $t('Month') }}
                           </TableHeadSort>
                           <TableHeadSort modelName="vend_snapshots.created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_snapshots.created_at')">
-                              Capture Datetime
+                              {{ $t('Capture Datetime') }}
                           </TableHeadSort>
                           <TableHeadSort modelName="vend_snapshots.vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_snapshots.vend_code')">
-                              ID
+                              {{ $t('ID') }}
                           </TableHeadSort>
                           <TableHead>
-                              Name
+                              {{ $t('Name') }}
                           </TableHead>
                           <TableHead>
-                              Inventory Status <br>
-                              (#Channel, Sold, Balance/Capacity)
+                              {{ $t('Inventory Status') }} <br>
+                              {{ $t('(#Channel, Sold, Balance/Capacity)') }}
                           </TableHead>
                           <TableHead>
-                              Status
+                              {{ $t('Status') }}
                           </TableHead>
                       </tr>
                   </thead>
@@ -281,10 +281,10 @@
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-bold">
-                                              Drop Sensor
+                                              {{ $t('Drop Sensor') }}
                                           </span>
                                           <span>
-                                              {{vendSnapshot.parameterJson['Sensor'] % 2 == 0 ? 'Disabled' : 'Enabled'}}
+                                              {{vendSnapshot.parameterJson['Sensor'] % 2 == 0 ? $t('Disabled') : $t('Enabled')}}
                                           </span>
                                       </div>
                                   </div>
@@ -294,7 +294,7 @@
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-bold">
-                                              Fan Speed
+                                              {{ $t('Fan Speed') }}
                                           </span>
                                           <span>
                                               {{vendSnapshot.parameterJson['fan']}}
@@ -308,10 +308,10 @@
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-bold">
-                                              Door
+                                              {{ $t('Door') }}
                                           </span>
                                           <span>
-                                              {{vendSnapshot.parameterJson['door'] == 'open' ? 'Open' : 'Close'}}
+                                              {{vendSnapshot.parameterJson['door'] == 'open' ? $t('Open') : $t('Close')}}
                                           </span>
                                       </div>
                                   </div>
@@ -322,7 +322,7 @@
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-bold">
-                                              Coin
+                                              {{ $t('Coin') }}
                                           </span>
                                           <span>
                                               {{(vendSnapshot.parameterJson['CoinCnt']/ 100).toFixed(2)}}
@@ -334,7 +334,7 @@
                       </tr>
                       <tr v-if="!vendSnapshots.data.length">
                           <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                              No Results Found
+                              {{ $t('No Results Found') }}
                           </td>
                       </tr>
                   </tbody>
@@ -403,6 +403,7 @@ import { router } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { Head, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
+import { t } from '@/i18n';
 import axios from 'axios';
 import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 
@@ -456,7 +457,7 @@ onMounted(() => {
       { id: 100, value: 100 },
       { id: 200, value: 200 },
       { id: 500, value: 500 },
-      { id: 'All', value: 'All' },
+      { id: 'All', value: t('All') },
   ]
   filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
@@ -464,27 +465,27 @@ onMounted(() => {
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
   booleanOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'true', value: 'Yes'},
-      {id: 'false', value: 'No'},
+      {id: 'all', value: t('All')},
+      {id: 'true', value: t('Yes')},
+      {id: 'false', value: t('No')},
   ]
   enableOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'true', value: 'Enabled'},
-      {id: 'false', value: 'Disabled'},
+      {id: 'all', value: t('All')},
+      {id: 'true', value: t('Enabled')},
+      {id: 'false', value: t('Disabled')},
   ]
   locationTypeOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   operatorOptions.value = [
-      {id: 'all', full_name: 'All'},
+      {id: 'all', full_name: t('All')},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   monthOptions.value = props.monthOptions.map((data) => {return {id: data.id, name: data.name}})
   vendPrefixOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'single-ud', value: 'Single UD'},
+        {id: 'all', value: t('All')},
+        {id: 'single-ud', value: t('Single UD')},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
 

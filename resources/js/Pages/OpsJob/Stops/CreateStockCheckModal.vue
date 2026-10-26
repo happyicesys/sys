@@ -3,25 +3,25 @@
     <template #header>
       <span class="text-base font-semibold flex items-center gap-2">
         <ClipboardDocumentListIcon class="h-5 w-5 text-cyan-700" />
-        Open Stock Count 盘点
+        {{ $t('Open Stock Count 盘点') }}
       </span>
     </template>
     <template #default>
       <form @submit.prevent="submit" class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 text-sm">
         <div class="sm:col-span-6 bg-cyan-50 border border-cyan-200 rounded-lg px-3 py-2">
-          <span class="text-xs text-gray-500">Machine</span>
+          <span class="text-xs text-gray-500">{{ $t('Machine') }}</span>
           <div class="font-medium text-gray-900">{{ vend?.full_name }}</div>
-          <div class="text-xs text-gray-600 mt-1" v-if="loading">Reading its channels…</div>
+          <div class="text-xs text-gray-600 mt-1" v-if="loading">{{ $t('Reading its channels…') }}</div>
           <div class="text-xs text-gray-600 mt-1" v-else-if="options">
             <span class="font-semibold text-cyan-800">{{ poolCount }}</span>
-            stocked channel(s) can be counted<span v-if="form.product_ids.length"> with the chosen product(s)</span>.
-            Channels the system already shows as empty are left out.
+            {{ $t('stocked channel(s) can be counted') }}<span v-if="form.product_ids.length"> {{ $t('with the chosen product(s)') }}</span>.
+            {{ $t('Channels the system already shows as empty are left out.') }}
           </div>
         </div>
 
         <div class="sm:col-span-6" v-if="options && options.products.length">
           <label class="block text-sm font-medium text-gray-700">
-            Only these product(s) <span class="font-normal text-gray-500">— leave empty for any</span>
+            {{ $t('Only these product(s)') }} <span class="font-normal text-gray-500">— {{ $t('leave empty for any') }}</span>
           </label>
           <MultiSelect
             v-model="form.product_ids"
@@ -30,7 +30,7 @@
             trackBy="id"
             valueProp="id"
             label="value"
-            placeholder="Any product"
+            :placeholder="$t('Any product')"
             open-direction="bottom"
             class="mt-1"
           />
@@ -40,39 +40,39 @@
         <div class="sm:col-span-3 flex items-center space-x-2 pt-1">
           <input id="sc-random" type="checkbox" v-model="form.is_random" class="h-5 w-5 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer" />
           <label for="sc-random" class="text-sm font-medium text-gray-700 cursor-pointer">
-            Random channels?
-            <span class="block font-normal text-xs text-gray-500">Unticked = count every stocked channel</span>
+            {{ $t('Random channels?') }}
+            <span class="block font-normal text-xs text-gray-500">{{ $t('Unticked = count every stocked channel') }}</span>
           </label>
         </div>
         <div class="sm:col-span-3" v-if="form.is_random">
-          <label class="block text-sm font-medium text-gray-700">How many channels <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('How many channels') }} <span class="text-red-500">*</span></label>
           <input
             type="number" min="1" :max="poolCount || 1" step="1"
             v-model="form.sample_size"
             class="mt-1 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full text-sm border-gray-300 rounded-md"
           />
           <div class="text-xs text-gray-500" v-if="poolCount && Number(form.sample_size) >= poolCount">
-            That is all {{ poolCount }} of them — nothing left to draw from.
+            {{ $t('That is all :count of them — nothing left to draw from.', { count: poolCount }) }}
           </div>
           <div class="text-sm text-red-600">{{ errors.sample_size }}</div>
         </div>
 
         <div class="sm:col-span-4">
-          <label class="block text-sm font-medium text-gray-700">Remarks</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('Remarks') }}</label>
           <input type="text" v-model="form.remarks" class="mt-1 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full text-sm border-gray-300 rounded-md" />
         </div>
         <div class="sm:col-span-2">
-          <label class="block text-sm font-medium text-gray-700">Job Sequence</label>
-          <input type="number" step="0.1" min="0.1" v-model="form.sequence" class="mt-1 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full text-sm border-gray-300 rounded-md" placeholder="last" />
+          <label class="block text-sm font-medium text-gray-700">{{ $t('Job Sequence') }}</label>
+          <input type="number" step="0.1" min="0.1" v-model="form.sequence" class="mt-1 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full text-sm border-gray-300 rounded-md" :placeholder="$t('last')" />
           <div class="text-sm text-red-600">{{ errors.sequence }}</div>
         </div>
 
         <div class="sm:col-span-6 text-sm text-red-600" v-if="errors.vend_id || errors._">{{ errors.vend_id || errors._ }}</div>
 
         <div class="sm:col-span-6 flex justify-end space-x-2 pt-2">
-          <Button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800" @click="close">Cancel</Button>
+          <Button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800" @click="close">{{ $t('Cancel') }}</Button>
           <Button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white" :class="{ 'opacity-50 cursor-not-allowed': !canSubmit }" :disabled="!canSubmit">
-            Open Stock Count<span v-if="drawCount">&nbsp;({{ drawCount }} channel{{ drawCount === 1 ? '' : 's' }})</span>
+            {{ $t('Open Stock Count') }}<span v-if="drawCount">&nbsp;({{ $tc(':count channel|:count channels', drawCount) }})</span>
           </Button>
         </div>
       </form>
@@ -87,6 +87,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import { ClipboardDocumentListIcon } from '@heroicons/vue/20/solid'
 import { computed, ref, watch } from 'vue'
 import { firstErrors } from './stopTypes'
+import { t } from '@/i18n'
 
 const props = defineProps({
   open: Boolean,
@@ -139,7 +140,7 @@ watch(() => props.open, (isOpen) => {
     .then(({ data }) => {
       options.value = data
       if (!data.eligible_count) {
-        errors.value = { _: 'This machine has no stocked channel to count.' }
+        errors.value = { _: t('This machine has no stocked channel to count.') }
       }
     })
     .catch(error => { errors.value = firstErrors(error) })

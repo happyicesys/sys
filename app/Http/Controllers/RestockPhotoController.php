@@ -50,11 +50,11 @@ class RestockPhotoController extends Controller
     {
         $item = OpsJobItem::with(['vend', 'opsJob'])->findOrFail($id);
         $this->assertWithinViewerCeiling($item->opsJob);
-        abort_unless(RestockPhotoService::appliesTo($item->vend), 403, 'Restock photos are for Smart Chiller and Smart Freezer stops.');
+        abort_unless(RestockPhotoService::appliesTo($item->vend), 403, __('Restock photos are for Smart Chiller and Smart Freezer stops.'));
 
         $user = $request->user();
         $isDriver = $item->opsJob && (int) $item->opsJob->delivered_by === (int) $user->id;
-        abort_unless($isDriver || $user->can('update operations'), 403, 'Only the assigned driver or an operations user can do this.');
+        abort_unless($isDriver || $user->can('update operations'), 403, __('Only the assigned driver or an operations user can do this.'));
 
         return $item;
     }

@@ -176,12 +176,12 @@ class FreezerRecognitionController extends Controller
         $amount = number_format($data['amount_cents'] / 100, 2);
 
         return match (true) {
-            $intent->state === CardPaymentIntent::STATE_VOIDED => back()->with('success', 'Hold released — nothing charged.'),
-            $intent->state === CardPaymentIntent::STATE_CAPTURED => back()->with('success', 'Charged '.number_format($intent->captured_cents / 100, 2).' on the T05.'),
+            $intent->state === CardPaymentIntent::STATE_VOIDED => back()->with('success', __('Hold released — nothing charged.')),
+            $intent->state === CardPaymentIntent::STATE_CAPTURED => back()->with('success', __('Charged :amount on the T05.', ['amount' => number_format($intent->captured_cents / 100, 2)])),
             // Kept on the hold either way: an unknown outcome waits for a person checking Payrallel,
             // a refusal is retried by card-payments:reconcile every 10 minutes.
-            isset($intent->ai_decision['uncertain']) => back()->withErrors(['amount_cents' => "The charge of {$amount} may have gone through — it is not resent. Check Payrallel's portal."]),
-            default => back()->withErrors(['amount_cents' => "Payrallel refused the charge of {$amount} (".($intent->last_error ?? 'no reason given').'). mark1 keeps the amount and retries every 10 minutes.']),
+            isset($intent->ai_decision['uncertain']) => back()->withErrors(['amount_cents' => __('The charge of :amount may have gone through — it is not resent. Check Payrallel\'s portal.', ['amount' => $amount])]),
+            default => back()->withErrors(['amount_cents' => __('Payrallel refused the charge of :amount (:reason). mark1 keeps the amount and retries every 10 minutes.', ['amount' => $amount, 'reason' => $intent->last_error ?? __('no reason given')])]),
         };
     }
 

@@ -1,9 +1,9 @@
 <template>
-  <Head title="Delivery Product Mapping" />
+  <Head :title="$t('Delivery Product Mapping')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ typeName }} Delivery Platform Campaign
+        {{ typeName === 'Create New' ? $t('Create New Delivery Platform Campaign') : typeName === 'Edit' ? $t('Edit Delivery Platform Campaign') : $t('Delivery Platform Campaign') }}
         <span v-if="type == 'update'">
           {{ deliveryPlatformCampaign.name }}
         </span>
@@ -18,12 +18,12 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
               <div class="sm:col-span-6">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Product Mapping
+                  {{ $t('Delivery Product Mapping') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -36,7 +36,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Platform
+                  {{ $t('Delivery Platform') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -56,7 +56,7 @@
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
-                      Back
+                      {{ $t('Back') }}
                     </span>
                   </Button>
                 </Link>
@@ -66,7 +66,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -78,7 +78,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Campaign Item(s)</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Campaign Item(s)') }}</span>
                   </div>
                 </div>
               </div>
@@ -96,7 +96,7 @@
               </div> -->
               <div v-if="form.id" class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Type
+                  {{ $t('Type') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -107,7 +107,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                   @selected="onDeliveryPlatformCampaignItemChanged()"
@@ -115,33 +115,33 @@
                 </MultiSelect>
               </div>
               <div v-if="form.delivery_platform_campaign_item && form.delivery_platform_campaign_item.cap" class="sm:col-span-2">
-                <FormInput v-model="form.cap" :error="form.errors.cap" placeholderStr="Number">
-                  Cap (Max Discount Dollar)
+                <FormInput v-model="form.cap" :error="form.errors.cap" :placeholderStr="$t('Number')">
+                  {{ $t('Cap (Max Discount Dollar)') }}
                 </FormInput>
               </div>
               <div v-if="form.delivery_platform_campaign_item && form.delivery_platform_campaign_item.qty" class="sm:col-span-2">
-                <FormInput v-model="form.qty" :error="form.errors.qty" placeholderStr="Number" required="true">
-                  Bundle Total Qty
+                <FormInput v-model="form.qty" :error="form.errors.qty" :placeholderStr="$t('Number')" required="true">
+                  {{ $t('Bundle Total Qty') }}
                 </FormInput>
               </div>
               <div v-if="form.delivery_platform_campaign_item && form.delivery_platform_campaign_item.id && form.delivery_platform_campaign_item.promo_value" class="sm:col-span-2">
-                <FormInput v-model="form.promo_value" :error="form.errors.promo_value" placeholderStr="Number" required="true">
-                  Value ({{ form.delivery_platform_campaign_item.id }})
+                <FormInput v-model="form.promo_value" :error="form.errors.promo_value" :placeholderStr="$t('Number')" required="true">
+                  {{ $t('Value (:type)', { type: form.delivery_platform_campaign_item.id }) }}
                 </FormInput>
               </div>
               <div v-if="form.delivery_platform_campaign_item" class="sm:col-span-2">
-                <FormInput v-model="form.total_count" :error="form.errors.total_count" placeholderStr="Default Unlimited">
-                  Redemption Limit
+                <FormInput v-model="form.total_count" :error="form.errors.total_count" :placeholderStr="$t('Default Unlimited')">
+                  {{ $t('Redemption Limit') }}
                 </FormInput>
               </div>
               <div v-if="form.delivery_platform_campaign_item" class="sm:col-span-2">
-                <FormInput v-model="form.total_count_per_user" :error="form.errors.total_count_per_user" placeholderStr="Default Unlimited">
-                  Redemtion Limit/ User
+                <FormInput v-model="form.total_count_per_user" :error="form.errors.total_count_per_user" :placeholderStr="$t('Default Unlimited')">
+                  {{ $t('Redemtion Limit/ User') }}
                 </FormInput>
               </div>
               <div v-if="form.delivery_platform_campaign_item" class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Scope
+                  {{ $t('Scope') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -152,7 +152,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                   @selected="onDeliveryPlatformCampaignItemScopeChanged()"
@@ -161,7 +161,7 @@
               </div>
               <div v-if="form.delivery_platform_campaign_item_scope" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  User
+                  {{ $t('User') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -172,20 +172,20 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
                 </MultiSelect>
               </div>
               <div v-if="form.delivery_platform_campaign_item_scope && form.delivery_platform_campaign_item_scope.minBasketAmount" class="sm:col-span-2">
-                <FormInput v-model="form.min_basket_amount" :error="form.errors.min_basket_amount" placeholderStr="Number">
-                  Minimum Basket Amount
+                <FormInput v-model="form.min_basket_amount" :error="form.errors.min_basket_amount" :placeholderStr="$t('Number')">
+                  {{ $t('Minimum Basket Amount') }}
                 </FormInput>
               </div>
               <span v-if="form.delivery_platform_campaign_item_scope && form.delivery_platform_campaign_item_scope.isProduct" class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product
+                  {{ $t('Product') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -197,7 +197,7 @@
                   valueProp="id"
                   label="full_name"
                   mode="tags"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   :clear="isClearForm"
@@ -207,13 +207,13 @@
                 </MultiSelect>
                 <span>
                   <span class="text-red-500 text-sm" v-if="form.delivery_platform_campaign_item_scope.singleObjectOnly">
-                    * Single Object Only
+                    {{ $t('* Single Object Only') }}
                   </span>
                 </span>
               </span>
               <span v-if="form.delivery_platform_campaign_item_scope && form.delivery_platform_campaign_item_scope.isCategory" class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Category
+                  {{ $t('Category') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -224,7 +224,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   :clear="isClearForm"
@@ -233,8 +233,8 @@
                 </MultiSelect>
               </span>
               <div v-if="form.delivery_platform_campaign_item && form.delivery_platform_campaign_item_scope" class="sm:col-span-6">
-                <FormInput v-model="form.settings_name" :error="form.errors.settings_name" placeholderStr="Campaign Item Name">
-                  Campaign Item Name (Optional)
+                <FormInput v-model="form.settings_name" :error="form.errors.settings_name" :placeholderStr="$t('Campaign Item Name')">
+                  {{ $t('Campaign Item Name (Optional)') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6" v-if="form.id">
@@ -247,7 +247,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Create Campaign Item
+                    {{ $t('Create Campaign Item') }}
                   </span>
                 </Button>
               </div>
@@ -263,20 +263,20 @@
                                   #
                                 </TableHead>
                                 <TableHead>
-                                  Name <br>
-                                  Label
+                                  {{ $t('Name') }} <br>
+                                  {{ $t('Label') }}
                                 </TableHead>
                                 <TableHead>
-                                  Settings
+                                  {{ $t('Settings') }}
                                 </TableHead>
                                 <TableHead>
-                                  Items
+                                  {{ $t('Items') }}
                                 </TableHead>
                                 <TableHead>
-                                  Created At
+                                  {{ $t('Created At') }}
                                 </TableHead>
                                 <TableHead>
-                                  Action
+                                  {{ $t('Action') }}
                                 </TableHead>
                               </tr>
                             </thead>
@@ -321,7 +321,7 @@
                                     </li>
                                   </ul>
                                   <div v-if="!deliveryPlatformCampaignItem.items_json">
-                                    NA
+                                    {{ $t('NA') }}
                                   </div>
                                 </TableData>
                                 <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
@@ -337,14 +337,14 @@
 
                                       <XCircleIcon class="w-4 h-4" ></XCircleIcon>
                                       <span class="text-xs" v-if="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0">
-                                        Campaigns running, cannot delete
+                                        {{ $t('Campaigns running, cannot delete') }}
                                       </span>
                                     </Button>
                                 </TableData>
                               </tr>
                                <tr v-if="!deliveryPlatformCampaign.deliveryPlatformCampaignItems.length">
                                 <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                                    No Results Found
+                                    {{ $t('No Results Found') }}
                                 </td>
                               </tr>
                             </tbody>
@@ -360,14 +360,14 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Binded Campaign(s)</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Binded Campaign(s)') }}</span>
                   </div>
                 </div>
               </div>
 
               <div v-if="form.id" class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Campaign Item(s)
+                  {{ $t('Campaign Item(s)') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -378,7 +378,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -387,7 +387,7 @@
 
               <div v-if="form.id" class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vend
+                  {{ $t('Vend') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -398,7 +398,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -407,7 +407,7 @@
 
               <div class="sm:col-span-3">
                 <DatetimePicker v-model="form.datetime_from" :error="form.errors.datetime_from" :minDate="datetimeFrom">
-                  Begin Date
+                  {{ $t('Begin Date') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -415,7 +415,7 @@
               </div>
               <div class="sm:col-span-3">
                 <DatetimePicker v-model="form.datetime_to" :error="form.errors.datetime_to" :minDate="minDatetimeTo">
-                  End Date
+                  {{ $t('End Date') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -433,7 +433,7 @@
                   >
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Bind Campaign to VM
+                      {{ $t('Bind Campaign to VM') }}
                     </span>
                   </Button>
                   <Button
@@ -445,7 +445,7 @@
                   >
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Batch Bind Campaign to VM
+                      {{ $t('Batch Bind Campaign to VM') }}
                     </span>
                   </Button>
                 </span>
@@ -455,7 +455,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Submit to Platform
+                    {{ $t('Submit to Platform') }}
                   </span>
                 </Button>
               </div>
@@ -471,10 +471,10 @@
                                   #
                                 </TableHead>
                                 <TableHead>
-                                  Vend
+                                  {{ $t('Vend') }}
                                 </TableHead>
                                 <TableHead>
-                                  Campaign(s)
+                                  {{ $t('Campaign(s)') }}
                                 </TableHead>
                               </tr>
                             </thead>
@@ -506,26 +506,26 @@
                                           {{ deliveryPlatformCampaignItemVend.settings_name }}
                                         </span>
                                         <span class="text-xs">
-                                          Start: {{ deliveryPlatformCampaignItemVend.datetime_from }}
+                                          {{ $t('Start: :time', { time: deliveryPlatformCampaignItemVend.datetime_from }) }}
                                         </span>
                                         <span class="text-xs">
-                                          End: {{ deliveryPlatformCampaignItemVend.datetime_to }}
+                                          {{ $t('End: :time', { time: deliveryPlatformCampaignItemVend.datetime_to }) }}
                                         </span>
                                         <!-- Submission status badge -->
                                         <span class="mt-1 text-xs font-semibold">
                                           <span v-if="deliveryPlatformCampaignItemVend.is_submitted" class="text-green-700">
-                                            ✓ Submitted (ID: {{ deliveryPlatformCampaignItemVend.platform_ref_id }})
+                                            ✓ {{ $t('Submitted (ID: :id)', { id: deliveryPlatformCampaignItemVend.platform_ref_id }) }}
                                           </span>
                                           <span v-else-if="deliveryPlatformCampaignItemVend.submission_error" class="text-red-700">
-                                            ✗ Failed: {{ deliveryPlatformCampaignItemVend.submission_error }}
+                                            ✗ {{ $t('Failed: :error', { error: deliveryPlatformCampaignItemVend.submission_error }) }}
                                           </span>
                                           <span v-else class="text-yellow-600">
-                                            ⏳ Pending submission
+                                            ⏳ {{ $t('Pending submission') }}
                                           </span>
                                         </span>
                                       </span>
                                       <button type="button" class="group -mr-1 h-4 w-4 rounded-sm hover:bg-blue-700/20 ">
-                                        <span class="sr-only">Remove</span>
+                                        <span class="sr-only">{{ $t('Remove') }}</span>
                                         <svg viewBox="0 0 14 14" class="h-4 w-4 stroke-blue-900/50 group-hover:stroke-blue-900/75" @click.prevent="onDeleteCampaign(deliveryPlatformCampaignItemVend.id)">
                                           <path d="M4 4l6 6m0-6l-6 6" />
                                         </svg>
@@ -536,7 +536,7 @@
                               </tr>
                                <tr v-if="!deliveryProductMappingVends.data.length">
                                 <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                                    No Results Found
+                                    {{ $t('No Results Found') }}
                                 </td>
                               </tr>
                             </tbody>
@@ -567,6 +567,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon,
 import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
@@ -779,10 +780,10 @@ function createItemVend() {
     vend_code: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.code : '',
   }, {
       onSuccess: () => {
-        toast.success("Campaign bound to vend successfully", { timeout: 3000 })
+        toast.success(t('Campaign bound to vend successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to bind campaign to vend", { timeout: 3000 })
+        toast.error(t('Failed to bind campaign to vend'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -799,10 +800,10 @@ function batchCreateItemVend() {
     settings_name: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_name : '',
   }, {
       onSuccess: () => {
-        toast.success("Campaign batch bound successfully", { timeout: 3000 })
+        toast.success(t('Campaign batch bound successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to batch bind campaign", { timeout: 3000 })
+        toast.error(t('Failed to batch bind campaign'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -811,16 +812,16 @@ function batchCreateItemVend() {
 }
 
 function onDeleteCampaign(deliveryPlatformCampaignItemVendId) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
   router.delete('/delivery-platform-campaigns/item-vend/' + deliveryPlatformCampaignItemVendId, {
       onSuccess: () => {
-        toast.success("Campaign item vend deleted successfully", { timeout: 3000 })
+        toast.success(t('Campaign item vend deleted successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to delete campaign item vend", { timeout: 3000 })
+        toast.error(t('Failed to delete campaign item vend'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -850,16 +851,16 @@ function onItemEditClicked(deliveryProductMappingItem) {
 }
 
 function removeDeliveryPlatformCampaignItem(deliveryPlatformCampaignItemID) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
   router.delete('/delivery-platform-campaigns/item/' + deliveryPlatformCampaignItemID, {
       onSuccess: () => {
-        toast.success("Campaign item deleted successfully", { timeout: 3000 })
+        toast.success(t('Campaign item deleted successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to delete campaign item", { timeout: 3000 })
+        toast.error(t('Failed to delete campaign item'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -877,10 +878,10 @@ function saveCampaignItem()
     settings_label: deliveryPlatformCampaignItemDesc.value,
   }, {
       onSuccess: () => {
-        toast.success("Campaign item created successfully", { timeout: 3000 })
+        toast.success(t('Campaign item created successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to create campaign item", { timeout: 3000 })
+        toast.error(t('Failed to create campaign item'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -903,7 +904,7 @@ function submit() {
 }
 
 function submitCampaign(id) {
-  const approval = confirm('Are you sure to submit this campaign and its items to platform?');
+  const approval = confirm(t('Are you sure to submit this campaign and its items to platform?'));
   if (!approval) {
       return;
   }
@@ -919,7 +920,7 @@ function submitCampaign(id) {
         }
       },
       onError: () => {
-        toast.error("Failed to reach server — please try again.", { timeout: 5000 })
+        toast.error(t('Failed to reach server — please try again.'), { timeout: 5000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -928,17 +929,17 @@ function submitCampaign(id) {
 }
 
 function togglePauseAllVends(deliveryProductMappingId) {
-  let approvalText = form.value.is_active ? 'Are you sure to pause all vending machines?' : 'Are you sure to resume all vending machines?'
+  let approvalText = form.value.is_active ? t('Are you sure to pause all vending machines?') : t('Are you sure to resume all vending machines?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;
   }
   router.post('/delivery-product-mappings/' + deliveryProductMappingId + '/toggle-pause-all-vends', {}, {
       onSuccess: () => {
-        toast.success("All vends paused/resumed successfully", { timeout: 3000 })
+        toast.success(t('All vends paused/resumed successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to pause/resume all vends", { timeout: 3000 })
+        toast.error(t('Failed to pause/resume all vends'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -947,17 +948,17 @@ function togglePauseAllVends(deliveryProductMappingId) {
 }
 
 function togglePauseVend(deliveryProductMappingVend) {
-  let approvalText = deliveryProductMappingVend.is_active ? 'Are you sure to pause this vending machine?' : 'Are you sure to resume this vending machine?'
+  let approvalText = deliveryProductMappingVend.is_active ? t('Are you sure to pause this vending machine?') : t('Are you sure to resume this vending machine?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;
   }
   router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {}, {
       onSuccess: () => {
-        toast.success("Machine paused/resumed successfully", { timeout: 3000 })
+        toast.success(t('Machine paused/resumed successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to pause/resume machine", { timeout: 3000 })
+        toast.error(t('Failed to pause/resume machine'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -966,18 +967,18 @@ function togglePauseVend(deliveryProductMappingVend) {
 }
 
 function unbindVend(deliveryProductMappingVendId) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
   router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
       onSuccess: () => {
-        toast.success("Machine unbound successfully", { timeout: 3000 })
+        toast.success(t('Machine unbound successfully'), { timeout: 3000 })
         router.reload({only: ['unbindedVendOptions']})
         unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
       },
       onError: () => {
-        toast.error("Failed to unbind machine", { timeout: 3000 })
+        toast.error(t('Failed to unbind machine'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,

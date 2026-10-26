@@ -1,4 +1,5 @@
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
@@ -10,8 +11,8 @@ const props = defineProps({
 });
 
 const statusLabels = {
-    open: 'Open',
-    closed: 'Closed',
+    open: t('Open'),
+    closed: t('Closed'),
 };
 
 const filters = ref({
@@ -40,10 +41,10 @@ const statusClass = (s) => ({
 </script>
 
 <template>
-<Head title="Refund Settlement" />
+<Head :title="$t('Refund Settlement')" />
 <BreezeAuthenticatedLayout>
     <template #header>
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Refund Settlement</h2>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $t('Refund Settlement') }}</h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -59,12 +60,12 @@ const statusClass = (s) => ({
 
         <!-- filters -->
         <div class="bg-white rounded-md border p-3 mb-3 grid grid-cols-1 md:grid-cols-6 gap-2 items-start">
-            <input v-model="filters.search" placeholder="RST reference" class="border rounded-md px-3 py-2 text-sm md:col-span-2" @keyup.enter="applyFilters" />
+            <input v-model="filters.search" :placeholder="$t('RST reference')" class="border rounded-md px-3 py-2 text-sm md:col-span-2" @keyup.enter="applyFilters" />
             <input type="date" v-model="filters.date_from" class="border rounded-md px-3 py-2 text-sm" />
             <input type="date" v-model="filters.date_to" class="border rounded-md px-3 py-2 text-sm" />
             <div class="flex gap-2 md:col-span-2">
-                <button @click="applyFilters" class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-teal-700">Search</button>
-                <button @click="clearFilters" class="bg-gray-100 text-gray-700 rounded-md px-3 py-2 text-sm border">Clear</button>
+                <button @click="applyFilters" class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-teal-700">{{ $t('Search') }}</button>
+                <button @click="clearFilters" class="bg-gray-100 text-gray-700 rounded-md px-3 py-2 text-sm border">{{ $t('Clear') }}</button>
             </div>
         </div>
 
@@ -73,21 +74,21 @@ const statusClass = (s) => ({
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr class="[&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap [&>th]:text-left">
-                        <th>Settlement</th>
-                        <th>Date</th>
-                        <th>Payout Group / Operator</th>
-                        <th class="text-center">Status</th>
+                        <th>{{ $t('Settlement') }}</th>
+                        <th>{{ $t('Date') }}</th>
+                        <th>{{ $t('Payout Group / Operator') }}</th>
+                        <th class="text-center">{{ $t('Status') }}</th>
                         <th class="text-right">PayNow</th>
                         <th class="text-right">PayPal</th>
-                        <th class="text-right">Total</th>
-                        <th class="text-center">Done</th>
+                        <th class="text-right">{{ $t('Total') }}</th>
+                        <th class="text-center">{{ $t('Done') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="s in settlements.data" :key="s.id" class="border-t hover:bg-gray-50 cursor-pointer" @click="router.visit('/refund-settlements/' + s.id)">
                         <td class="px-4 py-3 whitespace-nowrap">
                             <span class="font-semibold text-teal-700">{{ s.reference }}</span>
-                            <span v-if="s.is_stale" class="ml-2 text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded">stale</span>
+                            <span v-if="s.is_stale" class="ml-2 text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded">{{ $t('stale') }}</span>
                         </td>
                         <td class="px-4 py-3">{{ s.settlement_date }}</td>
                         <td class="px-4 py-3">{{ s.head }}</td>
@@ -105,14 +106,14 @@ const statusClass = (s) => ({
                         <td class="px-4 py-3 text-right font-medium whitespace-nowrap">${{ s.total }}</td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">{{ s.done_count }} / {{ s.count }}</td>
                     </tr>
-                    <tr v-if="!settlements.data.length"><td colspan="8" class="px-4 py-8 text-center text-gray-400">No settlements yet. Push approved refunds from the Refund Requests page.</td></tr>
+                    <tr v-if="!settlements.data.length"><td colspan="8" class="px-4 py-8 text-center text-gray-400">{{ $t('No settlements yet. Push approved refunds from the Refund Requests page.') }}</td></tr>
                 </tbody>
             </table>
         </div>
 
         <!-- pagination -->
         <div class="flex items-center justify-between mt-3 text-sm text-gray-600">
-            <span>Showing {{ settlements.from || 0 }}–{{ settlements.to || 0 }} of {{ settlements.total }}</span>
+            <span>{{ $t('Showing :from–:to of :total', { from: settlements.from || 0, to: settlements.to || 0, total: settlements.total }) }}</span>
             <div class="flex gap-1">
                 <template v-for="(l, i) in settlements.links" :key="i">
                     <Link v-if="l.url" :href="l.url" v-html="l.label" preserve-scroll

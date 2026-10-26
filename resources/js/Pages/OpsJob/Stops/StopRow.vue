@@ -17,7 +17,7 @@
 
     <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
       <div class="flex flex-col space-y-2 max-w-24 items-center">
-        <span class="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold w-fit" :class="type.badgeClass">{{ type.badge }}</span>
+        <span class="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold w-fit" :class="type.badgeClass">{{ $t(type.badge) }}</span>
         <Link :href="editUrl" class="underline break-words" :class="type.textClass">{{ row.display_code }}</Link>
         <span class="text-gray-800">{{ row.vend_code }}</span>
       </div>
@@ -41,20 +41,20 @@
       <!-- Service notice: verdicts given / items. Stock count: channels + variance. -->
       <div v-if="row.stop_type === 'service_notice'" class="flex flex-col">
         <span>{{ row.items_resolved_count }} / {{ row.items_count }}</span>
-        <span class="text-xs font-normal text-gray-500">item(s) done</span>
-        <span v-if="row.items_incomplete_count" class="text-xs text-red-600">{{ row.items_incomplete_count }} incomplete</span>
+        <span class="text-xs font-normal text-gray-500">{{ $t('item(s) done') }}</span>
+        <span v-if="row.items_incomplete_count" class="text-xs text-red-600">{{ $t(':count incomplete', { count: row.items_incomplete_count }) }}</span>
       </div>
       <div v-else class="flex flex-col">
         <span>{{ row.channels_count }}</span>
         <span class="text-xs font-normal text-gray-500">
-          {{ row.is_random ? 'random' : 'all' }} channel(s)
+          {{ row.is_random ? $t('random channel(s)') : $t('all channel(s)') }}
         </span>
         <template v-if="row.status === 3">
           <span v-if="row.mismatch_count" class="text-xs text-red-600">
-            {{ row.mismatch_count }} mismatch ({{ signed(row.variance_qty) }} pcs)
+            {{ $t(':count mismatch (:variance pcs)', { count: row.mismatch_count, variance: signed(row.variance_qty) }) }}
           </span>
-          <span v-else class="text-xs text-green-700">all match</span>
-          <span v-if="row.unsynced_mismatch_count" class="text-xs text-orange-600">not synced</span>
+          <span v-else class="text-xs text-green-700">{{ $t('all match') }}</span>
+          <span v-if="row.unsynced_mismatch_count" class="text-xs text-orange-600">{{ $t('not synced') }}</span>
         </template>
       </div>
     </td>
@@ -73,7 +73,7 @@
         <Button :class="type.buttonClass">
           <div class="flex space-x-2 items-center">
             <PencilSquareIcon class="h-3 w-3" />
-            <span>{{ row.status === 1 ? 'Open' : 'View' }}</span>
+            <span>{{ row.status === 1 ? $t('Open') : $t('View') }}</span>
           </div>
         </Button>
       </Link>

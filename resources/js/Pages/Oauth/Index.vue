@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Oauth & API" />
+  <Head :title="$t('Oauth & API')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Oauth & API
+        {{ $t('Oauth & API') }}
       </h2>
     </template>
 
@@ -17,7 +17,7 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
@@ -33,10 +33,10 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Type
+                      {{ $t('Type') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -63,7 +63,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -72,7 +72,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -80,7 +80,7 @@
                       </tr>
                 <tr v-if="!clients.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -114,6 +114,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   clients: Object,
@@ -143,16 +144,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(client) {
-  const approval = confirm('Are you sure to delete ' + client.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: client.name }));
   if (!approval) {
       return;
   }
   router.delete('/clients/' + client.id, {
     onSuccess: () => {
-      toast.success("OAuth client deleted successfully", { timeout: 3000 })
+      toast.success(t("OAuth client deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete OAuth client", { timeout: 3000 })
+      toast.error(t("Failed to delete OAuth client"), { timeout: 3000 })
     }
   })
 }

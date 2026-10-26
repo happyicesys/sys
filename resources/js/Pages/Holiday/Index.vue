@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Holidays" />
+  <Head :title="$t('Holidays')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Holidays
+        {{ $t('Holidays') }}
       </h2>
     </template>
 
@@ -17,20 +17,20 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <div class="col-span-5 md:col-span-1">
-            <SearchInput placeholderStr="Name" v-model="filters.name" @keyup.enter="onSearchFilterUpdated()">
-              Name
+            <SearchInput :placeholderStr="$t('Name')" v-model="filters.name" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Name') }}
             </SearchInput>
           </div>
           <div class="col-span-5 md:col-span-1">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Current Year
+              {{ $t('Current Year') }}
             </label>
             <MultiSelect
               v-model="filters.currentYear"
@@ -38,7 +38,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -55,20 +55,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ holidays.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ holidays.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ holidays.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -76,7 +76,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -96,13 +96,13 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Type
+                      {{ $t('Type') }}
                     </TableHead>
                     <TableHeadSort modelName="date_from" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date_from')">
-                      Date
+                      {{ $t('Date') }}
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -124,7 +124,7 @@
                       <TableData :currentIndex="holidayIndex" :totalLength="holidays.length" inputClass="text-center">
                         {{ holiday.date_from }}
                         <span v-if="holiday.date_from != holiday.date_to">
-                          to {{ holiday.date_to }}
+                          {{ $t('to :date', { date: holiday.date_to }) }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="holidayIndex" :totalLength="holidays.length" inputClass="text-center">
@@ -135,7 +135,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -144,7 +144,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -152,7 +152,7 @@
                       </tr>
                 <tr v-if="!holidays.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -187,6 +187,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   holidays: Object,
@@ -212,7 +213,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
@@ -227,16 +228,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(holiday) {
-  const approval = confirm('Are you sure to delete ' + holiday.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: holiday.name }));
   if (!approval) {
       return;
   }
   router.delete('/holidays/' + holiday.id, {
     onSuccess: () => {
-      toast.success("Holiday deleted successfully", { timeout: 3000 })
+      toast.success(t('Holiday deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete holiday", { timeout: 3000 })
+      toast.error(t('Failed to delete holiday'), { timeout: 3000 })
     }
   })
 }
@@ -273,10 +274,10 @@ function onModalClose() {
 }
 
 function typeLabel(type) {
-  if (type === 'public') return 'Public'
-  if (type === 'school') return 'School'
-  if (type === 'other') return 'Other'
-  return 'Manual'
+  if (type === 'public') return t('Public')
+  if (type === 'school') return t('School')
+  if (type === 'other') return t('Other')
+  return t('Manual')
 }
 
 function typeBadgeClass(type) {

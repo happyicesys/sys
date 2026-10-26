@@ -4,56 +4,56 @@
   <Head :title="title" />
   <BreezeAuthenticatedLayout>
     <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">Daily Jobs ({{ title }})</h2>
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $t('Daily Jobs (:title)', { title }) }}</h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 py-3">
         <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
           <div>
-            <label class="block text-sm font-medium text-gray-700">Job Date From</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Job Date From') }}</label>
             <input type="date" v-model="filters.date_from" class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Job Date To</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Job Date To') }}</label>
             <input type="date" v-model="filters.date_to" class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
           </div>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code" @keyup.enter="search">Machine ID</SearchInput>
-          <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="search">Site</SearchInput>
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code" @keyup.enter="search">{{ $t('Machine ID') }}</SearchInput>
+          <SearchInput :placeholderStr="$t('Site')" v-model="filters.customer" @keyup.enter="search">{{ $t('Site') }}</SearchInput>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Status</label>
-            <MultiSelect v-model="filters.status" :options="statusFilterOptions" trackBy="id" valueProp="id" label="value" placeholder="Select" open-direction="bottom" class="mt-1" />
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Status') }}</label>
+            <MultiSelect v-model="filters.status" :options="statusFilterOptions" trackBy="id" valueProp="id" label="value" :placeholder="$t('Select')" open-direction="bottom" class="mt-1" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Assigned To</label>
-            <MultiSelect v-model="filters.delivered_by" :options="driverFilterOptions" trackBy="id" valueProp="id" label="value" placeholder="Select" open-direction="bottom" class="mt-1" />
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Assigned To') }}</label>
+            <MultiSelect v-model="filters.delivered_by" :options="driverFilterOptions" trackBy="id" valueProp="id" label="value" :placeholder="$t('Select')" open-direction="bottom" class="mt-1" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">{{ extraFilter.label }}</label>
-            <MultiSelect v-model="filters.extra" :options="extraFilter.options" trackBy="id" valueProp="id" label="value" placeholder="Select" open-direction="bottom" class="mt-1" />
+            <MultiSelect v-model="filters.extra" :options="extraFilter.options" trackBy="id" valueProp="id" label="value" :placeholder="$t('Select')" open-direction="bottom" class="mt-1" />
           </div>
         </div>
 
         <div class="flex flex-col md:flex-row md:justify-between gap-3 mt-5">
           <div class="flex flex-wrap gap-1">
             <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600" @click="search">
-              <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" /><span>Search</span>
+              <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" /><span>{{ $t('Search') }}</span>
             </Button>
             <Button class="inline-flex space-x-1 items-center rounded-md bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100" @click="reset">
-              <BackspaceIcon class="h-4 w-4" aria-hidden="true" /><span>Reset</span>
+              <BackspaceIcon class="h-4 w-4" aria-hidden="true" /><span>{{ $t('Reset') }}</span>
             </Button>
             <Button
               v-if="canExport" type="button" :disabled="exporting"
               class="inline-flex space-x-1 items-center rounded-md bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
               @click.prevent="exportExcel"
             >
-              <ArrowDownTrayIcon class="h-4 w-4" :class="{ 'animate-bounce': exporting }" aria-hidden="true" /><span>Export Excel</span>
+              <ArrowDownTrayIcon class="h-4 w-4" :class="{ 'animate-bounce': exporting }" aria-hidden="true" /><span>{{ $t('Export Excel') }}</span>
             </Button>
           </div>
           <div class="flex space-x-3 items-center">
             <div class="text-sm text-gray-700">
-              Showing <span class="font-medium">{{ rows.meta.from ?? 0 }}</span> to <span class="font-medium">{{ rows.meta.to ?? 0 }}</span>
-              of <span class="font-medium">{{ rows.meta.total }}</span> results
+              {{ $t('Showing') }} <span class="font-medium">{{ rows.meta.from ?? 0 }}</span> {{ $t('to') }} <span class="font-medium">{{ rows.meta.to ?? 0 }}</span>
+              {{ $t('of') }} <span class="font-medium">{{ rows.meta.total }}</span> {{ $t('results') }}
             </div>
             <MultiSelect v-model="filters.numberPerPage" :options="NUMBER_PER_PAGE" trackBy="id" label="value" :showLabels="false" :allowEmpty="false" :searchable="false" class="w-32" @select="search" />
           </div>
@@ -67,14 +67,14 @@
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
-                  <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">Ref</TableHeadSort>
-                  <TableHeadSort modelName="job_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('job_date')">Job Date</TableHeadSort>
-                  <TableHead>Machine ID</TableHead>
-                  <TableHead>Site</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">Status</TableHeadSort>
+                  <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">{{ $t('Ref') }}</TableHeadSort>
+                  <TableHeadSort modelName="job_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('job_date')">{{ $t('Job Date') }}</TableHeadSort>
+                  <TableHead>{{ $t('Machine ID') }}</TableHead>
+                  <TableHead>{{ $t('Site') }}</TableHead>
+                  <TableHead>{{ $t('Assigned To') }}</TableHead>
+                  <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">{{ $t('Status') }}</TableHeadSort>
                   <slot name="head" :filters="filters" :sortTable="sortTable" />
-                  <TableHead>Remarks</TableHead>
+                  <TableHead>{{ $t('Remarks') }}</TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -96,7 +96,7 @@
                   <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-left">{{ row.remarks }}</TableData>
                 </tr>
                 <tr v-if="!rows.data.length">
-                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-black sm:pr-6 lg:pr-8 text-center">No Results Found</td>
+                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-black sm:pr-6 lg:pr-8 text-center">{{ $t('No Results Found') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -123,6 +123,7 @@ import moment from 'moment'
 import { computed, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import { stopStatusClass } from './stopTypes'
+import { t } from '@/i18n'
 
 const props = defineProps({
   title: String,
@@ -137,8 +138,8 @@ const props = defineProps({
   extraFilter: Object,
 })
 
-const NUMBER_PER_PAGE = [{ id: 100, value: 100 }, { id: 200, value: 200 }, { id: 500, value: 500 }, { id: 'All', value: 'All' }]
-const ALL = { id: 'all', value: 'All' }
+const NUMBER_PER_PAGE = [{ id: 100, value: 100 }, { id: 200, value: 200 }, { id: 500, value: 500 }, { id: 'All', value: t('All') }]
+const ALL = { id: 'all', value: t('All') }
 
 const toast = useToast()
 const canExport = usePage().props.auth.permissions.includes(props.exportPermission)
@@ -194,7 +195,7 @@ function exportExcel() {
   exporting.value = true
   axios({ method: 'get', url: props.basePath + '/excel', params: { ...query(), numberPerPage: undefined }, responseType: 'blob' })
     .then(response => fileDownload(response.data, props.exportName + '_' + moment().format('YYYYMMDD_HHmmss') + '.xlsx'))
-    .catch(() => toast.error('Failed to export', { timeout: 3000 }))
+    .catch(() => toast.error(t('Failed to export'), { timeout: 3000 }))
     .finally(() => { exporting.value = false })
 }
 </script>

@@ -231,7 +231,7 @@ class ServiceNoticeController extends Controller
         // Reached THROUGH the item, so an attachment id of some other model can never be deleted here.
         $attachment = $item->attachments()->findOrFail($attachmentId);
 
-        abort_unless($item->serviceNotice->isPending(), 422, 'Reopen the notice before removing files.');
+        abort_unless($item->serviceNotice->isPending(), 422, __('Reopen the notice before removing files.'));
 
         $this->service->deleteAttachment($attachment);
 

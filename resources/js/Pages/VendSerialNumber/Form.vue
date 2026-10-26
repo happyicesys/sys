@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.vendSerialNumber">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.vendSerialNumber">
             {{ props.vendSerialNumber.code }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Serial Number
+            {{ $t('Create New Serial Number') }}
           </span>
         </div>
       </template>
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.code" :error="form.errors.code" required="true">
-                Serial Number
+                {{ $t('Serial Number') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :error="form.errors.desc">
-                Remarks
+                {{ $t('Remarks') }}
               </FormTextarea>
             </div>
           </div>
@@ -41,11 +41,11 @@
                 <span class="flex space-x-1 items-center">
                   <TrashIcon class="w-4 h-4"></TrashIcon>
                   <span>
-                      Delete
+                      {{ $t('Delete') }}
                   </span>
                 </span>
                 <span v-if="props.vendSerialNumber.vend">
-                  (Binded)
+                  {{ $t('(Binded)') }}
                 </span>
               </Button>
               <div class="flex space-x-1 justify-end">
@@ -56,13 +56,13 @@
                 >
                   <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                   <span>
-                    Back
+                    {{ $t('Back') }}
                   </span>
                 </Button>
                 <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -83,6 +83,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/2
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   vendSerialNumber: Object,
@@ -109,7 +110,7 @@ function getDefaultForm() {
 }
 
 function onDeleteClicked(vendSerialNumber) {
-  const approval = confirm('Are you sure to delete ' + vendSerialNumber.code + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: vendSerialNumber.code }));
   if (!approval) {
       return;
   }
@@ -129,11 +130,11 @@ function submit() {
     })
     .post('/vend-serial-numbers/store', {
       onSuccess: () => {
-        toast.success("Serial number created successfully", { timeout: 3000 })
+        toast.success(t('Serial number created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create serial number", { timeout: 3000 })
+        toast.error(t('Failed to create serial number'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -149,11 +150,11 @@ function submit() {
     })
       .post('/vend-serial-numbers/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Serial number updated successfully", { timeout: 3000 })
+        toast.success(t('Serial number updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update serial number", { timeout: 3000 })
+        toast.error(t('Failed to update serial number'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

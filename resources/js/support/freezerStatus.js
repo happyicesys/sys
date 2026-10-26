@@ -10,6 +10,7 @@
  * FREEZERCTLACK. Every field is optional — an old build, a host that never bound, or a controller
  * off the bus all send less — so every getter degrades to "unknown" instead of throwing.
  */
+import { t, tc, tk } from '@/i18n';
 
 /** Chip / tile colours. Grey means "not known", never "off" — see StateChip. */
 export const TONE = {
@@ -24,7 +25,7 @@ export const TONE = {
 
 /** on / off / — for a tri-state flag. */
 export function onOff(value) {
-    return value === true ? 'on' : value === false ? 'off' : '—';
+    return value === true ? t('on') : value === false ? t('off') : '—';
 }
 
 /** Green when on, slate when off, grey when the machine never said. */
@@ -37,7 +38,7 @@ export function boolTone(value) {
  * someone has to hand back, or the controller never cycles the cabinet again.
  */
 export function modeText(remote) {
-    return remote === true ? 'remote (us)' : remote === false ? 'controller' : '—';
+    return remote === true ? t('remote (us)') : remote === false ? t('controller') : '—';
 }
 
 export function modeTone(remote) {
@@ -71,11 +72,11 @@ class ChamberReading {
 
     /** What the number means, or why there is none. */
     get detail() {
-        if (!this.t.available) return 'Thermostat not reported by the host plugin';
-        if (!this.t.connected) return 'Thermostat port closed';
-        if (!this.t.communicating) return 'Thermostat not answering';
-        if (!this.t.sensorOk) return 'Probe fault';
-        return `${this.t.model || 'Thermostat'} · probe OK`;
+        if (!this.t.available) return t('Thermostat not reported by the host plugin');
+        if (!this.t.connected) return t('Thermostat port closed');
+        if (!this.t.communicating) return t('Thermostat not answering');
+        if (!this.t.sensorOk) return t('Probe fault');
+        return t(':model · probe OK', { model: this.t.model || t('Thermostat') });
     }
 
     /**
@@ -109,14 +110,14 @@ export function cameraOnline(camera) {
  * named those views: MIPI 0 inner, MIPI 1 planar (top-down over the baskets), MIPI 2 customer.
  * A machine that ever lists more cameras falls back to its own label.
  */
-export const CAMERA_VIEW_NAMES = ['Inner View', 'Planar View', 'Customer View'];
+export const CAMERA_VIEW_NAMES = [tk('Inner View'), tk('Planar View'), tk('Customer View')];
 
 /** @returns {string} e.g. "Planar View (cam 4)". */
 export function cameraLabel(camera, index) {
     const view = CAMERA_VIEW_NAMES[index];
     const id = camera?.id ?? '?';
-    if (!view) return `Camera ${id}${camera?.description ? ' · ' + camera.description : ''}`;
-    return `${view} (cam ${id})`;
+    if (!view) return t('Camera :id', { id }) + (camera?.description ? ' · ' + camera.description : '');
+    return t(':view (cam :id)', { view: t(view), id });
 }
 
 export class FreezerStatus {
@@ -205,16 +206,21 @@ export class FreezerStatus {
         return this.door.lockState === 'unlocked' || this.door.doorState === 'opened' ? TONE.WARN : TONE.OK;
     }
 
-    get alarmText() {
+    /** The alarm in English — alarmTone compares it; alarmText is what the page shows. */
+    get alarmKey() {
         if (!this.thermostat.available) return '—';
-        if (this.thermostat.highTempAlarm) return 'HIGH temp';
-        if (this.thermostat.lowTempAlarm) return 'LOW temp';
-        return 'none';
+        if (this.thermostat.highTempAlarm) return tk('HIGH temp');
+        if (this.thermostat.lowTempAlarm) return tk('LOW temp');
+        return tk('none');
+    }
+
+    get alarmText() {
+        return this.alarmKey === '—' ? '—' : t(this.alarmKey);
     }
 
     get alarmTone() {
-        if (this.alarmText === 'none') return TONE.OK;
-        return this.alarmText === '—' ? TONE.UNKNOWN : TONE.BAD;
+        if (this.alarmKey === 'none') return TONE.OK;
+        return this.alarmKey === '—' ? TONE.UNKNOWN : TONE.BAD;
     }
 
     get telemetry() {
@@ -275,11 +281,11 @@ export class FreezerStatus {
         const notes = [];
         if (this.compressorRemote === false) {
             notes.push(this.timedOffManaged
-                ? 'The temperature controller is running the compressor itself, so Compressor On is ignored until you press Remote. Off works either way: the machine takes the compressor to remote for the time you choose.'
-                : 'The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.');
+                ? t('The temperature controller is running the compressor itself, so Compressor On is ignored until you press Remote. Off works either way: the machine takes the compressor to remote for the time you choose.')
+                : t('The temperature controller is running the compressor itself, so Compressor on/off is ignored until you press Remote.'));
         }
         if (this.fanRemote === false && !this.demistManaged) {
-            notes.push('The fan follows the door switch on the controller, so Cabinet fan on/off is ignored until you press Remote under Fan control (app v20+).');
+            notes.push(t('The fan follows the door switch on the controller, so Cabinet fan on/off is ignored until you press Remote under Fan control (app v20+).'));
         }
         return notes;
     }
@@ -290,27 +296,27 @@ export class FreezerStatus {
         const apk = this.raw?.apk;
 
         return [
-            { label: 'Compressor', value: onOff(this.compressorOn), tone: boolTone(this.compressorOn) },
-            { label: 'Compressor control', value: modeText(this.compressorRemote), tone: modeTone(this.compressorRemote) },
-            { label: 'Cooling demand', value: onOff(this.thermostat.coolingDemand), tone: boolTone(this.thermostat.coolingDemand) },
-            { label: 'Defrost', value: onOff(this.thermostat.defrosting), tone: this.thermostat.defrosting ? TONE.WARN : boolTone(this.thermostat.defrosting) },
-            { label: 'Alarm', value: this.alarmText, tone: this.alarmTone },
-            { label: 'Lock', value: this.door.lockState ?? '—', tone: this.door.lockState === 'locked' ? TONE.OK : this.door.lockState === 'unlocked' ? TONE.WARN : TONE.UNKNOWN },
-            { label: 'Door', value: this.door.doorState ?? '—', tone: this.door.doorState === 'closed' ? TONE.OK : this.door.doorState === 'opened' ? TONE.WARN : TONE.UNKNOWN },
-            { label: 'Lock link', value: this.door.lockOnlineState ?? '—', tone: this.door.lockOnlineState === 'online' ? TONE.OK : TONE.UNKNOWN },
+            { label: t('Compressor'), value: onOff(this.compressorOn), tone: boolTone(this.compressorOn) },
+            { label: t('Compressor control'), value: modeText(this.compressorRemote), tone: modeTone(this.compressorRemote) },
+            { label: t('Cooling demand'), value: onOff(this.thermostat.coolingDemand), tone: boolTone(this.thermostat.coolingDemand) },
+            { label: t('Defrost'), value: onOff(this.thermostat.defrosting), tone: this.thermostat.defrosting ? TONE.WARN : boolTone(this.thermostat.defrosting) },
+            { label: t('Alarm'), value: this.alarmText, tone: this.alarmTone },
+            { label: t('Lock'), value: this.door.lockState ?? '—', tone: this.door.lockState === 'locked' ? TONE.OK : this.door.lockState === 'unlocked' ? TONE.WARN : TONE.UNKNOWN },
+            { label: t('Door'), value: this.door.doorState ?? '—', tone: this.door.doorState === 'closed' ? TONE.OK : this.door.doorState === 'opened' ? TONE.WARN : TONE.UNKNOWN },
+            { label: t('Lock link'), value: this.door.lockOnlineState ?? '—', tone: this.door.lockOnlineState === 'online' ? TONE.OK : TONE.UNKNOWN },
             this.demistManaged
-                ? { label: 'Demist fan', value: onOff(this.fanOn), tone: this.fanOn === false ? TONE.WARN : boolTone(this.fanOn) }
-                : { label: 'Cabinet fan', value: onOff(this.fanOn), tone: boolTone(this.fanOn) },
-            ...(this.demistManaged ? [] : [{ label: 'Fan control', value: modeText(this.fanRemote), tone: modeTone(this.fanRemote) }]),
-            { label: 'Light', value: this.lightState || 'not reported', tone: this.lightState ? TONE.INFO : TONE.UNKNOWN },
-            { label: 'Volume', value: this.volume ?? '—', tone: this.volume === 0 ? TONE.WARN : this.volume === null ? TONE.UNKNOWN : TONE.INFO },
+                ? { label: t('Demist fan'), value: onOff(this.fanOn), tone: this.fanOn === false ? TONE.WARN : boolTone(this.fanOn) }
+                : { label: t('Cabinet fan'), value: onOff(this.fanOn), tone: boolTone(this.fanOn) },
+            ...(this.demistManaged ? [] : [{ label: t('Fan control'), value: modeText(this.fanRemote), tone: modeTone(this.fanRemote) }]),
+            { label: t('Light'), value: this.lightState || t('not reported'), tone: this.lightState ? TONE.INFO : TONE.UNKNOWN },
+            { label: t('Volume'), value: this.volume ?? '—', tone: this.volume === 0 ? TONE.WARN : this.volume === null ? TONE.UNKNOWN : TONE.INFO },
             {
-                label: 'Host bridge',
-                value: bridge ? (bridge.bound ? (bridge.hostReady ? 'ready' : 'bound, not ready') : 'not bound') : '—',
+                label: t('Host bridge'),
+                value: bridge ? (bridge.bound ? (bridge.hostReady ? t('ready') : t('bound, not ready')) : t('not bound')) : '—',
                 tone: bridge?.hostReady ? TONE.OK : bridge ? TONE.BAD : TONE.UNKNOWN,
             },
-            { label: 'Sale in progress', value: this.raw?.saleInProgress ? 'yes' : 'no', tone: this.raw?.saleInProgress ? TONE.WARN : TONE.OFF },
-            { label: 'App', value: apk ? `v${apk.versionName} (${apk.versionCode})` : '—', tone: apk ? TONE.INFO : TONE.UNKNOWN },
+            { label: t('Sale in progress'), value: this.raw?.saleInProgress ? t('yes') : t('no'), tone: this.raw?.saleInProgress ? TONE.WARN : TONE.OFF },
+            { label: t('App'), value: apk ? `v${apk.versionName} (${apk.versionCode})` : '—', tone: apk ? TONE.INFO : TONE.UNKNOWN },
             ...this.batch2Tiles,
         ];
     }
@@ -323,22 +329,22 @@ export class FreezerStatus {
         const online = cams.filter(cameraOnline).length;
         const streaming = cams.filter((c) => c.open === true).length;
         return [
-            { label: 'Mains', value: this.mains === 'present' ? 'present' : this.mains === 'cut' ? 'CUT — on battery' : '—', tone: this.mains === 'present' ? TONE.OK : this.mains === 'cut' ? TONE.BAD : TONE.UNKNOWN },
+            { label: t('Mains'), value: this.mains === 'present' ? t('present') : this.mains === 'cut' ? t('CUT — on battery') : '—', tone: this.mains === 'present' ? TONE.OK : this.mains === 'cut' ? TONE.BAD : TONE.UNKNOWN },
             {
-                label: 'Compressor duty (1 h)',
-                value: duty ? `${duty.dutyPercent1h}% · ${duty.cycles1h} cycle${duty.cycles1h === 1 ? '' : 's'}` : '—',
+                label: t('Compressor duty (1 h)'),
+                value: duty ? tc(':pct% · :count cycle|:pct% · :count cycles', duty.cycles1h, { pct: duty.dutyPercent1h }) : '—',
                 tone: this.dutyTone,
             },
             {
-                label: 'Cameras',
-                value: cams.length ? `${online}/${cams.length} online` + (streaming ? ` · ${streaming} streaming` : '') : '—',
+                label: t('Cameras'),
+                value: cams.length ? t(':online/:total online', { online, total: cams.length }) + (streaming ? ' · ' + t(':count streaming', { count: streaming }) : '') : '—',
                 tone: !cams.length ? TONE.UNKNOWN : online === cams.length ? TONE.OK : TONE.BAD,
             },
-            { label: 'Watchdog', value: this.watchdog ?? '—', tone: this.watchdog ? TONE.INFO : TONE.UNKNOWN },
+            { label: t('Watchdog'), value: this.watchdog ?? '—', tone: this.watchdog ? TONE.INFO : TONE.UNKNOWN },
             ...(this.radar
-                ? [{ label: 'Footfall (radar)', value: `${this.radar.enters1h} in 1 h · ${this.radar.enters24h} in 24 h`, tone: TONE.INFO }]
+                ? [{ label: t('Footfall (radar)'), value: t(':hour in 1 h · :day in 24 h', { hour: this.radar.enters1h, day: this.radar.enters24h }), tone: TONE.INFO }]
                 : []),
-            ...(this.humidity !== null ? [{ label: 'Humidity', value: `${Math.round(this.humidity)}%`, tone: TONE.INFO }] : []),
+            ...(this.humidity !== null ? [{ label: t('Humidity'), value: `${Math.round(this.humidity)}%`, tone: TONE.INFO }] : []),
         ];
     }
 }

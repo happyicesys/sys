@@ -36,13 +36,13 @@ class CityboxOpsJobItemController extends Controller
 
         // Before-restock photo first (Brian, 2026-10-13). Checked here, not trusted to the page.
         if (RestockPhotoService::blocksOpenDoor($item)) {
-            return redirect()->back()->withErrors(['citybox' => 'Take the BEFORE restock photo first — then Open Door.']);
+            return redirect()->back()->withErrors(['citybox' => __('Take the BEFORE restock photo first — then Open Door.')]);
         }
 
         // A phone double-tap must not fire the door twice.
         $key = "citybox:open:{$item->id}";
         if (RateLimiter::tooManyAttempts($key, 1)) {
-            return redirect()->back()->withErrors(['citybox' => 'Door was just opened — wait a few seconds before opening again.']);
+            return redirect()->back()->withErrors(['citybox' => __('Door was just opened — wait a few seconds before opening again.')]);
         }
         RateLimiter::hit($key, 20);
 
@@ -56,7 +56,7 @@ class CityboxOpsJobItemController extends Controller
             return redirect()->back()->withErrors(['citybox' => $this->friendly($e)]);
         }
 
-        return redirect()->back()->with('success', 'Door opened — restock, then Stock In to push your count to CityBox. (session '.$session->msgId.')');
+        return redirect()->back()->with('success', __('Door opened — restock, then Stock In to push your count to CityBox. (session :session)', ['session' => $session->msgId]));
     }
 
     /** Manual retry of a failed / stuck stock submit (the amber banner's button). */
@@ -69,12 +69,12 @@ class CityboxOpsJobItemController extends Controller
             $item->forceFill(['citybox_submit_status' => 'reverting', 'citybox_submit_error' => null])->saveQuietly();
             SubmitCityboxCount::dispatch($item->id, true)->onQueue('high');
 
-            return redirect()->back()->with('success', 'Restoring the previous count in CityBox…');
+            return redirect()->back()->with('success', __('Restoring the previous count in CityBox…'));
         }
         $item->forceFill(['citybox_submit_status' => 'pending', 'citybox_submit_error' => null])->saveQuietly();
         SubmitCityboxCount::dispatch($item->id)->onQueue('high');
 
-        return redirect()->back()->with('success', 'Re-pushing your count to CityBox…');
+        return redirect()->back()->with('success', __('Re-pushing your count to CityBox…'));
     }
 
     /** Door-open history for the item's vend (the collapsible list under the button). */
@@ -96,11 +96,11 @@ class CityboxOpsJobItemController extends Controller
     {
         $item = OpsJobItem::with(['vend', 'opsJob'])->findOrFail($id); // global scopes = operator visibility
         $vend = $item->vend;
-        abort_unless($vend && $vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER && $vend->citybox_equipment_id, 403, 'Not a CityBox Smart Chiller item.');
+        abort_unless($vend && $vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER && $vend->citybox_equipment_id, 403, __('Not a CityBox Smart Chiller item.'));
 
         $user = $request->user();
         $isDriver = $item->opsJob && (int) $item->opsJob->delivered_by === (int) $user->id;
-        abort_unless($isDriver || $user->can('update operations'), 403, 'Only the assigned driver or an operations user can do this.');
+        abort_unless($isDriver || $user->can('update operations'), 403, __('Only the assigned driver or an operations user can do this.'));
 
         return $item;
     }

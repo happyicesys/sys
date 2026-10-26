@@ -18,7 +18,7 @@
       <template #header>
         <div class="flex flex-col md:flex-row md:items-center md:space-x-2 text-black">
           <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-700 text-white text-xs font-semibold px-2.5 py-1">
-            Smart Chiller · CityBox
+            {{ $t('Smart Chiller · CityBox') }}
           </span>
           <span v-if="vend.code" class="font-semibold">ID# {{ vendCodeLabel(vend) }}</span>
           <span v-if="vend.customer_code" class="text-gray-600 text-sm">({{ vend.customer_code }}) {{ vend.customer_name }}</span>
@@ -27,27 +27,27 @@
 
       <template #default>
         <div class="min-h-40">
-          <div v-if="loading" class="py-16 text-center text-sm text-gray-500">Syncing with CityBox…</div>
+          <div v-if="loading" class="py-16 text-center text-sm text-gray-500">{{ $t('Syncing with CityBox…') }}</div>
           <div v-else-if="loadError" class="py-16 text-center text-sm text-red-600">{{ loadError }}</div>
           <div v-else class="space-y-3">
             <!-- Summary strip -->
             <div class="flex flex-col gap-2 rounded-lg bg-sky-50 ring-1 ring-sky-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700">
-                <span><span class="font-semibold text-sky-800">{{ data.total_qty }}</span> / <span class="font-semibold text-gray-900">{{ data.total_capacity }}</span> in cabinet</span>
+                <span><span class="font-semibold text-sky-800">{{ data.total_qty }}</span> / <span class="font-semibold text-gray-900">{{ data.total_capacity }}</span> {{ $t('in cabinet') }}</span>
                 <span class="text-gray-400">·</span>
-                <span :class="data.online ? 'text-green-700' : 'text-red-600'">{{ data.online ? 'online' : ('offline' + (data.offline_since ? ' since ' + data.offline_since : '')) }}</span>
+                <span :class="data.online ? 'text-green-700' : 'text-red-600'">{{ data.online ? $t('online') : (data.offline_since ? $t('offline since :since', { since: data.offline_since }) : $t('offline')) }}</span>
                 <span class="text-gray-400">·</span>
-                <span class="text-gray-500">stock as of {{ data.synced_at || '—' }}</span>
-                <span v-if="data.stock_ledger" class="text-gray-500" title="Qty moves by CityBox orders and Stock In counts; their live count only checks it.">· our ledger</span>
+                <span class="text-gray-500">{{ $t('stock as of :time', { time: data.synced_at || '—' }) }}</span>
+                <span v-if="data.stock_ledger" class="text-gray-500" :title="$t('Qty moves by CityBox orders and Stock In counts; their live count only checks it.')">· {{ $t('our ledger') }}</span>
                 <!-- Opening this overview pulls CityBox live; say so when that pull failed
                      (offline chiller / API blip) so nobody reads stale numbers as live. -->
-                <span v-if="data.refreshed === false" class="text-amber-700" :title="data.refresh_error">· live refresh failed — showing last sync</span>
-                <span v-if="data.unmapped_count" class="text-amber-700">· {{ data.unmapped_count }} unmapped SKU{{ data.unmapped_count === 1 ? '' : 's' }}</span>
+                <span v-if="data.refreshed === false" class="text-amber-700" :title="data.refresh_error">· {{ $t('live refresh failed — showing last sync') }}</span>
+                <span v-if="data.unmapped_count" class="text-amber-700">· {{ $tc(':count unmapped SKU|:count unmapped SKUs', data.unmapped_count) }}</span>
                 <!-- The cabinet total counts channels only, so stock sitting on a SKU their
                      restock config does not carry would silently go missing from it. Say so. -->
                 <span v-if="offPlanogramAll.length" class="text-gray-500"
-                  title="In the cabinet but not in CityBox's restock config — no channel, no par, ops cannot refill it.">
-                  · +{{ data.off_planogram_qty }} off-planogram
+                  :title="$t('In the cabinet but not in CityBox\'s restock config — no channel, no par, ops cannot refill it.')">
+                  · {{ $t('+:qty off-planogram', { qty: data.off_planogram_qty }) }}
                 </span>
               </div>
               <div class="flex flex-col gap-1 sm:items-end">
@@ -57,18 +57,18 @@
                      either way — only the tile grid is filtered. -->
                 <div class="flex items-center gap-3">
                   <div class="relative">
-                    <input type="text" v-model="search" placeholder="Code or name…"
-                      title="Filter tiles by product code or product name."
+                    <input type="text" v-model="search" :placeholder="$t('Code or name…')"
+                      :title="$t('Filter tiles by product code or product name.')"
                       class="w-36 sm:w-40 shadow-sm text-xs py-1 pr-6 border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
-                    <button v-if="search" type="button" title="Clear"
+                    <button v-if="search" type="button" :title="$t('Clear')"
                       class="absolute inset-y-0 right-0 px-1.5 text-gray-400 hover:text-gray-700 leading-none"
                       @click="search = ''">×</button>
                   </div>
                   <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none whitespace-nowrap"
-                    title="Hide channels that are at 0 — show only SKUs with stock left. Layer totals still count the whole layer.">
+                    :title="$t('Hide channels that are at 0 — show only SKUs with stock left. Layer totals still count the whole layer.')">
                     <input type="checkbox" v-model="inStockOnly"
                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                    <span>In stock only<span v-if="soldOutCount" class="text-gray-500"> (hides {{ soldOutCount }})</span></span>
+                    <span>{{ $t('In stock only') }}<span v-if="soldOutCount" class="text-gray-500"> {{ $t('(hides :count)', { count: soldOutCount }) }}</span></span>
                   </label>
                 </div>
                 <div class="text-xs text-gray-500">
@@ -89,23 +89,23 @@
                    class="rounded-lg border bg-gray-50"
                    :class="layer.total_channels ? 'border-gray-200 px-2 py-2 sm:px-3' : 'border-dashed border-gray-200 px-3 py-1.5'">
                 <div class="flex items-center gap-3">
-                  <span class="text-sm font-bold text-gray-700 w-16 shrink-0">Layer {{ layer.layer }}</span>
+                  <span class="text-sm font-bold text-gray-700 w-16 shrink-0">{{ $t('Layer :layer', { layer: layer.layer }) }}</span>
                   <template v-if="layer.total_channels">
-                    <div class="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden" :title="layer.qty + ' of ' + layer.capacity">
+                    <div class="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden" :title="$t(':qty of :capacity', { qty: layer.qty, capacity: layer.capacity })">
                       <div class="h-full rounded-full" :class="barClass(layer.qty, layer.capacity)" :style="{ width: pct(layer.qty, layer.capacity) + '%' }"></div>
                     </div>
                     <span class="text-sm font-semibold tabular-nums shrink-0" :class="layer.qty === 0 ? 'text-red-600' : 'text-gray-800'">{{ layer.qty }} / {{ layer.capacity }}</span>
                     <span class="text-xs text-gray-500 shrink-0 hidden sm:inline">
-                      {{ layer.channels.length }}<template v-if="layer.channels.length !== layer.total_channels"> of {{ layer.total_channels }}</template>
-                      SKU{{ layer.total_channels === 1 ? '' : 's' }}
+                      <template v-if="layer.channels.length !== layer.total_channels">{{ $tc(':shown of :count SKU|:shown of :count SKUs', layer.total_channels, { shown: layer.channels.length }) }}</template>
+                      <template v-else>{{ $tc(':count SKU|:count SKUs', layer.total_channels) }}</template>
                     </span>
                   </template>
-                  <span v-else class="text-xs text-gray-400 italic">empty</span>
+                  <span v-else class="text-xs text-gray-400 italic">{{ $t('empty') }}</span>
                 </div>
 
                 <div v-if="layer.total_channels && !layer.channels.length" class="mt-2 text-xs text-gray-400 italic">
-                  <template v-if="query">nothing matching “{{ search.trim() }}” here</template>
-                  <template v-else>all {{ layer.total_channels }} SKU{{ layer.total_channels === 1 ? '' : 's' }} sold out</template>
+                  <template v-if="query">{{ $t('nothing matching “:query” here', { query: search.trim() }) }}</template>
+                  <template v-else>{{ $tc('all :count SKU sold out|all :count SKUs sold out', layer.total_channels) }}</template>
                 </div>
 
                 <div v-if="layer.channels.length" class="mt-2 grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -115,20 +115,20 @@
                       disabled(ch) ? 'bg-gray-50 border-gray-200 border-dashed' :
                         (ch.qty === 0 ? 'bg-white border-red-400' : (ch.qty <= 2 ? 'bg-white border-amber-300' : 'bg-white border-gray-200')),
                     ]"
-                    :title="ch.off_plan ? `CityBox SKU ${ch.citybox_product_id} — on this shelf, not in CityBox's restock config` : (disabled(ch) ? `Channel ${ch.label || ch.code} — disabled in CityBox` : `Channel ${ch.label || ch.code}`)">
+                    :title="ch.off_plan ? $t('CityBox SKU :id — on this shelf, not in CityBox\'s restock config', { id: ch.citybox_product_id }) : (disabled(ch) ? $t('Channel :channel — disabled in CityBox', { channel: ch.label || ch.code }) : $t('Channel :channel', { channel: ch.label || ch.code }))">
                     <span class="absolute top-1 left-1 rounded bg-gray-800/80 text-white text-[10px] font-semibold px-1 leading-4">{{ ch.off_plan ? '#—' : '#' + (ch.label || ch.code) }}</span>
-                    <span v-if="disabled(ch)" class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">OFF</span>
-                    <span v-else-if="ch.qty === 0" class="absolute top-1 right-1 rounded bg-red-600 text-white text-[10px] font-bold px-1 leading-4">OUT</span>
-                    <span v-else-if="ch.qty <= 2" class="absolute top-1 right-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1 leading-4">LOW</span>
+                    <span v-if="disabled(ch)" class="absolute top-1 right-1 rounded bg-gray-500 text-white text-[10px] font-bold px-1 leading-4">{{ $t('OFF') }}</span>
+                    <span v-else-if="ch.qty === 0" class="absolute top-1 right-1 rounded bg-red-600 text-white text-[10px] font-bold px-1 leading-4">{{ $t('OUT') }}</span>
+                    <span v-else-if="ch.qty <= 2" class="absolute top-1 right-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1 leading-4">{{ $t('LOW') }}</span>
                     <div class="w-full h-24 sm:h-28 rounded-md bg-gray-50 flex items-center justify-center overflow-hidden">
                       <img v-if="ch.thumbnail" :src="ch.thumbnail" loading="lazy" class="w-full h-full object-contain p-1" :class="[disabled(ch) ? 'opacity-50' : '']" />
                       <span v-else class="text-3xl text-gray-300">🧃</span>
                     </div>
-                    <div v-if="ch.product && ch.product.code" class="mt-1.5 text-[11px] font-mono font-semibold truncate" :class="[disabled(ch) ? 'text-gray-400' : 'text-gray-800']" :title="`Product code ${ch.product.code}`">{{ ch.product.code }}</div>
+                    <div v-if="ch.product && ch.product.code" class="mt-1.5 text-[11px] font-mono font-semibold truncate" :class="[disabled(ch) ? 'text-gray-400' : 'text-gray-800']" :title="$t('Product code :code', { code: ch.product.code })">{{ ch.product.code }}</div>
                     <div class="text-xs sm:text-[13px] font-medium leading-snug line-clamp-2 min-h-[2.5em]"
                       :class="[ch.product && ch.product.code ? 'mt-0.5' : 'mt-1.5', disabled(ch) ? 'text-gray-400' : 'text-gray-900']"
                       :title="ch.product ? ch.product.name : (ch.citybox_name || '')">
-                      {{ ch.product ? ch.product.name : (ch.citybox_name || 'Unmapped SKU') }}
+                      {{ ch.product ? ch.product.name : (ch.citybox_name || $t('Unmapped SKU')) }}
                     </div>
                     <div class="mt-auto pt-1 flex items-end justify-between gap-1">
                       <span class="text-xl sm:text-2xl font-bold tabular-nums leading-none"
@@ -140,11 +140,11 @@
                     <!-- Our ledger vs CityBox's own count, from the pull this popup just ran. -->
                     <span v-if="data.stock_ledger && !ch.off_plan && ch.citybox_qty !== null && ch.citybox_qty !== undefined && ch.citybox_qty !== ch.qty"
                       class="mt-1 text-[10px] font-semibold text-amber-700"
-                      title="Our count moves by CityBox orders and Stock In; theirs by their own AI. A gap that lasts is an unpaid order, a miscount or shrinkage.">
+                      :title="$t('Our count moves by CityBox orders and Stock In; theirs by their own AI. A gap that lasts is an unpaid order, a miscount or shrinkage.')">
                       CityBox {{ ch.citybox_qty }}
                     </span>
-                    <span v-if="disabled(ch) && !ch.off_plan" class="mt-1 text-[10px] text-gray-500">disabled in CityBox</span>
-                    <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">unmapped in ConnectVend</span>
+                    <span v-if="disabled(ch) && !ch.off_plan" class="mt-1 text-[10px] text-gray-500">{{ $t('disabled in CityBox') }}</span>
+                    <span v-if="!ch.mapped" class="mt-1 text-[10px] text-amber-700">{{ $t('unmapped in ConnectVend') }}</span>
                   </div>
                 </div>
               </div>
@@ -153,7 +153,7 @@
             <div class="flex justify-end">
               <Button class="bg-sky-700 hover:bg-sky-800 text-white flex items-center justify-center space-x-1 w-full sm:w-auto" :disabled="pulling" @click.prevent="pull">
                 <ArrowPathIcon class="w-4 h-4" :class="pulling ? 'animate-spin' : ''" />
-                <span>{{ pulling ? 'Pulling…' : 'Pull from CityBox' }}</span>
+                <span>{{ pulling ? $t('Pulling…') : $t('Pull from CityBox') }}</span>
               </Button>
             </div>
           </div>
@@ -172,6 +172,7 @@ import { router } from '@inertiajs/vue3'
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
+import { t } from '@/i18n'
 
 const props = defineProps({ vend: Object, showModal: Boolean })
 // Index rows alias the primary key as vend_id (vends.id AS vend_id) and may not carry `id`;
@@ -232,7 +233,7 @@ async function load() {
     const res = await axios.get(`/vends/${vendId.value}/citybox-planogram`)
     data.value = res.data
   } catch (e) {
-    loadError.value = e?.response?.status === 403 ? 'This is not a Smart Chiller vend.' : "Couldn't load the planogram. Close and try again."
+    loadError.value = e?.response?.status === 403 ? t('This is not a Smart Chiller vend.') : t("Couldn't load the planogram. Close and try again.")
   } finally { loading.value = false }
 }
 
@@ -240,8 +241,8 @@ function pull() {
   pulling.value = true
   router.post(`/vends/${vendId.value}/citybox-pull`, {}, {
     preserveScroll: true, preserveState: true,
-    onSuccess: () => { toast.success('Pulled from CityBox', { timeout: 2500 }); load() },
-    onError: (e) => toast.error(e.citybox || 'Pull failed', { timeout: 5000 }),
+    onSuccess: () => { toast.success(t('Pulled from CityBox'), { timeout: 2500 }); load() },
+    onError: (e) => toast.error(e.citybox || t('Pull failed'), { timeout: 5000 }),
     onFinish: () => { pulling.value = false },
   })
 }

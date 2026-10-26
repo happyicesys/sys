@@ -1,6 +1,6 @@
 <template>
     <div class="h-fit w-fit">
-        <img :class="[useContainLogo ? 'object-contain h-28 w-52 p-3' : 'object-cover h-28 w-52']" :src="logoUrl" alt="Company Logo">
+        <img :class="[useContainLogo ? 'object-contain h-28 w-52 p-3' : 'object-cover h-28 w-52']" :src="logoUrl" :alt="$t('Company Logo')">
     </div>
 </template>
 

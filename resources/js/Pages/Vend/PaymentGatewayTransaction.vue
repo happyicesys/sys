@@ -1,12 +1,12 @@
 
 <template>
 
-  <Head title="Payment Gateway Transactions" />
+  <Head :title="$t('Payment Gateway Transactions')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Payment Gateway Transactions
+              {{ $t('Payment Gateway Transactions') }}
           </h2>
       </template>
 
@@ -15,33 +15,33 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Order ID" v-model="filters.ref_id" @keyup.enter="onSearchFilterUpdated()">
-                    Ref ID
+                <SearchInput :placeholderStr="$t('Order ID')" v-model="filters.ref_id" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Ref ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Order ID" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
-                    Order ID
+                <SearchInput :placeholderStr="$t('Order ID')" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Order ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                    Machine ID
+                <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Machine ID') }}
                     <span class="text-[9px]">
-                        ("," for multiple)
+                        {{ $t('("," for multiple)') }}
                     </span>
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="QR Ref ID" v-model="filters.qr_ref_id" @keyup.enter="onSearchFilterUpdated()">
-                    QR Ref ID
+                <SearchInput :placeholderStr="$t('QR Ref ID')" v-model="filters.qr_ref_id" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('QR Ref ID') }}
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
                     v-model="filters.date_from"
                 >
-                    From
+                    {{ $t('From') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
@@ -49,7 +49,7 @@
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
                 >
-                    To
+                    {{ $t('To') }}
                 </DatePicker>
             </div>
             <!-- <div class="col-span-5 md:col-span-1">
@@ -68,8 +68,8 @@
                 </MultiSelect>
             </div> -->
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                    Site
+                <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Site') }}
                 </SearchInput>
             </div>
             <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
@@ -87,7 +87,7 @@
             </div>
             <div class="col-span-12 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Payment Gateway
+                    {{ $t('Payment Gateway') }}
                 </label>
                 <MultiSelect
                     v-model="filters.payment_gateway_id"
@@ -95,7 +95,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -103,7 +103,7 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Dispense?
+                    {{ $t('Is Dispense?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_dispensed"
@@ -111,7 +111,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -119,7 +119,7 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Found in Transaction?
+                    {{ $t('Is Found in Transaction?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_found_in_transaction"
@@ -127,7 +127,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -135,7 +135,7 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Refunded?
+                    {{ $t('Is Refunded?') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_refunded"
@@ -143,7 +143,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -159,7 +159,7 @@
                         >
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
-                                Search
+                                {{ $t('Search') }}
                             </span>
                         </Button>
                         <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -173,7 +173,7 @@
                                     </svg>
                                 </div>
                                 <span>
-                                    Export Excel
+                                    {{ $t('Export Excel') }}
                                 </span>
                             </div>
                         </Button>
@@ -181,13 +181,13 @@
                 </div>
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                        <span>Showing</span>
+                        <span>{{ $t('Showing') }}</span>
                         <span class="font-medium">{{ paymentGatewayLogs.meta.from ?? 0 }}</span>
-                        <span>to</span>
+                        <span>{{ $t('to') }}</span>
                         <span class="font-medium">{{ paymentGatewayLogs.meta.to ?? 0 }}</span>
-                        <span>of</span>
+                        <span>{{ $t('of') }}</span>
                         <span class="font-medium">{{ paymentGatewayLogs.meta.total }}</span>
-                        <span>results</span>
+                        <span>{{ $t('results') }}</span>
                     </p>
                     <MultiSelect
                         v-model="filters.numberPerPage"
@@ -195,7 +195,7 @@
                         trackBy="id"
                         valueProp="id"
                         label="value"
-                        placeholder="Select"
+                        :placeholder="$t('Select')"
                         open-direction="bottom"
                         class="mt-1"
                         @selected="onSearchFilterUpdated"
@@ -207,31 +207,31 @@
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
         <dl class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Paid Count</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Paid Count') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['paid_count'] ? totals['paid_count'] : 0)}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Paid Amount</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Paid Amount') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['paid_amount'] ? totals['paid_amount'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0)}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Dispense Count</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Dispense Count') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['dispense_count'] ? totals['dispense_count'] : 0)}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Refund Count</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Refund Count') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['refund_count'] ? totals['refund_count'] : 0)}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Refund Amount</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Refund Amount') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['refund_amount'] ? totals['refund_amount'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0)}}
                 </dd>
@@ -249,46 +249,46 @@
                             #
                         </TableHead>
                         <TableHead>
-                            Ref ID
+                            {{ $t('Ref ID') }}
                         </TableHead>
                         <TableHeadSort modelName="approved_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('approved_at')">
-                            Paid At
+                            {{ $t('Paid At') }}
                         </TableHeadSort>
                         <TableHead>
-                            Order ID
+                            {{ $t('Order ID') }}
                         </TableHead>
                         <TableHead>
-                            Dispense Attempted?
+                            {{ $t('Dispense Attempted?') }}
                         </TableHead>
                         <TableHead>
-                            Found in Transactions?
+                            {{ $t('Found in Transactions?') }}
                         </TableHead>
                         <TableHead>
-                            Machine ID
+                            {{ $t('Machine ID') }}
                         </TableHead>
                         <TableHead>
-                            Machine Prefix
+                            {{ $t('Machine Prefix') }}
                         </TableHead>
                         <TableHead>
-                            Site
+                            {{ $t('Site') }}
                         </TableHead>
                         <TableHead>
-                            Operator
+                            {{ $t('Operator') }}
                         </TableHead>
                         <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount', true)">
-                            Amount {{ operatorCountry.currency_symbol }}
+                            {{ $t('Amount :currency', { currency: operatorCountry.currency_symbol }) }}
                         </TableHeadSort>
                         <TableHead>
-                            Payment Method
+                            {{ $t('Payment Method') }}
                         </TableHead>
                         <TableHead>
-                            Error(s)
+                            {{ $t('Error(s)') }}
                         </TableHead>
                         <TableHead>
-                            Refunded?
+                            {{ $t('Refunded?') }}
                         </TableHead>
                         <TableHead>
-                            QR Ref ID
+                            {{ $t('QR Ref ID') }}
                         </TableHead>
                       </tr>
                   </thead>
@@ -359,7 +359,7 @@
                     </template>
                     <tr v-if="!paymentGatewayLogs || !paymentGatewayLogs.data.length">
                         <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                         </td>
                     </tr>
                   </tbody>
@@ -390,6 +390,7 @@ import { router } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import { t } from '@/i18n';
 
 const props = defineProps({
     operatorOptions: Object,
@@ -417,18 +418,18 @@ onMounted(() => {
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
-        { id: 'All', value: 'All' },
+        { id: 'All', value: t('All') },
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethod = paymentMethodOptions.value[0]
 
     booleanOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'true', value: 'Yes'},
-        {id: 'false', value: 'No'},
+        {id: 'all', value: t('All')},
+        {id: 'true', value: t('Yes')},
+        {id: 'false', value: t('No')},
     ]
     operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
+        {id: 'all', full_name: t('All')},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
     ]
     successfulOptions.value = [
@@ -443,7 +444,7 @@ onMounted(() => {
         {id: '50', value: '50'},
     ]
     paymentGatewayOptions.value = [
-        {id: 'all', full_name: 'All'},
+        {id: 'all', full_name: t('All')},
         ...props.paymentGatewayOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     filters.value.payment_gateway_id = paymentGatewayOptions.value[0]

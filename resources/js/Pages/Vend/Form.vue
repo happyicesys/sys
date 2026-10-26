@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="vend">
             {{ vendCodeLabel(vend) }}
@@ -16,7 +16,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 pb-2">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="vend.customer_code && vend.customer_name">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <!-- <div class="sm:col-span-6">
@@ -26,19 +26,19 @@
             </div> -->
             <div class="sm:col-span-6">
               <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
-                Private Key
+                {{ $t('Private Key') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
               v-if="permissions.includes('update vends')">
-                Begin Date (Default is the Creation/ First Invoice Date)
+                {{ $t('Begin Date (Default is the Creation/ First Invoice Date)') }}
               </DatePicker>
             </div>
             <div class="sm:col-span-6">
               <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
               v-if="permissions.includes('update vends')">
-                Termination Date (Default is the Unbinding Date from CMS, status change)
+                {{ $t('Termination Date (Default is the Unbinding Date from CMS, status change)') }}
               </DatePicker>
             </div>
           </div>
@@ -50,7 +50,7 @@
               >
                 <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                 <span>
-                  Restart
+                  {{ $t('Restart') }}
                 </span>
               </Button>
             </div>
@@ -61,7 +61,7 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button
@@ -72,7 +72,7 @@
               >
                 <ArrowUturnDownIcon class="w-4 h-4"></ArrowUturnDownIcon>
                 <span>
-                  Unbind
+                  {{ $t('Unbind') }}
                 </span>
               </Button>
               <Button
@@ -82,7 +82,7 @@
               >
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -94,7 +94,7 @@
                 <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-center">
-                <span class="px-3 bg-white text-lg font-medium text-gray-900"> APK Logs </span>
+                <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('APK Logs') }} </span>
               </div>
             </div>
           </div>
@@ -104,7 +104,7 @@
                   <DatePicker
                       v-model="form.trigger_log_date"
                   >
-                      From
+                      {{ $t('From') }}
                   </DatePicker>
                 </div>
                 <Button
@@ -113,7 +113,7 @@
                 >
                   <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
                   <span>
-                    Trigger Log Upload
+                    {{ $t('Trigger Log Upload') }}
                   </span>
                 </Button>
               </div>
@@ -129,10 +129,10 @@
                         #
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                        Created At
+                        {{ $t('Created At') }}
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                        File
+                        {{ $t('File') }}
                       </th>
                     </tr>
                   </thead>
@@ -239,6 +239,7 @@ import moment from 'moment';
 import { ref, onMounted } from 'vue'
 import { vendCodeLabel } from '@/utils/vendCode';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   vend: Object,
@@ -279,11 +280,11 @@ function restartVend(vendID) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      toast.success("Machine restarted successfully", { timeout: 3000 })
+      toast.success(t("Machine restarted successfully"), { timeout: 3000 })
       emit('modalClose')
     },
     onError: () => {
-      toast.error("Failed to restart machine", { timeout: 3000 })
+      toast.error(t("Failed to restart machine"), { timeout: 3000 })
     }
   })
 }
@@ -294,11 +295,11 @@ function submit() {
   form.value
     .post('/vends/' + form.value.id + '/update', {
     onSuccess: () => {
-      toast.success("Machine updated successfully", { timeout: 3000 })
+      toast.success(t("Machine updated successfully"), { timeout: 3000 })
       emit('modalClose')
     },
     onError: () => {
-      toast.error("Failed to update machine", { timeout: 3000 })
+      toast.error(t("Failed to update machine"), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
@@ -309,11 +310,11 @@ function triggerLogUpload() {
   form.value
     .post('/vends/' + form.value.id + '/trigger-log-upload', {
     onSuccess: () => {
-      toast.success("Log upload triggered successfully", { timeout: 3000 })
+      toast.success(t("Log upload triggered successfully"), { timeout: 3000 })
       emit('modalClose')
     },
     onError: () => {
-      toast.error("Failed to trigger log upload", { timeout: 3000 })
+      toast.error(t("Failed to trigger log upload"), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
@@ -324,11 +325,11 @@ function unbindCustomer(vendId) {
   form.value
       .post('/vends/' + vendId + '/unbind', {
         onSuccess: () => {
-          toast.success("Site unbinded successfully", { timeout: 3000 })
+          toast.success(t("Site unbinded successfully"), { timeout: 3000 })
           emit('modalClose')
         },
         onError: () => {
-          toast.error("Failed to unbind customer", { timeout: 3000 })
+          toast.error(t("Failed to unbind customer"), { timeout: 3000 })
         },
         preserveState: true,
         replace: true,

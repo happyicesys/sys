@@ -19,7 +19,7 @@
         <div class="flex flex-wrap items-center gap-2" v-tooltip="blockedReason">
           <ControlButton tone="primary" class="rounded-md" :disabled="!canTake" @click="$emit('take', cameraId)">
             <ArrowPathIcon v-if="busy" class="mr-1 h-4 w-4 animate-spin" />
-            {{ busy ? 'Taking photo…' : 'Take photo' }}
+            {{ busy ? $t('Taking photo…') : $t('Take photo') }}
           </ControlButton>
           <span v-if="selected" class="text-xs text-gray-500">
             {{ formatTime(selected.taken_at) }}<template v-if="selected.by"> · {{ selected.by }}</template>
@@ -29,14 +29,14 @@
         <div class="flex min-h-[18rem] items-center justify-center rounded-lg bg-gray-900">
           <img v-if="selected" :src="selected.url" :alt="viewName(cameraId)" class="max-h-[60vh] w-auto rounded-lg" />
           <p v-else class="px-6 py-16 text-center text-sm text-gray-300">
-            No photo from this camera yet. Press Take photo — the machine answers in a few seconds.
+            {{ $t('No photo from this camera yet. Press Take photo — the machine answers in a few seconds.') }}
           </p>
         </div>
 
         <!-- This view's own shots, newest first: the same camera over time, nothing else. -->
         <div v-if="history.length" class="space-y-1">
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            History · last {{ history.length }}
+            {{ $t('History · last :count', { count: history.length }) }}
           </p>
           <div class="flex gap-2 overflow-x-auto pb-1">
             <button
@@ -52,7 +52,7 @@
             </button>
           </div>
           <p class="text-xs text-gray-400">
-            Stored with the machine's command history; open a photo from the timeline to download it.
+            {{ $t("Stored with the machine's command history; open a photo from the timeline to download it.") }}
           </p>
         </div>
       </div>
@@ -66,6 +66,7 @@ import ControlButton from '@/Components/SmartFreezer/ControlButton.vue'
 import { ArrowPathIcon } from '@heroicons/vue/20/solid'
 import { computed, ref, watch } from 'vue'
 import moment from 'moment'
+import { t } from '@/i18n'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -115,7 +116,7 @@ watch(() => props.open, (open) => {
 /** The view name for a camera id, taken from the same list the panel's picker uses. */
 function viewName(id) {
   const i = props.cameras.findIndex((c) => c.id === id)
-  return i >= 0 ? (props.cameras[i].label || `cam ${id}`) : `cam ${id}`
+  return i >= 0 ? (props.cameras[i].label || t('cam :id', { id })) : t('cam :id', { id })
 }
 
 function formatTime(iso) {

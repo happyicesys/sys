@@ -7,7 +7,7 @@
              device emulation the two widths differ by hundreds of px and the whole
              page squeezed to ~40% (2026-09-05, /card-settlements on mobile). The
              overlay covers the page, so nothing needs locking. -->
-        <div class="relative z-[60]" role="dialog" aria-modal="true" aria-label="Monthly sales">
+        <div class="relative z-[60]" role="dialog" aria-modal="true" :aria-label="$t('Monthly sales')">
             <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0" enter-to="opacity-100"
                              leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
                 <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"/>
@@ -28,7 +28,7 @@
                                     class="absolute left-4 top-4 z-20 grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/30 backdrop-blur transition hover:bg-white/25 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                                     :disabled="refreshing"
                                     @click="refresh">
-                                <span class="sr-only">Refresh</span>
+                                <span class="sr-only">{{ $t('Refresh') }}</span>
                                 <ArrowPathIcon class="h-5 w-5" :class="{ 'animate-spin': refreshing }" aria-hidden="true"/>
                             </button>
 
@@ -38,7 +38,7 @@
                                         class="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/30 backdrop-blur transition hover:bg-white/25 hover:text-white"
                                         :aria-expanded="showTiers"
                                         @click="showTiers = !showTiers">
-                                    <span class="sr-only">Sales tiers</span>
+                                    <span class="sr-only">{{ $t('Sales tiers') }}</span>
                                     <InformationCircleIcon class="h-5 w-5" aria-hidden="true"/>
                                 </button>
 
@@ -49,7 +49,7 @@
                                     <div v-if="showTiers"
                                          class="absolute left-0 top-11 z-30 w-56 origin-top-left rounded-2xl bg-white p-3 text-left shadow-2xl ring-1 ring-black/5">
                                         <p class="mb-2 px-1 text-[0.7rem] font-semibold uppercase tracking-wider text-gray-400">
-                                            Sales tiers
+                                            {{ $t('Sales tiers') }}
                                         </p>
                                         <ul v-if="tierLegend.length" class="space-y-1">
                                             <li v-for="t in tierLegend" :key="t.name"
@@ -59,7 +59,7 @@
                                                 <span class="text-sm font-bold tabular-nums text-gray-800">{{ currency }}{{ formatTarget(t.amount) }}</span>
                                             </li>
                                         </ul>
-                                        <p v-else class="px-1.5 py-1 text-sm text-gray-500">No tiers set.</p>
+                                        <p v-else class="px-1.5 py-1 text-sm text-gray-500">{{ $t('No tiers set.') }}</p>
                                     </div>
                                 </transition>
                             </div>
@@ -68,7 +68,7 @@
                             <button type="button"
                                     class="absolute right-4 top-4 z-20 grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/30 backdrop-blur transition hover:bg-white/25 hover:text-white"
                                     @click="dismiss">
-                                <span class="sr-only">Close</span>
+                                <span class="sr-only">{{ $t('Close') }}</span>
                                 <XMarkIcon class="h-5 w-5" aria-hidden="true"/>
                             </button>
 
@@ -81,7 +81,7 @@
                                 <div class="relative z-10">
                                     <span class="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-sky-50 ring-1 ring-inset ring-white/25">
                                         <ArrowTrendingUpIcon class="h-3.5 w-3.5" aria-hidden="true"/>
-                                        This month sales
+                                        {{ $t('This month sales') }}
                                     </span>
 
                                     <div class="mt-5 min-h-[3.75rem]">
@@ -104,8 +104,8 @@
                                             <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75"></span>
                                             <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-300"></span>
                                         </span>
-                                        <span v-if="asOf">As of {{ asOf }}</span>
-                                        <span v-else>Live figure</span>
+                                        <span v-if="asOf">{{ $t('As of :time', { time: asOf }) }}</span>
+                                        <span v-else>{{ $t('Live figure') }}</span>
                                     </p>
                                 </div>
 
@@ -119,7 +119,7 @@
                             <!-- Last 3 complete months -->
                             <div v-if="!loading && lastMonths.length" class="px-4 pt-1 sm:px-6">
                                 <p class="mb-2 text-center text-[0.7rem] font-semibold uppercase tracking-wider text-gray-400">
-                                    Recent months
+                                    {{ $t('Recent months') }}
                                 </p>
                                 <ul class="space-y-1.5">
                                     <li v-for="m in lastMonths" :key="m.label"
@@ -163,7 +163,7 @@
                                 <button type="button"
                                         class="inline-flex w-full justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:from-blue-700 hover:to-indigo-700 active:scale-[0.99]"
                                         @click="dismiss">
-                                    Got it
+                                    {{ $t('Got it') }}
                                 </button>
                             </div>
                         </div>

@@ -3,7 +3,7 @@
     <Modal :open="showModal" @modalClose="$emit('modalClose')">
       <template #header>
         <div class="flex flex-col md:flex-row space-x-2">
-          <span class="text-gray-600">Maps</span>
+          <span class="text-gray-600">{{ $t('Maps') }}</span>
         </div>
       </template>
 
@@ -18,7 +18,7 @@
               v-if="isShowDirectionButton"
             >
               <MapPinIcon class="h-4 w-4" aria-hidden="true" />
-              <span>Show Directions</span>
+              <span>{{ $t('Show Directions') }}</span>
             </Button>
           </div>
           <div id="map" style="width: 100%; height: 500px;"></div>
@@ -34,6 +34,7 @@ import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import { MapPinIcon } from '@heroicons/vue/20/solid';
 import { vendCodeLabel } from '@/utils/vendCode';
+import { t } from '@/i18n';
 
 const props = defineProps({
   customers: Array,  // Array of customer objects
@@ -153,7 +154,7 @@ const addMarkers = () => {
             <span class="font-bold">${vendCodeLabel(customer.vend)}</span><br>
             <span class="font-medium">${customer.name}</span><br>
             <p>${customer.deliveryAddress.full_address ? customer.deliveryAddress.full_address : customer.deliveryAddress.postcode}</p>
-            <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" class="text-blue-600 font-medium underline">${t('View on Google Maps')}</a>
           </div>`,
         });
 

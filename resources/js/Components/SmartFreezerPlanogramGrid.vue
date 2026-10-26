@@ -23,16 +23,16 @@
           <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-slate-800 px-1.5 text-xs font-semibold text-white">
             {{ basket.basket }}
           </span>
-          <span class="text-sm font-semibold text-slate-800">Basket {{ basket.basket }}</span>
+          <span class="text-sm font-semibold text-slate-800">{{ $t('Basket :number', { number: basket.basket }) }}</span>
           <span class="text-xs text-slate-400">
-            {{ basket.divisions }} slot{{ basket.divisions === 1 ? '' : 's' }}
+            {{ $tc(':count slot|:count slots', basket.divisions) }}
           </span>
           <span
             v-if="showQty && basketQty(basket) !== null"
             class="ml-auto text-xs font-semibold tabular-nums"
             :class="basketQty(basket) === 0 ? 'text-red-600' : 'text-slate-600'"
           >
-            {{ basketQty(basket) }} pcs
+            {{ $t(':count pcs', { count: basketQty(basket) }) }}
           </span>
         </header>
 
@@ -112,7 +112,7 @@
                 <span class="rounded-md bg-slate-200 px-1.5 py-px font-mono text-[10px] font-semibold leading-4 text-slate-600">
                   {{ cell.code }}
                 </span>
-                <span class="text-[11px] text-slate-400">Empty</span>
+                <span class="text-[11px] text-slate-400">{{ $t('Empty') }}</span>
               </div>
             </div>
           </div>
@@ -125,6 +125,7 @@
 <script setup>
 import { computed } from 'vue'
 import { PhotoIcon } from '@heroicons/vue/20/solid'
+import { t } from '@/i18n'
 
 const props = defineProps({
   // [{ basket: 1..6, divisions: n }], sorted by basket.
@@ -193,8 +194,8 @@ function qtyClass(qty) {
 }
 
 function qtyTooltip(item) {
-  if (!Number.isFinite(item.qty)) return 'No stock recorded for this channel'
-  if (item.capacity) return `${item.qty} of ${item.capacity} capacity`
-  return `${item.qty} in stock`
+  if (!Number.isFinite(item.qty)) return t('No stock recorded for this channel')
+  if (item.capacity) return t(':qty of :capacity capacity', { qty: item.qty, capacity: item.capacity })
+  return t(':qty in stock', { qty: item.qty })
 }
 </script>

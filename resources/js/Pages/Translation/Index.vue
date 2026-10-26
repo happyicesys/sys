@@ -14,13 +14,16 @@
                 <p class="text-sm text-gray-600">
                     {{ $t('Each line is one text of the system, written in English. Type new wording and press Save; everyone sees it on their next page. Reset brings back the original wording.') }}
                 </p>
+                <p class="text-xs text-gray-500">
+                    {{ $t('"Shown on" lists every page that uses the text. The same English text shares one wording, so a change appears in all of those places. Pick a page to review its texts one page at a time.') }}
+                </p>
                 <div class="flex flex-wrap gap-4 text-xs text-gray-600">
                     <span>{{ $t('Texts: :count', { count: counts.total }) }}</span>
                     <span>{{ $t('Translated (shipped): :count', { count: counts.translated }) }}</span>
                     <span>{{ $t('Changed here: :count', { count: counts.changed }) }}</span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
                     <label class="block text-sm">
                         <span class="font-medium text-gray-700">{{ $t('Language') }}</span>
                         <select v-model="form.locale" class="mt-1 block w-full rounded-md border-gray-300 text-sm" @change="search()">
@@ -31,6 +34,13 @@
                         <span class="font-medium text-gray-700">{{ $t('Search') }}</span>
                         <input v-model="form.search" type="text" class="mt-1 block w-full rounded-md border-gray-300 text-sm"
                             :placeholder="$t('English or translated text')" @keyup.enter="search()" />
+                    </label>
+                    <label class="block text-sm">
+                        <span class="font-medium text-gray-700">{{ $t('Page') }}</span>
+                        <select v-model="form.page_name" class="mt-1 block w-full rounded-md border-gray-300 text-sm" @change="search()">
+                            <option value="">{{ $t('All pages') }}</option>
+                            <option v-for="(count, name) in pages" :key="name" :value="name">{{ name }} ({{ count }})</option>
+                        </select>
                     </label>
                     <label class="block text-sm">
                         <span class="font-medium text-gray-700">{{ $t('Show') }}</span>
@@ -58,7 +68,18 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             <tr v-for="entry in entries.data" :key="entry.key" class="align-top">
-                                <td class="px-2 py-2 whitespace-pre-wrap break-words text-gray-800">{{ entry.key }}</td>
+                                <td class="px-2 py-2 text-gray-800">
+                                    <div class="whitespace-pre-wrap break-words">{{ entry.key }}</div>
+                                    <!-- Where it is shown: one wording serves every place listed. -->
+                                    <div v-if="entry.places.length" class="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-gray-500">
+                                        <span>{{ $t('Shown on:') }}</span>
+                                        <span v-for="place in entry.places.slice(0, 4)" :key="place" class="rounded bg-gray-100 px-1.5 py-0.5">{{ place }}</span>
+                                        <span v-if="entry.places.length > 4" class="rounded bg-gray-100 px-1.5 py-0.5 cursor-help"
+                                            v-tooltip="entry.places.slice(4).join(', ')">
+                                            {{ $t('+:count more', { count: entry.places.length - 4 }) }}
+                                        </span>
+                                    </div>
+                                </td>
                                 <td class="px-2 py-2 whitespace-pre-wrap break-words" :class="entry.shipped ? 'text-gray-700' : 'text-red-600 italic'">
                                     {{ entry.shipped || $t('Not translated yet') }}
                                 </td>
@@ -73,7 +94,7 @@
                                         </button>
                                         <button v-if="entry.value" type="button" class="rounded border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-100"
                                             :disabled="saving === entry.key" @click="save(entry, '')">
-                                            {{ $t('Reset') }}
+                                            {{ $t('Reset to default') }}
                                         </button>
                                         <span v-if="entry.value" class="text-gray-500">
                                             {{ $t('Changed by :name at :time', { name: entry.updated_by || '—', time: entry.updated_at }) }}
@@ -112,6 +133,7 @@ const props = defineProps({
     locales: Object,
     filters: Object,
     counts: Object,
+    pages: Object,
 });
 
 const toast = useToast();

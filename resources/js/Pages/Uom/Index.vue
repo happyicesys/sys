@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="UOM" />
+  <Head :title="$t('UOM')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Settings (UOM)
+        {{ $t('Data Settings (UOM)') }}
       </h2>
     </template>
 
@@ -17,14 +17,14 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
         </div>
 
@@ -37,20 +37,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ uoms.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ uoms.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ uoms.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -58,7 +58,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -78,7 +78,7 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -100,7 +100,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -109,7 +109,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -117,7 +117,7 @@
                       </tr>
                 <tr v-if="!uoms.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -152,6 +152,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   uoms: Object,
@@ -174,7 +175,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -186,16 +187,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(uom) {
-  const approval = confirm('Are you sure to delete ' + uom.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: uom.name }));
   if (!approval) {
       return;
   }
   router.delete('/uoms/' + uom.id, {
     onSuccess: () => {
-      toast.success("UOM deleted successfully", { timeout: 3000 })
+      toast.success(t('UOM deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete UOM", { timeout: 3000 })
+      toast.error(t('Failed to delete UOM'), { timeout: 3000 })
     }
   })
 }

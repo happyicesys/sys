@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Country" />
+  <Head :title="$t('Country')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Settings (Country & Currency)
+        {{ $t('Data Settings (Country & Currency)') }}
       </h2>
     </template>
 
@@ -17,14 +17,14 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
         </div>
 
@@ -37,20 +37,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ countries.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ countries.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ countries.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -58,7 +58,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -78,23 +78,23 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Code
+                      {{ $t('Code') }}
                     </TableHead>
                     <TableHead>
-                      Currency
+                      {{ $t('Currency') }}
                     </TableHead>
                     <TableHead>
-                      Symbol
+                      {{ $t('Symbol') }}
                     </TableHead>
                     <TableHead>
-                      Phone Code
+                      {{ $t('Phone Code') }}
                     </TableHead>
                     <TableHead>
-                      Latest Rate <br>
-                      (Base: {{authUser.profile.base_currency.currency_name}})
+                      {{ $t('Latest Rate') }} <br>
+                      {{ $t('(Base: :currency)', { currency: authUser.profile.base_currency.currency_name }) }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -131,7 +131,7 @@
                           >
                             <PlusCircleIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
-                                Rate
+                                {{ $t('Rate') }}
                             </span>
                           </Button>
                           <Button
@@ -140,7 +140,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <!-- <Button
@@ -157,7 +157,7 @@
                       </tr>
                 <tr v-if="!countries.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -203,6 +203,7 @@ import { ref, onMounted, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import ExchangeRate from './ExchangeRate.vue';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 defineProps({
   countries: Object,
@@ -227,7 +228,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -239,16 +240,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(country) {
-  const approval = confirm('Are you sure to delete ' + country.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: country.name }));
   if (!approval) {
       return;
   }
   router.delete('/countries/' + country.id, {
     onSuccess: () => {
-      toast.success("Country deleted successfully", { timeout: 3000 })
+      toast.success(t("Country deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete country", { timeout: 3000 })
+      toast.error(t("Failed to delete country"), { timeout: 3000 })
     }
   })
 }

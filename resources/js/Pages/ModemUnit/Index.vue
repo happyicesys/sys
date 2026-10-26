@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Machine Model" />
+  <Head :title="$t('Machine Model')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Modem IMEI)
+        {{ $t('Data Management (Modem IMEI)') }}
       </h2>
     </template>
 
@@ -17,18 +17,18 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="IMEI" v-model="filters.imei">
-            IMEI
+          <SearchInput :placeholderStr="$t('IMEI')" v-model="filters.imei">
+            {{ $t('IMEI') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Modem Type
+                {{ $t('Modem Type') }}
             </label>
             <MultiSelect
                 v-model="filters.modem_type_id"
@@ -36,16 +36,16 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-              Machine ID
+          <SearchInput :placeholderStr="$t('4 to 5 Digits Number')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Machine ID') }}
               <span class="text-[9px]">
-                  ("," for multiple)
+                  {{ $t('("," for multiple)') }}
               </span>
             </SearchInput>
         </div>
@@ -59,20 +59,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ modemUnits.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ modemUnits.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ modemUnits.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -80,7 +80,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -100,16 +100,16 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="imei" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('imei')">
-                      IMEI
+                      {{ $t('IMEI') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="modem_type_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('modem_type_id')">
-                      Model
+                      {{ $t('Model') }}
                     </TableHeadSort>
                     <TableHead>
-                      Binded Machine
+                      {{ $t('Binded Machine') }}
                     </TableHead>
                     <TableHead>
-                      Status
+                      {{ $t('Status') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -137,7 +137,7 @@
                           >
                               <div class="flex flex-col">
                                   <span class="font-bold">
-                                      {{modemUnit.is_online ? 'Online' : 'Offline'}}
+                                      {{modemUnit.is_online ? $t('Online') : $t('Offline')}}
                                   </span>
                                   <span v-if="modemUnit.last_updated_at">
                                       {{modemUnit.last_updated_at}}
@@ -155,7 +155,7 @@
                           >
                             <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                             <span>
-                                Reset
+                                {{ $t('Reset') }}
                             </span>
                           </Button>
                           <Button
@@ -164,7 +164,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -177,11 +177,11 @@
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
                               <span>
-                                  Delete
+                                  {{ $t('Delete') }}
                               </span>
                             </span>
                             <span v-if="modemUnit.vends && modemUnit.vends.length > 0">
-                              (Binded)
+                              {{ $t('(Binded)') }}
                             </span>
                           </Button>
                         </div>
@@ -189,7 +189,7 @@
                       </tr>
                 <tr v-if="!modemUnits.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -226,6 +226,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   modemTypeOptions: Object,
@@ -258,7 +259,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -270,7 +271,7 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(modemUnit) {
-  const approval = confirm('Are you sure to delete ' + modemUnit.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: modemUnit.name }));
   if (!approval) {
       return;
   }
@@ -284,7 +285,7 @@ function onEditClicked(telcoValue) {
 }
 
 function onResetClicked(modemUnit) {
-  const approval = confirm('Are you sure to reset ' + modemUnit.imei + '?');
+  const approval = confirm(t('Are you sure to reset :name?', { name: modemUnit.imei }));
   if (!approval) {
       return;
   }
@@ -294,7 +295,7 @@ function onResetClicked(modemUnit) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      toast.success("Reset signal sent", {
+      toast.success(t("Reset signal sent"), {
         timeout: 3000
       });
     }

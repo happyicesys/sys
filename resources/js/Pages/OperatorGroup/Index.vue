@@ -1,17 +1,17 @@
 <template>
 
-  <Head title="Operator Groups" />
+  <Head :title="$t('Operator Groups')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Operator Groups
+        {{ $t('Operator Groups') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <p class="text-sm text-gray-500 mb-3">
-        An operator group shares ONE originating CIMB account for refund settlements. Assign the operators that pay from the same account (e.g. HIPL + HIMD, HIESG, UL-ST, LEA).
+        {{ $t('An operator group shares ONE originating CIMB account for refund settlements. Assign the operators that pay from the same account (e.g. HIPL + HIMD, HIESG, UL-ST, LEA).') }}
       </p>
 
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
@@ -20,12 +20,12 @@
           @click="onCreateClicked()"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-            <span>Create</span>
+            <span>{{ $t('Create') }}</span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Code / Name" v-model="filters.name">
-            Search
+          <SearchInput :placeholderStr="$t('Code / Name')" v-model="filters.name">
+            {{ $t('Search') }}
           </SearchInput>
         </div>
 
@@ -36,19 +36,19 @@
               @click="onSearchFilterUpdated()"
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>Search</span>
+                <span>{{ $t('Search') }}</span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ groups.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ groups.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ groups.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -56,7 +56,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -73,11 +73,11 @@
                 <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">
                     <TableHead>#</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>CIMB Account</TableHead>
-                    <TableHead>Operators</TableHead>
-                    <TableHead>Active</TableHead>
+                    <TableHead>{{ $t('Code') }}</TableHead>
+                    <TableHead>{{ $t('Name') }}</TableHead>
+                    <TableHead>{{ $t('CIMB Account') }}</TableHead>
+                    <TableHead>{{ $t('Operators') }}</TableHead>
+                    <TableHead>{{ $t('Active') }}</TableHead>
                     <TableHead></TableHead>
                   </tr>
                 </thead>
@@ -97,13 +97,13 @@
                           <div class="font-mono text-xs">{{ group.bank_account_no }}</div>
                           <div class="text-xs text-gray-500">{{ group.bank_account_name || '—' }}</div>
                         </template>
-                        <span v-else class="text-red-500 text-xs">Not set</span>
+                        <span v-else class="text-red-500 text-xs">{{ $t('Not set') }}</span>
                       </TableData>
                       <TableData :currentIndex="groupIndex" :totalLength="groups.length" inputClass="text-left">
                         <div class="flex flex-wrap gap-1">
                           <span v-for="op in (group.operators || [])" :key="op.id"
                             class="inline-flex items-center rounded bg-teal-100 text-teal-800 text-xs px-1.5 py-0.5">{{ op.code || op.name }}</span>
-                          <span v-if="!group.operators || !group.operators.length" class="text-gray-400 text-xs">None</span>
+                          <span v-if="!group.operators || !group.operators.length" class="text-gray-400 text-xs">{{ $t('None') }}</span>
                         </div>
                       </TableData>
                       <TableData :currentIndex="groupIndex" :totalLength="groups.length" inputClass="text-center">
@@ -111,7 +111,7 @@
                           class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
                           :class="group.is_active ? 'bg-green-300' : 'bg-red-300'"
                         >
-                          {{ group.is_active ? 'Active' : 'Inactive' }}
+                          {{ group.is_active ? $t('Active') : $t('Inactive') }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="groupIndex" :totalLength="groups.length" inputClass="text-center">
@@ -121,7 +121,7 @@
                             @click="onEditClicked(group)"
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>Edit</span>
+                            <span>{{ $t('Edit') }}</span>
                           </Button>
                           <Button
                             type="button"
@@ -129,14 +129,14 @@
                             @click="onDeleteClicked(group)"
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
-                            <span>Delete</span>
+                            <span>{{ $t('Delete') }}</span>
                           </Button>
                         </div>
                       </TableData>
                       </tr>
                 <tr v-if="!groups.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -159,6 +159,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/OperatorGroup/Form.vue';
@@ -192,7 +193,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -204,11 +205,11 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(g) {
-  const approval = confirm('Delete operator group "' + g.name + '"? Its operators will be released (they keep their own bank account).');
+  const approval = confirm(t('Delete operator group ":name"? Its operators will be released (they keep their own bank account).', { name: g.name }));
   if (!approval) return;
   router.delete('/operator-groups/' + g.id, {
-    onSuccess: () => toast.success("Operator group deleted", { timeout: 3000 }),
-    onError: () => toast.error("Failed to delete", { timeout: 3000 }),
+    onSuccess: () => toast.success(t('Operator group deleted'), { timeout: 3000 }),
+    onError: () => toast.error(t('Failed to delete'), { timeout: 3000 }),
   })
 }
 

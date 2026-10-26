@@ -13,7 +13,7 @@
           <dl class="divide-y divide-gray-100">
             <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Short Order ID
+                {{ $t('Short Order ID') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 {{ model.short_order_id }}
@@ -21,7 +21,7 @@
             </div>
             <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Phone Number
+                {{ $t('Phone Number') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 {{ model.driver_phone_number }}
@@ -29,7 +29,7 @@
             </div>
             <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Driver Name
+                {{ $t('Driver Name') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 {{ model.deliveryPlatformOrderComplaint.original_json['IssueDriverName'] }}
@@ -37,7 +37,7 @@
             </div>
             <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Problem
+                {{ $t('Problem') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 {{ model.deliveryPlatformOrderComplaint.original_json['IssueProblem'] }}
@@ -45,7 +45,7 @@
             </div>
             <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Qty Affected
+                {{ $t('Qty Affected') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 {{ model.deliveryPlatformOrderComplaint.original_json['IssueProductMissing'] }}
@@ -53,7 +53,7 @@
             </div>
             <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Remarks
+                {{ $t('Remarks') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 {{ model.deliveryPlatformOrderComplaint.original_json['IssueRemark'] }}
@@ -72,7 +72,7 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
             </div>

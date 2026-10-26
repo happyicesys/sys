@@ -1,11 +1,9 @@
 <template>
-  <Head title="Create Vouchers" />
+  <Head :title="$t('Create Vouchers')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Batch Create
-        {{ isUnique ? 'Different Codes' : 'Same Codes' }}
-        Vouchers
+        {{ isUnique ? $t('Batch Create Different Codes Vouchers') : $t('Batch Create Same Codes Vouchers') }}
       </h2>
     </template>
 
@@ -16,30 +14,30 @@
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-3" v-if="isUnique == false">
-              <FormInput v-model="form.code" required="true" placeholderStr="Alphanumeric" :error="form.errors['code']">
-                Voucher Code
+              <FormInput v-model="form.code" required="true" :placeholderStr="$t('Alphanumeric')" :error="form.errors['code']">
+                {{ $t('Voucher Code') }}
               </FormInput>
             </div>
             <div class="sm:col-span-2">
-              <FormInput v-model="form.qty" required="true" placeholderStr="Numbers only" :error="form.errors['qty']">
-                Max Claimable Qty
+              <FormInput v-model="form.qty" required="true" :placeholderStr="$t('Numbers only')" :error="form.errors['qty']">
+                {{ $t('Max Claimable Qty') }}
               </FormInput>
             </div>
             <div class="sm:col-span-5">
               <FormInput v-model="form.name" required="true" :error="form.errors['name']">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
 
             <div class="sm:col-span-5">
               <FormTextarea v-model="form.desc" rows="3" :error="form.errors['desc']">
-                Desc
+                {{ $t('Desc') }}
               </FormTextarea>
             </div>
 
             <div class="sm:col-span-4">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -50,7 +48,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onOperatorChanged"
@@ -65,10 +63,10 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-1 items-center">
                     <span>
-                      Machine(s)
+                      {{ $t('Machine(s)') }}
                     </span>
                     <span class="text-red-500 text-xs">
-                      Default to all if not selected
+                      {{ $t('Default to all if not selected') }}
                     </span>
                   </div>
                 </label>
@@ -78,7 +76,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   mode="tags"
@@ -91,7 +89,7 @@
 
             <div class="sm:col-span-3">
               <DatePicker v-model="form.date_from" @input="onDateFromChanged()">
-                Begin Date
+                {{ $t('Begin Date') }}
                 <span class="text-red-500">*</span>
               </DatePicker>
               <div class="text-sm text-red-600" v-if="form.errors.date_from">
@@ -100,7 +98,7 @@
             </div>
             <div class="sm:col-span-3">
               <DatePicker v-model="form.date_to" :error="form.errors.date_to" :minDate="form.date_from">
-                End Date
+                {{ $t('End Date') }}
                 <span class="text-red-500">*</span>
               </DatePicker>
               <div class="text-sm text-red-600" v-if="form.errors.date_to">
@@ -110,7 +108,7 @@
 
             <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Type
+                  {{ $t('Type') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -121,7 +119,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -132,8 +130,8 @@
             </div>
 
             <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
-              <FormInput v-model="form.value" required="true" placeholderStr="Numbers only" :error="form.errors['value']">
-                Value
+              <FormInput v-model="form.value" required="true" :placeholderStr="$t('Numbers only')" :error="form.errors['value']">
+                {{ $t('Value') }}
                   <span v-if="form.type.id == 'percent'">
                     (%)
                   </span>
@@ -144,16 +142,16 @@
             </div>
 
             <div class="sm:col-span-2" v-if="form.type">
-              <FormInput v-model="form.min_value" placeholderStr="Numbers only" :error="form.errors['min_value']">
-                Mininum Basket Value ($)
-                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'If left empty, means no min is enforced', html: true }"></ExclamationCircleIcon>
+              <FormInput v-model="form.min_value" :placeholderStr="$t('Numbers only')" :error="form.errors['min_value']">
+                {{ $t('Mininum Basket Value ($)') }}
+                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('If left empty, means no min is enforced'), html: true }"></ExclamationCircleIcon>
               </FormInput>
             </div>
 
             <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
-              <FormInput v-model="form.max_promo_value" placeholderStr="Numbers only" :error="form.errors['max_promo_value']">
-                Maximum Promo Value ($)
-                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Applicable for percent discount, when left empty, means no limit on maximum', html: true }"></ExclamationCircleIcon>
+              <FormInput v-model="form.max_promo_value" :placeholderStr="$t('Numbers only')" :error="form.errors['max_promo_value']">
+                {{ $t('Maximum Promo Value ($)') }}
+                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Applicable for percent discount, when left empty, means no limit on maximum'), html: true }"></ExclamationCircleIcon>
               </FormInput>
             </div>
 
@@ -163,14 +161,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Audiences </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Audiences') }}</span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Is DCVend?
+                  {{ $t('Is DCVend?') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -181,7 +179,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -193,7 +191,7 @@
 
             <div class="sm:col-span-3" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  DCVend Member Type
+                  {{ $t('DCVend Member Type') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -204,7 +202,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -215,14 +213,14 @@
             </div>
 
             <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
-              <FormInput v-model="form.dcvend_qty_per_member" placeholderStr="Numbers only" :error="form.errors['dcvend_qty_per_member']" required="true">
-                Qty
+              <FormInput v-model="form.dcvend_qty_per_member" :placeholderStr="$t('Numbers only')" :error="form.errors['dcvend_qty_per_member']" required="true">
+                {{ $t('Qty') }}
               </FormInput>
             </div>
 
             <div class="sm:col-span-2" v-if="(form.is_dcvend && form.is_dcvend.id == 'true') && (form.dcvend_member_type && form.dcvend_member_type.id == 4)">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Refresh Qty After Renew Plan
+                  {{ $t('Refresh Qty After Renew Plan') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -233,7 +231,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -245,7 +243,7 @@
 
             <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Voucher Valid Duration Unit
+                  {{ $t('Voucher Valid Duration Unit') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -256,7 +254,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -268,7 +266,7 @@
 
             <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true' && (form.valid_unit && form.valid_unit.id != 'plan')">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Voucher Valid Duration
+                  {{ $t('Voucher Valid Duration') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -279,7 +277,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -295,14 +293,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Product(s) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Product(s)') }}</span>
                 </div>
               </div>
             </div>
 
             <span class="sm:col-span-5">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Product
+                {{ $t('Product') }}
                 <span class="text-red-500">
                   *
                 </span>
@@ -313,7 +311,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -335,7 +333,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -346,7 +344,7 @@
                   v-model="form.is_random_channel_sequence"
                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                 />
-                <span>Randomize Channel Sequence</span>
+                <span>{{ $t('Randomize Channel Sequence') }}</span>
               </label>
             </div>
 
@@ -361,10 +359,10 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            ID
+                            {{ $t('ID') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Name
+                            {{ $t('Name') }}
                           </th>
                           <th></th>
                         </tr>
@@ -396,7 +394,7 @@
                         </tr>
                         <tr v-if="!products.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -414,7 +412,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Create
+                    {{ $t('Create') }}
                   </span>
                 </Button>
               </span>
@@ -429,6 +427,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { vendCodeLabel } from '@/utils/vendCode'
 import Button from '@/Components/Button.vue';
@@ -478,8 +477,8 @@ const voucherPlatformMappings = ref(props.voucherPlatformMappings)
 
 onMounted(() => {
   booleanOptions.value = [
-      {id: 'true', value: 'Yes'},
-      {id: 'false', value: 'No'},
+      {id: 'true', value: t('Yes')},
+      {id: 'false', value: t('No')},
   ]
   operatorOptions.value = props.operatorOptions.data
   productOptions.value = props.productOptions.data
@@ -500,7 +499,7 @@ function addProduct(product) {
 
   const existingProduct = products.value.find((p) => p.id === product.id)
   if (existingProduct) {
-    toast.error("Product already added", {
+    toast.error(t('Product already added'), {
       timeout: 3000
     });
     return
@@ -585,7 +584,7 @@ function submit() {
     }))
     .post('/vouchers/store', {
     onSuccess: () => {
-      toast.success("Successfully created", {
+      toast.success(t('Successfully created'), {
         timeout: 3000
       });
     },

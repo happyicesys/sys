@@ -1,9 +1,9 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Advance Control for Machine ID#
+        {{ $t('Advance Control for Machine ID#') }}
         {{ vendCodeLabel(vend) }}
       </h2>
     </template>
@@ -20,7 +20,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Vending Machine </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Vending Machine') }} </span>
                 </div>
               </div>
             </div>
@@ -30,17 +30,17 @@
                   :class="[vend.is_active ? 'bg-green-300' : 'bg-red-300']"
               >
                 <span v-if="vend.is_active">
-                  Active
+                  {{ $t('Active') }}
                 </span>
                 <span v-if="!vend.is_active">
-                  Not Active
+                  {{ $t('Not Active') }}
                 </span>
               </div>
             </div>
 
             <div class="sm:col-span-5" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Machine ID#
+                {{ $t('Machine ID#') }}
               </label>
               <div class="mt-1">
                 <input
@@ -53,10 +53,10 @@
             </div>
 
             <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.id">
-              ** Edit More Device data or Unbind This Site
+              {{ $t('** Edit More Device data or Unbind This Site') }}
               <span>
                 <a class="text-blue-700" target="_blank" :href="'/settings/vend/' + vend.id + '/update'">
-                  (Click Here)
+                  {{ $t('(Click Here)') }}
                 </a>
               </span>
             </div>
@@ -123,24 +123,24 @@
                 </div>
                 <div class="ml-3 flex-1 text-sm text-blue-700">
                   <p class="font-bold text-blue-800 mb-1">
-                    Remote Restart Instructions
+                    {{ $t('Remote Restart Instructions') }}
                   </p>
                   <p>
-                    Remotely restart VMC and APK to address issues of Card Terminal not responding and Alert on Lost of Transaction/Sales from Cash Sales/ Card Terminal /via QR / No Digital Screen Activity.
+                    {{ $t('Remotely restart VMC and APK to address issues of Card Terminal not responding and Alert on Lost of Transaction/Sales from Cash Sales/ Card Terminal /via QR / No Digital Screen Activity.') }}
                   </p>
                   <div class="mt-3 text-blue-800">
-                    <p class="font-semibold">Steps:</p>
+                    <p class="font-semibold">{{ $t('Steps:') }}</p>
                     <ol class="list-decimal list-inside ml-1 mt-1 font-medium">
-                      <li>Restart VMC. Wait for 1 min, then</li>
-                      <li>Restart APK</li>
+                      <li>{{ $t('Restart VMC. Wait for 1 min, then') }}</li>
+                      <li>{{ $t('Restart APK') }}</li>
                     </ol>
                   </div>
                   <div class="mt-4 flex flex-col space-y-1">
                     <p class="text-red-500 font-semibold text-xs">
-                      * Note: Not able to remote restart on machines with 'offline' status.
+                      {{ $t('* Note: Not able to remote restart on machines with \'offline\' status.') }}
                     </p>
                     <p class="text-xs italic text-blue-600">
-                      If issue persists after restarting, an onsite check is needed for connectivity and hardware.
+                      {{ $t('If issue persists after restarting, an onsite check is needed for connectivity and hardware.') }}
                     </p>
                   </div>
                 </div>
@@ -166,7 +166,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Restart VMC
+                      {{ $t('Restart VMC') }}
                     </span>
                 </Button>
                 <Button
@@ -175,7 +175,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Restart APK
+                      {{ $t('Restart APK') }}
                     </span>
                 </Button>
                 <Button
@@ -184,7 +184,7 @@
                   >
                     <ArrowUpCircleIcon class="w-4 h-4"></ArrowUpCircleIcon>
                     <span>
-                      Push Products Info to Machine
+                      {{ $t('Push Products Info to Machine') }}
                     </span>
                 </Button>
                 <Button
@@ -195,7 +195,7 @@
                   >
                     <ClockIcon class="w-4 h-4"></ClockIcon>
                     <span>
-                      Log
+                      {{ $t('Log') }}
                     </span>
                 </Button>
                 <!--
@@ -217,7 +217,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      {{ canResetModem ? 'Reset Modem' : 'N/A Remote Modem' }}
+                      {{ canResetModem ? $t('Reset Modem') : $t('N/A Remote Modem') }}
                     </span>
                 </Button>
               </span>
@@ -230,7 +230,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-start">
-                    <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Site </span>
+                    <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site') }} </span>
                   </div>
                 </div>
 
@@ -241,7 +241,7 @@
                     v-if="form.customer.person_id"
                 >
                     <div class="flex flex-col">
-                      From CMS
+                      {{ $t('From CMS') }}
                     </div>
                 </div>
                 <!-- <div
@@ -257,14 +257,14 @@
               {{ Boolean(form.customer.id && !form.customer.person_id) }}
               {{ Boolean(!form.customer.id) }} -->
               <fieldset class="sm:col-span-6" v-if="!form.customer.id">
-                <legend class="sr-only">Plan</legend>
+                <legend class="sr-only">{{ $t('Plan') }}</legend>
                 <div class="space-y-5">
                   <div class="relative flex items-start">
                     <div class="flex h-6 items-center">
                       <input id="isExisting" aria-describedby="is-existing-description" name="isExisting" type="radio" v-model="isExisting" value="1" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
-                      <label for="is_existing" class="font-medium text-gray-900">Select Existing Site</label>
+                      <label for="is_existing" class="font-medium text-gray-900">{{ $t('Select Existing Site') }}</label>
                     </div>
                   </div>
                   <!-- <div class="relative flex items-start">
@@ -281,7 +281,7 @@
               <div class="sm:col-span-6" v-if="!vend.customer && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Site
+                    {{ $t('Site') }}
                   </label>
                   <MultiSelect
                     v-model="form.customer_id"
@@ -289,7 +289,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -299,7 +299,7 @@
 
               <div class="sm:col-span-6" v-if="vend.customer && vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Site
+                  {{ $t('Site') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -312,7 +312,7 @@
               </div>
               <div class="sm:col-span-6" v-if="vend.customer && !vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Site
+                  {{ $t('Site') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -337,18 +337,18 @@
                 </div>
               </div> -->
               <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.customer && vend.customer.person_id">
-                ** Customer Data only editable from CMS
+                {{ $t('** Customer Data only editable from CMS') }}
                 <span>
                   <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
-                    (Click Here)
+                    {{ $t('(Click Here)') }}
                   </a>
                 </span>
               </div>
               <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.customer && !vend.customer.person_id">
-                ** Edit customer data
+                {{ $t('** Edit customer data') }}
                 <span>
                   <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
-                    (Click Here)
+                    {{ $t('(Click Here)') }}
                   </a>
                 </span>
               </div>
@@ -534,7 +534,7 @@
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
-                      Back
+                      {{ $t('Back') }}
                     </span>
                   </Button>
                 </Link>
@@ -560,7 +560,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> APK Logs </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('APK Logs') }} </span>
                 </div>
               </div>
             </div>
@@ -570,7 +570,7 @@
                   <DatePicker
                       v-model="form.trigger_log_date"
                   >
-                      From
+                      {{ $t('From') }}
                   </DatePicker>
                 </div>
                 <Button
@@ -579,7 +579,7 @@
                 >
                   <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
                   <span>
-                    Trigger Log Upload
+                    {{ $t('Trigger Log Upload') }}
                   </span>
                 </Button>
               </div>
@@ -595,10 +595,10 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Created At
+                          {{ $t('Created At') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          File
+                          {{ $t('File') }}
                         </th>
                       </tr>
                     </thead>
@@ -613,13 +613,13 @@
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <div class="flex w-0 space-x-2 items-center">
                             <PaperClipIcon class="h-5 w-5 flex-shrink-0 text-gray-400" aria-hidden="true" />
-                            <a :href="log.full_url" target="_blank" class="font-medium text-indigo-600 hover:text-indigo-500">Download</a>
+                            <a :href="log.full_url" target="_blank" class="font-medium text-indigo-600 hover:text-indigo-500">{{ $t('Download') }}</a>
                           </div>
                         </td>
                       </tr>
                       <tr v-if="!vend.logs || !vend.logs.length">
                         <td colspan="3" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
-                          No records found
+                          {{ $t('No records found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -718,6 +718,7 @@ const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModa
 import { fromPairs } from 'lodash';
 import { vendCodeLabel } from '@/utils/vendCode';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
     adminCustomerOptions: Object,
@@ -734,8 +735,8 @@ const form = ref(
 const adminCustomerOptions = ref([])
 
 const booleanStrictOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
 ])
 
 const countryOptions = ref([])
@@ -848,10 +849,10 @@ onMounted(() => {
 function syncVendChannels(vendID) {
   router.post('/vends/' + vendID + '/sync-vend-channels', {}, {
     onSuccess: () => {
-      toast.success("Machine channels synced successfully", { timeout: 3000 })
+      toast.success(t('Machine channels synced successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to sync machine channels", { timeout: 3000 })
+      toast.error(t('Failed to sync machine channels'), { timeout: 3000 })
     },
     preserveScroll: true,
     preserveState: true,
@@ -866,10 +867,10 @@ function formatDatetime(datetime) {
 function restartAPK(vendID) {
   router.post('/vends/' + vendID + '/restart-apk', {}, {
     onSuccess: () => {
-      toast.success("APK restarted successfully", { timeout: 3000 })
+      toast.success(t('APK restarted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to restart APK", { timeout: 3000 })
+      toast.error(t('Failed to restart APK'), { timeout: 3000 })
     },
     preserveScroll: true,
     preserveState: true,
@@ -880,10 +881,10 @@ function restartAPK(vendID) {
 function restartVMC(vendID) {
   router.post('/vends/' + vendID + '/restart-vmc', {}, {
     onSuccess: () => {
-      toast.success("VMC restarted successfully", { timeout: 3000 })
+      toast.success(t('VMC restarted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to restart VMC", { timeout: 3000 })
+      toast.error(t('Failed to restart VMC'), { timeout: 3000 })
     },
     preserveScroll: true,
     preserveState: true,
@@ -923,15 +924,15 @@ const canResetModem = computed(() => {
  */
 function resetModem(modemUnitID) {
   if (!modemUnitID) return
-  const approval = confirm('Are you sure to reset this modem?')
+  const approval = confirm(t('Are you sure to reset this modem?'))
   if (!approval) return
 
   router.post('/modem-units/' + modemUnitID + '/reset', {}, {
     onSuccess: () => {
-      toast.success("Reset signal sent", { timeout: 3000 })
+      toast.success(t('Reset signal sent'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to reset modem", { timeout: 3000 })
+      toast.error(t('Failed to reset modem'), { timeout: 3000 })
     },
     preserveScroll: true,
     preserveState: true,

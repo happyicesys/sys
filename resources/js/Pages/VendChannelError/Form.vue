@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.vendChannelError">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.vendChannelError">
             {{ props.vendChannelError.name }}
@@ -19,7 +19,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <h3 class="text-base font-medium leading-7 text-gray-900">
-                Code
+                {{ $t('Code') }}
               </h3>
               <p class="mt-1 text-sm leading-6 text-gray-700">
                 {{ form.code }}
@@ -27,7 +27,7 @@
             </div>
             <div class="sm:col-span-6">
               <h3 class="text-base font-medium leading-7 text-gray-900">
-                Desc
+                {{ $t('Desc') }}
               </h3>
               <p class="mt-1 text-sm leading-6 text-gray-700">
                 {{ form.desc }}
@@ -35,7 +35,7 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.weightage" :error="form.errors.weightage">
-                Weightage (%)
+                {{ $t('Weightage (%)') }}
               </FormInput>
             </div>
           </div>
@@ -48,13 +48,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -66,6 +66,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
@@ -106,11 +107,11 @@ function submit() {
     form.value
     .post('/vend-channel-errors/create', {
       onSuccess: () => {
-        toast.success("Machine channel error created successfully", { timeout: 3000 })
+        toast.success(t("Machine channel error created successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create vend channel error", { timeout: 3000 })
+        toast.error(t("Failed to create vend channel error"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -121,11 +122,11 @@ function submit() {
     form.value
       .post('/vend-channel-errors/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Machine channel error updated successfully", { timeout: 3000 })
+        toast.success(t("Machine channel error updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update vend channel error", { timeout: 3000 })
+        toast.error(t("Failed to update vend channel error"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

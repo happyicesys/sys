@@ -1,10 +1,10 @@
 <template>
-  <Head title="Edit Product" />
+  <Head :title="$t('Edit Product')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex items-center justify-between">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-         Edit Product
+         {{ $t('Edit Product') }}
         </h2>
         <HistoryButton v-if="product" type="Product" :id="product.id" />
       </div>
@@ -29,7 +29,7 @@
                     {{ form.progress.percentage }}%
                   </progress>
                   <span class="text-sm p-2 text-red-600">
-                    * Image file, max 500kb
+                    {{ $t('* Image file, max 500kb') }}
                   </span>
                 </div>
                 <div class="text-sm text-red-600" v-if="form.errors.thumbnail">
@@ -38,32 +38,32 @@
               </div>
               <div class="sm:col-span-2">
                 <FormInput v-model="form.code" :error="form.errors.code" :disabled="!permissions.includes('update products')" required="true">
-                  Code
+                  {{ $t('Code') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-4">
                 <FormInput v-model="form.name" :error="form.errors.name" :disabled="!permissions.includes('update products')" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.desc" :disabled="!permissions.includes('update products')" :error="form.errors.desc">
-                  Desc
+                  {{ $t('Desc') }}
                 </FormTextarea>
               </div>
               <div class="sm:col-span-2">
                 <FormInput v-model="form.measurement_count" :error="form.errors.measurement_count" :disabled="!permissions.includes('update products')">
-                  Lowest Unit
+                  {{ $t('Lowest Unit') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-2">
                 <FormInput v-model="form.measurement_value" :error="form.errors.measurement_value" :disabled="!permissions.includes('update products')">
-                  Volume/ Weight
+                  {{ $t('Volume/ Weight') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  UOM
+                  {{ $t('UOM') }}
                 </label>
                 <MultiSelect
                   v-model="form.measurement_unit"
@@ -71,7 +71,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -85,7 +85,7 @@
                    there is no choice to offer (e.g. LSH). -->
               <div class="sm:col-span-2" v-if="isCmsUrlSet">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Qty in Warehouse from
+                  {{ $t('Qty in Warehouse from') }}
                 </label>
                 <MultiSelect
                   v-model="form.warehouse_qty_source"
@@ -93,16 +93,16 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                   :disabled="!permissions.includes('update products')"
                 >
                 </MultiSelect>
                 <p class="mt-1 text-xs text-gray-500">
-                  <b>CMS API</b> = pulled from CMS by product code (vending fleet default).
-                  <b>Manual (self-system ledger)</b> = you key incoming stock in Product Management › Warehouse Qty (self-system ledger); picks deduct it.
-                  <span v-if="isCityboxEnabled">CityBox SKUs are ledger; everything else CMS.</span>
+                  <b>{{ $t('CMS API') }}</b> {{ $t('= pulled from CMS by product code (vending fleet default).') }}
+                  <b>{{ $t('Manual (self-system ledger)') }}</b> {{ $t('= you key incoming stock in Product Management › Warehouse Qty (self-system ledger); picks deduct it.') }}
+                  <span v-if="isCityboxEnabled">{{ $t('CityBox SKUs are ledger; everything else CMS.') }}</span>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.warehouse_qty_source">
                   {{ form.errors.warehouse_qty_source }}
@@ -110,7 +110,7 @@
               </div>
               <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -121,7 +121,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -132,7 +132,7 @@
               </div>
               <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Category
+                  {{ $t('Category') }}
                 </label>
                 <MultiSelect
                   v-model="form.category_group_id"
@@ -140,7 +140,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -151,7 +151,7 @@
               </div>
               <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  SubCategory
+                  {{ $t('SubCategory') }}
                 </label>
                 <MultiSelect
                   v-model="form.category_id"
@@ -159,7 +159,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -173,7 +173,7 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div>
                     <span>
-                      Campaign Labels
+                      {{ $t('Campaign Labels') }}
                     </span>
                     <!-- <span class="text-xs text-gray-500">
                       (Select one only)
@@ -187,7 +187,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   mode="tags"
@@ -202,7 +202,7 @@
                     class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                     :disabled="!permissions.includes('update products')"
                   />
-                  <span>Is Healthier Choice</span>
+                  <span>{{ $t('Is Healthier Choice') }}</span>
                 </label>
               </div>
               <div class="sm:col-span-2">
@@ -213,7 +213,7 @@
                     class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                     :disabled="!permissions.includes('update products')"
                   />
-                  <span>Is Halal</span>
+                  <span>{{ $t('Is Halal') }}</span>
                 </label>
               </div>
               <div class="sm:col-span-2">
@@ -224,13 +224,13 @@
                     class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                     :disabled="!permissions.includes('update products')"
                   />
-                  <span>Parent SKU (blind housing)</span>
+                  <span>{{ $t('Parent SKU (blind housing)') }}</span>
                 </label>
-                <p class="text-xs text-gray-400 mt-1">A housing holds no stock itself — bind its flavours &amp; ratios below.</p>
+                <p class="text-xs text-gray-400 mt-1">{{ $t('A housing holds no stock itself — bind its flavours & ratios below.') }}</p>
               </div>
               <div class="sm:col-span-2">
                 <FormInput v-model="form.nutri_grade" :error="form.errors.nutri_grade" :disabled="!permissions.includes('update products')">
-                  Nutri Grade
+                  {{ $t('Nutri Grade') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6" v-if="form.is_parent_sku && form.id">
@@ -244,7 +244,7 @@
                   :flavour-options="flavourOptionsData"
                 />
                 <p v-else class="text-xs text-amber-600 rounded-md bg-amber-50 border border-amber-200 p-2">
-                  Save the product first (with “Parent SKU” ticked) — then you can bind its flavours here.
+                  {{ $t('Save the product first (with “Parent SKU” ticked) — then you can bind its flavours here.') }}
                 </p>
               </div>
 
@@ -254,23 +254,23 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Unit Cost') }}</span>
                   </div>
                 </div>
               </div>
               <div class="sm:col-span-3" v-if="form.id">
                 <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
-                  Unit Cost
+                  {{ $t('Unit Cost') }}
                   <span class="text-xs text-gray-500">
-                    (before GST)
+                    {{ $t('(before GST)') }}
                   </span>
                 </FormInput>
               </div>
               <div class="sm:col-span-3" v-if="form.id">
                 <DatePicker v-model="form.date_from">
-                  Start Date
+                  {{ $t('Start Date') }}
                   <span class="text-[9px]">
-                    (Leave blank to start NOW)
+                    {{ $t('(Leave blank to start NOW)') }}
                   </span>
                 </DatePicker>
               </div>
@@ -287,7 +287,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -302,13 +302,13 @@
                               #
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Unit Cost <br>
+                              {{ $t('Unit Cost') }} <br>
                               <span class="text-xs text-gray-500">
-                                (before GST)
+                                {{ $t('(before GST)') }}
                               </span>
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Start Date
+                              {{ $t('Start Date') }}
                             </th>
                             <th></th>
                           </tr>
@@ -324,9 +324,9 @@
                                 <span
                                   v-if="unitCost.is_blended"
                                   class="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700"
-                                  title="Ratio-weighted average of the blind flavours' unit costs"
+                                  :title="$t('Ratio-weighted average of the blind flavours\' unit costs')"
                                 >
-                                  auto-generated from blind flavours
+                                  {{ $t('auto-generated from blind flavours') }}
                                 </span>
                               </div>
                             </td>
@@ -341,12 +341,12 @@
                               >
                                 <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                               </Button>
-                              <span v-else class="text-[10px] text-gray-400 italic">auto</span>
+                              <span v-else class="text-[10px] text-gray-400 italic">{{ $t('auto') }}</span>
                             </td>
                           </tr>
                           <tr v-if="!unitCosts.length">
                             <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                              No Results Found
+                              {{ $t('No Results Found') }}
                             </td>
                           </tr>
                         </tbody>
@@ -367,7 +367,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Smart Freezer</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Smart Freezer') }}</span>
                   </div>
                 </div>
               </div>
@@ -377,15 +377,14 @@
                   inputType="number"
                   :minValue="1"
                   :maxValue="999"
-                  placeholderStr="e.g. 24"
+                  :placeholderStr="$t('e.g. :value', { value: 24 })"
                   :error="form.errors.freezer_slot_qty"
                   :disabled="!permissions.includes('update products')"
                 >
-                  Pieces per freezer slot
+                  {{ $t('Pieces per freezer slot') }}
                 </FormInput>
                 <p class="mt-1 text-xs text-gray-500">
-                  How many of this product fit in ONE basket division. Used as the channel capacity on every
-                  Smart Freezer that carries it; leave blank until it has been counted.
+                  {{ $t('How many of this product fit in ONE basket division. Used as the channel capacity on every Smart Freezer that carries it; leave blank until it has been counted.') }}
                 </p>
               </div>
 
@@ -401,7 +400,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Smart Chiller (CityBox)</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Smart Chiller (CityBox)') }}</span>
                   </div>
                 </div>
               </div>
@@ -411,15 +410,14 @@
                   inputType="number"
                   :minValue="1"
                   :maxValue="999"
-                  placeholderStr="e.g. 5"
+                  :placeholderStr="$t('e.g. :value', { value: 5 })"
                   :error="form.errors.chiller_slot_qty"
                   :disabled="!permissions.includes('update products')"
                 >
-                  Pieces per chiller channel
+                  {{ $t('Pieces per chiller channel') }}
                 </FormInput>
                 <p class="mt-1 text-xs text-gray-500">
-                  How many of this product fit in ONE chiller channel. Used as the channel capacity on every
-                  Smart Chiller mapping that carries it; leave blank until it has been counted.
+                  {{ $t('How many of this product fit in ONE chiller channel. Used as the channel capacity on every Smart Chiller mapping that carries it; leave blank until it has been counted.') }}
                 </p>
               </div>
               <div class="sm:col-span-3" v-if="form.id">
@@ -428,14 +426,14 @@
                   inputType="number"
                   :minValue="1"
                   :maxValue="3650"
-                  placeholderStr="e.g. 180"
+                  :placeholderStr="$t('e.g. :value', { value: 180 })"
                   :error="form.errors.shelf_life_days"
                   :disabled="!permissions.includes('update products')"
                 >
-                  Shelf Life (days)
+                  {{ $t('Shelf Life (days)') }}
                 </FormInput>
                 <p class="mt-1 text-xs text-gray-500">
-                  How many days this product keeps. Leave blank for vending machine and Smart Freezer products.
+                  {{ $t('How many days this product keeps. Leave blank for vending machine and Smart Freezer products.') }}
                 </p>
               </div>
 
@@ -445,7 +443,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Selling Price(s)</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Selling Price(s)') }}</span>
                   </div>
                 </div>
               </div>
@@ -453,23 +451,23 @@
                    A group named RP1–RP5 is also that RP's selling price (CityboxPriceGroupSync). -->
               <div class="sm:col-span-6" v-if="form.id && isCityboxOwned">
                 <p class="text-sm text-gray-500 text-center">
-                  Set in the CityBox portal (OPS Pro → price groups). A group named RP1–RP5 is that Ref Price Type here. A chiller still charges the price its machine reports.
+                  {{ $t('Set in the CityBox portal (OPS Pro → price groups). A group named RP1–RP5 is that Ref Price Type here. A chiller still charges the price its machine reports.') }}
                 </p>
                 <div class="mt-3 overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg" v-if="cityboxPriceGroups.length">
                   <table class="min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                       <tr>
-                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">CityBox price group</th>
-                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Ref Price Type</th>
-                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Amount</th>
-                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Synced</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('CityBox price group') }}</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('Ref Price Type') }}</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('Amount') }}</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('Synced') }}</th>
                       </tr>
                     </thead>
                     <tbody class="bg-white">
                       <tr v-for="(group, groupIndex) in cityboxPriceGroups" :key="group.group_id" :class="groupIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                         <td class="whitespace-nowrap px-3 py-2 text-sm text-center text-gray-900">{{ group.group_name }}</td>
                         <td class="whitespace-nowrap px-3 py-2 text-sm text-center font-semibold" :class="group.type ? 'text-gray-900' : 'text-gray-400'">
-                          {{ group.type ? 'RP' + group.type : 'not an RP' }}
+                          {{ group.type ? 'RP' + group.type : $t('not an RP') }}
                         </td>
                         <td class="whitespace-nowrap px-3 py-2 text-sm text-center font-semibold text-gray-900">{{ priceMoney(group.price_cents) }}</td>
                         <td class="whitespace-nowrap px-3 py-2 text-xs text-center text-gray-500">{{ auditTime(group.synced_at) }}</td>
@@ -477,16 +475,16 @@
                     </tbody>
                   </table>
                 </div>
-                <p v-else class="mt-2 text-xs text-gray-400 text-center">This product is in no CityBox price group.</p>
+                <p v-else class="mt-2 text-xs text-gray-400 text-center">{{ $t('This product is in no CityBox price group.') }}</p>
               </div>
               <div class="sm:col-span-3" v-if="form.id && !isCityboxOwned">
-                <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
-                  Amount
+                <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" :placeholder="$t('Number')" required="true">
+                  {{ $t('Amount') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3" v-if="form.id && !isCityboxOwned">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Ref Price Type
+                  {{ $t('Ref Price Type') }}
                 </label>
                 <MultiSelect
                   v-model="form.selling_price_type"
@@ -494,7 +492,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -513,7 +511,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -528,13 +526,13 @@
                               #
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Amount
+                              {{ $t('Amount') }}
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Ref Price Type
+                              {{ $t('Ref Price Type') }}
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Last Updated
+                              {{ $t('Last Updated') }}
                             </th>
                             <th></th>
                           </tr>
@@ -554,12 +552,12 @@
                             <td class="whitespace-nowrap py-4 px-3 text-xs text-center text-gray-600">
                               <template v-if="sellingPrice.id">
                                 <div>{{ auditTime(sellingPrice.set_at) }}</div>
-                                <div class="text-blue-600 italic">{{ sellingPrice.set_by || 'not recorded' }}</div>
+                                <div class="text-blue-600 italic">{{ sellingPrice.set_by || $t('not recorded') }}</div>
                                 <div v-if="sellingPrice.previous_amount !== null && sellingPrice.previous_amount !== undefined" class="text-gray-400">
-                                  was {{ priceMoney(sellingPrice.previous_amount) }}
+                                  {{ $t('was :price', { price: priceMoney(sellingPrice.previous_amount) }) }}
                                 </div>
                               </template>
-                              <span v-else-if="!sellingPrice.id" class="text-amber-600">not saved yet</span>
+                              <span v-else-if="!sellingPrice.id" class="text-amber-600">{{ $t('not saved yet') }}</span>
                             </td>
                             <td class="whitespace-nowrap py-4 text-sm text-center">
                               <Button
@@ -572,7 +570,7 @@
                           </tr>
                           <tr v-if="!sellingPrices.length">
                             <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                              No Results Found
+                              {{ $t('No Results Found') }}
                             </td>
                           </tr>
                         </tbody>
@@ -584,16 +582,16 @@
                 <!-- Every change to this product's selling prices, newest first (user_logs, since 2026-07-18). -->
                 <div class="sm:col-span-6" v-if="form.id && priceHistory.length">
                   <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-800" @click="showPriceHistory = !showPriceHistory">
-                    {{ showPriceHistory ? 'Hide' : 'Show' }} price history ({{ priceHistory.length }})
+                    {{ showPriceHistory ? $t('Hide price history (:count)', { count: priceHistory.length }) : $t('Show price history (:count)', { count: priceHistory.length }) }}
                   </button>
                   <div v-if="showPriceHistory" class="mt-2 overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
                         <tr>
-                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">When</th>
-                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Ref Price Type</th>
-                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">Change</th>
-                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">By</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('When') }}</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('Ref Price Type') }}</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('Change') }}</th>
+                          <th class="px-3 py-2 text-center text-xs font-semibold text-gray-900">{{ $t('By') }}</th>
                         </tr>
                       </thead>
                       <tbody class="bg-white">
@@ -604,8 +602,8 @@
                             <span v-if="h.kind === 'changed'">
                               <span class="text-gray-400">{{ priceMoney(h.from) }}</span> → <span class="font-semibold text-gray-900">{{ priceMoney(h.to) }}</span>
                             </span>
-                            <span v-else-if="h.kind === 'added'" class="text-green-700">added {{ priceMoney(h.to) }}</span>
-                            <span v-else class="text-red-600">removed {{ priceMoney(h.from) }}</span>
+                            <span v-else-if="h.kind === 'added'" class="text-green-700">{{ $t('added :price', { price: priceMoney(h.to) }) }}</span>
+                            <span v-else class="text-red-600">{{ $t('removed :price', { price: priceMoney(h.from) }) }}</span>
                           </td>
                           <td class="whitespace-nowrap px-3 py-2 text-xs text-center text-blue-600 italic">{{ h.by || '-' }}</td>
                         </tr>
@@ -619,13 +617,13 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Translated Name</span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Translated Name') }}</span>
                   </div>
                 </div>
               </div>
               <div class="sm:col-span-3" v-if="form.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Language
+                  {{ $t('Language') }}
                 </label>
                 <MultiSelect
                   v-model="form.language"
@@ -633,7 +631,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -641,7 +639,7 @@
               </div>
               <div class="sm:col-span-3" v-if="form.id">
                 <FormInput v-model="form.translated_name" :error="form.errors.translated_name">
-                  Translated Name
+                  {{ $t('Translated Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6 flex justify-start" v-if="form.id">
@@ -657,7 +655,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -672,10 +670,10 @@
                               #
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Language
+                              {{ $t('Language') }}
                             </th>
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Translated Name
+                              {{ $t('Translated Name') }}
                             </th>
                             <th></th>
                           </tr>
@@ -702,7 +700,7 @@
                           </tr>
                           <tr v-if="!languages.length">
                             <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
-                              No Results Found
+                              {{ $t('No Results Found') }}
                             </td>
                           </tr>
                         </tbody>
@@ -717,7 +715,7 @@
                 <Link :href="'/products'" class="inline-block">
                   <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                    <span>Back</span>
+                    <span>{{ $t('Back') }}</span>
                   </Button>
                 </Link>
 
@@ -726,13 +724,13 @@
                     <span class="flex space-x-1 items-center" v-if="form.is_active">
                       <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
                       <span>
-                        Deactivate
+                        {{ $t('Deactivate') }}
                       </span>
                     </span>
                     <span class="flex space-x-1 items-center" v-else>
                       <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
                       <span>
-                        Activate
+                        {{ $t('Activate') }}
                       </span>
                     </span>
                   </div>
@@ -740,7 +738,7 @@
                 <Button type="submit" v-if="permissions.includes('update products')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -780,6 +778,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
+import { t } from '@/i18n';
 
 const props = defineProps({
     categories: Object,
@@ -808,8 +807,8 @@ const parentThumbnailUrl = computed(() => props.product?.data?.thumbnail?.full_u
 const isPersistedParentSku = computed(() => !!props.product?.data?.is_parent_sku);
 
 const warehouseQtySourceOptions = ref([
-  { id: 'cms', name: 'CMS API (pulled)' },
-  { id: 'ledger', name: 'Manual (self-system ledger)' },
+  { id: 'cms', name: t('CMS API (pulled)') },
+  { id: 'ledger', name: t('Manual (self-system ledger)') },
 ]);
 const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
@@ -944,7 +943,7 @@ function submit() {
       .post('/products/' + form.value.id + '/update', {
         onSuccess: () => {
           const toast = useToast();
-          toast.success("Product updated successfully");
+          toast.success(t('Product updated successfully'));
         },
         preserveScroll: true,
         preserveState: true,
@@ -956,7 +955,7 @@ function toggleActivateDeactivate() {
   form.value.post('/products/' + form.value.id + '/toggle-activate-deactivate', {
     onSuccess: () => {
       const toast = useToast();
-      toast.success("Product status updated successfully");
+      toast.success(t('Product status updated successfully'));
     },
     preserveState: true,
     replace: true,
@@ -983,11 +982,11 @@ function removeUnitCost(unitCost) {
     router.delete('/products/unit-costs/' + unitCost.id, {
       onSuccess: () => {
         const toast = useToast();
-        toast.success("Unit cost deleted successfully");
+        toast.success(t('Unit cost deleted successfully'));
       },
       onError: (errors) => {
         const toast = useToast();
-        toast.error(errors.unit_cost || "Failed to delete unit cost", { timeout: 8000 });
+        toast.error(errors.unit_cost || t('Failed to delete unit cost'), { timeout: 8000 });
       },
       preserveState: true,
       replace: true,
@@ -1028,7 +1027,7 @@ function removeSellingPrice(sellingPrice) {
     router.delete('/products/selling-prices/' + sellingPrice.id, {
       onSuccess: () => {
         const toast = useToast();
-        toast.success("Selling price deleted successfully");
+        toast.success(t('Selling price deleted successfully'));
       },
       preserveState: true,
       replace: true,

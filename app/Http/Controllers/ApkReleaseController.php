@@ -143,7 +143,7 @@ class ApkReleaseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "{$this->channels->label($channel)}: v{$release->version_name} (code {$release->version_code}) uploaded as draft."
+            __(':channel: v:version (code :code) uploaded as draft.', ['channel' => $this->channels->label($channel), 'version' => $release->version_name, 'code' => $release->version_code])
         );
     }
 
@@ -160,13 +160,13 @@ class ApkReleaseController extends Controller
         if ($live && $live->id !== $release->id) {
             return redirect()->back()->with(
                 'success',
-                "{$label}: v{$release->version_name} published, but v{$live->version_name} (code {$live->version_code}) is still the live build — devices only ever take the highest published versionCode."
+                __(':channel: v:version published, but v:live_version (code :live_code) is still the live build — devices only ever take the highest published versionCode.', ['channel' => $label, 'version' => $release->version_name, 'live_version' => $live->version_name, 'live_code' => $live->version_code])
             );
         }
 
         return redirect()->back()->with(
             'success',
-            "{$label}: v{$release->version_name} is now live to the fleet (rollout {$release->rollout_permille}‰)."
+            __(':channel: v:version is now live to the fleet (rollout :rollout‰).', ['channel' => $label, 'version' => $release->version_name, 'rollout' => $release->rollout_permille])
         );
     }
 
@@ -177,7 +177,7 @@ class ApkReleaseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "{$this->channels->label($release->channel)}: v{$release->version_name} unpublished — no longer offered."
+            __(':channel: v:version unpublished — no longer offered.', ['channel' => $this->channels->label($release->channel), 'version' => $release->version_name])
         );
     }
 
@@ -192,7 +192,7 @@ class ApkReleaseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "Rollout for v{$release->version_name} set to {$release->rollout_permille}‰."
+            __('Rollout for v:version set to :rollout‰.', ['version' => $release->version_name, 'rollout' => $release->rollout_permille])
         );
     }
 
@@ -203,7 +203,7 @@ class ApkReleaseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "v{$release->version_name} mandatory flag ".($release->mandatory ? 'ON' : 'OFF').'.'
+            $release->mandatory ? __('v:version mandatory flag ON.', ['version' => $release->version_name]) : __('v:version mandatory flag OFF.', ['version' => $release->version_name])
         );
     }
 
@@ -224,7 +224,7 @@ class ApkReleaseController extends Controller
         }
         $release->delete();
 
-        return redirect()->back()->with('success', "v{$release->version_name} deleted.");
+        return redirect()->back()->with('success', __('v:version deleted.', ['version' => $release->version_name]));
     }
 
     /**
@@ -254,7 +254,7 @@ class ApkReleaseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "OTA check pushed to {$count} machine(s) on {$this->channels->label($channel)}."
+            __('OTA check pushed to :count machine(s) on :channel.', ['count' => $count, 'channel' => $this->channels->label($channel)])
         );
     }
 
@@ -282,7 +282,7 @@ class ApkReleaseController extends Controller
         $wantsUnknown = ($raw === null || $raw === '' || $raw === 'unknown');
 
         if (! $wantsUnknown && ! ctype_digit((string) $raw)) {
-            abort(422, 'version_code must be an integer or "unknown".');
+            abort(422, __('version_code must be an integer or "unknown".'));
         }
 
         $query = $this->fleetQuery($channel)

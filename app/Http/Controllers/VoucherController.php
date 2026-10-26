@@ -95,7 +95,7 @@ class VoucherController extends Controller
         if (!$voucher) {
             return response([
                 'status_code' => 404,
-                'message' => 'Voucher not found',
+                'message' => __('Voucher not found'),
             ], 404);
         }
 
@@ -492,7 +492,7 @@ class VoucherController extends Controller
         if (!$voucher) {
             return response([
                 'status_code' => 404,
-                'message' => 'Voucher not found',
+                'message' => __('Voucher not found'),
             ], 404);
         }
 
@@ -517,7 +517,7 @@ class VoucherController extends Controller
 
         // $this->voucherService->syncVoucherItems($voucher);
 
-        return redirect()->route('vouchers.edit', ['id' => $voucher->id])->with('success', 'Voucher updated successfully');
+        return redirect()->route('vouchers.edit', ['id' => $voucher->id])->with('success', __('Voucher updated successfully'));
     }
 
 

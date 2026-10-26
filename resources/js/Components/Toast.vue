@@ -9,6 +9,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useToast } from 'vue-toastification';
+import { t } from '@/i18n';
 
 const props = defineProps({
   color: {
@@ -28,7 +29,7 @@ const buttonClasses = computed(() => {
 });
 
 const showToast = () => {
-  toast('This is a custom toast notification!', {
+  toast(t('This is a custom toast notification!'), {
     timeout: props.duration,
     style: {
       backgroundColor: getBackgroundColor(props.color),

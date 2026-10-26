@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Product Mappings" />
+  <Head :title="$t('Product Mappings')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Product Mappings
+        {{ $t('Product Mappings') }}
       </h2>
     </template>
 
@@ -18,33 +18,33 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
-          <SearchInput placeholderStr="Upcoming Product Mapping" v-model="filters.upcoming_product_mapping">
-            Upcoming Product Mapping
+          <SearchInput :placeholderStr="$t('Upcoming Product Mapping')" v-model="filters.upcoming_product_mapping">
+            {{ $t('Upcoming Product Mapping') }}
           </SearchInput>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID#
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID#') }}
           </SearchInput>
           <!-- Site search — matches a binded machine's site by Site Name,
                virtual code/prefix, or the displayed Site ID (customers.id +
                20000). Same matching rules as the Customer index "Site" box. -->
-          <SearchInput placeholderStr="Site name / ID" v-model="filters.site">
-            Site
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.site">
+            {{ $t('Site') }}
           </SearchInput>
-          <SearchInput placeholderStr="Product" v-model="filters.product">
-            Product
+          <SearchInput :placeholderStr="$t('Product')" v-model="filters.product">
+            {{ $t('Product') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Active Product Mapping
+              {{ $t('Active Product Mapping') }}
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -52,7 +52,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -82,7 +82,7 @@
                list. Options come from the server (Vend::MACHINE_TYPE_MAPPINGS). -->
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Type
+							{{ $t('Machine Type') }}
 						</label>
 						<MultiSelect
 							v-model="filters.machineType"
@@ -90,7 +90,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -98,7 +98,7 @@
 					</div>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Status
+							{{ $t('Machine Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendStatus"
@@ -106,7 +106,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -123,20 +123,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ productMappings.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ productMappings.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ productMappings.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -144,7 +144,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -158,7 +158,7 @@
         <div class="bg-white overflow-hidden shadow rounded-lg">
           <div class="px-4 py-5 sm:p-6">
             <dt class="text-sm font-medium text-gray-500 truncate">
-              Total Binded Machines
+              {{ $t('Total Binded Machines') }}
             </dt>
             <dd class="mt-1 text-3xl font-semibold text-gray-900">
               {{ totalBindedVends }}
@@ -178,20 +178,20 @@
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)"  class="bg-sky-200">
                       <div class="flex flex-col space-y-1">
-                        <span>Name</span>
-                        <span class="text-black font-normal text-xs">Remarks</span>
+                        <span>{{ $t('Name') }}</span>
+                        <span class="text-black font-normal text-xs">{{ $t('Remarks') }}</span>
                       </div>
                     </TableHeadSort>
                     <TableHead>
                       <div class="flex flex-col space-y-1">
-                        <span>Upcoming Product Mapping</span>
-                        <span class="text-black font-normal text-xs">Remarks</span>
+                        <span>{{ $t('Upcoming Product Mapping') }}</span>
+                        <span class="text-black font-normal text-xs">{{ $t('Remarks') }}</span>
                         <a
                           href="#"
                           class="inline-flex items-center justify-center gap-0.5 font-normal text-xs text-blue-600 hover:text-blue-800"
                           @click.prevent="sortTable('upcoming_product_mapping_start_date', false)"
                         >
-                          Start At
+                          {{ $t('Start At') }}
                           <svg v-if="filters.sortKey === 'upcoming_product_mapping_start_date' && filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                           </svg>
@@ -202,14 +202,14 @@
                       </div>
                     </TableHead>
                     <TableHead>
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHead>
                     <!-- DEPRECATED (2026-07): prefix→mapping binding retired; Binded Prefix column hidden -->
                     <!-- <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name', false)">
                       Binded Prefix
                     </TableHeadSort> -->
                     <TableHead>
-                      Channel - Product
+                      {{ $t('Channel - Product') }}
                     </TableHead>
                     <TableHead>
                       <!--
@@ -244,7 +244,7 @@
                           class="inline-flex items-center justify-center gap-0.5 hover:text-blue-800"
                           @click.prevent="sortVendList('code')"
                         >
-                          <span>Binded Vending Machines</span>
+                          <span>{{ $t('Binded Vending Machines') }}</span>
                           <svg v-if="vendListSort.key === 'code' && !vendListSort.desc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                           </svg>
@@ -252,13 +252,13 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                           </svg>
                         </a>
-                        <span class="text-black font-normal text-xs">RP Tier</span>
+                        <span class="text-black font-normal text-xs">{{ $t('RP Tier') }}</span>
                         <a
                           href="#"
                           class="inline-flex items-center justify-center gap-0.5 font-normal text-xs text-blue-600 hover:text-blue-800"
                           @click.prevent="sortVendList('binded_at')"
                         >
-                          <span>(binded date)</span>
+                          <span>{{ $t('(binded date)') }}</span>
                           <svg v-if="vendListSort.key === 'binded_at' && !vendListSort.desc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                           </svg>
@@ -266,7 +266,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                           </svg>
                         </a>
-                        <span class="text-black font-normal text-xs"># machines at upcoming stage</span>
+                        <span class="text-black font-normal text-xs">{{ $t('# machines at upcoming stage') }}</span>
                       </div>
                     </TableHead>
                     <!--
@@ -315,14 +315,14 @@
                         Figures carry only their own short line.
                       -->
                       <div class="flex flex-col space-y-1 cursor-help" v-tooltip="avgMthlySalesTooltip">
-                        <span>Avg Mthly Sales</span>
-                        <span class="text-black font-normal text-xs">{{ operatorCountry.currency_symbol }} / month</span>
-                        <span class="text-black font-normal text-xs">vs L30d Sales ▲▼</span>
-                        <span class="text-black font-normal text-xs">(per machine, by site)</span>
+                        <span>{{ $t('Avg Mthly Sales') }}</span>
+                        <span class="text-black font-normal text-xs">{{ $t(':currency / month', { currency: operatorCountry.currency_symbol }) }}</span>
+                        <span class="text-black font-normal text-xs">{{ $t('vs L30d Sales ▲▼') }}</span>
+                        <span class="text-black font-normal text-xs">{{ $t('(per machine, by site)') }}</span>
                       </div>
                     </TableHead>
                     <TableHead>
-                      Menu
+                      {{ $t('Menu') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -345,7 +345,7 @@
                           >
                               <div class="flex flex-col">
                                   <span class="font-semibold grow-0">
-                                    {{ productMapping.is_active ? 'Active' : 'Inactive' }}
+                                    {{ productMapping.is_active ? $t('Active') : $t('Inactive') }}
                                   </span>
                               </div>
                           </div>
@@ -439,7 +439,7 @@
                         -->
                         <div class="flex flex-col space-y-1" :ref="(el) => setBindedVendsCellRef(productMapping.id, el)">
                           <span class="text-center text-indigo-600 p-2 text-xs">
-                            {{ productMapping.vends.length }} Machine(s)
+                            {{ $t(':count Machine(s)', { count: productMapping.vends.length }) }}
                           </span>
                           <ul class="divide-y divide-gray-200">
                             <!--
@@ -563,9 +563,9 @@
                               >
                                 <span
                                   class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border bg-orange-100 text-orange-800 border-orange-300 w-fit"
-                                  v-tooltip="'This machine has its own Upcoming Product Mapping, different from the preset upcoming'"
+                                  v-tooltip="$t('This machine has its own Upcoming Product Mapping, different from the preset upcoming')"
                                 >
-                                  Upcoming: {{ vend.upcomingProductMapping ? vend.upcomingProductMapping.name : '' }}
+                                  {{ $t('Upcoming: :name', { name: vend.upcomingProductMapping ? vend.upcomingProductMapping.name : '' }) }}
                                 </span>
                               </div>
                             </li>
@@ -619,7 +619,7 @@
                             @keydown.enter="onUpcomingVendsClicked(productMapping)"
                             @keydown.space.prevent="onUpcomingVendsClicked(productMapping)"
                           >
-                            {{ productMapping.upcoming_vends_count || 0 }} Machine(s) at upcoming stage
+                            {{ $t(':count Machine(s) at upcoming stage', { count: productMapping.upcoming_vends_count || 0 }) }}
                           </span>
                         </div>
                       </TableData>
@@ -683,7 +683,7 @@
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1" :ref="(el) => setAvgMthlySalesCellRef(productMapping.id, el)">
                           <span class="text-center p-2 text-xs invisible overflow-hidden" aria-hidden="true">
-                            {{ productMapping.vends.length }} Machine(s)
+                            {{ $t(':count Machine(s)', { count: productMapping.vends.length }) }}
                           </span>
                           <ul class="divide-y divide-gray-200">
                             <!-- MUST iterate the SAME sortedVends() as the Binded Vending Machines cell — the two lists pair by index (alignAvgMthlySalesRows), so a differing order silently puts figures on the wrong machine. -->
@@ -705,7 +705,7 @@
                                 class="inline-grid grid-cols-[auto_auto_auto] items-center gap-x-1"
                               >
                                 <!-- Row 1 — Avg Mthly Sales. Third cell reserves the arrow column. -->
-                                <span class="text-xs text-gray-500 text-right">Avg:</span>
+                                <span class="text-xs text-gray-500 text-right">{{ $t('Avg:') }}</span>
                                 <span
                                   class="whitespace-nowrap text-right"
                                   :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']"
@@ -763,7 +763,7 @@
                                   cannot be mistaken for a direction.
                                 -->
                                 <template v-if="hasL30dSales(vend)">
-                                  <span class="text-xs text-gray-500 text-right">L30d:</span>
+                                  <span class="text-xs text-gray-500 text-right">{{ $t('L30d:') }}</span>
                                   <span
                                     class="whitespace-nowrap text-right"
                                     :class="l30dSalesColourClass(vend)"
@@ -795,14 +795,14 @@
                               <span
                                 v-else
                                 class="text-gray-400"
-                                v-tooltip="'No site attached, or this site has no lifetime sales figure yet, so there is nothing to average.'"
+                                v-tooltip="$t('No site attached, or this site has no lifetime sales figure yet, so there is nothing to average.')"
                               >
                                 —
                               </span>
                             </li>
                           </ul>
                           <span class="text-center px-2 pt-2 text-xs invisible overflow-hidden" aria-hidden="true">
-                            {{ productMapping.upcoming_vends_count || 0 }} Machine(s) at upcoming stage
+                            {{ $t(':count Machine(s) at upcoming stage', { count: productMapping.upcoming_vends_count || 0 }) }}
                           </span>
                         </div>
                       </TableData>
@@ -839,7 +839,7 @@
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
-                                  Edit
+                                  {{ $t('Edit') }}
                               </span>
                             </Button>
                           </Link>
@@ -849,7 +849,7 @@
                           >
                             <LinkIcon class="w-4 h-4"></LinkIcon>
                             <span>
-                                VM Binding
+                                {{ $t('VM Binding') }}
                             </span>
                           </Button>
                           <Button
@@ -863,11 +863,11 @@
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
                               <span>
-                                  Delete
+                                  {{ $t('Delete') }}
                               </span>
                             </span>
                             <span v-if="productMapping.vends && productMapping.vends.length > 0">
-                              (Binded)
+                              {{ $t('(Binded)') }}
                             </span>
                           </Button>
                         </div>
@@ -875,7 +875,7 @@
                       </tr>
                 <tr v-if="!productMappings.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -933,42 +933,39 @@
       <template #header>
         <div class="flex flex-col">
           <span class="text-gray-600 text-base">
-            Machines at upcoming stage
+            {{ $t('Machines at upcoming stage') }}
           </span>
           <span class="text-sm text-gray-500" v-if="upcomingVendsMapping">
-            Queued to switch onto: {{ upcomingVendsMapping.name }}
+            {{ $t('Queued to switch onto: :name', { name: upcomingVendsMapping.name }) }}
           </span>
         </div>
       </template>
       <template #default>
         <div class="flex flex-col text-sm">
           <p class="text-xs text-gray-500 pb-3">
-            These machines are binded to another mapping today but are queued to
-            switch onto this one — either because the machine itself was set to it
-            (<span class="font-medium">Own</span>), or because it inherits it as the
-            preset upcoming of the mapping it is on now
-            (<span class="font-medium">Inherited</span>). None of them are on this
-            mapping yet.
+            {{ $t('These machines are binded to another mapping today but are queued to switch onto this one — either because the machine itself was set to it') }}
+            (<span class="font-medium">{{ $t('Own') }}</span>){{ $t(', or because it inherits it as the preset upcoming of the mapping it is on now') }}
+            (<span class="font-medium">{{ $t('Inherited') }}</span>){{ $t('. None of them are on this mapping yet.') }}
           </p>
 
           <div v-if="upcomingVendsLoading" class="py-6 text-center text-gray-500">
-            Loading…
+            {{ $t('Loading…') }}
           </div>
           <div v-else-if="upcomingVendsError" class="py-6 text-center text-red-600">
             {{ upcomingVendsError }}
           </div>
           <div v-else-if="!upcomingVends.length" class="py-6 text-center text-gray-500">
-            No machines at upcoming stage.
+            {{ $t('No machines at upcoming stage.') }}
           </div>
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
                   <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">#</th>
-                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Machine ID</th>
-                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Site</th>
-                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Current Mapping</th>
-                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Changeover</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">{{ $t('Machine ID') }}</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">{{ $t('Site') }}</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">{{ $t('Current Mapping') }}</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">{{ $t('Changeover') }}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
@@ -1005,7 +1002,7 @@
                     >
                       {{ vend.current_product_mapping_name }}
                     </a>
-                    <span v-else class="text-gray-400">Not binded</span>
+                    <span v-else class="text-gray-400">{{ $t('Not binded') }}</span>
                   </td>
                   <td class="px-2 py-2 align-top text-xs">
                     <span
@@ -1014,10 +1011,10 @@
                         ? 'bg-orange-100 text-orange-800 border-orange-300'
                         : 'bg-gray-100 text-gray-700 border-gray-300'"
                       v-tooltip="vend.source === 'own'
-                        ? 'Set on this machine itself (Machine Settings ▸ Upcoming Product Mapping)'
-                        : 'Inherited from the preset upcoming of the mapping this machine is binded to today'"
+                        ? $t('Set on this machine itself (Machine Settings ▸ Upcoming Product Mapping)')
+                        : $t('Inherited from the preset upcoming of the mapping this machine is binded to today')"
                     >
-                      {{ vend.source === 'own' ? 'Own' : 'Inherited' }}
+                      {{ vend.source === 'own' ? $t('Own') : $t('Inherited') }}
                     </span>
                     <!--
                       Start date comes from the CURRENT mapping's rollout schedule
@@ -1028,16 +1025,16 @@
                     <div
                       class="text-indigo-600 pt-0.5"
                       v-if="vend.start_date"
-                      v-tooltip="'Scheduled changeover date, taken from the mapping this machine is binded to today'"
+                      v-tooltip="$t('Scheduled changeover date, taken from the mapping this machine is binded to today')"
                     >
-                      from {{ vend.start_date }}
+                      {{ $t('from :date', { date: vend.start_date }) }}
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
             <p class="pt-3 text-xs text-gray-500">
-              {{ upcomingVends.length }} machine(s).
+              {{ $t(':count machine(s).', { count: upcomingVends.length }) }}
             </p>
           </div>
         </div>
@@ -1071,6 +1068,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import moment from 'moment';
 import { vendCodeLabel } from '@/utils/vendCode';
 
@@ -1157,7 +1155,7 @@ const machineTypeOptions = ref([])
 // Column-level explanation, shown on the HEADER only. Everything a reader needs
 // to interpret the column lives here, so the per-figure tooltips can stay to one
 // short line. Keep the arrow legend in sync with computeAvgMthlySalesTrend().
-const avgMthlySalesTooltip = '"Avg:" — average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, so it moves slowly. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.   "L30d:" — that same site\'s sales over the last 30 days (rolling, includes today). Moved here from the Binded Vending Machines column so it sits under the average it is measured against. It is coloured to match its arrow, so the figure and the arrow always say the same thing.   ▲ ▼ • = the L30d line vs the Avg line above it: ▲ green = the last 30 days are running ABOVE this site\'s average month, ▼ red = below, • grey = within ±1% of it. No arrow at all means there is nothing to compare. Hover the L30d figure or the arrow for the exact gap.'
+const avgMthlySalesTooltip = t('"Avg:" — average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, so it moves slowly. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.   "L30d:" — that same site\'s sales over the last 30 days (rolling, includes today). Moved here from the Binded Vending Machines column so it sits under the average it is measured against. It is coloured to match its arrow, so the figure and the arrow always say the same thing.   ▲ ▼ • = the L30d line vs the Avg line above it: ▲ green = the last 30 days are running ABOVE this site\'s average month, ▼ red = below, • grey = within ±1% of it. No arrow at all means there is nothing to compare. Hover the L30d figure or the arrow for the exact gap.')
 
 // True when this machine has something to average — a site, and a site whose
 // totals_json already carries a lifetime figure. Drives the grey "—" so an empty
@@ -1301,13 +1299,13 @@ function computeAvgMthlySalesTrend(vend) {
   // SHORT on purpose: the column's full explanation is on the header tooltip, so
   // hovering a figure only has to answer "which way, and by how much?".
   const headline = dir === 'flat'
-    ? 'In line with its average month'
-    : (pct >= 0 ? '+' : '') + pct.toFixed(1) + '% vs its average month'
+    ? t('In line with its average month')
+    : t(':pct% vs its average month', { pct: (pct >= 0 ? '+' : '') + pct.toFixed(1) })
 
   return {
     dir,
     pct,
-    tooltip: headline + ' (avg ' + fmt(avg) + ' → L30d ' + fmt(l30d) + ')',
+    tooltip: headline + ' ' + t('(avg :avg → L30d :l30d)', { avg: fmt(avg), l30d: fmt(l30d) }),
   }
 }
 
@@ -1317,8 +1315,8 @@ function avgMthlySalesFigureTooltip(vend) {
   const trend = avgMthlySalesTrend(vend)
 
   return trend
-    ? 'Avg Mthly Sales (site, lifetime average). L30d is ' + trend.tooltip
-    : 'Avg Mthly Sales (site, lifetime average). No L30d figure to compare against yet.'
+    ? t('Avg Mthly Sales (site, lifetime average). L30d is :trend', { trend: trend.tooltip })
+    : t('Avg Mthly Sales (site, lifetime average). No L30d figure to compare against yet.')
 }
 
 // Colour of the L30d figure — TAKEN FROM THE ARROW, not from any threshold.
@@ -1357,8 +1355,8 @@ function l30dSalesTooltip(vend) {
   const trend = avgMthlySalesTrend(vend)
 
   return trend
-    ? 'L30d Sales (site, rolling 30 days) — ' + trend.tooltip
-    : 'L30d Sales (site, rolling 30 days). No average to compare against yet.'
+    ? t('L30d Sales (site, rolling 30 days) — :trend', { trend: trend.tooltip })
+    : t('L30d Sales (site, rolling 30 days). No average to compare against yet.')
 }
 
 // Memo keyed on the vend object itself. Inertia hands us a fresh object graph on
@@ -1540,32 +1538,32 @@ onBeforeUnmount(() => {
 
 onMounted(() => {
   booleanOptions.value = [
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
   ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   vendPrefixOptions.value = [
-    { id: '', value: 'All' },
-    {id: 'single-ud', value: 'Single UD'},
+    { id: '', value: t('All') },
+    {id: 'single-ud', value: t('Single UD')},
     ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   vendStatusOptions.value = [
-			{id: 'all', value: 'All'},
-			{id: 'factory', value: 'Factory (JB)'},
-			{id: 'active', value: 'Active'},
-			{id: 'inactive', value: 'Not Active'},
-			{id: 'disposed', value: 'Disposed'},
-      {id: 'sold', value: 'Sold'},
+			{id: 'all', value: t('All')},
+			{id: 'factory', value: t('Factory (JB)')},
+			{id: 'active', value: t('Active')},
+			{id: 'inactive', value: t('Not Active')},
+			{id: 'disposed', value: t('Disposed')},
+      {id: 'sold', value: t('Sold')},
 	]
   // 'all' first and selected by default — the server treats it as the skip
   // sentinel, so the page opens showing every kind of mapping as before.
   machineTypeOptions.value = [
-    { id: 'all', value: 'All' },
+    { id: 'all', value: t('All') },
     ...Object.entries(props.machineTypeOptions || {}).map(([id, name]) => ({ id: id, value: name })),
   ]
   filters.value.machineType = machineTypeOptions.value[0]
@@ -1612,7 +1610,7 @@ function upcomingChannelChange(mapping, item) {
   if (!upcomingItem) {
     return {
       kind: 'removed',
-      tooltip: 'Channel ' + channel + ' will be removed in the upcoming product mapping.',
+      tooltip: t('Channel :channel will be removed in the upcoming product mapping.', { channel }),
     }
   }
 
@@ -1623,10 +1621,10 @@ function upcomingChannelChange(mapping, item) {
 
   const nextLabel = nextProduct
     ? [nextProduct.code, nextProduct.name].filter(Boolean).join(' - ')
-    : '(no product)'
+    : t('(no product)')
   return {
     kind: 'changed',
-    tooltip: 'Channel ' + channel + ' will change to ' + nextLabel,
+    tooltip: t('Channel :channel will change to :product', { channel, product: nextLabel }),
   }
 }
 
@@ -1649,14 +1647,13 @@ function upcomingChannelChange(mapping, item) {
 // Content is an app-authored constant — nothing user-supplied ever reaches
 // html:true here.
 const upcomingStageTooltipBody =
-  'Machines binded elsewhere but queued to switch to this mapping.<br>'
-  + 'Either the machine\'s own Upcoming Product Mapping is this mapping, or it inherits this mapping'
-  + ' as the preset upcoming of the mapping it is binded to today.<br>'
-  + 'I.e. not yet updated to this mapping.'
+  t('Machines binded elsewhere but queued to switch to this mapping.') + '<br>'
+  + t('Either the machine\'s own Upcoming Product Mapping is this mapping, or it inherits this mapping as the preset upcoming of the mapping it is binded to today.') + '<br>'
+  + t('I.e. not yet updated to this mapping.')
 
 function upcomingStageTooltip(count) {
   const body = (count || 0) > 0
-    ? upcomingStageTooltipBody + '<br><em>Click to list them.</em>'
+    ? upcomingStageTooltipBody + '<br><em>' + t('Click to list them.') + '</em>'
     : upcomingStageTooltipBody
 
   return {
@@ -1695,7 +1692,7 @@ function onUpcomingVendsClicked(mapping) {
     })
     .catch(() => {
       if (requestId !== upcomingVendsRequestId) return
-      upcomingVendsError.value = 'Could not load the machines at upcoming stage. Please try again.'
+      upcomingVendsError.value = t('Could not load the machines at upcoming stage. Please try again.')
     })
     .finally(() => {
       if (requestId !== upcomingVendsRequestId) return
@@ -1727,16 +1724,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(productMapping) {
-  const approval = confirm('Are you sure to delete ' + productMapping.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: productMapping.name }));
   if (!approval) {
       return;
   }
   router.delete('/product-mappings/' + productMapping.id, {
     onSuccess: () => {
-      toast.success("Product mapping deleted successfully", { timeout: 3000 })
+      toast.success(t("Product mapping deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete product mapping", { timeout: 3000 })
+      toast.error(t("Failed to delete product mapping"), { timeout: 3000 })
     }
   })
 }

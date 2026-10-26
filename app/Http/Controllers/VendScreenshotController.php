@@ -93,7 +93,7 @@ class VendScreenshotController extends Controller
         if ($requester->request($vend, $httpRequest->user()?->id) === VendScreenshotRequester::COOLDOWN) {
             return response()->json([
                 'status' => 'cooldown',
-                'message' => 'Give the machine a few seconds before asking again.',
+                'message' => __('Give the machine a few seconds before asking again.'),
             ], 429);
         }
 
@@ -157,7 +157,7 @@ class VendScreenshotController extends Controller
         $encoded = Cache::get($this->key('result', $vend));
 
         if (! is_array($meta) || ! $encoded || isset($meta['status'])) {
-            abort(404, 'No screen capture is being held for this machine.');
+            abort(404, __('No screen capture is being held for this machine.'));
         }
 
         $bytes = base64_decode($encoded, true);
@@ -308,7 +308,7 @@ class VendScreenshotController extends Controller
         abort_unless((int) $screenshot->vend_id === (int) $vend->id, 404);
 
         $disk = Storage::disk();
-        abort_unless($disk->exists($screenshot->path), 404, 'This picture is no longer held.');
+        abort_unless($disk->exists($screenshot->path), 404, __('This picture is no longer held.'));
 
         return $disk->response($screenshot->path, 'vend-'.$vend->codeLabel().'-screen-'.$screenshot->id.'.'.pathinfo($screenshot->path, PATHINFO_EXTENSION), [
             'Content-Type' => $screenshot->mime,

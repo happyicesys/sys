@@ -283,7 +283,7 @@ class CampaignController extends Controller
         $this->authorizeCampaign($campaign);
 
         if ($campaign->apkSettings()->exists()) {
-            return back()->with('error', 'Campaign is currently in use and cannot be deleted.');
+            return back()->with('error', __('Campaign is currently in use and cannot be deleted.'));
         }
 
         $campaign->labelsX()->detach();

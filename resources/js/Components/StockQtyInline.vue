@@ -16,7 +16,7 @@
       @keyup.esc="cancel"
     />
     <button type="button" class="rounded bg-green-500 hover:bg-green-600 px-2 py-1 text-xs text-white disabled:opacity-50" :disabled="saving" @click="save">
-      {{ saving ? '…' : 'Save' }}
+      {{ saving ? '…' : $t('Save') }}
     </button>
     <button type="button" class="rounded bg-gray-200 hover:bg-gray-300 px-2 py-1 text-xs text-gray-700" :disabled="saving" @click="cancel">✕</button>
   </div>
@@ -37,7 +37,7 @@
       type="button"
       class="text-xs text-blue-600 hover:underline"
       @click="edit"
-    >Adjust</button>
+    >{{ $t('Adjust') }}</button>
   </div>
 </template>
 
@@ -45,6 +45,7 @@
 import { computed, nextTick, ref } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import { t } from '@/i18n';
 
 const props = defineProps({
   vendId: { type: [Number, String], required: true },
@@ -90,7 +91,7 @@ function save() {
   const channel = props.channel;
   const qty = Number(draft.value);
   if (draft.value === '' || !Number.isInteger(qty) || qty < 0 || qty > maxQty) {
-    toast.error('Qty must be a whole number from 0 to ' + maxQty, { timeout: 4000 });
+    toast.error(t('Qty must be a whole number from 0 to :max', { max: maxQty }), { timeout: 4000 });
     return;
   }
   if (qty === channel.qty) {
@@ -99,9 +100,9 @@ function save() {
   }
   const label = channel.label + (channel.product ? ' ' + channel.product.name : '');
   const overCapacity = channel.capacity && qty > channel.capacity
-    ? '\n\nThat is above its capacity of ' + channel.capacity + '.'
+    ? '\n\n' + t('That is above its capacity of :capacity.', { capacity: channel.capacity })
     : '';
-  if (!confirm('Set ' + label + ' from ' + channel.qty + ' to ' + qty + '?' + overCapacity + (props.isChiller ? '\n\nThis is sent to CityBox now.' : ''))) {
+  if (!confirm(t('Set :label from :from to :to?', { label, from: channel.qty, to: qty }) + overCapacity + (props.isChiller ? '\n\n' + t('This is sent to CityBox now.') : ''))) {
     return;
   }
 
@@ -110,14 +111,14 @@ function save() {
     .then((res) => {
       const entry = res.data.adjustment;
       if (entry && entry.supplier_to != null && entry.supplier_to !== entry.to) {
-        toast.warning('Sent ' + entry.to + ', but CityBox reads back ' + entry.supplier_to, { timeout: 8000 });
+        toast.warning(t('Sent :sent, but CityBox reads back :readback', { sent: entry.to, readback: entry.supplier_to }), { timeout: 8000 });
       } else {
-        toast.success('Qty updated', { timeout: 3000 });
+        toast.success(t('Qty updated'), { timeout: 3000 });
       }
       cancel();
     })
     .catch((err) => {
-      toast.error(err?.response?.data?.message || 'Qty update failed', { timeout: 8000 });
+      toast.error(err?.response?.data?.message || t('Qty update failed'), { timeout: 8000 });
     })
     .finally(() => {
       saving.value = false;

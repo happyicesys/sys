@@ -1,9 +1,9 @@
 <template>
-  <Head title="Create HID Card" />
+  <Head :title="$t('Create HID Card')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create HID Card
+        {{ $t('Create HID Card') }}
       </h2>
     </template>
 
@@ -17,33 +17,33 @@
                   <FormInput
                     v-model="form.value"
                     required
-                    placeholderStr="Card value"
+                    :placeholderStr="$t('Card value')"
                     :error="form.errors.value"
                   >
-                    Card Value
+                    {{ $t('Card Value') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-3">
                   <FormInput
                     v-model="form.name"
-                    placeholderStr="Name"
+                    :placeholderStr="$t('Name')"
                     :error="form.errors.name"
                   >
-                    Name
+                    {{ $t('Name') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-3">
                   <FormInput
                     v-model="form.email"
-                    placeholderStr="Email"
+                    :placeholderStr="$t('Email')"
                     :error="form.errors.email"
                   >
-                    Email
+                    {{ $t('Email') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-6">
                   <label class="text-sm font-medium text-gray-700">
-                    Operator <span class="text-red-500">*</span>
+                    {{ $t('Operator') }} <span class="text-red-500">*</span>
                   </label>
                   <MultiSelect
                     v-model="form.operator_id"
@@ -51,7 +51,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     class="mt-1"
                     @selected="onOperatorChanged"
                   />
@@ -63,8 +63,8 @@
                 <div class="sm:col-span-6">
                   <label class="text-sm font-medium text-gray-700">
                     <div class="flex space-x-1 items-center">
-                      <span>Machine(s)</span>
-                      <span class="text-red-500 text-xs">Default to all if not selected</span>
+                      <span>{{ $t('Machine(s)') }}</span>
+                      <span class="text-red-500 text-xs">{{ $t('Default to all if not selected') }}</span>
                     </div>
                   </label>
                   <MultiSelect
@@ -73,7 +73,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -86,7 +86,7 @@
                 <div class="sm:col-span-6 py-4">
                   <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4" />
-                    <span>Create</span>
+                    <span>{{ $t('Create') }}</span>
                   </Button>
                 </div>
               </div>

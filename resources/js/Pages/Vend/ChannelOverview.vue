@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2" :class="[vend.is_active ? 'text-black' : 'text-gray-500']">
           <span class="text-gray-600" v-if="props.profile">
-            Channel Overview
+            {{ $t('Channel Overview') }}
           </span>
           <span v-if="vend.code">
             ID# {{ vendCodeLabel(vend) }}
@@ -27,22 +27,22 @@
                         #
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
-                        Image
+                        {{ $t('Image') }}
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
-                        Product
+                        {{ $t('Product') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Needed
+                        {{ $t('Needed') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Bal
+                        {{ $t('Bal') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Cap
+                        {{ $t('Cap') }}
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Machine Price
+                        {{ $t('Machine Price') }}
                       </th>
                       <!-- <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Server Price
@@ -58,10 +58,10 @@
                         </span>
                       </th> -->
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-blue-600">
-                        Ref Price({{ vend.customer ? vend.customer.selling_price_type : vend.selling_price_type }})
+                        {{ $t('Ref Price(:type)', { type: vend.customer ? vend.customer.selling_price_type : vend.selling_price_type }) }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Error
+                        {{ $t('Error') }}
                         <br>
                         1d
                         <br>
@@ -73,10 +73,10 @@
                         scope="col"
                         class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
                       >
-                        Last <br>
-                        Out Of <br>
-                        Stock <br>
-                        Since
+                        {{ $t('Last') }} <br>
+                        {{ $t('Out Of') }} <br>
+                        {{ $t('Stock') }} <br>
+                        {{ $t('Since') }}
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends')">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-2 md:px-3 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -121,7 +121,7 @@
                             trackBy="id"
                             valueProp="id"
                             label="full_name"
-                            placeholder="Select"
+                            :placeholder="$t('Select')"
                             open-direction="bottom"
                             class="mt-1"
                           >
@@ -201,7 +201,7 @@
                             v-if="vend.is_mqtt && showFilters"
                           >
                             <span>
-                              Dispense
+                              {{ $t('Dispense') }}
                             </span>
                           </Button>
                         </div>
@@ -225,13 +225,13 @@
               <span class="flex space-x-1" v-if="!editable">
                 <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                 <span>
-                    Edit Product
+                    {{ $t('Edit Product') }}
                 </span>
               </span>
               <span class="flex space-x-1" v-else>
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </span>
             </Button>

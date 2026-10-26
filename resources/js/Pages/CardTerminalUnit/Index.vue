@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Card Terminal" />
+  <Head :title="$t('Card Terminal')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Card Terminal)
+        {{ $t('Data Management (Card Terminal)') }}
       </h2>
     </template>
 
@@ -17,17 +17,17 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
-          <SearchInput placeholderStr="Terminal ID" v-model="filters.terminal_id">
-            Terminal ID
+          <SearchInput :placeholderStr="$t('Terminal ID')" v-model="filters.terminal_id">
+            {{ $t('Terminal ID') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Card Terminal Company
+              {{ $t('Card Terminal Company') }}
             </label>
             <MultiSelect
               v-model="filters.card_terminal_id"
@@ -35,18 +35,18 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Bound to Machine
+              {{ $t('Bound to Machine') }}
             </label>
             <MultiSelect
               v-model="filters.is_bound"
@@ -54,7 +54,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -62,7 +62,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Auto refund?
+              {{ $t('Auto refund?') }}
             </label>
             <MultiSelect
               v-model="filters.will_auto_refund"
@@ -70,17 +70,17 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="Batch" v-model="filters.batch">
-            Batch
+          <SearchInput :placeholderStr="$t('Batch')" v-model="filters.batch">
+            {{ $t('Batch') }}
           </SearchInput>
-          <SearchInput placeholderStr="Remarks" v-model="filters.remarks">
-            Remarks
+          <SearchInput :placeholderStr="$t('Remarks')" v-model="filters.remarks">
+            {{ $t('Remarks') }}
           </SearchInput>
         </div>
 
@@ -92,7 +92,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
               <!-- ring-1 ring-gray-400, matching the export button: the plain
@@ -102,7 +102,7 @@
               >
                 <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Reset
+                  {{ $t('Reset') }}
                 </span>
               </Button>
               <Button type="button"
@@ -116,20 +116,20 @@
                   <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                 </svg>
                 <span>
-                  Export Excel
+                  {{ $t('Export Excel') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex space-x-3 items-center">
             <div class="text-sm text-gray-700">
-                Showing
+                {{ $t('Showing') }}
                 <span class="font-medium">{{ cardTerminalUnits.meta.from ?? 0 }}</span>
-                to
+                {{ $t('to') }}
                 <span class="font-medium">{{ cardTerminalUnits.meta.to ?? 0 }}</span>
-                of
+                {{ $t('of') }}
                 <span class="font-medium">{{ cardTerminalUnits.meta.total }}</span>
-                results
+                {{ $t('results') }}
             </div>
             <MultiSelect
                 v-model="filters.numberPerPage"
@@ -157,22 +157,22 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="terminal_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('terminal_id')">
-                      Terminal ID
+                      {{ $t('Terminal ID') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="card_terminal_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('card_terminal_id')">
-                      Card Terminal Company
+                      {{ $t('Card Terminal Company') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Machine ID
+                      {{ $t('Machine ID') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="batch" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('batch')">
-                      Batch
+                      {{ $t('Batch') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="is_will_auto_refund" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_will_auto_refund')">
-                      Auto refund?
+                      {{ $t('Auto refund?') }}
                     </TableHeadSort>
                     <TableHead>
-                      Remarks
+                      {{ $t('Remarks') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -188,7 +188,7 @@
                           <span>{{ unit.terminal_id }}</span>
                           <!-- Auresys' own EZ terminal ID, where their report is
                                keyed; only Nets-Auresys units carry one. -->
-                          <span v-if="unit.auresys_terminal_id" class="text-xs text-gray-500" title="Auresys terminal ID (EZ TID)">
+                          <span v-if="unit.auresys_terminal_id" class="text-xs text-gray-500" :title="$t('Auresys terminal ID (EZ TID)')">
                             EZ {{ unit.auresys_terminal_id }}
                           </span>
                         </span>
@@ -219,10 +219,10 @@
                                for the settlement auto-match and the importer.
                                Hover for the terminal's last three machines. -->
                           <span v-if="unit.bound_at" class="text-xs text-blue-600 italic" :title="bindingHistoryTitle(unit)">
-                            bound {{ fmtBoundAt(unit.bound_at) }} · by {{ unit.bound_by }}
+                            {{ $t('bound :time · by :name', { time: fmtBoundAt(unit.bound_at), name: unit.bound_by }) }}
                           </span>
                         </span>
-                        <span v-else class="text-gray-400">Not on a machine</span>
+                        <span v-else class="text-gray-400">{{ $t('Not on a machine') }}</span>
                       </TableData>
                       <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left">
                         {{ unit.batch ?? '-' }}
@@ -250,7 +250,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -259,7 +259,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -267,7 +267,7 @@
                       </tr>
                 <tr v-if="!cardTerminalUnits.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -305,6 +305,7 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3'
 import moment from 'moment'
+import { t, tc } from '@/i18n'
 
 // "bound <when> by <who>" under the machine, with the terminal's last three
 // machines on hover. bound_at is when the binding was recorded, which is not
@@ -316,10 +317,10 @@ function bindingHistoryTitle(unit) {
     return ''
   }
 
-  return 'Last ' + rows.length + ' binding' + (rows.length === 1 ? '' : 's') + ' of this terminal:\n'
-    + rows.map((r) => (r.vend_code ?? 'unknown machine')
-      + ' · ' + (r.bound_from ?? 'open') + ' → ' + (r.bound_until ?? 'open')
-      + ' · recorded ' + fmtBoundAt(r.bound_at) + ' by ' + r.bound_by).join('\n')
+  return tc('Last :count binding of this terminal:|Last :count bindings of this terminal:', rows.length) + '\n'
+    + rows.map((r) => (r.vend_code ?? t('unknown machine'))
+      + ' · ' + (r.bound_from ?? t('open')) + ' → ' + (r.bound_until ?? t('open'))
+      + ' · ' + t('recorded :time by :name', { time: fmtBoundAt(r.bound_at), name: r.bound_by })).join('\n')
 }
 
 const props = defineProps({
@@ -350,31 +351,31 @@ const loading = ref(false)
 // Yes = on a machine today, No = spare on the shelf. Same question the
 // Machine ID column answers, so the two always agree.
 const boundFilterOptions = [
-  { id: 'all', name: 'All' },
-  { id: 'yes', name: 'Yes' },
-  { id: 'no', name: 'No' },
+  { id: 'all', name: t('All') },
+  { id: 'yes', name: t('Yes') },
+  { id: 'no', name: t('No') },
 ]
 
 const autoRefundFilterOptions = [
-  { id: 'all', name: 'All' },
-  { id: 'yes', name: 'Yes' },
-  { id: 'no', name: 'No' },
-  { id: 'unknown', name: 'Unknown' },
+  { id: 'all', name: t('All') },
+  { id: 'yes', name: t('Yes') },
+  { id: 'no', name: t('No') },
+  { id: 'unknown', name: t('Unknown') },
 ]
 
 // Tooltip on the tick / cross: where the flag came from and what the sheet saw.
 function autoRefundTitle(unit) {
   const seed = unit.auto_refund_stats?.seed
-  const src = unit.auto_refund_flag_source === 'manual' ? 'set manually' : (unit.auto_refund_flag_source === 'seed' ? 'from partner workbook' : 'unknown — not in the workbook')
-  const seen = seed ? ` · ${seed.auto_refund_events} made good / ${seed.unrefunded_events} charged (${seed.window_from} – ${seed.window_to})` : ''
-  return `Auto refund: ${unit.is_will_auto_refund === true ? 'Yes' : (unit.is_will_auto_refund === false ? 'No' : 'Unknown')} (${src})${seen}`
+  const src = unit.auto_refund_flag_source === 'manual' ? t('set manually') : (unit.auto_refund_flag_source === 'seed' ? t('from partner workbook') : t('unknown — not in the workbook'))
+  const seen = seed ? ' · ' + t(':good made good / :charged charged (:from – :to)', { good: seed.auto_refund_events, charged: seed.unrefunded_events, from: seed.window_from, to: seed.window_to }) : ''
+  return t('Auto refund: :answer (:source)', { answer: unit.is_will_auto_refund === true ? t('Yes') : (unit.is_will_auto_refund === false ? t('No') : t('Unknown')), source: src }) + seen
 }
 
 // 'none' is a real filter, not a placeholder: 5 backfilled terminals came off
 // machines that carry no company, and they need to be findable to be fixed.
 const companyFilterOptions = computed(() => [
-  { id: 'all', name: 'All' },
-  { id: 'none', name: '(No company)' },
+  { id: 'all', name: t('All') },
+  { id: 'none', name: t('(No company)') },
   ...((props.cardTerminalOptions?.data) ?? []).map(company => ({
     id: company.id,
     name: company.name,
@@ -395,7 +396,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -408,18 +409,18 @@ function onCreateClicked() {
 
 function onDeleteClicked(unit) {
   const warning = unit.current_vend_code
-    ? '\n\nIt is currently on machine ' + unit.current_vend_code + '. Its binding history is kept for card settlement, but it will disappear from the machine picker.'
+    ? '\n\n' + t('It is currently on machine :machine. Its binding history is kept for card settlement, but it will disappear from the machine picker.', { machine: unit.current_vend_code })
     : ''
-  const approval = confirm('Are you sure to delete terminal ' + unit.terminal_id + '?' + warning);
+  const approval = confirm(t('Are you sure to delete terminal :terminal?', { terminal: unit.terminal_id }) + warning);
   if (!approval) {
       return;
   }
   router.delete('/card-terminal-units/' + unit.id, {
     onSuccess: () => {
-      toast.success("Card terminal deleted successfully", { timeout: 3000 })
+      toast.success(t('Card terminal deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete card terminal", { timeout: 3000 })
+      toast.error(t('Failed to delete card terminal'), { timeout: 3000 })
     }
   })
 }
@@ -479,7 +480,7 @@ function onExportExcelClicked() {
   }).then(response => {
     fileDownload(response.data, 'CardTerminals_' + moment().format('YYYYMMDD_HHmmss') + '.xlsx')
   }).catch(() => {
-    toast.error('Failed to export card terminals', { timeout: 3000 })
+    toast.error(t('Failed to export card terminals'), { timeout: 3000 })
   }).finally(() => {
     loading.value = false
   })

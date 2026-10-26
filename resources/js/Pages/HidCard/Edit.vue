@@ -1,9 +1,9 @@
 <template>
-  <Head :title="`Edit HID Card: ${props.hidCard.value}`" />
+  <Head :title="$t('Edit HID Card: :value', { value: props.hidCard.value })" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Edit HID Card: {{ props.hidCard.value }}
+        {{ $t('Edit HID Card: :value', { value: props.hidCard.value }) }}
       </h2>
     </template>
 
@@ -17,33 +17,33 @@
                   <FormInput
                     v-model="form.value"
                     required
-                    placeholderStr="Enter value"
+                    :placeholderStr="$t('Enter value')"
                     :error="form.errors.value"
                   >
-                    Card Value
+                    {{ $t('Card Value') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-3">
                   <FormInput
                     v-model="form.name"
-                    placeholderStr="Name"
+                    :placeholderStr="$t('Name')"
                     :error="form.errors.name"
                   >
-                    Name
+                    {{ $t('Name') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-3">
                   <FormInput
                     v-model="form.email"
-                    placeholderStr="Email"
+                    :placeholderStr="$t('Email')"
                     :error="form.errors.email"
                   >
-                    Email
+                    {{ $t('Email') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-6">
                   <label class="text-sm font-medium text-gray-700">
-                    Operator <span class="text-red-500">*</span>
+                    {{ $t('Operator') }} <span class="text-red-500">*</span>
                   </label>
                   <MultiSelect
                     v-model="form.operator_id"
@@ -51,7 +51,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     class="mt-1"
                     @selected="onOperatorChanged"
                     :disabled="true"
@@ -64,8 +64,8 @@
                 <div class="sm:col-span-6">
                   <label class="text-sm font-medium text-gray-700">
                     <div class="flex space-x-1 items-center">
-                      <span>Machine(s)</span>
-                      <span class="text-red-500 text-xs">Default to all if not selected</span>
+                      <span>{{ $t('Machine(s)') }}</span>
+                      <span class="text-red-500 text-xs">{{ $t('Default to all if not selected') }}</span>
                     </div>
                   </label>
                   <MultiSelect
@@ -74,7 +74,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -87,7 +87,7 @@
                 <div class="sm:col-span-6 py-4">
                   <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4" />
-                    <span>Update</span>
+                    <span>{{ $t('Update') }}</span>
                   </Button>
                 </div>
               </div>
@@ -109,6 +109,7 @@ import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { CheckCircleIcon } from '@heroicons/vue/20/solid'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   hidCard: Object,
@@ -186,11 +187,11 @@ function submit() {
     }))
     .post(`/hid-cards/${form.value.id}/update`, {
       onSuccess: () => {
-        toast.success("Successfully updated", { timeout: 3000 });
+        toast.success(t('Successfully updated'), { timeout: 3000 });
       },
       onError: (errors) => {
         console.error("Validation errors:", errors);
-        toast.error("Failed to update. Please check your form.", { timeout: 3000 });
+        toast.error(t('Failed to update. Please check your form.'), { timeout: 3000 });
       },
       preserveState: true,
       replace: true,

@@ -1,5 +1,5 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header >
       <div class="flex flex-col space-y-1 md:flex-row md:justify-between md:items-center text-left">
@@ -8,13 +8,13 @@
             ({{ opsJobItem.sequence }})
           </span>
           <span>
-            Job ID#
+            {{ $t('Job ID#') }}
             <span class="text-blue-800">
               {{ opsJobItem.ref_id }}
             </span>
           </span>
           <span v-if="opsJobItem.vend">
-            Machine ID#
+            {{ $t('Machine ID#') }}
             <span class="text-blue-800">
               <a :href="'/settings/vend/' + opsJobItem.vend.id + '/update'" target="_blank" class="text-blue-700">
                 <span>
@@ -28,10 +28,8 @@
             {{ opsJobItem.customer.name }}
           </span> -->
           <div v-if="cityboxUnrecognisable.length" class="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-900">
-            <span class="font-semibold">Channel{{ cityboxUnrecognisable.length === 1 ? '' : 's' }}
-            {{ cityboxUnrecognisable.map(c => c.code).join(', ') }}</span>
-            hold a product this chiller does not carry in CityBox — their AI cannot recognise it, and
-            Stock In will refuse to push. Ask ops to add it in OPS Pro first.
+            <span class="font-semibold">{{ $tc('Channel :codes|Channels :codes', cityboxUnrecognisable.length, { codes: cityboxUnrecognisable.map(c => c.code).join(', ') }) }}</span>
+            {{ $t('hold a product this chiller does not carry in CityBox — their AI cannot recognise it, and Stock In will refuse to push. Ask ops to add it in OPS Pro first.') }}
           </div>
           <div class="flex space-x-1">
             <div
@@ -49,7 +47,7 @@
                   class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit capitalize"
                   :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : opsJobItem.stock_action_type == 'melted_stock' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
               >
-                  {{ opsJobItem.stock_action_type.replace(/_/g, ' ') }}
+                  {{ $t(opsJobItem.stock_action_type.replace(/_/g, ' ')) }}
               </div>
               <a
                   v-if="opsJobItem.stock_action_type == 'implement_new_mapping' && upcomingMapping"
@@ -82,9 +80,9 @@
                   :offline="opsJobItem.vend ? !opsJobItem.vend.is_online : false"
                   :offline-since="opsJobItem.vend?.citybox_status_json?.heartbeat_last_offline"
                   source="ops_job_item_page"
-                  label="Open Door (Restock)"
+                  :label="$t('Open Door (Restock)')"
                   :disabled="needsBeforePhoto"
-                  :disabled-reason="needsBeforePhoto ? 'Take the before restock photo first' : ''"
+                  :disabled-reason="needsBeforePhoto ? $t('Take the before restock photo first') : ''"
                   @opened="reloadDoorOpens"
                 />
                 <!-- Smart Freezer: the same driver door-open (FREEZERCTL unlock). -->
@@ -95,13 +93,13 @@
                   :customer-name="opsJobItem.customer?.name"
                   :offline="opsJobItem.vend ? !opsJobItem.vend.is_online : false"
                   :disabled="needsBeforePhoto"
-                  :disabled-reason="needsBeforePhoto ? 'Take the before restock photo first' : ''"
-                  label="Open Door (Restock)"
+                  :disabled-reason="needsBeforePhoto ? $t('Take the before restock photo first') : ''"
+                  :label="$t('Open Door (Restock)')"
                 />
                 <Menu as="div" class="relative inline-block text-left" v-if="permissions.includes('admin-access operations') && opsJobItem.status == 1">
                   <div>
                     <MenuButton class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-sky-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus:outline-none ring-1 ring-inset ring-sky-300">
-                      Stock Action
+                      {{ $t('Stock Action') }}
                       <ChevronDownIcon class="-mr-1 h-5 w-5 text-sky-100" aria-hidden="true" />
                     </MenuButton>
                   </div>
@@ -114,27 +112,27 @@
                              Chiller drops Implement New Mapping (planogram is CityBox's) and Melted Ice Cream. -->
                         <MenuItem v-slot="{ active }" v-if="upcomingMapping && stockActionAllowed('implement_new_mapping')">
                           <button type="button" @click="onUpdateStockAction('implement_new_mapping')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
-                            Implement New Mapping <span class="text-gray-600">换新菜单</span>
+                            {{ $t('Implement New Mapping') }} <span class="text-gray-600">换新菜单</span>
                           </button>
                         </MenuItem>
                         <MenuItem v-slot="{ active }">
                           <button type="button" @click="onUpdateStockAction('return_stock')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
-                            Return All Stock <span class="text-gray-600">撤货</span>
+                            {{ $t('Return All Stock') }} <span class="text-gray-600">撤货</span>
                           </button>
                         </MenuItem>
                         <MenuItem v-slot="{ active }">
                           <button type="button" @click="onUpdateStockAction('onsite_adjustment')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
-                            Stock Adjustment <span class="text-gray-600">调整货量</span>
+                            {{ $t('Stock Adjustment') }} <span class="text-gray-600">调整货量</span>
                           </button>
                         </MenuItem>
                         <MenuItem v-slot="{ active }" v-if="stockActionAllowed('melted_stock')">
                           <button type="button" @click="onUpdateStockAction('melted_stock')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm whitespace-nowrap']">
-                            Melted Ice Cream <span class="text-gray-600">溶撤丢</span>
+                            {{ $t('Melted Ice Cream') }} <span class="text-gray-600">溶撤丢</span>
                           </button>
                         </MenuItem>
                         <MenuItem v-slot="{ active }" v-if="opsJobItem.stock_action_type">
                           <button type="button" @click="onUpdateStockAction(null)" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm']">
-                            Clear Action
+                            {{ $t('Clear Action') }}
                           </button>
                         </MenuItem>
                       </div>
@@ -149,8 +147,8 @@
                  it can take them, a freezer's stay in mark1. -->
             <div v-if="hasRestockPhotos" class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="rounded-md border p-2" :class="restockPhotos.before.length ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50'">
-                <div class="text-sm font-semibold text-gray-900">1. Before restock photo <span class="text-xs font-normal text-gray-600">补货前照片</span></div>
-                <div class="text-xs text-amber-800 mb-1" v-if="needsBeforePhoto">Take it before opening — Open Door unlocks once it is in.</div>
+                <div class="text-sm font-semibold text-gray-900">{{ $t('1. Before restock photo') }} <span class="text-xs font-normal text-gray-600">补货前照片</span></div>
+                <div class="text-xs text-amber-800 mb-1" v-if="needsBeforePhoto">{{ $t('Take it before opening — Open Door unlocks once it is in.') }}</div>
                 <StopAttachmentSlot
                   :files="restockPhotos.before"
                   :uploadUrl="restockPhotoUrl"
@@ -163,9 +161,9 @@
                 />
               </div>
               <div class="rounded-md border p-2" :class="restockPhotos.after.length ? 'border-green-200 bg-green-50' : (opsJobItem.status >= 3 ? 'border-red-300 bg-red-50' : 'border-gray-200')">
-                <div class="text-sm font-semibold text-gray-900">2. After restock photo <span class="text-xs font-normal text-gray-600">补货后照片</span></div>
+                <div class="text-sm font-semibold text-gray-900">{{ $t('2. After restock photo') }} <span class="text-xs font-normal text-gray-600">补货后照片</span></div>
                 <div class="text-xs mb-1" :class="opsJobItem.status >= 3 ? 'text-red-700' : 'text-gray-500'" v-if="!restockPhotos.after.length">
-                  {{ opsJobItem.status >= 3 ? 'Missing — take it now.' : 'Take it after the stock is in.' }}
+                  {{ opsJobItem.status >= 3 ? $t('Missing — take it now.') : $t('Take it after the stock is in.') }}
                 </div>
                 <StopAttachmentSlot
                   :files="restockPhotos.after"
@@ -182,17 +180,17 @@
             <!-- A chiller's photos also go to CityBox after Stock In (deliver_pic_submit). -->
             <div v-if="opsJobItem.is_citybox_chiller && opsJobItem.citybox_photo_push_status" class="-mt-1 mb-3 text-xs"
               :class="{ 'text-green-700': opsJobItem.citybox_photo_push_status === 'ok', 'text-sky-700': opsJobItem.citybox_photo_push_status === 'pending', 'text-amber-700': opsJobItem.citybox_photo_push_status === 'failed' }">
-              <template v-if="opsJobItem.citybox_photo_push_status === 'ok'">Photos sent to CityBox at {{ opsJobItem.citybox_photo_pushed_at }}.</template>
-              <template v-else-if="opsJobItem.citybox_photo_push_status === 'pending'">Sending photos to CityBox…</template>
-              <template v-else>Photos not sent to CityBox: {{ opsJobItem.citybox_photo_push_error }}</template>
+              <template v-if="opsJobItem.citybox_photo_push_status === 'ok'">{{ $t('Photos sent to CityBox at :time.', { time: opsJobItem.citybox_photo_pushed_at }) }}</template>
+              <template v-else-if="opsJobItem.citybox_photo_push_status === 'pending'">{{ $t('Sending photos to CityBox…') }}</template>
+              <template v-else>{{ $t('Photos not sent to CityBox: :error', { error: opsJobItem.citybox_photo_push_error }) }}</template>
             </div>
             <Teleport to="body">
               <Modal :open="afterPhotoPrompt" @modalClose="afterPhotoPrompt = false">
                 <template #header>
-                  <span class="font-semibold text-black">Stocked in — now the AFTER photo</span>
+                  <span class="font-semibold text-black">{{ $t('Stocked in — now the AFTER photo') }}</span>
                 </template>
                 <template #default>
-                  <p class="text-sm text-gray-700 mb-3">Take one photo of the restocked {{ opsJobItem.is_smart_freezer ? 'freezer' : 'chiller' }}, door open, every {{ opsJobItem.is_smart_freezer ? 'basket' : 'layer' }} in view. 补货后照片</p>
+                  <p class="text-sm text-gray-700 mb-3">{{ opsJobItem.is_smart_freezer ? $t('Take one photo of the restocked freezer, door open, every basket in view.') : $t('Take one photo of the restocked chiller, door open, every layer in view.') }} 补货后照片</p>
                   <StopAttachmentSlot
                     :files="restockPhotos.after"
                     :uploadUrl="restockPhotoUrl"
@@ -204,7 +202,7 @@
                     @changed="data => { applyRestockPhotos(data); if (data?.after?.length) afterPhotoPrompt = false }"
                   />
                   <div class="mt-4 flex justify-end">
-                    <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="afterPhotoPrompt = false">Later</Button>
+                    <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="afterPhotoPrompt = false">{{ $t('Later') }}</Button>
                   </div>
                 </template>
               </Modal>
@@ -214,26 +212,26 @@
             <div v-if="opsJobItem.is_citybox_chiller" class="mb-3 space-y-2">
               <div v-if="opsJobItem.citybox_submit_status === 'failed'" class="rounded-md bg-amber-50 border border-amber-300 p-3 text-sm text-amber-900 flex items-start justify-between gap-3">
                 <div>
-                  <b>CityBox push failed</b> — your count was saved in ConnectVend but not yet in CityBox's system.
+                  <b>{{ $t('CityBox push failed') }}</b> {{ $t('— your count was saved in ConnectVend but not yet in CityBox\'s system.') }}
                   <div class="text-xs mt-1 text-amber-800">{{ opsJobItem.citybox_submit_error }}</div>
                 </div>
-                <Button type="button" class="bg-amber-600 hover:bg-amber-700 text-white text-xs whitespace-nowrap" @click.prevent="retryCityboxSubmit">Retry push</Button>
+                <Button type="button" class="bg-amber-600 hover:bg-amber-700 text-white text-xs whitespace-nowrap" @click.prevent="retryCityboxSubmit">{{ $t('Retry push') }}</Button>
               </div>
               <div v-else-if="opsJobItem.citybox_submit_status === 'pending'" class="rounded-md bg-sky-50 border border-sky-200 p-2 text-xs text-sky-800">
-                Pushing your count to CityBox…
+                {{ $t('Pushing your count to CityBox…') }}
               </div>
               <div v-else-if="opsJobItem.citybox_submit_status === 'reverting'" class="rounded-md bg-sky-50 border border-sky-200 p-2 text-xs text-sky-800">
-                Restoring the previous count in CityBox…
+                {{ $t('Restoring the previous count in CityBox…') }}
               </div>
               <!-- 'ok' only while still Stocked-In: after an Undo the pushed count is no longer what mark1 says. -->
               <div v-else-if="opsJobItem.citybox_submit_status === 'ok' && opsJobItem.status >= 3" class="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-800">
-                Count pushed to CityBox at {{ opsJobItem.citybox_submitted_at }}.
+                {{ $t('Count pushed to CityBox at :time.', { time: opsJobItem.citybox_submitted_at }) }}
               </div>
               <div v-else-if="opsJobItem.citybox_submit_status === 'reverted'" class="rounded-md bg-gray-50 border border-gray-200 p-2 text-xs text-gray-700">
-                Stock In undone — previous count restored in CityBox at {{ opsJobItem.citybox_submitted_at }}. Stock In again to push a fresh count.
+                {{ $t('Stock In undone — previous count restored in CityBox at :time. Stock In again to push a fresh count.', { time: opsJobItem.citybox_submitted_at }) }}
               </div>
               <details class="text-xs text-gray-600" @toggle="onDoorOpensToggle">
-                <summary class="cursor-pointer select-none">Door opens on this chiller</summary>
+                <summary class="cursor-pointer select-none">{{ $t('Door opens on this chiller') }}</summary>
                 <table class="mt-1 min-w-full text-xs">
                   <tbody>
                     <tr v-for="(d, i) in doorOpens" :key="i" class="border-t" :class="d.this_item ? 'bg-sky-50' : ''">
@@ -242,7 +240,7 @@
                       <td class="px-2 py-1">{{ d.source }}</td>
                       <td class="px-2 py-1" :class="d.result === 'opened' ? 'text-green-700' : 'text-red-700'">{{ d.result }}<span v-if="d.message" class="text-gray-500"> · {{ d.message }}</span></td>
                     </tr>
-                    <tr v-if="doorOpensLoaded && !doorOpens.length"><td class="px-2 py-2 text-gray-400" colspan="4">No door opens yet.</td></tr>
+                    <tr v-if="doorOpensLoaded && !doorOpens.length"><td class="px-2 py-2 text-gray-400" colspan="4">{{ $t('No door opens yet.') }}</td></tr>
                   </tbody>
                 </table>
               </details>
@@ -251,7 +249,7 @@
             <dl class="divide-y divide-gray-100">
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.vend && opsJobItem.vend.vendPrefix">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Prefix
+                  {{ $t('Prefix') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -267,7 +265,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.opsJob">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Date
+                  {{ $t('Date') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -279,7 +277,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.customer">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Site
+                  {{ $t('Site') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -292,7 +290,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2  && opsJobItem.pickedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Picked By
+                  {{ $t('Picked By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -307,7 +305,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 1  && opsJobItem.undoPickedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Undo Picked By
+                  {{ $t('Undo Picked By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -322,7 +320,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 3 && opsJobItem.completedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Stock In By
+                  {{ $t('Stock In By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -337,7 +335,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 2 && opsJobItem.undoCompletedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Undo Stock In By
+                  {{ $t('Undo Stock In By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -352,7 +350,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 4 && opsJobItem.verifiedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Verified By
+                  {{ $t('Verified By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -367,7 +365,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 3 && opsJobItem.undoVerifiedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Undo Verified By
+                  {{ $t('Undo Verified By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -382,7 +380,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 98 && opsJobItem.flaggedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Flagged By
+                  {{ $t('Flagged By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -397,7 +395,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 3 && opsJobItem.undoFlaggedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Undo Flagged By
+                  {{ $t('Undo Flagged By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -412,7 +410,7 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.cms_transaction_id && opsJobItem.cmsTransactionBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  API Inv By
+                  {{ $t('API Inv By') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -427,13 +425,13 @@
               </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Remarks
+                  {{ $t('Remarks') }}
                 </dt>
                 <dd class="text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <FormTextarea v-model="form.remarks" class="w-full" rows="3">
                   </FormTextarea>
                   <span v-if="opsJobItem.remarks_updated_at" class="text-gray-500 text-xs">
-                    Last {{ opsJobItem.remarks_updated_at }} ({{ opsJobItem.remarksUpdatedBy.name }})
+                    {{ $t('Last :time (:name)', { time: opsJobItem.remarks_updated_at, name: opsJobItem.remarksUpdatedBy.name }) }}
                   </span>
                 </dd>
               </div>
@@ -457,7 +455,7 @@
                 <span class="flex space-x-1 items-center">
                   <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
                   <span>
-                    Bypass Capped Qty
+                    {{ $t('Bypass Capped Qty') }}
                   </span>
                 </span>
               </Button>
@@ -470,7 +468,7 @@
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Abide Capped Qty
+                    {{ $t('Abide Capped Qty') }}
                   </span>
                 </span>
               </Button>
@@ -495,7 +493,7 @@
                 <span class="flex space-x-1 items-center">
                   <XCircleIcon class="w-4 h-4"></XCircleIcon>
                   <span>
-                    Zero-up To Pick Qty
+                    {{ $t('Zero-up To Pick Qty') }}
                   </span>
                 </span>
               </Button>
@@ -508,7 +506,7 @@
               <span class="flex space-x-1 items-center">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save Remarks
+                  {{ $t('Save Remarks') }}
                 </span>
               </span>
             </Button>
@@ -527,7 +525,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                           <div class="flex flex-col space-y-1 items-center">
                             <span>
-                              From {{ machineLabel }}
+                              {{ $t('From :machine', { machine: machineLabel }) }}
                             </span>
                             <div
                               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -538,7 +536,7 @@
                                 (B) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                                 </span>
                                 <span v-else>
-                                Not Detected
+                                {{ $t('Not Detected') }}
                                 </span>
                               </div>
                             </div>
@@ -558,31 +556,31 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           <div class="flex flex-col space-y-2">
                             <span>
-                              Channel
+                              {{ $t('Channel') }}
                             </span>
                             <span>
-                              Image
+                              {{ $t('Image') }}
                             </span>
                             <span>
-                              Product
+                              {{ $t('Product') }}
                             </span>
                             <span>
-                              Price<template v-if="referencePriceType"> ({{ referencePriceType }})</template>
+                              {{ $t('Price') }}<template v-if="referencePriceType"> ({{ referencePriceType }})</template>
                             </span>
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           <div class="flex flex-col space-y-2">
                             <span>
-                              Needed Qty/Capacity
+                              {{ $t('Needed Qty/Capacity') }}
                             </span>
                             <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
-                              To Pick Qty
+                              {{ $t('To Pick Qty') }}
                             </span>
                             <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <div class="flex flex-col space-y-1">
                                 <span>
-                                  Stock In
+                                  {{ $t('Stock In') }}
                                 </span>
                                 <span>
                                   <div
@@ -597,25 +595,25 @@
                               </div>
                             </span>
                             <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              {{ machineLabel }} Inventory Count
+                              {{ $t(':machine Inventory Count', { machine: machineLabel }) }}
                             </span>
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           <div class="flex flex-col space-y-2">
                             <span>
-                              Before Refill
+                              {{ $t('Before Refill') }}
                             </span>
                             <span>
-                              Stock In
+                              {{ $t('Stock In') }}
                             </span>
                             <span>
-                              After Refill
+                              {{ $t('After Refill') }}
                             </span>
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
-                          {{ machineLabel }} Inventory Not Tally, Fixed?
+                          {{ $t(':machine Inventory Not Tally, Fixed?', { machine: machineLabel }) }}
                         </th>
                       </tr>
                     </thead>
@@ -625,8 +623,8 @@
                            so the driver reads the pick list rack by rack. Vending rows are unchanged. -->
                       <tr v-if="layerDividerBefore(channelIndex)" class="bg-indigo-50">
                         <td colspan="12" class="border-t-4 border-indigo-400 py-1.5 pl-4 sm:pl-6 text-left text-[11px] font-bold uppercase tracking-wider text-indigo-800">
-                          Layer {{ layerOf(channel.code) }}
-                          <span class="ml-2 font-medium normal-case tracking-normal text-indigo-600">{{ layerSkuCount(channel.code) }} SKU{{ layerSkuCount(channel.code) === 1 ? '' : 's' }}</span>
+                          {{ $t('Layer :layer', { layer: layerOf(channel.code) }) }}
+                          <span class="ml-2 font-medium normal-case tracking-normal text-indigo-600">{{ $tc(':count SKU|:count SKUs', layerSkuCount(channel.code)) }}</span>
                         </td>
                       </tr>
                       <tr :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50')))), isBlindParent(channel) ? '!bg-indigo-50 border-t-2 border-indigo-300' : '']">
@@ -634,13 +632,13 @@
                           <div class="flex flex-col space-y-1">
                             <div class="flex items-center justify-center space-x-1">
                               <span>#{{ channel.code }}</span>
-                              <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
-                              <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
-                              <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">Current</span>
-                              <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">To Be</span>
+                              <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">{{ $t('Upcoming') }}</span>
+                              <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">{{ $t('Current') }}</span>
+                              <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">{{ $t('Current') }}</span>
+                              <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">{{ $t('To Be') }}</span>
                             </div>
                             <div class="flex items-center justify-center" >
-                              <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition" :src="channel.product.thumbnail.full_url" alt="" title="Click to enlarge" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']" @click="openImagePreview(channel.product.thumbnail.full_url, productLabel(channel.product))"/>
+                              <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition" :src="channel.product.thumbnail.full_url" alt="" :title="$t('Click to enlarge')" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']" @click="openImagePreview(channel.product.thumbnail.full_url, productLabel(channel.product))"/>
                             </div>
                             <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
                                 <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
@@ -656,15 +654,15 @@
                           <div class="flex flex-col space-y-2 items-center justify-center px-1.5">
                             <div class="flex space-x-2 items-center">
                               <template v-if="channel.capacity > 0">
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ $t('need') }}</span>
                                 <span :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
                                   {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                                 </span>
                               </template>
                               <template v-else>
                                 <div class="flex items-center justify-center space-x-1">
-                                  <span class="inline-flex items-center rounded-full bg-green-50 px-1 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">New</span>
-                                  <button type="button" @click.prevent="onDeleteChannel(channel)" v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type" class="text-red-500 hover:text-red-700" title="Remove Channel">
+                                  <span class="inline-flex items-center rounded-full bg-green-50 px-1 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">{{ $t('New') }}</span>
+                                  <button type="button" @click.prevent="onDeleteChannel(channel)" v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type" class="text-red-500 hover:text-red-700" :title="$t('Remove Channel')">
                                     <TrashIcon class="w-4 h-4" />
                                   </button>
                                 </div>
@@ -672,13 +670,13 @@
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 1">
                               <span class="flex flex-col space-y-1" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10" v-if="!channel.is_replaced">picked</span>
-                                <span class="inline-flex items-center rounded-full bg-red-50 px-1 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-700/10" v-else>return</span>
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10" v-if="!channel.is_replaced">{{ $t('picked') }}</span>
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-1 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-700/10" v-else>{{ $t('return') }}</span>
                                 <span>
                                   {{ channel.picked }}
                                 </span>
                                 <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                                  capped ({{ channel.picked_limit }})
+                                  {{ $t('capped (:limit)', { limit: channel.picked_limit }) }}
                                 </span>
                               </span>
                             </div>
@@ -702,13 +700,13 @@
                                 type="button"
                                 v-if="channel.saved_picked_qty != null && !channel.is_user_unfreeze && !channel.is_replaced && !channel.is_manually_replaced && !channel.is_return_stock && !channel.is_onsite_adjustment"
                                 class="text-[10px] text-blue-600 hover:text-blue-800 underline"
-                                title="Reset this SKU back to live Needed Qty"
+                                :title="$t('Reset this SKU back to live Needed Qty')"
                                 @click.prevent="onResetToLiveClicked(channel)"
                               >
-                                ↺ Live
+                                {{ $t('↺ Live') }}
                               </button>
                               <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                                capped ({{ channel.picked_limit }})
+                                {{ $t('capped (:limit)', { limit: channel.picked_limit }) }}
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
@@ -756,7 +754,7 @@
                             v-if="channel.virtual_is_error && !channel.is_error_settle"
                             >
                               <span class="text-white text-xs shadow-sm">
-                                Fix?
+                                {{ $t('Fix?') }}
                               </span>
                             </button>
 
@@ -767,7 +765,7 @@
                               >
                                 <div class="flex flex-col">
                                     <span class="font-semibold grow-0">
-                                      Fixed
+                                      {{ $t('Fixed') }}
                                     </span>
                                 </div>
                               </div>
@@ -795,14 +793,14 @@
                               class="h-10 w-10 rounded-lg object-contain bg-white p-0.5 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                               :class="[child.is_available ? '' : 'opacity-40']"
                               alt=""
-                              title="Click to enlarge"
+                              :title="$t('Click to enlarge')"
                               @click="openImagePreview(child.thumbnail_url, productLabel(child))"
                             />
                             <div class="flex-1 text-left" :class="[child.is_available ? 'text-gray-700' : 'text-gray-400']">
                               <span class="text-xs font-semibold">{{ child.code }}</span>
                               <span class="text-xs"> — {{ child.name }}</span>
                               <span class="ml-2 inline-flex items-center rounded bg-indigo-100 px-1 py-0.5 text-[10px] font-medium text-indigo-700">{{ child.weight_pct }}%</span>
-                              <span v-if="!child.is_available" class="ml-1 text-[10px] font-medium text-red-500">unavailable</span>
+                              <span v-if="!child.is_available" class="ml-1 text-[10px] font-medium text-red-500">{{ $t('unavailable') }}</span>
                             </div>
                             <div class="flex items-center gap-2 pr-2">
                               <select
@@ -823,17 +821,17 @@
                       <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
                         <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="1">
                           <div class="flex justify-center">
-                            Total
+                            {{ $t('Total') }}
                           </div>
                         </td>
                         <td class="py-4 pl-3 pr-3 text-sm font-bold text-center text-gray-800">
                           <div class="flex flex-col space-y-1">
                             <span class="flex justify-between space-x-1 items-center">
-                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
+                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ $t('need') }}</span>
                               {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
                             </span>
                             <span class="flex justify-between space-x-1 items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
-                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
+                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ $t('picked') }}</span>
                               {{ getSubtotalPicked() }}
                             </span>
                             <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
@@ -880,7 +878,7 @@
                               @click="openAddChannel"
                             >
                               <PlusCircleIcon class="w-5 h-5 text-blue-500" />
-                              <span>Add New SKU</span>
+                              <span>{{ $t('Add New SKU') }}</span>
                             </button>
                           </div>
                           <div v-else ref="addChannelFormRefMobile" class="flex flex-col space-y-3">
@@ -890,7 +888,7 @@
                                 v-model="newChannelCode"
                                 class="rounded border-gray-300 text-sm"
                               >
-                                <option :value="null">— New SKU —</option>
+                                <option :value="null">{{ $t('— New SKU —') }}</option>
                                 <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
                                   #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
                                 </option>
@@ -902,14 +900,14 @@
                                   :src="selectedNewChannel.product.thumbnail.full_url"
                                   class="h-10 w-10 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                                   alt=""
-                                  title="Click to enlarge"
+                                  :title="$t('Click to enlarge')"
                                   @click="openImagePreview(selectedNewChannel.product.thumbnail.full_url, productLabel(selectedNewChannel.product))"
                                 />
                                 <span class="text-xs font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
                               </div>
                               <!-- To Pick Qty -->
                               <div class="flex items-center space-x-1">
-                                <span class="text-xs text-gray-500">Pick Qty:</span>
+                                <span class="text-xs text-gray-500">{{ $t('Pick Qty:') }}</span>
                                 <select v-model="newChannelPickedQty" class="rounded border-gray-300 text-sm">
                                   <option v-for="n in 31" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
                                 </select>
@@ -917,9 +915,9 @@
                             </div>
                             <!-- Channel to be Replaced (optional) -->
                             <div ref="replaceRowRefMobile" class="flex flex-wrap gap-2 items-center justify-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50">
-                              <span class="text-xs text-orange-700 font-medium whitespace-nowrap">To replace current # (optional):</span>
+                              <span class="text-xs text-orange-700 font-medium whitespace-nowrap">{{ $t('To replace current # (optional):') }}</span>
                               <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
-                                <option :value="null">— None —</option>
+                                <option :value="null">{{ $t('— None —') }}</option>
                                 <option v-for="ch in channels.filter(c => !c.is_manually_replaced && !c.replaces_channel_id)" :key="ch.id" :value="ch.id">
                                   #{{ ch.code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
                                 </option>
@@ -931,14 +929,14 @@
                                 class="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
                                 @click="onAddChannel"
                               >
-                                Add
+                                {{ $t('Add') }}
                               </button>
                               <button
                                 type="button"
                                 class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
                                 @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5; replaceChannelId = null"
                               >
-                                Cancel
+                                {{ $t('Cancel') }}
                               </button>
                             </div>
                           </div>
@@ -956,7 +954,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                           <div class="flex flex-col space-y-1 items-center">
                             <span>
-                              From {{ machineLabel }}
+                              {{ $t('From :machine', { machine: machineLabel }) }}
                             </span>
                             <div
                               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -967,7 +965,7 @@
                                 (B) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                                 </span>
                                 <span v-else>
-                                Not Detected
+                                {{ $t('Not Detected') }}
                                 </span>
                               </div>
                             </div>
@@ -988,21 +986,21 @@
                           #
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
-                          Image
+                          {{ $t('Image') }}
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
-                          Product / Price<template v-if="referencePriceType"> ({{ referencePriceType }})</template>
+                          {{ $t('Product / Price') }}<template v-if="referencePriceType"> ({{ referencePriceType }})</template>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
-                          Needed Qty/ Capacity
+                          {{ $t('Needed Qty/ Capacity') }}
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
-                          To Pick Qty
+                          {{ $t('To Pick Qty') }}
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                           <div class="flex flex-col space-y-1">
                             <span>
-                              Stock In
+                              {{ $t('Stock In') }}
                             </span>
                             <span>
                               <div
@@ -1017,12 +1015,12 @@
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          {{ machineLabel }} Inventory Count
+                          {{ $t(':machine Inventory Count', { machine: machineLabel }) }}
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           <div class="flex flex-col space-y-1">
                             <span>
-                              Before Refill
+                              {{ $t('Before Refill') }}
                             </span>
                             <!-- <div
                               class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs font-medium border w-xs bg-green-500 text-white w-fit"
@@ -1037,12 +1035,12 @@
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
-                          Stock In
+                          {{ $t('Stock In') }}
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
                           <div>
                             <span>
-                              After Refill
+                              {{ $t('After Refill') }}
                             </span>
                             <!-- <div
                               class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs font-medium border w-xs bg-green-500 text-white w-fit"
@@ -1057,7 +1055,7 @@
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2 && hasVmcData">
-                          {{ machineLabel }} Inventory Not Tally, Fixed?
+                          {{ $t(':machine Inventory Not Tally, Fixed?', { machine: machineLabel }) }}
                         </th>
                       </tr>
                     </thead>
@@ -1067,23 +1065,23 @@
                            so the driver reads the pick list rack by rack. Vending rows are unchanged. -->
                       <tr v-if="layerDividerBefore(channelIndex)" class="bg-indigo-50">
                         <td colspan="12" class="border-t-4 border-indigo-400 py-1.5 pl-4 sm:pl-6 text-left text-[11px] font-bold uppercase tracking-wider text-indigo-800">
-                          Layer {{ layerOf(channel.code) }}
-                          <span class="ml-2 font-medium normal-case tracking-normal text-indigo-600">{{ layerSkuCount(channel.code) }} SKU{{ layerSkuCount(channel.code) === 1 ? '' : 's' }}</span>
+                          {{ $t('Layer :layer', { layer: layerOf(channel.code) }) }}
+                          <span class="ml-2 font-medium normal-case tracking-normal text-indigo-600">{{ $tc(':count SKU|:count SKUs', layerSkuCount(channel.code)) }}</span>
                         </td>
                       </tr>
                       <tr :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50')))), isBlindParent(channel) ? '!bg-indigo-50 border-t-2 border-indigo-300' : '']">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800" :class="[isBlindParent(channel) ? 'border-l-4 border-indigo-400' : '']">
                           <div class="flex flex-col items-center space-y-1">
                             <span>{{ channel.code }}</span>
-                            <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
-                            <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
-                            <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">Current</span>
-                            <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">To Be</span>
+                            <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">{{ $t('Upcoming') }}</span>
+                            <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">{{ $t('Current') }}</span>
+                            <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">{{ $t('Current') }}</span>
+                            <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">{{ $t('To Be') }}</span>
                           </div>
                         </td>
                         <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
                           <div class="flex justify-center items-center" >
-                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition" :src="channel.product.thumbnail.full_url" alt="" title="Click to enlarge" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']" @click="openImagePreview(channel.product.thumbnail.full_url, productLabel(channel.product))"/>
+                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg object-contain bg-white border border-gray-200 p-1 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition" :src="channel.product.thumbnail.full_url" alt="" :title="$t('Click to enlarge')" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']" @click="openImagePreview(channel.product.thumbnail.full_url, productLabel(channel.product))"/>
                           </div>
                         </td>
                         <td class="py-4 text-sm font-semibold text-center" :class="[(channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']">
@@ -1100,7 +1098,7 @@
                           </span>
                           <div v-if="isBlindParent(channel)" class="mt-1.5 flex justify-center">
                             <span class="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                              Blind housing
+                              {{ $t('Blind housing') }}
                             </span>
                           </div>
                         </td>
@@ -1110,8 +1108,8 @@
                           </template>
                           <template v-else>
                             <div class="flex items-center justify-center space-x-1">
-                              <span class="inline-flex items-center rounded-full bg-green-50 px-1 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">New</span>
-                              <button type="button" @click.prevent="onDeleteChannel(channel)" v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type" class="text-red-500 hover:text-red-700" title="Remove Channel">
+                              <span class="inline-flex items-center rounded-full bg-green-50 px-1 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">{{ $t('New') }}</span>
+                              <button type="button" @click.prevent="onDeleteChannel(channel)" v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type" class="text-red-500 hover:text-red-700" :title="$t('Remove Channel')">
                                 <TrashIcon class="w-4 h-4" />
                               </button>
                             </div>
@@ -1123,7 +1121,7 @@
                               {{ channel.picked }}
                             </span>
                             <span class="text-xs text-red-500" v-if="!channel.is_replaced && channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                              capped ({{ channel.picked_limit }})
+                              {{ $t('capped (:limit)', { limit: channel.picked_limit }) }}
                             </span>
                           </div>
                         </td>
@@ -1148,13 +1146,13 @@
                               type="button"
                               v-if="opsJobItem.status < 2 && channel.saved_picked_qty != null && !channel.is_user_unfreeze && !channel.is_replaced && !channel.is_manually_replaced && !channel.is_return_stock && !channel.is_onsite_adjustment"
                               class="text-[10px] text-blue-600 hover:text-blue-800 underline mt-1"
-                              title="Reset this SKU back to live Needed Qty"
+                              :title="$t('Reset this SKU back to live Needed Qty')"
                               @click.prevent="onResetToLiveClicked(channel)"
                             >
-                              ↺ Live
+                              {{ $t('↺ Live') }}
                             </button>
                             <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                              capped ({{ channel.picked_limit }})
+                              {{ $t('capped (:limit)', { limit: channel.picked_limit }) }}
                             </span>
                           </div>
                         </td>
@@ -1200,7 +1198,7 @@
                             v-if="channel.virtual_is_error && !channel.is_error_settle"
                             >
                               <span class="text-white text-xs shadow-sm">
-                                Fix?
+                                {{ $t('Fix?') }}
                               </span>
                             </button>
 
@@ -1211,7 +1209,7 @@
                               >
                                 <div class="flex flex-col">
                                     <span class="font-semibold grow-0">
-                                      Fixed
+                                      {{ $t('Fixed') }}
                                     </span>
                                 </div>
                               </div>
@@ -1240,15 +1238,15 @@
                               class="h-11 w-11 rounded-xl object-contain bg-white p-0.5 ring-1 ring-indigo-200 shadow-sm cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                               :class="[child.is_available ? '' : 'opacity-40 grayscale']"
                               alt=""
-                              title="Click to enlarge"
+                              :title="$t('Click to enlarge')"
                               @click="openImagePreview(child.thumbnail_url, productLabel(child))"
                             />
                             <div class="text-left leading-tight" :class="[child.is_available ? 'text-gray-700' : 'text-gray-400']">
                               <div class="flex items-center gap-2">
                                 <span class="text-sm font-semibold">{{ child.code }}</span>
                                 <span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{{ child.weight_pct }}%</span>
-                                <span v-if="!child.is_available" class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">unavailable</span>
-                                <span v-if="!opsJobItem.is_ignore_limit && child.cap != null" class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 ring-1 ring-inset ring-amber-200">capped ({{ child.cap }})</span>
+                                <span v-if="!child.is_available" class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">{{ $t('unavailable') }}</span>
+                                <span v-if="!opsJobItem.is_ignore_limit && child.cap != null" class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 ring-1 ring-inset ring-amber-200">{{ $t('capped (:limit)', { limit: child.cap }) }}</span>
                               </div>
                               <div class="text-xs text-gray-500">{{ child.name }}</div>
                             </div>
@@ -1287,10 +1285,10 @@
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" colspan="3">
                           <div class="flex flex-col space-y-2">
                             <span>
-                              Total Qty
+                              {{ $t('Total Qty') }}
                             </span>
                             <span>
-                              Stock Value
+                              {{ $t('Stock Value') }}
                             </span>
                           </div>
                         </td>
@@ -1341,7 +1339,7 @@
                               @click="openAddChannel"
                             >
                               <PlusCircleIcon class="w-5 h-5 text-blue-500" />
-                              <span>Add New SKU</span>
+                              <span>{{ $t('Add New SKU') }}</span>
                             </button>
                           </div>
                           <div v-else ref="addChannelFormRefDesktop" class="flex flex-col gap-3">
@@ -1351,7 +1349,7 @@
                                 v-model="newChannelCode"
                                 class="rounded border-gray-300 text-sm"
                               >
-                                <option :value="null">— New SKU —</option>
+                                <option :value="null">{{ $t('— New SKU —') }}</option>
                                 <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
                                   #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
                                 </option>
@@ -1363,14 +1361,14 @@
                                   :src="selectedNewChannel.product.thumbnail.full_url"
                                   class="h-12 w-12 rounded-lg object-contain bg-white p-0.5 ring-1 ring-gray-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                                   alt=""
-                                  title="Click to enlarge"
+                                  :title="$t('Click to enlarge')"
                                   @click="openImagePreview(selectedNewChannel.product.thumbnail.full_url, productLabel(selectedNewChannel.product))"
                                 />
                                 <span class="text-sm font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
                               </div>
                               <!-- To Pick Qty -->
                               <div class="flex items-center space-x-2">
-                                <span class="text-sm text-gray-500">Pick Qty:</span>
+                                <span class="text-sm text-gray-500">{{ $t('Pick Qty:') }}</span>
                                 <select v-model="newChannelPickedQty" class="rounded border-gray-300 text-sm">
                                   <option v-for="n in 31" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
                                 </select>
@@ -1380,26 +1378,26 @@
                                 class="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
                                 @click="onAddChannel"
                               >
-                                Add
+                                {{ $t('Add') }}
                               </button>
                               <button
                                 type="button"
                                 class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
                                 @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5; replaceChannelId = null"
                               >
-                                Cancel
+                                {{ $t('Cancel') }}
                               </button>
                             </div>
                             <!-- Row 2: Channel to be Replaced (optional) -->
                             <div ref="replaceRowRefDesktop" class="flex flex-wrap gap-2 items-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50 w-fit">
-                              <span class="text-sm text-orange-700 font-medium">To replace current # <span class="font-normal text-orange-500">(optional)</span>:</span>
+                              <span class="text-sm text-orange-700 font-medium">{{ $t('To replace current #') }} <span class="font-normal text-orange-500">{{ $t('(optional)') }}</span>:</span>
                               <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
-                                <option :value="null">— None —</option>
+                                <option :value="null">{{ $t('— None —') }}</option>
                                 <option v-for="ch in channels.filter(c => !c.is_manually_replaced && !c.replaces_channel_id)" :key="ch.id" :value="ch.id">
                                   #{{ ch.code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
                                 </option>
                               </select>
-                              <span v-if="replaceChannelId" class="text-xs text-orange-600 italic">Pick qty for that channel will default to 0</span>
+                              <span v-if="replaceChannelId" class="text-xs text-orange-600 italic">{{ $t('Pick qty for that channel will default to 0') }}</span>
                             </div>
                           </div>
                         </td>
@@ -1418,7 +1416,7 @@
               <div class="flex justify-between">
                 <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
                   <dt class="text-sm font-medium leading-6 text-gray-900">
-                    Cash Collected (Machine)
+                    {{ $t('Cash Collected (Machine)') }}
                     <span class="text-red-500">*</span>
                   </dt>
                   <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
@@ -1428,7 +1426,7 @@
                     </div>
                   </dd>
                   <dt class="text-sm font-medium leading-6 text-gray-900">
-                    CashAmt$ (VMC)
+                    {{ $t('CashAmt$ (VMC)') }}
                     <span class="text-red-500">*</span>
                   </dt>
                   <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
@@ -1438,7 +1436,7 @@
                     </div>
                   </dd>
                   <dt class="text-sm font-medium leading-6 text-gray-900">
-                    Cash Adjustment
+                    {{ $t('Cash Adjustment') }}
                   </dt>
                   <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                     <div class="flex space-x-2">
@@ -1458,7 +1456,7 @@
                     <span class="flex space-x-1 items-center">
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
-                        Update Cash
+                        {{ $t('Update Cash') }}
                       </span>
                     </span>
                   </Button>
@@ -1471,7 +1469,7 @@
                     <span class="flex space-x-1 items-center">
                       <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                       <span>
-                        Undo Cash Collection
+                        {{ $t('Undo Cash Collection') }}
                       </span>
                     </span>
                   </Button>
@@ -1481,7 +1479,7 @@
                 <dt class="text-sm font-medium leading-6 text-gray-900">
                   <div class="flex flex-col space-y-1 items-center">
                     <div>
-                      Stock Out (Transactions)
+                      {{ $t('Stock Out (Transactions)') }}
                     </div>
                     <div
                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -1489,14 +1487,14 @@
                     >
                       <div class="flex flex-col font-semibold grow-0">
                         <span v-if="!opsJobItem.previous_ops_job_item_id || !opsJobItem.previousOpsJobItem">
-                          Not Detected
+                          {{ $t('Not Detected') }}
                         </span>
                         <span v-if="opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem">
                           #{{ opsJobItem.previousOpsJobItem.ref_id }}
                         </span>
                         <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem">
                           <span>
-                            from
+                            {{ $t('from') }}
                           </span>
                           <span>
                             {{ opsJobItem.previousOpsJobItem.completed_at }}
@@ -1504,7 +1502,7 @@
                         </span>
                         <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem">
                           <span>
-                            to
+                            {{ $t('to') }}
                           </span>
                           <span>
                             {{ opsJobItem.completed_at ? opsJobItem.completed_at : '' }}
@@ -1517,7 +1515,7 @@
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex items-center space-x-2 justify-between">
                     <label for="acc_vend_transactions_count" class="font-semibold">
-                      Total Qty
+                      {{ $t('Total Qty') }}
                     </label>
                     <span class="py-3 px-2 font-semibold">
                       {{form.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0 })}}
@@ -1528,7 +1526,7 @@
                   </div>
                   <div class="flex items-center space-x-2 justify-between">
                     <label for="acc_vend_transactions_amount" class="font-semibold">
-                      Total Amount
+                      {{ $t('Total Amount') }}
                     </label>
                     <span class="py-3 px-2 font-semibold">
                       {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -1538,7 +1536,7 @@
                   </div>
                   <div class="flex items-center space-x-2 justify-between">
                     <label for="acc_vend_transactions_cash_amount" class="font-semibold">
-                      Cash Amount
+                      {{ $t('Cash Amount') }}
                     </label>
                     <span class="py-3 px-2 font-semibold">
                       {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -1548,7 +1546,7 @@
                   </div>
                   <div class="flex items-center space-x-2 justify-between">
                     <label for="acc_vend_transactions_cashless_amount" class="font-semibold">
-                      Cashless Amount
+                      {{ $t('Cashless Amount') }}
                     </label>
                     <span class="py-3 px-2 font-semibold">
                       {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_cashless_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -1558,7 +1556,7 @@
                   </div>
                   <div class="flex items-center space-x-2 justify-between">
                     <label for="acc_vend_transactions_promo_amount" class="font-semibold">
-                      Discount Amount
+                      {{ $t('Discount Amount') }}
                     </label>
                     <span class="py-3 px-2 font-semibold">
                       {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -1577,7 +1575,7 @@
                 <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-center ">
-                <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+                <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> {{ $t('Attachment(s)') }} </span>
               </div>
             </div>
           </div>
@@ -1599,7 +1597,7 @@
                 >
                   <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                   <span>
-                    Back
+                    {{ $t('Back') }}
                   </span>
                 </Button>
               </Link>
@@ -1612,7 +1610,7 @@
                 <span class="flex space-x-1 items-center">
                   <XCircleIcon class="w-4 h-4"></XCircleIcon>
                   <span>
-                    Cancel
+                    {{ $t('Cancel') }}
                   </span>
                 </span>
               </Button>
@@ -1625,7 +1623,7 @@
                 <span class="flex space-x-1 items-center">
                   <TrashIcon class="w-4 h-4"></TrashIcon>
                   <span>
-                    Delete
+                    {{ $t('Delete') }}
                   </span>
                 </span>
               </Button>
@@ -1639,7 +1637,7 @@
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                   <span>
-                    Undo Stock In
+                    {{ $t('Undo Stock In') }}
                   </span>
                 </span>
               </Button>
@@ -1653,7 +1651,7 @@
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                   <span>
-                    Undo Picked
+                    {{ $t('Undo Picked') }}
                   </span>
                 </span>
               </Button>
@@ -1666,7 +1664,7 @@
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                   <span>
-                    Undo Stock Action & Picked
+                    {{ $t('Undo Stock Action & Picked') }}
                   </span>
                 </span>
               </Button>
@@ -1679,7 +1677,7 @@
                 <span class="flex space-x-1 items-center">
                   <TrashIcon class="w-4 h-4"></TrashIcon>
                   <span>
-                    Delete
+                    {{ $t('Delete') }}
                   </span>
                 </span>
               </Button>
@@ -1693,7 +1691,7 @@
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                   <span>
-                    Undo Verified
+                    {{ $t('Undo Verified') }}
                   </span>
                 </span>
               </Button>
@@ -1707,7 +1705,7 @@
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                   <span>
-                    Undo Flagged
+                    {{ $t('Undo Flagged') }}
                   </span>
                 </span>
               </Button>
@@ -1718,12 +1716,12 @@
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-gray-300 hover:bg-gray-400 text-gray-800 w-full md:w-fit"
                   @click="onSaveClicked()"
                   v-if="opsJobItem.status == 1 && !AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.stock_action_type)"
-                  title="Freezes only the SKUs you manually changed (RED). Untouched SKUs (BLUE) keep updating with live Needed Qty."
+                  :title="$t('Freezes only the SKUs you manually changed (RED). Untouched SKUs (BLUE) keep updating with live Needed Qty.')"
               >
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save & Freeze 'To Pick Qty'
+                    {{ $t('Save & Freeze \'To Pick Qty\'') }}
                   </span>
                 </span>
               </Button>
@@ -1737,7 +1735,7 @@
                 <span class="flex space-x-1 items-center">
                   <ClipboardDocumentCheckIcon class="w-4 h-4"></ClipboardDocumentCheckIcon>
                   <span>
-                    Picked
+                    {{ $t('Picked') }}
                   </span>
                 </span>
               </Button>
@@ -1751,7 +1749,7 @@
               <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Stock In
+                    {{ $t('Stock In') }}
                   </span>
                 </span>
               </Button>
@@ -1765,7 +1763,7 @@
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Verified
+                    {{ $t('Verified') }}
                   </span>
                 </span>
               </Button>
@@ -1778,7 +1776,7 @@
                 <span class="flex space-x-1 items-center">
                   <FlagIcon class="w-4 h-4"></FlagIcon>
                   <span>
-                    Flagged
+                    {{ $t('Flagged') }}
                   </span>
                 </span>
               </Button>
@@ -1811,6 +1809,7 @@
 </template>
 
 <script setup>
+import { t, tc, tk } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode'
 import AttachmentList from '@/Components/AttachmentList.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
@@ -1865,7 +1864,7 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const opsJobItem = ref([])
 // Header wording: a vending board is a VMC; a CityBox chiller is not, so its
 // inventory columns are labelled by the supplier instead.
-const machineLabel = computed(() => opsJobItem.value?.is_citybox_chiller ? 'Citybox' : (opsJobItem.value?.is_smart_freezer ? 'Freezer' : 'VMC'))
+const machineLabel = computed(() => opsJobItem.value?.is_citybox_chiller ? 'Citybox' : (opsJobItem.value?.is_smart_freezer ? t('Freezer') : 'VMC'))
 // A Smart Freezer has no VMC board: no REFILL frames, so no before/after-refill counts and nothing to
 // tally against. Its "From VMC" columns would only ever read Not Detected.
 const hasVmcData = computed(() => !opsJobItem.value?.is_smart_freezer)
@@ -1889,8 +1888,8 @@ function retryCityboxSubmit() {
   const id = props.opsJobItem?.data?.id ?? props.opsJobItem?.id
   router.post(`/ops-jobs/items/${id}/citybox-retry-submit`, {}, {
     preserveScroll: true, preserveState: false,
-    onSuccess: () => toast.success('Re-pushing your count to CityBox…', { timeout: 4000 }),
-    onError: (e) => toast.error(e.citybox || 'Retry failed', { timeout: 6000 }),
+    onSuccess: () => toast.success(t('Re-pushing your count to CityBox…'), { timeout: 4000 }),
+    onError: (e) => toast.error(e.citybox || t('Retry failed'), { timeout: 6000 }),
   })
 }
 const vend = ref([])
@@ -2412,7 +2411,7 @@ function isErrorSettleClicked(channel) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Settled", {
+      toast.success(t('Successfully Settled'), {
         timeout: 3000
       });
       channels.value = channels.value.map((c) => {
@@ -2443,7 +2442,7 @@ function openAddChannel() {
 
 function onAddChannel() {
   if (!newChannelCode.value) {
-    toast.error("Please select a channel.", { timeout: 3000 })
+    toast.error(t('Please select a channel.'), { timeout: 3000 })
     return
   }
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/add-channel', {
@@ -2453,7 +2452,7 @@ function onAddChannel() {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Channel added successfully", { timeout: 3000 })
+      toast.success(t('Channel added successfully'), { timeout: 3000 })
       showAddChannel.value = false
       newChannelCode.value = null
       newChannelPickedQty.value = 5
@@ -2466,19 +2465,19 @@ function onAddChannel() {
       })
     },
     onError: () => {
-      toast.error("Failed to add channel. Please try again.", { timeout: 3000 })
+      toast.error(t('Failed to add channel. Please try again.'), { timeout: 3000 })
     }
   })
 }
 
 function onDeleteChannel(channel) {
-  const approval = confirm(`Are you sure you want to remove channel #${channel.code}?`);
+  const approval = confirm(t('Are you sure you want to remove channel #:code?', { code: channel.code }));
   if (!approval) return;
 
   router.delete('/ops-jobs/item-channels/' + channel.id, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Channel removed successfully", { timeout: 3000 })
+      toast.success(t('Channel removed successfully'), { timeout: 3000 })
       router.reload({
         only: ['opsJobItem'],
         replace: true,
@@ -2487,7 +2486,7 @@ function onDeleteChannel(channel) {
       })
     },
     onError: () => {
-      toast.error("Failed to remove channel. Please try again.", { timeout: 3000 })
+      toast.error(t('Failed to remove channel. Please try again.'), { timeout: 3000 })
     }
   })
 }
@@ -2499,24 +2498,24 @@ function onConfirmClicked() {
   if(form.value.status == 1) {
     const isAutoPickAction = AUTO_PICK_STOCK_ACTIONS.includes(opsJobItem.value.stock_action_type);
     confirmText = isAutoPickAction
-      ? 'Are you sure you want to mark as Picked? (No stock picking required for this action) '
-      : 'Are you sure you want to Picked? ';
+      ? t('Are you sure you want to mark as Picked? (No stock picking required for this action) ')
+      : t('Are you sure you want to Picked? ');
     isConfirm = true;
   }
 
   if(form.value.status == 2) {
-    confirmText = 'Are you sure you want to Stock In? ';
+    confirmText = t('Are you sure you want to Stock In? ');
     isConfirm = true;
   }
 
   // Cash checks only where cash exists — a CityBox chiller or Smart Freezer has no cash block.
   if(form.value.status == 2 && showsCash.value && form.value.cash_amount == 0) {
-    confirmText += 'Cash Collected = 0; ';
+    confirmText += t('Cash Collected = 0; ');
     isConfirm = true;
   }
 
   if(form.value.status == 2 && showsCash.value && form.value.temp_cash_amount_from_vmc == 0) {
-    confirmText += 'VMC Cash Amount = 0; ';
+    confirmText += t('VMC Cash Amount = 0; ');
     isConfirm = true;
   }
 
@@ -2547,7 +2546,7 @@ function onConfirmClicked() {
     preserveScroll: true,
     onFinish: () => { statusSubmitting.value = false },
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t('Successfully Updated'), {
         timeout: 3000
       });
       router.reload({
@@ -2575,7 +2574,7 @@ function onSaveClicked() {
   const touchedChannels = channels.value.filter(c => c.is_user_modified || c.is_user_unfreeze);
 
   if (touchedChannels.length === 0) {
-    toast.info("No manual changes to save.", { timeout: 2500 });
+    toast.info(t('No manual changes to save.'), { timeout: 2500 });
     return;
   }
 
@@ -2596,7 +2595,7 @@ function onSaveClicked() {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
       router.reload({
@@ -2631,20 +2630,20 @@ function onResetToLiveClicked(channel) {
 }
 
 function onCashCollectedClicked() {
-  const approval = confirm('Are you sure to confirm Cash Collection?');
+  const approval = confirm(t('Are you sure to confirm Cash Collection?'));
   if (!approval) {
       return;
   }
 
   if(form.value.cash_amount == 0 || form.value.temp_cash_amount_from_vmc == 0) {
-    const zeroApproval = confirm('Are you sure to confirm Cash Collection with 0 amount?');
+    const zeroApproval = confirm(t('Are you sure to confirm Cash Collection with 0 amount?'));
     if (!zeroApproval) {
         return;
     }
   }
 
   if(form.value.cash_amount == null || form.value.temp_cash_amount_from_vmc == null) {
-    const nullApproval = confirm('Are you sure to confirm Cash Collection with 0 amount?');
+    const nullApproval = confirm(t('Are you sure to confirm Cash Collection with 0 amount?'));
     if (!nullApproval) {
         return;
     }
@@ -2655,7 +2654,7 @@ function onCashCollectedClicked() {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
       router.reload({
@@ -2671,7 +2670,7 @@ function onCashCollectedClicked() {
 }
 
 function onIsIgnoreLimitClicked() {
-  const approval = confirm('Are you sure to toggle Qty Limit Check?');
+  const approval = confirm(t('Are you sure to toggle Qty Limit Check?'));
   if (!approval) {
       return;
   }
@@ -2686,7 +2685,7 @@ function onIsIgnoreLimitClicked() {
           loadingData()
         }
       })
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
     }
@@ -2705,7 +2704,7 @@ function onIsIgnoreLimitClicked() {
 // onsite_adjustment, upcoming products under "Implement New Mapping" —
 // support picked = 0 as a valid value, so they're cleared.
 function onZeroUpPickQtyClicked() {
-  const approval = confirm("Set every channel's To Pick Qty to 0? You'll still need to click \"Save & Freeze 'To Pick Qty'\" to persist this.");
+  const approval = confirm(t('Set every channel\'s To Pick Qty to 0? You\'ll still need to click "Save & Freeze \'To Pick Qty\'" to persist this.'));
   if (!approval) {
     return;
   }
@@ -2728,13 +2727,13 @@ function onZeroUpPickQtyClicked() {
       channel.blind_children.forEach((child) => { child.picked = 0; });
     }
   });
-  toast.success(`Zeroed To Pick Qty on ${cleared} channel${cleared === 1 ? '' : 's'}. Click "Save & Freeze 'To Pick Qty'" to persist.`, {
+  toast.success(tc('Zeroed To Pick Qty on :count channel. Click "Save & Freeze \'To Pick Qty\'" to persist.|Zeroed To Pick Qty on :count channels. Click "Save & Freeze \'To Pick Qty\'" to persist.', cleared), {
     timeout: 4000
   });
 }
 
 function onUndoCashCollectedClicked() {
-  const approval = confirm('Are you sure to undo Cash Collection?');
+  const approval = confirm(t('Are you sure to undo Cash Collection?'));
   if (!approval) {
       return;
   }
@@ -2742,7 +2741,7 @@ function onUndoCashCollectedClicked() {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t('Successfully Updated'), {
         timeout: 3000
       });
       router.reload({
@@ -2761,7 +2760,7 @@ function onSaveFormClicked() {
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/update', form.value, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
     }
@@ -2772,7 +2771,7 @@ function onSaveRemarksClicked() {
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/update/remarks', {remarks: form.value.remarks}, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
     }
@@ -2782,7 +2781,7 @@ function onSaveRemarksClicked() {
 function onStatusClicked(nextStatus) {
 
   if(nextStatus == 99) {
-    const approval = confirm('Are you sure to cancel this job?');
+    const approval = confirm(t('Are you sure to cancel this job?'));
     if (!approval) {
         return;
     }
@@ -2793,7 +2792,7 @@ function onStatusClicked(nextStatus) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t('Successfully Updated'), {
         timeout: 3000
       });
       router.reload({
@@ -2809,7 +2808,7 @@ function onStatusClicked(nextStatus) {
 }
 
 function onUndoStatusClicked(opsJobItemID) {
-  const approval = confirm('Are you sure to undo this status?');
+  const approval = confirm(t('Are you sure to undo this status?'));
   if (!approval) {
       return;
   }
@@ -2822,7 +2821,7 @@ function onUndoStatusClicked(opsJobItemID) {
     preserveScroll: true,
     onFinish: () => { statusSubmitting.value = false },
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t('Successfully Updated'), {
         timeout: 3000
       });
       router.reload({
@@ -2843,7 +2842,7 @@ function onVerifyClicked(verify) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Verified", {
+      toast.success(t('Successfully Verified'), {
         timeout: 3000
       });
       router.reload({
@@ -2886,13 +2885,13 @@ function stockActionAllowed(type) {
 }
 
 function onUpdateStockAction(type) {
-  let typeName = 'normal job';
-  if (type == 'implement_new_mapping') typeName = 'Implement New Mapping';
-  else if (type == 'return_stock') typeName = 'Return Stock';
-  else if (type == 'melted_stock') typeName = 'Melted Ice Cream (discard, no coldroom credit)';
-  else if (type == null) typeName = 'Reset to Normal Job';
+  let typeName = tk('normal job');
+  if (type == 'implement_new_mapping') typeName = tk('Implement New Mapping');
+  else if (type == 'return_stock') typeName = tk('Return Stock');
+  else if (type == 'melted_stock') typeName = tk('Melted Ice Cream (discard, no coldroom credit)');
+  else if (type == null) typeName = tk('Reset to Normal Job');
 
-  const approval = confirm(`Are you sure to ${typeName}?`);
+  const approval = confirm(t('Are you sure to :action?', { action: t(typeName) }));
   if (!approval) {
       return;
   }
@@ -2901,7 +2900,7 @@ function onUpdateStockAction(type) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t('Successfully Updated'), {
         timeout: 3000
       });
       router.reload({
@@ -2917,13 +2916,13 @@ function onUpdateStockAction(type) {
 }
 
 function onUndoStockActionClicked() {
-  const approval = confirm('Are you sure? This will clear the stock action and revert the item back to Pending status.');
+  const approval = confirm(t('Are you sure? This will clear the stock action and revert the item back to Pending status.'));
   if (!approval) return;
 
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/undo-stock-action', {}, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Stock action cleared, item reverted to Pending", {
+      toast.success(t('Stock action cleared, item reverted to Pending'), {
         timeout: 3000
       });
       router.reload({
@@ -2937,12 +2936,12 @@ function onUndoStockActionClicked() {
 }
 
 function onDeleteClicked() {
-  const approval = confirm('Are you sure you want to delete this job item? This action cannot be undone.');
+  const approval = confirm(t('Are you sure you want to delete this job item? This action cannot be undone.'));
   if (!approval) return;
 
   router.delete('/ops-jobs/items/' + opsJobItem.value.id, {}, {
     onSuccess: () => {
-      toast.success("Job item deleted successfully", {
+      toast.success(t('Job item deleted successfully'), {
         timeout: 3000
       });
     }

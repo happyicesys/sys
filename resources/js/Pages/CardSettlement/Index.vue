@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Card Settlement" />
+  <Head :title="$t('Card Settlement')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Card Settlement
+        {{ $t('Card Settlement') }}
       </h2>
     </template>
 
@@ -15,7 +15,7 @@
         <div class="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Provider
+              {{ $t('Provider') }}
             </label>
             <MultiSelect
               v-model="uploadProvider"
@@ -23,7 +23,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -31,7 +31,7 @@
           </div>
           <div class="md:col-span-2">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Settlement Report File
+              {{ $t('Settlement Report File') }}
             </label>
             <input
               type="file"
@@ -51,22 +51,20 @@
             >
               <ArrowUpTrayIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                {{ uploadForm.processing ? ('Uploading… ' + uploadProgress + '%') : 'Upload & Match' }}
+                {{ uploadForm.processing ? $t('Uploading… :percent%', { percent: uploadProgress }) : $t('Upload & Match') }}
               </span>
             </Button>
           </div>
         </div>
         <p class="mt-2 text-xs text-gray-400">
-          NETS: upload the raw MerchantConnect daily CSV (MCONNECT_…_STDRPT01_….csv). Avoid opening it
-          in Excel first — a re-saved file loses the hour of each transaction time and rows can only be
-          matched approximately.
+          {{ $t('NETS: upload the raw MerchantConnect daily CSV (MCONNECT_…_STDRPT01_….csv). Avoid opening it in Excel first — a re-saved file loses the hour of each transaction time and rows can only be matched approximately.') }}
         </p>
 
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-4">
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.status"
@@ -74,7 +72,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -82,12 +80,12 @@
           </div>
           <div>
             <DatePicker v-model="filters.date_from">
-              Cutover From
+              {{ $t('Cutover From') }}
             </DatePicker>
           </div>
           <div>
             <DatePicker v-model="filters.date_to" :minDate="filters.date_from">
-              Cutover To
+              {{ $t('Cutover To') }}
             </DatePicker>
           </div>
         </div>
@@ -100,20 +98,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ reports.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ reports.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ reports.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -121,7 +119,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -141,31 +139,31 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="cutover_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('cutover_date')">
-                      Cutover
+                      {{ $t('Cutover') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="original_filename" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('original_filename')">
-                      File
+                      {{ $t('File') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">
-                      Status
+                      {{ $t('Status') }}
                     </TableHeadSort>
                     <TableHead>
-                      Purchases
+                      {{ $t('Purchases') }}
                     </TableHead>
                     <TableHead>
-                      Matched
+                      {{ $t('Matched') }}
                     </TableHead>
                     <TableHead>
-                      Queries
+                      {{ $t('Queries') }}
                     </TableHead>
                     <TableHead>
-                      Duplicates
+                      {{ $t('Duplicates') }}
                     </TableHead>
                     <TableHead>
-                      Synced
+                      {{ $t('Synced') }}
                     </TableHead>
                     <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
-                      Uploaded
+                      {{ $t('Uploaded') }}
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -198,9 +196,9 @@
                         <span
                           v-if="report.partial_time_rows"
                           class="block text-xs text-amber-700"
-                          :title="report.partial_time_rows + ' lines lost their hour (file re-saved in Excel) — matched on minute:second only'"
+                          :title="$t(':count lines lost their hour (file re-saved in Excel) — matched on minute:second only', { count: report.partial_time_rows })"
                         >
-                          ⚠ no hour on {{ report.partial_time_rows }}
+                          {{ $t('⚠ no hour on :count', { count: report.partial_time_rows }) }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="reportIndex" :totalLength="reports.length" inputClass="text-center">
@@ -233,7 +231,7 @@
                           >
                             <EyeIcon class="w-4 h-4"></EyeIcon>
                             <span>
-                                View
+                                {{ $t('View') }}
                             </span>
                           </Button>
                           <Button
@@ -243,7 +241,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -251,7 +249,7 @@
                       </tr>
                 <tr v-if="!reports.data.length">
                   <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -277,6 +275,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   reports: Object,
@@ -286,11 +285,11 @@ const props = defineProps({
 })
 
 const statusLabels = {
-  uploaded: 'Uploaded',
-  matching: 'Matching…',
-  review: 'Review',
-  synced: 'Synced',
-  failed: 'Failed',
+  uploaded: t('Uploaded'),
+  matching: t('Matching…'),
+  review: t('Review'),
+  synced: t('Synced'),
+  failed: t('Failed'),
 }
 
 function statusBadgeClass(status) {
@@ -325,13 +324,13 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   providerOptions.value = props.providers.map((p) => ({ id: p, name: p.toUpperCase() }))
   uploadProvider.value = providerOptions.value[0] || null
   statusOptions.value = [
-    { id: 'all', name: 'All' },
+    { id: 'all', name: t('All') },
     ...props.statuses.map((s) => ({ id: s, name: statusLabels[s] || s })),
   ]
   filters.value.status = statusOptions.value.find((o) => o.id === filters.value.status) || statusOptions.value[0]
@@ -344,29 +343,29 @@ function submitUpload() {
     preserveScroll: true,
     onProgress: (e) => { uploadProgress.value = e ? Math.round(e.percentage) : 0; },
     onSuccess: () => {
-      toast.success("Report uploaded — matching runs in the background", { timeout: 4000 })
+      toast.success(t('Report uploaded — matching runs in the background'), { timeout: 4000 })
       uploadForm.reset()
       uploadProgress.value = 0
     },
     onError: () => {
       uploadProgress.value = 0
-      toast.error("Upload failed — check the file", { timeout: 3000 })
+      toast.error(t('Upload failed — check the file'), { timeout: 3000 })
     },
   })
 }
 
 function onDeleteClicked(report) {
-  const approval = confirm('Are you sure to delete report ' + report.original_filename + ' and all its rows?');
+  const approval = confirm(t('Are you sure to delete report :file and all its rows?', { file: report.original_filename }));
   if (!approval) {
       return;
   }
   router.delete('/card-settlements/' + report.id, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Report deleted successfully", { timeout: 3000 })
+      toast.success(t('Report deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete report", { timeout: 3000 })
+      toast.error(t('Failed to delete report'), { timeout: 3000 })
     }
   })
 }

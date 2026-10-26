@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Ops Performance" />
+  <Head :title="$t('Ops Performance')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Operations Performance
+        {{ $t('Operations Performance') }}
       </h2>
     </template>
 
@@ -14,78 +14,77 @@
       <!-- ===================== FILTERS ===================== -->
       <div class="bg-white rounded-md border my-3 px-3 py-3">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <DatePicker v-model="f.date_from" :isPreviousNextButton="false">From</DatePicker>
-          <DatePicker v-model="f.date_to" :isPreviousNextButton="false">As of (To)</DatePicker>
+          <DatePicker v-model="f.date_from" :isPreviousNextButton="false">{{ $t('From') }}</DatePicker>
+          <DatePicker v-model="f.date_to" :isPreviousNextButton="false">{{ $t('As of (To)') }}</DatePicker>
 
-          <SearchInput placeholderStr="Code(s), comma separated" v-model="f.codes" @keyup.enter="applyFilters()">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Code(s), comma separated')" v-model="f.codes" @keyup.enter="applyFilters()">
+            {{ $t('Machine ID') }}
           </SearchInput>
 
-          <SearchInput placeholderStr="Site name / ID" v-model="f.customer" @keyup.enter="applyFilters()">
-            Site
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="f.customer" @keyup.enter="applyFilters()">
+            {{ $t('Site') }}
           </SearchInput>
 
           <div>
-            <OperatorFilter v-model="f.operators" placeholder="All" />
+            <OperatorFilter v-model="f.operators" :placeholder="$t('All')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Location Type</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Location Type') }}</label>
             <MultiSelect class="mt-1" v-model="f.location_type_ids" :options="filterOptions.locationTypes"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="All" />
+              valueProp="id" trackBy="id" label="name" mode="tags" :placeholder="$t('All')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Machine Prefix</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Machine Prefix') }}</label>
             <MultiSelect class="mt-1" v-model="f.vend_prefix_ids" :options="filterOptions.vendPrefixes"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="All" />
+              valueProp="id" trackBy="id" label="name" mode="tags" :placeholder="$t('All')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Vend Model</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Vend Model') }}</label>
             <MultiSelect class="mt-1" v-model="f.vend_model_ids" :options="filterOptions.vendModels"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="All" />
+              valueProp="id" trackBy="id" label="name" mode="tags" :placeholder="$t('All')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Category</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Category') }}</label>
             <MultiSelect class="mt-1" v-model="f.category_ids" :options="filterOptions.categories"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="All" />
+              valueProp="id" trackBy="id" label="name" mode="tags" :placeholder="$t('All')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Machine Status</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Machine Status') }}</label>
             <MultiSelect class="mt-1" v-model="f.statuses" :options="filterOptions.statuses"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="Active" />
+              valueProp="id" trackBy="id" label="name" mode="tags" :placeholder="$t('Active')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Site Status</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Site Status') }}</label>
             <MultiSelect class="mt-1" v-model="f.site_statuses" :options="filterOptions.siteStatuses"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="Active" />
+              valueProp="id" trackBy="id" label="name" mode="tags" :placeholder="$t('Active')" />
           </div>
         </div>
 
         <div class="flex items-center gap-2 mt-3">
           <button type="button" @click="applyFilters()"
             class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">
-            Apply
+            {{ $t('Apply') }}
           </button>
           <button type="button" @click="exportExcel()"
             class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
-            Export to Excel
+            {{ $t('Export to Excel') }}
           </button>
-          <span class="text-xs text-gray-400 ml-1">Machine Status filters the component section only.</span>
+          <span class="text-xs text-gray-400 ml-1">{{ $t('Machine Status filters the component section only.') }}</span>
         </div>
       </div>
 
       <p class="text-xs text-gray-500 mb-3">
-        Count of machine, calculated as of end of day. Day columns anchored to {{ anchorDate }}.
-        <span v-if="component">Component snapshot as of {{ component.snapshotDate }}.</span>
-        <span v-if="generatedAt"> Generated {{ generatedAt }}.</span>
+        {{ $t('Count of machine, calculated as of end of day. Day columns anchored to :date.', { date: anchorDate }) }}
+        <span v-if="component">{{ $t('Component snapshot as of :date.', { date: component.snapshotDate }) }}</span>
+        <span v-if="generatedAt"> {{ $t('Generated :time.', { time: generatedAt }) }}</span>
       </p>
 
       <div v-if="componentIsLive" class="bg-sky-50 border border-sky-200 text-sky-800 rounded-md px-3 py-2 text-xs mb-3">
-        Component figures are live (current fleet) — the nightly snapshot (03:00) hasn't frozen this day yet.
+        {{ $t('Component figures are live (current fleet) — the nightly snapshot (03:00) hasn\'t frozen this day yet.') }}
       </div>
 
       <div v-if="!hasData" class="bg-amber-50 border border-amber-200 text-amber-800 rounded-md px-4 py-3 text-sm">
-        No data for the current filters. Component history builds from when <code>ops:snapshot-daily</code> first runs;
-        financials come from <code>gp_metrics</code>.
+        {{ $t('No data for the current filters. Component history builds from when') }} <code>ops:snapshot-daily</code> {{ $t('first runs; financials come from') }} <code>gp_metrics</code>.
       </div>
 
       <template v-else>
@@ -98,17 +97,17 @@
                 <th class="px-3 py-1 sticky left-0 bg-amber-50 z-10"></th>
                 <th class="px-2 py-1 text-[11px] font-semibold text-center border-l-2 border-gray-700"
                   :colspan="2 + dayColumns.length">
-                  Daily, Count of Machine (% of total machine)
+                  {{ $t('Daily, Count of Machine (% of total machine)') }}
                 </th>
                 <th class="px-2 py-1 text-[11px] font-semibold text-center border-l-2 border-gray-700"
                   :colspan="monthColumns.length">
-                  Monthly, Count of Machine (% of total machine)
+                  {{ $t('Monthly, Count of Machine (% of total machine)') }}
                 </th>
               </tr>
               <tr class="bg-amber-100 text-gray-700">
-                <th class="text-left px-3 py-2 font-semibold sticky left-0 bg-amber-100 z-10 max-w-[140px] whitespace-normal break-words sm:max-w-none sm:whitespace-nowrap">Key KPI</th>
-                <th class="px-2 py-2 font-medium border-l-2 border-gray-700">Avg L7d</th>
-                <th class="px-2 py-2 font-medium">Avg L30d</th>
+                <th class="text-left px-3 py-2 font-semibold sticky left-0 bg-amber-100 z-10 max-w-[140px] whitespace-normal break-words sm:max-w-none sm:whitespace-nowrap">{{ $t('Key KPI') }}</th>
+                <th class="px-2 py-2 font-medium border-l-2 border-gray-700">{{ $t('Avg L7d') }}</th>
+                <th class="px-2 py-2 font-medium">{{ $t('Avg L30d') }}</th>
                 <th v-for="col in dayColumns" :key="col.key" class="px-2 py-2 font-medium whitespace-nowrap border-l">
                   <div>{{ col.label }}</div>
                   <div class="text-xs text-gray-600 font-semibold">{{ ymd(col.date) }}</div>
@@ -148,9 +147,9 @@
           <table class="min-w-full text-xs border-collapse">
             <thead>
               <tr class="bg-amber-100 text-gray-700">
-                <th class="text-left px-3 py-2 font-semibold" colspan="2">Machines' Status &amp; Component</th>
-                <th class="text-right px-3 py-2 font-medium">Count</th>
-                <th class="text-right px-3 py-2 font-medium">% of set</th>
+                <th class="text-left px-3 py-2 font-semibold" colspan="2">{{ $t('Machines\' Status & Component') }}</th>
+                <th class="text-right px-3 py-2 font-medium">{{ $t('Count') }}</th>
+                <th class="text-right px-3 py-2 font-medium">{{ $t('% of set') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -174,6 +173,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import { computed, reactive, h } from 'vue';
+import { t } from '@/i18n';
 
 const props = defineProps({
   generatedAt: String,
@@ -204,7 +204,7 @@ const f = reactive({
   // Restored from the shared list (plus OperatorFilter's 'all' sentinel) so
   // the tags carry full_name like OperatorFilter's options.
   operators: toObjects(
-    [{ id: 'all', full_name: 'All' }, ...(usePage().props.operatorFilterOptions || [])],
+    [{ id: 'all', full_name: t('All') }, ...(usePage().props.operatorFilterOptions || [])],
     props.filters.operators,
   ),
   location_type_ids: toObjects(props.filterOptions.locationTypes, props.filters.location_type_ids),

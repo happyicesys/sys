@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Daily Jobs Summary" />
+  <Head :title="$t('Daily Jobs Summary')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Daily Jobs Summary
+        {{ $t('Daily Jobs Summary') }}
       </h2>
     </template>
 
@@ -16,7 +16,7 @@
                 <DatePicker
                     v-model="filters.date_from"
                 >
-                  From
+                  {{ $t('From') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
@@ -24,19 +24,19 @@
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
                 >
-                  To
+                  {{ $t('To') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Delivery By
+                   {{ $t('Delivery By') }}
                 </label>
                 <MultiSelect
                     v-model="filters.delivered_by"
                     :options="userOptions"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     :disabled="isDriver"
@@ -57,7 +57,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
@@ -77,94 +77,94 @@
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Deliver By
+                          {{ $t('Deliver By') }}
                         </span>
                         <span>
-                          # of Days
+                          {{ $t('# of Days') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Jobs
+                          {{ $t('Jobs') }}
                         </span>
                         <span>
-                          Picked(%)
+                          {{ $t('Picked(%)') }}
                         </span>
                         <span>
-                          Stock-in(%)
+                          {{ $t('Stock-in(%)') }}
                         </span>
                         <span>
-                          Verified(%)
+                          {{ $t('Verified(%)') }}
                         </span>
                         <span v-if="isCmsUrlSet">
-                          API Invoices(%)
+                          {{ $t('API Invoices(%)') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Picked
+                          {{ $t('Picked') }}
                         </span>
                         <span>
-                          Value
+                          {{ $t('Value') }}
                         </span>
                         <span>
-                          Qty
+                          {{ $t('Qty') }}
                         </span>
                         <span>
-                          Cost
-                        </span>
-                      </div>
-                    </TableHead>
-                    <TableHead>
-                      <div class="flex flex-col space-y-2">
-                        <span>
-                          Stock-in
-                        </span>
-                        <span>
-                          Value
-                        </span>
-                        <span>
-                          Qty
-                        </span>
-                        <span>
-                          Cost
+                          {{ $t('Cost') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Stock-out <br>
-                          (Transactions)
+                          {{ $t('Stock-in') }}
                         </span>
                         <span>
-                          Total Amount$
+                          {{ $t('Value') }}
                         </span>
                         <span>
-                          Qty
+                          {{ $t('Qty') }}
+                        </span>
+                        <span>
+                          {{ $t('Cost') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Cash Amount
+                          {{ $t('Stock-out') }} <br>
+                          {{ $t('(Transactions)') }}
                         </span>
                         <span>
-                          Cash Collected (fr VM)
+                          {{ $t('Total Amount$') }}
                         </span>
                         <span>
-                          CashAmt$ (VMC)
+                          {{ $t('Qty') }}
+                        </span>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          {{ $t('Cash Amount') }}
                         </span>
                         <span>
-                          % Cash Collected/ CashAmt$
+                          {{ $t('Cash Collected (fr VM)') }}
                         </span>
                         <span>
-                          Cash Adjustment
+                          {{ $t('CashAmt$ (VMC)') }}
+                        </span>
+                        <span>
+                          {{ $t('% Cash Collected/ CashAmt$') }}
+                        </span>
+                        <span>
+                          {{ $t('Cash Adjustment') }}
                         </span>
                       </div>
                     </TableHead>
@@ -173,7 +173,7 @@
                   <tbody class="bg-white">
                     <tr v-if="summaries.length" class="bg-gray-100 font-bold border-b-2 border-gray-300">
                       <td colspan="2" class="whitespace-nowrap py-2 pl-1 pr-1 text-[13px] text-gray-800 sm:pl-1 lg:pl-1 bg-gray-200 text-center border-r border-gray-300">
-                        Total
+                        {{ $t('Total') }}
                       </td>
                       <TableData :inputClass="'text-center align-top bg-gray-200'">
                         <div class="flex flex-col space-y-2">
@@ -269,10 +269,10 @@
                       <TableData :currentIndex="index" :totalLength="summaries.length" inputClass="text-center">
                         <div class="flex flex-col space-y-2">
                           <span class="font-bold">
-                            {{ summary.delivered_by ? summary.delivered_by.name : 'Unassigned' }}
+                            {{ summary.delivered_by ? summary.delivered_by.name : $t('Unassigned') }}
                           </span>
                           <span>
-                            {{ summary.job_count }} Days
+                            {{ $t(':count Days', { count: summary.job_count }) }}
                           </span>
                         </div>
                       </TableData>
@@ -368,7 +368,7 @@
                       </tr>
                 <tr v-if="!summaries.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -391,6 +391,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted, computed } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import moment from 'moment';
 
@@ -475,7 +476,7 @@ const totalSummary = computed(() => {
 
 onMounted(() => {
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
   ]
   userOptions.value = [

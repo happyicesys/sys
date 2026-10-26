@@ -249,7 +249,7 @@ class DeliveryPlatformCampaignController extends Controller
 
         if (! $campaignProductMapping) {
             throw ValidationException::withMessages([
-                'delivery_product_mapping_id' => 'This campaign has no product mapping you can access.',
+                'delivery_product_mapping_id' => __('This campaign has no product mapping you can access.'),
             ]);
         }
 
@@ -338,7 +338,7 @@ class DeliveryPlatformCampaignController extends Controller
         if ($submittedCount === 0 && $failedCount === 0) {
             return redirect()
                 ->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id])
-                ->with('info', 'No pending campaigns to submit — all are already submitted or inactive.');
+                ->with('info', __('No pending campaigns to submit — all are already submitted or inactive.'));
         }
 
         // At least one failure
@@ -359,7 +359,7 @@ class DeliveryPlatformCampaignController extends Controller
         // All succeeded
         return redirect()
             ->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id])
-            ->with('success', "{$submittedCount} campaign(s) submitted to Grab successfully.");
+            ->with('success', __(':count campaign(s) submitted to Grab successfully.', ['count' => $submittedCount]));
     }
 
     public function destroy($id)

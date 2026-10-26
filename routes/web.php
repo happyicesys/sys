@@ -997,6 +997,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:read translations');
         Route::put('/', [TranslationController::class, 'update'])
             ->middleware('can:update translations');
+        Route::get('/places', [TranslationController::class, 'places'])
+            ->middleware('can:read translations');
     });
 
     Route::prefix('self')->group(function () {

@@ -15,9 +15,9 @@
       <template #header>
         <div class="flex flex-col md:flex-row md:items-center md:space-x-2 text-black">
           <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold px-2.5 py-1">
-            Smart Freezer
+            {{ $t('Smart Freezer') }}
           </span>
-          <span v-if="vend.code" class="font-semibold">ID# {{ vendCodeLabel(vend) }}</span>
+          <span v-if="vend.code" class="font-semibold">{{ $t('ID# :code', { code: vendCodeLabel(vend) }) }}</span>
           <span v-if="vend.customer_code" class="text-gray-600 text-sm">
             ({{ vend.customer_code }}) {{ vend.customer_name }}
           </span>
@@ -27,15 +27,15 @@
       <template #default>
         <div class="min-h-40">
           <div v-if="loading" class="py-16 text-center text-sm text-gray-500">
-            Loading planogram…
+            {{ $t('Loading planogram…') }}
           </div>
 
           <div v-else-if="loadError" class="py-16 text-center text-sm text-red-600">
-            Couldn't load the planogram. Close and try again.
+            {{ $t("Couldn't load the planogram. Close and try again.") }}
           </div>
 
           <div v-else-if="!items.length" class="py-16 text-center text-sm text-gray-500">
-            No products mapped to this freezer yet.
+            {{ $t('No products mapped to this freezer yet.') }}
           </div>
 
           <div v-else class="space-y-3">
@@ -44,14 +44,14 @@
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700">
                 <span>
                   <span class="font-semibold text-indigo-700">{{ boundCount }}</span>
-                  of
+                  {{ $t('of') }}
                   <span class="font-semibold text-gray-900">{{ totalSlots }}</span>
-                  slots bound
+                  {{ $t('slots bound') }}
                 </span>
                 <span v-if="hasStockFeed" class="text-gray-500">
                   ·
                   <span class="font-semibold text-gray-900">{{ totalQty }}</span>
-                  pcs on the door
+                  {{ $t('pcs on the door') }}
                 </span>
               </div>
 
@@ -63,12 +63,12 @@
               <span
                 v-if="!hasStockFeed"
                 class="inline-flex items-center gap-1.5 self-start rounded-full bg-amber-100 text-amber-800 ring-1 ring-amber-200 text-xs font-semibold px-2.5 py-1"
-                v-tooltip="'This freezer reports no channel stock. Qty will populate once ops-job topup writes the baseline.'"
+                v-tooltip="$t('This freezer reports no channel stock. Qty will populate once ops-job topup writes the baseline.')"
               >
-                No stock feed yet
+                {{ $t('No stock feed yet') }}
               </span>
               <span v-else-if="stockUpdatedAt" class="text-xs text-gray-500 self-start">
-                Stock updated {{ formatStockUpdatedAt(stockUpdatedAt) }}
+                {{ $t('Stock updated :time', { time: formatStockUpdatedAt(stockUpdatedAt) }) }}
               </span>
             </div>
 

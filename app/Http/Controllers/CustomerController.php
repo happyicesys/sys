@@ -2015,7 +2015,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to lock summary rows.');
+            abort(403, __('You do not have permission to lock summary rows.'));
         }
 
         $summary = \App\Models\CustomerPeriodSummary::with(['customer.operator'])->findOrFail($id);
@@ -2029,12 +2029,12 @@ class CustomerController extends Controller
             return back()->withErrors(['lock' => 'The current month cannot be locked until it is complete.']);
         }
         if ($summary->locked_at !== null) {
-            return back()->with('success', 'This period is already locked.');
+            return back()->with('success', __('This period is already locked.'));
         }
 
         $this->applyLockToSummary($summary, $user->id);
 
-        return back()->with('success', 'Period locked.');
+        return back()->with('success', __('Period locked.'));
     }
 
     /**
@@ -2157,7 +2157,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
-            abort(403, 'You do not have permission to unlock summary rows.');
+            abort(403, __('You do not have permission to unlock summary rows.'));
         }
 
         $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
@@ -2176,7 +2176,7 @@ class CustomerController extends Controller
         $summary->last_unlocked_by = $user->id;
         $summary->save();
 
-        return back()->with('success', 'Period unlocked.');
+        return back()->with('success', __('Period unlocked.'));
     }
 
     /**
@@ -2192,7 +2192,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to mark summary rows Paid.');
+            abort(403, __('You do not have permission to mark summary rows Paid.'));
         }
 
         $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
@@ -2201,7 +2201,7 @@ class CustomerController extends Controller
             return back()->withErrors(['paid' => 'Lock the period first before marking it Paid.']);
         }
         if ($summary->paid_at !== null) {
-            return back()->with('success', 'This period is already marked Paid.');
+            return back()->with('success', __('This period is already marked Paid.'));
         }
         if ($summary->commission_settlement_id !== null) {
             return back()->withErrors(['paid' => 'This row is in a Site Settlement — mark it done from the settlement page instead.']);
@@ -2312,13 +2312,13 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
-            abort(403, 'You do not have permission to mark summary rows Unpaid.');
+            abort(403, __('You do not have permission to mark summary rows Unpaid.'));
         }
 
         $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
 
         if ($summary->paid_at === null) {
-            return back()->with('success', 'This period is already Unpaid.');
+            return back()->with('success', __('This period is already Unpaid.'));
         }
 
         // Atomic: clear the paid-state AND reverse the ledger credit together so
@@ -2356,7 +2356,7 @@ class CustomerController extends Controller
                 ->delete();
         });
 
-        return back()->with('success', 'Period marked Unpaid.');
+        return back()->with('success', __('Period marked Unpaid.'));
     }
 
     /**
@@ -2372,7 +2372,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to lock summary rows.');
+            abort(403, __('You do not have permission to lock summary rows.'));
         }
 
         $validated = $request->validate([
@@ -2420,7 +2420,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to mark summary rows Paid.');
+            abort(403, __('You do not have permission to mark summary rows Paid.'));
         }
 
         $validated = $request->validate([
@@ -2524,7 +2524,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to export commission payments.');
+            abort(403, __('You do not have permission to export commission payments.'));
         }
 
         $validated = $request->validate([
@@ -4620,7 +4620,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to export the paid report.');
+            abort(403, __('You do not have permission to export the paid report.'));
         }
 
         $validated = $request->validate([
@@ -4803,7 +4803,7 @@ class CustomerController extends Controller
 
         return redirect()->back()->with(
             'success',
-            "API Invoice queued for {$customer->name} ({$periodStart} → {$periodEnd})."
+            __('API Invoice queued for :site (:from → :to).', ['site' => $customer->name, 'from' => $periodStart, 'to' => $periodEnd])
         );
     }
 
@@ -4970,18 +4970,18 @@ class CustomerController extends Controller
         $blockers = [];
 
         if ($customer->vends()->exists()) {
-            $blockers[] = 'a machine is still bound to it';
+            $blockers[] = __('a machine is still bound to it');
         }
         if ($customer->settlements()->exists()) {
-            $blockers[] = 'it has settlement entries';
+            $blockers[] = __('it has settlement entries');
         }
         if (CustomerPeriodSummary::where('customer_id', $customer->id)->exists()) {
-            $blockers[] = 'it has period summaries';
+            $blockers[] = __('it has period summaries');
         }
 
         if ($blockers) {
             throw ValidationException::withMessages([
-                'delete' => 'This site cannot be deleted because '.implode(', ', $blockers).'. Deactivate it instead.',
+                'delete' => __('This site cannot be deleted because :reasons. Deactivate it instead.', ['reasons' => implode(', ', $blockers)]),
             ]);
         }
 
@@ -5043,10 +5043,10 @@ class CustomerController extends Controller
         $on = $request->boolean('is_using_server_price');
 
         if ($vend->isSmartChiller()) {
-            return response()->json(['message' => 'A Smart Chiller is priced by CityBox, not by this switch.'], 422);
+            return response()->json(['message' => __('A Smart Chiller is priced by CityBox, not by this switch.')], 422);
         }
         if ($vend->requiresServerPrice() && ! $on) {
-            return response()->json(['message' => 'A Smart Freezer always uses Server Price.'], 422);
+            return response()->json(['message' => __('A Smart Freezer always uses Server Price.')], 422);
         }
 
         $this->vendPricingSourceService->setUsingServerPrice($vend, $on);
@@ -5235,7 +5235,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to add settlement entries.');
+            abort(403, __('You do not have permission to add settlement entries.'));
         }
 
         $customer = Customer::query()->select(['id', 'operator_id'])->findOrFail($id);
@@ -5344,14 +5344,14 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to edit settlement entries.');
+            abort(403, __('You do not have permission to edit settlement entries.'));
         }
 
         $settlement = \App\Models\CustomerSettlement::findOrFail($id);
 
         if (! $this->isManuallyEditableSettlement($settlement)) {
             return response()->json([
-                'message' => 'Only opening balance, adjustment, and manually-added paid/waived entries can be edited. For an auto-posted location fee or the per-row Paid action, add an adjustment instead.',
+                'message' => __('Only opening balance, adjustment, and manually-added paid/waived entries can be edited. For an auto-posted location fee or the per-row Paid action, add an adjustment instead.'),
             ], 422);
         }
 
@@ -5381,7 +5381,7 @@ class CustomerController extends Controller
             'user'
         );
 
-        return response()->json(['message' => 'Settlement updated.']);
+        return response()->json(['message' => __('Settlement updated.')]);
     }
 
     /**
@@ -5395,14 +5395,14 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('admin-access customers')) {
-            abort(403, 'You do not have permission to delete settlement entries.');
+            abort(403, __('You do not have permission to delete settlement entries.'));
         }
 
         $settlement = \App\Models\CustomerSettlement::findOrFail($id);
 
         if (! $this->isManuallyEditableSettlement($settlement)) {
             return response()->json([
-                'message' => 'Only manually-added entries can be deleted. Auto-posted location fees and per-row Paid credits cannot be removed here.',
+                'message' => __('Only manually-added entries can be deleted. Auto-posted location fees and per-row Paid credits cannot be removed here.'),
             ], 422);
         }
 
@@ -5419,7 +5419,7 @@ class CustomerController extends Controller
 
         $settlement->delete();
 
-        return response()->json(['message' => 'Settlement entry deleted.']);
+        return response()->json(['message' => __('Settlement entry deleted.')]);
     }
 
     /**

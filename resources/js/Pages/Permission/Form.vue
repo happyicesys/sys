@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.permission">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.permission">
             {{ props.permission.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Permission
+            {{ $t('Create New Permission') }}
           </span>
         </div>
       </template>
@@ -19,7 +19,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
           </div>
@@ -32,13 +32,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -57,6 +57,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   permission: Object,
@@ -88,11 +89,11 @@ function submit() {
     form.value
     .post('/permissions/create', {
       onSuccess: () => {
-        toast.success("Permission created successfully", { timeout: 3000 })
+        toast.success(t('Permission created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create permission", { timeout: 3000 })
+        toast.error(t('Failed to create permission'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -103,11 +104,11 @@ function submit() {
     form.value
       .post('/permissions/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Permission updated successfully", { timeout: 3000 })
+        toast.success(t('Permission updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update permission", { timeout: 3000 })
+        toast.error(t('Failed to update permission'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

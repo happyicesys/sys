@@ -11,24 +11,27 @@
 // Tailwind purges unseen class names, so a dynamic `bg-[${hex}]` /
 // `bg-${name}-100` would be stripped from the production build.
 
+import { t } from '@/i18n'
+
 // Preset palette offered in the colour picker. Chosen to cover the physical
-// sticker colours in the field plus a few neutrals.
+// sticker colours in the field plus a few neutrals. `name` is a getter so it is
+// read in the user's language when shown (this module loads before the wording).
 export const STICKER_PRESET_COLORS = [
-  { name: 'White', hex: '#FFFFFF' },
-  { name: 'Light Grey', hex: '#E5E7EB' },
-  { name: 'Grey', hex: '#9CA3AF' },
-  { name: 'Black', hex: '#111827' },
-  { name: 'Red', hex: '#EF4444' },
-  { name: 'Orange', hex: '#F97316' },
-  { name: 'Yellow', hex: '#FACC15' },
-  { name: 'Green', hex: '#22C55E' },
-  { name: 'Teal', hex: '#14B8A6' },
-  { name: 'Sky', hex: '#0EA5E9' },
-  { name: 'Blue', hex: '#3B82F6' },
-  { name: 'Indigo', hex: '#6366F1' },
-  { name: 'Purple', hex: '#A855F7' },
-  { name: 'Pink', hex: '#EC4899' },
-  { name: 'Brown', hex: '#92400E' },
+  { get name() { return t('White') }, hex: '#FFFFFF' },
+  { get name() { return t('Light Grey') }, hex: '#E5E7EB' },
+  { get name() { return t('Grey') }, hex: '#9CA3AF' },
+  { get name() { return t('Black') }, hex: '#111827' },
+  { get name() { return t('Red') }, hex: '#EF4444' },
+  { get name() { return t('Orange') }, hex: '#F97316' },
+  { get name() { return t('Yellow') }, hex: '#FACC15' },
+  { get name() { return t('Green') }, hex: '#22C55E' },
+  { get name() { return t('Teal') }, hex: '#14B8A6' },
+  { get name() { return t('Sky') }, hex: '#0EA5E9' },
+  { get name() { return t('Blue') }, hex: '#3B82F6' },
+  { get name() { return t('Indigo') }, hex: '#6366F1' },
+  { get name() { return t('Purple') }, hex: '#A855F7' },
+  { get name() { return t('Pink') }, hex: '#EC4899' },
+  { get name() { return t('Brown') }, hex: '#92400E' },
 ]
 
 // Look of a sticker that has no colour assigned: plain white chip, grey text.

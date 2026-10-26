@@ -1,14 +1,14 @@
 <template>
-    <Head title="Incoming History" />
+    <Head :title="$t('Incoming History')" />
 
     <BreezeAuthenticatedLayout>
         <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             <div class="mb-6 flex justify-between items-center">
                 <Link :href="route('product-movements.index')" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     <ArrowLeftIcon class="h-5 w-5 mr-2 text-gray-500" />
-                    Back to List
+                    {{ $t('Back to List') }}
                 </Link>
-                <h1 class="text-2xl font-bold text-gray-900">Incoming Stock History</h1>
+                <h1 class="text-2xl font-bold text-gray-900">{{ $t('Incoming Stock History') }}</h1>
                 <div class="w-32"></div>
             </div>
 
@@ -17,16 +17,16 @@
                 <!-- Filter Section -->
                 <div class="p-4 border-b border-gray-200 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                      <h3 class="text-lg leading-6 font-medium text-gray-900">
-                        History Records
+                        {{ $t('History Records') }}
                     </h3>
                     <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-3 items-center">
                          <div class="w-full md:w-64">
-                            <DatePicker v-model="filters.date" :enableTimePicker="false" auto-apply placeholder="Filter by Date" :format="'yyyy-MM-dd'" clearable />
+                            <DatePicker v-model="filters.date" :enableTimePicker="false" auto-apply :placeholder="$t('Filter by Date')" :format="'yyyy-MM-dd'" clearable />
                         </div>
                         <div class="flex space-x-2">
                             <a :href="exportUrl" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
                                 <ArrowDownTrayIcon class="w-4 h-4 mr-2" />
-                                Export Excel
+                                {{ $t('Export Excel') }}
                             </a>
                         </div>
                     </div>
@@ -37,14 +37,14 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col" class="py-3.5 pl-4 pr-3 text-center text-xs font-medium uppercase tracking-wide text-gray-500 sm:pl-6">#</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Batch Number</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Date</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Time</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Input By</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Total Qty</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Remarks</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Attachment</th>
-                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Action</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Batch Number') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Date') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Time') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Input By') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Total Qty') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Remarks') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Attachment') }}</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">{{ $t('Action') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -73,12 +73,12 @@
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">
                                     <!-- Ziggy 1.x only encodeURI()s params, so a "#" in the batch number became a fragment (404). -->
                                     <Link :href="route('product-movements.incoming-batch-detail', encodeURIComponent(batch.batch_number))" class="text-indigo-600 hover:text-indigo-900 font-bold">
-                                        View
+                                        {{ $t('View') }}
                                     </Link>
                                 </td>
                             </tr>
                             <tr v-if="history.data.length === 0">
-                                <td colspan="9" class="px-3 py-4 text-sm text-gray-500 text-center">No history records found.</td>
+                                <td colspan="9" class="px-3 py-4 text-sm text-gray-500 text-center">{{ $t('No history records found.') }}</td>
                             </tr>
                         </tbody>
                     </table>

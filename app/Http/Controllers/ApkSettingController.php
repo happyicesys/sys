@@ -603,7 +603,7 @@ class ApkSettingController extends Controller
         // Raw pivot, not the operator-scoped vends() relation: a setting bound
         // only to another operator's machines is still in use.
         if (ApkSettingVend::where('apk_setting_id', $apkSetting->id)->exists()) {
-            return back()->with('error', 'APK Setting is currently in use and cannot be deleted.');
+            return back()->with('error', __('APK Setting is currently in use and cannot be deleted.'));
         }
 
         $apkSetting->campaigns()->detach();

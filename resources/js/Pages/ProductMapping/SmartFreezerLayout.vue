@@ -25,22 +25,22 @@
     <div class="flex flex-col gap-3 rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex min-w-0 items-center gap-3">
         <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">
-          Smart Freezer Planogram
+          {{ $t('Smart Freezer Planogram') }}
         </span>
         <span class="text-sm text-slate-600">
           <span class="font-semibold text-slate-900">{{ boundCount }}</span>
-          / {{ totalSlots }} slots bound
+          {{ $t('/ :total slots bound', { total: totalSlots }) }}
         </span>
         <div class="hidden h-1.5 w-28 overflow-hidden rounded-full bg-slate-100 sm:block">
           <div class="h-full rounded-full bg-indigo-500 transition-all" :style="{ width: boundPercent + '%' }"></div>
         </div>
       </div>
       <div class="text-xs text-slate-500">
-        Code = basket + division, e.g.
+        {{ $t('Code = basket + division, e.g.') }}
         <code class="rounded bg-slate-100 px-1 font-mono text-slate-700">11</code>
         <code class="rounded bg-slate-100 px-1 font-mono text-slate-700">23</code>
         <code class="rounded bg-slate-100 px-1 font-mono text-slate-700">41</code>
-        · drag a product to reorder within its basket
+        · {{ $t('drag a product to reorder within its basket') }}
       </div>
     </div>
 
@@ -81,20 +81,20 @@
           <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-slate-800 px-1.5 text-xs font-semibold text-white">
             {{ basket.basket }}
           </span>
-          <span class="text-sm font-semibold text-slate-800">Basket {{ basket.basket }}</span>
+          <span class="text-sm font-semibold text-slate-800">{{ $t('Basket :no', { no: basket.basket }) }}</span>
           <span class="text-xs text-slate-400">
-            {{ boundIn(basket) }}/{{ cellsFor(basket).length }} bound
+            {{ $t(':bound/:total bound', { bound: boundIn(basket), total: cellsFor(basket).length }) }}
           </span>
         </div>
-        <div class="flex items-center gap-2" title="Divisions in this basket">
-          <span class="hidden text-xs text-slate-400 lg:inline">Divisions</span>
+        <div class="flex items-center gap-2" :title="$t('Divisions in this basket')">
+          <span class="hidden text-xs text-slate-400 lg:inline">{{ $t('Divisions') }}</span>
           <div class="inline-flex items-center rounded-md ring-1 ring-inset ring-slate-200">
             <button
               type="button"
               class="grid h-7 w-7 place-items-center rounded-l-md text-slate-500 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
               @click="decDivisions(basket)"
               :disabled="basket.divisions <= MIN_DIVISIONS"
-              :title="`Fewer divisions in basket ${basket.basket}`"
+              :title="$t('Fewer divisions in basket :no', { no: basket.basket })"
             >
               <MinusIcon class="h-3.5 w-3.5" />
             </button>
@@ -106,7 +106,7 @@
               class="grid h-7 w-7 place-items-center rounded-r-md text-slate-500 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
               @click="incDivisions(basket)"
               :disabled="basket.divisions >= MAX_DIVISIONS"
-              :title="`More divisions in basket ${basket.basket}`"
+              :title="$t('More divisions in basket :no', { no: basket.basket })"
             >
               <PlusIcon class="h-3.5 w-3.5" />
             </button>
@@ -141,7 +141,7 @@
                 class="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-md text-slate-300 hover:bg-red-50 hover:text-red-600"
                 @click.prevent="onUnbind(cell)"
                 @mousedown.stop
-                :title="`Unbind ${cell.code}`"
+                :title="$t('Unbind :code', { code: cell.code })"
               >
                 <XMarkIcon class="h-4 w-4" />
               </button>
@@ -187,8 +187,8 @@
                    saved on its own as soon as it is typed. Pieces a slot holds — never
                    on-hand stock, which is per machine (Setting/Edit → Stock Qty). -->
               <div class="mt-auto divide-y divide-slate-200 overflow-hidden rounded-lg text-[11px] ring-1 ring-inset ring-slate-200">
-                <div class="flex h-6 items-center justify-between gap-1 bg-slate-50 px-2" title="From Product → Edit → Smart Freezer (read-only here)">
-                  <span class="truncate text-slate-500">Default Capacity</span>
+                <div class="flex h-6 items-center justify-between gap-1 bg-slate-50 px-2" :title="$t('From Product → Edit → Smart Freezer (read-only here)')">
+                  <span class="truncate text-slate-500">{{ $t('Default Capacity') }}</span>
                   <span class="font-semibold tabular-nums text-slate-600">
                     {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '–' }}
                   </span>
@@ -198,9 +198,9 @@
                 <div
                   class="flex h-9 items-center justify-between gap-1 pl-2 pr-1"
                   :class="isCapacityOverridden(cell.item) ? 'bg-amber-50' : 'bg-white'"
-                  title="Real Capacity: pieces this slot really holds, for this mapping only. Blank uses the Default Capacity."
+                  :title="$t('Real Capacity: pieces this slot really holds, for this mapping only. Blank uses the Default Capacity.')"
                 >
-                  <span class="truncate" :class="isCapacityOverridden(cell.item) ? 'font-medium text-amber-700' : 'text-slate-500'">Real Capacity</span>
+                  <span class="truncate" :class="isCapacityOverridden(cell.item) ? 'font-medium text-amber-700' : 'text-slate-500'">{{ $t('Real Capacity') }}</span>
                   <div class="flex flex-none items-center overflow-hidden rounded-md bg-white ring-1 ring-inset ring-slate-200 focus-within:ring-2 focus-within:ring-indigo-400">
                     <button
                       type="button"
@@ -208,7 +208,7 @@
                       :disabled="!canStepCapacity(cell.item, -1)"
                       @click.prevent="stepCapacity(cell.item, -1)"
                       @mousedown.stop
-                      :title="`One less for ${cell.code}`"
+                      :title="$t('One less for :code', { code: cell.code })"
                     >
                       <MinusIcon class="h-3.5 w-3.5" />
                     </button>
@@ -221,7 +221,7 @@
                       @dragstart.stop.prevent
                       draggable="false"
                       placeholder="–"
-                      :aria-label="`Real Capacity for ${cell.code}`"
+                      :aria-label="$t('Real Capacity for :code', { code: cell.code })"
                       class="h-7 w-8 min-w-0 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums text-slate-800 placeholder:text-slate-300 focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <button
@@ -230,7 +230,7 @@
                       :disabled="!canStepCapacity(cell.item, 1)"
                       @click.prevent="stepCapacity(cell.item, 1)"
                       @mousedown.stop
-                      :title="`One more for ${cell.code}`"
+                      :title="$t('One more for :code', { code: cell.code })"
                     >
                       <PlusIcon class="h-3.5 w-3.5" />
                     </button>
@@ -245,7 +245,7 @@
                 <span class="rounded-md bg-slate-200 px-1.5 py-px font-mono text-[10px] font-semibold leading-4 text-slate-600">
                   {{ cell.code }}
                 </span>
-                <span class="text-[11px] text-slate-400">Empty</span>
+                <span class="text-[11px] text-slate-400">{{ $t('Empty') }}</span>
               </div>
               <MultiSelect
                 v-model="selections[cell.code]"
@@ -253,7 +253,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select product"
+                :placeholder="$t('Select product')"
                 open-direction="bottom"
                 class="text-sm"
               />
@@ -305,7 +305,7 @@
                 @click.prevent="onBind(cell)"
               >
                 <PlusCircleIcon class="h-3.5 w-3.5" />
-                Bind
+                {{ $t('Bind') }}
               </button>
             </div>
           </div>
@@ -321,6 +321,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useToast } from 'vue-toastification'
+import { t } from '@/i18n'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { MinusIcon, PhotoIcon, PlusCircleIcon, PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 
@@ -518,11 +519,11 @@ function onCellDrop(basket, index) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      toast.success(`Rearranged basket ${basket.basket}`, { timeout: 2000 })
+      toast.success(t('Rearranged basket :no', { no: basket.basket }), { timeout: 2000 })
       emit('items-changed')
     },
     onError: () => {
-      toast.error(`Failed to rearrange basket ${basket.basket}`, { timeout: 3000 })
+      toast.error(t('Failed to rearrange basket :no', { no: basket.basket }), { timeout: 3000 })
     },
   })
 }
@@ -543,9 +544,9 @@ async function decDivisions(basket) {
   const lastCode = channelCodeFor(basket, lastIndex)
   const lastItem = itemsByCode.value[lastCode]
   if (lastItem) {
-    const name = (lastItem.product && lastItem.product.name) || 'a product'
+    const name = (lastItem.product && lastItem.product.name) || t('a product')
     const ok = window.confirm(
-      `Slot ${lastCode} is currently bound to "${name}". Remove the binding and shrink this basket?`
+      t('Slot :code is currently bound to ":name". Remove the binding and shrink this basket?', { code: lastCode, name })
     )
     if (!ok) return
     await deleteItem(lastItem)
@@ -580,12 +581,12 @@ function onBind(cell) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      toast.success(`Bound slot ${cell.code}`, { timeout: 2500 })
+      toast.success(t('Bound slot :code', { code: cell.code }), { timeout: 2500 })
       selections[cell.code] = null
       emit('items-changed')
     },
     onError: (errors) => {
-      const msg = (errors && errors.channel_code) || `Failed to bind slot ${cell.code}`
+      const msg = (errors && errors.channel_code) || t('Failed to bind slot :code', { code: cell.code })
       toast.error(msg, { timeout: 3500 })
     },
   })
@@ -650,11 +651,11 @@ function onCapacityInput(item, value) {
       preserveState: true,
       replace: true,
       onSuccess: () => {
-        toast.success(`Capacity for ${item.channel_code} saved`, { timeout: 2000 })
+        toast.success(t('Capacity for :code saved', { code: item.channel_code }), { timeout: 2000 })
         emit('items-changed')
       },
       onError: (errors) => {
-        toast.error((errors && errors.capacity_override) || `Failed to save capacity for ${item.channel_code}`, { timeout: 3500 })
+        toast.error((errors && errors.capacity_override) || t('Failed to save capacity for :code', { code: item.channel_code }), { timeout: 3500 })
       },
     })
   }, 800)
@@ -670,12 +671,12 @@ function deleteItem(item) {
       preserveState: true,
       replace: true,
       onSuccess: () => {
-        toast.success(`Unbound ${item.channel_code}`, { timeout: 2500 })
+        toast.success(t('Unbound :code', { code: item.channel_code }), { timeout: 2500 })
         emit('items-changed')
         resolve(true)
       },
       onError: () => {
-        toast.error(`Failed to unbind ${item.channel_code}`, { timeout: 3500 })
+        toast.error(t('Failed to unbind :code', { code: item.channel_code }), { timeout: 3500 })
         resolve(false)
       },
     })

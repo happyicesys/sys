@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="SimCard Package" />
+  <Head :title="$t('SimCard Package')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (SimCard Package)
+        {{ $t('Data Management (SimCard Package)') }}
       </h2>
     </template>
 
@@ -17,18 +17,18 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
           <div>
             <label class="block text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.status"
@@ -36,7 +36,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               :canClear="false"
@@ -55,20 +55,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ telcos.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ telcos.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ telcos.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -76,7 +76,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -96,25 +96,25 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      {{ $t('Desc') }}
                     </TableHead>
                     <TableHead>
-                      Usage API
+                      {{ $t('Usage API') }}
                     </TableHead>
                     <!-- SIM cards on this package that a machine is bound to,
                          over the package's total. The left number is what
                          blocks Deactivate. -->
                     <TableHead>
-                      Active / Total
+                      {{ $t('Active / Total') }}
                     </TableHead>
                     <TableHead>
-                      Color
+                      {{ $t('Color') }}
                     </TableHead>
                     <TableHead>
-                      Status
+                      {{ $t('Status') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -155,7 +155,7 @@
                           class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
                           :class="telco.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                         >
-                          {{ telco.is_active ? 'Active' : 'Inactive' }}
+                          {{ telco.is_active ? $t('Active') : $t('Inactive') }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
@@ -166,7 +166,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <!-- Retire instead of delete. Blocked while a SIM on
@@ -183,7 +183,7 @@
                             <FolderMinusIcon v-if="telco.is_active" class="w-4 h-4"></FolderMinusIcon>
                             <FolderPlusIcon v-else class="w-4 h-4"></FolderPlusIcon>
                             <span>
-                                {{ telco.is_active ? 'Deactivate' : 'Activate' }}
+                                {{ telco.is_active ? $t('Deactivate') : $t('Activate') }}
                             </span>
                           </Button>
                           <Button
@@ -192,7 +192,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -200,7 +200,7 @@
                       </tr>
                 <tr v-if="!telcos.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -238,6 +238,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   telcos: Object,
@@ -253,9 +254,9 @@ const props = defineProps({
 })
 
 const statusOptions = ref([
-  { id: 'active', value: 'Active' },
-  { id: 'inactive', value: 'Inactive' },
-  { id: 'all', value: 'All' },
+  { id: 'active', value: t('Active') },
+  { id: 'inactive', value: t('Inactive') },
+  { id: 'all', value: t('All') },
 ])
 
 const filters = ref({
@@ -263,7 +264,7 @@ const filters = ref({
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
-  status: { id: 'active', value: 'Active' },
+  status: { id: 'active', value: t('Active') },
 })
 const showModal = ref(false)
 const telco = ref()
@@ -276,7 +277,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
@@ -292,16 +293,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(telco) {
-  const approval = confirm('Are you sure to delete ' + telco.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: telco.name }));
   if (!approval) {
       return;
   }
   router.delete('/telcos/' + telco.id, {
     onSuccess: () => {
-      toast.success("SimCard Package deleted successfully", { timeout: 3000 })
+      toast.success(t('SimCard Package deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete SimCard Package", { timeout: 3000 })
+      toast.error(t('Failed to delete SimCard Package'), { timeout: 3000 })
     }
   })
 }
@@ -313,8 +314,7 @@ function toggleBlocked(telco) {
 }
 
 function blockedReason(telco) {
-  return 'Cannot deactivate ' + telco.name + ': ' + telco.simcards_on_machine_count
-    + ' SIM card(s) on this package are still bound to a machine.'
+  return t('Cannot deactivate :name: :count SIM card(s) on this package are still bound to a machine.', { name: telco.name, count: telco.simcards_on_machine_count })
 }
 
 // SimCard Packages are never deleted from ops - only deactivated, so simcards
@@ -326,7 +326,9 @@ function onToggleActiveClicked(telco) {
   }
 
   const action = telco.is_active ? 'deactivate' : 'activate'
-  const approval = confirm('Are you sure to ' + action + ' ' + telco.name + '?');
+  const approval = confirm(action === 'deactivate'
+    ? t('Are you sure to deactivate :name?', { name: telco.name })
+    : t('Are you sure to activate :name?', { name: telco.name }));
   if (!approval) {
       return;
   }
@@ -334,10 +336,10 @@ function onToggleActiveClicked(telco) {
     preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
-      toast.success('SimCard Package ' + action + 'd successfully', { timeout: 3000 })
+      toast.success(action === 'deactivate' ? t('SimCard Package deactivated successfully') : t('SimCard Package activated successfully'), { timeout: 3000 })
     },
     onError: (errors) => {
-      toast.error(errors.is_active || ('Failed to ' + action + ' SimCard Package'), { timeout: 5000 })
+      toast.error(errors.is_active || (action === 'deactivate' ? t('Failed to deactivate SimCard Package') : t('Failed to activate SimCard Package')), { timeout: 5000 })
     }
   })
 }

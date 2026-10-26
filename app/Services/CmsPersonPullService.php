@@ -44,7 +44,7 @@ class CmsPersonPullService
     {
         $baseUrl = config('app.cms_url');
         if (!$baseUrl) {
-            return ['found' => false, 'message' => 'CMS_URL is not configured on this deployment.'];
+            return ['found' => false, 'message' => __('CMS_URL is not configured on this deployment.')];
         }
 
         try {
@@ -55,7 +55,7 @@ class CmsPersonPullService
                 'error'     => $e->getMessage(),
             ]);
 
-            return ['found' => false, 'message' => 'Could not reach CMS — please try again.'];
+            return ['found' => false, 'message' => __('Could not reach CMS — please try again.')];
         }
 
         if (!$response->successful()) {
@@ -64,7 +64,7 @@ class CmsPersonPullService
                 'status'    => $response->status(),
             ]);
 
-            return ['found' => false, 'message' => 'CMS request failed (HTTP ' . $response->status() . ').'];
+            return ['found' => false, 'message' => __('CMS request failed (HTTP :status).', ['status' => $response->status()])];
         }
 
         $collection = $response->collect();
@@ -72,7 +72,7 @@ class CmsPersonPullService
         // Endpoint returns a (possibly empty) list. Empty == person not found
         // or not a vending/DVM/combi customer.
         if (!$collection || !isset($collection[0])) {
-            return ['found' => false, 'message' => 'No CMS person found for this ID (or it is not a vending customer).'];
+            return ['found' => false, 'message' => __('No CMS person found for this ID (or it is not a vending customer).')];
         }
 
         $data = collect($collection[0]);

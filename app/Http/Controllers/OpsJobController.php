@@ -990,7 +990,7 @@ class OpsJobController extends Controller
 
         // Guard: only allowed in pending status with no stock action
         if ($opsJobItem->status != OpsJob::STATUS_PENDING || $opsJobItem->stock_action_type) {
-            return redirect()->back()->with('error', 'Cannot add channel in current state.');
+            return redirect()->back()->with('error', __('Cannot add channel in current state.'));
         }
 
         $channelCode = $request->channel_code;
@@ -1003,7 +1003,7 @@ class OpsJobController extends Controller
             ->first();
 
         if (! $vendChannel) {
-            return redirect()->back()->with('error', 'Vend channel not found.');
+            return redirect()->back()->with('error', __('Vend channel not found.'));
         }
 
         // Prevent duplicates
@@ -1013,7 +1013,7 @@ class OpsJobController extends Controller
             ->exists();
 
         if ($exists) {
-            return redirect()->back()->with('error', 'Channel already added to this job.');
+            return redirect()->back()->with('error', __('Channel already added to this job.'));
         }
 
         // Validate the channel to be replaced (if provided)
@@ -1023,7 +1023,7 @@ class OpsJobController extends Controller
                 ->where('id', $replaceChannelId)
                 ->first();
             if (! $replacedChannel) {
-                return redirect()->back()->with('error', 'Channel to be replaced not found in this job.');
+                return redirect()->back()->with('error', __('Channel to be replaced not found in this job.'));
             }
         }
 
@@ -1064,7 +1064,7 @@ class OpsJobController extends Controller
             'replaces_ops_job_item_channel_id' => $replacedChannel?->id,
         ]);
 
-        return redirect()->back()->with('success', 'Channel added successfully.');
+        return redirect()->back()->with('success', __('Channel added successfully.'));
     }
 
     public function deleteChannel(Request $request, $itemChannelId)
@@ -1074,7 +1074,7 @@ class OpsJobController extends Controller
 
         // Guard: only allowed in pending status with no stock action
         if ($opsJobItem->status != OpsJob::STATUS_PENDING || $opsJobItem->stock_action_type) {
-            return redirect()->back()->with('error', 'Cannot delete channel in current state.');
+            return redirect()->back()->with('error', __('Cannot delete channel in current state.'));
         }
 
         // If this channel was replacing another, clear the is_manually_replaced flag on the original channel
@@ -1090,7 +1090,7 @@ class OpsJobController extends Controller
 
         $opsJobItemChannel->delete();
 
-        return redirect()->back()->with('success', 'Channel removed successfully.');
+        return redirect()->back()->with('success', __('Channel removed successfully.'));
     }
 
     public function saveItem(Request $request, $id)
@@ -1119,7 +1119,7 @@ class OpsJobController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Quantities saved successfully.');
+        return redirect()->back()->with('success', __('Quantities saved successfully.'));
     }
 
     public function qtyList(Request $request, $status = 3)
@@ -1255,7 +1255,7 @@ class OpsJobController extends Controller
             }
         });
 
-        return redirect()->back()->with('success', 'Inventory Synced Successfully');
+        return redirect()->back()->with('success', __('Inventory Synced Successfully'));
     }
 
     public function edit(Request $request, $id)
@@ -2145,7 +2145,7 @@ class OpsJobController extends Controller
         } catch (QueryException $exception) {
             if ($exception->getCode() === '23000') {
                 throw ValidationException::withMessages([
-                    'delivered_by' => 'Unable to create the job because a duplicate code was generated. Please try again.',
+                    'delivered_by' => __('Unable to create the job because a duplicate code was generated. Please try again.'),
                 ]);
             }
 
@@ -2333,7 +2333,7 @@ class OpsJobController extends Controller
             $driverOperatorId = (int) User::whereKey($data['delivered_by'])->value('operator_id');
             if ($driverOperatorId !== $viewerOperatorId) {
                 throw ValidationException::withMessages([
-                    'delivered_by' => 'You can only assign drivers of your own operator.',
+                    'delivered_by' => __('You can only assign drivers of your own operator.'),
                 ]);
             }
         }
@@ -2540,7 +2540,7 @@ class OpsJobController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Stock Action updated successfully.');
+        return redirect()->back()->with('success', __('Stock Action updated successfully.'));
     }
 
     public function undoStockAction(Request $request, $id)
@@ -2552,7 +2552,7 @@ class OpsJobController extends Controller
             $opsJobItem->status != OpsJob::STATUS_PICKED ||
             ! $opsJobItem->isAutoPickAction()
         ) {
-            return redirect()->back()->with('error', 'Cannot undo stock action for this item.');
+            return redirect()->back()->with('error', __('Cannot undo stock action for this item.'));
         }
 
         // Clear stock action and revert to Pending
@@ -2574,7 +2574,7 @@ class OpsJobController extends Controller
             'picked_before_qty' => null,
         ]);
 
-        return redirect()->back()->with('success', 'Stock action cleared and item reverted to Pending.');
+        return redirect()->back()->with('success', __('Stock action cleared and item reverted to Pending.'));
     }
 
     public function updateJobStockAction(Request $request, $id)
@@ -2609,7 +2609,7 @@ class OpsJobController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Job Stock Action updated successfully.');
+        return redirect()->back()->with('success', __('Job Stock Action updated successfully.'));
     }
 
     /**
@@ -3065,7 +3065,7 @@ class OpsJobController extends Controller
 
             if ($attempts >= 50) {
                 throw ValidationException::withMessages([
-                    $errorField => 'Unable to generate a unique job code. Please try again.',
+                    $errorField => __('Unable to generate a unique job code. Please try again.'),
                 ]);
             }
         }

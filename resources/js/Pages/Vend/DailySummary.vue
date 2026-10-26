@@ -1,12 +1,12 @@
 
 <template>
 
-  <Head title="Daily Summary" />
+  <Head :title="$t('Daily Summary')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Transactions Daily Summary
+              {{ $t('Transactions Daily Summary') }}
           </h2>
       </template>
 
@@ -14,18 +14,18 @@
         <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                    Machine ID
+                <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Machine ID') }}
                     <span class="text-[9px]">
-                        ("," for multiple)
+                        {{ $t('("," for multiple)') }}
                     </span>
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
-                    Channel ID
+                <SearchInput :placeholderStr="$t('Channel ID')" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+                    {{ $t('Channel ID') }}
                     <span class="text-[9px]">
-                        ("," for multiple)
+                        {{ $t('("," for multiple)') }}
                     </span>
                 </SearchInput>
             </div>
@@ -33,7 +33,7 @@
                 <DatePicker
                     v-model="filters.date_from"
                 >
-                    From
+                    {{ $t('From') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
@@ -41,7 +41,7 @@
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
                 >
-                    To
+                    {{ $t('To') }}
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
@@ -49,14 +49,14 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Payment Method
+                   {{ $t('Payment Method') }}
                 </label>
                 <MultiSelect
                     v-model="filters.paymentMethods"
                     :options="paymentMethodOptions"
                     valueProp="id"
                     label="name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -68,7 +68,7 @@
                  synthetic entries. See paymentMethodOptions below. -->
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Payment Received
+                    {{ $t('Payment Received') }}
                 </label>
                 <MultiSelect
                     v-model="filters.is_payment_received"
@@ -76,7 +76,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                 >
@@ -92,7 +92,7 @@
                         >
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
-                                Search
+                                {{ $t('Search') }}
                             </span>
                         </Button>
                         <Button
@@ -107,20 +107,20 @@
                                     <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908Z" fill="currentColor"/>
                                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                                 </svg>
-                                <span>Export CSV</span>
+                                <span>{{ $t('Export CSV') }}</span>
                             </div>
                         </Button>
                     </div>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                        <span>Showing</span>
+                        <span>{{ $t('Showing') }}</span>
                         <span class="font-medium">{{ dailySummary.meta.from ?? 0 }}</span>
-                        <span>to</span>
+                        <span>{{ $t('to') }}</span>
                         <span class="font-medium">{{ dailySummary.meta.to ?? 0 }}</span>
-                        <span>of</span>
+                        <span>{{ $t('of') }}</span>
                         <span class="font-medium">{{ dailySummary.meta.total }}</span>
-                        <span>results</span>
+                        <span>{{ $t('results') }}</span>
                     </p>
                     <MultiSelect
                         v-model="filters.numberPerPage"
@@ -128,7 +128,7 @@
                         trackBy="id"
                         valueProp="id"
                         label="value"
-                        placeholder="Select"
+                        :placeholder="$t('Select')"
                         open-direction="bottom"
                         class="mt-1"
                         @selected="onSearchFilterUpdated"
@@ -139,34 +139,34 @@
 
         <dl class="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Total Sales {{ operatorCountry.currency_symbol }}</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Total Sales :currency', { currency: operatorCountry.currency_symbol }) }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{ formatAmount(totals && totals.success_amount) }}
                 </dd>
                 <dd class="text-xs text-gray-500 mt-1">
-                    Gross: {{ formatAmount(totals && totals.total_amount) }}
+                    {{ $t('Gross: :amount', { amount: formatAmount(totals && totals.total_amount) }) }}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Transaction Count</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Transaction Count') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{ formatCount(totals && totals.total_transaction_count) }}
                 </dd>
                 <dd class="text-xs text-gray-500 mt-1">
-                    Successful: {{ formatCount(totals && totals.success_count) }}
+                    {{ $t('Successful: :count', { count: formatCount(totals && totals.success_count) }) }}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Refunded</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Refunded') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{ formatCount(totals && totals.refunded_count) }}
                 </dd>
                 <dd class="text-xs text-gray-500 mt-1">
-                    Amount: {{ formatAmount(totals && totals.refunded_amount) }}
+                    {{ $t('Amount: :amount', { amount: formatAmount(totals && totals.refunded_amount) }) }}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Success Rate</dt>
+                <dt class="text-base font-bold text-gray-800">{{ $t('Success Rate') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{ successRate }}%
                 </dd>
@@ -184,31 +184,31 @@
                             #
                         </TableHead>
                         <TableHeadSort modelName="transaction_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('transaction_date')">
-                            Date
+                            {{ $t('Date') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="payment_method_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('payment_method_name')">
-                            Payment Method
+                            {{ $t('Payment Method') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="total_transaction_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_transaction_count', true)">
-                            Total Txns
+                            {{ $t('Total Txns') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="success_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('success_count', true)">
-                            Successful
+                            {{ $t('Successful') }}
                         </TableHeadSort>
                         <TableHead>
-                            Success Rate
+                            {{ $t('Success Rate') }}
                         </TableHead>
                         <TableHeadSort modelName="total_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_amount', true)">
-                            Total Amount {{ operatorCountry.currency_symbol }}
+                            {{ $t('Total Amount :currency', { currency: operatorCountry.currency_symbol }) }}
                         </TableHeadSort>
                         <TableHeadSort modelName="success_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('success_amount', true)">
-                            Successful Amount {{ operatorCountry.currency_symbol }}
+                            {{ $t('Successful Amount :currency', { currency: operatorCountry.currency_symbol }) }}
                         </TableHeadSort>
                         <TableHead>
-                            Refunded
+                            {{ $t('Refunded') }}
                         </TableHead>
                         <TableHead>
-                            Refunded Amount {{ operatorCountry.currency_symbol }}
+                            {{ $t('Refunded Amount :currency', { currency: operatorCountry.currency_symbol }) }}
                         </TableHead>
                       </tr>
                   </thead>
@@ -249,7 +249,7 @@
                     </template>
                     <tr v-if="!dailySummary || !dailySummary.data.length">
                         <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                            No Results Found
+                            {{ $t('No Results Found') }}
                         </td>
                     </tr>
                   </tbody>
@@ -263,6 +263,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -323,27 +324,27 @@ onMounted(() => {
     // The standalone Card Terminal filter was removed as part of this change.
     const terminalNames = (props.cardTerminalOptions?.data ?? [])
     paymentMethodOptions.value = [
-        {id: 'all', name: 'All'},
+        {id: 'all', name: t('All')},
         ...props.paymentMethods.data
             .filter((pm) => pm.name !== 'Credit Card')
             .map((pm) => ({id: pm.id, name: pm.name})),
         ...terminalNames.map((t) => ({id: `cc:${t}`, name: `Credit Card (${t})`})),
     ]
     operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
+        {id: 'all', full_name: t('All')},
         ...(props.operatorOptions?.data ?? []).map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
     ]
     successfulOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'true', value: 'Successful'},
-        {id: 'false', value: 'Unsuccessful'},
+        {id: 'all', value: t('All')},
+        {id: 'true', value: t('Successful')},
+        {id: 'false', value: t('Unsuccessful')},
     ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
-        { id: 'All', value: 'All' },
+        { id: 'All', value: t('All') },
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethods = [paymentMethodOptions.value[0]]
@@ -443,7 +444,7 @@ function onExportCsvClicked() {
     })
     .catch(error => {
         console.error(error)
-        toast.error('Export failed, please try again.', { timeout: 5000 })
+        toast.error(t('Export failed, please try again.'), { timeout: 5000 })
     })
     .finally(() => {
         loadingCsv.value = false

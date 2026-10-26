@@ -197,7 +197,7 @@ class ZijiaSkuApplicationService
     private function assertWritable(?string $currentStatus, bool $startNew): void
     {
         if ($currentStatus === ZijiaSkuApplication::STATUS_SUBMITTED && ! $startNew) {
-            throw ValidationException::withMessages(['application' => 'This product is waiting for Zijia\'s review; it cannot be changed until they answer.']);
+            throw ValidationException::withMessages(['application' => __('This product is waiting for Zijia\'s review; it cannot be changed until they answer.')]);
         }
     }
 
@@ -268,31 +268,31 @@ class ZijiaSkuApplicationService
         $pics = (array) $app->model_pics;
         $missing = [];
         if (blank($app->sku_name)) {
-            $missing['sku_name'] = 'Product name for the AI is required.';
+            $missing['sku_name'] = __('Product name for the AI is required.');
         }
         if (blank($app->brand_name)) {
-            $missing['brand_name'] = 'Brand is required (use 其他/其他 when there is none).';
+            $missing['brand_name'] = __('Brand is required (use 其他/其他 when there is none).');
         }
         if (! array_key_exists((int) $app->category, self::CATEGORIES)) {
-            $missing['category'] = 'Pick a category.';
+            $missing['category'] = __('Pick a category.');
         }
         if (! array_key_exists((int) $app->package_type, self::PACKAGE_TYPES)) {
-            $missing['package_type'] = 'Pick a package type.';
+            $missing['package_type'] = __('Pick a package type.');
         }
         if (blank($app->product_code)) {
-            $missing['product_code'] = 'Barcode is required: the code printed on the pack (EAN-13), or a unique code of ours if it has none.';
+            $missing['product_code'] = __('Barcode is required: the code printed on the pack (EAN-13), or a unique code of ours if it has none.');
         } elseif (! preg_match('/^[A-Za-z0-9-]{4,64}$/', (string) $app->product_code)) {
-            $missing['product_code'] = 'Barcode may only contain letters, digits and dashes.';
+            $missing['product_code'] = __('Barcode may only contain letters, digits and dashes.');
         }
         if (blank($app->package_image_url) || ! str_starts_with((string) $app->package_image_url, 'https://')) {
-            $missing['package_image_url'] = 'A package photo (public https link) is required — upload one here or a product photo above.';
+            $missing['package_image_url'] = __('A package photo (public https link) is required — upload one here or a product photo above.');
         }
         if (count($pics['high'] ?? []) < 1) {
-            $missing['model_pics.high'] = 'At least one top-view model photo is required (Zijia suggests 5–10).';
+            $missing['model_pics.high'] = __('At least one top-view model photo is required (Zijia suggests 5–10).');
         }
         $notSquare = count(array_filter($this->photoUrls($app), fn (string $url) => ! $this->photos->isSquare($url)));
         if ($notSquare > 0) {
-            $missing['photos.square'] = "{$notSquare} photo(s) could not be made square (1:1), which Zijia requires — remove them and upload again.";
+            $missing['photos.square'] = __(':count photo(s) could not be made square (1:1), which Zijia requires — remove them and upload again.', ['count' => $notSquare]);
         }
 
         return $missing;
@@ -302,7 +302,7 @@ class ZijiaSkuApplicationService
     public function submit(ZijiaSkuApplication $app, ?User $user): ZijiaSkuApplication
     {
         if (! $app->isEditable()) {
-            throw ValidationException::withMessages(['application' => "Only a draft can be submitted (this one is {$app->status})."]);
+            throw ValidationException::withMessages(['application' => __('Only a draft can be submitted (this one is :status).', ['status' => $app->status])]);
         }
         // A draft saved before photos were squared, or one whose carried-over photo could not be
         // read last time: square it now, so nothing that is not 1:1 is ever sent.
@@ -312,12 +312,12 @@ class ZijiaSkuApplicationService
             throw ValidationException::withMessages($missing);
         }
         if (! $this->client->isConfigured()) {
-            throw ValidationException::withMessages(['application' => 'Zijia\'s algorithm service is not configured on this server.']);
+            throw ValidationException::withMessages(['application' => __('Zijia\'s algorithm service is not configured on this server.')]);
         }
         // Their answer (§7) is refused without our token (audit SF-02), so an application sent
         // without one could never be decided here.
         if ((string) config('smart_freezer.zijia.sku_callback_token') === '') {
-            throw ValidationException::withMessages(['application' => 'ZIJIA_SKU_CALLBACK_TOKEN is not set on this server, so Zijia\'s answer would be refused. Ask an admin to set it, then submit.']);
+            throw ValidationException::withMessages(['application' => __('ZIJIA_SKU_CALLBACK_TOKEN is not set on this server, so Zijia\'s answer would be refused. Ask an admin to set it, then submit.')]);
         }
 
         $pics = array_merge(['high' => [], 'horizontal' => [], 'low' => []], (array) $app->model_pics);

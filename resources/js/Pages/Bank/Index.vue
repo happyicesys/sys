@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Banks" />
+  <Head :title="$t('Banks')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Banks)
+        {{ $t('Data Management (Banks)') }}
       </h2>
     </template>
 
@@ -17,13 +17,13 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
         </div>
 
@@ -35,20 +35,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ banks.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ banks.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ banks.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -56,7 +56,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -76,16 +76,16 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      BIC / SWIFT
+                      {{ $t('BIC / SWIFT') }}
                     </TableHead>
                     <TableHead>
-                      Country
+                      {{ $t('Country') }}
                     </TableHead>
                     <TableHead>
-                      Active
+                      {{ $t('Active') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -110,7 +110,7 @@
                           class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
                           :class="bank.is_active ? 'bg-green-300' : 'bg-red-300'"
                         >
-                          {{ bank.is_active ? 'Active' : 'Inactive' }}
+                          {{ bank.is_active ? $t('Active') : $t('Inactive') }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="bankIndex" :totalLength="banks.length" inputClass="text-center">
@@ -121,7 +121,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -131,7 +131,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -139,7 +139,7 @@
                       </tr>
                 <tr v-if="!banks.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -175,6 +175,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   banks: Object,
@@ -199,7 +200,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   countryOptions.value = props.countries && props.countries.data ? props.countries.data : []
@@ -212,16 +213,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(bank) {
-  const approval = confirm('Are you sure to delete ' + bank.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: bank.name }));
   if (!approval) {
       return;
   }
   router.delete('/banks/' + bank.id, {
     onSuccess: () => {
-      toast.success("Bank deleted successfully", { timeout: 3000 })
+      toast.success(t('Bank deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete bank", { timeout: 3000 })
+      toast.error(t('Failed to delete bank'), { timeout: 3000 })
     }
   })
 }

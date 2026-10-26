@@ -130,7 +130,7 @@ class CardSettlementController extends Controller
         MatchCardSettlementReport::dispatch($report->id);
 
         return redirect()->route('card-settlements.show', $report->id)
-            ->with('message', 'Report uploaded — matching runs in the background, refresh in a moment.');
+            ->with('message', __('Report uploaded — matching runs in the background, refresh in a moment.'));
     }
 
     public function show(Request $request, $id, CardSettlementOrphanSales $orphans)
@@ -331,7 +331,7 @@ class CardSettlementController extends Controller
         ]);
 
         $report = CardSettlementReport::findOrFail($id);
-        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, __('Matching is still running.'));
 
         $suspects = app(TerminalMoveSuggestions::class)->suspects($report);
 
@@ -351,10 +351,10 @@ class CardSettlementController extends Controller
         }
 
         $message = $moved
-            ? 'Moved '.count($moved).' of '.$suspects->count().' terminal(s) — rematch queued: '.implode('; ', $moved).'.'
-            : 'No binding was changed.';
+            ? __('Moved :moved of :total terminal(s) — rematch queued: :list.', ['moved' => count($moved), 'total' => $suspects->count(), 'list' => implode('; ', $moved)])
+            : __('No binding was changed.');
         if ($skipped) {
-            $message .= ' Left alone: '.implode('; ', $skipped).'.';
+            $message .= ' '.__('Left alone: :list.', ['list' => implode('; ', $skipped)]);
         }
 
         return back()->with('message', $message);
@@ -375,7 +375,7 @@ class CardSettlementController extends Controller
         ]);
 
         $report = CardSettlementReport::findOrFail($id);
-        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, __('Matching is still running.'));
 
         $chosen = collect($validated['terminal_ids'])->map(fn ($t) => (string) $t)->all();
         $targets = app(TerminalMoveSuggestions::class)->unbound($report)
@@ -389,10 +389,10 @@ class CardSettlementController extends Controller
         }
 
         $message = $bound
-            ? 'Bound '.count($bound).' terminal(s) — rematch queued: '.implode('; ', $bound).'.'
-            : 'No binding was created.';
+            ? __('Bound :count terminal(s) — rematch queued: :list.', ['count' => count($bound), 'list' => implode('; ', $bound)])
+            : __('No binding was created.');
         if ($skipped) {
-            $message .= ' Left alone: '.implode('; ', $skipped).'.';
+            $message .= ' '.__('Left alone: :list.', ['list' => implode('; ', $skipped)]);
         }
 
         return back()->with('message', $message);
@@ -401,11 +401,11 @@ class CardSettlementController extends Controller
     public function rematch($id)
     {
         $report = CardSettlementReport::findOrFail($id);
-        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is already running.');
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, __('Matching is already running.'));
 
         MatchCardSettlementReport::dispatch($report->id);
 
-        return back()->with('message', 'Rematch queued.');
+        return back()->with('message', __('Rematch queued.'));
     }
 
     /** Manually resolve a query row to a specific sale (from candidates or by id). */
@@ -423,7 +423,7 @@ class CardSettlementController extends Controller
         // A reversal line never claims a sale itself (the UNIQUE claim stays with
         // the purchase line it undoes); resolving it would steal that claim and
         // Sync would then stamp and count the reversal as a purchase.
-        abort_if($row->is_reversal, 422, 'A reversal line is paired with its purchase line, not resolved to a sale.');
+        abort_if($row->is_reversal, 422, __('A reversal line is paired with its purchase line, not resolved to a sale.'));
         abort_unless(in_array($row->status, [
             CardSettlementRow::STATUS_UNMATCHED,
             CardSettlementRow::STATUS_AMBIGUOUS,
@@ -469,7 +469,7 @@ class CardSettlementController extends Controller
         });
         $report->refreshCounts();
 
-        return back()->with('message', 'Row resolved.');
+        return back()->with('message', __('Row resolved.'));
     }
 
     public function ignoreRow(Request $request, $id, $rowId)
@@ -501,7 +501,7 @@ class CardSettlementController extends Controller
         });
         $report->refreshCounts();
 
-        return back()->with('message', 'Row ignored.');
+        return back()->with('message', __('Row ignored.'));
     }
 
     /**
@@ -564,18 +564,18 @@ class CardSettlementController extends Controller
             ]);
         $report->refreshCounts();
 
-        return back()->with('message', "Ignored {$count} line(s).");
+        return back()->with('message', __('Ignored :count line(s).', ['count' => $count]));
     }
 
     public function sync($id, CardSettlementSyncService $syncService)
     {
         $report = CardSettlementReport::findOrFail($id);
-        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, __('Matching is still running.'));
 
         try {
             $count = $syncService->sync($report, auth()->id());
         } catch (LockTimeoutException) {
-            return back()->withErrors(['report' => 'Another Sync, Undo Sync or Delete is running on this report — try again in a minute.']);
+            return back()->withErrors(['report' => __('Another Sync, Undo Sync or Delete is running on this report — try again in a minute.')]);
         }
         $report->refresh();
 
@@ -585,15 +585,15 @@ class CardSettlementController extends Controller
         $set = $rec->sum('confirmed') + $rec->sum('relabelled') + $rec->sum('ticked_not_captured');
         $cleared = $rec->sum('cleared_captured') + $rec->sum('cleared_not_captured');
         $deferred = $rec->sum('skipped_not_final');
-        $msg = "Synced {$count} matched transaction(s); {$report->refunded_count} reversal(s).";
+        $msg = __('Synced :count matched transaction(s); :reversals reversal(s).', ['count' => $count, 'reversals' => $report->refunded_count]);
         if ($orphans = $syncService->lastOrphansCreated()) {
-            $msg .= " {$orphans} sale(s) created from lines with no TRADE (Error Code NA).";
+            $msg .= ' '.__(':count sale(s) created from lines with no TRADE (Error Code NA).', ['count' => $orphans]);
         }
         if ($set || $cleared) {
-            $msg .= " Auto-refund ticks: {$set} set, {$cleared} cleared by the report.";
+            $msg .= ' '.__('Auto-refund ticks: :set set, :cleared cleared by the report.', ['set' => $set, 'cleared' => $cleared]);
         }
         if ($deferred) {
-            $msg .= " {$deferred} tick(s) wait for the next day's file.";
+            $msg .= ' '.__(':count tick(s) wait for the next day\'s file.', ['count' => $deferred]);
         }
 
         return back()->with('message', $msg);
@@ -607,15 +607,15 @@ class CardSettlementController extends Controller
     public function unsync($id, CardSettlementUnsyncService $unsync)
     {
         $report = CardSettlementReport::findOrFail($id);
-        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
-        abort_unless($report->status === CardSettlementReport::STATUS_SYNCED, 422, 'This report is not synced.');
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, __('Matching is still running.'));
+        abort_unless($report->status === CardSettlementReport::STATUS_SYNCED, 422, __('This report is not synced.'));
 
         try {
             $r = $unsync->unsync($report, auth()->id());
         } catch (DomainException $e) {
             abort(422, $e->getMessage());
         } catch (LockTimeoutException) {
-            return back()->withErrors(['report' => 'Another Sync, Undo Sync or Delete is running on this report — try again in a minute.']);
+            return back()->withErrors(['report' => __('Another Sync, Undo Sync or Delete is running on this report — try again in a minute.')]);
         }
 
         $msg = "Sync undone: {$r['unstamped']} sale(s) unstamped";
@@ -636,9 +636,9 @@ class CardSettlementController extends Controller
     {
         $report = CardSettlementReport::findOrFail($id);
 
-        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, 'Matching is still running.');
+        abort_if($report->status === CardSettlementReport::STATUS_MATCHING, 422, __('Matching is still running.'));
         abort_if($report->status === CardSettlementReport::STATUS_SYNCED, 422,
-            'A synced report cannot be deleted — Undo sync first.');
+            __('A synced report cannot be deleted — Undo sync first.'));
 
         // Its reversal lines may have undone purchases in other reports, and its
         // lines may have proved top-ups: delete() takes back what they vouched for.
@@ -647,12 +647,12 @@ class CardSettlementController extends Controller
         } catch (DomainException $e) {
             abort(422, $e->getMessage());
         } catch (LockTimeoutException) {
-            return back()->withErrors(['report' => 'Another Sync, Undo Sync or Delete is running on this report — try again in a minute.']);
+            return back()->withErrors(['report' => __('Another Sync, Undo Sync or Delete is running on this report — try again in a minute.')]);
         }
 
         return redirect()->route('card-settlements')->with('message', isset($r['unwind_failed'])
-            ? 'Report deleted, but taking back what it vouched for failed — ask an admin to run: '.$r['unwind_failed']
-            : 'Report deleted.');
+            ? __('Report deleted, but taking back what it vouched for failed — ask an admin to run: :command', ['command' => $r['unwind_failed']])
+            : __('Report deleted.'));
     }
 
     /** The uploaded file, streamed from private storage to a permitted viewer. */

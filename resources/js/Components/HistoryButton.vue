@@ -3,11 +3,11 @@
   <button
     type="button"
     @click="open"
-    v-tooltip="id ? 'View change history for this record' : 'View recent change history'"
+    v-tooltip="id ? $t('View change history for this record') : $t('View recent change history')"
     class="inline-flex items-center gap-1 rounded-md border border-yellow-300 bg-yellow-100 px-2 py-2 text-xs font-medium text-yellow-800 shadow-sm hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
   >
     <ClockIcon class="h-4 w-4" aria-hidden="true" />
-    <span v-if="!iconOnly">{{ label }}</span>
+    <span v-if="!iconOnly">{{ $t(label) }}</span>
   </button>
 
   <!-- Slide-over drawer -->
@@ -33,13 +33,13 @@
                     <DialogTitle class="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <ClockIcon class="h-5 w-5 text-yellow-500" />
                       <span>
-                        {{ title }}
+                        {{ $t(title) }}
                         <span v-if="id" class="block text-xs font-normal text-gray-500">{{ type }} #{{ id }}</span>
-                        <span v-else class="block text-xs font-normal text-gray-500">All {{ type }} records</span>
+                        <span v-else class="block text-xs font-normal text-gray-500">{{ $t('All :type records', { type }) }}</span>
                       </span>
                     </DialogTitle>
                     <button type="button" class="rounded-md text-gray-400 hover:text-gray-600" @click="isOpen = false">
-                      <span class="sr-only">Close</span>
+                      <span class="sr-only">{{ $t('Close') }}</span>
                       <XMarkIcon class="h-5 w-5" />
                     </button>
                   </div>
@@ -59,7 +59,7 @@
                     <div v-else-if="entries.length === 0"
                       class="flex flex-col items-center justify-center py-20 text-center text-sm text-gray-400">
                       <ClockIcon class="mb-2 h-8 w-8 text-gray-300" />
-                      No history recorded yet.
+                      {{ $t('No history recorded yet.') }}
                     </div>
 
                     <!-- Timeline -->
@@ -101,7 +101,7 @@
                       <button type="button" :disabled="loading" @click="loadMore"
                         class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50 disabled:opacity-50">
                         <ArrowPathIcon v-if="loading" class="h-4 w-4 animate-spin" />
-                        {{ loading ? 'Loading…' : 'Load older history' }}
+                        {{ loading ? $t('Loading…') : $t('Load older history') }}
                       </button>
                     </div>
 
@@ -131,12 +131,13 @@ import { ref } from 'vue';
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
 import { ClockIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/vue/24/outline';
 import moment from 'moment';
+import { tk } from '@/i18n';
 
 const props = defineProps({
   type:     { type: String, required: true },          // model basename, e.g. "Customer"
   id:       { type: [Number, String], default: null }, // omit for type-wide history
-  label:    { type: String, default: 'History' },
-  title:    { type: String, default: 'Change history' },
+  label:    { type: String, default: tk('History') },
+  title:    { type: String, default: tk('Change history') },
   iconOnly: { type: Boolean, default: false },
 });
 

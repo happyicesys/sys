@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.cardTerminalUnit">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.cardTerminalUnit">
             {{ props.cardTerminalUnit.terminal_id }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Card Terminal
+            {{ $t('Create New Card Terminal') }}
           </span>
         </div>
       </template>
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.terminal_id" :error="form.errors.terminal_id" required="true">
-                {{ isRemote ? 'SN (T05 serial number)' : 'Terminal ID' }}
+                {{ isRemote ? $t('SN (T05 serial number)') : $t('Terminal ID') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                Card Terminal Company
+                {{ $t('Card Terminal Company') }}
               </label>
               <MultiSelect
                 v-model="form.card_terminal_id"
@@ -32,7 +32,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -44,19 +44,19 @@
             <!-- Payrallel (T05): a remote terminal — only its SN (above) and access token apply. -->
             <div v-if="isRemote" class="sm:col-span-6">
               <label for="card_terminal_unit_access_token" class="block text-sm font-medium text-gray-700">
-                Payrallel access token<span v-if="!hasToken" class="text-red-500">*</span>
-                <span v-if="hasToken" class="font-normal text-gray-500">— set; leave blank to keep it</span>
+                {{ $t('Payrallel access token') }}<span v-if="!hasToken" class="text-red-500">*</span>
+                <span v-if="hasToken" class="font-normal text-gray-500">{{ $t('— set; leave blank to keep it') }}</span>
               </label>
               <input
                 id="card_terminal_unit_access_token"
                 v-model="form.access_token"
                 type="password"
                 autocomplete="new-password"
-                :placeholder="hasToken ? '•••••••• (stored, not shown)' : 'Paste the token Payrallel issued for this T05'"
+                :placeholder="hasToken ? $t('•••••••• (stored, not shown)') : $t('Paste the token Payrallel issued for this T05')"
                 class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
               <div class="text-xs text-gray-500 mt-1">
-                Stored encrypted and never shown again. Changing it here updates every freezer this T05 is bound to.
+                {{ $t('Stored encrypted and never shown again. Changing it here updates every freezer this T05 is bound to.') }}
               </div>
               <div class="text-sm text-red-600" v-if="form.errors.access_token">
                 {{ form.errors.access_token }}
@@ -64,21 +64,20 @@
             </div>
             <div v-if="!isRemote" class="sm:col-span-6">
               <FormInput v-model="form.auresys_terminal_id" :error="form.errors.auresys_terminal_id">
-                Auresys Terminal ID (EZ TID)
+                {{ $t('Auresys Terminal ID (EZ TID)') }}
               </FormInput>
               <div class="text-xs text-gray-500 mt-1">
-                Auresys' own terminal ID, digits only — the key THEIR report is written against.
-                Only Nets-Auresys units have one; settlement still matches on the NETS Terminal ID above.
+                {{ $t('Auresys\' own terminal ID, digits only — the key THEIR report is written against. Only Nets-Auresys units have one; settlement still matches on the NETS Terminal ID above.') }}
               </div>
             </div>
             <div v-if="!isRemote" class="sm:col-span-6">
               <FormInput v-model="form.batch" :error="form.errors.batch">
-                Batch (hardware batch, e.g. "Nets #3 (50x)")
+                {{ $t('Batch (hardware batch, e.g. "Nets #3 (50x)")') }}
               </FormInput>
             </div>
             <div v-if="!isRemote" class="sm:col-span-6">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                Auto refund?
+                {{ $t('Auto refund?') }}
               </label>
               <MultiSelect
                 v-model="form.will_auto_refund"
@@ -86,7 +85,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 :allowEmpty="false"
                 :searchable="false"
@@ -94,9 +93,7 @@
               >
               </MultiSelect>
               <div class="text-xs text-gray-500 mt-1">
-                Does this terminal void a failed single-item card sale by itself? "Auto" keeps the
-                partner workbook's answer (or Unknown). Yes / No override it and survive re-imports.
-                The reconciler ticks "NA in NETS" only on a Yes terminal.
+                {{ $t('Does this terminal void a failed single-item card sale by itself? "Auto" keeps the partner workbook\'s answer (or Unknown). Yes / No override it and survive re-imports. The reconciler ticks "NA in NETS" only on a Yes terminal.') }}
               </div>
               <div class="text-sm text-red-600" v-if="form.errors.will_auto_refund">
                 {{ form.errors.will_auto_refund }}
@@ -104,7 +101,7 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.remarks" :error="form.errors.remarks">
-                Remarks
+                {{ $t('Remarks') }}
               </FormInput>
             </div>
             <!--
@@ -113,9 +110,8 @@
               binding history card settlement matches against.
             -->
             <div class="sm:col-span-6 text-xs text-gray-500">
-              To put this terminal on a machine, open that machine under
-              Machine Settings — bindings are not editable here.
-              <span v-if="isRemote">A T05 can only be put on a smart freezer; binding it there switches that freezer's card payments to it.</span>
+              {{ $t('To put this terminal on a machine, open that machine under Machine Settings — bindings are not editable here.') }}
+              <span v-if="isRemote">{{ $t('A T05 can only be put on a smart freezer; binding it there switches that freezer\'s card payments to it.') }}</span>
             </div>
           </div>
           <div class="sm:col-span-6">
@@ -127,13 +123,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -145,6 +141,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
@@ -169,9 +166,9 @@ const emit = defineEmits(['modalClose'])
 // empty comment, and Edit / Create on the Card Terminal page silently did
 // nothing (2026-09-12).
 const autoRefundOptions = [
-  { id: 'auto', name: 'Auto (workbook / unknown)' },
-  { id: 'yes', name: 'Yes — terminal voids failed sales' },
-  { id: 'no', name: 'No — customer stays charged' },
+  { id: 'auto', name: t('Auto (workbook / unknown)') },
+  { id: 'yes', name: t('Yes — terminal voids failed sales') },
+  { id: 'no', name: t('No — customer stays charged') },
 ]
 
 const form = ref(
@@ -240,11 +237,11 @@ function submit() {
     payload
     .post('/card-terminal-units/create', {
       onSuccess: () => {
-        toast.success("Card terminal created successfully", { timeout: 3000 })
+        toast.success(t("Card terminal created successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create card terminal", { timeout: 3000 })
+        toast.error(t("Failed to create card terminal"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -255,11 +252,11 @@ function submit() {
     payload
       .post('/card-terminal-units/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Card terminal updated successfully", { timeout: 3000 })
+        toast.success(t("Card terminal updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update card terminal", { timeout: 3000 })
+        toast.error(t("Failed to update card terminal"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.category">
-            Editing Product SubCategory
+            {{ $t('Editing Product SubCategory') }}
           </span>
           <span v-if="props.category">
             {{ props.category.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Product SubCategory
+            {{ $t('Create New Product SubCategory') }}
           </span>
         </div>
       </template>
@@ -19,17 +19,17 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :error="form.errors.desc">
-                Desc
+                {{ $t('Desc') }}
               </FormTextarea>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Category
+                {{ $t('Category') }}
               </label>
               <MultiSelect
                 v-model="form.category_group_id"
@@ -37,7 +37,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -56,13 +56,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -83,6 +83,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   category: Object,
@@ -128,11 +129,11 @@ function submit() {
     }))
     .post('/categories/create', {
       onSuccess: () => {
-        toast.success("Category created successfully", { timeout: 3000 })
+        toast.success(t("Category created successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create category", { timeout: 3000 })
+        toast.error(t("Failed to create category"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -148,11 +149,11 @@ function submit() {
       }))
       .post('/categories/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Category updated successfully", { timeout: 3000 })
+        toast.success(t("Category updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update category", { timeout: 3000 })
+        toast.error(t("Failed to update category"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

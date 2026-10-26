@@ -4,10 +4,10 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Delivery Product Mapping Channel
+            {{ $t('Delivery Product Mapping Channel') }}
           </span>
           <span v-if="vend.code">
-            ID# {{ vendCodeLabel(vend) }}
+            {{ $t('ID# :code', { code: vendCodeLabel(vend) }) }}
           </span>
           <span v-if="vend.customer_code">
             ({{ vend.customer_code ? vend.customer_code : null }})
@@ -27,40 +27,40 @@
                         #
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Image
+                        {{ $t('Image') }}
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Product
+                        {{ $t('Product') }}
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Price
+                        {{ $t('Price') }}
 
                         <span v-if="deliveryProductMapping.operator && deliveryProductMapping.operator.country">
                           ({{ deliveryProductMapping.operator.country.currency_symbol }})
                         </span>
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Reserved <br>
+                        {{ $t('Reserved') }} <br>
                         (%)
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Reserved <br>
-                        Qty
+                        {{ $t('Reserved') }} <br>
+                        {{ $t('Qty') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Booked <br>
-                        Qty
+                        {{ $t('Booked') }} <br>
+                        {{ $t('Qty') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Current <br>
-                        Qty
+                        {{ $t('Current') }} <br>
+                        {{ $t('Qty') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Current <br>
-                        Capacity
+                        {{ $t('Current') }} <br>
+                        {{ $t('Capacity') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Status
+                        {{ $t('Status') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                       </th>
@@ -117,10 +117,10 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                           <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="channel.is_active == 1">
-                            Active
+                            {{ $t('Active') }}
                           </span>
                           <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="channel.is_active == 0">
-                            Paused
+                            {{ $t('Paused') }}
                           </span>
                         </td>
                       </td>
@@ -134,10 +134,10 @@
                           <CheckCircleIcon class="w-3 h-3" v-if="channel.is_editable"></CheckCircleIcon>
                           <PencilSquareIcon class="w-3 h-3" v-else></PencilSquareIcon>
                           <span class="text-xs" v-if="channel.is_editable">
-                            Save
+                            {{ $t('Save') }}
                           </span>
                           <span class="text-xs" v-else>
-                            Edit
+                            {{ $t('Edit') }}
                           </span>
                         </Button>
                         <Button
@@ -149,10 +149,10 @@
                           <PauseCircleIcon class="w-3 h-3" v-if="channel.is_active"></PauseCircleIcon>
                           <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
                           <span class="text-xs" v-if="channel.is_active">
-                            Pause
+                            {{ $t('Pause') }}
                           </span>
                           <span class="text-xs" v-else>
-                            Resume
+                            {{ $t('Resume') }}
                           </span>
                         </Button>
                       </td>
@@ -176,6 +176,7 @@ import Modal from '@/Components/Modal.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { vendCodeLabel } from '@/utils/vendCode';
+import { t } from '@/i18n';
 
 const props = defineProps({
   deliveryProductMapping: Object,
@@ -195,7 +196,7 @@ const emit = defineEmits(['modalClose'])
 // })
 
 function togglePauseDeliveryProductMappingVendChannel(channel) {
-  let approvalText = channel.is_active ? 'Are you sure to pause this channel?' : 'Are you sure to resume this channel?'
+  let approvalText = channel.is_active ? t('Are you sure to pause this channel?') : t('Are you sure to resume this channel?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;

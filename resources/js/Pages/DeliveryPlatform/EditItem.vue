@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Editing Channel ID
+            {{ $t('Editing Channel ID') }}
           </span>
           <span>
             {{ deliveryProductMappingItemObj.channel_code }}
@@ -16,7 +16,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 pb-2">
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Product
+                {{ $t('Product') }}
               </label>
               <div class="mt-1">
                 <input
@@ -29,12 +29,12 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.amount" :error="form.errors.amount" :disabled="!permissions.includes('update vends')">
-                Amount
+                {{ $t('Amount') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Sub Category
+                {{ $t('Sub Category') }}
               </label>
               <MultiSelect
                 v-model="form.sub_category_json"
@@ -42,7 +42,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -62,7 +62,7 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button
@@ -72,7 +72,7 @@
               >
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
               <Button
@@ -83,10 +83,10 @@
                 <PauseCircleIcon class="w-3 h-3" v-if="deliveryProductMappingItemObj.is_active"></PauseCircleIcon>
                 <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
                 <span class="text-xs" v-if="deliveryProductMappingItemObj.is_active">
-                  Pause SKU
+                  {{ $t('Pause SKU') }}
                 </span>
                 <span class="text-xs" v-else>
-                  Resume SKU
+                  {{ $t('Resume SKU') }}
                 </span>
               </Button>
               <Button
@@ -96,7 +96,7 @@
               >
                 <BackspaceIcon class="w-3 h-3"></BackspaceIcon>
                 <span class="text-xs">
-                  Unbind SKU
+                  {{ $t('Unbind SKU') }}
                 </span>
               </Button>
             </div>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import FormInput from '@/Components/FormInput.vue';
@@ -159,7 +160,7 @@ function submit() {
 }
 
 function togglePauseDeliveryProductMappingItem(deliveryProductMappingItem) {
-  let approvalText = deliveryProductMappingItem.is_active ? 'Are you sure to pause this SKU?' : 'Are you sure to resume this SKU?'
+  let approvalText = deliveryProductMappingItem.is_active ? t('Are you sure to pause this SKU?') : t('Are you sure to resume this SKU?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;
@@ -175,7 +176,7 @@ function togglePauseDeliveryProductMappingItem(deliveryProductMappingItem) {
 }
 
 function unbindDeliveryProductMappingItem(deliveryProductMappingItemId) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }

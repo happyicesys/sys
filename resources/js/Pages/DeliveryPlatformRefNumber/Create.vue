@@ -1,9 +1,9 @@
 <template>
-  <Head title="Create Platform ID" />
+  <Head :title="$t('Create Platform ID')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create Platform ID
+        {{ $t('Create Platform ID') }}
       </h2>
     </template>
 
@@ -17,16 +17,16 @@
                   <FormInput
                     v-model="form.ref_number"
                     required
-                    placeholderStr="Platform ID"
+                    :placeholderStr="$t('Platform ID')"
                     :error="form.errors.ref_number"
                   >
-                    Platform ID
+                    {{ $t('Platform ID') }}
                   </FormInput>
                 </div>
 
                 <div class="sm:col-span-3">
                   <label class="text-sm font-medium text-gray-700">
-                    Operator <span class="text-red-500">*</span>
+                    {{ $t('Operator') }} <span class="text-red-500">*</span>
                   </label>
                   <MultiSelect
                     v-model="form.operator_id"
@@ -34,7 +34,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     class="mt-1"
                   />
                   <div class="text-sm text-red-600" v-if="form.errors.operator_id">
@@ -45,10 +45,10 @@
                 <div class="sm:col-span-6">
                   <FormInput
                     v-model="form.remarks"
-                    placeholderStr="Remarks"
+                    :placeholderStr="$t('Remarks')"
                     :error="form.errors.remarks"
                   >
-                    Remarks
+                    {{ $t('Remarks') }}
                   </FormInput>
                 </div>
 
@@ -57,7 +57,7 @@
                 <div class="sm:col-span-6 py-4">
                   <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4" />
-                    <span>Create</span>
+                    <span>{{ $t('Create') }}</span>
                   </Button>
                 </div>
               </div>

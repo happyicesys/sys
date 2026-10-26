@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Location Type" />
+  <Head :title="$t('Location Type')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Vend & Criteria Bindings
+        {{ $t('Vend & Criteria Bindings') }}
       </h2>
     </template>
 
@@ -17,35 +17,35 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Machine ID') }}
               <span class="text-[9px]">
-                  ("," for multiple)
+                  {{ $t('("," for multiple)') }}
               </span>
           </SearchInput>
-          <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
-              Channel ID
+          <SearchInput :placeholderStr="$t('Channel ID')" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Channel ID') }}
               <span class="text-[9px]">
-                  ("," for multiple)
+                  {{ $t('("," for multiple)') }}
               </span>
           </SearchInput>
-          <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
-              Serial Num
+          <SearchInput :placeholderStr="$t('Serial Num')" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Serial Num') }}
           </SearchInput>
-          <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
-              Cust ID
+          <SearchInput :placeholderStr="$t('Cust ID')" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Cust ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
-              Cust Name
+          <SearchInput :placeholderStr="$t('Cust Name')" v-model="filters.customer_name" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Cust Name') }}
           </SearchInput>
           <div v-if="permissions.includes('admin-access vend-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Category
+                {{ $t('Category') }}
             </label>
             <MultiSelect
                 v-model="filters.categories"
@@ -54,7 +54,7 @@
                 valueProp="id"
                 label="name"
                 mode="tags"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
             >
@@ -62,7 +62,7 @@
           </div>
           <div v-if="permissions.includes('admin-access vend-settings')">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Group
+                  {{ $t('Group') }}
               </label>
               <MultiSelect
                   v-model="filters.categoryGroups"
@@ -71,7 +71,7 @@
                   valueProp="id"
                   label="name"
                   mode="tags"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
               >
@@ -79,7 +79,7 @@
           </div>
           <div v-if="permissions.includes('admin-access vend-settings')">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Site Binded?
+                  {{ $t('Site Binded?') }}
               </label>
               <MultiSelect
                   v-model="filters.is_binded_customer"
@@ -87,7 +87,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
               >
@@ -95,7 +95,7 @@
           </div>
           <div v-if="permissions.includes('admin-access vend-settings')">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
               </label>
               <MultiSelect
                   v-model="filters.operator"
@@ -103,7 +103,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
               >
@@ -111,7 +111,7 @@
           </div>
           <div>
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Location Type
+                  {{ $t('Location Type') }}
               </label>
               <MultiSelect
                   v-model="filters.locationType"
@@ -119,7 +119,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
               >
@@ -135,20 +135,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ vendCriteriaBindings.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ vendCriteriaBindings.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ vendCriteriaBindings.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -156,7 +156,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -176,10 +176,10 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
+                      {{ $t('Code') }}
                     </TableHeadSort>
                     <TableHead>
-                      Name
+                      {{ $t('Name') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -204,7 +204,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -213,7 +213,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -221,7 +221,7 @@
                       </tr>
                 <tr v-if="!vendCriteriaBindings.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -243,6 +243,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
@@ -288,7 +289,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -300,16 +301,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(vendCriteriaBinding) {
-  const approval = confirm('Are you sure to delete ' + vendCriteriaBinding.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: vendCriteriaBinding.name }));
   if (!approval) {
       return;
   }
   router.delete('/location-types/' + vendCriteriaBinding.id, {
     onSuccess: () => {
-      toast.success("Machine criteria binding deleted successfully", { timeout: 3000 })
+      toast.success(t("Machine criteria binding deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete machine criteria binding", { timeout: 3000 })
+      toast.error(t("Failed to delete machine criteria binding"), { timeout: 3000 })
     }
   })
 }

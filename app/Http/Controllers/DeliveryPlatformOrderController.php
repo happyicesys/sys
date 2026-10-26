@@ -185,9 +185,9 @@ class DeliveryPlatformOrderController extends Controller
         $response = $this->deliveryPlatformService->cancelOrder($deliveryPlatformOrder);
 
         if ($response) {
-            return redirect()->back()->with('success', 'Order cancelled');
+            return redirect()->back()->with('success', __('Order cancelled'));
         } else {
-            return redirect()->back()->with('error', 'Order cancel not successful');
+            return redirect()->back()->with('error', __('Order cancel not successful'));
         }
     }
 

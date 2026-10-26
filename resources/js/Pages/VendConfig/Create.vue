@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Setting Chart" />
+  <Head :title="$t('Setting Chart')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create New Setting Chart
+        {{ $t('Create New Setting Chart') }}
       </h2>
     </template>
 
@@ -17,12 +17,12 @@
             <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
               <div class="sm:col-span-6">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.desc" :error="form.errors.desc">
-                  Desc
+                  {{ $t('Desc') }}
                 </FormTextarea>
               </div>
 
@@ -34,14 +34,14 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
                   <Button type="submit" v-if="permissions.includes('update operators')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save
+                      {{ $t('Save') }}
                     </span>
                   </Button>
                 </div>

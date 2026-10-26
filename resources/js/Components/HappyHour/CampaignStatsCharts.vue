@@ -2,9 +2,9 @@
   <!-- One small chart per measure on the same date axis. -->
   <div>
     <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
-      <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm" :style="{ background: BAR }"></span>Happy Hour</span>
-      <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm" :style="{ background: OTHER }"></span>Rest of the same transactions</span>
-      <span class="inline-flex items-center gap-1"><span class="inline-block h-0.5 w-4" :style="{ background: LINE }"></span>% non-HH of total (right axis)</span>
+      <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm" :style="{ background: BAR }"></span>{{ $t('Happy Hour') }}</span>
+      <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm" :style="{ background: OTHER }"></span>{{ $t('Rest of the same transactions') }}</span>
+      <span class="inline-flex items-center gap-1"><span class="inline-block h-0.5 w-4" :style="{ background: LINE }"></span>{{ $t('% non-HH of total (right axis)') }}</span>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div v-for="m in measures" :key="m.key" class="rounded border border-gray-200 bg-white p-3">
@@ -31,6 +31,7 @@
 import { Chart, registerables } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { computed, nextTick, onBeforeUnmount, reactive, watch } from 'vue';
+import { t } from '@/i18n';
 
 Chart.register(...registerables);
 
@@ -51,35 +52,35 @@ const pctText = (v) => (v == null ? '—' : `${v}%`);
 
 // hh / related: the day's Happy Hour part and its related total, in the chart's unit. pct: the non-HH share.
 const measures = computed(() => {
-  const t = props.total;
+  const tot = props.total;
   return [
     {
-      key: 'revenue', title: 'Happy Hour sales + related total', money: true, stacked: true,
+      key: 'revenue', title: t('Happy Hour sales + related total'), money: true, stacked: true,
       hh: (d) => d.revenue / 100, related: (d) => d.related_revenue / 100, pct: (d) => d.non_hh_revenue_pct,
-      tip: (d) => [`Happy Hour: ${dollars(d.revenue)}`, `Rest of the transactions: ${dollars(d.related_revenue - d.revenue)}`,
-        `Related Total Sales: ${dollars(d.related_revenue)}`, `Non-HH: ${pctText(d.non_hh_revenue_pct)}`],
-      total: t ? `${dollars(t.revenue)} of ${dollars(t.related_revenue)} · non-HH ${pctText(t.non_hh_revenue_pct)}` : '',
+      tip: (d) => [t('Happy Hour: :value', { value: dollars(d.revenue) }), t('Rest of the transactions: :value', { value: dollars(d.related_revenue - d.revenue) }),
+        t('Related Total Sales: :value', { value: dollars(d.related_revenue) }), t('Non-HH: :value', { value: pctText(d.non_hh_revenue_pct) })],
+      total: tot ? t(':hh of :related · non-HH :pct', { hh: dollars(tot.revenue), related: dollars(tot.related_revenue), pct: pctText(tot.non_hh_revenue_pct) }) : '',
     },
     {
-      key: 'discount', title: 'Discount given', money: true, stacked: false,
+      key: 'discount', title: t('Discount given'), money: true, stacked: false,
       hh: (d) => d.discount / 100,
-      tip: (d) => [`Discount given: ${dollars(d.discount)}`],
-      total: t ? dollars(t.discount) : '',
+      tip: (d) => [t('Discount given: :value', { value: dollars(d.discount) })],
+      total: tot ? dollars(tot.discount) : '',
     },
     {
-      key: 'units', title: 'Units sold + related total', money: false, stacked: true,
+      key: 'units', title: t('Units sold + related total'), money: false, stacked: true,
       hh: (d) => d.units, related: (d) => d.related_units, pct: (d) => d.non_hh_units_pct,
-      tip: (d) => [`Happy Hour: ${d.units}`, `Rest of the transactions: ${d.related_units - d.units}`,
-        `Related total: ${d.related_units}`, `Non-HH: ${pctText(d.non_hh_units_pct)}`],
-      total: t ? `${t.units} of ${t.related_units} units · non-HH ${pctText(t.non_hh_units_pct)}` : '',
+      tip: (d) => [t('Happy Hour: :value', { value: d.units }), t('Rest of the transactions: :value', { value: d.related_units - d.units }),
+        t('Related total: :value', { value: d.related_units }), t('Non-HH: :value', { value: pctText(d.non_hh_units_pct) })],
+      total: tot ? t(':hh of :related units · non-HH :pct', { hh: tot.units, related: tot.related_units, pct: pctText(tot.non_hh_units_pct) }) : '',
     },
     {
-      key: 'per_machine', title: 'Avg units per machine per day', money: false, decimals: true, stacked: true,
+      key: 'per_machine', title: t('Avg units per machine per day'), money: false, decimals: true, stacked: true,
       hh: (d) => d.avg_daily_units_per_machine, related: (d) => d.related_units_per_machine, pct: (d) => d.non_hh_units_pct,
-      tip: (d) => [`Happy Hour: ${d.avg_daily_units_per_machine ?? '—'}`, `Related total: ${d.related_units_per_machine ?? '—'}`,
-        `Non-HH: ${pctText(d.non_hh_units_pct)}`],
-      total: t?.related_units_per_machine != null
-        ? `${t.avg_daily_units_per_machine} of ${t.related_units_per_machine} over the range` : '',
+      tip: (d) => [t('Happy Hour: :value', { value: d.avg_daily_units_per_machine ?? '—' }), t('Related total: :value', { value: d.related_units_per_machine ?? '—' }),
+        t('Non-HH: :value', { value: pctText(d.non_hh_units_pct) })],
+      total: tot?.related_units_per_machine != null
+        ? t(':hh of :related over the range', { hh: tot.avg_daily_units_per_machine, related: tot.related_units_per_machine }) : '',
     },
   ];
 });
@@ -122,15 +123,15 @@ function datasets(m) {
   const other = props.days.map((d, i) => (total[i] == null ? null : Math.max(0, round2(total[i] - (hh[i] ?? 0)))));
 
   return [
-    { ...bar, label: 'Happy Hour', data: hh, stack: 's', backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
+    { ...bar, label: t('Happy Hour'), data: hh, stack: 's', backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
       // The Happy Hour figure inside the top of its own segment, in white (Brian, 2026-10-22).
       // Left out on a segment too short to hold it (it would spill under the axis); the tooltip still has it.
       borderRadius: 0, datalabels: { anchor: 'end', align: 'start', offset: 2, clamp: false, color: '#ffffff', display: fitsInside,
         formatter: (v) => barLabel(m, v) } },
-    { ...bar, label: 'Rest of the transactions', data: other, stack: 's', backgroundColor: OTHER, hoverBackgroundColor: OTHER_HOVER,
+    { ...bar, label: t('Rest of the transactions'), data: other, stack: 's', backgroundColor: OTHER, hoverBackgroundColor: OTHER_HOVER,
       // The column's total sits on its top segment.
       datalabels: { formatter: (v, ctx) => barLabel(m, total[ctx.dataIndex]) } },
-    { type: 'line', label: '% non-HH', data: props.days.map(d => m.pct(d)), yAxisID: 'pct', order: 1,
+    { type: 'line', label: t('% non-HH'), data: props.days.map(d => m.pct(d)), yAxisID: 'pct', order: 1,
       borderColor: LINE, backgroundColor: LINE, borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true,
       datalabels: { display: false } },
   ];
@@ -187,8 +188,8 @@ function draw() {
                 const day = props.days[ctx.dataIndex] ?? {};
                 return [
                   ...m.tip(day),
-                  `Transactions with a Happy Hour unit: ${day.related_transactions ?? 0} (${day.related_multiple ?? 0} multiple purchases)`,
-                  `Machines that ran Happy Hour: ${day.machines ?? 0}`,
+                  t('Transactions with a Happy Hour unit: :count (:multiple multiple purchases)', { count: day.related_transactions ?? 0, multiple: day.related_multiple ?? 0 }),
+                  t('Machines that ran Happy Hour: :count', { count: day.machines ?? 0 }),
                 ];
               },
             },

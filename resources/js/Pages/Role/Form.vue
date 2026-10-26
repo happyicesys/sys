@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.role">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.role">
             {{ props.role.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Role
+            {{ $t('Create New Role') }}
           </span>
         </div>
       </template>
@@ -19,7 +19,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
           </div>
@@ -32,13 +32,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -50,6 +50,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
@@ -88,11 +89,11 @@ function submit() {
     form.value
     .post('/roles/create', {
       onSuccess: () => {
-        toast.success("Role created successfully", { timeout: 3000 })
+        toast.success(t('Role created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create role", { timeout: 3000 })
+        toast.error(t('Failed to create role'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -103,11 +104,11 @@ function submit() {
     form.value
       .post('/roles/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Role updated successfully", { timeout: 3000 })
+        toast.success(t('Role updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update role", { timeout: 3000 })
+        toast.error(t('Failed to update role'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

@@ -1,21 +1,21 @@
 <template>
-  <Head title="Machine Alert Parameters" />
+  <Head :title="$t('Machine Alert Parameters')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Machine Alert Parameters
+        {{ $t('Machine Alert Parameters') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <SearchInput placeholderStr="Machine ID" v-model="filters.code" @keyup.enter="onSearch">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.code" @keyup.enter="onSearch">
+            {{ $t('Machine ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Site Name" v-model="filters.name" @keyup.enter="onSearch">
-            Site Name
+          <SearchInput :placeholderStr="$t('Site Name')" v-model="filters.name" @keyup.enter="onSearch">
+            {{ $t('Site Name') }}
           </SearchInput>
           <div class="md:col-span-2">
             <OperatorFilter v-model="filters.operators" />
@@ -31,20 +31,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2 md:items-end">
             <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-              <span>Showing</span>
+              <span>{{ $t('Showing') }}</span>
               <span class="font-medium">{{ paginationMeta.from ?? 0 }}</span>
-              <span>to</span>
+              <span>{{ $t('to') }}</span>
               <span class="font-medium">{{ paginationMeta.to ?? 0 }}</span>
-              <span>of</span>
+              <span>{{ $t('of') }}</span>
               <span class="font-medium">{{ paginationMeta.total ?? 0 }}</span>
-              <span>results</span>
+              <span>{{ $t('results') }}</span>
             </p>
             <MultiSelect
               v-model="filters.numberPerPage"
@@ -52,7 +52,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1 w-40"
               @selected="onSearch"
@@ -68,14 +68,14 @@
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end w-full lg:w-auto">
                 <div class="flex flex-col space-y-1">
                   <label for="bulk-parameter" class="block text-sm font-medium text-gray-700">
-                    Alert Parameter
+                    {{ $t('Alert Parameter') }}
                   </label>
                   <select
                     id="bulk-parameter"
                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
                     v-model="selectedBulkFieldId"
                   >
-                    <option value="">Select parameter</option>
+                    <option value="">{{ $t('Select parameter') }}</option>
                     <option v-for="option in bulkFieldOptions" :key="option.id" :value="option.id">
                       {{ option.label }}
                     </option>
@@ -106,7 +106,7 @@
                         class="mr-2 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                         v-model="clearOverride"
                       />
-                      Clear override (use default)
+                      {{ $t('Clear override (use default)') }}
                     </label>
                   </div>
                   <p v-if="currentFieldError" class="text-sm text-red-600">
@@ -117,7 +117,7 @@
 
               <div class="flex flex-col items-start lg:items-end space-y-2">
                 <span class="text-sm text-gray-600">
-                  Selected {{ selectedCount }} machine(s)
+                  {{ $t('Selected :count machine(s)', { count: selectedCount }) }}
                 </span>
                 <Button
                   class="inline-flex items-center rounded-md border border-green bg-green-500 px-6 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-green-300"
@@ -125,7 +125,7 @@
                   @click="applyBulkUpdate"
                 >
                   <ArrowPathIcon v-if="bulkForm.processing" class="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-                  <span>Apply</span>
+                  <span>{{ $t('Apply') }}</span>
                 </Button>
                 <p v-if="bulkForm.errors.vend_ids" class="text-sm text-red-600">
                   {{ bulkForm.errors.vend_ids }}
@@ -148,28 +148,28 @@
                     />
                   </TableHead>
                   <TableHead>
-                    Machine ID
+                    {{ $t('Machine ID') }}
                   </TableHead>
                   <TableHead>
-                    Site Name
+                    {{ $t('Site Name') }}
                   </TableHead>
                   <TableHead>
-                    Operator
+                    {{ $t('Operator') }}
                   </TableHead>
                   <TableHead>
-                    Offline Threshold
+                    {{ $t('Offline Threshold') }}
                   </TableHead>
                   <TableHead>
-                    Power Restored Threshold
+                    {{ $t('Power Restored Threshold') }}
                   </TableHead>
                   <TableHead>
-                    No Sales Threshold
+                    {{ $t('No Sales Threshold') }}
                   </TableHead>
                   <TableHead>
-                    Last Transaction
+                    {{ $t('Last Transaction') }}
                   </TableHead>
                   <TableHead>
-                    Last Sync
+                    {{ $t('Last Sync') }}
                   </TableHead>
                 </tr>
               </thead>
@@ -222,7 +222,7 @@
                     <div class="flex flex-col">
                       <span>{{ formatMinutes(vend.offline_alert_minutes) }}</span>
                       <span class="text-xs" :class="vend.overrides.offline_after_minutes !== null ? 'text-green-600' : 'text-gray-500'">
-                        {{ vend.overrides.offline_after_minutes !== null ? 'Custom' : `Default ${vend.defaults.offline_after_minutes} mins` }}
+                        {{ vend.overrides.offline_after_minutes !== null ? $t('Custom') : $t('Default :count mins', { count: vend.defaults.offline_after_minutes }) }}
                       </span>
                     </div>
                   </TableData>
@@ -234,7 +234,7 @@
                     <div class="flex flex-col">
                       <span>{{ formatMinutes(vend.power_restored_alert_minutes) }}</span>
                       <span class="text-xs" :class="vend.overrides.power_restored_after_minutes !== null ? 'text-green-600' : 'text-gray-500'">
-                        {{ vend.overrides.power_restored_after_minutes !== null ? 'Custom' : `Default ${vend.defaults.power_restored_after_minutes} mins` }}
+                        {{ vend.overrides.power_restored_after_minutes !== null ? $t('Custom') : $t('Default :count mins', { count: vend.defaults.power_restored_after_minutes }) }}
                       </span>
                     </div>
                   </TableData>
@@ -246,7 +246,7 @@
                     <div class="flex flex-col">
                       <span>{{ formatHours(vend.no_sales_alert_hours) }}</span>
                       <span class="text-xs" :class="vend.overrides.no_sales_after_hours !== null ? 'text-green-600' : 'text-gray-500'">
-                        {{ vend.overrides.no_sales_after_hours !== null ? 'Custom' : `Default ${vend.defaults.no_sales_after_hours} hrs` }}
+                        {{ vend.overrides.no_sales_after_hours !== null ? $t('Custom') : $t('Default :count hrs', { count: vend.defaults.no_sales_after_hours }) }}
                       </span>
                     </div>
                   </TableData>
@@ -267,7 +267,7 @@
                 </tr>
                 <tr v-if="vendRows.length === 0">
                   <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-gray-500 text-center">
-                    No results found
+                    {{ $t('No results found') }}
                   </td>
                 </tr>
               </tbody>
@@ -293,6 +293,7 @@ import Paginator from '@/Components/Paginator.vue'
 import TableHead from '@/Components/TableHead.vue'
 import TableData from '@/Components/TableData.vue'
 import { BackspaceIcon, MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/vue/20/solid'
+import { t } from '@/i18n'
 
 const props = defineProps({
   vends: Object,
@@ -311,9 +312,9 @@ const filters = ref({
 })
 
 const bulkFieldOptions = [
-  { id: 'offline_after_minutes', label: 'Offline Threshold (mins)', inputLabel: 'Minutes', placeholder: 'Enter minutes' },
-  { id: 'power_restored_after_minutes', label: 'Power Restored Threshold (mins)', inputLabel: 'Minutes', placeholder: 'Enter minutes' },
-  { id: 'no_sales_after_hours', label: 'No Sales Threshold (hours)', inputLabel: 'Hours', placeholder: 'Enter hours' },
+  { id: 'offline_after_minutes', label: t('Offline Threshold (mins)'), inputLabel: t('Minutes'), placeholder: t('Enter minutes') },
+  { id: 'power_restored_after_minutes', label: t('Power Restored Threshold (mins)'), inputLabel: t('Minutes'), placeholder: t('Enter minutes') },
+  { id: 'no_sales_after_hours', label: t('No Sales Threshold (hours)'), inputLabel: t('Hours'), placeholder: t('Enter hours') },
 ]
 
 const selectedBulkFieldId = ref('')
@@ -361,14 +362,14 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
 
   const defaultPerPage = numberPerPageOptions.value.find(option => option.id === props.filters?.numberPerPage) ?? numberPerPageOptions.value[0]
   filters.value.numberPerPage = defaultPerPage
 
   operatorOptions.value = [
-    { id: 'all', full_name: 'All Operators' },
+    { id: 'all', full_name: t('All Operators') },
     ...(props.operatorOptions?.data ?? []).map(operator => ({
       id: operator.id,
       full_name: operator.full_name,
@@ -490,18 +491,18 @@ function applyBulkUpdate() {
 
   const vendIds = Array.from(selectedVendIds.value)
   if (!vendIds.length) {
-    bulkForm.setError('vend_ids', 'Select at least one machine.')
+    bulkForm.setError('vend_ids', t('Select at least one machine.'))
     return
   }
 
   const field = selectedBulkField.value
   if (!field) {
-    bulkForm.setError('bulk_parameter', 'Select an alert parameter to update.')
+    bulkForm.setError('bulk_parameter', t('Select an alert parameter to update.'))
     return
   }
 
   if (!clearOverride.value && bulkValue.value === '') {
-    bulkForm.setError(field.id, 'Enter a value or choose "Clear override".')
+    bulkForm.setError(field.id, t('Enter a value or choose "Clear override".'))
     return
   }
 
@@ -514,7 +515,7 @@ function applyBulkUpdate() {
   } else {
     const parsed = parseNumber(bulkValue.value)
     if (parsed === null) {
-      bulkForm.setError(field.id, 'Enter a valid number.')
+      bulkForm.setError(field.id, t('Enter a valid number.'))
       return
     }
     payload[field.id] = parsed

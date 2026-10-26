@@ -372,7 +372,7 @@ class FreezerControlService
     private function validate(string $op, array $args): array
     {
         if (! in_array($op, self::OPS, true)) {
-            throw ValidationException::withMessages(['op' => "Unknown control '$op'."]);
+            throw ValidationException::withMessages(['op' => __('Unknown control \':op\'.', ['op' => $op])]);
         }
 
         return match ($op) {
@@ -382,17 +382,17 @@ class FreezerControlService
             'clip' => $this->cameraId($args['cameraId'] ?? null) + $this->clipSeconds($args['seconds'] ?? self::CLIP_SECONDS_DEFAULT),
             'diag' => array_key_exists($args['probe'] ?? '', self::DIAG_PROBES)
                 ? ['probe' => $args['probe']]
-                : throw ValidationException::withMessages(['args.probe' => 'Choose one of the listed diagnostics.']),
+                : throw ValidationException::withMessages(['args.probe' => __('Choose one of the listed diagnostics.')]),
             'sdkcall' => $this->sdkCall($args['action'] ?? null, $args['params'] ?? null),
             'compressor' => $this->compressor($args),
             'fan', 'light', 'comprmode', 'fanmode' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
-                : throw ValidationException::withMessages(['args.on' => 'Choose on or off.']),
+                : throw ValidationException::withMessages(['args.on' => __('Choose on or off.')]),
             'setpoint' => $this->setpoint($args['celsius'] ?? null),
             'delta' => $this->delta($args['celsius'] ?? null),
             'volume' => in_array($args['step'] ?? null, ['up', 'down', 'mute'], true)
                 ? ['step' => $args['step']]
-                : throw ValidationException::withMessages(['args.step' => 'Choose up, down or mute.']),
+                : throw ValidationException::withMessages(['args.step' => __('Choose up, down or mute.')]),
             'logs' => array_filter([
                 'lines' => is_int($args['lines'] ?? null) ? max(self::LOG_LINES_MIN, min(self::LOG_LINES_MAX, $args['lines'])) : self::LOG_LINES_DEFAULT,
                 'minutes' => is_int($args['minutes'] ?? null) ? max(self::LOG_MINUTES_MIN, min(self::LOG_MINUTES_MAX, $args['minutes'])) : self::LOG_MINUTES_DEFAULT,
@@ -405,17 +405,17 @@ class FreezerControlService
     private function compressor(array $args): array
     {
         if (! is_bool($args['on'] ?? null)) {
-            throw ValidationException::withMessages(['args.on' => 'Choose on or off.']);
+            throw ValidationException::withMessages(['args.on' => __('Choose on or off.')]);
         }
         $minutes = $args['minutes'] ?? null;
         if ($minutes === null) {
             return ['on' => $args['on']];
         }
         if ($args['on']) {
-            throw ValidationException::withMessages(['args.minutes' => 'Only an Off takes a duration.']);
+            throw ValidationException::withMessages(['args.minutes' => __('Only an Off takes a duration.')]);
         }
         if (! is_int($minutes) || ! in_array($minutes, self::COMPRESSOR_OFF_MINUTES, true)) {
-            throw ValidationException::withMessages(['args.minutes' => 'Choose half an hour, or 1 to 12 hours.']);
+            throw ValidationException::withMessages(['args.minutes' => __('Choose half an hour, or 1 to 12 hours.')]);
         }
 
         return ['on' => false, 'minutes' => $minutes];
@@ -424,7 +424,7 @@ class FreezerControlService
     private function beepSeconds(mixed $seconds): array
     {
         if (! is_int($seconds) || $seconds < 1 || $seconds > self::BEEP_SECONDS_MAX) {
-            throw ValidationException::withMessages(['args.seconds' => 'Beep for 1 to '.self::BEEP_SECONDS_MAX.' seconds.']);
+            throw ValidationException::withMessages(['args.seconds' => __('Beep for 1 to :max seconds.', ['max' => self::BEEP_SECONDS_MAX])]);
         }
 
         return ['seconds' => $seconds];
@@ -433,7 +433,7 @@ class FreezerControlService
     private function clipSeconds(mixed $seconds): array
     {
         if (! is_int($seconds) || $seconds < self::CLIP_SECONDS_MIN || $seconds > self::CLIP_SECONDS_MAX) {
-            throw ValidationException::withMessages(['args.seconds' => 'Record '.self::CLIP_SECONDS_MIN.' to '.self::CLIP_SECONDS_MAX.' seconds.']);
+            throw ValidationException::withMessages(['args.seconds' => __('Record :min to :max seconds.', ['min' => self::CLIP_SECONDS_MIN, 'max' => self::CLIP_SECONDS_MAX])]);
         }
 
         return ['seconds' => $seconds];
@@ -442,7 +442,7 @@ class FreezerControlService
     private function cameraId(mixed $cameraId): array
     {
         if (! is_int($cameraId) || $cameraId < 0 || $cameraId > self::CAMERA_ID_MAX) {
-            throw ValidationException::withMessages(['args.cameraId' => 'Camera must be 0 to '.self::CAMERA_ID_MAX.'.']);
+            throw ValidationException::withMessages(['args.cameraId' => __('Camera must be 0 to :max.', ['max' => self::CAMERA_ID_MAX])]);
         }
 
         return ['cameraId' => $cameraId];
@@ -455,18 +455,18 @@ class FreezerControlService
     private function sdkCall(mixed $action, mixed $params): array
     {
         if (! is_string($action) || ! preg_match(self::SDK_ACTION_PATTERN, $action)) {
-            throw ValidationException::withMessages(['args.action' => 'Action must be a bare name: 3 to 40 letters, digits or underscores.']);
+            throw ValidationException::withMessages(['args.action' => __('Action must be a bare name: 3 to 40 letters, digits or underscores.')]);
         }
         $params = is_string($params) ? trim($params) : '';
         if ($params === '') {
             $params = '{}';
         }
         if (strlen($params) > self::SDK_PARAMS_MAX) {
-            throw ValidationException::withMessages(['args.params' => 'Params must be at most '.self::SDK_PARAMS_MAX.' characters.']);
+            throw ValidationException::withMessages(['args.params' => __('Params must be at most :max characters.', ['max' => self::SDK_PARAMS_MAX])]);
         }
         $decoded = json_decode($params, true);
         if (! is_array($decoded) || array_is_list($decoded) && $decoded !== []) {
-            throw ValidationException::withMessages(['args.params' => 'Params must be a JSON object, e.g. {"key":"fanMode","value":1}.']);
+            throw ValidationException::withMessages(['args.params' => __('Params must be a JSON object, e.g. {"key":"fanMode","value":1}.')]);
         }
 
         return ['action' => $action, 'params' => $params];
@@ -476,7 +476,7 @@ class FreezerControlService
     {
         if (! is_int($celsius) || $celsius < self::SETPOINT_MIN || $celsius > self::SETPOINT_MAX) {
             throw ValidationException::withMessages([
-                'args.celsius' => 'Setpoint must be a whole number from '.self::SETPOINT_MIN.' to '.self::SETPOINT_MAX.' °C.',
+                'args.celsius' => __('Setpoint must be a whole number from :min to :max °C.', ['min' => self::SETPOINT_MIN, 'max' => self::SETPOINT_MAX]),
             ]);
         }
 
@@ -488,7 +488,7 @@ class FreezerControlService
     {
         if (! is_int($celsius) || $celsius < self::DELTA_MIN || $celsius > self::DELTA_MAX) {
             throw ValidationException::withMessages([
-                'args.celsius' => 'Delta must be a whole number from '.self::DELTA_MIN.' to '.self::DELTA_MAX.' °C.',
+                'args.celsius' => __('Delta must be a whole number from :min to :max °C.', ['min' => self::DELTA_MIN, 'max' => self::DELTA_MAX]),
             ]);
         }
 

@@ -87,15 +87,15 @@ class CriticalAttention
             ->keys()->map(fn ($id) => (int) $id)->all();
 
         $groups = [
-            $this->group(self::GROUP_OFFLINE, '(1) Lost connectivity or electricity', 'critical', $this->offline($vends, $vendingIds, $now)),
+            $this->group(self::GROUP_OFFLINE, __('(1) Lost connectivity or electricity'), 'critical', $this->offline($vends, $vendingIds, $now)),
         ];
         $alerts = $this->temperatureAlerts($vendingIds, $now);
         foreach (self::TEMPERATURE_GROUPS as $type => $label) {
-            $groups[] = $this->group($type, $label, 'critical', $alerts[$type] ?? []);
+            $groups[] = $this->group($type, __($label), 'critical', $alerts[$type] ?? []);
         }
-        $groups[] = $this->group(self::GROUP_APK_RESTART, 'APK reboot (connection issue)', 'warning', $this->connectionReboots($vendingIds, $now));
-        $groups[] = $this->group(self::GROUP_SCREEN, 'Touch screen frozen', 'warning', $this->screenFaults($vendingIds, $now));
-        $groups[] = $this->group(self::GROUP_NO_SALES, 'No sales for '.$this->noSalesHours().'h', 'warning', $this->noSales($vends, $now));
+        $groups[] = $this->group(self::GROUP_APK_RESTART, __('APK reboot (connection issue)'), 'warning', $this->connectionReboots($vendingIds, $now));
+        $groups[] = $this->group(self::GROUP_SCREEN, __('Touch screen frozen'), 'warning', $this->screenFaults($vendingIds, $now));
+        $groups[] = $this->group(self::GROUP_NO_SALES, __('No sales for :duration', ['duration' => $this->noSalesHours().'h']), 'warning', $this->noSales($vends, $now));
 
         $groups = array_map(function (array $group) use ($vends) {
             $group['machines'] = collect($group['machines'])
@@ -135,7 +135,7 @@ class CriticalAttention
             }
             $hours = Carbon::parse($vend->last_contact_at)->diffInMinutes($now) / 60;
             if ($hours < MachineHealthDashboardService::OFFLINE_ALERT_MAX_HOURS) {
-                $out[$id] = 'offline '.$this->hours($hours);
+                $out[$id] = __('offline :duration', ['duration' => $this->hours($hours)]);
             }
         }
 
@@ -158,8 +158,8 @@ class CriticalAttention
             ->get(['vend_id', 'alert_type', 'created_at'])
             ->each(function (VendSmartAlert $alert) use (&$out, $now) {
                 $out[$alert->alert_type][(int) $alert->vend_id] ??= $alert->created_at
-                    ? 'since '.$this->hours($alert->created_at->diffInMinutes($now) / 60).' ago'
-                    : 'active';
+                    ? __('since :duration ago', ['duration' => $this->hours($alert->created_at->diffInMinutes($now) / 60)])
+                    : __('active');
             });
 
         return $out;
@@ -174,7 +174,7 @@ class CriticalAttention
             ->groupBy('vend_id')
             ->map(fn (Collection $rows) => (int) $rows->max('count'))
             ->filter(fn (int $max) => $max >= $threshold)
-            ->map(fn (int $max) => "{$max} reboots in a day (no internet for 6 min)")
+            ->map(fn (int $max) => __(':count reboots in a day (no internet for 6 min)', ['count' => $max]))
             ->all();
     }
 
@@ -195,7 +195,7 @@ class CriticalAttention
             $count = fn (string $metric) => (int) $rows->where('metric', $metric)->sum('count');
             $faults = max(0, $count(self::METRIC_STALL) - $count(self::METRIC_STALL_RECOVERED)) + $count(self::METRIC_NO_FRAMES);
             if ($faults > 0) {
-                $out[(int) $vendId] = "{$faults} freeze".($faults === 1 ? '' : 's').' (not recovered)';
+                $out[(int) $vendId] = $faults === 1 ? __(':count freeze (not recovered)', ['count' => $faults]) : __(':count freezes (not recovered)', ['count' => $faults]);
 
                 continue;
             }
@@ -203,7 +203,7 @@ class CriticalAttention
             foreach ($rows->groupBy('date') as $day) {
                 $failed = (int) $day->where('metric', 'ui_probe_fail')->sum('count');
                 if ($failed > 0 && (int) $day->where('metric', 'ui_probe_pass')->sum('count') === 0) {
-                    $out[(int) $vendId] = "{$failed} page checks failed";
+                    $out[(int) $vendId] = __(':count page checks failed', ['count' => $failed]);
                     break;
                 }
             }
@@ -223,7 +223,7 @@ class CriticalAttention
             }
             $last = Carbon::parse($vend->last_vend_transaction_at);
             if ($last->lt($cutoff)) {
-                $out[(int) $id] = 'last sale '.$this->hours($last->diffInMinutes($now) / 60).' ago';
+                $out[(int) $id] = __('last sale :duration ago', ['duration' => $this->hours($last->diffInMinutes($now) / 60)]);
             }
         }
 
@@ -260,7 +260,7 @@ class CriticalAttention
 
     private function group(string $key, string $label, string $severity, array $machines): array
     {
-        return ['key' => $key, 'label' => $label, 'short' => self::SHORT[$key] ?? $label, 'severity' => $severity, 'machines' => $machines];
+        return ['key' => $key, 'label' => $label, 'short' => __(self::SHORT[$key] ?? $label), 'severity' => $severity, 'machines' => $machines];
     }
 
     private function machine(object $vend, string $detail): array

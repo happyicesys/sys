@@ -23,7 +23,7 @@
                       <button type="button"
                               class="bg-white rounded-md text-gray-400 hover:text-gray-500"
                               @click="onModalClose">
-                        <span class="sr-only">Close</span>
+                        <span class="sr-only">{{ $t('Close') }}</span>
                         <XMarkIcon class="h-6 w-6" aria-hidden="true"/>
                       </button>
                     </DialogTitle>

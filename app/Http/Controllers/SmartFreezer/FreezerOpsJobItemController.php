@@ -42,18 +42,18 @@ class FreezerOpsJobItemController extends Controller
 
         // Before-restock photo first (Brian, 2026-10-13), as on a chiller. Checked here, not trusted to the page.
         if (RestockPhotoService::blocksOpenDoor($item)) {
-            return response()->json(['message' => 'Take the BEFORE restock photo first — then Open Door.'], 422);
+            return response()->json(['message' => __('Take the BEFORE restock photo first — then Open Door.')], 422);
         }
 
         if ((int) $vend->apk_version_code < FreezerControlService::minApkVersionFor('unlock')) {
-            return response()->json(['message' => 'This freezer\'s app is too old to open the door remotely.'], 422);
+            return response()->json(['message' => __('This freezer\'s app is too old to open the door remotely.')], 422);
         }
 
         // A phone double-tap must not fire the door twice — per freezer, so two items for the same
         // machine cannot either.
         $key = "freezer:open:{$vend->id}";
         if (RateLimiter::tooManyAttempts($key, 1)) {
-            return response()->json(['message' => 'Door was just opened — wait a few seconds before opening again.'], 429);
+            return response()->json(['message' => __('Door was just opened — wait a few seconds before opening again.')], 429);
         }
         RateLimiter::hit($key, 20);
 
@@ -91,11 +91,11 @@ class FreezerOpsJobItemController extends Controller
         $item = OpsJobItem::with(['vend', 'opsJob'])->findOrFail($id);
         // The job's operator is the tenancy boundary, as on every other ops-job route.
         $this->assertWithinViewerCeiling($item->opsJob);
-        abort_unless($item->vend && $item->vend->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER, 403, 'Not a Smart Freezer item.');
+        abort_unless($item->vend && $item->vend->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER, 403, __('Not a Smart Freezer item.'));
 
         $user = $request->user();
         $isDriver = $item->opsJob && (int) $item->opsJob->delivered_by === (int) $user->id;
-        abort_unless($isDriver || $user->can('update operations'), 403, 'Only the assigned driver or an operations user can do this.');
+        abort_unless($isDriver || $user->can('update operations'), 403, __('Only the assigned driver or an operations user can do this.'));
 
         return $item;
     }

@@ -236,7 +236,7 @@ class CommissionSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return redirect('/site-settlements')->with('success', 'Empty settlement voided.');
+        return redirect('/site-settlements')->with('success', __('Empty settlement voided.'));
     }
 
     // ---- helpers ----

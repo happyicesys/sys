@@ -1,10 +1,10 @@
 <template>
-  <Head title="Menu Prefix" />
+  <Head :title="$t('Menu Prefix')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Machine Prefix
+        {{ $t('Machine Prefix') }}
       </h2>
     </template>
 
@@ -16,13 +16,13 @@
             @click="onCreateClicked()"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true" />
-            <span>Create</span>
+            <span>{{ $t('Create') }}</span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Prefix
+							{{ $t('Machine Prefix') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendPrefixes"
@@ -30,7 +30,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							mode="tags"
 							class="mt-1"
@@ -39,7 +39,7 @@
 					</div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Setting Chart
+              {{ $t('Setting Chart') }}
             </label>
             <MultiSelect
               v-model="filters.vend_config_id"
@@ -47,7 +47,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -90,7 +90,7 @@
 
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Status
+							{{ $t('Machine Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendStatus"
@@ -98,7 +98,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -114,19 +114,19 @@
                 @click="onSearchFilterUpdated()"
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
-                <span>Search</span>
+                <span>{{ $t('Search') }}</span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
             <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-              <span>Showing</span>
+              <span>{{ $t('Showing') }}</span>
               <span class="font-medium">{{ vendPrefixes.meta.from ?? 0 }}</span>
-              <span>to</span>
+              <span>{{ $t('to') }}</span>
               <span class="font-medium">{{ vendPrefixes.meta.to ?? 0 }}</span>
-              <span>of</span>
+              <span>{{ $t('of') }}</span>
               <span class="font-medium">{{ vendPrefixes.meta.total }}</span>
-              <span>results</span>
+              <span>{{ $t('results') }}</span>
             </p>
             <MultiSelect
               v-model="filters.numberPerPage"
@@ -134,7 +134,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               @selected="onSearchFilterUpdated"
@@ -158,7 +158,7 @@
                     @sort-table="sortTable('vend_config_name')"
                     class="bg-sky-200"
                   >
-                    Setting Chart
+                    {{ $t('Setting Chart') }}
                   </TableHeadSort>
                   <TableHeadSort
                     modelName="name"
@@ -167,9 +167,9 @@
                     @sort-table="sortTable('name')"
                     class="bg-sky-200"
                   >
-                    Prefix
+                    {{ $t('Prefix') }}
                   </TableHeadSort>
-                  <TableHead>Desc</TableHead>
+                  <TableHead>{{ $t('Desc') }}</TableHead>
                   <!-- DEPRECATED (2026-07): prefix→mapping column hidden -->
                   <!-- <TableHeadSort
                     modelName="product_mapping_name"
@@ -293,7 +293,7 @@
                         @click="onEditClicked(vendPrefix)"
                       >
                         <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                        <span>Edit</span>
+                        <span>{{ $t('Edit') }}</span>
                       </Button>
                       <!--
                         Only MACHINES block deletion. A Setting Chart is a soft bind: the
@@ -313,9 +313,8 @@
                         class="inline-flex"
                         :title="
                           vendPrefix.machines_count > 0
-                            ? vendPrefix.machines_count +
-                              ' machine(s) still use this prefix (disposed ones count too). Re-assign them to another prefix first.'
-                            : 'Deletes this prefix. It stays readable on past transactions and stock counts, and the Setting Chart itself is not changed.'
+                            ? $t(':count machine(s) still use this prefix (disposed ones count too). Re-assign them to another prefix first.', { count: vendPrefix.machines_count })
+                            : $t('Deletes this prefix. It stays readable on past transactions and stock counts, and the Setting Chart itself is not changed.')
                         "
                       >
                         <Button
@@ -331,10 +330,10 @@
                         >
                           <span class="flex space-x-1 items-center">
                             <TrashIcon class="w-4 h-4"></TrashIcon>
-                            <span>Delete</span>
+                            <span>{{ $t('Delete') }}</span>
                           </span>
                           <span v-if="vendPrefix.machines_count > 0" class="text-[10px] leading-none"
-                            >({{ vendPrefix.machines_count }} machine{{ vendPrefix.machines_count > 1 ? 's' : '' }})</span
+                            >({{ $tc(':count machine|:count machines', vendPrefix.machines_count) }})</span
                           >
                         </Button>
                       </span>
@@ -346,7 +345,7 @@
                     colspan="24"
                     class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center"
                   >
-                    No Results Found
+                    {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -404,6 +403,7 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { filter } from 'lodash';
+import { t } from '@/i18n';
 
 const props = defineProps({
   operatorOptions: [Array, Object],
@@ -440,32 +440,32 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ];
   productMappingOptions.value = [
-    { id: 'all', value: 'All' },
+    { id: 'all', value: t('All') },
     ...props.productMappingOptions.data.map((data) => {
       return { id: data.id, value: data.name };
     }),
   ];
   vendConfigOptions.value = [
-    { id: 'all', value: 'All' },
+    { id: 'all', value: t('All') },
     ...props.vendConfigOptions.data.map((data) => {
       return { id: data.id, value: data.name };
     }),
   ];
   vendPrefixOptions.value = [
-    { id: '', value: 'All' },
-    {id: 'single-ud', value: 'Single UD'},
+    { id: '', value: t('All') },
+    {id: 'single-ud', value: t('Single UD')},
     ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   vendStatusOptions.value = [
-			{id: 'all', value: 'All'},
-			{id: 'factory', value: 'Factory (JB)'},
-			{id: 'active', value: 'Active'},
-			{id: 'inactive', value: 'Not Active'},
-			{id: 'disposed', value: 'Disposed'},
-      {id: 'sold', value: 'Sold'},
+			{id: 'all', value: t('All')},
+			{id: 'factory', value: t('Factory (JB)')},
+			{id: 'active', value: t('Active')},
+			{id: 'inactive', value: t('Not Active')},
+			{id: 'disposed', value: t('Disposed')},
+      {id: 'sold', value: t('Sold')},
 	]
   filters.value.numberPerPage = numberPerPageOptions.value[0];
   filters.value.vend_config_id = vendConfigOptions.value[0];
@@ -488,15 +488,14 @@ function onDeleteClicked(vendPrefix) {
 
   // Spell out what actually happens so it is never a surprise.
   const bindedConfigs = (vendPrefix.vendConfigs || []).map((vendConfig) => vendConfig.name);
-  let message = 'Are you sure to delete ' + vendPrefix.name + '?';
+  let message = t('Are you sure to delete :name?', { name: vendPrefix.name });
   if (bindedConfigs.length) {
     message +=
-      '\n\nIt will no longer appear under Setting Chart: ' +
-      bindedConfigs.join(', ') +
-      '.\nThe Setting Chart itself will not be changed.';
+      '\n\n' + t('It will no longer appear under Setting Chart: :charts.', { charts: bindedConfigs.join(', ') }) +
+      '\n' + t('The Setting Chart itself will not be changed.');
   }
   message +=
-    '\n\nPast transactions, stock counts and binding history keep showing this prefix.';
+    '\n\n' + t('Past transactions, stock counts and binding history keep showing this prefix.');
 
   const approval = confirm(message);
   if (!approval) {
@@ -504,12 +503,12 @@ function onDeleteClicked(vendPrefix) {
   }
   router.delete('/vend-prefixes/' + vendPrefix.id, {
     onSuccess: () => {
-      toast.success("Machine prefix deleted successfully", { timeout: 3000 })
+      toast.success(t("Machine prefix deleted successfully"), { timeout: 3000 })
     },
     onError: (errors) => {
       // Surface the server's reason (machines still bound / global prefix)
       // instead of the old blanket "Failed to delete".
-      toast.error((errors && errors.delete) || "Failed to delete machine prefix", { timeout: 5000 })
+      toast.error((errors && errors.delete) || t("Failed to delete machine prefix"), { timeout: 5000 })
     }
   })
 }

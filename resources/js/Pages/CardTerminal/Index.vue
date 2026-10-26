@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Card Terminal Company" />
+  <Head :title="$t('Card Terminal Company')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Card Terminal Company)
+        {{ $t('Data Management (Card Terminal Company)') }}
       </h2>
     </template>
 
@@ -17,13 +17,13 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
         </div>
 
@@ -36,20 +36,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex space-x-3 items-center">
             <div class="text-sm text-gray-700">
-                Showing
+                {{ $t('Showing') }}
                 <span class="font-medium">{{ cardTerminals.meta.from ?? 0 }}</span>
-                to
+                {{ $t('to') }}
                 <span class="font-medium">{{ cardTerminals.meta.to ?? 0 }}</span>
-                of
+                {{ $t('of') }}
                 <span class="font-medium">{{ cardTerminals.meta.total }}</span>
-                results
+                {{ $t('results') }}
             </div>
             <MultiSelect
                 v-model="filters.numberPerPage"
@@ -77,10 +77,10 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Multi-machine
+                      {{ $t('Multi-machine') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -95,8 +95,8 @@
                         {{ cardTerminal.name }}
                       </TableData>
                       <TableData :currentIndex="cardTerminalIndex" :totalLength="cardTerminals.length" inputClass="text-center">
-                        <span v-if="cardTerminal.can_bind_multiple_vends" class="text-green-700 font-medium" title="One terminal can serve several machines">Yes</span>
-                        <span v-else class="text-gray-400" title="One terminal, one machine">No</span>
+                        <span v-if="cardTerminal.can_bind_multiple_vends" class="text-green-700 font-medium" :title="$t('One terminal can serve several machines')">{{ $t('Yes') }}</span>
+                        <span v-else class="text-gray-400" :title="$t('One terminal, one machine')">{{ $t('No') }}</span>
                       </TableData>
                       <TableData :currentIndex="cardTerminalIndex" :totalLength="cardTerminals.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -106,7 +106,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -115,7 +115,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -123,7 +123,7 @@
                       </tr>
                 <tr v-if="!cardTerminals.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -156,6 +156,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3'
@@ -181,7 +182,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -193,16 +194,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(cardTerminal) {
-  const approval = confirm('Are you sure to delete ' + cardTerminal.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: cardTerminal.name }));
   if (!approval) {
       return;
   }
   router.delete('/card-terminals/' + cardTerminal.id, {
     onSuccess: () => {
-      toast.success("Card terminal company deleted successfully", { timeout: 3000 })
+      toast.success(t("Card terminal company deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete card terminal company", { timeout: 3000 })
+      toast.error(t("Failed to delete card terminal company"), { timeout: 3000 })
     }
   })
 }

@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Machine Model" />
+  <Head :title="$t('Machine Model')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Serial Number)
+        {{ $t('Data Management (Serial Number)') }}
       </h2>
     </template>
 
@@ -17,24 +17,24 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Serial Number" v-model="filters.code">
-            Serial Number
+          <SearchInput :placeholderStr="$t('Serial Number')" v-model="filters.code">
+            {{ $t('Serial Number') }}
           </SearchInput>
-          <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.vend_codes" @keyup.enter="onSearchFilterUpdated()">
-              Machine ID
+          <SearchInput :placeholderStr="$t('4 to 5 Digits Number')" v-model="filters.vend_codes" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Machine ID') }}
               <span class="text-[9px]">
-                  ("," for multiple)
+                  {{ $t('("," for multiple)') }}
               </span>
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Machine Model
+                {{ $t('Machine Model') }}
             </label>
             <MultiSelect
                 v-model="filters.vendModels"
@@ -42,7 +42,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -51,7 +51,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Machine Sticker
+                {{ $t('Machine Sticker') }}
             </label>
             <MultiSelect
                 v-model="filters.stickers"
@@ -59,7 +59,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -68,7 +68,7 @@
           </div>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Status
+							{{ $t('Machine Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.status"
@@ -76,7 +76,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -84,7 +84,7 @@
 					</div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Setting Chart
+                {{ $t('Setting Chart') }}
             </label>
             <MultiSelect
                 v-model="filters.vendConfigs"
@@ -92,7 +92,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -101,7 +101,7 @@
           </div>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Prefix
+							{{ $t('Machine Prefix') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendPrefixes"
@@ -109,7 +109,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							mode="tags"
 							class="mt-1"
@@ -118,7 +118,7 @@
 					</div>
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Contract
+							{{ $t('Machine Contract') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendContracts"
@@ -126,22 +126,22 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							mode="tags"
 							class="mt-1"
 						>
 						</MultiSelect>
 					</div>
-          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-            Site
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Site') }}
           </SearchInput>
           <div>
             <OperatorFilter v-model="filters.operators" />
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Location Type
+                {{ $t('Location Type') }}
             </label>
             <MultiSelect
                 v-model="filters.locationTypes"
@@ -149,7 +149,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -158,7 +158,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                LCD Monitor
+                {{ $t('LCD Monitor') }}
             </label>
             <MultiSelect
                 v-model="filters.lcd_monitor_id"
@@ -166,7 +166,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
             >
@@ -174,7 +174,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Product Mapping
+                {{ $t('Product Mapping') }}
             </label>
             <MultiSelect
                 v-model="filters.productMappings"
@@ -182,7 +182,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -200,7 +200,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
               <Button v-if="permissions.export" type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -214,7 +214,7 @@
                           </svg>
                       </div>
                       <span>
-                          Export Excel
+                          {{ $t('Export Excel') }}
                       </span>
                   </div>
               </Button>
@@ -222,13 +222,13 @@
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ vendSerialNumbers.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ vendSerialNumbers.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ vendSerialNumbers.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -236,7 +236,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -256,65 +256,65 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Serial Number
+                      {{ $t('Serial Number') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')" class="max-w-600">
-                      Remarks
+                      {{ $t('Remarks') }}
                     </TableHeadSort>
                     <TableHead colspan="10">
-                      Machine Info
+                      {{ $t('Machine Info') }}
                     </TableHead>
                     <TableHead colspan="4">
-                      Site Info
+                      {{ $t('Site Info') }}
                     </TableHead>
                   </tr>
                   <tr>
                     <TableHead colspan="3">
                     </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      ID
+                      {{ $t('ID') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
-                      Model
+                      {{ $t('Model') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_sticker_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_sticker_name')">
-                      Machine Sticker
+                      {{ $t('Machine Sticker') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_lcd_monitor" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_lcd_monitor')">
-                      LCD Monitor
+                      {{ $t('LCD Monitor') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_status')">
-                      Status
+                      {{ $t('Status') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_begin_date')">
-                      Begin Date
+                      {{ $t('Begin Date') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
-                      Setting Chart
+                      {{ $t('Setting Chart') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mapping_name')" class="max-w-[7rem]">
-                      Product Mapping
+                      {{ $t('Product Mapping') }}
                     </TableHeadSort>
                     <!-- <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
                     </TableHeadSort> -->
                     <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name')">
-                      Prefix
+                      {{ $t('Prefix') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_contract_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_contract_name')">
-                      Contract
+                      {{ $t('Contract') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
-                      Site Name
+                      {{ $t('Site Name') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
-                      Postcode
+                      {{ $t('Postcode') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="operator_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_name')">
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
-                      Location Type
+                      {{ $t('Location Type') }}
                     </TableHeadSort>
                   </tr>
                 </thead>
@@ -337,7 +337,7 @@
                           >
                             <PencilSquareIcon class="w-3 h-3"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                         </div>
@@ -361,7 +361,7 @@
                         {{ vendSerialNumber.vend_lcd_monitor }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" :inputClass="getStatusClass(vendSerialNumber.vend_status)">
-                        {{ vendSerialNumber.vend_status }}
+                        {{ $t(vendSerialNumber.vend_status) }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_begin_date }}
@@ -394,7 +394,7 @@
                       </tr>
                 <tr v-if="!vendSerialNumbers.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -430,6 +430,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { stickerBadgeStyle } from '@/constants/stickerColors';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 
 const props = defineProps({
   lcdMonitorOptions: [Array, Object],
@@ -483,53 +484,53 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
   lcdMonitorOptions.value = [
-      { id: 'undefined', value: 'Undefined'},
+      { id: 'undefined', value: t('Undefined')},
       ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({id: id, value: name}))
   ]
   locationTypeOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   operatorOptions.value = [
-      {id: 'all', full_name: 'All'},
+      {id: 'all', full_name: t('All')},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
   productMappingOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...((props.productMappingOptions && props.productMappingOptions.data) ? props.productMappingOptions.data : []).map((data) => {return {id: data.id, value: data.name}})
   ]
   statusOptions.value = [
-			{id: 'all', value: 'All'},
-			{id: 'factory', value: 'Factory (JB)'},
-			{id: 'active', value: 'Active'},
-			{id: 'inactive', value: 'Not Active'},
-			{id: 'disposed', value: 'Disposed'},
-			{id: 'sold', value: 'Sold'},
+			{id: 'all', value: t('All')},
+			{id: 'factory', value: t('Factory (JB)')},
+			{id: 'active', value: t('Active')},
+			{id: 'inactive', value: t('Not Active')},
+			{id: 'disposed', value: t('Disposed')},
+			{id: 'sold', value: t('Sold')},
 	]
   vendConfigOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   vendContractOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   vendModelOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   vendPrefixOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'single-ud', value: 'Single UD'},
+      {id: 'all', value: t('All')},
+      {id: 'single-ud', value: t('Single UD')},
       ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   stickerOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map((data) => {return {id: data.id, value: data.name}})
   ]
 

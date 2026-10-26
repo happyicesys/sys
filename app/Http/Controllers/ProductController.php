@@ -237,7 +237,7 @@ class ProductController extends Controller
                 ->requestAfterSave($product->unsetRelation('thumbnail'), auth()->id(), 'created');
         }
 
-        return redirect()->route('products.edit', ['id' => $product->id])->with('success', 'Product saved successfully');
+        return redirect()->route('products.edit', ['id' => $product->id])->with('success', __('Product saved successfully'));
     }
 
     /**
@@ -1032,7 +1032,7 @@ class ProductController extends Controller
             PushMappingMenuSync::scheduleForProduct($product->id, serverPriceOnly: true);
         }
 
-        return redirect()->back()->with('success', 'Product updated successfully');
+        return redirect()->back()->with('success', __('Product updated successfully'));
     }
 
     public function toggleActivateDeactivate($productId)
@@ -1091,7 +1091,7 @@ class ProductController extends Controller
         $product = Product::findOrFail($productId);
         $product->delete();
 
-        return redirect()->route('products')->with('success', 'Product deleted successfully');
+        return redirect()->route('products')->with('success', __('Product deleted successfully'));
     }
 
     public function deleteProductUom($productUomId)
@@ -1116,7 +1116,7 @@ class ProductController extends Controller
 
         $productUom->delete();
 
-        return redirect()->back()->with('success', 'UOM deleted successfully');
+        return redirect()->back()->with('success', __('UOM deleted successfully'));
     }
 
     /**
@@ -1169,7 +1169,7 @@ class ProductController extends Controller
             }
         });
 
-        return redirect()->back()->with('success', 'Unit cost deleted successfully');
+        return redirect()->back()->with('success', __('Unit cost deleted successfully'));
     }
 
     public function deleteSellingPrice($sellingPriceId)
@@ -1186,7 +1186,7 @@ class ProductController extends Controller
 
         PushMappingMenuSync::scheduleForProduct($sellingPrice->product_id, serverPriceOnly: true);
 
-        return redirect()->back()->with('success', 'Selling price deleted successfully');
+        return redirect()->back()->with('success', __('Selling price deleted successfully'));
     }
 
     public function edit(Request $request, $productId)
@@ -1333,10 +1333,10 @@ class ProductController extends Controller
         $result = \App\Services\BlindSkuService::recomputeForParent($product->fresh());
 
         if ($result === 'incomplete') {
-            return back()->with('warning', 'Flavours saved, but the blended unit cost was not generated — one or more flavours have no current unit cost yet. Set their unit cost, then re-save.');
+            return back()->with('warning', __('Flavours saved, but the blended unit cost was not generated — one or more flavours have no current unit cost yet. Set their unit cost, then re-save.'));
         }
 
-        return back()->with('success', 'Flavours saved — blended unit cost auto-generated.');
+        return back()->with('success', __('Flavours saved — blended unit cost auto-generated.'));
     }
 
     public function updateMaxOpsJobPickLimit(Request $request, $productID)

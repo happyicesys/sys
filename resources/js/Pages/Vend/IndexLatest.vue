@@ -1,11 +1,11 @@
 
 <template>
-  <Head title="Vending Machines" />
+  <Head :title="$t('Vending Machines')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Vending Machines (List)
+              {{ $t('Vending Machines (List)') }}
           </h2>
       </template>
 
@@ -13,18 +13,18 @@
         <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-              <SearchInput placeholderStr="Code" v-model="filters.code">
-                Machine ID
+              <SearchInput :placeholderStr="$t('Code')" v-model="filters.code">
+                {{ $t('Machine ID') }}
               </SearchInput>
-              <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum">
-                  Serial Num
+              <SearchInput :placeholderStr="$t('Serial Num')" v-model="filters.serialNum">
+                  {{ $t('Serial Num') }}
               </SearchInput>
-              <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan">
-                  Temp >>
+              <SearchInput :placeholderStr="$t('Number')" v-model="filters.tempHigherThan">
+                  {{ $t('Temp >>') }}
               </SearchInput>
               <div>
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Errors?
+                      {{ $t('Errors?') }}
                   </label>
                   <MultiSelect
                       v-model="filters.vend_channel_error_id"
@@ -32,21 +32,21 @@
                       trackBy="id"
                       valueProp="id"
                       label="desc"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
                   </MultiSelect>
               </div>
-              <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
-                  Cust ID
+              <SearchInput :placeholderStr="$t('Cust ID')" v-model="filters.customer_code">
+                  {{ $t('Cust ID') }}
               </SearchInput>
-              <SearchInput placeholderStr="Cust ID Name" v-model="filters.customer_name">
-                  Cust ID Name
+              <SearchInput :placeholderStr="$t('Cust ID Name')" v-model="filters.customer_name">
+                  {{ $t('Cust ID Name') }}
               </SearchInput>
               <div>
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Category
+                      {{ $t('Category') }}
                   </label>
                   <MultiSelect
                       v-model="filters.categories"
@@ -55,7 +55,7 @@
                       valueProp="id"
                       label="name"
                       mode="tags"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
@@ -63,7 +63,7 @@
               </div>
               <div>
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Group
+                      {{ $t('Group') }}
                   </label>
                   <MultiSelect
                       v-model="filters.categoryGroups"
@@ -72,7 +72,7 @@
                       valueProp="id"
                       label="name"
                       mode="tags"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
@@ -88,20 +88,20 @@
                       >
                           <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                           <span>
-                              Search
+                              {{ $t('Search') }}
                           </span>
                       </Button>
                   </div>
               </div>
               <div class="flex flex-col space-y-2">
                   <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                      <span>Showing</span>
+                      <span>{{ $t('Showing') }}</span>
                       <span class="font-medium">{{ vends.meta.from ?? 0 }}</span>
-                      <span>to</span>
+                      <span>{{ $t('to') }}</span>
                       <span class="font-medium">{{ vends.meta.to ?? 0 }}</span>
-                      <span>of</span>
+                      <span>{{ $t('of') }}</span>
                       <span class="font-medium">{{ vends.meta.total }}</span>
-                      <span>results</span>
+                      <span>{{ $t('results') }}</span>
                   </p>
                   <MultiSelect
                       v-model="filters.numberPerPage"
@@ -109,7 +109,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                       @selected="onSearchFilterUpdated"
@@ -129,46 +129,46 @@
                               #
                           </TableHead>
                           <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                              Code
+                              {{ $t('Code') }}
                           </TableHeadSort>
                           <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                              Temp
+                              {{ $t('Temp') }}
                           </TableHeadSort>
                           <TableHead>
-                              Name
+                              {{ $t('Name') }}
                           </TableHead>
                           <TableHead>
-                              Category
+                              {{ $t('Category') }}
                           </TableHead>
                           <TableHead>
-                              Channel Status
+                              {{ $t('Channel Status') }}
                           </TableHead>
                           <TableHead>
-                              Inventory Status
+                              {{ $t('Inventory Status') }}
                           </TableHead>
                           <TableHead>
-                              Balance Stock
+                              {{ $t('Balance Stock') }}
                           </TableHead>
                           <TableHead>
-                              Out of Stock SKU
+                              {{ $t('Out of Stock SKU') }}
                           </TableHead>
                           <TableHeadSort modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at')">
-                              Last Temp
+                              {{ $t('Last Temp') }}
                           </TableHeadSort>
                           <TableHeadSort modelName="coin_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('coin_amount')">
-                              Coin Amount
+                              {{ $t('Coin Amount') }}
                           </TableHeadSort>
                           <TableHead>
-                              Serial Num
+                              {{ $t('Serial Num') }}
                           </TableHead>
                           <TableHead>
-                              Firmware Ver
+                              {{ $t('Firmware Ver') }}
                           </TableHead>
                           <TableHead>
-                              Door Opening?
+                              {{ $t('Door Opening?') }}
                           </TableHead>
                           <TableHead>
-                              Sensor Normal?
+                              {{ $t('Sensor Normal?') }}
                           </TableHead>
                       </tr>
                   </thead>
@@ -189,7 +189,7 @@
                                       :class="[vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600']"
                                       @click="onVendTempClicked(vend.id)"
                                   >
-                                      {{ vend.is_temp_error ? 'Error' : vend.temp }}
+                                      {{ vend.is_temp_error ? $t('Error') : vend.temp }}
                                   </button>
                               </div>
                           </TableData>
@@ -267,7 +267,7 @@
                       </tr>
                       <tr v-if="!vends.data.length">
                           <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                              No Results Found
+                              {{ $t('No Results Found') }}
                           </td>
                       </tr>
                   </tbody>
@@ -293,6 +293,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { vendCodeLabel } from '@/utils/vendCode';
+import { t } from '@/i18n';
 
 const props = defineProps({
   categories: Object,
@@ -322,15 +323,15 @@ const categoryGroupOptions = ref([])
 
 onMounted(() => {
   vendChannelErrorsOptions.value = [
-      {'id': '', 'desc': 'All'},
-      {'id': 'errors_only', 'desc': 'Errors Only'},
+      {'id': '', 'desc': t('All')},
+      {'id': 'errors_only', 'desc': t('Errors Only')},
       ...props.vendChannelErrors.data
   ]
   numberPerPageOptions.value = [
       { id: 100, value: 100 },
       { id: 200, value: 200 },
       { id: 500, value: 500 },
-      { id: 'All', value: 'All' },
+      { id: 'All', value: t('All') },
   ]
   filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]

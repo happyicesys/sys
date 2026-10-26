@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.productMapping">
-            Product Mapping for
+            {{ $t('Product Mapping for') }}
           </span>
           <span v-if="props.productMapping">
             {{ props.productMapping.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Product Mapping
+            {{ $t('Create New Product Mapping') }}
           </span>
         </div>
       </template>
@@ -20,7 +20,7 @@
             <dl class="sm:divide-y sm:divide-gray-200">
               <div class="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5 sm:px-6">
                 <dt class="text-sm font-medium text-gray-500">
-                  Name
+                  {{ $t('Name') }}
                 </dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
                   {{ form.name }}
@@ -28,14 +28,14 @@
               </div>
               <div class="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5 sm:px-6">
                 <dt class="text-sm font-medium text-gray-500">
-                  Remarks
+                  {{ $t('Remarks') }}
                 </dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
                   {{ form.remarks }}
                 </dd>
               </div>
               <div class="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Channel - Product</dt>
+                <dt class="text-sm font-medium text-gray-500">{{ $t('Channel - Product') }}</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
                   <ul role="list" class="divide-y divide-gray-200 rounded-md border border-gray-200">
                     <li v-for="productMappingItem in productMapping.productMappingItems" class="flex items-center justify-between py-3 pl-3 pr-4 text-sm">
@@ -65,14 +65,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Vending Machine Binding </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> {{ $t('Vending Machine Binding') }} </span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-5" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vending Machine
+                {{ $t('Vending Machine') }}
               </label>
               <MultiSelect
                 v-model="form.vend_id"
@@ -80,7 +80,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="cust_full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -100,7 +100,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -116,13 +116,13 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Machine ID
+                          {{ $t('Machine ID') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Machine Name
+                          {{ $t('Machine Name') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -159,7 +159,7 @@
                       </tr>
                       <tr v-if="!productMappingVends.length">
                         <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                          No Records Found
+                          {{ $t('No Records Found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -180,13 +180,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>

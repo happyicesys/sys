@@ -118,7 +118,7 @@ class HappyHourCampaignController extends Controller
         $this->planNow($campaign);
         HappyHourWelcomeFallback::nudgeUnbound($this->memberIds($campaign));
 
-        return back()->with('success', "Happy Hour \"{$campaign->name}\" saved.");
+        return back()->with('success', __('Happy Hour ":name" saved.', ['name' => $campaign->name]));
     }
 
     public function update(HappyHourCampaignRequest $request, int $id): RedirectResponse
@@ -146,7 +146,7 @@ class HappyHourCampaignController extends Controller
         // the bear comes on or goes off now (HappyHourWelcomeFallback).
         HappyHourWelcomeFallback::nudgeUnbound([...$membersBefore, ...$this->memberIds($campaign)]);
 
-        return back()->with('success', "Happy Hour \"{$campaign->name}\" updated.");
+        return back()->with('success', __('Happy Hour ":name" updated.', ['name' => $campaign->name]));
     }
 
     public function destroy(int $id): RedirectResponse
@@ -159,7 +159,7 @@ class HappyHourCampaignController extends Controller
         $this->followGroups();
         HappyHourWelcomeFallback::nudgeUnbound($members);
 
-        return back()->with('success', "Happy Hour \"{$campaign->name}\" deleted.");
+        return back()->with('success', __('Happy Hour ":name" deleted.', ['name' => $campaign->name]));
     }
 
     /**

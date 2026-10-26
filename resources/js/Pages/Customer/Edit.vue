@@ -1,9 +1,9 @@
 <template>
-  <Head title="Site" />
+  <Head :title="$t('Site')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Editing Site
+        {{ $t('Editing Site') }}
       </h2>
     </template>
 
@@ -19,7 +19,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-start">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Site </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site') }} </span>
                   </div>
                 </div>
 
@@ -43,7 +43,7 @@
                           v-if="customer.person_id"
                         >
                         <div class="flex flex-col">
-                          From CMS
+                          {{ $t('From CMS') }}
                         </div>
                       </a>
                     </div>
@@ -51,7 +51,7 @@
 
                   <div class="sm:col-span-3" v-if="customer.id">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Site ID#
+                      {{ $t('Site ID#') }}
                     </label>
                     <div class="mt-1">
                       <input
@@ -72,11 +72,11 @@
                   <div class="sm:col-span-3">
                     <div class="flex items-end gap-2">
                       <div class="flex-1 min-w-0">
-                        <FormInput v-model="form.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                        <FormInput v-model="form.person_id" inputType="number" :placeholderStr="$t('CMS person id — links invoicing')">
                           <span class="inline-flex items-center gap-2">
-                            CMS Linking ID
+                            {{ $t('CMS Linking ID') }}
                             <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
-                              Open in CMS ↗
+                              {{ $t('Open in CMS ↗') }}
                             </a>
                           </span>
                         </FormInput>
@@ -95,7 +95,7 @@
                         @click.prevent="pullFromCms()"
                       >
                         <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': cmsPulling }"></ArrowPathIcon>
-                        <span>{{ cmsPulling ? 'Pulling…' : 'Pull from CMS' }}</span>
+                        <span>{{ cmsPulling ? $t('Pulling…') : $t('Pull from CMS') }}</span>
                       </Button>
                     </div>
                     <p
@@ -125,8 +125,8 @@
                   -->
                   <div class="sm:col-span-4 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="customer.id || (!customer.id && isExisting != 1)">
                     <div class="sm:col-span-5">
-                      <FormInput v-model="form.name" :error="form.errors.name" required="true" placeholderStr="Site Name">
-                        Site Name
+                      <FormInput v-model="form.name" :error="form.errors.name" required="true" :placeholderStr="$t('Site Name')">
+                        {{ $t('Site Name') }}
                       </FormInput>
                     </div>
                   </div>
@@ -135,7 +135,7 @@
                        read-only (display only) — status changes manage the date,
                        so it must not be hand-edited here. -->
                   <div class="sm:col-span-3" v-if="customer.id">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Created At </label>
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Created At') }} </label>
                     <div class="mt-1">
                       <input
                         type="text"
@@ -146,7 +146,7 @@
                     </div>
                   </div>
                   <div class="sm:col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Begin Date </label>
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Begin Date') }} </label>
                     <div class="mt-1">
                       <input
                         type="text"
@@ -164,17 +164,17 @@
 
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start items-center text-sm font-medium text-gray-700">
-                      Status (Site)
+                      {{ $t('Status (Site)') }}
                       <!-- Status History — opens a popup listing every status
                            change with its date, who set it, and when. -->
                       <button
                         type="button"
                         class="ml-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
-                        v-tooltip="'View status change history'"
+                        v-tooltip="$t('View status change history')"
                         @click="openStatusHistory"
                       >
                         <ClockIcon class="h-4 w-4" aria-hidden="true" />
-                        <span>Status History</span>
+                        <span>{{ $t('Status History') }}</span>
                       </button>
                     </label>
                     <MultiSelect
@@ -183,7 +183,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -193,29 +193,29 @@
                     <!-- Active / Removed dates captured via the status prompt;
                          shown here for reference. -->
                     <p class="mt-1 text-xs text-gray-500" v-if="form.active_date">
-                      Active Date: {{ fmtDate(form.active_date) }}
-                      <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_ACTIVE)">edit</button>
+                      {{ $t('Active Date: :date', { date: fmtDate(form.active_date) }) }}
+                      <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_ACTIVE)">{{ $t('edit') }}</button>
                     </p>
                     <p class="mt-1 text-xs text-gray-500" v-if="form.removed_date">
-                      Removed Date: {{ fmtDate(form.removed_date) }}
-                      <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_REMOVED)">edit</button>
+                      {{ $t('Removed Date: :date', { date: fmtDate(form.removed_date) }) }}
+                      <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_REMOVED)">{{ $t('edit') }}</button>
                     </p>
                   </div>
                   <!-- Inactive Date — auto-captured when the status is set to
                        "Inactive". Read-only (not user-settable). -->
                   <div class="sm:col-span-3" v-if="form.termination_date">
-                    <label class="flex justify-start text-sm font-medium text-gray-700">Inactive Date</label>
+                    <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Inactive Date') }}</label>
                     <div class="mt-1 text-sm text-gray-700">
                       {{ fmtDate(form.termination_date) }}
                     </div>
                     <p class="mt-1 text-xs text-gray-400">
-                      Auto-set when the site status is changed to Inactive.
+                      {{ $t('Auto-set when the site status is changed to Inactive.') }}
                     </p>
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Reference Price Type
-                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
+                      {{ $t('Reference Price Type') }}
+                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Desired Price to be Set on Vending Machine')"></ExclamationCircleIcon>
                     </label>
                     <MultiSelect
                       v-model="form.selling_price_type"
@@ -223,7 +223,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                       @selected="onSellingPriceTypeSelected"
@@ -232,7 +232,7 @@
                       {{ form.errors['customer.selling_price_type'] }}
                     </div>
                     <p class="mt-1 text-xs text-gray-500" v-if="customer.vend && customer.vend.machine_type === 'smart_chiller'">
-                      Not used for CityBox chillers — their product mapping and prices come from the CityBox API.
+                      {{ $t('Not used for CityBox chillers — their product mapping and prices come from the CityBox API.') }}
                     </p>
                   </div>
 
@@ -240,7 +240,7 @@
                        Reference Price Type. Inline with it on desktop. -->
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Operator <span class="text-red-500">*</span>
+                      {{ $t('Operator') }} <span class="text-red-500">*</span>
                     </label>
                     <MultiSelect
                       v-model="form.operator_id"
@@ -248,7 +248,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="full_name"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -256,7 +256,7 @@
                       {{ form.errors.operator_id }}
                     </div>
                     <div class="text-blue-600 text-xs">
-                      ** Changing Operator will change Vending Machine's Operator as well
+                      {{ $t('** Changing Operator will change Vending Machine\'s Operator as well') }}
                     </div>
                   </div>
 
@@ -266,8 +266,8 @@
                        Grouping. "--- Clear ---" ungroups the site. -->
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Site Grouping
-                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Assign this site to a co-located cluster. Pick an existing group or choose --- Clear --- to ungroup. Manage groups under Operations ▸ Site Grouping.'"></ExclamationCircleIcon>
+                      {{ $t('Site Grouping') }}
+                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Assign this site to a co-located cluster. Pick an existing group or choose --- Clear --- to ungroup. Manage groups under Operations ▸ Site Grouping.')"></ExclamationCircleIcon>
                     </label>
                     <MultiSelect
                       v-model="form.customer_group_name"
@@ -275,12 +275,12 @@
                       trackBy="value"
                       valueProp="value"
                       label="label"
-                      placeholder="Select a group"
+                      :placeholder="$t('Select a group')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
                     <p class="mt-1 text-xs text-gray-400">
-                      Manage groups under Operations ▸ Site Grouping.
+                      {{ $t('Manage groups under Operations ▸ Site Grouping.') }}
                     </p>
                     <div class="text-sm text-red-600" v-if="form.errors['customer.customer_group_name']">
                       {{ form.errors['customer.customer_group_name'] }}
@@ -295,14 +295,14 @@
                           <div class="w-full border-t border-gray-300"></div>
                         </div>
                         <div class="relative flex justify-start">
-                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Site Address (Machine Placement Exact Location) </span>
+                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site Address (Machine Placement Exact Location)') }} </span>
                         </div>
                       </div>
                     </div>
                     <div class="sm:col-span-6">
-                      <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']" placeholderStr="Google Map URL">
+                      <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']" :placeholderStr="$t('Google Map URL')">
                         <div class="flex space-x-1">
-                          <span> Google Map URL </span>
+                          <span> {{ $t('Google Map URL') }} </span>
                           <span v-if="form.address.map_url">
                             <a class="text-blue-700" target="_blank" rel="noopener noreferrer" :href="'//' + form.address.map_url">
                               <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
@@ -312,47 +312,47 @@
                       </FormInput>
                     </div>
                     <div class="sm:col-span-6">
-                      <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider"> Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span> </SearchAddressInput>
+                      <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider"> {{ $t('Postcode') }} <span class="text-gray-400 font-normal">{{ $t('(key in to autofill)') }}</span> </SearchAddressInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']" placeholderStr="Unit Num"> Unit Num </FormInput>
+                      <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']" :placeholderStr="$t('Unit Num')"> {{ $t('Unit Num') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" placeholderStr="Block Num"> Block Num </FormInput>
+                      <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" :placeholderStr="$t('Block Num')"> {{ $t('Block Num') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields" placeholderStr="Building Name"> Building Name </FormInput>
+                      <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields" :placeholderStr="$t('Building Name')"> {{ $t('Building Name') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields" placeholderStr="Street Name"> Street Name </FormInput>
+                      <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields" :placeholderStr="$t('Street Name')"> {{ $t('Street Name') }} </FormInput>
                     </div>
                     <!-- Country field removed from UI — single-country localized
                          deployment. form.address.country_id is defaulted from the
                          operator's country (operatorCountry) in onMounted. -->
                     <div class="sm:col-span-3 hidden">
-                      <FormInput v-model="form.address.latitude" placeholderStr="Latitude"> Latitude </FormInput>
+                      <FormInput v-model="form.address.latitude" :placeholderStr="$t('Latitude')"> {{ $t('Latitude') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3 hidden">
-                      <FormInput v-model="form.address.longitude" placeholderStr="Longitude"> Longitude </FormInput>
+                      <FormInput v-model="form.address.longitude" :placeholderStr="$t('Longitude')"> {{ $t('Longitude') }} </FormInput>
                     </div>
 
                     <!-- Site-level contact (distinct from the Billing Contact below).
                          Stored directly on the customers table. Phone is plain text —
                          no country code (single-country localized deployment). -->
                     <div class="sm:col-span-6">
-                      <FormInput v-model="form.site_contact_person" :error="form.errors['customer.site_contact_person']" placeholderStr="Site Contact Person"> Site Contact Person </FormInput>
+                      <FormInput v-model="form.site_contact_person" :error="form.errors['customer.site_contact_person']" :placeholderStr="$t('Site Contact Person')"> {{ $t('Site Contact Person') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.site_phone_number" :error="form.errors['customer.site_phone_number']" placeholderStr="Site Phone Number"> Site Phone Number </FormInput>
+                      <FormInput v-model="form.site_phone_number" :error="form.errors['customer.site_phone_number']" :placeholderStr="$t('Site Phone Number')"> {{ $t('Site Phone Number') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.site_alt_phone_number" :error="form.errors['customer.site_alt_phone_number']" placeholderStr="Alt Site Phone Number"> Alt Site Phone Number </FormInput>
+                      <FormInput v-model="form.site_alt_phone_number" :error="form.errors['customer.site_alt_phone_number']" :placeholderStr="$t('Alt Site Phone Number')"> {{ $t('Alt Site Phone Number') }} </FormInput>
                     </div>
 
                     <!-- Remarks for the delivery address — free text, stored on the
                          customers table (address_remarks). -->
                     <div class="sm:col-span-6">
-                      <FormTextarea v-model="form.address_remarks" :error="form.errors['customer.address_remarks']" placeholderStr="e.g. Loading bay at rear, ask security for access" rows="2"> Remarks for Address </FormTextarea>
+                      <FormTextarea v-model="form.address_remarks" :error="form.errors['customer.address_remarks']" :placeholderStr="$t('e.g. Loading bay at rear, ask security for access')" rows="2"> {{ $t('Remarks for Address') }} </FormTextarea>
                     </div>
                   </div>
 
@@ -360,11 +360,11 @@
                   <div class="sm:col-span-6 bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3 mb-3 shadow-sm" v-if="customer.id || (!customer.id && isExisting != 1)">
                     <!-- Billing Contact -->
                     <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-blue-200">
-                      Billing Contact
+                      {{ $t('Billing Contact') }}
                     </h3>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-6">
-                      <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company"> Bill From (Company Full Name or Personal Name) </FormInput>
+                      <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" :placeholderStr="$t('Company')"> {{ $t('Bill From (Company Full Name or Personal Name)') }} </FormInput>
                     </div>
                     <div class="sm:col-span-6">
                       <label class="flex items-center gap-2 cursor-pointer select-none">
@@ -373,24 +373,24 @@
                           v-model="form.is_gst_registered"
                           class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                         />
-                        <span class="text-sm font-medium text-gray-700"> Is GST Registered? </span>
+                        <span class="text-sm font-medium text-gray-700"> {{ $t('Is GST Registered?') }} </span>
                       </label>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" placeholderStr="Contact Person"> Billing Contact Person </FormInput>
+                      <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" :placeholderStr="$t('Contact Person')"> {{ $t('Billing Contact Person') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" placeholderStr="One email per line (or comma-separated)" rows="2"> Email </FormTextarea>
+                      <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" :placeholderStr="$t('One email per line (or comma-separated)')" rows="2"> {{ $t('Email') }} </FormTextarea>
                     </div>
                     <!-- Phone Code removed from UI — single-country localized
                          deployment. form.contact.phone_country_id is defaulted
                          from the operator's country (operatorCountry) in onMounted. -->
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" placeholderStr="Phone Number"> Phone Number </FormInput>
+                      <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" :placeholderStr="$t('Phone Number')"> {{ $t('Phone Number') }} </FormInput>
                     </div>
                     <!-- Alt Phone Code removed from UI — defaulted from operator country. -->
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" placeholderStr="Alt Phone Number"> Alt Phone Number </FormInput>
+                      <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" :placeholderStr="$t('Alt Phone Number')"> {{ $t('Alt Phone Number') }} </FormInput>
                     </div>
 
                     <!-- Billing Address — "same as Delivery Address" toggle. When
@@ -406,25 +406,25 @@
                         class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                       />
                       <label for="billing_same_as_delivery" class="text-sm font-medium text-gray-700 cursor-pointer">
-                        Billing Address same as Site Address
+                        {{ $t('Billing Address same as Site Address') }}
                       </label>
                     </div>
 
                     <template v-if="!form.is_billing_same_as_delivery">
                       <div class="sm:col-span-6">
-                        <SearchAddressInput v-model="form.billing_address.postcode" @selected="onBillingAddressSelected" :error="form.errors['customer.billing_address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider"> Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span> </SearchAddressInput>
+                        <SearchAddressInput v-model="form.billing_address.postcode" @selected="onBillingAddressSelected" :error="form.errors['customer.billing_address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider"> {{ $t('Postcode') }} <span class="text-gray-400 font-normal">{{ $t('(key in to autofill)') }}</span> </SearchAddressInput>
                       </div>
                       <div class="sm:col-span-3">
-                        <FormInput v-model="form.billing_address.unit_num" :error="form.errors['customer.billing_address.unit_num']" placeholderStr="Unit Num"> Unit Num </FormInput>
+                        <FormInput v-model="form.billing_address.unit_num" :error="form.errors['customer.billing_address.unit_num']" :placeholderStr="$t('Unit Num')"> {{ $t('Unit Num') }} </FormInput>
                       </div>
                       <div class="sm:col-span-3">
-                        <FormInput v-model="form.billing_address.block_num" :error="form.errors['customer.billing_address.block_num']" placeholderStr="Block Num"> Block Num </FormInput>
+                        <FormInput v-model="form.billing_address.block_num" :error="form.errors['customer.billing_address.block_num']" :placeholderStr="$t('Block Num')"> {{ $t('Block Num') }} </FormInput>
                       </div>
                       <div class="sm:col-span-3">
-                        <FormInput v-model="form.billing_address.building" :error="form.errors['customer.billing_address.building']" :disabled="lockAddressFields" placeholderStr="Building Name"> Building Name </FormInput>
+                        <FormInput v-model="form.billing_address.building" :error="form.errors['customer.billing_address.building']" :disabled="lockAddressFields" :placeholderStr="$t('Building Name')"> {{ $t('Building Name') }} </FormInput>
                       </div>
                       <div class="sm:col-span-3">
-                        <FormInput v-model="form.billing_address.street_name" :error="form.errors['customer.billing_address.street_name']" :disabled="lockAddressFields" placeholderStr="Street Name"> Street Name </FormInput>
+                        <FormInput v-model="form.billing_address.street_name" :error="form.errors['customer.billing_address.street_name']" :disabled="lockAddressFields" :placeholderStr="$t('Street Name')"> {{ $t('Street Name') }} </FormInput>
                       </div>
                       <!-- Country field removed from UI — defaulted from operator country. -->
                     </template>
@@ -432,18 +432,18 @@
 
                     <!-- Bank Details -->
                     <h3 class="text-lg font-semibold text-gray-900 mt-5 mb-3 pb-2 border-b border-blue-200">
-                      Bank Details
+                      {{ $t('Bank Details') }}
                     </h3>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-6">
-                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Bank Name </label>
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Bank Name') }} </label>
                       <MultiSelect
                         v-model="form.bank_id"
                         :options="bankOptions"
                         trackBy="id"
                         valueProp="id"
                         label="name"
-                        placeholder="Select"
+                        :placeholder="$t('Select')"
                         open-direction="top"
                         class="mt-1"
                       ></MultiSelect>
@@ -452,10 +452,10 @@
                       </div>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.bank_account_name" :error="form.errors['customer.bank_account_name']" placeholderStr="Account Holder Name"> Account Holder Name </FormInput>
+                      <FormInput v-model="form.bank_account_name" :error="form.errors['customer.bank_account_name']" :placeholderStr="$t('Account Holder Name')"> {{ $t('Account Holder Name') }} </FormInput>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.bank_account_number" :error="form.errors['customer.bank_account_number']" placeholderStr="Account Number"> Account Number </FormInput>
+                      <FormInput v-model="form.bank_account_number" :error="form.errors['customer.bank_account_number']" :placeholderStr="$t('Account Number')"> {{ $t('Account Number') }} </FormInput>
                     </div>
                     </div>
                   </div>
@@ -464,7 +464,7 @@
                   <div class="sm:col-span-6 bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3 mb-3 shadow-sm">
                     <div class="flex items-center justify-between mb-3 pb-2 border-b border-blue-200">
                       <h3 class="text-lg font-semibold text-gray-900">
-                        Placement Contract Detail
+                        {{ $t('Placement Contract Detail') }}
                       </h3>
                       <button
                         type="button"
@@ -473,22 +473,22 @@
                         :class="['text-xs px-3 py-1.5 rounded-md text-white hover:opacity-90 flex items-center gap-1 whitespace-nowrap', scheduledRow ? 'bg-amber-500' : 'bg-indigo-600']"
                       >
                         <CheckCircleIcon class="w-4 h-4" />
-                        {{ scheduledRow ? 'View Upcoming Term' : 'Set Upcoming Term' }}
+                        {{ scheduledRow ? $t('View Upcoming Term') : $t('Set Upcoming Term') }}
                       </button>
                     </div>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                   <!-- Audit info -->
                   <div class="sm:col-span-6 mb-2" v-if="customer.contract_detail_updated_at">
                     <span class="text-xs text-gray-600 italic">
-                      Last Updated by: {{ customer.contract_detail_updated_by?.name ?? '—' }}, {{ formatDatetime(customer.contract_detail_updated_at) }}
+                      {{ $t('Last Updated by: :name, :time', { name: customer.contract_detail_updated_by?.name ?? '—', time: formatDatetime(customer.contract_detail_updated_at) }) }}
                     </span>
                   </div>
 
                   <!-- Commission Type (single-select radio styled as checkboxes) -->
                   <div class="sm:col-span-6">
                     <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
-                      Location Fees
-                      <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
+                      {{ $t('Location Fees') }}
+                      <span class="ml-1 text-red-500 text-xs font-normal">{{ $t('(choose 1 only)') }}</span>
                     </label>
                     <div class="flex flex-wrap gap-x-6 gap-y-2">
                       <label
@@ -512,7 +512,7 @@
                         @click="clearCommissionType"
                         class="text-xs text-red-500 hover:text-red-700 underline self-center"
                       >
-                        Clear
+                        {{ $t('Clear') }}
                       </button>
                     </div>
                     <div class="text-sm text-red-600 mt-1" v-if="form.errors.contract_commission_type">
@@ -525,7 +525,7 @@
                     <div class="sm:col-span-3">
                       <label class="flex justify-start text-sm font-medium text-gray-700">
                         {{ commissionValueLabel }}
-                        <span class="ml-1 text-gray-400 text-xs font-normal">({{ isPsCommission ? '%' : 'Amount' }})</span>
+                        <span class="ml-1 text-gray-400 text-xs font-normal">({{ isPsCommission ? '%' : $t('Amount') }})</span>
                         <span class="ml-1 text-red-500">*</span>
                       </label>
                       <div class="mt-1 relative rounded-md shadow-sm">
@@ -559,8 +559,8 @@
                     <!-- Second value: Utility Amount (only for PS+U and PSORU) -->
                     <div class="sm:col-span-3" v-if="hasTwoValues">
                       <label class="flex justify-start text-sm font-medium text-gray-700">
-                        Utility Amount
-                        <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                        {{ $t('Utility Amount') }}
+                        <span class="ml-1 text-gray-400 text-xs font-normal">{{ $t('(Amount)') }}</span>
                         <span class="ml-1 text-red-500">*</span>
                       </label>
                       <div class="mt-1 relative rounded-md shadow-sm">
@@ -585,7 +585,7 @@
                   <!-- PS Term % (only for PS / PS+U / PSORU) -->
                   <div class="sm:col-span-3" v-if="showPsTerm">
                     <label class="flex justify-start text-sm font-medium text-gray-700">
-                      PS Term
+                      {{ $t('PS Term') }}
                       <span class="ml-1 text-gray-400 text-xs font-normal">(%)</span>
                       <span class="ml-1 text-red-500">*</span>
                     </label>
@@ -613,7 +613,7 @@
                        and the value is cleared to null on save (server-enforced too). -->
                   <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                     <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
-                      <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">External Subsidize</label>
+                      <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">{{ $t('External Subsidize') }}</label>
                       <div class="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -623,14 +623,14 @@
                           class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         />
                         <label for="is_external_subsidize" class="text-sm text-gray-600 cursor-pointer">
-                          {{ form.is_external_subsidize ? 'Enabled' : 'Disabled' }}
+                          {{ form.is_external_subsidize ? $t('Enabled') : $t('Disabled') }}
                         </label>
                       </div>
                     </div>
                     <div class="col-span-6 sm:col-span-3">
                       <label class="flex justify-start text-sm font-medium text-gray-700">
-                        External Subsidize Amount
-                        <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                        {{ $t('External Subsidize Amount') }}
+                        <span class="ml-1 text-gray-400 text-xs font-normal">{{ $t('(Amount)') }}</span>
                       </label>
                       <div class="mt-1 relative rounded-md shadow-sm">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -657,12 +657,12 @@
                   <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                     <div class="col-span-6 sm:col-span-3">
                       <DatePicker v-model="form.contract_from" :error="form.errors['customer.contract_from']">
-                        Contract From
+                        {{ $t('Contract From') }}
                       </DatePicker>
                     </div>
                     <div class="col-span-6 sm:col-span-3">
                       <DatePicker v-model="form.contract_until" :error="form.errors['customer.contract_until']">
-                        Contract Until
+                        {{ $t('Contract Until') }}
                       </DatePicker>
                     </div>
                   </div>
@@ -670,7 +670,7 @@
                   <!-- Auto Renewal + Notice Period — same row -->
                   <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                     <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
-                      <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
+                      <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">{{ $t('Auto Renewal') }}</label>
                       <div class="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -679,20 +679,20 @@
                           class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         />
                         <label for="contract_auto_renewal" class="text-sm text-gray-600 cursor-pointer">
-                          {{ form.contract_auto_renewal ? 'Yes' : 'No' }}
+                          {{ form.contract_auto_renewal ? $t('Yes') : $t('No') }}
                         </label>
                       </div>
                     </div>
                     <div class="col-span-6 sm:col-span-3">
                       <label class="flex justify-start text-sm font-medium text-gray-700">
-                        Notice Period
+                        {{ $t('Notice Period') }}
                       </label>
                       <div class="mt-1">
                         <select
                           v-model="form.contract_notice_period"
                           class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                         >
-                          <option :value="null">-- Select --</option>
+                          <option :value="null">{{ $t('-- Select --') }}</option>
                           <option
                             v-for="opt in (noticePeriodOptions || [])"
                             :key="opt"
@@ -711,7 +711,7 @@
                   <!-- Attach Contract -->
                   <div class="sm:col-span-6 mt-2">
                     <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
-                      Attach Contract
+                      {{ $t('Attach Contract') }}
                     </label>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2" v-if="customer.id">
                       <input
@@ -729,11 +729,11 @@
                         @click.prevent="uploadContractFiles"
                       >
                         <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                        <span>{{ isUploadingContract ? 'Uploading...' : 'Upload' }}</span>
+                        <span>{{ isUploadingContract ? $t('Uploading...') : $t('Upload') }}</span>
                       </Button>
                     </div>
                     <div class="text-xs text-gray-500 italic mt-1" v-if="!customer.id">
-                      Save the customer first to attach contract file(s).
+                      {{ $t('Save the customer first to attach contract file(s).') }}
                     </div>
 
                     <!-- Slim list of attached contracts -->
@@ -751,7 +751,7 @@
                             class="text-sm text-blue-600 hover:text-blue-800 truncate"
                             :title="item.name"
                           >
-                            {{ item.name || ('Contract ' + (idx + 1)) }}
+                            {{ item.name || $t('Contract :number', { number: idx + 1 }) }}
                           </a>
                           <span class="text-xs text-gray-400 hidden sm:inline whitespace-nowrap">
                             {{ formatDatetime(item.created_at) }}
@@ -762,7 +762,7 @@
                             :href="item.full_url"
                             target="_blank"
                             class="rounded-full bg-gray-100 hover:bg-gray-200 p-1.5 text-gray-700"
-                            title="Download / View"
+                            :title="$t('Download / View')"
                           >
                             <ArrowDownTrayIcon class="h-4 w-4"></ArrowDownTrayIcon>
                           </a>
@@ -770,14 +770,14 @@
                             type="button"
                             class="rounded-full bg-red-100 hover:bg-red-200 p-1.5 text-red-700"
                             @click.prevent="deleteContract(item.id)"
-                            title="Delete"
+                            :title="$t('Delete')"
                           >
                             <TrashIcon class="h-4 w-4"></TrashIcon>
                           </button>
                         </div>
                       </li>
                       <li v-if="!contracts || !contracts.length" class="px-3 py-2 text-xs text-gray-500 italic">
-                        No contracts attached
+                        {{ $t('No contracts attached') }}
                       </li>
                     </ul>
                   </div>
@@ -785,7 +785,7 @@
                   <!-- Remarks for Contract -->
                   <div class="sm:col-span-6">
                     <label for="contract_remarks" class="flex justify-start text-sm font-medium text-gray-700">
-                      Remarks for Contract
+                      {{ $t('Remarks for Contract') }}
                     </label>
                     <div class="mt-1">
                       <textarea
@@ -794,7 +794,7 @@
                         rows="3"
                         maxlength="5000"
                         class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-                        placeholder="e.g. Special clauses, agreed adjustments, etc."
+                        :placeholder="$t('e.g. Special clauses, agreed adjustments, etc.')"
                       ></textarea>
                     </div>
                     <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_remarks']">
@@ -815,14 +815,14 @@
                       <div class="flex items-start justify-between gap-3">
                         <div class="text-sm text-amber-900">
                           <div class="font-medium">
-                            A contract change is scheduled for
+                            {{ $t('A contract change is scheduled for') }}
                             <span class="font-semibold">{{ formatDate(scheduledRow.effective_date) }}</span>.
                           </div>
                           <div class="text-xs text-amber-800 mt-1">
                             {{ scheduleSummary(scheduledRow) }}
                           </div>
                           <div class="text-xs text-amber-700 italic mt-1" v-if="scheduledRow.created_by">
-                            Set by: {{ scheduledRow.created_by.name }}
+                            {{ $t('Set by: :name', { name: scheduledRow.created_by.name }) }}
                           </div>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
@@ -831,14 +831,14 @@
                             @click.prevent="openScheduleForm(true)"
                             class="text-xs px-2.5 py-1 rounded-md bg-white border border-amber-300 text-amber-800 hover:bg-amber-100"
                           >
-                            Edit
+                            {{ $t('Edit') }}
                           </button>
                           <button
                             type="button"
                             @click.prevent="cancelScheduledContract(customer.id)"
                             class="text-xs px-2.5 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200"
                           >
-                            Cancel
+                            {{ $t('Cancel') }}
                           </button>
                         </div>
                       </div>
@@ -853,12 +853,11 @@
                   <Teleport to="body">
                     <Modal :open="sf.open" @modalClose="closeScheduleForm">
                       <template #header>
-                        <span>{{ scheduledRow ? 'Edit Upcoming Term' : 'Set Upcoming Term' }}</span>
+                        <span>{{ scheduledRow ? $t('Edit Upcoming Term') : $t('Set Upcoming Term') }}</span>
                       </template>
                       <div class="text-left">
                         <p class="text-xs text-gray-500 mb-3">
-                          These details stay pending and can be overwritten any time until the effective date.
-                          On that day they automatically replace the current contract, and this scheduled entry is cleared.
+                          {{ $t('These details stay pending and can be overwritten any time until the effective date. On that day they automatically replace the current contract, and this scheduled entry is cleared.') }}
                         </p>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                         <!-- Effective date -->
@@ -869,16 +868,16 @@
                             :minDate="minScheduleDate"
                             :isPreviousNextButton="false"
                           >
-                            Effective Date <span class="text-red-500">*</span>
+                            {{ $t('Effective Date') }} <span class="text-red-500">*</span>
                           </DatePicker>
-                          <p class="text-xs text-gray-500 mt-1">Must be a future date. The change applies automatically on this day.</p>
+                          <p class="text-xs text-gray-500 mt-1">{{ $t('Must be a future date. The change applies automatically on this day.') }}</p>
                           <p class="text-xs text-red-600 mt-1" v-if="sfErrors.effective_date">{{ sfErrors.effective_date }}</p>
                         </div>
 
                         <!-- Location Fees / commission type -->
                         <div class="sm:col-span-6">
                           <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
-                            Location Fees <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
+                            {{ $t('Location Fees') }} <span class="ml-1 text-red-500 text-xs font-normal">{{ $t('(choose 1 only)') }}</span>
                           </label>
                           <div class="flex flex-wrap gap-x-6 gap-y-2">
                             <label
@@ -902,7 +901,7 @@
                               @click="clearSfCommissionType"
                               class="text-xs text-red-500 hover:text-red-700 underline self-center"
                             >
-                              Clear
+                              {{ $t('Clear') }}
                             </button>
                           </div>
                         </div>
@@ -912,7 +911,7 @@
                           <div class="sm:col-span-3">
                             <label class="flex justify-start text-sm font-medium text-gray-700">
                               {{ sfCommissionValueLabel }}
-                              <span class="ml-1 text-gray-400 text-xs font-normal">({{ sfIsPs ? '%' : 'Amount' }})</span>
+                              <span class="ml-1 text-gray-400 text-xs font-normal">({{ sfIsPs ? '%' : $t('Amount') }})</span>
                             </label>
                             <div class="mt-1 relative rounded-md shadow-sm">
                               <div v-if="!sfIsPs" class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -931,7 +930,7 @@
                           </div>
                           <div class="sm:col-span-3" v-if="sfHasTwoValues">
                             <label class="flex justify-start text-sm font-medium text-gray-700">
-                              Utility Amount <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                              {{ $t('Utility Amount') }} <span class="ml-1 text-gray-400 text-xs font-normal">{{ $t('(Amount)') }}</span>
                             </label>
                             <div class="mt-1 relative rounded-md shadow-sm">
                               <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -950,7 +949,7 @@
                         <!-- PS Term -->
                         <div class="sm:col-span-3" v-if="sfShowPsTerm">
                           <label class="flex justify-start text-sm font-medium text-gray-700">
-                            PS Term <span class="ml-1 text-gray-400 text-xs font-normal">(%)</span>
+                            {{ $t('PS Term') }} <span class="ml-1 text-gray-400 text-xs font-normal">(%)</span>
                           </label>
                           <div class="mt-1 relative rounded-md shadow-sm">
                             <input
@@ -968,7 +967,7 @@
                         <!-- External Subsidize -->
                         <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                           <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
-                            <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">External Subsidize</label>
+                            <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">{{ $t('External Subsidize') }}</label>
                             <div class="flex items-center gap-2">
                               <input
                                 type="checkbox"
@@ -976,12 +975,12 @@
                                 @change="onSfExternalSubsidizeToggle"
                                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                               />
-                              <span class="text-sm text-gray-600">{{ sf.is_external_subsidize ? 'Enabled' : 'Disabled' }}</span>
+                              <span class="text-sm text-gray-600">{{ sf.is_external_subsidize ? $t('Enabled') : $t('Disabled') }}</span>
                             </div>
                           </div>
                           <div class="col-span-6 sm:col-span-3">
                             <label class="flex justify-start text-sm font-medium text-gray-700">
-                              External Subsidize Amount <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                              {{ $t('External Subsidize Amount') }} <span class="ml-1 text-gray-400 text-xs font-normal">{{ $t('(Amount)') }}</span>
                             </label>
                             <div class="mt-1 relative rounded-md shadow-sm">
                               <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1002,34 +1001,34 @@
                         <!-- Contract From / Until -->
                         <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                           <div class="col-span-6 sm:col-span-3">
-                            <DatePicker v-model="sf.contract_from">Contract From</DatePicker>
+                            <DatePicker v-model="sf.contract_from">{{ $t('Contract From') }}</DatePicker>
                           </div>
                           <div class="col-span-6 sm:col-span-3">
-                            <DatePicker v-model="sf.contract_until">Contract Until</DatePicker>
+                            <DatePicker v-model="sf.contract_until">{{ $t('Contract Until') }}</DatePicker>
                           </div>
                         </div>
 
                         <!-- Auto Renewal / Notice Period -->
                         <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                           <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
-                            <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
+                            <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">{{ $t('Auto Renewal') }}</label>
                             <div class="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 v-model="sf.contract_auto_renewal"
                                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                               />
-                              <span class="text-sm text-gray-600">{{ sf.contract_auto_renewal ? 'Yes' : 'No' }}</span>
+                              <span class="text-sm text-gray-600">{{ sf.contract_auto_renewal ? $t('Yes') : $t('No') }}</span>
                             </div>
                           </div>
                           <div class="col-span-6 sm:col-span-3">
-                            <label class="flex justify-start text-sm font-medium text-gray-700">Notice Period</label>
+                            <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Notice Period') }}</label>
                             <div class="mt-1">
                               <select
                                 v-model="sf.contract_notice_period"
                                 class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
                               >
-                                <option :value="null">-- Select --</option>
+                                <option :value="null">{{ $t('-- Select --') }}</option>
                                 <option v-for="opt in (noticePeriodOptions || [])" :key="'sf-np-' + opt" :value="opt">{{ opt }}</option>
                               </select>
                             </div>
@@ -1038,13 +1037,13 @@
 
                         <!-- Remarks -->
                         <div class="sm:col-span-6">
-                          <label class="flex justify-start text-sm font-medium text-gray-700">Remarks for Contract</label>
+                          <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Remarks for Contract') }}</label>
                           <div class="mt-1">
                             <textarea
                               v-model="sf.contract_remarks"
                               rows="2" maxlength="5000"
                               class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-                              placeholder="e.g. Special clauses, agreed adjustments, etc."
+                              :placeholder="$t('e.g. Special clauses, agreed adjustments, etc.')"
                             ></textarea>
                           </div>
                         </div>
@@ -1057,7 +1056,7 @@
                             @click.prevent="cancelScheduledContract(customer.id)"
                             class="text-sm px-3 py-1.5 rounded-md bg-red-100 text-red-700 hover:bg-red-200"
                           >
-                            Cancel scheduled change
+                            {{ $t('Cancel scheduled change') }}
                           </button>
                           <span v-else></span>
                           <div class="flex items-center gap-2">
@@ -1066,7 +1065,7 @@
                               @click.prevent="closeScheduleForm"
                               class="text-sm px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
                             >
-                              Close
+                              {{ $t('Close') }}
                             </button>
                             <button
                               type="button"
@@ -1075,7 +1074,7 @@
                               :class="['text-sm px-3 py-1.5 rounded-md text-white flex items-center gap-1', isSavingSchedule ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700']"
                             >
                               <CheckCircleIcon class="w-4 h-4" />
-                              {{ isSavingSchedule ? 'Saving...' : 'Confirm & Schedule' }}
+                              {{ isSavingSchedule ? $t('Saving...') : $t('Confirm & Schedule') }}
                             </button>
                           </div>
                         </div>
@@ -1091,15 +1090,15 @@
                   <Teleport to="body">
                     <Modal :open="statusDateModal.open" @modalClose="cancelStatusDate">
                       <template #header>
-                        <span>{{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }}</span>
+                        <span>{{ statusDateModal.status === STATUS_REMOVED ? $t('Removed Date') : $t('Active Date') }}</span>
                       </template>
                       <div class="text-left">
                         <p class="text-xs text-gray-500 mb-3">
                           <template v-if="statusDateModal.status === STATUS_REMOVED">
-                            Enter the date this site is removed. Commission stops after this date (the removal month is prorated).
+                            {{ $t('Enter the date this site is removed. Commission stops after this date (the removal month is prorated).') }}
                           </template>
                           <template v-else>
-                            Enter the date this site becomes active. Commission is calculated from this date.
+                            {{ $t('Enter the date this site becomes active. Commission is calculated from this date.') }}
                           </template>
                         </p>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
@@ -1108,7 +1107,7 @@
                               v-model="statusDateModal.date"
                               :isPreviousNextButton="false"
                             >
-                              {{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }} <span class="text-red-500">*</span>
+                              {{ statusDateModal.status === STATUS_REMOVED ? $t('Removed Date') : $t('Active Date') }} <span class="text-red-500">*</span>
                             </DatePicker>
                             <p class="text-xs text-red-600 mt-1" v-if="statusDateModal.error">{{ statusDateModal.error }}</p>
                           </div>
@@ -1119,14 +1118,14 @@
                             class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                             @click="cancelStatusDate"
                           >
-                            Cancel
+                            {{ $t('Cancel') }}
                           </button>
                           <button
                             type="button"
                             class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                             @click="confirmStatusDate"
                           >
-                            Confirm
+                            {{ $t('Confirm') }}
                           </button>
                         </div>
                       </div>
@@ -1138,19 +1137,19 @@
                   <Teleport to="body">
                     <Modal :open="showStatusHistory" @modalClose="closeStatusHistory">
                       <template #header>
-                        <span>Status History</span>
+                        <span>{{ $t('Status History') }}</span>
                       </template>
                       <div class="text-left">
                         <div v-if="!props.statusHistory || props.statusHistory.length === 0" class="text-sm text-gray-500 py-4 text-center">
-                          No status changes recorded yet.
+                          {{ $t('No status changes recorded yet.') }}
                         </div>
                         <table v-else class="min-w-full text-sm">
                           <thead>
                             <tr class="text-left text-xs font-medium text-gray-500 border-b">
-                              <th class="py-2 pr-4">Status</th>
-                              <th class="py-2 pr-4">Date</th>
-                              <th class="py-2 pr-4">Changed By</th>
-                              <th class="py-2">When</th>
+                              <th class="py-2 pr-4">{{ $t('Status') }}</th>
+                              <th class="py-2 pr-4">{{ $t('Date') }}</th>
+                              <th class="py-2 pr-4">{{ $t('Changed By') }}</th>
+                              <th class="py-2">{{ $t('When') }}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1176,10 +1175,10 @@
                   -->
                   <div class="sm:col-span-6">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Site Tags
+                      {{ $t('Site Tags') }}
                       <ExclamationCircleIcon
                         class="w-5 h-5 self-center pl-1"
-                        v-tooltip="'Manage tag list under Site Management → Tags'"
+                        v-tooltip="$t('Manage tag list under Site Management → Tags')"
                       ></ExclamationCircleIcon>
                     </label>
                     <MultiSelect
@@ -1188,7 +1187,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="name"
-                      placeholder="Select tags"
+                      :placeholder="$t('Select tags')"
                       open-direction="bottom"
                       class="mt-1"
                       mode="tags"
@@ -1202,16 +1201,16 @@
                       v-model="form.report_email"
                       :error="form.errors['customer.report_email']"
                       type="email"
-                      placeholder="customer@example.com" placeholderStr="Performance Report Email">
-                      Performance Report Email
+                      placeholder="customer@example.com" :placeholderStr="$t('Performance Report Email')">
+                      {{ $t('Performance Report Email') }}
                     </FormInput>
                   </div>
                   <div class="sm:col-span-3">
                     <label class="flex justify-start text-sm font-medium text-gray-700">
-                      Enable Send Performance to Email?
+                      {{ $t('Enable Send Performance to Email?') }}
                       <ExclamationCircleIcon
                         class="w-5 h-5 self-center pl-1"
-                        v-tooltip="'Toggle on to surface the Email action button on Site Summary. Disabled until a valid email is entered.'"
+                        v-tooltip="$t('Toggle on to surface the Email action button on Site Summary. Disabled until a valid email is entered.')"
                       ></ExclamationCircleIcon>
                     </label>
                     <MultiSelect
@@ -1221,7 +1220,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -1229,7 +1228,7 @@
                       v-if="!isReportEmailValid"
                       class="text-xs text-gray-500 mt-1"
                     >
-                      Enter a valid email above to enable.
+                      {{ $t('Enter a valid email above to enable.') }}
                     </div>
                     <div class="text-sm text-red-600" v-if="form.errors['customer.is_report_email_enabled']">
                       {{ form.errors['customer.is_report_email_enabled'] }}
@@ -1244,7 +1243,7 @@
                        (Customer::LOCATION_GRADING_CATEGORIES). Edit-page only. -->
                   <div class="sm:col-span-6 bg-amber-50 border border-amber-200 rounded-lg p-4 mt-3 mb-3 shadow-sm">
                     <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-amber-200">
-                      Location Grading
+                      {{ $t('Location Grading') }}
                     </h3>
                     <div class="grid grid-cols-1 gap-4">
                       <div
@@ -1253,7 +1252,7 @@
                       >
                         <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
                           {{ category.label }}
-                          <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
+                          <span class="ml-1 text-red-500 text-xs font-normal">{{ $t('(choose 1 only)') }}</span>
                         </label>
                         <div class="flex flex-col gap-2">
                           <label
@@ -1278,7 +1277,7 @@
                             @click="form[`location_grading_${key}`] = null"
                             class="text-xs text-red-500 hover:text-red-700 underline self-start"
                           >
-                            Clear
+                            {{ $t('Clear') }}
                           </button>
                         </div>
                         <div class="text-sm text-red-600 mt-1" v-if="form.errors[`customer.location_grading_${key}`]">
@@ -1290,11 +1289,11 @@
                   <!-- end Location Grading Section -->
 
                   <div class="sm:col-span-3">
-                    <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number" placeholderStr="Power Socket Key Num"> Power Socket Key Num </FormInput>
+                    <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number" :placeholderStr="$t('Power Socket Key Num')"> {{ $t('Power Socket Key Num') }} </FormInput>
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Location Type
+                      {{ $t('Location Type') }}
                     </label>
                     <MultiSelect
                       v-model="form.location_type_id"
@@ -1302,7 +1301,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -1312,7 +1311,7 @@
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Is Restricted Access Location?
+                      {{ $t('Is Restricted Access Location?') }}
                     </label>
                     <MultiSelect
                       v-model="form.is_restricted_access"
@@ -1320,7 +1319,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -1338,7 +1337,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-start">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Menu </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Menu') }} </span>
                     </div>
                   </div>
                 </div>
@@ -1358,12 +1357,12 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-start">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Binded Machine </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Binded Machine') }} </span>
                     </div>
                   </div>
                 </div>
                 <div class="sm:col-span-6" v-if="customer.vend">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Machine ID# </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Machine ID#') }} </label>
                   <div class="mt-1">
                     <a :href="'/settings/vend/' + customer.vend.id + '/update'" target="_blank">
                       <input
@@ -1378,7 +1377,7 @@
                 <!-- "Is Server Price?" — the same per-machine switch as Machine Settings (one column on the
                      machine), saved at once. Server Price = this Site's Reference Price Type. -->
                 <div class="sm:col-span-6" v-if="pricingMachineRows.length">
-                  <label class="flex justify-start text-sm font-medium text-gray-700"> Is Server Price? </label>
+                  <label class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Is Server Price?') }} </label>
                   <div v-for="m in pricingMachineRows" :key="m.id" class="mt-1 flex flex-wrap items-center gap-2">
                     <span v-if="pricingMachineRows.length > 1" class="text-sm font-medium text-gray-700 w-16">{{ m.code }}</span>
                     <select
@@ -1387,23 +1386,23 @@
                       @change="setMachinePricingSource(m, $event.target.value === 'true')"
                       class="rounded-md border-gray-300 text-sm py-1.5 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500 disabled:opacity-50"
                     >
-                      <option value="true">Server Price</option>
-                      <option value="false">Machine Price</option>
+                      <option value="true">{{ $t('Server Price') }}</option>
+                      <option value="false">{{ $t('Machine Price') }}</option>
                     </select>
                     <span class="text-xs text-gray-500">
-                      {{ m.machine_type === 'smart_freezer' ? 'A Smart Freezer always uses Server Price.' : 'Saves at once — the same setting as Machine Settings.' }}
+                      {{ m.machine_type === 'smart_freezer' ? $t('A Smart Freezer always uses Server Price.') : $t('Saves at once — the same setting as Machine Settings.') }}
                     </span>
                   </div>
                 </div>
                 <div class="sm:col-span-6" v-if="!customer.vend">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Machine ID# </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Machine ID#') }} </label>
                   <MultiSelect
                     v-model="form.vend_id"
                     :options="vendOptions"
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   ></MultiSelect>
@@ -1419,7 +1418,7 @@
                       @click.prevent="saveCustomer(form.id)"
                     >
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                      <span> Bind Machine </span>
+                      <span> {{ $t('Bind Machine') }} </span>
                     </Button>
                     <Button
                       type="button"
@@ -1428,7 +1427,7 @@
                       @click.prevent="unbindCustomer(customer.vend.id)"
                     >
                       <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                      <span> Unbind Machine </span>
+                      <span> {{ $t('Unbind Machine') }} </span>
                     </Button>
                     <Button
                       type="button"
@@ -1438,7 +1437,7 @@
                     >
                       <XCircleIcon class="w-4 h-4"></XCircleIcon>
                       <span>
-                        Unbind Machine & Deactivate Site
+                        {{ $t('Unbind Machine & Deactivate Site') }}
                       </span>
                     </Button>
                   </span>
@@ -1446,7 +1445,7 @@
 
                 <!-- Product Mapping Section -->
                 <div class="sm:col-span-6" v-if="customer.vend && customer.vend.product_mapping">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Product Mapping </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Product Mapping') }} </label>
                   <div class="mt-1">
                     <a :href="'/product-mappings/' + customer.vend.product_mapping.id + '/edit'" target="_blank">
                       <input
@@ -1468,15 +1467,15 @@
                           <thead class="bg-gray-50">
                             <tr>
                               <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> # </th>
-                              <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id"> Image </th>
-                              <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id"> Product </th>
+                              <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id"> {{ $t('Image') }} </th>
+                              <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id"> {{ $t('Product') }} </th>
                               <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                                 <div class="flex justify-center">
                                   <span> P1 </span>
                                   <span v-if="profile && profile.base_currency">
                                     ({{ profile.base_currency.currency_symbol }})
                                   </span>
-                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Actual Price on Vending Machine')"></ExclamationCircleIcon>
                                 </div>
                               </th>
                               <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -1485,10 +1484,10 @@
                                   <span v-if="profile && profile.base_currency">
                                     ({{ profile.base_currency.currency_symbol }})
                                   </span>
-                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
+                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Discounted Price on 2nd Purchase')"></ExclamationCircleIcon>
                                 </div>
                               </th>
-                              <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> Ref Price<template v-if="!(customer.vend && customer.vend.machine_type === 'smart_chiller')"> {{ form.selling_price_type ? form.selling_price_type.id : '' }}</template> </th>
+                              <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> {{ $t('Ref Price') }}<template v-if="!(customer.vend && customer.vend.machine_type === 'smart_chiller')"> {{ form.selling_price_type ? form.selling_price_type.id : '' }}</template> </th>
                             </tr>
                           </thead>
                           <tbody class="bg-white">
@@ -1519,7 +1518,7 @@
                               </td>
                             </tr>
                             <tr v-if="!vendChannels || !vendChannels.length">
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900" colspan="6"> No Results Found </td>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900" colspan="6"> {{ $t('No Results Found') }} </td>
                             </tr>
                           </tbody>
                         </table>
@@ -1536,13 +1535,13 @@
                         <div class="w-full border-t border-gray-300"></div>
                       </div>
                       <div class="relative flex justify-start">
-                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operations </span>
+                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Operations') }} </span>
                       </div>
                     </div>
                   </div>
                   <div class="sm:col-span-4">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Refilling Routes
+                      {{ $t('Refilling Routes') }}
                     </label>
                     <MultiSelect
                       v-model="form.zone_id"
@@ -1550,7 +1549,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -1560,11 +1559,11 @@
                   </div>
                   <div class="sm:col-span-5">
                     <FormTextarea v-model="form.ops_note" :error="form.errors.ops_note" rows="3">
-                      Ops Note
+                      {{ $t('Ops Note') }}
                     </FormTextarea>
                   </div>
                   <div class="sm:col-span-6">
-                      <label>Preferred Visit Days:</label>
+                      <label>{{ $t('Preferred Visit Days:') }}</label>
                       <div class="flex flex-wrap gap-2 mt-2 space-x-3">
                         <label v-for="(day, index) in days" :key="index" class="flex items-center">
                           <input type="checkbox" v-model="form.preferred_visit_days_json[index]" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
@@ -1576,7 +1575,7 @@
                   </div>
                   <div class="sm:col-span-4">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      #Refill per Week
+                      {{ $t('#Refill per Week') }}
                     </label>
                     <MultiSelect
                       v-model="form.frequency_per_week_status"
@@ -1584,7 +1583,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
@@ -1609,7 +1608,7 @@
                         @click.prevent="disconnectCMSCustomer(customer.id)"
                       >
                         <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
-                        <span> Disconnect from CMS </span>
+                        <span> {{ $t('Disconnect from CMS') }} </span>
                       </Button>
                       <Button
                         type="button"
@@ -1618,13 +1617,13 @@
                         @click.prevent="deleteCustomer(customer.id)"
                       >
                         <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                        <span> Delete Site </span>
+                        <span> {{ $t('Delete Site') }} </span>
                       </Button>
                     </template>
                     <Link :href="'/customers'">
                       <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                        <span> Back </span>
+                        <span> {{ $t('Back') }} </span>
                       </Button>
                     </Link>
                     <Button
@@ -1634,7 +1633,7 @@
                       @click.prevent="saveCustomer(form.id)"
                     >
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                      <span> Save Site </span>
+                      <span> {{ $t('Save Site') }} </span>
                     </Button>
                   </FloatingActionBar>
 
@@ -1643,10 +1642,10 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-start">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Machine Binding History </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Machine Binding History') }} </span>
                     </div>
                   </div>
-                  <nav aria-label="Progress">
+                  <nav :aria-label="$t('Progress')">
                     <ol role="list" class="overflow-hidden">
                       <li v-for="(customerVendBinding, customerVendBindingIndex) in customerVendBindings" :key="customerVendBinding.id" :class="[customerVendBindingIndex !== customerVendBindings.length - 1? 'pb-3' : 'relative bg-gray-300 rounded']">
                         <template v-if="true">
@@ -1669,7 +1668,7 @@
                                 <!-- Who did it. Pre-2025 rows have no user_id
                                      (the column was added later), so fall back
                                      to a dash rather than showing nothing. -->
-                                <span class="ml-1">&middot; by {{ customerVendBinding.user ? customerVendBinding.user.name : '—' }}</span>
+                                <span class="ml-1">&middot; {{ $t('by :name', { name: customerVendBinding.user ? customerVendBinding.user.name : '—' }) }}</span>
                               </span>
                             </span>
                           </span>
@@ -1686,7 +1685,7 @@
                       </span>
                       <span class="ml-4 flex min-w-0 flex-col pt-2">
                         <span class="text-sm font-medium">
-                          No Records Found
+                          {{ $t('No Records Found') }}
                         </span>
                       </span>
                     </span>
@@ -1699,7 +1698,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center ">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Photo(s) </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Photo(s)') }} </span>
                     </div>
                   </div>
                 </div>
@@ -1725,7 +1724,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center ">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Attachment(s) </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Attachment(s)') }} </span>
                     </div>
                   </div>
                 </div>
@@ -1767,6 +1766,7 @@ import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   cmsEndpoint: String,
@@ -1800,8 +1800,8 @@ const props = defineProps({
 const form = ref(useForm(getDefaultForm()));
 const adminCustomerOptions = ref([]);
 const booleanStrictOptions = ref([
-  { id: 'true', value: 'Yes' },
-  { id: 'false', value: 'No' },
+  { id: 'true', value: t('Yes') },
+  { id: 'false', value: t('No') },
 ]);
 
 // Site lifecycle status — replaces the old "Is Active?" Yes/No field.
@@ -1809,11 +1809,11 @@ const booleanStrictOptions = ref([
 // (App\Models\Customer::STATUS_* constants). Display order matches the
 // product spec: Potential, New, Active, Pending, Inactive.
 const statusOptions = ref([
-  { id: 5, value: 'Potential' },
-  { id: 4, value: 'New' },
-  { id: 2, value: 'Active' },
-  { id: 3, value: 'Removed' },
-  { id: 1, value: 'Inactive' },
+  { id: 5, value: t('Potential') },
+  { id: 4, value: t('New') },
+  { id: 2, value: t('Active') },
+  { id: 3, value: t('Removed') },
+  { id: 1, value: t('Inactive') },
 ]);
 
 // Status ids that prompt for an effective date when chosen (mirrors
@@ -1886,7 +1886,7 @@ watch(() => form.value.status_id, (newVal, oldVal) => {
 function confirmStatusDate() {
   const d = statusDateModal.value.date;
   if (!d || d === 'Invalid date') {
-    statusDateModal.value.error = 'Please choose a date.';
+    statusDateModal.value.error = t('Please choose a date.');
     return;
   }
   const formatted = moment(d).format('YYYY-MM-DD');
@@ -1950,10 +1950,10 @@ async function setMachinePricingSource(m, on) {
   try {
     const { data } = await axios.post(`/customers/${props.customer.id}/vends/${m.id}/pricing-source`, { is_using_server_price: on });
     m.is_using_server_price = data.is_using_server_price;
-    toast.success(`${m.code}: ${on ? 'Server Price' : 'Machine Price'}`);
+    toast.success(`${m.code}: ${on ? t('Server Price') : t('Machine Price')}`);
   } catch (e) {
     m.is_using_server_price = previous;
-    toast.error(e?.response?.data?.message || 'Could not change the pricing.');
+    toast.error(e?.response?.data?.message || t('Could not change the pricing.'));
   } finally {
     m.saving = false;
   }
@@ -1971,14 +1971,14 @@ const isUploadingContract = ref(false);
 
 // ── Placement Contract Detail ─────────────────────────────────────────────────
 const commissionTypeOptions = [
-  { id: 'F',     label: 'F: Free Placement' },
-  { id: 'S',     label: 'S: Subsidized Plan' },
-  { id: 'R',     label: 'R: Fix Rental' },
-  { id: 'U',     label: 'U: Utility only' },
-  { id: 'R+U',   label: 'R + U' },
-  { id: 'PS',    label: 'PS: Profit sharing only' },
-  { id: 'PS+U',  label: 'PS + U' },
-  { id: 'PSORU', label: 'PS OR U (whichever higher)' },
+  { id: 'F',     label: t('F: Free Placement') },
+  { id: 'S',     label: t('S: Subsidized Plan') },
+  { id: 'R',     label: t('R: Fix Rental') },
+  { id: 'U',     label: t('U: Utility only') },
+  { id: 'R+U',   label: t('R + U') },
+  { id: 'PS',    label: t('PS: Profit sharing only') },
+  { id: 'PS+U',  label: t('PS + U') },
+  { id: 'PSORU', label: t('PS OR U (whichever higher)') },
 ];
 
 const PS_TYPES   = ['PS', 'PS+U', 'PSORU'];
@@ -2016,14 +2016,14 @@ watch(isReportEmailValid, (valid) => {
 
 const commissionValueLabel = computed(() => {
   switch (form.value.contract_commission_type) {
-    case 'S':     return 'Subsidized Amount';
-    case 'R':     return 'Fix Rental Amount';
-    case 'R+U':   return 'Fix Rental Amount';
-    case 'U':     return 'Utility Amount';
+    case 'S':     return t('Subsidized Amount');
+    case 'R':     return t('Fix Rental Amount');
+    case 'R+U':   return t('Fix Rental Amount');
+    case 'U':     return t('Utility Amount');
     case 'PS':
     case 'PS+U':
-    case 'PSORU': return 'Profit Sharing';
-    default:      return 'Value';
+    case 'PSORU': return t('Profit Sharing');
+    default:      return t('Value');
   }
 });
 
@@ -2102,14 +2102,14 @@ const sfHasTwoValues= computed(() => TWO_VAL_TYPES.includes(sf.value.contract_co
 const sfShowPsTerm  = computed(() => sfIsPs.value);
 const sfCommissionValueLabel = computed(() => {
   switch (sf.value.contract_commission_type) {
-    case 'S':     return 'Subsidized Amount';
-    case 'R':     return 'Fix Rental Amount';
-    case 'R+U':   return 'Fix Rental Amount';
-    case 'U':     return 'Utility Amount';
+    case 'S':     return t('Subsidized Amount');
+    case 'R':     return t('Fix Rental Amount');
+    case 'R+U':   return t('Fix Rental Amount');
+    case 'U':     return t('Utility Amount');
     case 'PS':
     case 'PS+U':
-    case 'PSORU': return 'Profit Sharing';
-    default:      return 'Value';
+    case 'PSORU': return t('Profit Sharing');
+    default:      return t('Value');
   }
 });
 
@@ -2122,18 +2122,18 @@ function scheduleSummary(row) {
   if (!row) return '';
   const typeOpt = commissionTypeOptions.find(o => o.id === row.contract_commission_type);
   const parts = [];
-  parts.push('Location Fees: ' + (typeOpt ? typeOpt.label : (row.contract_commission_type || '—')));
+  parts.push(t('Location Fees: :value', { value: typeOpt ? typeOpt.label : (row.contract_commission_type || '—') }));
   if (row.contract_commission_value !== null && row.contract_commission_value !== '') {
-    parts.push('Value: ' + row.contract_commission_value);
+    parts.push(t('Value: :value', { value: row.contract_commission_value }));
   }
   if (row.contract_commission_value2 !== null && row.contract_commission_value2 !== '') {
-    parts.push('Utility: ' + row.contract_commission_value2);
+    parts.push(t('Utility: :value', { value: row.contract_commission_value2 }));
   }
   if (row.contract_ps_term !== null && row.contract_ps_term !== '') {
-    parts.push('PS Term: ' + row.contract_ps_term + '%');
+    parts.push(t('PS Term: :value%', { value: row.contract_ps_term }));
   }
   if (row.is_external_subsidize) {
-    parts.push('Ext. Subsidize: ' + (row.external_subsidize_amount ?? '—'));
+    parts.push(t('Ext. Subsidize: :value', { value: row.external_subsidize_amount ?? '—' }));
   }
   return parts.join(' · ');
 }
@@ -2221,18 +2221,18 @@ function submitScheduledContract(customerID) {
 
   // Client-side guard: a real future date is required.
   if (!sf.value.effective_date || sf.value.effective_date === 'Invalid date') {
-    sfErrors.value.effective_date = 'Please pick an effective date.';
+    sfErrors.value.effective_date = t('Please pick an effective date.');
     return;
   }
   if (!moment(sf.value.effective_date).isAfter(moment(), 'day')) {
-    sfErrors.value.effective_date = 'The effective date must be in the future.';
+    sfErrors.value.effective_date = t('The effective date must be in the future.');
     return;
   }
 
   const effLabel = moment(sf.value.effective_date).format('YYYY-MM-DD');
   const approval = confirm(
-    'Schedule this contract change to take effect on ' + effLabel + '?\n\n' +
-    'It will not change the current contract now — it applies automatically on that date.'
+    t('Schedule this contract change to take effect on :date?', { date: effLabel }) + '\n\n' +
+    t('It will not change the current contract now — it applies automatically on that date.')
   );
   if (!approval) return;
 
@@ -2263,20 +2263,20 @@ function submitScheduledContract(customerID) {
         onSuccess: () => {
           customer.value = props.customer;
           closeScheduleForm();
-          toast.success('Upcoming term scheduled', { timeout: 3000 });
+          toast.success(t('Upcoming term scheduled'), { timeout: 3000 });
         },
       });
     },
     onError: (errors) => {
       sfErrors.value = errors || {};
-      toast.error('Failed to schedule. Please check the form.', { timeout: 3000 });
+      toast.error(t('Failed to schedule. Please check the form.'), { timeout: 3000 });
     },
     onFinish: () => { isSavingSchedule.value = false; },
   });
 }
 
 function cancelScheduledContract(customerID) {
-  const approval = confirm('Cancel the scheduled contract change? This removes the pending change.');
+  const approval = confirm(t('Cancel the scheduled contract change? This removes the pending change.'));
   if (!approval) return;
 
   router.delete('/customers/' + customerID + '/scheduled-contract', {
@@ -2290,12 +2290,12 @@ function cancelScheduledContract(customerID) {
         onSuccess: () => {
           customer.value = props.customer;
           closeScheduleForm();
-          toast.success('Scheduled contract change cancelled', { timeout: 3000 });
+          toast.success(t('Scheduled contract change cancelled'), { timeout: 3000 });
         },
       });
     },
     onError: () => {
-      toast.error('Failed to cancel. Please try again.', { timeout: 3000 });
+      toast.error(t('Failed to cancel. Please try again.'), { timeout: 3000 });
     },
   });
 }
@@ -2411,7 +2411,7 @@ onMounted(() => {
     || null;
   customer.value = props.customer;
   frequencyPerWeekOptions.value = [
-    { id: '', value: '--- Clear ---' },
+    { id: '', value: t('--- Clear ---') },
     ...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
       return {
         id: id,
@@ -2421,7 +2421,7 @@ onMounted(() => {
   ]
 
   locationTypeOptions.value = [
-    { id: '', value: '--- Clear ---' },
+    { id: '', value: t('--- Clear ---') },
     ...props.locationTypeOptions.data.map(locationType => ({
       id: locationType.id,
       value: locationType.name,
@@ -2435,7 +2435,7 @@ onMounted(() => {
   customerTagOptions.value = (props.customerTagOptions?.data ?? [])
     .map(tag => ({ id: tag.id, name: tag.name }));
   zoneOptions.value = [
-    { id: '', value: '--- Clear ---' },
+    { id: '', value: t('--- Clear ---') },
     ...props.zoneOptions.data.map(zone => ({
       id: zone.id,
       value: zone.name,
@@ -2605,7 +2605,7 @@ function deleteCustomer(customerID) {
 }
 
 function disconnectCMSCustomer(customerID) {
-  const approval = confirm('Are you sure to disconnect this customer from CMS ?');
+  const approval = confirm(t('Are you sure to disconnect this customer from CMS ?'));
   if (!approval) {
     return;
   }
@@ -2743,12 +2743,12 @@ function saveCustomer(customerID) {
           // "Successfully Saved" toast never appeared.
           vendChannels.value = props.customer?.vend?.vend_channels ?? [];
           vendChannels.value = [...vendChannels.value];
-          toast.success("Successfully Saved", {
+          toast.success(t('Successfully Saved'), {
             timeout: 3000
           });
         },
         onError: (errors) => {
-          toast.error("Failed, Please Try Again", {
+          toast.error(t('Failed, Please Try Again'), {
             timeout: 3000
           });
         },
@@ -2761,7 +2761,7 @@ function saveCustomer(customerID) {
     // the user knows where to look.
     onError: (errors) => {
       const first = errors && Object.values(errors)[0];
-      toast.error(first ? String(first) : "Save failed — please check the form for errors", {
+      toast.error(first ? String(first) : t('Save failed — please check the form for errors'), {
         timeout: 6000
       });
     },
@@ -2785,7 +2785,7 @@ function saveVend(vendID) {
     // Same silent-422 guard as saveCustomer above.
     onError: (errors) => {
       const first = errors && Object.values(errors)[0];
-      toast.error(first ? String(first) : "Save failed — please check the form for errors", {
+      toast.error(first ? String(first) : t('Save failed — please check the form for errors'), {
         timeout: 6000
       });
     },
@@ -2820,15 +2820,15 @@ async function pullFromCms() {
     });
     if (!data.found) {
       cmsPullOk.value = false;
-      cmsPullMessage.value = data.message || 'No CMS person found for this ID.';
+      cmsPullMessage.value = data.message || t('No CMS person found for this ID.');
       return;
     }
     applyCmsPull(data.data);
     cmsPullOk.value = true;
-    cmsPullMessage.value = 'Pulled from CMS — review the fields below, then Update.';
+    cmsPullMessage.value = t('Pulled from CMS — review the fields below, then Update.');
   } catch (e) {
     cmsPullOk.value = false;
-    cmsPullMessage.value = e?.response?.data?.message || 'Pull failed — please try again.';
+    cmsPullMessage.value = e?.response?.data?.message || t('Pull failed — please try again.');
   } finally {
     cmsPulling.value = false;
   }
@@ -2940,7 +2940,7 @@ function bindVend(customerID) {
 }
 
 function unbindCustomer(vendID) {
-  const approval = confirm('Are you sure to unbind this customer?');
+  const approval = confirm(t('Are you sure to unbind this customer?'));
   if (!approval) {
     return;
   }
@@ -2965,7 +2965,7 @@ function unbindCustomer(vendID) {
 }
 
 function unbindCustomerDeactivate(vendID) {
-  const approval = confirm('Are you sure to unbind this customer and deactivate it ?');
+  const approval = confirm(t('Are you sure to unbind this customer and deactivate it ?'));
   if (!approval) {
     return;
   }
@@ -3001,7 +3001,7 @@ async function uploadContractFiles() {
     return;
   }
   if (!customer.value || !customer.value.id) {
-    toast.error('Save the customer first before uploading contracts', { timeout: 3000 });
+    toast.error(t('Save the customer first before uploading contracts'), { timeout: 3000 });
     return;
   }
 
@@ -3036,20 +3036,20 @@ async function uploadContractFiles() {
       contracts.value = props.customer && props.customer.contracts ? props.customer.contracts : [];
       isUploadingContract.value = false;
       if (failed > 0) {
-        toast.error(failed + ' file(s) failed to upload', { timeout: 3000 });
+        toast.error(t(':count file(s) failed to upload', { count: failed }), { timeout: 3000 });
       } else {
-        toast.success('Contract uploaded successfully', { timeout: 3000 });
+        toast.success(t('Contract uploaded successfully'), { timeout: 3000 });
       }
     },
     onError: () => {
       isUploadingContract.value = false;
-      toast.error('Failed to refresh contract list, please reload', { timeout: 3000 });
+      toast.error(t('Failed to refresh contract list, please reload'), { timeout: 3000 });
     },
   });
 }
 
 function deleteContract(id) {
-  const approval = confirm('Delete this contract attachment?');
+  const approval = confirm(t('Delete this contract attachment?'));
   if (!approval) {
     return;
   }
@@ -3058,10 +3058,10 @@ function deleteContract(id) {
     preserveScroll: true,
     onSuccess: () => {
       contracts.value = contracts.value.filter(c => c.id !== id);
-      toast.success('Contract deleted', { timeout: 3000 });
+      toast.success(t('Contract deleted'), { timeout: 3000 });
     },
     onError: () => {
-      toast.error('Delete failed, please try again', { timeout: 3000 });
+      toast.error(t('Delete failed, please try again'), { timeout: 3000 });
     },
   });
 }

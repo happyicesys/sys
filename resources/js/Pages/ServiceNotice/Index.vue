@@ -1,6 +1,6 @@
 <template>
   <StopIndex
-    title="Service Notices"
+    :title="$t('Service Notices')"
     basePath="/service-notices"
     exportName="ServiceNotices"
     exportPermission="export service-notices"
@@ -11,10 +11,10 @@
     :extraFilter="INCOMPLETE_FILTER"
   >
     <template #head="{ filters: state, sortTable }">
-      <TableHead>Item(s) Done</TableHead>
-      <TableHead>Incomplete</TableHead>
-      <TableHeadSort modelName="completed_at" :sortKey="state.sortKey" :sortBy="state.sortBy" @sort-table="sortTable('completed_at')">Completed</TableHeadSort>
-      <TableHeadSort modelName="created_at" :sortKey="state.sortKey" :sortBy="state.sortBy" @sort-table="sortTable('created_at')">Opened</TableHeadSort>
+      <TableHead>{{ $t('Item(s) Done') }}</TableHead>
+      <TableHead>{{ $t('Incomplete') }}</TableHead>
+      <TableHeadSort modelName="completed_at" :sortKey="state.sortKey" :sortBy="state.sortBy" @sort-table="sortTable('completed_at')">{{ $t('Completed') }}</TableHeadSort>
+      <TableHeadSort modelName="created_at" :sortKey="state.sortKey" :sortBy="state.sortBy" @sort-table="sortTable('created_at')">{{ $t('Opened') }}</TableHeadSort>
     </template>
     <template #cells="{ row, index, total }">
       <TableData :currentIndex="index" :totalLength="total" inputClass="text-center">{{ row.items_resolved_count }} / {{ row.items_count }}</TableData>
@@ -36,6 +36,7 @@ import StopIndex from '@/Pages/OpsJob/Stops/StopIndex.vue'
 import TableData from '@/Components/TableData.vue'
 import TableHead from '@/Components/TableHead.vue'
 import TableHeadSort from '@/Components/TableHeadSort.vue'
+import { t } from '@/i18n'
 
 defineProps({
   serviceNotices: Object,
@@ -47,7 +48,7 @@ defineProps({
 // Where the office chases repairs that could not be finished on the day.
 const INCOMPLETE_FILTER = {
   key: 'has_incomplete',
-  label: 'Has Incomplete Item?',
-  options: [{ id: 'all', value: 'All' }, { id: 'true', value: 'Yes' }],
+  label: t('Has Incomplete Item?'),
+  options: [{ id: 'all', value: t('All') }, { id: 'true', value: t('Yes') }],
 }
 </script>

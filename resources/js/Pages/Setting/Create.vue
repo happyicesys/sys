@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="VM Management" />
+  <Head :title="$t('VM Management')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ typeName }} Machine
+        {{ typeName }}
       </h2>
     </template>
 
@@ -21,7 +21,7 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
                 <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">
-                  Machine Type
+                  {{ $t('Machine Type') }}
                   <span class="text-red-500 ml-1">*</span>
                 </label>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -42,7 +42,7 @@
                   </label>
                 </div>
                 <p class="mt-1 text-xs text-gray-500">
-                  Fixed after creation — it decides which product mappings the machine can use.
+                  {{ $t('Fixed after creation — it decides which product mappings the machine can use.') }}
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.machine_type">
                   {{ form.errors.machine_type }}
@@ -54,18 +54,18 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-if="!isChiller">
               <div class="sm:col-span-6">
                 <SearchVendCodeInput v-model="form.code" @selected="onVendCodeSelected" required="true" :error="form.errors.code">
-                  Machine ID
+                  {{ $t('Machine ID') }}
                 </SearchVendCodeInput>
               </div>
               <div class="sm:col-span-6" v-if="machineType === 'smart_freezer'">
                 <p class="text-xs text-blue-600">
-                  Smart Freezer always follows the Site's pricing (Is Using Server Price = Yes).
+                  {{ $t('Smart Freezer always follows the Site\'s pricing (Is Using Server Price = Yes).') }}
                 </p>
               </div>
               <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date"
                 v-if="permissions.includes('update machine-settings')">
-                  Begin Date
+                  {{ $t('Begin Date') }}
                 </DatePicker>
               </div>
             </div>
@@ -73,12 +73,11 @@
             <!-- Smart Chiller (CityBox) -->
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2" v-else>
               <div class="sm:col-span-6 rounded-md bg-indigo-50 p-3 text-xs text-indigo-800">
-                Pick one of the CityBox devices not yet in ConnectVend. Identity, model and online status are filled automatically;
-                the machine ID is taken from the OPS Pro machine name (e.g. <b>C6003</b>) — rename it there if it is wrong.
-                The machine is imported <b>without a site</b>: create the site in ConnectVend as usual, then bind it in Machine Settings.
+                {{ $t('Pick one of the CityBox devices not yet in ConnectVend. Identity, model and online status are filled automatically; the machine ID is taken from the OPS Pro machine name (e.g.') }} <b>C6003</b>{{ $t(') — rename it there if it is wrong. The machine is imported') }}
+                <b>{{ $t('without a site') }}</b>{{ $t(': create the site in ConnectVend as usual, then bind it in Machine Settings.') }}
               </div>
               <div class="sm:col-span-4">
-                <label class="flex justify-start text-sm font-medium text-gray-700">CityBox device</label>
+                <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('CityBox device') }}</label>
                 <div class="flex space-x-2 mt-1">
                   <!-- Searchable picker (not a plain select): the fleet is keyed by serial,
                        so ops need to type either the serial or the CityBox name to find one. -->
@@ -88,7 +87,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="label"
-                    placeholder="Search a device by ID or name…"
+                    :placeholder="$t('Search a device by ID or name…')"
                     open-direction="bottom"
                     class="flex-1"
                     :canClear="true"
@@ -98,23 +97,23 @@
                     <ArrowPathIcon class="w-4 h-4" :class="cb.loading ? 'animate-spin' : ''" />
                   </Button>
                 </div>
-                <p class="mt-1 text-xs text-gray-500" v-if="cb.loaded && !cb.devices.length && !cb.error">Every CityBox device is already linked to a vend.</p>
+                <p class="mt-1 text-xs text-gray-500" v-if="cb.loaded && !cb.devices.length && !cb.error">{{ $t('Every CityBox device is already linked to a vend.') }}</p>
                 <p class="mt-1 text-xs text-red-600" v-if="cb.error">{{ cb.error }}</p>
                 <div class="text-sm text-red-600" v-if="form.errors.equipment_id">{{ form.errors.equipment_id }}</div>
               </div>
               <div class="sm:col-span-2">
-                <DatePicker v-model="form.begin_date" :error="form.errors.begin_date">Begin Date</DatePicker>
+                <DatePicker v-model="form.begin_date" :error="form.errors.begin_date">{{ $t('Begin Date') }}</DatePicker>
               </div>
 
               <!-- Preview card -->
               <div class="sm:col-span-6 rounded-md border border-gray-200 p-3 text-sm" v-if="cb.preview">
                 <div class="flex flex-wrap gap-x-6 gap-y-1">
-                  <span v-if="cb.preview.machine_id"><span class="text-gray-500">Machine ID:</span> <b>{{ cb.preview.machine_id }}</b></span>
+                  <span v-if="cb.preview.machine_id"><span class="text-gray-500">{{ $t('Machine ID:') }}</span> <b>{{ cb.preview.machine_id }}</b></span>
                   <span v-else-if="cb.preview.machine_id_error" class="text-red-700">{{ cb.preview.machine_id_error }}</span>
-                  <span><span class="text-gray-500">Model:</span> {{ cb.preview.device?.model }}</span>
-                  <span><span class="text-gray-500">State:</span> {{ cb.preview.state || '—' }}</span>
-                  <span><span class="text-gray-500">Products configured:</span> {{ cb.preview.product_count ?? '—' }}</span>
-                  <span v-if="cb.preview.device && !cb.preview.device.online" class="text-amber-700">Offline since {{ cb.preview.device.offline_since }} — stock sync starts when CityBox reports it online.</span>
+                  <span><span class="text-gray-500">{{ $t('Model:') }}</span> {{ cb.preview.device?.model }}</span>
+                  <span><span class="text-gray-500">{{ $t('State:') }}</span> {{ cb.preview.state || '—' }}</span>
+                  <span><span class="text-gray-500">{{ $t('Products configured:') }}</span> {{ cb.preview.product_count ?? '—' }}</span>
+                  <span v-if="cb.preview.device && !cb.preview.device.online" class="text-amber-700">{{ $t('Offline since :time — stock sync starts when CityBox reports it online.', { time: cb.preview.device.offline_since }) }}</span>
                 </div>
               </div>
 
@@ -122,21 +121,21 @@
                    site; one is never made from the CityBox device name any more, which is how the
                    fleet got sites called "Singapore5". An existing site can be picked as a shortcut. -->
               <div class="sm:col-span-6 border-t pt-3">
-                <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">Site</label>
+                <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">{{ $t('Site') }}</label>
                 <div class="flex flex-col sm:flex-row sm:space-x-6 space-y-1 sm:space-y-0 mb-2">
                   <label class="inline-flex items-center space-x-2 cursor-pointer">
                     <input type="radio" value="none" v-model="cb.customerMode" class="text-indigo-600" />
-                    <span class="text-sm">Import without a site — bind one later in Machine Settings</span>
+                    <span class="text-sm">{{ $t('Import without a site — bind one later in Machine Settings') }}</span>
                   </label>
                   <label class="inline-flex items-center space-x-2 cursor-pointer">
                     <input type="radio" value="pick" v-model="cb.customerMode" class="text-indigo-600" />
-                    <span class="text-sm">Bind to an existing site now</span>
+                    <span class="text-sm">{{ $t('Bind to an existing site now') }}</span>
                   </label>
                 </div>
                 <div v-if="cb.customerMode === 'pick'" class="sm:w-1/2">
-                  <input v-model="cb.customerQuery" @input="searchCustomers" type="text" placeholder="Search Citybox-operator sites by name…" class="w-full rounded-md border-gray-300 text-sm" />
+                  <input v-model="cb.customerQuery" @input="searchCustomers" type="text" :placeholder="$t('Search Citybox-operator sites by name…')" class="w-full rounded-md border-gray-300 text-sm" />
                   <select v-if="cb.customerResults.length" v-model="form.customer_id" class="mt-1 w-full rounded-md border-gray-300 text-sm">
-                    <option :value="null">— pick —</option>
+                    <option :value="null">{{ $t('— pick —') }}</option>
                     <option v-for="c in cb.customerResults" :key="c.id" :value="c.id">{{ c.name }} ({{ c.code }})</option>
                   </select>
                 </div>
@@ -151,7 +150,7 @@
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
-                      Back
+                      {{ $t('Back') }}
                     </span>
                   </Button>
                 </Link>
@@ -162,7 +161,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -187,6 +186,7 @@ import { computed, reactive, watch } from 'vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
+import { t } from '@/i18n';
 
 const props = defineProps({
     vend: Object,
@@ -195,9 +195,9 @@ const props = defineProps({
   })
 
   const MACHINE_TYPE_HINTS = {
-    vending_machine: 'Our terminal APK on a VMC board, identified by its Machine ID.',
-    smart_freezer: 'Our freezer APK on Zijia hardware, identified by its Machine ID.',
-    smart_chiller: 'Pick a device from the CityBox fleet and bind it to a site.',
+    vending_machine: t('Our terminal APK on a VMC board, identified by its Machine ID.'),
+    smart_freezer: t('Our freezer APK on Zijia hardware, identified by its Machine ID.'),
+    smart_chiller: t('Pick a device from the CityBox fleet and bind it to a site.'),
   }
 
   const booleanOptions = ref([])
@@ -218,8 +218,9 @@ const props = defineProps({
   // same here as on Setting/Edit. The chiller card names its supplier.
   const machineTypeCards = computed(() => Object.entries(props.machineTypeOptions || {}).map(([id, name]) => ({
     id,
-    label: id === 'smart_chiller' ? `${name} (CityBox)` : name,
-    hint: id === 'smart_chiller' && !cityboxEnabled ? 'CityBox integration is disabled.' : (MACHINE_TYPE_HINTS[id] ?? ''),
+    // Server labels (Vend::MACHINE_TYPE_MAPPINGS), shown in the user's language.
+    label: t(id === 'smart_chiller' && !String(name).includes('CityBox') ? `${name} (CityBox)` : name),
+    hint: id === 'smart_chiller' && !cityboxEnabled ? t('CityBox integration is disabled.') : (MACHINE_TYPE_HINTS[id] ?? ''),
     disabled: id === 'smart_chiller' && !cityboxEnabled,
   })))
   const cb = reactive({ devices: [], loaded: false, loading: false, error: null, device: null, equipment_id: null, preview: null,
@@ -230,8 +231,8 @@ const props = defineProps({
   // carries no ID — or one another vend already holds — says so here instead of
   // only in the preview card after it has been picked.
   function machineIdTag(d) {
-    if (! d.machine_id) return 'no machine ID'
-    return d.machine_id_error ? `${d.machine_id} (in use)` : d.machine_id
+    if (! d.machine_id) return t('no machine ID')
+    return d.machine_id_error ? t(':machine (in use)', { machine: d.machine_id }) : d.machine_id
   }
 
   // MultiSelect searches on `label`, so everything ops might type — machine ID,
@@ -239,11 +240,11 @@ const props = defineProps({
   const deviceOptions = computed(() => cb.devices.map(d => ({
     ...d,
     id: d.equipment_id,
-    label: `${machineIdTag(d)} · ${d.equipment_id} · ${d.name} · ${d.type} · ${d.online ? 'online' : ('offline' + (d.offline_since ? ' since ' + d.offline_since : ''))}`,
+    label: `${machineIdTag(d)} · ${d.equipment_id} · ${d.name} · ${d.type} · ${d.online ? t('online') : (d.offline_since ? t('offline since :time', { time: d.offline_since }) : t('offline'))}`,
   })))
 
 onMounted(() => {
-    typeName.value = 'Create New'
+    typeName.value = t('Create New Machine')
     form.value = useForm(getDefaultForm())
 })
 
@@ -274,7 +275,7 @@ async function loadDevices(fresh) {
     // selection rather than posting a serial CityBox no longer offers.
     if (cb.device && !cb.devices.some(d => d.equipment_id === cb.device.equipment_id)) cb.device = null
   } catch (e) {
-    cb.error = 'Could not load CityBox devices.'
+    cb.error = t('Could not load CityBox devices.')
   } finally { cb.loading = false }
 }
 

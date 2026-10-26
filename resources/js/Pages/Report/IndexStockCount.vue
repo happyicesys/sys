@@ -1,29 +1,29 @@
 
 <template>
-  <Head title="Daily Stock Count" />
+  <Head :title="$t('Daily Stock Count')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Daily Stock Count
+              {{ $t('Daily Stock Count') }}
           </h2>
       </template>
 
       <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-              <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                Machine ID
+              <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                {{ $t('Machine ID') }}
                   <span class="text-[9px]">
-                      ("," for multiple)
+                      {{ $t('("," for multiple)') }}
                   </span>
               </SearchInput>
-              <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                  Site
+              <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                  {{ $t('Site') }}
               </SearchInput>
               <div>
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Machine Prefix
+                    {{ $t('Machine Prefix') }}
                 </label>
                 <MultiSelect
                     v-model="filters.vendPrefixes"
@@ -31,7 +31,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -43,7 +43,7 @@
             </div>
             <div>
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Product
+                    {{ $t('Product') }}
                 </label>
                 <MultiSelect
                     v-model="filters.products"
@@ -51,7 +51,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     mode="tags"
@@ -60,7 +60,7 @@
             </div>
               <div>
                   <label for="text" class="block text-sm font-medium text-gray-700">
-                      Location Type
+                      {{ $t('Location Type') }}
                   </label>
                   <MultiSelect
                       v-model="filters.locationType"
@@ -68,7 +68,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                   >
@@ -76,7 +76,7 @@
               </div>
               <div v-if="filters.currentFilterDate.id != '-1'">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                  Filter Date
+                  {{ $t('Filter Date') }}
                 </label>
                 <MultiSelect
                   v-model="filters.currentFilterDate"
@@ -84,7 +84,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -109,7 +109,7 @@
                 <DatePicker
                     v-model="filters.date"
                 >
-                    Date
+                    {{ $t('Date') }}
                 </DatePicker>
               </div>
           </div>
@@ -123,7 +123,7 @@
                       >
                           <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                           <span>
-                              Search
+                              {{ $t('Search') }}
                           </span>
                       </Button>
                       <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -137,7 +137,7 @@
                                     </svg>
                                 </div>
                                 <span>
-                                    Export Excel
+                                    {{ $t('Export Excel') }}
                                 </span>
                             </div>
                         </Button>
@@ -145,13 +145,13 @@
               </div>
               <div class="flex flex-col space-y-1">
                 <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                    <span>Showing</span>
+                    <span>{{ $t('Showing') }}</span>
                     <span class="font-medium">{{ stockCounts.meta?.from ?? 0 }}</span>
-                    <span>to</span>
+                    <span>{{ $t('to') }}</span>
                     <span class="font-medium">{{ stockCounts.meta?.to ?? 0 }}</span>
-                    <span>of</span>
+                    <span>{{ $t('of') }}</span>
                     <span class="font-medium">{{ stockCounts.meta?.total ?? 0 }}</span>
-                    <span>results</span>
+                    <span>{{ $t('results') }}</span>
                 </p>
 
                   <MultiSelect
@@ -160,7 +160,7 @@
                       trackBy="id"
                       valueProp="id"
                       label="value"
-                      placeholder="Select"
+                      :placeholder="$t('Select')"
                       open-direction="bottom"
                       class="mt-1"
                       @selected="onSearchFilterUpdated"
@@ -207,10 +207,10 @@
                         :sortBy="filters.sortBy"
                         @sort-table="sortTable('product_code')"
                         >
-                        Product ID
+                        {{ $t('Product ID') }}
                         </TableHeadSort>
 
-                        <TableHead>Product Name</TableHead>
+                        <TableHead>{{ $t('Product Name') }}</TableHead>
 
                         <TableHead class="text-center" :colspan="6" :title="dayTitle(pivotDates?.d0)">
                         {{ dayLabel('d0') }} <br>
@@ -236,73 +236,73 @@
 
                         <!-- D0 -->
                         <TableHeadSort modelName="unit_cost_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('unit_cost_d0')">
-                        Unit Cost $ <br>
-                        (before GST)
+                        {{ $t('Unit Cost $') }} <br>
+                        {{ $t('(before GST)') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="stock_value_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_value_d0')">
-                        Stock Value in Machine $
+                        {{ $t('Stock Value in Machine $') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_vend_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_vend_d0')">
-                        Stock Qty in Machine
+                        {{ $t('Stock Qty in Machine') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_warehouse_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_warehouse_d0')">
-                        Stock Qty in Warehouse <br>
-                        (from API)
+                        {{ $t('Stock Qty in Warehouse') }} <br>
+                        {{ $t('(from API)') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="stock_cost_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d0')">
-                        Total Stock cost $ <br>
-                        (before GST)
+                        {{ $t('Total Stock cost $') }} <br>
+                        {{ $t('(before GST)') }}
                         </TableHeadSort>
                         <TableHead>
-                        Dollar Value $
+                        {{ $t('Dollar Value $') }}
                         </TableHead>
                         <th class="w-2 bg-gray-300 p-0" aria-hidden="true"></th> <!-- spacer -->
 
                         <!-- D1 -->
                         <TableHeadSort modelName="unit_cost_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('unit_cost_d1')">
-                        Unit Cost $ <br>
-                        (before GST)
+                        {{ $t('Unit Cost $') }} <br>
+                        {{ $t('(before GST)') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="stock_value_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_value_d1')">
-                        Stock Value in Machine $
+                        {{ $t('Stock Value in Machine $') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_vend_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_vend_d1')">
-                        Stock Qty in Machine
+                        {{ $t('Stock Qty in Machine') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_warehouse_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_warehouse_d1')">
-                        Stock Qty in Warehouse <br>
-                        (from API)
+                        {{ $t('Stock Qty in Warehouse') }} <br>
+                        {{ $t('(from API)') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="stock_cost_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d1')">
-                        Total Stock cost $ <br>
-                        (before GST)
+                        {{ $t('Total Stock cost $') }} <br>
+                        {{ $t('(before GST)') }}
                         </TableHeadSort>
                         <TableHead>
-                        Dollar Value $
+                        {{ $t('Dollar Value $') }}
                         </TableHead>
                         <th class="w-2 bg-gray-300 p-0" aria-hidden="true"></th> <!-- spacer -->
 
                         <!-- D2 -->
                         <TableHeadSort modelName="unit_cost_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('unit_cost_d2')">
-                        Unit Cost $ <br>
-                        (before GST)
+                        {{ $t('Unit Cost $') }} <br>
+                        {{ $t('(before GST)') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="stock_value_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_value_d2')">
-                        Stock Value in Machine $
+                        {{ $t('Stock Value in Machine $') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_vend_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_vend_d2')">
-                        Stock Qty in Machine
+                        {{ $t('Stock Qty in Machine') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_warehouse_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_warehouse_d2')">
-                        Stock Qty in Warehouse <br>
-                        (from API)
+                        {{ $t('Stock Qty in Warehouse') }} <br>
+                        {{ $t('(from API)') }}
                         </TableHeadSort>
                         <TableHeadSort modelName="stock_cost_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d2')">
-                        Total Stock cost $ <br>
-                        (before GST)
+                        {{ $t('Total Stock cost $') }} <br>
+                        {{ $t('(before GST)') }}
                         </TableHeadSort>
                         <TableHead>
-                        Dollar Value $
+                        {{ $t('Dollar Value $') }}
                         </TableHead>
                         <th class="w-2 bg-gray-300 p-0" aria-hidden="true"></th> <!-- spacer -->
                     </tr>
@@ -380,7 +380,7 @@
                     </tr>
                     <!-- Receivable - Daily cash sales -->
                     <tr class="divide-x divide-gray-300 bg-white text-sm text-gray-900">
-                    <td colspan="3" class="text-left px-2 py-2">Receivable - Daily cash sales</td>
+                    <td colspan="3" class="text-left px-2 py-2">{{ $t('Receivable - Daily cash sales') }}</td>
 
                     <!-- d0 group: leave metric columns blank, put number in last column "Dollar Value $" -->
                     <td></td><td></td><td></td><td></td><td class="border-block"></td>
@@ -411,7 +411,7 @@
 
                     <!-- Receivable - Daily cashless sales -->
                     <tr class="divide-x divide-gray-300 bg-white text-sm text-gray-900">
-                    <td colspan="3" class="text-left px-2 py-2">Receivable - Daily cashless sales</td>
+                    <td colspan="3" class="text-left px-2 py-2">{{ $t('Receivable - Daily cashless sales') }}</td>
                     <td></td><td></td><td></td><td></td><td class="border-block"></td>
                     <td class="text-right px-2 py-2">
                         {{ Number(props.totals?.cashless_sales_amount_d0 ?? 0)
@@ -436,7 +436,7 @@
 
                     <!-- Coin Float in machines -->
                     <tr class="divide-x divide-gray-300 bg-white text-sm text-gray-900">
-                    <td colspan="3" class="text-left px-2 py-2">Coin Float in machines</td>
+                    <td colspan="3" class="text-left px-2 py-2">{{ $t('Coin Float in machines') }}</td>
                     <td></td><td></td><td></td><td></td><td class="border-block"></td>
                     <td class="text-right px-2 py-2">
                         {{ Number(props.totals?.coin_float_amount_d0 ?? 0)
@@ -462,7 +462,7 @@
 
                     <tr v-if="!(stockCounts.data && stockCounts.data.length)">
                         <td colspan="30" class="py-4 text-sm font-medium text-center">
-                        No Results Found
+                        {{ $t('No Results Found') }}
                         </td>
                     </tr>
                     </tbody>
@@ -471,7 +471,7 @@
                             <td colspan="30" class="w-1 bg-gray-300 p-0" aria-hidden="true">.</td>
                         </tr>
                         <tr class="divide-x divide-gray-300">
-                            <td colspan="3" class="text-center px-1 py-2">Subtotal</td>
+                            <td colspan="3" class="text-center px-1 py-2">{{ $t('Subtotal') }}</td>
 
                             <!-- D0 -->
                             <td class="text-right px-1 py-2">
@@ -582,6 +582,7 @@ import { router } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { Head, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
+import { t } from '@/i18n';
 import axios from 'axios';
 
 const props = defineProps({
@@ -631,41 +632,41 @@ onMounted(() => {
       { id: 100, value: 100 },
       { id: 200, value: 200 },
       { id: 500, value: 500 },
-      { id: 'All', value: 'All' },
+      { id: 'All', value: t('All') },
   ]
   filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
   booleanOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'true', value: 'Yes'},
-      {id: 'false', value: 'No'},
+      {id: 'all', value: t('All')},
+      {id: 'true', value: t('Yes')},
+      {id: 'false', value: t('No')},
   ]
   enableOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'true', value: 'Enabled'},
-      {id: 'false', value: 'Disabled'},
+      {id: 'all', value: t('All')},
+      {id: 'true', value: t('Enabled')},
+      {id: 'false', value: t('Disabled')},
   ]
   locationTypeOptions.value = [
-      {id: 'all', value: 'All'},
+      {id: 'all', value: t('All')},
       ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   operatorOptions.value = [
-      {id: 'all', full_name: 'All'},
+      {id: 'all', full_name: t('All')},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   productOptions.value = [
-      {id: 'all', full_name: 'All'},
+      {id: 'all', full_name: t('All')},
       ...props.productOptions.data.map((data) => {return {id: data.id, full_name: '(' + data.code + ') ' + data.name}})
   ]
   reportDateOptions.value = props.reportDateOptions.map((data) => {return {id: data.id, name: data.name}})
   reportDateOptions.value = [
     ...reportDateOptions.value,
-    {'id': '-1', 'name': 'Custom Date'}
+    {'id': '-1', 'name': t('Custom Date')}
   ]
   vendPrefixOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'single-ud', value: 'Single UD'},
+        {id: 'all', value: t('All')},
+        {id: 'single-ud', value: t('Single UD')},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
 
@@ -684,9 +685,9 @@ onMounted(() => {
 
 // replace your current dayLabel with this:
 const dayLabel = (key) => {
-  if (key === 'd0') return 'Yesterday';
-  if (key === 'd1') return '2 Days Ago';
-  return '3 days ago'; // d2
+  if (key === 'd0') return t('Yesterday');
+  if (key === 'd1') return t('2 Days Ago');
+  return t('3 days ago'); // d2
 };
 
 // (optional) tiny helper to show the actual date as a tooltip

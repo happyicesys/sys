@@ -226,7 +226,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Settlement closed.');
+        return back()->with('success', __('Settlement closed.'));
     }
 
     public function reopen(RefundPayoutBatch $settlement)
@@ -237,7 +237,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Settlement reopened.');
+        return back()->with('success', __('Settlement reopened.'));
     }
 
     public function exportCimb(RefundPayoutBatch $settlement)
@@ -314,7 +314,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Ticket returned to pool.');
+        return back()->with('success', __('Ticket returned to pool.'));
     }
 
     public function destroy(RefundPayoutBatch $settlement)
@@ -325,7 +325,7 @@ class RefundSettlementController extends Controller
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }
 
-        return redirect('/refund-settlements')->with('success', 'Empty settlement voided.');
+        return redirect('/refund-settlements')->with('success', __('Empty settlement voided.'));
     }
 
     // ---- helpers ----

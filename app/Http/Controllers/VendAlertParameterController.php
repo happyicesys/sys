@@ -92,7 +92,7 @@ class VendAlertParameterController extends Controller
         }
 
         if (empty($fieldsToUpdate)) {
-            return Redirect::back()->with('warning', 'No alert parameter changes provided.');
+            return Redirect::back()->with('warning', __('No alert parameter changes provided.'));
         }
 
         $affected = 0;
@@ -123,10 +123,10 @@ class VendAlertParameterController extends Controller
         });
 
         if ($affected === 0) {
-            return Redirect::back()->with('info', 'Selected machines already had the requested alert parameters.');
+            return Redirect::back()->with('info', __('Selected machines already had the requested alert parameters.'));
         }
 
-        return Redirect::back()->with('success', "Alert parameters updated for {$affected} machine(s).");
+        return Redirect::back()->with('success', __('Alert parameters updated for :count machine(s).', ['count' => $affected]));
     }
 
     protected function settingIsEmpty(VendAlertSetting $setting): bool

@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Labels" />
+  <Head :title="$t('Labels')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ props.modelName }} Labels
+        {{ $t(':model Labels', { model: props.modelName }) }}
       </h2>
     </template>
 
@@ -17,13 +17,13 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
         </div>
 
@@ -36,20 +36,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ tags.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ tags.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ tags.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -57,7 +57,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -77,10 +77,10 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      {{ $t('Desc') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -105,7 +105,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -119,12 +119,12 @@
                             :disabled="tag.bindings_count > 0"
                             @click="onDeleteClicked(tag)"
                             v-tooltip="tag.bindings_count > 0
-                              ? 'In use by ' + tag.bindings_count + ' record(s) — remove from those records first'
+                              ? $t('In use by :count record(s) — remove from those records first', { count: tag.bindings_count })
                               : ''"
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -132,7 +132,7 @@
                       </tr>
                 <tr v-if="!tags.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -155,6 +155,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/Tag/Form.vue';
@@ -193,7 +194,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -210,23 +211,23 @@ function onDeleteClicked(tag) {
   // we don't even fire the request.
   if (tag.bindings_count > 0) {
     toast.error(
-      'Cannot delete "' + tag.name + '" — still bound to ' + tag.bindings_count + ' record(s).',
+      t('Cannot delete ":name" — still bound to :count record(s).', { name: tag.name, count: tag.bindings_count }),
       { timeout: 4000 }
     )
     return
   }
-  const approval = confirm('Are you sure to delete ' + tag.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: tag.name }));
   if (!approval) {
       return;
   }
   router.delete('/tags/' + tag.id, {
     onSuccess: () => {
-      toast.success("Tag deleted successfully", { timeout: 3000 })
+      toast.success(t("Tag deleted successfully"), { timeout: 3000 })
     },
     onError: (errors) => {
       // Surface the controller's `delete` error message verbatim so the user
       // sees exactly why the tag couldn't be removed (e.g. binding count).
-      const msg = errors?.delete || "Failed to delete tag"
+      const msg = errors?.delete || t("Failed to delete tag")
       toast.error(msg, { timeout: 4000 })
     }
   })

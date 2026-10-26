@@ -2,18 +2,18 @@
   <section>
     <header class="flex flex-wrap items-center justify-between gap-2">
       <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-        Timeline · commands, kiosk panel and machine events
+        {{ $t('Timeline · commands, kiosk panel and machine events') }}
       </h4>
       <div class="flex flex-wrap items-center gap-2 text-xs">
-        <input v-model.trim="filter" type="text" placeholder="filter rows…"
+        <input v-model.trim="filter" type="text" :placeholder="$t('filter rows…')"
                class="w-40 rounded-md border-gray-300 py-1 text-xs focus:border-sky-500 focus:ring-sky-500" />
         <label class="inline-flex items-center gap-1 text-gray-600">
           <input v-model="showEvents" type="checkbox" class="rounded border-gray-300 text-sky-700 focus:ring-sky-500" />
-          machine events
+          {{ $t('machine events') }}
         </label>
-        <span class="text-gray-500">last {{ commands.length }}<template v-if="total"> of {{ total }}</template></span>
+        <span class="text-gray-500">{{ total ? $t('last :count of :total', { count: commands.length, total }) : $t('last :count', { count: commands.length }) }}</span>
         <button type="button" class="font-medium text-sky-700 hover:underline" @click.prevent="$emit('limit', wide ? 20 : 200)">
-          {{ wide ? 'fewer' : 'more' }}
+          {{ wide ? $t('fewer') : $t('more') }}
         </button>
       </div>
     </header>
@@ -22,12 +22,12 @@
       <table class="min-w-full divide-y divide-gray-200 text-xs">
         <thead class="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
           <tr>
-            <th class="px-3 py-2 font-medium">When</th>
-            <th class="px-3 py-2 font-medium">What</th>
-            <th class="px-3 py-2 font-medium">From</th>
-            <th class="px-3 py-2 font-medium">Result</th>
-            <th class="px-3 py-2 font-medium">Machine said</th>
-            <th class="px-3 py-2 font-medium">Log</th>
+            <th class="px-3 py-2 font-medium">{{ $t('When') }}</th>
+            <th class="px-3 py-2 font-medium">{{ $t('What') }}</th>
+            <th class="px-3 py-2 font-medium">{{ $t('From') }}</th>
+            <th class="px-3 py-2 font-medium">{{ $t('Result') }}</th>
+            <th class="px-3 py-2 font-medium">{{ $t('Machine said') }}</th>
+            <th class="px-3 py-2 font-medium">{{ $t('Log') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 bg-white">
@@ -40,7 +40,7 @@
             <tr :class="group.lead.source === 'event' ? 'bg-gray-50/60' : 'hover:bg-sky-50/40'">
               <td class="whitespace-nowrap px-3 py-1.5 text-gray-600">
                 {{ formatTime(group.lead.requested_at) }}
-                <span v-if="group.count > 1" class="block text-[11px] text-gray-400">since {{ formatTime(group.oldest.requested_at) }}</span>
+                <span v-if="group.count > 1" class="block text-[11px] text-gray-400">{{ $t('since :time', { time: formatTime(group.oldest.requested_at) }) }}</span>
               </td>
               <td class="whitespace-nowrap px-3 py-1.5 text-gray-800">
                 {{ describeCommand(group.lead) }}
@@ -64,23 +64,23 @@
               <td class="max-w-md px-3 py-1.5 text-gray-700">{{ group.lead.message || '' }}</td>
               <td class="whitespace-nowrap px-3 py-1.5">
                 <button v-if="group.lead.has_log" type="button" class="mr-2 text-sky-700 hover:underline" @click.prevent="toggleExcerpt(group.lead.id)">
-                  {{ openExcerpts.has(group.lead.id) ? 'hide' : (group.lead.log_scope === 'output' ? 'output' : 'excerpt') }}
-                  <span v-if="group.lead.log_scope === 'app'" class="text-gray-400">(app only)</span>
+                  {{ openExcerpts.has(group.lead.id) ? $t('hide') : (group.lead.log_scope === 'output' ? $t('output') : $t('excerpt')) }}
+                  <span v-if="group.lead.log_scope === 'app'" class="text-gray-400">{{ $t('(app only)') }}</span>
                 </button>
                 <a v-if="group.lead.attachment" :href="group.lead.attachment.url" target="_blank" class="mr-2 text-sky-700 hover:underline">
-                  {{ group.lead.attachment.type === 'photo' ? 'open photo' : 'open file' }}
+                  {{ group.lead.attachment.type === 'photo' ? $t('open photo') : $t('open file') }}
                 </a>
                 <template v-if="group.lead.log_file">
                   <a :href="group.lead.log_file.url" target="_blank" class="mr-2 text-sky-700 hover:underline">
-                    view {{ group.lead.log_file.lines ? group.lead.log_file.lines + ' lines' : 'file' }}
+                    {{ group.lead.log_file.lines ? $t('view :count lines', { count: group.lead.log_file.lines }) : $t('view file') }}
                   </a>
-                  <a :href="group.lead.log_file.url + '?download=1'" class="text-sky-700 hover:underline">download</a>
+                  <a :href="group.lead.log_file.url + '?download=1'" class="text-sky-700 hover:underline">{{ $t('download') }}</a>
                 </template>
               </td>
             </tr>
             <tr v-if="group.lead.has_log && openExcerpts.has(group.lead.id)">
               <td colspan="6" class="px-3 py-1.5">
-                <pre class="max-h-72 overflow-auto rounded-md bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ excerpts[group.lead.id] ?? 'loading…' }}</pre>
+                <pre class="max-h-72 overflow-auto rounded-md bg-gray-900 p-2 text-[11px] leading-snug text-gray-100 whitespace-pre-wrap break-all">{{ excerpts[group.lead.id] ?? $t('loading…') }}</pre>
               </td>
             </tr>
             <!-- The folded run, opened on demand: the same rows, indented and dimmed. -->
@@ -100,7 +100,7 @@
             </template>
           </template>
           <tr v-if="!groups.length">
-            <td colspan="6" class="px-3 py-4 text-center text-gray-500">Nothing recorded yet.</td>
+            <td colspan="6" class="px-3 py-4 text-center text-gray-500">{{ $t('Nothing recorded yet.') }}</td>
           </tr>
         </tbody>
       </table>
@@ -111,6 +111,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import moment from 'moment'
+import { t } from '@/i18n'
 import { describeCommand, resultBadge, resultLabel } from '@/composables/useFreezerControls'
 
 const props = defineProps({
@@ -170,15 +171,15 @@ async function toggleExcerpt(id) {
   if (next.has(id) && excerpts.value[id] === undefined) {
     try {
       const res = await axios.get(`/vends/${props.vendId}/freezer-controls/${id}/excerpt`)
-      excerpts.value = { ...excerpts.value, [id]: res.data.log || '(empty)' }
+      excerpts.value = { ...excerpts.value, [id]: res.data.log || t('(empty)') }
     } catch (e) {
-      excerpts.value = { ...excerpts.value, [id]: 'Could not load the excerpt.' }
+      excerpts.value = { ...excerpts.value, [id]: t('Could not load the excerpt.') }
     }
   }
 }
 
 function sourceLabel(c) {
-  return c.source === 'panel' ? 'Kiosk panel' : c.source === 'event' ? 'Machine' : (c.requested_by || 'mark1')
+  return c.source === 'panel' ? t('Kiosk panel') : c.source === 'event' ? t('Machine') : (c.requested_by || 'mark1')
 }
 
 function sourceBadge(source) {
@@ -190,7 +191,7 @@ function sourceBadge(source) {
 
 function answeredIn(c) {
   const ms = Date.parse(c.responded_at) - Date.parse(c.requested_at)
-  return Number.isFinite(ms) && ms >= 0 ? `in ${Math.max(1, Math.round(ms / 1000))} s` : ''
+  return Number.isFinite(ms) && ms >= 0 ? t('in :seconds s', { seconds: Math.max(1, Math.round(ms / 1000)) }) : ''
 }
 
 function formatTime(iso) {

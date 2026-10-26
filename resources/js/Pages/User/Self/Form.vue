@@ -1,10 +1,10 @@
 
 <template>
-  <Head title="Account Settings" />
+  <Head :title="$t('Account Settings')" />
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              Account Settings
+              {{ $t('Account Settings') }}
           </h2>
       </template>
 
@@ -15,33 +15,33 @@
                   <div class="grid grid-cols-12 gap-6">
                     <div class="col-span-12 sm:col-span-8">
                       <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                        Name
+                        {{ $t('Name') }}
                       </FormInput>
                     </div>
                     <div class="col-span-12 sm:col-span-6">
                       <FormInput v-model="form.email" :error="form.errors.email">
-                        Email
+                        {{ $t('Email') }}
                       </FormInput>
                     </div>
                     <div class="col-span-12 sm:col-span-6">
                       <FormInput v-model="form.username" :error="form.errors.username">
-                        Username
+                        {{ $t('Username') }}
                       </FormInput>
                     </div>
                     <div class="col-span-12 sm:col-span-6">
-                      <FormInput v-model="form.password" :error="form.errors.password" placeholderStr="Leave blank for same password" inputType="password" autocomplete="new-password">
-                        Password
+                      <FormInput v-model="form.password" :error="form.errors.password" :placeholderStr="$t('Leave blank for same password')" inputType="password" autocomplete="new-password">
+                        {{ $t('Password') }}
                       </FormInput>
                     </div>
                     <div class="col-span-12 sm:col-span-6">
-                      <FormInput v-model="form.password_confirmation" :error="form.errors.password_confirmation" placeholderStr="Leave blank for same password" inputType="password" autocomplete="new-password-confirmation">
-                        Password Confirmation
+                      <FormInput v-model="form.password_confirmation" :error="form.errors.password_confirmation" :placeholderStr="$t('Leave blank for same password')" inputType="password" autocomplete="new-password-confirmation">
+                        {{ $t('Password Confirmation') }}
                       </FormInput>
                     </div>
                   </div>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 text-right sm:px-6">
-                  <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Save</button>
+                  <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">{{ $t('Save') }}</button>
                 </div>
               </div>
             </form>
@@ -55,6 +55,7 @@ import FormInput from '@/Components/FormInput.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user.data}) : useForm(getDefaultForm())
@@ -91,10 +92,10 @@ function submit() {
   form.value.post('/self/' + form.value.id + '/update',
     {
       onSuccess: () => {
-        toast.success("Account updated successfully", { timeout: 3000 })
+        toast.success(t('Account updated successfully'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error("Failed to update account", { timeout: 3000 })
+        toast.error(t('Failed to update account'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

@@ -1,9 +1,9 @@
 <template>
-  <Head title="Campaign" />
+  <Head :title="$t('Campaign')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create New Campaign
+        {{ $t('Create New Campaign') }}
       </h2>
     </template>
 
@@ -15,12 +15,12 @@
             <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
               <div class="sm:col-span-6">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Product Mapping
+                  {{ $t('Delivery Product Mapping') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -31,7 +31,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onDeliveryProductMappingSelected"
@@ -43,7 +43,7 @@
               </div>
               <div class="sm:col-span-6" v-if="form.delivery_product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Platform
+                  {{ $t('Platform') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -54,7 +54,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -65,7 +65,7 @@
               </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                  Remarks
+                  {{ $t('Remarks') }}
                 </FormTextarea>
               </div>
 
@@ -77,14 +77,14 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
                   <Button type="submit" v-if="permissions.includes('update delivery-platform-campaigns')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save
+                      {{ $t('Save') }}
                     </span>
                   </Button>
                 </div>

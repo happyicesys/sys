@@ -1,6 +1,6 @@
 <template>
 
-  <Head :title="'Card Settlement ' + (report.cutover_date || report.id)" />
+  <Head :title="$t('Card Settlement :date', { date: report.cutover_date || report.id })" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
@@ -9,7 +9,7 @@
              inline with the action buttons, which crowded a long NETS filename. -->
         <div class="min-w-0">
           <div class="text-xs text-gray-400 uppercase tracking-wide">
-            <Link href="/card-settlements" class="text-blue-700 hover:underline">Card Settlement</Link>
+            <Link href="/card-settlements" class="text-blue-700 hover:underline">{{ $t('Card Settlement') }}</Link>
           </div>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight break-all">{{ report.original_filename }}</h2>
           <div class="mt-1.5 flex items-center flex-wrap gap-2">
@@ -18,15 +18,15 @@
               class="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
             >
               <ArrowDownTrayIcon class="w-3.5 h-3.5 text-gray-400"></ArrowDownTrayIcon>
-              <span>Download original file</span>
+              <span>{{ $t('Download original file') }}</span>
             </a>
             <a
               :href="report.converted_url"
               class="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
-              title="Same lines with the time as plain 23:12:41 text — Excel cannot turn it back into 12:41.0"
+              :title="$t('Same lines with the time as plain 23:12:41 text — Excel cannot turn it back into 12:41.0')"
             >
               <ArrowDownTrayIcon class="w-3.5 h-3.5 text-blue-400"></ArrowDownTrayIcon>
-              <span>Download converted time file</span>
+              <span>{{ $t('Download converted time file') }}</span>
             </a>
           </div>
         </div>
@@ -38,7 +38,7 @@
           >
             <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
             <span>
-              Rematch
+              {{ $t('Rematch') }}
             </span>
           </Button>
           <!-- Hidden once the report is synced and nothing is left to stamp; a
@@ -52,16 +52,16 @@
           >
             <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
             <span>
-              Sync {{ report.matched_count }} Matched
+              {{ $t('Sync :count Matched', { count: report.matched_count }) }}
             </span>
           </Button>
           <span
             v-else
             class="inline-flex items-center gap-1 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700"
-            :title="'Synced ' + (report.synced_at || '') + (report.synced_by ? ' by ' + report.synced_by : '')"
+            :title="report.synced_by ? $t('Synced :time by :name', { time: report.synced_at || '', name: report.synced_by }) : $t('Synced :time', { time: report.synced_at || '' })"
           >
             <CheckCircleIcon class="w-4 h-4 text-green-500"></CheckCircleIcon>
-            <span>Synced</span>
+            <span>{{ $t('Synced') }}</span>
           </span>
           <!-- A synced report cannot be deleted while its stamps sit on the sales:
                Undo sync takes them back first (CardSettlementUnsyncService). -->
@@ -72,7 +72,7 @@
           >
             <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
             <span>
-              Undo Sync
+              {{ $t('Undo Sync') }}
             </span>
           </Button>
           <Button
@@ -82,7 +82,7 @@
           >
             <TrashIcon class="w-4 h-4"></TrashIcon>
             <span>
-              Delete
+              {{ $t('Delete') }}
             </span>
           </Button>
         </div>
@@ -93,15 +93,15 @@
       <!-- summary -->
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
         <div>
-          <div class="text-xs text-gray-400 uppercase">Provider / Account</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Provider / Account') }}</div>
           <span class="uppercase">{{ report.provider }}</span> · {{ report.merchant_account || '—' }}
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Cutover Date</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Cutover Date') }}</div>
           {{ report.cutover_date || '—' }}
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Status</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Status') }}</div>
           <span
             class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
             :class="statusBadgeClass(report.status)"
@@ -112,36 +112,36 @@
         <!-- One number per tile, so Purchases / Matched / Queries / Duplicates
              read exactly as they do on the Index row for this report. -->
         <div>
-          <div class="text-xs text-gray-400 uppercase">Purchases</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Purchases') }}</div>
           {{ report.purchase_rows }}
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Reversals</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Reversals') }}</div>
           <span :class="report.reversal_rows ? 'text-red-600 font-medium' : 'text-gray-400'">{{ report.reversal_rows }}</span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Matched</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Matched') }}</div>
           <span class="text-green-700 font-medium">{{ report.matched_count }}</span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Queries</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Queries') }}</div>
           <span :class="queriesCount ? 'text-amber-700 font-bold' : ''">{{ queriesCount }}</span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Duplicates</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Duplicates') }}</div>
           <span :class="report.duplicate_count ? '' : 'text-gray-400'">{{ report.duplicate_count }}</span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Ignored</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Ignored') }}</div>
           <span :class="report.ignored_count ? '' : 'text-gray-400'">{{ report.ignored_count }}</span>
         </div>
         <div>
-          <div class="text-xs text-gray-400 uppercase">Synced / Refund-marked</div>
+          <div class="text-xs text-gray-400 uppercase">{{ $t('Synced / Refund-marked') }}</div>
           <span v-if="report.synced_at">
             {{ report.synced_count }} / <span :class="report.refunded_count ? 'text-red-600 font-medium' : ''">{{ report.refunded_count }}</span>
-            <span class="text-xs text-gray-400">· {{ report.synced_at }}<span v-if="report.synced_by"> by {{ report.synced_by }}</span></span>
+            <span class="text-xs text-gray-400">· {{ report.synced_at }}<span v-if="report.synced_by"> {{ $t('by :name', { name: report.synced_by }) }}</span></span>
           </span>
-          <span v-else class="text-gray-400">not yet</span>
+          <span v-else class="text-gray-400">{{ $t('not yet') }}</span>
         </div>
       </div>
 
@@ -152,20 +152,18 @@
       <!-- Excel-damaged file: the hour is gone from the file itself (Excel shows a fake
            "12:xx:xx AM" in its formula bar). Rows are matched on minute:second only. -->
       <div v-if="report.partial_time_rows" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm text-amber-800">
-        <span class="font-semibold">{{ report.partial_time_rows }} lines have no hour</span> —
-        this file was opened and re-saved in Excel, which turns "23:12:41" into "12:41.0". Those lines were matched on
-        minute:second within the hour (same terminal, same amount), so ambiguous ones need a manual pick. For exact
-        matching, re-download the raw CSV from MerchantConnect and upload that instead.
+        <span class="font-semibold">{{ $t(':count lines have no hour', { count: report.partial_time_rows }) }}</span> —
+        {{ $t('this file was opened and re-saved in Excel, which turns "23:12:41" into "12:41.0". Those lines were matched on minute:second within the hour (same terminal, same amount), so ambiguous ones need a manual pick. For exact matching, re-download the raw CSV from MerchantConnect and upload that instead.') }}
       </div>
 
       <!-- unbound terminals: two different chores, shown apart; each line carries the matcher's machine suggestion -->
       <div v-if="unknownTerminals.length" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-red-50 border border-red-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
-          <div class="font-semibold text-red-800">Terminal IDs not created yet</div>
+          <div class="font-semibold text-red-800">{{ $t('Terminal IDs not created yet') }}</div>
           <label v-if="unknownTerminals.some((t) => t.suggested_vend_code)" class="flex items-center space-x-1 text-xs text-red-700 cursor-pointer">
             <input type="checkbox" class="cursor-pointer rounded border-red-300 text-red-600 focus:ring-red-500"
               :checked="allSelectedIn(unknownTerminals)" @change="toggleAllIn(unknownTerminals)" />
-            <span>Select all suggested</span>
+            <span>{{ $t('Select all suggested') }}</span>
           </label>
         </div>
         <div class="text-red-800 space-y-0.5">
@@ -173,15 +171,15 @@
             <input v-if="t.suggested_vend_code" type="checkbox"
               class="mt-1 cursor-pointer rounded border-red-300 text-red-600 focus:ring-red-500"
               :checked="selectedUnbound.includes(t.terminal_id)"
-              :title="'Bind ' + t.terminal_id + ' to machine ' + t.suggested_vend_code"
+              :title="$t('Bind :terminal to machine :machine', { terminal: t.terminal_id, machine: t.suggested_vend_code })"
               @change="toggleUnbound(t.terminal_id)" />
             <span v-else class="mt-1 inline-block w-4"></span>
             <div>
-              <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-red-600">({{ t.row_count }} rows)</span>
+              <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-red-600">({{ $t(':count rows', { count: t.row_count }) }})</span>
               <template v-if="t.suggested_vend_code">
-                — likely on <b>{{ t.suggested_vend_code }}</b>: {{ t.suggested_hits }} of {{ t.row_count }} lines fit that machine exactly, from <b>{{ t.from_date }}</b>
+                {{ $t('— likely on') }} <b>{{ t.suggested_vend_code }}</b>{{ $t(': :hits of :count lines fit that machine exactly, from', { hits: t.suggested_hits, count: t.row_count }) }} <b>{{ t.from_date }}</b>
               </template>
-              <span v-else class="text-red-600">— no single machine fits its lines; bind it by hand</span>
+              <span v-else class="text-red-600">{{ $t('— no single machine fits its lines; bind it by hand') }}</span>
             </div>
           </div>
         </div>
@@ -191,18 +189,18 @@
             :class="report.status === 'matching' || !selectedIn(unknownTerminals).length ? 'opacity-50 cursor-not-allowed' : ''"
             @click="bindUnbound(unknownTerminals)">
             <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-            <span>Create &amp; bind {{ selectedIn(unknownTerminals).length }} terminal{{ selectedIn(unknownTerminals).length === 1 ? '' : 's' }} &amp; rematch</span>
+            <span>{{ $tc('Create & bind :count terminal & rematch|Create & bind :count terminals & rematch', selectedIn(unknownTerminals).length) }}</span>
           </Button>
-          <span class="text-red-700">…or by hand: create it under <Link href="/card-terminal-units" class="underline font-medium">Data Management → Card Terminal</Link>, put it on its machine from that machine's Settings page, and hit Rematch.</span>
+          <span class="text-red-700">{{ $t('…or by hand: create it under') }} <Link href="/card-terminal-units" class="underline font-medium">{{ $t('Data Management → Card Terminal') }}</Link>{{ $t(", put it on its machine from that machine's Settings page, and hit Rematch.") }}</span>
         </div>
       </div>
       <div v-if="unassignedTerminals.length" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-amber-50 border border-amber-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
-          <div class="font-semibold text-amber-800">Terminal IDs not bound to any machine yet</div>
+          <div class="font-semibold text-amber-800">{{ $t('Terminal IDs not bound to any machine yet') }}</div>
           <label v-if="unassignedTerminals.some((t) => t.suggested_vend_code)" class="flex items-center space-x-1 text-xs text-amber-700 cursor-pointer">
             <input type="checkbox" class="cursor-pointer rounded border-amber-300 text-amber-600 focus:ring-amber-500"
               :checked="allSelectedIn(unassignedTerminals)" @change="toggleAllIn(unassignedTerminals)" />
-            <span>Select all suggested</span>
+            <span>{{ $t('Select all suggested') }}</span>
           </label>
         </div>
         <div class="text-amber-800 space-y-0.5">
@@ -210,15 +208,15 @@
             <input v-if="t.suggested_vend_code" type="checkbox"
               class="mt-1 cursor-pointer rounded border-amber-300 text-amber-600 focus:ring-amber-500"
               :checked="selectedUnbound.includes(t.terminal_id)"
-              :title="'Bind ' + t.terminal_id + ' to machine ' + t.suggested_vend_code"
+              :title="$t('Bind :terminal to machine :machine', { terminal: t.terminal_id, machine: t.suggested_vend_code })"
               @change="toggleUnbound(t.terminal_id)" />
             <span v-else class="mt-1 inline-block w-4"></span>
             <div>
-              <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-amber-600">({{ t.row_count }} rows)</span>
+              <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-amber-600">({{ $t(':count rows', { count: t.row_count }) }})</span>
               <template v-if="t.suggested_vend_code">
-                — likely on <b>{{ t.suggested_vend_code }}</b>: {{ t.suggested_hits }} of {{ t.row_count }} lines fit that machine exactly, from <b>{{ t.from_date }}</b>
+                {{ $t('— likely on') }} <b>{{ t.suggested_vend_code }}</b>{{ $t(': :hits of :count lines fit that machine exactly, from', { hits: t.suggested_hits, count: t.row_count }) }} <b>{{ t.from_date }}</b>
               </template>
-              <span v-else class="text-amber-600">— no single machine fits its lines; bind it by hand</span>
+              <span v-else class="text-amber-600">{{ $t('— no single machine fits its lines; bind it by hand') }}</span>
             </div>
           </div>
         </div>
@@ -228,15 +226,15 @@
             :class="report.status === 'matching' || !selectedIn(unassignedTerminals).length ? 'opacity-50 cursor-not-allowed' : ''"
             @click="bindUnbound(unassignedTerminals)">
             <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-            <span>Bind {{ selectedIn(unassignedTerminals).length }} terminal{{ selectedIn(unassignedTerminals).length === 1 ? '' : 's' }} &amp; rematch</span>
+            <span>{{ $tc('Bind :count terminal & rematch|Bind :count terminals & rematch', selectedIn(unassignedTerminals).length) }}</span>
           </Button>
-          <span class="text-amber-700">…or by hand: open the machine's Settings page, pick the Terminal ID there (Bound From = the date it went on), and hit Rematch.</span>
+          <span class="text-amber-700">{{ $t("…or by hand: open the machine's Settings page, pick the Terminal ID there (Bound From = the date it went on), and hit Rematch.") }}</span>
         </div>
       </div>
       <!-- suspected wrong bindings: the sale exists, on a different machine -->
       <div v-if="suspectBindings.length" class="-mx-3 sm:-mx-6 lg:-mx-8 bg-orange-50 border border-orange-200 rounded-md p-3 my-3 text-sm">
         <div class="flex items-center justify-between mb-1">
-          <div class="font-semibold text-orange-800">Terminals that look bound to the wrong machine</div>
+          <div class="font-semibold text-orange-800">{{ $t('Terminals that look bound to the wrong machine') }}</div>
           <label class="flex items-center space-x-1 text-xs text-orange-700 cursor-pointer">
             <input
               type="checkbox"
@@ -244,7 +242,7 @@
               :checked="allSuspectsSelected"
               @change="toggleAllSuspects"
             />
-            <span>Select all</span>
+            <span>{{ $t('Select all') }}</span>
           </label>
         </div>
         <div class="text-orange-800 space-y-0.5">
@@ -254,21 +252,21 @@
               type="checkbox"
               class="mt-1 cursor-pointer rounded border-orange-300 text-orange-600 focus:ring-orange-500"
               :checked="selectedTerminals.includes(s.terminal_id)"
-              :title="'Move ' + s.terminal_id + ' to machine ' + s.suggested_vend_code"
+              :title="$t('Move :terminal to machine :machine', { terminal: s.terminal_id, machine: s.suggested_vend_code })"
               @change="toggleSuspect(s.terminal_id)"
             />
-            <span v-else class="mt-1 inline-block w-4" title="Only one line fits — not enough evidence to move the terminal automatically"></span>
+            <span v-else class="mt-1 inline-block w-4" :title="$t('Only one line fits — not enough evidence to move the terminal automatically')"></span>
             <div>
-            <span class="font-mono">{{ s.terminal_id }}</span> is bound to <b>{{ s.bound_vend_code }}</b>, but its sales are on
-            <b>{{ s.suggested_vend_code }}</b> — {{ s.suggested_hits }} of {{ s.row_count }} unmatched lines fit that machine exactly,
-            from <b>{{ s.from_date }}</b>.<span v-if="s.weak" class="ml-1 text-orange-600">One line is a coincidence, not a move — bind by hand if you know it moved.</span>
+            <span class="font-mono">{{ s.terminal_id }}</span> {{ $t('is bound to') }} <b>{{ s.bound_vend_code }}</b>{{ $t(', but its sales are on') }}
+            <b>{{ s.suggested_vend_code }}</b> — {{ $t(':hits of :count unmatched lines fit that machine exactly, from', { hits: s.suggested_hits, count: s.row_count }) }}
+            <b>{{ s.from_date }}</b>.<span v-if="s.weak" class="ml-1 text-orange-600">{{ $t('One line is a coincidence, not a move — bind by hand if you know it moved.') }}</span>
             <!-- Impact across EVERY report from that date, counted before the
                  move: what it recovers vs what it would knock back to a query. -->
             <span class="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold border"
               :class="s.would_break_synced ? 'bg-red-100 text-red-800 border-red-300'
                 : (s.would_break ? 'bg-amber-100 text-amber-800 border-amber-300'
                 : 'bg-green-100 text-green-800 border-green-300')">
-              fixes {{ s.would_fix }} · breaks {{ s.would_break }}<span v-if="s.would_break_synced"> ({{ s.would_break_synced }} already synced — skipped)</span>
+              {{ $t('fixes :fix · breaks :break', { fix: s.would_fix, break: s.would_break }) }}<span v-if="s.would_break_synced"> ({{ $t(':count already synced — skipped', { count: s.would_break_synced }) }})</span>
             </span>
             </div>
           </div>
@@ -281,11 +279,10 @@
             @click="fixBindings()"
           >
             <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-            <span>Move {{ selectedTerminals.length }} terminal{{ selectedTerminals.length === 1 ? '' : 's' }} &amp; rematch</span>
+            <span>{{ $tc('Move :count terminal & rematch|Move :count terminals & rematch', selectedTerminals.length) }}</span>
           </Button>
           <span class="text-orange-700">
-            …or do it by hand from the RIGHT machine's Settings page — pick this Terminal ID there and set Bound From to the
-            date it moved, then hit Rematch.
+            {{ $t("…or do it by hand from the RIGHT machine's Settings page — pick this Terminal ID there and set Bound From to the date it moved, then hit Rematch.") }}
           </span>
         </div>
       </div>
@@ -312,31 +309,31 @@
                       #
                     </TableHead>
                     <TableHead>
-                      Terminal
+                      {{ $t('Terminal') }}
                     </TableHead>
                     <TableHead>
-                      Machine ID
+                      {{ $t('Machine ID') }}
                     </TableHead>
                     <TableHead>
-                      Date
+                      {{ $t('Date') }}
                     </TableHead>
                     <TableHead>
-                      Time
+                      {{ $t('Time') }}
                     </TableHead>
                     <TableHead>
-                      Card
+                      {{ $t('Card') }}
                     </TableHead>
                     <TableHead>
-                      Amount
+                      {{ $t('Amount') }}
                     </TableHead>
                     <TableHead>
-                      Status
+                      {{ $t('Status') }}
                     </TableHead>
                     <TableHead>
-                      Matched Sale
+                      {{ $t('Matched Sale') }}
                     </TableHead>
                     <TableHead>
-                      Note / Resolve
+                      {{ $t('Note / Resolve') }}
                     </TableHead>
                   </tr>
                 </thead>
@@ -366,7 +363,7 @@
                         <span
                           v-if="row.time_is_partial"
                           class="text-amber-700"
-                          title="Hour lost (file was re-saved in Excel) — matched by minute:second within the hour"
+                          :title="$t('Hour lost (file was re-saved in Excel) — matched by minute:second within the hour')"
                         >
                           ??{{ row.transaction_time ? row.transaction_time.slice(2) : '' }}
                         </span>
@@ -380,9 +377,9 @@
                         <span
                           v-if="row.is_reversal"
                           class="ml-1 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-bold border bg-red-100 text-red-800 border-red-300"
-                          title="Terminal reversal line (Reversal Code = Y)"
+                          :title="$t('Terminal reversal line (Reversal Code = Y)')"
                         >
-                          REVERSAL
+                          {{ $t('REVERSAL') }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
@@ -397,30 +394,30 @@
                         <!-- reversal line: points at the purchase line it undoes -->
                         <template v-if="row.is_reversal">
                           <template v-if="row.reverses_row">
-                            <div>Reverses row #{{ row.reverses_row.row_no }}
-                              <span v-if="row.reverses_row.report_id !== report.id" class="text-xs text-gray-500">(report {{ row.reverses_row.report_id }})</span>
+                            <div>{{ $t('Reverses row #:row', { row: row.reverses_row.row_no }) }}
+                              <span v-if="row.reverses_row.report_id !== report.id" class="text-xs text-gray-500">({{ $t('report :id', { id: row.reverses_row.report_id }) }})</span>
                             </div>
-                            <div class="text-xs text-gray-500">{{ row.match_time_delta }}s after the purchase</div>
+                            <div class="text-xs text-gray-500">{{ $t(':delta after the purchase', { delta: row.match_time_delta + 's' }) }}</div>
                           </template>
                           <span v-else class="text-gray-400">—</span>
                         </template>
                         <template v-else-if="row.matched_txn">
                           <div>#{{ row.matched_txn.id }} · {{ row.matched_txn.transaction_datetime }}</div>
                           <div class="text-xs text-gray-500">
-                            Δ {{ row.match_time_delta !== null ? row.match_time_delta + 's' : 'manual' }}
-                            <span v-if="row.matched_txn.is_refunded" class="text-red-600 font-medium"> · refunded</span>
-                            <span v-if="row.matched_txn.synced" class="text-green-600 font-medium"> · synced</span>
+                            Δ {{ row.match_time_delta !== null ? row.match_time_delta + 's' : $t('manual') }}
+                            <span v-if="row.matched_txn.is_refunded" class="text-red-600 font-medium"> · {{ $t('refunded') }}</span>
+                            <span v-if="row.matched_txn.synced" class="text-green-600 font-medium"> · {{ $t('synced') }}</span>
                           </div>
                           <div v-if="row.reversed_by_row" class="text-xs text-red-600 font-medium">
-                            Reversed by row #{{ row.reversed_by_row.row_no }}
-                            <span v-if="!row.matched_txn.is_refunded" class="text-gray-500 font-normal">→ marked refunded on Sync</span>
+                            {{ $t('Reversed by row #:row', { row: row.reversed_by_row.row_no }) }}
+                            <span v-if="!row.matched_txn.is_refunded" class="text-gray-500 font-normal">{{ $t('→ marked refunded on Sync') }}</span>
                           </div>
                           <div
                             v-else-if="row.matched_txn.auto_refund_source === 'card_terminal_reversal'"
                             class="text-xs text-amber-700"
-                            title="ConnectVend inferred a reversal from the TRADE frame, but this report has no reversal line for it — the reader may have retained the credit instead"
+                            :title="$t('ConnectVend inferred a reversal from the TRADE frame, but this report has no reversal line for it — the reader may have retained the credit instead')"
                           >
-                            ⚠ refunded by inference, no reversal in report
+                            {{ $t('⚠ refunded by inference, no reversal in report') }}
                           </div>
                         </template>
                         <span v-else class="text-gray-400">—</span>
@@ -428,9 +425,9 @@
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-left">
                         <div v-if="row.resolution_note" class="text-xs text-gray-500 mb-1"
                           :title="row.resolution_note === 'All matching sales already claimed'
-                            ? 'Every sale that fits this line is already held by another line — NETS charged more times than ConnectVend recorded sales here. Likely a double charge (customer tapped twice); check the two lines and refund if so.'
+                            ? $t('Every sale that fits this line is already held by another line — NETS charged more times than ConnectVend recorded sales here. Likely a double charge (customer tapped twice); check the two lines and refund if so.')
                             : (row.resolution_note === 'No matching sale in window'
-                              ? 'ConnectVend has no card sale on this machine at this time/amount — the machine may have been offline (TRADE never arrived) or the terminal is bound to the wrong machine.'
+                              ? $t('ConnectVend has no card sale on this machine at this time/amount — the machine may have been offline (TRADE never arrived) or the terminal is bound to the wrong machine.')
                               : '')">
                           {{ row.resolution_note }}
                         </div>
@@ -443,36 +440,36 @@
                             <span
                               v-if="c.claimed_by_row"
                               class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-gray-200 text-gray-600"
-                              :title="'Held by row #' + c.claimed_by_row.row_no + (c.claimed_by_row.same_report ? '' : ' of report ' + c.claimed_by_row.report_id) + ' — NETS charged more times than ConnectVend recorded sales; check for a double charge'"
+                              :title="c.claimed_by_row.same_report ? $t('Held by row #:row — NETS charged more times than ConnectVend recorded sales; check for a double charge', { row: c.claimed_by_row.row_no }) : $t('Held by row #:row of report :report — NETS charged more times than ConnectVend recorded sales; check for a double charge', { row: c.claimed_by_row.row_no, report: c.claimed_by_row.report_id })"
                             >
-                              held by row #{{ c.claimed_by_row.row_no }}<span v-if="!c.claimed_by_row.same_report"> (report {{ c.claimed_by_row.report_id }})</span>
+                              {{ $t('held by row #:row', { row: c.claimed_by_row.row_no }) }}<span v-if="!c.claimed_by_row.same_report"> ({{ $t('report :id', { id: c.claimed_by_row.report_id }) }})</span>
                             </span>
                             <Button
                               v-else
                               type="button" class="bg-green-500 hover:bg-green-600 px-2 py-1 text-xs text-white"
                               @click="pickCandidate(row, c)"
                             >
-                              Pick
+                              {{ $t('Pick') }}
                             </Button>
-                            <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.other_vend" class="text-orange-700 font-medium"> · on machine {{ c.vend_code }}</span><span v-if="c.is_refunded" class="text-red-600"> · refunded</span></span>
+                            <span>#{{ c.vend_transaction_id }} · {{ c.transaction_datetime }}<span v-if="c.other_vend" class="text-orange-700 font-medium"> · {{ $t('on machine :machine', { machine: c.vend_code }) }}</span><span v-if="c.is_refunded" class="text-red-600"> · {{ $t('refunded') }}</span></span>
                           </div>
                         </div>
                         <div v-if="(row.status === 2 || row.status === 3) && !row.is_reversal" class="flex items-center space-x-1 mt-1">
-                          <input v-model="manualTxnId[row.id]" placeholder="Txn ID / Order ID" title="Either the sale's numeric Txn ID (#…, as shown here) or its Order ID from Sales Transactions"
+                          <input v-model="manualTxnId[row.id]" :placeholder="$t('Txn ID / Order ID')" :title="$t('Either the sale\'s numeric Txn ID (#…, as shown here) or its Order ID from Sales Transactions')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs border-gray-300 rounded-md w-24 px-2 py-1"
                             @keyup.enter="resolveManual(row)" />
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800"
                             @click="resolveManual(row)"
                           >
-                            Assign
+                            {{ $t('Assign') }}
                           </Button>
                         </div>
                       </TableData>
                       </tr>
                 <tr v-if="!rows.data.length">
                   <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      {{ rowStatus === 'queries' ? 'No open queries — everything matched or duplicated.' : 'No Results Found' }}
+                      {{ rowStatus === 'queries' ? $t('No open queries — everything matched or duplicated.') : $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -495,6 +492,7 @@ import TableData from '@/Components/TableData.vue';
 import { computed, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   report: { type: Object, required: true },
@@ -538,35 +536,34 @@ function bindUnbound(list) {
   const chosen = selectedIn(list)
   if (props.report.status === 'matching' || !chosen.length) return
   const creating = chosen.some((t) => !t.unit_exists)
-  const lines = chosen.map((t) => '  ' + t.terminal_id + ' → ' + t.suggested_vend_code + ' from ' + t.from_date +
-    ' (' + t.suggested_hits + ' of ' + t.row_count + ' lines fit)').join('\n')
+  const lines = chosen.map((term) => '  ' + t(':terminal → :machine from :date (:hits of :count lines fit)', { terminal: term.terminal_id, machine: term.suggested_vend_code, date: term.from_date, hits: term.suggested_hits, count: term.row_count })).join('\n')
   const approval = confirm(
-    (creating ? 'Create ' + chosen.length + ' terminal(s) in Data Management and bind' : 'Bind ' + chosen.length + ' terminal(s)') +
-    ' to the machine their sales are on, then rematch?\n\n' + lines + '\n\n' +
-    'Each binding starts on the first date this report saw the terminal. It affects every settlement report, not just this one.'
+    (creating ? t('Create :count terminal(s) in Data Management and bind to the machine their sales are on, then rematch?', { count: chosen.length }) : t('Bind :count terminal(s) to the machine their sales are on, then rematch?', { count: chosen.length })) +
+    '\n\n' + lines + '\n\n' +
+    t('Each binding starts on the first date this report saw the terminal. It affects every settlement report, not just this one.')
   )
   if (!approval) {
     return
   }
   router.post('/card-settlements/' + props.report.id + '/bind-unbound', { terminal_ids: chosen.map((t) => t.terminal_id) }, {
     preserveScroll: true,
-    onSuccess: () => toast.success("Terminals bound — rematch queued", { timeout: 4000 }),
-    onError: () => toast.error("Failed to bind the terminals", { timeout: 3000 }),
+    onSuccess: () => toast.success(t("Terminals bound — rematch queued"), { timeout: 4000 }),
+    onError: () => toast.error(t("Failed to bind the terminals"), { timeout: 3000 }),
   })
 }
 
 // Row status codes (CardSettlementRow::STATUS_*)
 const chips = [
-  { key: 'queries', label: 'Queries' },
-  { key: '1', label: 'Matched' },
-  { key: '2', label: 'Unmatched' },
-  { key: '3', label: 'Ambiguous' },
-  { key: 'reversals', label: 'Reversals' },
-  { key: '5', label: 'Duplicates' },
+  { key: 'queries', label: t('Queries') },
+  { key: '1', label: t('Matched') },
+  { key: '2', label: t('Unmatched') },
+  { key: '3', label: t('Ambiguous') },
+  { key: 'reversals', label: t('Reversals') },
+  { key: '5', label: t('Duplicates') },
   // Lines whose sale is channel error 99 — mostly the orphans a Sync created
   // for money the machine never reported a TRADE for.
-  { key: 'na', label: 'Machine transaction not found (NA)' },
-  { key: 'all', label: 'All rows' },
+  { key: 'na', label: t('Machine transaction not found (NA)') },
+  { key: 'all', label: t('All rows') },
 ]
 
 function statusBadgeClass(status) {
@@ -608,7 +605,7 @@ function rematch() {
   if (props.report.status === 'matching') return
   router.post('/card-settlements/' + props.report.id + '/rematch', {}, {
     preserveScroll: true,
-    onSuccess: () => toast.success("Rematch queued", { timeout: 3000 }),
+    onSuccess: () => toast.success(t("Rematch queued"), { timeout: 3000 }),
   })
 }
 
@@ -640,36 +637,34 @@ function fixBindings() {
   if (props.report.status === 'matching' || !selectedTerminals.value.length) return
   const chosen = props.suspectBindings.filter((s) => selectedTerminals.value.includes(s.terminal_id))
   const lines = chosen
-    .map((s) => '  ' + s.terminal_id + ': ' + s.bound_vend_code + ' → ' + s.suggested_vend_code + ' from ' + s.from_date +
-      ' (fixes ' + s.would_fix + ', breaks ' + s.would_break + ')' +
-      (s.would_break_synced ? ' — SKIPPED, ' + s.would_break_synced + ' already synced' : ''))
+    .map((s) => '  ' + t(':terminal: :from → :to from :date (fixes :fix, breaks :break)', { terminal: s.terminal_id, from: s.bound_vend_code, to: s.suggested_vend_code, date: s.from_date, fix: s.would_fix, break: s.would_break }) +
+      (s.would_break_synced ? ' — ' + t('SKIPPED, :count already synced', { count: s.would_break_synced }) : ''))
     .join('\n')
   const approval = confirm(
-    'Move ' + chosen.length + ' terminal(s) onto the machine their sales are on, and rematch?\n\n' +
+    t('Move :count terminal(s) onto the machine their sales are on, and rematch?', { count: chosen.length }) + '\n\n' +
     lines + '\n\n' +
-    'This closes each current binding and opens a new one from that date. It affects every settlement report, ' +
-    'not just this one. Anything ambiguous is left alone and listed back to you.'
+    t('This closes each current binding and opens a new one from that date. It affects every settlement report, not just this one. Anything ambiguous is left alone and listed back to you.')
   )
   if (!approval) {
     return
   }
   router.post('/card-settlements/' + props.report.id + '/fix-bindings', { terminal_ids: selectedTerminals.value }, {
     preserveScroll: true,
-    onSuccess: () => toast.success("Bindings updated — rematch queued", { timeout: 4000 }),
-    onError: () => toast.error("Failed to update bindings", { timeout: 3000 }),
+    onSuccess: () => toast.success(t("Bindings updated — rematch queued"), { timeout: 4000 }),
+    onError: () => toast.error(t("Failed to update bindings"), { timeout: 3000 }),
   })
 }
 
 function sync() {
   if (!canSync.value || props.report.status === 'matching' || !props.report.matched_count) return
-  const approval = confirm('Stamp "settlement synced" onto ' + props.report.matched_count + ' matched transaction(s)?');
+  const approval = confirm(t('Stamp "settlement synced" onto :count matched transaction(s)?', { count: props.report.matched_count }));
   if (!approval) {
       return;
   }
   router.post('/card-settlements/' + props.report.id + '/sync', {}, {
     preserveScroll: true,
-    onSuccess: () => toast.success("Matched transactions synced", { timeout: 3000 }),
-    onError: () => toast.error("Failed to sync", { timeout: 3000 }),
+    onSuccess: () => toast.success(t("Matched transactions synced"), { timeout: 3000 }),
+    onError: () => toast.error(t("Failed to sync"), { timeout: 3000 }),
   })
 }
 
@@ -678,30 +673,28 @@ const canUpdate = computed(() => (page.props.auth?.permissions || []).includes('
 
 function unsync() {
   const approval = confirm(
-    'Undo the sync of ' + props.report.original_filename + '?\n\n' +
-    'The sales it matched lose their "settlement synced" stamp, NA sales it created with no TRADE are removed, ' +
-    'and auto-refund ticks it set (reversals, NA in NETS) are cleared, releasing their refund tickets. ' +
-    'Its days stop counting as final until it, or a replacement file, is synced.\n\n' +
-    'The report goes back to review, where you can Delete it or Sync it again.'
+    t('Undo the sync of :file?', { file: props.report.original_filename }) + '\n\n' +
+    t('The sales it matched lose their "settlement synced" stamp, NA sales it created with no TRADE are removed, and auto-refund ticks it set (reversals, NA in NETS) are cleared, releasing their refund tickets. Its days stop counting as final until it, or a replacement file, is synced.') + '\n\n' +
+    t('The report goes back to review, where you can Delete it or Sync it again.')
   );
   if (!approval) {
     return;
   }
   router.post('/card-settlements/' + props.report.id + '/unsync', {}, {
     preserveScroll: true,
-    onSuccess: () => toast.success("Sync undone", { timeout: 3000 }),
-    onError: () => toast.error("Failed to undo sync", { timeout: 3000 }),
+    onSuccess: () => toast.success(t("Sync undone"), { timeout: 3000 }),
+    onError: () => toast.error(t("Failed to undo sync"), { timeout: 3000 }),
   })
 }
 
 function destroyReport() {
-  const approval = confirm('Are you sure to delete this report and all its rows?');
+  const approval = confirm(t('Are you sure to delete this report and all its rows?'));
   if (!approval) {
       return;
   }
   router.delete('/card-settlements/' + props.report.id, {
-    onSuccess: () => toast.success("Report deleted successfully", { timeout: 3000 }),
-    onError: () => toast.error("Failed to delete report", { timeout: 3000 }),
+    onSuccess: () => toast.success(t("Report deleted successfully"), { timeout: 3000 }),
+    onError: () => toast.error(t("Failed to delete report"), { timeout: 3000 }),
   })
 }
 
@@ -709,8 +702,8 @@ function resolveTo(row, txnId) {
   router.post('/card-settlements/' + props.report.id + '/rows/' + row.id + '/resolve',
     { vend_transaction_id: txnId }, {
       preserveScroll: true,
-      onSuccess: () => toast.success("Row resolved", { timeout: 3000 }),
-      onError: () => toast.error("Failed to resolve row", { timeout: 3000 }),
+      onSuccess: () => toast.success(t("Row resolved"), { timeout: 3000 }),
+      onError: () => toast.error(t("Failed to resolve row"), { timeout: 3000 }),
     })
 }
 
@@ -719,10 +712,10 @@ function resolveTo(row, txnId) {
 function pickCandidate(row, c) {
   if (c.other_vend && String(c.vend_code) !== String(row.vend_code)) {
     const approval = confirm(
-      'Moving this line from machine ' + row.vend_code + ' to machine ' + c.vend_code + '.\n\n' +
-      'Terminal ' + row.terminal_id + ' is bound to ' + row.vend_code + ' but this sale is on ' + c.vend_code + '. ' +
-      'If the terminal has moved, also update it on Card Terminal Bindings so future reports match on their own.\n\n' +
-      'Do you confirm?'
+      t('Moving this line from machine :from to machine :to.', { from: row.vend_code, to: c.vend_code }) + '\n\n' +
+      t('Terminal :terminal is bound to :from but this sale is on :to.', { terminal: row.terminal_id, from: row.vend_code, to: c.vend_code }) + ' ' +
+      t('If the terminal has moved, also update it on Card Terminal Bindings so future reports match on their own.') + '\n\n' +
+      t('Do you confirm?')
     )
     if (!approval) {
       return

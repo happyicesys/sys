@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Platform" />
+  <Head :title="$t('Delivery Platform')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform Orders
+        {{ $t('Delivery Platform Orders') }}
       </h2>
     </template>
 
@@ -13,18 +13,18 @@
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.order_id">
-            Order ID
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.order_id">
+            {{ $t('Order ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Name" v-model="filters.short_order_id">
-            Short Order ID
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.short_order_id">
+            {{ $t('Short Order ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID') }}
           </SearchInput>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Platform ID
+              {{ $t('Platform ID') }}
             </label>
             <MultiSelect
               v-model="selectedPlatformRefNumber"
@@ -32,7 +32,7 @@
               trackBy="id"
               valueProp="id"
               label="ref_number"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               :canClear="false"
@@ -44,7 +44,7 @@
           </div>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Delivery Platform
+              {{ $t('Delivery Platform') }}
             </label>
             <MultiSelect
               v-model="filters.delivery_platform_type_id"
@@ -52,7 +52,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -60,7 +60,7 @@
           </div>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.status"
@@ -68,7 +68,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -76,7 +76,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Has Complaint?
+              {{ $t('Has Complaint?') }}
             </label>
             <MultiSelect
               v-model="filters.has_complaint"
@@ -84,7 +84,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -92,7 +92,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Date Filter Type
+              {{ $t('Date Filter Type') }}
             </label>
             <MultiSelect
               v-model="filters.date_filter_type"
@@ -100,7 +100,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -109,13 +109,13 @@
           <DatePicker
               v-model="filters.date_from"
           >
-              From
+              {{ $t('From') }}
           </DatePicker>
           <DatePicker
               v-model="filters.date_to"
               :minDate="filters.date_from"
           >
-              To
+              {{ $t('To') }}
           </DatePicker>
         </div>
 
@@ -127,7 +127,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
 
@@ -143,7 +143,7 @@
                     </svg>
                   </div>
                   <span>
-                      Export Excel
+                      {{ $t('Export Excel') }}
                   </span>
                 </div>
               </Button>
@@ -151,13 +151,13 @@
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ deliveryPlatformOrders.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ deliveryPlatformOrders.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ deliveryPlatformOrders.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -165,7 +165,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -175,19 +175,19 @@
         </div>
         <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Delivered)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Total Amount (Delivered)') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['total_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Orders (Delivered)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Total Orders (Delivered)') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{totals['order_count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                 </dd>
             </div>
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Avg Per Order (Delivered)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Avg Per Order (Delivered)') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{ totals['order_count'] ? ((totals['total_amount']/ totals['order_count'])/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0 }}
                 </dd>
@@ -205,54 +205,54 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="order_created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('order_created_at')">
-                      Order Time
+                      {{ $t('Order Time') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="dispensed_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('dispensed_at')">
-                      Dispensed Time
+                      {{ $t('Dispensed Time') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="final_status_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('final_status_at')">
-                      Delivered/ Cancelled Time
+                      {{ $t('Delivered/ Cancelled Time') }}
                     </TableHeadSort>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
-                          Platform
+                          {{ $t('Platform') }}
                         </span>
                         <span>
-                          Platform ID
+                          {{ $t('Platform ID') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
-                      Order ID
+                      {{ $t('Order ID') }}
                     </TableHead>
                     <TableHead>
-                      Short Order ID
+                      {{ $t('Short Order ID') }}
                     </TableHead>
                     <TableHead>
-                      Status
+                      {{ $t('Status') }}
                     </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Vend
+                      {{ $t('Vend') }}
                     </TableHeadSort>
                     <TableHead>
-                      Transaction <br>
-                      Order ID
+                      {{ $t('Transaction') }} <br>
+                      {{ $t('Order ID') }}
                     </TableHead>
                     <TableHead>
-                      (Channel) Item x Qt2
+                      {{ $t('(Channel) Item x Qt2') }}
                     </TableHead>
                     <TableHeadSort modelName="subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('subtotal_amount', true)">
-                      Subtotal
+                      {{ $t('Subtotal') }}
                     </TableHeadSort>
                     <TableHead>
-                      Campaign
+                      {{ $t('Campaign') }}
                     </TableHead>
                     <TableHead>
-                      Channel Error(s)
+                      {{ $t('Channel Error(s)') }}
                     </TableHead>
                     <TableHead>
-                      Driver Phone Number
+                      {{ $t('Driver Phone Number') }}
                     </TableHead>
                   </tr>
                 </thead>
@@ -311,7 +311,7 @@
                         </span>
                         <span class="text-xs" v-if="deliveryPlatformOrder.last_mile_timediff_mins && deliveryPlatformOrder.last_mile_timediff_mins >= 0">
                           <br>
-                          CD ({{ deliveryPlatformOrder.last_mile_timediff_mins }} m)
+                          {{ $t('CD (:mins m)', { mins: deliveryPlatformOrder.last_mile_timediff_mins }) }}
                         </span>
                       </div>
                     </TableData>
@@ -426,7 +426,7 @@
                             <div class="flex space-x-1">
                                 <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true"/>
                                 <span class="font-semibold">
-                                  Complaint
+                                  {{ $t('Complaint') }}
                                 </span>
                             </div>
 
@@ -436,7 +436,7 @@
                   </tr>
                   <tr v-if="!deliveryPlatformOrders.data.length">
                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                        No Results Found
+                        {{ $t('No Results Found') }}
                     </td>
                   </tr>
                 </tbody>
@@ -481,6 +481,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { vendCodeLabel } from '@/utils/vendCode';
 
@@ -532,15 +533,15 @@ const showStatusModal = ref(false)
 
 onMounted(() => {
   booleanOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'true', value: 'Yes'},
-      {id: 'false', value: 'No'},
+      {id: 'all', value: t('All')},
+      {id: 'true', value: t('Yes')},
+      {id: 'false', value: t('No')},
   ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   // deliveryPlatformOperatorOptions.value = [
@@ -552,11 +553,11 @@ onMounted(() => {
     return {id: dateFilterType, value: props.dateFilterTypeOptions[dateFilterType]}
   })
   deliveryPlatformTypeOptions.value = [
-    {id: 'all', name: 'All'},
+    {id: 'all', name: t('All')},
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
   operatorOptions.value = [
-			{id: 'all', full_name: 'All'},
+			{id: 'all', full_name: t('All')},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   platformRefNumberSelectOptions.value = [

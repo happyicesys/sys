@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Bind New Uom
+            {{ $t('Bind New Uom') }}
           </span>
         </div>
       </template>
@@ -14,7 +14,7 @@
             <div class="sm:col-span-6">
               <div class="flex space-x-1">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  UOM
+                  {{ $t('UOM') }}
                 </label>
                 <span class="text-red-500">
                   *
@@ -26,7 +26,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -37,7 +37,7 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.value" :error="form.errors.value" required="true" :disabled="form.is_base_uom">
-                Value (equals how many Base UOM)
+                {{ $t('Value (equals how many Base UOM)') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6 pt-2">
@@ -47,7 +47,7 @@
                     <input id="candidates" v-model="form.is_base_uom" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-75" @click="onBaseUomClicked"/>
                   </div>
                   <div class="ml-3 text-sm">
-                    <label for="candidates" class="font-medium text-gray-700">Is Base UOM?</label>
+                    <label for="candidates" class="font-medium text-gray-700">{{ $t('Is Base UOM?') }}</label>
                   </div>
                 </div>
 
@@ -56,7 +56,7 @@
                     <input id="candidates" v-model="form.is_transaction_uom" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-75" />
                   </div>
                   <div class="ml-3 text-sm">
-                    <label for="candidates" class="font-medium text-gray-700">Is Transacted UOM?</label>
+                    <label for="candidates" class="font-medium text-gray-700">{{ $t('Is Transacted UOM?') }}</label>
                   </div>
                 </div>
               </div>
@@ -70,13 +70,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>

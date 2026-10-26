@@ -16,7 +16,7 @@
           <template v-else-if="isPdf(item.full_url)">
             <div class="flex items-center">
               <span class="text-sm text-gray-900 font-medium underline">
-                {{ item.name || 'View PDF' }}
+                {{ item.name || $t('View PDF') }}
               </span>
             </div>
           </template>
@@ -82,7 +82,7 @@
     </li>
     <li v-if="!items || !items.length">
       <div class="flex items-center justify-center py-4">
-        <p class="text-sm text-gray-500">No attachments found</p>
+        <p class="text-sm text-gray-500">{{ $t('No attachments found') }}</p>
       </div>
     </li>
   </ul>
@@ -93,6 +93,7 @@ import { ArrowLeftCircleIcon, CheckCircleIcon, PencilSquareIcon, XCircleIcon } f
 import { router } from '@inertiajs/vue3';
 import { onMounted, ref, watch } from 'vue';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   items: [Array, Object],
@@ -149,12 +150,12 @@ function deleteAttachment(id) {
   router.delete('/attachments/' + id, {
     onSuccess: () => {
       location.reload()
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
     },
     onError: (errors) => {
-      toast.error("Failed, Please Try Again", {
+      toast.error(t('Failed, Please Try Again'), {
         timeout: 3000
       });
     },

@@ -26,7 +26,7 @@ class CityboxVendActionController extends Controller
             return redirect()->back()->withErrors(['citybox' => 'Door open failed: '.$e->getMessage()]);
         }
 
-        return redirect()->back()->with('success', 'Door opened (msg_id '.$session->msgId.').');
+        return redirect()->back()->with('success', __('Door opened (msg_id :msg_id).', ['msg_id' => $session->msgId]));
     }
 
     public function pull(int $id, CityboxOpenapiSync $sync): RedirectResponse
@@ -39,7 +39,7 @@ class CityboxVendActionController extends Controller
             return redirect()->back()->withErrors(['citybox' => 'Pull failed: '.$e->getMessage()]);
         }
 
-        return redirect()->back()->with('success', 'Pulled latest status and stock from Citybox.');
+        return redirect()->back()->with('success', __('Pulled latest status and stock from Citybox.'));
     }
 
     /**
@@ -195,7 +195,7 @@ class CityboxVendActionController extends Controller
         abort_unless(
             $vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER && $vend->citybox_equipment_id,
             403,
-            'This action is only available for Smart Chiller (CityBox) vends with an equipment ID.'
+            __('This action is only available for Smart Chiller (CityBox) vends with an equipment ID.')
         );
 
         return $vend;

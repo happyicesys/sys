@@ -1,16 +1,16 @@
 <template>
 
-  <Head title="Site Grouping" />
+  <Head :title="$t('Site Grouping')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex items-center justify-between gap-3">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          Site Grouping
+          {{ $t('Site Grouping') }}
         </h2>
         <button type="button" @click="openCreate"
           class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 shrink-0">
-          + New Group
+          {{ $t('+ New Group') }}
         </button>
       </div>
     </template>
@@ -18,18 +18,17 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
 
       <p class="text-sm text-gray-500 mb-3 max-w-3xl">
-        Group co-located Sites into a cluster, then manage membership here instead of
-        typing the same label on each Site. A Site belongs to at most one group. Turning
-        on <span class="font-medium">"Grouped?"</span> on the Operation Dashboard makes a
-        cluster "travel together" — if any member matches your filters, all of them show.
+        {{ $t('Group co-located Sites into a cluster, then manage membership here instead of typing the same label on each Site. A Site belongs to at most one group. Turning on') }}
+        <span class="font-medium">"{{ $t('Grouped?') }}"</span>
+        {{ $t('on the Operation Dashboard makes a cluster "travel together" — if any member matches your filters, all of them show.') }}
       </p>
 
       <!-- ===================== TOOLBAR ===================== -->
       <div class="bg-white rounded-md border my-3 px-3 py-3">
         <div class="flex flex-wrap items-end gap-3">
           <div class="min-w-[220px] flex-1">
-            <label class="block text-sm font-medium text-gray-700">Find a group</label>
-            <input v-model="nameFilter" type="text" placeholder="Filter by group name…"
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Find a group') }}</label>
+            <input v-model="nameFilter" type="text" :placeholder="$t('Filter by group name…')"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
           </div>
         </div>
@@ -38,8 +37,8 @@
       <!-- ===================== EMPTY STATE ===================== -->
       <div v-if="!visibleGroups.length"
         class="bg-amber-50 border border-amber-200 text-amber-800 rounded-md px-4 py-3 text-sm">
-        No groups {{ nameFilter ? 'match your filter' : 'yet' }}. Create one with
-        <span class="font-medium">"+ New Group"</span>, then add Sites to it.
+        {{ nameFilter ? $t('No groups match your filter.') : $t('No groups yet.') }} {{ $t('Create one with') }}
+        <span class="font-medium">"{{ $t('+ New Group') }}"</span>{{ $t(', then add Sites to it.') }}
       </div>
 
       <!-- ===================== GROUP CARDS ===================== -->
@@ -53,18 +52,18 @@
               <div class="flex items-center gap-2">
                 <h3 class="font-semibold text-gray-800">{{ group.name }}</h3>
                 <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
-                  {{ group.member_count }} site{{ group.member_count === 1 ? '' : 's' }}
+                  {{ $tc(':count site|:count sites', group.member_count) }}
                 </span>
               </div>
               <p v-if="group.notes" class="text-xs text-gray-500 mt-1 whitespace-pre-line">{{ group.notes }}</p>
             </div>
             <div class="flex items-center gap-1 shrink-0">
               <button type="button" @click="openEdit(group)"
-                class="rounded p-1 text-gray-400 hover:text-indigo-600 hover:bg-gray-50" title="Rename / notes">
+                class="rounded p-1 text-gray-400 hover:text-indigo-600 hover:bg-gray-50" :title="$t('Rename / notes')">
                 <PencilSquareIcon class="w-5 h-5" />
               </button>
               <button type="button" @click="destroyGroup(group)"
-                class="rounded p-1 text-gray-400 hover:text-red-600 hover:bg-gray-50" title="Delete group">
+                class="rounded p-1 text-gray-400 hover:text-red-600 hover:bg-gray-50" :title="$t('Delete group')">
                 <TrashIcon class="w-5 h-5" />
               </button>
             </div>
@@ -73,7 +72,7 @@
           <!-- members -->
           <div class="px-4 py-3 flex-1">
             <div v-if="!group.members.length" class="text-xs text-gray-400 italic mb-2">
-              No sites in this group yet.
+              {{ $t('No sites in this group yet.') }}
             </div>
             <ul v-else class="flex flex-wrap gap-2 mb-3">
               <li v-for="site in group.members" :key="site.id"
@@ -86,7 +85,7 @@
                     class="text-amber-600"> · {{ site.status_name }}</span>
                 </span>
                 <button type="button" @click="removeMember(group, site)"
-                  class="rounded p-0.5 text-gray-400 hover:text-red-600 hover:bg-gray-200" title="Remove from group">
+                  class="rounded p-0.5 text-gray-400 hover:text-red-600 hover:bg-gray-200" :title="$t('Remove from group')">
                   <XMarkIcon class="w-4 h-4" />
                 </button>
               </li>
@@ -96,13 +95,13 @@
             <div class="relative">
               <input :value="pickerFor === group.id ? pickerQuery : ''"
                 @focus="openPicker(group)" @input="onPickerInput($event, group)"
-                type="text" placeholder="Add site by name, Machine ID or Site ID…"
+                type="text" :placeholder="$t('Add site by name, Machine ID or Site ID…')"
                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
               <div v-if="pickerFor === group.id && (pickerLoading || pickerResults.length || pickerQuery)"
                 class="absolute z-20 mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                <div v-if="pickerLoading" class="px-3 py-2 text-xs text-gray-400">Searching…</div>
+                <div v-if="pickerLoading" class="px-3 py-2 text-xs text-gray-400">{{ $t('Searching…') }}</div>
                 <div v-else-if="!pickerResults.length" class="px-3 py-2 text-xs text-gray-400">
-                  No unassigned sites match.
+                  {{ $t('No unassigned sites match.') }}
                 </div>
                 <button v-for="site in pickerResults" :key="site.id" type="button"
                   @click="addMember(group, site)"
@@ -123,19 +122,19 @@
       <div class="absolute inset-0 bg-black/40" @click="closeModal"></div>
       <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-5">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">
-          {{ form.id ? 'Edit Group' : 'New Group' }}
+          {{ form.id ? $t('Edit Group') : $t('New Group') }}
         </h3>
 
         <div class="space-y-3">
           <div>
-            <label class="block text-sm font-medium text-gray-700">Group name</label>
-            <input v-model="form.name" type="text" placeholder="e.g. Blk 123 cluster"
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Group name') }}</label>
+            <input v-model="form.name" type="text" :placeholder="$t('e.g. Blk 123 cluster')"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
             <p v-if="formError" class="text-sm text-red-600 mt-1">{{ formError }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Notes <span class="text-gray-400">(optional)</span></label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Notes') }} <span class="text-gray-400">{{ $t('(optional)') }}</span></label>
             <textarea v-model="form.notes" rows="2"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
           </div>
@@ -143,10 +142,10 @@
 
         <div class="flex justify-end gap-2 mt-5">
           <button type="button" @click="closeModal"
-            class="rounded-md border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            class="rounded-md border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">{{ $t('Cancel') }}</button>
           <button type="button" @click="saveGroup" :disabled="saving || !form.name.trim()"
             class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-            {{ saving ? 'Saving…' : 'Save' }}
+            {{ saving ? $t('Saving…') : $t('Save') }}
           </button>
         </div>
       </div>
@@ -161,6 +160,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { ref, reactive, computed } from 'vue';
 import axios from 'axios';
+import { t } from '@/i18n';
 
 const props = defineProps({
   groups: { type: Array, default: () => [] },
@@ -210,7 +210,7 @@ function saveGroup() {
   const done = {
     preserveScroll: true,
     onSuccess: () => { modalOpen.value = false; },
-    onError: (errors) => { formError.value = errors.name || 'Could not save the group.'; },
+    onError: (errors) => { formError.value = errors.name || t('Could not save the group.'); },
     onFinish: () => { saving.value = false; },
   };
 
@@ -222,7 +222,7 @@ function saveGroup() {
 }
 
 function destroyGroup(group) {
-  if (!confirm(`Delete group "${group.name}"? Its ${group.member_count} site(s) will be ungrouped (not deleted).`)) return;
+  if (!confirm(t('Delete group ":name"? Its :count site(s) will be ungrouped (not deleted).', { name: group.name, count: group.member_count }))) return;
   router.delete(`/vends/grouping/${group.id}`, { preserveScroll: true });
 }
 

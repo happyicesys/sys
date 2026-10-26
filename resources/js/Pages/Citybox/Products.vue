@@ -1,22 +1,22 @@
 <template>
-  <Head title="CityBox Products" />
+  <Head :title="$t('CityBox Products')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">CityBox Products</h2>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $t('CityBox Products') }}</h2>
         <div class="flex items-center space-x-3">
-          <span class="text-xs text-gray-500" v-if="lastSync">Last catalog sync: {{ lastSync }}</span>
-          <span class="text-xs text-gray-400" v-else>Never synced</span>
+          <span class="text-xs text-gray-500" v-if="lastSync">{{ $t('Last catalog sync: :time', { time: lastSync }) }}</span>
+          <span class="text-xs text-gray-400" v-else>{{ $t('Never synced') }}</span>
           <Button
             v-if="permissions.includes('update products')"
             class="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center space-x-1"
             :disabled="!enabled || syncing"
-            :title="enabled ? 'Pull the latest SKU catalog from CityBox now' : 'CityBox integration is disabled'"
+            :title="enabled ? $t('Pull the latest SKU catalog from CityBox now') : $t('CityBox integration is disabled')"
             @click.prevent="syncNow"
           >
             <ArrowPathIcon class="w-4 h-4" :class="syncing ? 'animate-spin' : ''" />
-            <span>{{ syncing ? 'Syncing…' : 'Sync now' }}</span>
+            <span>{{ syncing ? $t('Syncing…') : $t('Sync now') }}</span>
           </Button>
         </div>
       </div>
@@ -24,10 +24,9 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="rounded-md bg-indigo-50 p-3 mb-3 text-xs text-indigo-800">
-        Mirrors CityBox's own product list (their ERP) every hour and whenever a chiller shows a new SKU.
-        Each SKU automatically gets a ConnectVend product under the <b>Citybox</b> operator — product code = CityBox id, name and image follow CityBox,
-        warehouse qty from the self-system ledger. Nothing to map by hand; edit costs on the product itself.
-        <span v-if="counts.unlinked" class="text-red-700 font-semibold">{{ counts.unlinked }} SKU(s) have no product — is the Citybox operator seeded?</span>
+        {{ $t('Mirrors CityBox\'s own product list (their ERP) every hour and whenever a chiller shows a new SKU.') }}
+        {{ $t('Each SKU automatically gets a ConnectVend product under the') }} <b>Citybox</b> {{ $t('operator — product code = CityBox id, name and image follow CityBox, warehouse qty from the self-system ledger. Nothing to map by hand; edit costs on the product itself.') }}
+        <span v-if="counts.unlinked" class="text-red-700 font-semibold">{{ $t(':count SKU(s) have no product — is the Citybox operator seeded?', { count: counts.unlinked }) }}</span>
       </div>
 
       <!-- Tabs -->
@@ -36,7 +35,7 @@
           class="px-3 py-1.5 rounded-md text-sm border"
           :class="tab === t.key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
           @click="go(t.key)">
-          {{ t.label }} <span class="ml-1 opacity-70" v-if="t.count !== null">({{ t.count }})</span>
+          {{ $t(t.label) }} <span class="ml-1 opacity-70" v-if="t.count !== null">({{ t.count }})</span>
         </button>
       </div>
 
@@ -45,9 +44,9 @@
         <table class="min-w-full text-sm">
           <thead class="bg-gray-50 text-gray-600">
             <tr>
-              <th class="px-3 py-2 text-left">When</th><th class="px-3 py-2 text-left">Source</th><th class="px-3 py-2 text-left">By</th>
-              <th class="px-3 py-2 text-right">Fetched</th><th class="px-3 py-2 text-right">Added</th><th class="px-3 py-2 text-right">Updated</th>
-              <th class="px-3 py-2 text-right">Delisted</th><th class="px-3 py-2 text-left">Changed ids / error</th>
+              <th class="px-3 py-2 text-left">{{ $t('When') }}</th><th class="px-3 py-2 text-left">{{ $t('Source') }}</th><th class="px-3 py-2 text-left">{{ $t('By') }}</th>
+              <th class="px-3 py-2 text-right">{{ $t('Fetched') }}</th><th class="px-3 py-2 text-right">{{ $t('Added') }}</th><th class="px-3 py-2 text-right">{{ $t('Updated') }}</th>
+              <th class="px-3 py-2 text-right">{{ $t('Delisted') }}</th><th class="px-3 py-2 text-left">{{ $t('Changed ids / error') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -68,7 +67,7 @@
                 </span>
               </td>
             </tr>
-            <tr v-if="!logs.length"><td colspan="8" class="px-3 py-6 text-center text-gray-400">No sync runs yet.</td></tr>
+            <tr v-if="!logs.length"><td colspan="8" class="px-3 py-6 text-center text-gray-400">{{ $t('No sync runs yet.') }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -78,10 +77,10 @@
         <table class="min-w-full text-sm">
           <thead class="bg-gray-50 text-gray-600">
             <tr>
-              <th class="px-3 py-2 text-left w-16">Image</th>
-              <th class="px-3 py-2 text-left">CityBox SKU</th>
-              <th class="px-3 py-2 text-left">Details</th>
-              <th class="px-3 py-2 text-left">ConnectVend product</th>
+              <th class="px-3 py-2 text-left w-16">{{ $t('Image') }}</th>
+              <th class="px-3 py-2 text-left">{{ $t('CityBox SKU') }}</th>
+              <th class="px-3 py-2 text-left">{{ $t('Details') }}</th>
+              <th class="px-3 py-2 text-left">{{ $t('ConnectVend product') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -89,7 +88,7 @@
               <td class="px-3 py-2"><img v-if="r.img_url" :src="r.img_url" class="w-12 h-12 object-contain rounded-lg bg-white border border-gray-200 p-0.5" /></td>
               <td class="px-3 py-2">
                 <div class="font-medium text-gray-900">{{ r.name }}</div>
-                <div class="text-xs text-gray-500">id {{ r.citybox_product_id }} · first seen {{ r.first_seen_at || '—' }} · last seen {{ r.last_seen_at || '—' }}</div>
+                <div class="text-xs text-gray-500">{{ $t('id :id · first seen :first · last seen :last', { id: r.citybox_product_id, first: r.first_seen_at || '—', last: r.last_seen_at || '—' }) }}</div>
               </td>
               <td class="px-3 py-2 text-xs text-gray-600">
                 <div v-if="r.volume || r.unit">{{ r.volume }} {{ r.unit }}</div>
@@ -100,10 +99,10 @@
                 <Link v-if="r.product" :href="`/products/${r.product.id}/edit`" class="text-indigo-600 hover:underline">
                   {{ r.product.name }} <span class="text-xs text-gray-500">({{ r.product.code }})</span>
                 </Link>
-                <span v-else class="text-xs text-red-600">No product yet — next sync creates it</span>
+                <span v-else class="text-xs text-red-600">{{ $t('No product yet — next sync creates it') }}</span>
               </td>
             </tr>
-            <tr v-if="!rows.length"><td colspan="4" class="px-3 py-6 text-center text-gray-400">Nothing here.</td></tr>
+            <tr v-if="!rows.length"><td colspan="4" class="px-3 py-6 text-center text-gray-400">{{ $t('Nothing here.') }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -118,6 +117,7 @@ import { ArrowPathIcon } from '@heroicons/vue/20/solid';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useToast } from 'vue-toastification';
+import { t, tk } from '@/i18n';
 
 const props = defineProps({
   tab: String, rows: Array, counts: Object, logs: Array, lastSync: String, enabled: Boolean,
@@ -127,9 +127,9 @@ const permissions = usePage().props.auth.permissions;
 const syncing = ref(false);
 
 const tabs = computed(() => [
-  { key: 'catalog', label: 'Catalog', count: props.counts.catalog },
-  { key: 'delisted', label: 'Delisted', count: props.counts.delisted },
-  { key: 'log', label: 'Sync log', count: null },
+  { key: 'catalog', label: tk('Catalog'), count: props.counts.catalog },
+  { key: 'delisted', label: tk('Delisted'), count: props.counts.delisted },
+  { key: 'log', label: tk('Sync log'), count: null },
 ]);
 
 function go(tab) { router.get('/citybox/products', { tab }, { preserveState: false }); }
@@ -138,8 +138,8 @@ function syncNow() {
   syncing.value = true;
   router.post('/citybox/products/sync', {}, {
     preserveScroll: true, preserveState: false,
-    onSuccess: () => toast.success(usePage().props.flash?.success || 'CityBox synced', { timeout: 6000 }),
-    onError: (e) => toast.error(e.citybox || 'Sync failed', { timeout: 6000 }),
+    onSuccess: () => toast.success(usePage().props.flash?.success || t('CityBox synced'), { timeout: 6000 }),
+    onError: (e) => toast.error(e.citybox || t('Sync failed'), { timeout: 6000 }),
     onFinish: () => { syncing.value = false; },
   });
 }

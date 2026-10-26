@@ -5,12 +5,12 @@ import { Head } from '@inertiajs/vue3';
 
 <template>
 
-    <Head title="Transaction" />
+    <Head :title="$t('Transaction')" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Transaction
+                {{ $t('Transaction') }}
             </h2>
         </template>
 
@@ -18,7 +18,7 @@ import { Head } from '@inertiajs/vue3';
             <div class="max-w-10xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 bg-white border-b border-gray-200">
-                        Transaction Page
+                        {{ $t('Transaction Page') }}
                     </div>
                 </div>
             </div>

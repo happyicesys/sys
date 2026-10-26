@@ -4,7 +4,7 @@
       <template #header>
         <div class="flex flex-col">
           <span class="text-sm text-gray-500">
-            Machine Log
+            {{ $t('Machine Log') }}
           </span>
           <span class="text-base font-semibold text-gray-900" v-if="displayTitle">
             {{ displayTitle }}
@@ -13,13 +13,13 @@
       </template>
       <div class="space-y-4">
         <div class="text-sm text-gray-600">
-          Showing the latest {{ HISTORY_PAGE_SIZE }} events by default. Use Load More to pull older records. Logs are retained for the last 90 days only.
+          {{ $t('Showing the latest :count events by default. Use Load More to pull older records. Logs are retained for the last 90 days only.', { count: HISTORY_PAGE_SIZE }) }}
         </div>
         <div v-if="loading && !logs.length" class="py-6 text-sm text-gray-500 text-center">
-          Loading log history...
+          {{ $t('Loading log history...') }}
         </div>
         <div v-else-if="!loading && !logs.length" class="py-6 text-sm text-gray-500 text-center">
-          No history recorded for this machine yet.
+          {{ $t('No history recorded for this machine yet.') }}
         </div>
         <ul v-else class="divide-y divide-gray-200">
           <li v-for="log in logs" :key="log.id" class="py-4">
@@ -43,7 +43,7 @@
         </ul>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
           <p class="text-xs text-gray-500">
-            Showing {{ logs.length }} of {{ meta.total || logs.length }} events
+            {{ $t('Showing :shown of :total events', { shown: logs.length, total: meta.total || logs.length }) }}
           </p>
           <div class="flex flex-wrap gap-2 justify-end">
             <Button
@@ -53,10 +53,10 @@
               :disabled="!hasMore || loading"
             >
               <span v-if="loading && logs.length">
-                Loading...
+                {{ $t('Loading...') }}
               </span>
               <span v-else>
-                Load More
+                {{ $t('Load More') }}
               </span>
             </Button>
             <Button
@@ -64,7 +64,7 @@
               type="button"
               @click="handleClose"
             >
-              Close
+              {{ $t('Close') }}
             </Button>
           </div>
         </div>
@@ -79,6 +79,7 @@ import moment from 'moment'
 import Modal from '@/Components/Modal.vue'
 import Button from '@/Components/Button.vue'
 import { vendCodeLabel } from '@/utils/vendCode';
+import { t } from '@/i18n';
 
 const props = defineProps({
   open: {
@@ -207,13 +208,13 @@ function handleClose() {
 
 function formatEventLabel(event) {
   if (!event) {
-    return 'Unknown Event'
+    return t('Unknown Event')
   }
   const mappings = {
-    channel_error: 'Channel Error',
-    power_off: 'Power Off',
-    power_restored: 'Power Restored',
-    no_transaction: 'No Transaction',
+    channel_error: t('Channel Error'),
+    power_off: t('Power Off'),
+    power_restored: t('Power Restored'),
+    no_transaction: t('No Transaction'),
   }
   if (mappings[event]) {
     return mappings[event]
@@ -226,7 +227,7 @@ function formatEventLabel(event) {
 
 function formatOccurredAt(timestamp) {
   if (!timestamp) {
-    return 'Unknown time'
+    return t('Unknown time')
   }
   return moment(timestamp).format('DD MMM YYYY, HH:mm:ss')
 }
@@ -244,7 +245,7 @@ function formatLogDetails(log) {
   }
 
   if (log.event === 'channel_error' && context.channel_code && context.error_code) {
-    return `Channel ${context.channel_code} error ${context.error_code}`
+    return t('Channel :channel error :code', { channel: context.channel_code, code: context.error_code })
   }
 
   if (typeof context === 'string') {

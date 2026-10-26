@@ -1,9 +1,9 @@
 <template>
-  <Head title="Delivery Product Mapping" />
+  <Head :title="$t('Delivery Product Mapping')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ typeName }} Delivery Product Mapping
+        {{ typeName === 'Create New' ? $t('Create New Delivery Product Mapping') : typeName === 'Edit' ? $t('Edit Delivery Product Mapping') : $t('Delivery Product Mapping') }}
         <span v-if="type == 'update'">
           {{ deliveryProductMapping.name }}
         </span>
@@ -18,12 +18,12 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
                   <span class="text-red-500">
                    *
                   </span>
@@ -34,7 +34,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onOperatorIdSelected"
@@ -43,7 +43,7 @@
               </div>
               <div class="sm:col-span-6" v-if="form.operator_id && deliveryPlatformOperatorOptions.length">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Delivery Platform
+                  {{ $t('Delivery Platform') }}
                   <span class="text-red-500">
                    *
                   </span>
@@ -54,7 +54,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onDeliveryPlatformOperatorIdSelected"
@@ -64,7 +64,7 @@
               <!-- {{ categoryApiOptions }} -->
               <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Platform Category
+                  {{ $t('Platform Category') }}
                   <span class="text-red-500">
                    *
                   </span>
@@ -75,7 +75,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onCategoryJsonSelected"
@@ -84,7 +84,7 @@
               </div>
               <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Refer to Product Mapping
+                  {{ $t('Refer to Product Mapping') }}
                   <span class="text-red-500">
                    *
                   </span>
@@ -95,7 +95,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onProductMappingIdSelected"
@@ -104,17 +104,17 @@
               </div>
               <div class="sm:col-span-3">
                 <FormInput v-model="form.reserved_percent" :error="form.errors.reserved_percent">
-                  Reserved Percentage (%)
+                  {{ $t('Reserved Percentage (%)') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
                 <FormInput v-model="form.reserved_qty" :error="form.errors.reserved_qty">
-                  Reserved Quantity
+                  {{ $t('Reserved Quantity') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="reserved" class="italic text-blue-800">
-                  By setting "Reserved Percentage", the sellable qty equivalent to un-reserved percent, then that value if lower than "Reserved Quantity", channel becomes inactive, both default value are 0.
+                  {{ $t('By setting "Reserved Percentage", the sellable qty equivalent to un-reserved percent, then that value if lower than "Reserved Quantity", channel becomes inactive, both default value are 0.') }}
                 </label>
               </div>
 
@@ -125,19 +125,19 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Delivery Platform Product(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Delivery Platform Product(s)') }}</span>
                   </div>
                 </div>
               </div>
 
               <div v-if="form.product_mapping_id">
-                <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
-                  Channel ID
+                <FormInput v-model="form.channel_code" :error="form.errors.channel_code" :placeholderStr="$t('Channel ID')">
+                  {{ $t('Channel ID') }}
                 </FormInput>
               </div>
               <div v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product
+                  {{ $t('Product') }}
                 </label>
                 <MultiSelect
                   v-model="form.product_id"
@@ -145,7 +145,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -155,13 +155,13 @@
                 </div>
               </div>
               <div v-if="form.product_mapping_id">
-                <FormInput v-model="form.amount" :error="form.errors.amount" placeholderStr="Platform Price">
-                  Price
+                <FormInput v-model="form.amount" :error="form.errors.amount" :placeholderStr="$t('Platform Price')">
+                  {{ $t('Price') }}
                 </FormInput>
               </div>
               <div v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  SubCategory
+                  {{ $t('SubCategory') }}
                 </label>
                 <MultiSelect
                   v-model="form.sub_category_json"
@@ -169,7 +169,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -186,7 +186,7 @@
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Add
+                    {{ $t('Add') }}
                   </span>
                 </Button>
               </div>
@@ -202,22 +202,22 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Channel Code
+                            {{ $t('Channel Code') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Thumbnail
+                            {{ $t('Thumbnail') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Product
+                            {{ $t('Product') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Price
+                            {{ $t('Price') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            SubCategory
+                            {{ $t('SubCategory') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Action
+                            {{ $t('Action') }}
                           </th>
                         </tr>
                       </thead>
@@ -246,7 +246,7 @@
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <FormInput v-model="productMappingItem.delivery_platform_amount" :error="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_amount']" placeholderStr="Platform Price">
+                            <FormInput v-model="productMappingItem.delivery_platform_amount" :error="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_amount']" :placeholderStr="$t('Platform Price')">
                             </FormInput>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
@@ -257,7 +257,7 @@
                                 trackBy="id"
                                 valueProp="id"
                                 label="name"
-                                placeholder="Select"
+                                :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 class="mt-1 min-w-28"
                               >
@@ -267,7 +267,7 @@
                               </div>
                             </span>
                             <span v-if="form.product_mapping_id && !categoryApiOptions.length">
-                              <FormInput v-model="productMappingItem.sub_category" :error="form.errors['productMappingItems.' + productMappingItemIndex + '.sub_category']" placeholderStr="Subcategory Name">
+                              <FormInput v-model="productMappingItem.sub_category" :error="form.errors['productMappingItems.' + productMappingItemIndex + '.sub_category']" :placeholderStr="$t('Subcategory Name')">
                               </FormInput>
                             </span>
                           </td>
@@ -282,7 +282,7 @@
                         </tr>
                         <tr v-if="!productMappingItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                            No Records Found
+                            {{ $t('No Records Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -301,7 +301,7 @@
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
-                      Back
+                      {{ $t('Back') }}
                     </span>
                   </Button>
                 </Link>
@@ -312,7 +312,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>

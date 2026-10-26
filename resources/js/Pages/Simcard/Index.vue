@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Simcard" />
+  <Head :title="$t('Simcard')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Simcard
+        {{ $t('Simcard') }}
       </h2>
     </template>
 
@@ -17,24 +17,24 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
-          <SearchInput placeholderStr="Simcard Number" v-model="filters.code">
-            Simcard Number
+          <SearchInput :placeholderStr="$t('Simcard Number')" v-model="filters.code">
+            {{ $t('Simcard Number') }}
           </SearchInput>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-            Site
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Site') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              SimCard Package
+              {{ $t('SimCard Package') }}
             </label>
             <MultiSelect
               v-model="filters.telco_id"
@@ -42,7 +42,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -50,7 +50,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.usage_status"
@@ -58,7 +58,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -75,7 +75,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
               <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -89,7 +89,7 @@
                           </svg>
                       </div>
                       <span>
-                          Excel
+                          {{ $t('Excel') }}
                       </span>
                   </div>
               </Button>
@@ -97,13 +97,13 @@
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ simcards.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ simcards.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ simcards.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -111,7 +111,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -131,28 +131,28 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Simcard Number
+                      {{ $t('Simcard Number') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Machine ID
+                      {{ $t('Machine ID') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="site" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('site')">
-                      Site
+                      {{ $t('Site') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="apk_version" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('apk_version')">
-                      Machine APK
+                      {{ $t('Machine APK') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="telco_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('telco_id')">
-                      SimCard Package
+                      {{ $t('SimCard Package') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="signal" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('signal')">
-                      Signal Strength
+                      {{ $t('Signal Strength') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('updated_at')">
-                      Updated By
+                      {{ $t('Updated By') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="usage_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('usage_status')">
-                      Status
+                      {{ $t('Status') }}
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -241,7 +241,7 @@
                               class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
                               :class="signalBadgeClass(reportedLink(simcard))"
                             >
-                              {{ signalBars(reportedLink(simcard)) || 'No Link' }}
+                              {{ signalBars(reportedLink(simcard)) || $t('No Link') }}
                             </span>
                           </template>
                         </div>
@@ -273,14 +273,14 @@
                             v-if="simcard.usage_active_at"
                             class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-gray-100 text-gray-700 border-gray-300"
                           >
-                            Act {{ simcard.usage_active_at }}
+                            {{ $t('Act :date', { date: simcard.usage_active_at }) }}
                           </span>
                           <span
                             v-if="simcard.usage_expire_at"
                             class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
                             :class="usageExpireBadgeClass(simcard)"
                           >
-                            Exp {{ simcard.usage_expire_at }}
+                            {{ $t('Exp :date', { date: simcard.usage_expire_at }) }}
                           </span>
                           <span
                             v-if="typeof simcard.usage_used_mb === 'number'"
@@ -300,7 +300,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <Button
@@ -309,7 +309,7 @@
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
-                                Delete
+                                {{ $t('Delete') }}
                             </span>
                           </Button>
                         </div>
@@ -317,7 +317,7 @@
                       </tr>
                 <tr v-if="!simcards.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -355,6 +355,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 import moment from 'moment';
 import { internetLinkTitle, signalBars, signalBadgeClass } from '@/constants/internetLink';
 
@@ -387,8 +388,8 @@ function onlineStates(simcard) {
       return { id: vend.id, label: 'N/A', class: 'text-gray-400' };
     }
     return vend.is_online
-      ? { id: vend.id, label: 'Online', class: 'text-green-600' }
-      : { id: vend.id, label: 'Offline', class: 'text-red-600' };
+      ? { id: vend.id, label: t('Online'), class: 'text-green-600' }
+      : { id: vend.id, label: t('Offline'), class: 'text-red-600' };
   });
 }
 
@@ -485,7 +486,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   telcoOptions.value = props.telcos.data.map((data) => {return {
@@ -519,7 +520,7 @@ function onExportExcelClicked() {
   }).then(response => {
     fileDownload(response.data, 'Simcards' + moment().format('YYMMDDHHmmss') + '.xlsx')
   }).catch(() => {
-    toast.error("Failed to export simcards", { timeout: 3000 })
+    toast.error(t("Failed to export simcards"), { timeout: 3000 })
   }).finally(() => {
     loading.value = false
   })
@@ -532,16 +533,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(simcard) {
-  const approval = confirm('Are you sure to delete ' + simcard.code + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: simcard.code }));
   if (!approval) {
       return;
   }
   router.delete('/simcards/' + simcard.id, {
     onSuccess: () => {
-      toast.success("Simcard deleted successfully", { timeout: 3000 })
+      toast.success(t("Simcard deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete simcard", { timeout: 3000 })
+      toast.error(t("Failed to delete simcard"), { timeout: 3000 })
     }
   })
 }

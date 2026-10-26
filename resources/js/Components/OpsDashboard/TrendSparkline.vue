@@ -18,14 +18,15 @@
 			<circle v-for="point in plotted" :key="point.key" :cx="point.x" :cy="point.y" r="2" :class="toneFill" />
 		</svg>
 		<div class="flex justify-between text-[8px] text-gray-400">
-			<span>L30d</span>
-			<span>Today</span>
+			<span>{{ $t('L30d') }}</span>
+			<span>{{ $t('Today') }}</span>
 		</div>
 	</div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
+import { t } from '@/i18n';
 
 const props = defineProps({
 	title: { type: String, required: true },
@@ -84,11 +85,11 @@ const latestLabel = computed(() => (latest.value ? latest.value.label.toLowerCas
 
 const tooltip = computed(() => {
 	const rows = [...props.points].reverse().map((p) => `<tr><td class="pr-3">${p.label}</td><td class="text-right">`
-		+ (p.value === null ? (p.detail || 'no sales') : `<b>${format(p.value)}</b>${p.detail ? ` (${p.detail})` : ''}`)
+		+ (p.value === null ? (p.detail || t('no sales')) : `<b>${format(p.value)}</b>${p.detail ? ` (${p.detail})` : ''}`)
 		+ '</td></tr>');
 	return `<div class="mb-1 font-semibold">${props.title}</div>`
 		+ (props.hint ? `<div class="mb-1 opacity-80">${props.hint}</div>` : '')
 		+ `<table>${rows.join('')}</table>`
-		+ '<div class="mt-1 opacity-80">Green: latest at or above the 30-day figure. Red: below it.</div>';
+		+ `<div class="mt-1 opacity-80">${t('Green: latest at or above the 30-day figure. Red: below it.')}</div>`;
 });
 </script>

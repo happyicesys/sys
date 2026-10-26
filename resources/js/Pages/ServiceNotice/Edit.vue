@@ -4,7 +4,7 @@
     <template #header>
       <div class="flex flex-wrap items-center gap-2">
         <WrenchScrewdriverIcon class="h-5 w-5 text-amber-600" />
-        <span class="text-gray-600">Service Notice 维修单</span>
+        <span class="text-gray-600">{{ $t('Service Notice 维修单') }}</span>
         <span class="font-semibold">{{ notice.display_code }}</span>
         <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border" :class="stopStatusClass(notice.status)">
           {{ notice.status_name }}
@@ -16,26 +16,26 @@
       <!-- ── Header ─────────────────────────────────────────── -->
       <div class="bg-white shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-6 gap-3 text-sm">
         <div class="sm:col-span-2">
-          <div class="text-xs text-gray-500">Machine</div>
+          <div class="text-xs text-gray-500">{{ $t('Machine') }}</div>
           <div class="font-semibold text-gray-900">{{ notice.vend_code }}</div>
           <div class="text-gray-700">{{ notice.customer_name }}</div>
         </div>
         <div class="sm:col-span-2">
-          <div class="text-xs text-gray-500">Address</div>
+          <div class="text-xs text-gray-500">{{ $t('Address') }}</div>
           <a v-if="mapUrl" :href="mapUrl" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">
             {{ notice.address.full_address || notice.address.postcode }}
           </a>
           <span v-else class="text-gray-400">—</span>
         </div>
         <div class="sm:col-span-2">
-          <div class="text-xs text-gray-500">Daily Job</div>
+          <div class="text-xs text-gray-500">{{ $t('Daily Job') }}</div>
           <Link :href="'/ops-jobs/' + notice.ops_job_id + '/edit'" class="text-blue-600 underline">
             {{ notice.ops_job?.date_label }} · #{{ notice.ops_job?.code }}
           </Link>
-          <div class="text-gray-700">{{ notice.ops_job?.delivered_by_name || 'Unassigned' }}</div>
+          <div class="text-gray-700">{{ notice.ops_job?.delivered_by_name || $t('Unassigned') }}</div>
         </div>
         <div class="sm:col-span-5">
-          <label class="text-xs text-gray-500">Remarks</label>
+          <label class="text-xs text-gray-500">{{ $t('Remarks') }}</label>
           <input
             type="text" v-model="remarks" :disabled="!canUpdate"
             class="mt-1 shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full text-sm border-gray-300 rounded-md"
@@ -43,7 +43,7 @@
           />
         </div>
         <div class="sm:col-span-1 flex items-end text-xs text-gray-500">
-          <span>Opened {{ notice.created_at }}<span v-if="notice.created_by_name"> ({{ notice.created_by_name }})</span></span>
+          <span>{{ $t('Opened :time', { time: notice.created_at }) }}<span v-if="notice.created_by_name"> ({{ notice.created_by_name }})</span></span>
         </div>
       </div>
 
@@ -65,9 +65,9 @@
             </span>
           </div>
           <div class="flex flex-wrap gap-1" v-if="isOpen && canUpdate">
-            <Button v-if="item.status !== 2" class="bg-green-500 hover:bg-green-600 text-white" @click="setStatus(item, 2)">Done 完成</Button>
-            <Button v-if="item.status !== 90" class="bg-orange-500 hover:bg-orange-600 text-white" @click="askIncomplete(item)">Incomplete 未能完成</Button>
-            <Button v-if="item.status !== 99" class="bg-gray-400 hover:bg-gray-500 text-white" @click="setStatus(item, 99)">Cancelled 取消</Button>
+            <Button v-if="item.status !== 2" class="bg-green-500 hover:bg-green-600 text-white" @click="setStatus(item, 2)">{{ $t('Done 完成') }}</Button>
+            <Button v-if="item.status !== 90" class="bg-orange-500 hover:bg-orange-600 text-white" @click="askIncomplete(item)">{{ $t('Incomplete 未能完成') }}</Button>
+            <Button v-if="item.status !== 99" class="bg-gray-400 hover:bg-gray-500 text-white" @click="setStatus(item, 99)">{{ $t('Cancelled 取消') }}</Button>
             <Button v-if="item.status !== 1" class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300" @click="setStatus(item, 1)">
               <ArrowUturnLeftIcon class="h-3 w-3" />
             </Button>
@@ -78,12 +78,12 @@
         </div>
 
         <div class="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 mb-3" v-if="item.status === 90 && item.incomplete_reason">
-          Reason 原因: {{ item.incomplete_reason }}
+          {{ $t('Reason 原因: :reason', { reason: item.incomplete_reason }) }}
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div v-for="column in COLUMNS" :key="column.field">
-            <label class="block text-sm font-medium text-gray-700">{{ column.label }}</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t(column.label) }}</label>
             <textarea
               v-model="item[column.field]" rows="3" :disabled="!isOpen || !canUpdate"
               class="mt-1 shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full text-sm border-gray-300 rounded-md disabled:bg-gray-50"
@@ -107,36 +107,36 @@
       <!-- ── Add item ───────────────────────────────────────── -->
       <form v-if="isOpen && canUpdate" @submit.prevent="addItem" class="bg-white shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg p-4 flex flex-col sm:flex-row gap-2">
         <input
-          type="text" v-model="newItemDesc" placeholder="New service item 新维修项目"
+          type="text" v-model="newItemDesc" :placeholder="$t('New service item 新维修项目')"
           class="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full text-sm border-gray-300 rounded-md"
         />
         <Button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white whitespace-nowrap" :class="{ 'opacity-50': !newItemDesc.trim() }" :disabled="!newItemDesc.trim()">
-          <div class="flex items-center space-x-1"><PlusCircleIcon class="h-4 w-4" /><span>Add Item</span></div>
+          <div class="flex items-center space-x-1"><PlusCircleIcon class="h-4 w-4" /><span>{{ $t('Add Item') }}</span></div>
         </Button>
       </form>
 
       <!-- ── Actions ────────────────────────────────────────── -->
       <div class="bg-white shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg p-4 flex flex-wrap items-center justify-between gap-2">
         <div class="text-sm text-gray-600">
-          <span v-if="notice.status === 3">Completed {{ notice.completed_at }}<span v-if="notice.completed_by_name"> by {{ notice.completed_by_name }}</span></span>
-          <span v-else-if="notice.status === 99">Cancelled {{ notice.cancelled_at }}</span>
-          <span v-else>{{ notice.items_resolved_count }} of {{ notice.items_count }} item(s) have a progress status</span>
+          <span v-if="notice.status === 3">{{ $t('Completed :time', { time: notice.completed_at }) }}<span v-if="notice.completed_by_name"> {{ $t('by :name', { name: notice.completed_by_name }) }}</span></span>
+          <span v-else-if="notice.status === 99">{{ $t('Cancelled :time', { time: notice.cancelled_at }) }}</span>
+          <span v-else>{{ $t(':done of :total item(s) have a progress status', { done: notice.items_resolved_count, total: notice.items_count }) }}</span>
         </div>
         <div class="flex flex-wrap gap-2">
           <Link :href="'/ops-jobs/' + notice.ops_job_id + '/edit'">
-            <Button class="bg-gray-300 hover:bg-gray-400 text-gray-800">Back to Job</Button>
+            <Button class="bg-gray-300 hover:bg-gray-400 text-gray-800">{{ $t('Back to Job') }}</Button>
           </Link>
           <template v-if="canUpdate">
-            <Button v-if="isOpen" class="bg-gray-500 hover:bg-gray-600 text-white" @click="act('cancel', 'Cancel this service notice?')">Cancel Notice</Button>
-            <Button v-if="notice.status === 3" class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300" @click="act('undo-complete')">Reopen</Button>
+            <Button v-if="isOpen" class="bg-gray-500 hover:bg-gray-600 text-white" @click="act('cancel', $t('Cancel this service notice?'))">{{ $t('Cancel Notice') }}</Button>
+            <Button v-if="notice.status === 3" class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300" @click="act('undo-complete')">{{ $t('Reopen') }}</Button>
             <Button
               v-if="isOpen" class="bg-green-600 hover:bg-green-700 text-white"
               :class="{ 'opacity-50 cursor-not-allowed': !allResolved }"
-              :title="allResolved ? '' : 'Every item needs a progress status first'"
+              :title="allResolved ? '' : $t('Every item needs a progress status first')"
               @click="act('complete')"
-            >Complete 完成维修单</Button>
+            >{{ $t('Complete 完成维修单') }}</Button>
           </template>
-          <Button v-if="canDelete" class="bg-red-500 hover:bg-red-600 text-white" @click="destroy">Delete</Button>
+          <Button v-if="canDelete" class="bg-red-500 hover:bg-red-600 text-white" @click="destroy">{{ $t('Delete') }}</Button>
         </div>
       </div>
     </div>
@@ -144,15 +144,15 @@
     <!-- ── Incomplete reason ────────────────────────────────── -->
     <Teleport to="body">
       <Modal :open="!!incompleteItem" @modalClose="incompleteItem = null">
-        <template #header><span class="text-base font-semibold">Why could it not be completed? 未能完成的原因</span></template>
+        <template #header><span class="text-base font-semibold">{{ $t('Why could it not be completed? 未能完成的原因') }}</span></template>
         <template #default>
           <form @submit.prevent="confirmIncomplete" class="space-y-3 text-sm">
             <div class="text-gray-700">{{ incompleteItem?.desc }}</div>
-            <textarea v-model="incompleteReason" rows="3" class="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full text-sm border-gray-300 rounded-md" placeholder="e.g. no spare part on the van"></textarea>
+            <textarea v-model="incompleteReason" rows="3" class="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full text-sm border-gray-300 rounded-md" :placeholder="$t('e.g. no spare part on the van')"></textarea>
             <div class="text-red-600" v-if="incompleteError">{{ incompleteError }}</div>
             <div class="flex justify-end space-x-2">
-              <Button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800" @click="incompleteItem = null">Back</Button>
-              <Button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white" :class="{ 'opacity-50': !incompleteReason.trim() }" :disabled="!incompleteReason.trim()">Mark Incomplete</Button>
+              <Button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800" @click="incompleteItem = null">{{ $t('Back') }}</Button>
+              <Button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white" :class="{ 'opacity-50': !incompleteReason.trim() }" :disabled="!incompleteReason.trim()">{{ $t('Mark Incomplete') }}</Button>
             </div>
           </form>
         </template>
@@ -171,14 +171,15 @@ import { ArrowUturnLeftIcon, PlusCircleIcon, TrashIcon, WrenchScrewdriverIcon } 
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import { useToast } from 'vue-toastification'
+import { t, tk } from '@/i18n'
 
 const props = defineProps({ serviceNotice: Object })
 
 // attachments.type — which column of the item a file belongs to (ServiceNoticeItem::SLOT_*)
 const COLUMNS = [
-  { field: 'desc', slot: 1, label: 'Description 维修项目' },
-  { field: 'desc_before', slot: 2, label: 'Before 维修前' },
-  { field: 'desc_after', slot: 3, label: 'After 维修后' },
+  { field: 'desc', slot: 1, label: tk('Description 维修项目') },
+  { field: 'desc_before', slot: 2, label: tk('Before 维修前') },
+  { field: 'desc_after', slot: 3, label: tk('After 维修后') },
 ]
 
 const toast = useToast()
@@ -271,23 +272,23 @@ function addItem() {
 }
 
 function removeItem(item) {
-  if (!confirm('Delete item #' + item.sequence + ' and its photos? This cannot be undone.')) return
+  if (!confirm(t('Delete item #:number and its photos? This cannot be undone.', { number: item.sequence }))) return
   axios.delete('/service-notices/items/' + item.id).then(({ data }) => apply(data)).catch(fail)
 }
 
 function act(action, question = null) {
   if (action === 'complete' && !allResolved.value) {
-    pageError.value = 'Not able to complete: every item needs a progress status, 无法完成这维修单，请在每个维修项目，提供状况进展'
+    pageError.value = t('Not able to complete: every item needs a progress status, 无法完成这维修单，请在每个维修项目，提供状况进展')
     return
   }
   if (question && !confirm(question)) return
   axios.post('/service-notices/' + notice.value.id + '/' + action)
-    .then(({ data }) => { apply(data); toast.success('Saved', { timeout: 2000 }) })
+    .then(({ data }) => { apply(data); toast.success(t('Saved'), { timeout: 2000 }) })
     .catch(fail)
 }
 
 function destroy() {
-  if (!confirm('Delete ' + notice.value.display_code + ' with all its items and photos? This cannot be undone.')) return
+  if (!confirm(t('Delete :code with all its items and photos? This cannot be undone.', { code: notice.value.display_code }))) return
   axios.delete('/service-notices/' + notice.value.id)
     .then(({ data }) => router.visit(data.redirect))
     .catch(fail)

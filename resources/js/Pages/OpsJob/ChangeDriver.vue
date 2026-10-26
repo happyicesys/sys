@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col space-y-2 text-left">
           <span>
-            Job ID#
+            {{ $t('Job ID#') }}
             <span class="text-blue-800">
               {{ opsJobItem.ref_id }}
             </span>
           </span>
           <span>
-            Machine ID#
+            {{ $t('Machine ID#') }}
             <span class="text-blue-800">
               {{ vendCodeLabel(vend) }}
             </span>
@@ -26,7 +26,7 @@
         <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
           <div class="sm:col-span-6">
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Current Driver
+              {{ $t('Current Driver') }}
             </label>
             <div class="mt-1">
               <input
@@ -39,12 +39,12 @@
           </div>
           <div class="sm:col-span-6">
             <DatePicker v-model="form.date" :error="form.date">
-              Date
+              {{ $t('Date') }}
             </DatePicker>
           </div>
           <div class="sm:col-span-6">
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Delivery By
+              {{ $t('Delivery By') }}
               <span class="text-red-500">
                   *
               </span>
@@ -55,7 +55,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="top"
               class="mt-1"
             >
@@ -74,7 +74,7 @@
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-5 h-5"></CheckCircleIcon>
                   <span>
-                    Change Driver
+                    {{ $t('Change Driver') }}
                   </span>
                 </span>
               </Button>
@@ -88,6 +88,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import {CheckCircleIcon, ClipboardDocumentCheckIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -141,7 +142,7 @@ function submit() {
   })
   .post('/ops-jobs/items/' + props.opsJobItem.id + '/update', {
     onSuccess: () => {
-      toast.success("Successfully Changed", {
+      toast.success(t("Successfully Changed"), {
         timeout: 3000
       });
       emit('statusUpdated')

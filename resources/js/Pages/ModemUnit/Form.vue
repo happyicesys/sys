@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.modemUnit">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.modemUnit">
             {{ props.modemUnit.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Modem IMEI
+            {{ $t('Create New Modem IMEI') }}
           </span>
         </div>
       </template>
@@ -24,7 +24,7 @@
             </div>
             <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Modem Model
+                  {{ $t('Modem Model') }}
                 </label>
                 <MultiSelect
                   v-model="form.modem_type_id"
@@ -32,7 +32,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -51,13 +51,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -77,6 +77,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   modemTypeOptions: Object,
@@ -97,7 +98,7 @@ const toast = useToast()
 onMounted(() => {
   if (props.modemTypeOptions && props.modemTypeOptions.data) {
     modemTypeOptions.value = [
-      { id: '', name: '--- Clear ---' },
+      { id: '', name: t('--- Clear ---') },
       ...props.modemTypeOptions.data.map(modemType => ({
         id: modemType.id,
         name: modemType.name,
@@ -139,11 +140,11 @@ function submit() {
     })
     .post('/modem-units/store', {
       onSuccess: () => {
-        toast.success("Modem unit created successfully", { timeout: 3000 })
+        toast.success(t("Modem unit created successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create modem unit", { timeout: 3000 })
+        toast.error(t("Failed to create modem unit"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -160,11 +161,11 @@ function submit() {
       })
       .post('/modem-units/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Modem unit updated successfully", { timeout: 3000 })
+        toast.success(t("Modem unit updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update modem unit", { timeout: 3000 })
+        toast.error(t("Failed to update modem unit"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

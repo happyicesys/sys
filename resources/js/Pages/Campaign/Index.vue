@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Campaign Settings" />
+  <Head :title="$t('Campaign Settings')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Campaign Settings
+        {{ $t('Campaign Settings') }}
       </h2>
     </template>
 
@@ -17,13 +17,13 @@
               type="button"
               class="inline-flex space-x-1 items-center rounded-md border bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white hover:bg-green-600"
             >
-              <span>+ Create</span>
+              <span>{{ $t('+ Create') }}</span>
             </Button>
           </Link>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
 					<div v-if="permissions.includes('admin-access vend-customers')">
 							<OperatorFilter v-model="filters.operators" />
@@ -38,20 +38,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ campaigns.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ campaigns.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ campaigns.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -59,7 +59,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -79,31 +79,31 @@
                       #
                     </TableHead>
                     <TableHead>
-                      Name
+                      {{ $t('Name') }}
                     </TableHead>
                     <TableHead>
-                      Active
+                      {{ $t('Active') }}
                     </TableHead>
                     <TableHead>
-                      Promotion Type
+                      {{ $t('Promotion Type') }}
                     </TableHead>
                     <TableHead>
-                      Discount Basis
+                      {{ $t('Discount Basis') }}
                     </TableHead>
                     <TableHead>
-                      Bundle Qty
+                      {{ $t('Bundle Qty') }}
                     </TableHead>
                     <TableHead>
-                      Value
+                      {{ $t('Value') }}
                     </TableHead>
                     <TableHead>
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHead>
                     <TableHead>
-                      Start
+                      {{ $t('Start') }}
                     </TableHead>
                     <TableHead>
-                      End
+                      {{ $t('End') }}
                     </TableHead>
                     <TableHeadSort
                       modelName="bound_machines_count"
@@ -111,19 +111,19 @@
                       :sortBy="filters.sortBy"
                       @sort-table="sortTable('bound_machines_count')"
                     >
-                      Binded Machines
+                      {{ $t('Binded Machines') }}
                     </TableHeadSort>
                     <TableHead>
-                      Labels X
+                      {{ $t('Labels X') }}
                     </TableHead>
                     <TableHead>
-                      Labels Y
+                      {{ $t('Labels Y') }}
                     </TableHead>
                     <TableHead>
-                      Remarks
+                      {{ $t('Remarks') }}
                     </TableHead>
                     <TableHead>
-                      Action
+                      {{ $t('Action') }}
                     </TableHead>
                   </tr>
                 </thead>
@@ -136,7 +136,7 @@
                       {{ campaign.name }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      {{ campaign.is_active ? 'Yes' : 'No' }}
+                      {{ campaign.is_active ? $t('Yes') : $t('No') }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.promo_type ?? '-' }}
@@ -179,7 +179,7 @@
                             class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
                           >
                             <PencilSquareIcon class="w-4 h-4" />
-                            <span>Edit</span>
+                            <span>{{ $t('Edit') }}</span>
                           </Button>
                         </Link>
                         <Button
@@ -191,16 +191,16 @@
                         >
                           <div class="flex items-center space-x-1">
                             <TrashIcon class="w-4 h-4" />
-                            <span>Delete</span>
+                            <span>{{ $t('Delete') }}</span>
                           </div>
-                          <span v-if="campaign.is_in_use" class="text-[10px] leading-none">(In Use)</span>
+                          <span v-if="campaign.is_in_use" class="text-[10px] leading-none">{{ $t('(In Use)') }}</span>
                         </Button>
                       </div>
                     </TableData>
                   </tr>
                   <tr v-if="!campaigns.data.length">
                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                        No Results Found
+                        {{ $t('No Results Found') }}
                     </td>
                   </tr>
                 </tbody>
@@ -226,6 +226,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 
 const props = defineProps({
@@ -245,9 +246,9 @@ const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const authOperator = usePage().props.auth.operator
 const discountBasisLabels = {
-  qty: 'By Qty',
-  amount: 'By Amount',
-  both: 'Both',
+  qty: t('By Qty'),
+  amount: t('By Amount'),
+  both: t('Both'),
 }
 
 onMounted(() => {
@@ -255,11 +256,11 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   // Default the Operator filter the same way Vend/CustomerIndex.vue does:
@@ -378,7 +379,7 @@ function isPromoTypeFreeItem(promoType) {
 }
 
 function deleteCampaign(campaign) {
-  if (confirm('Are you sure you want to delete this campaign?')) {
+  if (confirm(t('Are you sure you want to delete this campaign?'))) {
     router.delete('/campaigns/' + campaign.id)
   }
 }

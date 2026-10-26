@@ -1,10 +1,10 @@
 <template>
-  <Head title="Stock Count Dashboard" />
+  <Head :title="$t('Stock Count Dashboard')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex flex-col space-y-1">
         <div class="flex space-x-2 items-center">
-          Stock Count Dashboard
+          {{ $t('Stock Count Dashboard') }}
         </div>
       </div>
     </template>
@@ -13,24 +13,24 @@
       <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-            <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-              Machine ID
-              <span class="text-[9px]">( "," for multiple )</span>
+            <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Machine ID') }}
+              <span class="text-[9px]">{{ $t('( "," for multiple )') }}</span>
             </SearchInput>
 
-            <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-              Site
+            <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+              {{ $t('Site') }}
             </SearchInput>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Machine Prefix</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Machine Prefix') }}</label>
               <MultiSelect
                 v-model="filters.vendPrefixes"
                 :options="vendPrefixOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -38,18 +38,18 @@
             </div>
 
             <div>
-              <OperatorFilter v-model="filters.operators" :prepend="[{ id: 'all', full_name: 'All' }]" @select="onOperatorSelect" />
+              <OperatorFilter v-model="filters.operators" :prepend="[{ id: 'all', full_name: $t('All') }]" @select="onOperatorSelect" />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Product</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Product') }}</label>
               <MultiSelect
                 v-model="filters.products"
                 :options="productOptions"
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -57,14 +57,14 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Location Type</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Location Type') }}</label>
               <MultiSelect
                 v-model="filters.locationType"
                 :options="locationTypeOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               />
@@ -79,7 +79,7 @@
                   @click="onSearchFilterUpdated()"
                 >
                   <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                  <span>Search</span>
+                  <span>{{ $t('Search') }}</span>
                 </Button>
 
               </div>
@@ -128,6 +128,7 @@ import SearchInput from '@/Components/SearchInput.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import OperatorFilter from '@/Components/OperatorFilter.vue';
 import { MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid'
+import { t } from '@/i18n'
 
 /**
  * Controller should pass the same option props used by the Daily Stock Count page
@@ -167,20 +168,20 @@ const vendPrefixOptions = ref([])
 
 onMounted(() => {
   locationTypeOptions.value = [
-    {id: 'all', value: 'All'},
+    {id: 'all', value: t('All')},
     ...props.locationTypeOptions?.data?.map(d => ({ id: d.id, value: d.name })) ?? [],
   ]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operatorOptions?.data?.map(d => ({ id: d.id, code: d.code, full_name: d.full_name })) ?? [],
   ]
   productOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.productOptions?.data?.map(d => ({ id: d.id, full_name: `(${d.code}) ${d.name}` })) ?? [],
   ]
   vendPrefixOptions.value = [
-    {id: 'all', value: 'All'},
-    {id: 'single-ud', value: 'Single UD'},
+    {id: 'all', value: t('All')},
+    {id: 'single-ud', value: t('Single UD')},
     ...props.vendPrefixOptions?.data?.map(d => ({ id: d.id, value: d.name })) ?? [],
   ]
 
@@ -236,17 +237,17 @@ const dayGraphOptions = ref({
     x: { ticks: { min: 1, max: 31, stepSize: 1 } },
     y: {
       position: 'left',
-      title: { display: true, text: 'Stock Value in Machines (' + operatorCountry.currency_symbol + ')' },
+      title: { display: true, text: t('Stock Value in Machines (:currency)', { currency: operatorCountry.currency_symbol }) },
       beginAtZero: true,
     },
     y1: {
       position: 'right',
-      title: { display: true, text: 'Total Stock Cost - before GST (' + operatorCountry.currency_symbol + ')' },
+      title: { display: true, text: t('Total Stock Cost - before GST (:currency)', { currency: operatorCountry.currency_symbol }) },
       beginAtZero: true,
     },
   },
   plugins: {
-    title: { display: true, text: 'Stock Value, Stock Cost & Coin Float by Day (' + operatorCountry.currency_symbol + ')' },
+    title: { display: true, text: t('Stock Value, Stock Cost & Coin Float by Day (:currency)', { currency: operatorCountry.currency_symbol }) },
     legend: { reverse: false },
   }
 })
@@ -254,21 +255,21 @@ const dayGraphOptions = ref({
 const qtyOptions = ref({
   scales: {
     x: { ticks: { min: 1, max: 31, stepSize: 1 } },
-    y: { position: 'left', title: { display: true, text: 'Quantity (#)' }, beginAtZero: true },
+    y: { position: 'left', title: { display: true, text: t('Quantity (#)') }, beginAtZero: true },
     y2: {
       position: 'right',
-      title: { display: true, text: 'Machine Stock Balance (%)' },
+      title: { display: true, text: t('Machine Stock Balance (%)') },
       min: 0,
       max: 100,
       grid: { drawOnChartArea: false },
     },
   },
   plugins: {
-    title: { display: true, text: 'Stock Qty in Machine; Stock Qty in Warehouse; Machine Stock Balance %, by Day' },
+    title: { display: true, text: t('Stock Qty in Machine; Stock Qty in Warehouse; Machine Stock Balance %, by Day') },
     legend: { reverse: false },
     tooltip: {
       callbacks: {
-        title(items) { const d = items?.[0]?.dataIndex; return d != null ? `Day ${d + 1}` : '' }
+        title(items) { const d = items?.[0]?.dataIndex; return d != null ? t('Day :day', { day: d + 1 }) : '' }
       }
     }
   }
@@ -319,7 +320,7 @@ function syncData() {
     const lineColor = isCurrent ? '#4b5563' : '#15803d';
 
     dayGraphDatasets.value.push({
-      label: `${month} Stock Value in Machines (${operatorCountry.currency_symbol})`,
+      label: t(':month Stock Value in Machines (:currency)', { month, currency: operatorCountry.currency_symbol }),
       data: amount,
       backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
       borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
@@ -330,7 +331,7 @@ function syncData() {
     })
 
     dayGraphDatasets.value.push({
-      label: `${month} Total Stock Cost (${operatorCountry.currency_symbol})`,
+      label: t(':month Total Stock Cost (:currency)', { month, currency: operatorCountry.currency_symbol }),
       data: count,
       backgroundColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
       borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
@@ -357,7 +358,7 @@ function syncData() {
         coinFloatBorderWidth = 5; // wider red dotted line
       }
       dayGraphDatasets.value.push({
-        label: `${month} Coin Float (${operatorCountry.currency_symbol})`,
+        label: t(':month Coin Float (:currency)', { month, currency: operatorCountry.currency_symbol }),
         data: coin,
         yAxisID: 'y1',
         type: 'line',
@@ -397,7 +398,7 @@ function syncData() {
     const warehouseColor = isCurrent ? '#ef4444' : '#3b82f6';
 
     qtyDatasets.value.push({
-      label: `${month} Qty in Warehouse`,
+      label: t(':month Qty in Warehouse', { month }),
       data: wh,
       type: 'bar',
       borderColor: hexToRGBA(warehouseColor, isCurrent ? 1 : 0.4),
@@ -407,7 +408,7 @@ function syncData() {
     })
 
     qtyDatasets.value.push({
-      label: `${month} Qty in Machine`,
+      label: t(':month Qty in Machine', { month }),
       data: machine,
       type: 'line',
       borderColor: hexToRGBA(machineColor, isCurrent ? 1 : 0.4),
@@ -425,7 +426,7 @@ function syncData() {
 
     const balanceColor = isCurrent ? '#ef4444' : '#3b82f6'   // red (current) / blue (prev)
     qtyDatasets.value.push({
-      label: `${month} Machine Stock Balance %`,
+      label: t(':month Machine Stock Balance %', { month }),
       data: balancePct,
       type: 'line',
       yAxisID: 'y2',

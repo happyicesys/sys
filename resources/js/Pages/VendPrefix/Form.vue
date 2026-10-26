@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.vendPrefix">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.vendPrefix">
             {{ props.vendPrefix.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Vend Prefix
+            {{ $t('Create New Vend Prefix') }}
           </span>
         </div>
       </template>
@@ -19,12 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
                 <FormTextarea v-model="form.desc" :error="form.errors.desc">
-                  Desc
+                  {{ $t('Desc') }}
                 </FormTextarea>
             </div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired; mapping is now
@@ -75,7 +75,7 @@
 
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Operator
+                {{ $t('Operator') }}
                 <span class="text-red-500">
                    *
                 </span>
@@ -86,7 +86,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -124,13 +124,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -151,6 +151,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const authOperator = usePage().props.auth.operator
 
@@ -226,7 +227,7 @@ function buildInitialUpcomingSelection(productMappings = []) {
 
 function upcomingOptions() {
   return [
-    { id: '', value: '--- Clear ---' },
+    { id: '', value: t('--- Clear ---') },
     ...productMappingOptions.value
   ]
 }
@@ -305,11 +306,11 @@ function submit() {
     })
     .post('/vend-prefixes/create', {
       onSuccess: () => {
-        toast.success("Machine prefix created successfully", { timeout: 3000 })
+        toast.success(t('Machine prefix created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create vend prefix", { timeout: 3000 })
+        toast.error(t('Failed to create vend prefix'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -329,11 +330,11 @@ function submit() {
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Machine prefix updated successfully", { timeout: 3000 })
+        toast.success(t('Machine prefix updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update vend prefix", { timeout: 3000 })
+        toast.error(t('Failed to update vend prefix'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Campaign Vouchers" />
+  <Head :title="$t('Campaign Vouchers')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Campaign Vouchers
+        {{ $t('Campaign Vouchers') }}
       </h2>
     </template>
 
@@ -17,7 +17,7 @@
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                Batch Create (Same Code)
+                {{ $t('Batch Create (Same Code)') }}
               </span>
             </Button>
           </Link>
@@ -26,22 +26,22 @@
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                Batch Create (Unique Code)
+                {{ $t('Batch Create (Unique Code)') }}
               </span>
             </Button>
           </Link>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
-          <SearchInput placeholderStr="Code" v-model="filters.code">
-            Code
+          <SearchInput :placeholderStr="$t('Code')" v-model="filters.code">
+            {{ $t('Code') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Status
+              {{ $t('Status') }}
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -49,14 +49,14 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             ></MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Is Same Voucher Code?
+              {{ $t('Is Same Voucher Code?') }}
             </label>
             <MultiSelect
               v-model="filters.is_batch_code"
@@ -64,7 +64,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             ></MultiSelect>
@@ -80,20 +80,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ vouchers.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ vouchers.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ vouchers.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -101,7 +101,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -121,35 +121,35 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      {{ $t('Desc') }}
                     </TableHead>
                     <TableHeadSort modelName="is_active" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_active')">
-                      Is Active?
+                      {{ $t('Is Active?') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="is_batch_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_batch_code')">
-                      Is Same <br>
-                      Voucher Code?
+                      {{ $t('Is Same') }} <br>
+                      {{ $t('Voucher Code?') }}
                     </TableHeadSort>
                     <TableHead>
-                      Code
+                      {{ $t('Code') }}
                     </TableHead>
                     <TableHead>
-                      Qty
+                      {{ $t('Qty') }}
                     </TableHead>
                     <TableHeadSort modelName="date_from" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date_from')">
-                      Date From
+                      {{ $t('Date From') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="date_to" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date_to')">
-                      Date To
+                      {{ $t('Date To') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('type')">
-                      Type
+                      {{ $t('Type') }}
                     </TableHeadSort>
                     <TableHead>
-                      Settings
+                      {{ $t('Settings') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -196,13 +196,13 @@
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left">
                         <div class="flex flex-col space-y-2">
                           <span v-if="voucher.value">
-                            Value: {{ voucher.type == 'percent' ? '' : operatorCountry.currency_symbol }} {{ voucher.value }} {{ voucher.type == 'percent' ? '%' : '' }} <br>
+                            {{ $t('Value:') }} {{ voucher.type == 'percent' ? '' : operatorCountry.currency_symbol }} {{ voucher.value }} {{ voucher.type == 'percent' ? '%' : '' }} <br>
                           </span>
                           <span v-if="voucher.min_value">
-                            Min Basket Value: {{ operatorCountry.currency_symbol }} {{ voucher.min_value }} <br>
+                            {{ $t('Min Basket Value:') }} {{ operatorCountry.currency_symbol }} {{ voucher.min_value }} <br>
                           </span>
                           <span v-if="voucher.max_promo_value">
-                            Max Promo Value: {{ operatorCountry.currency_symbol }} {{ voucher.max_promo_value }} <br>
+                            {{ $t('Max Promo Value:') }} {{ operatorCountry.currency_symbol }} {{ voucher.max_promo_value }} <br>
                           </span>
                           <span v-if="voucher.product_json_mapped">
                             <span v-for="product in voucher.product_json_mapped">
@@ -220,7 +220,7 @@
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
-                                  Edit
+                                  {{ $t('Edit') }}
                               </span>
                             </Button>
                           </Link>
@@ -246,7 +246,7 @@
                       </tr>
                 <tr v-if="!vouchers.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -281,6 +281,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   vouchers: Object,
@@ -304,22 +305,22 @@ const numberPerPageOptions = ref([])
 
 onMounted(() => {
   activeOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Active' },
-    { id: 'false', value: 'Expired' },
+    { id: 'all', value: t('All') },
+    { id: 'true', value: t('Active') },
+    { id: 'false', value: t('Expired') },
   ];
 
   booleanOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Yes' },
-    { id: 'false', value: 'No' },
+    { id: 'all', value: t('All') },
+    { id: 'true', value: t('Yes') },
+    { id: 'false', value: t('No') },
   ];
 
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -332,16 +333,16 @@ function onCreateClicked(isUniqueObj) {
 }
 
 function onDeleteClicked(voucher) {
-  const approval = confirm('Are you sure to delete ' + voucher.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: voucher.name }));
   if (!approval) {
       return;
   }
   router.delete('/vouchers/' + voucher.id, {
     onSuccess: () => {
-      toast.success("Voucher deleted successfully", { timeout: 3000 })
+      toast.success(t('Voucher deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete voucher", { timeout: 3000 })
+      toast.error(t('Failed to delete voucher'), { timeout: 3000 })
     }
   })
 }

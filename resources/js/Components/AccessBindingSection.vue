@@ -25,16 +25,15 @@
 
     <!-- inherited ceiling notice (User/Edit only) -->
     <div v-if="ceiling" class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      <span class="font-semibold">Capped by operator.</span>
-      {{ ceiling.operatorName || 'This operator' }} is restricted to
-      {{ ceiling.products.length }} product(s): <span class="font-medium">{{ ceilingSummary }}</span>.
-      This user can only be granted products from that list.
+      <span class="font-semibold">{{ $t('Capped by operator.') }}</span>
+      {{ $t(':operator is restricted to :count product(s):', { operator: ceiling.operatorName || $t('This operator'), count: ceiling.products.length }) }} <span class="font-medium">{{ ceilingSummary }}</span>.
+      {{ $t('This user can only be granted products from that list.') }}
     </div>
 
     <!-- access mode -->
     <div v-if="showMode" class="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-1">
-        <span class="text-sm font-medium text-gray-700">This {{ subjectNoun }} can access:</span>
+        <span class="text-sm font-medium text-gray-700">{{ $t('This :subject can access:', { subject: subjectText }) }}</span>
 
         <label class="flex items-center space-x-2 text-sm text-gray-700" :class="[canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60']">
           <input
@@ -55,7 +54,7 @@
             :disabled="!canEdit"
             @change="$emit('update:mode', MODE_LIST)"
           />
-          <span>Only the {{ itemNoun }}(s) listed below</span>
+          <span>{{ $t('Only the :item(s) listed below', { item: itemText }) }}</span>
         </label>
       </div>
 
@@ -65,7 +64,7 @@
         the last row has no idea they just blinded the account.
       -->
       <p class="mt-1 text-sm font-semibold text-red-600" v-if="mode === MODE_LIST && !rows.length">
-        Nothing listed &mdash; this {{ subjectNoun }} will see NO {{ itemNoun }}s at all.
+        {{ $t('Nothing listed — this :subject will see NO :items at all.', { subject: subjectText, items: itemsText }) }}
       </p>
     </div>
 
@@ -81,7 +80,7 @@
           trackBy="id"
           valueProp="id"
           :label="optionLabel"
-          placeholder="Select"
+          :placeholder="$t('Select')"
           open-direction="bottom"
           class="mt-1"
           :disabled="!canEdit"
@@ -96,7 +95,7 @@
         :disabled="!selectedOptionId || !canEdit"
       >
         <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-        <span>Add</span>
+        <span>{{ $t('Add') }}</span>
       </Button>
     </div>
     <div class="text-sm text-red-600" v-if="error">
@@ -119,7 +118,7 @@
                 >
                   {{ column.label }}
                 </th>
-                <th scope="col" class="w-24 px-3 py-3 text-center text-sm font-semibold text-gray-900">Action</th>
+                <th scope="col" class="w-24 px-3 py-3 text-center text-sm font-semibold text-gray-900">{{ $t('Action') }}</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -164,6 +163,7 @@ import { computed, ref } from 'vue'
 import { BackspaceIcon, PlusCircleIcon } from '@heroicons/vue/20/solid'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
+import { t, tk } from '@/i18n'
 
 const MODE_ALL = 'all'
 const MODE_LIST = 'list'
@@ -208,25 +208,32 @@ const selectedOptionId = computed(() => {
 
 const rows = computed(() => props.modelValue || [])
 
+// The nouns ('product', 'machine', 'user', 'operator') are English keys too; the plural adds an 's'.
+// Listed here only so i18n:scan finds them (the callers pass them as plain props).
+tk('product'); tk('products'); tk('machine'); tk('machines'); tk('user'); tk('operator')
+const itemText = computed(() => t(props.itemNoun))
+const itemsText = computed(() => t(`${props.itemNoun}s`))
+const subjectText = computed(() => t(props.subjectNoun))
+
 const allLabel = computed(() =>
   props.ceiling
-    ? `All ${props.itemNoun}s the operator can access (${props.ceiling.products.length})`
-    : `All ${props.itemNoun}s`
+    ? t('All :items the operator can access (:count)', { items: itemsText.value, count: props.ceiling.products.length })
+    : t('All :items', { items: itemsText.value })
 )
 
 const ceilingSummary = computed(() => {
   if (!props.ceiling) return ''
   const names = props.ceiling.products.map(p => p.code || p.name)
-  return names.length > 6 ? `${names.slice(0, 6).join(', ')} +${names.length - 6} more` : names.join(', ')
+  return names.length > 6 ? t(':names +:count more', { names: names.slice(0, 6).join(', '), count: names.length - 6 }) : names.join(', ')
 })
 
 const emptyText = computed(() => {
   if (props.showMode && props.mode === MODE_LIST) {
-    return `Nothing listed = no ${props.itemNoun} access`
+    return t('Nothing listed = no :item access', { item: itemText.value })
   }
   return props.ceiling
-    ? `No Binding = Access to All of ${props.ceiling.operatorName || 'the operator'}'s ${props.ceiling.products.length} ${props.itemNoun}(s)`
-    : 'No Binding = Access to All'
+    ? t('No Binding = Access to All of :operator\'s :count :item(s)', { operator: props.ceiling.operatorName || t('the operator'), count: props.ceiling.products.length, item: itemText.value })
+    : t('No Binding = Access to All')
 })
 
 // Hide already-bound entries instead of splicing the options array, so the list

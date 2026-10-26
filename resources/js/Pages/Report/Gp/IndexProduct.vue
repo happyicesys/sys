@@ -1,29 +1,29 @@
 <template>
 
-  <Head title="GP by Product" />
+  <Head :title="$t('GP by Product')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Gross Profit by Product
+        {{ $t('Gross Profit by Product') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Machine ID') }}
             <span class="text-[9px]">
-              ("," for multiple)
+              {{ $t('("," for multiple)') }}
             </span>
           </SearchInput>
-          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-            Site
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Site') }}
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Machine Prefix
+                {{ $t('Machine Prefix') }}
             </label>
             <MultiSelect
                 v-model="filters.vendPrefixes"
@@ -31,7 +31,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -41,15 +41,15 @@
           <div>
             <OperatorFilter v-model="filters.operators" />
           </div>
-          <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
-            Product ID
+          <SearchInput :placeholderStr="$t('Product ID')" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Product ID') }}
           </SearchInput>
-          <SearchInput placeholderStr="Product Name" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
-            Product Name
+          <SearchInput :placeholderStr="$t('Product Name')" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Product Name') }}
           </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Site Binded?
+              {{ $t('Site Binded?') }}
             </label>
             <MultiSelect
               v-model="filters.is_binded_customer"
@@ -57,7 +57,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -65,7 +65,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Location Type
+              {{ $t('Location Type') }}
             </label>
             <MultiSelect
               v-model="filters.location_type_id"
@@ -73,7 +73,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -81,7 +81,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Current Month
+              {{ $t('Current Month') }}
             </label>
             <MultiSelect
               v-model="filters.currentMonth"
@@ -89,7 +89,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -106,7 +106,7 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
               <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-600 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -119,20 +119,20 @@
                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                 </svg>
                 <span>
-                    Export Excel
+                    {{ $t('Export Excel') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ products.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ products.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ products.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -140,7 +140,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -163,56 +163,56 @@
                       ID
                     </TableHeadSort>
                     <TableHead>
-                      Name
+                      {{ $t('Name') }}
                     </TableHead>
                     <TableHead colspan="4">
-                      This Month
+                      {{ $t('This Month') }}
                     </TableHead>
                     <TableHead colspan="4">
-                      Last Month
+                      {{ $t('Last Month') }}
                     </TableHead>
                     <TableHead colspan="4">
-                      2 Months Ago
+                      {{ $t('2 Months Ago') }}
                     </TableHead>
                   </tr>
                   <tr class="divide-x divide-gray-200">
                     <TableHead colspan="3">
                     </TableHead>
                     <TableHeadSort modelName="this_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_count')">
-                      Sales (Qty)
+                      {{ $t('Sales (Qty)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="this_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_revenue')">
-                      Sales ($)
+                      {{ $t('Sales ($)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="this_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit')">
-                      GP ($)
+                      {{ $t('GP ($)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="this_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit_margin')">
-                      GM (%)
+                      {{ $t('GM (%)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_count')">
-                      Sales (Qty)
+                      {{ $t('Sales (Qty)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_revenue')">
-                      Sales ($)
+                      {{ $t('Sales ($)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit')">
-                      GP ($)
+                      {{ $t('GP ($)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit_margin')">
-                      GM (%)
+                      {{ $t('GM (%)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_count')">
-                      Sales (Qty)
+                      {{ $t('Sales (Qty)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_revenue')">
-                      Sales ($)
+                      {{ $t('Sales ($)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit')">
-                      GP ($)
+                      {{ $t('GP ($)') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit_margin')">
-                      GM (%)
+                      {{ $t('GM (%)') }}
                     </TableHeadSort>
                   </tr>
                   <tr class="divide-x divide-gray-200">
@@ -306,7 +306,7 @@
                     </tr>
                 <tr v-if="!products.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -320,6 +320,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
@@ -382,30 +383,30 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   booleanOptions.value = [
-    {id: 'all', value: 'All'},
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'all', value: t('All')},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
   ]
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
   locationTypeOptions.value = [
-    {id: 'all', value: 'All'},
+    {id: 'all', value: t('All')},
     ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   monthOptions.value = props.monthOptions.map((data) => {return {id: data.id, name: data.name}})
   filters.value.currentMonth = monthOptions.value[0]
 
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operators.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   vendPrefixOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'single-ud', value: 'Single UD'},
+      {id: 'all', value: t('All')},
+      {id: 'single-ud', value: t('Single UD')},
       ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]

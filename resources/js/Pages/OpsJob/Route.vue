@@ -1,10 +1,10 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex flex-col md:flex-row space-x-2">
         <span class="text-gray-600" v-if="opsJob && opsJob.id">
-          Route Planning
+          {{ $t('Route Planning') }}
         </span>
       </div>
     </template>
@@ -18,7 +18,7 @@
 
                 <!-- Date and Delivery Info -->
                 <div class="sm:col-span-3">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Date </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Date') }} </label>
                   <div class="mt-1">
                     <input
                       type="text"
@@ -29,7 +29,7 @@
                   </div>
                 </div>
                 <div class="sm:col-span-3">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Delivery By </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Delivery By') }} </label>
                   <div class="mt-1">
                     <input
                       type="text"
@@ -42,7 +42,7 @@
 
                 <!-- Total Job(s) Info -->
                 <div class="sm:col-span-5">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Total Job(s) </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Total Job(s)') }} </label>
                   <div class="mt-1">
                     <input
                       type="text"
@@ -57,13 +57,13 @@
                 <div id="map" class="sm:col-span-6 mb-3" style="width: 100%; height: 600px;"></div>
 
                 <div class="sm:col-span-6" v-if="totalDistance">
-                  Total travel: {{ totalDistance }} km
+                  {{ $t('Total travel: :distance km', { distance: totalDistance }) }}
                 </div>
 
                 <!-- Origin Select -->
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Origin
+                    {{ $t('Origin') }}
                   </label>
                   <MultiSelect
                     v-model="form.origin_address_id"
@@ -71,7 +71,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_address"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                     ref="multiselect"
@@ -86,10 +86,10 @@
                       v-model="form.return_to_destination"
                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                     />
-                    <span>Return to {{ destinationAddress.name }} (last stop)</span>
+                    <span>{{ $t('Return to :name (last stop)', { name: destinationAddress.name }) }}</span>
                   </label>
                   <p class="text-xs text-gray-500 mt-1">
-                    When checked, the generated route ends at {{ destinationAddress.full_address }}.
+                    {{ $t('When checked, the generated route ends at :address.', { address: destinationAddress.full_address }) }}
                   </p>
                 </div>
 
@@ -101,7 +101,7 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </a>
@@ -114,7 +114,7 @@
                       <div class="flex space-x-1 items-center">
                         <ArrowRightCircleIcon class="h-4 w-4" />
                         <span>
-                          Generate Route (Google API)
+                          {{ $t('Generate Route (Google API)') }}
                         </span>
                       </div>
                     </button>
@@ -126,7 +126,7 @@
                       <div class="flex space-x-1 items-center">
                         <ArrowRightCircleIcon class="h-4 w-4" />
                         <span>
-                          Generate Route (Nearest Distance Algo)
+                          {{ $t('Generate Route (Nearest Distance Algo)') }}
                         </span>
                       </div>
                     </button>
@@ -139,7 +139,7 @@
                       <div class="flex space-x-1 items-center">
                         <ArrowRightCircleIcon class="h-4 w-4" />
                         <span>
-                          Generate Route (Claude JSON)
+                          {{ $t('Generate Route (Claude JSON)') }}
                         </span>
                       </div>
                     </button>
@@ -152,7 +152,7 @@
                       <div class="flex space-x-1 items-center">
                         <BarsArrowDownIcon class="h-4 w-4" />
                         <span>
-                          Sync Generated Sequence to Current
+                          {{ $t('Sync Generated Sequence to Current') }}
                         </span>
                       </div>
                     </button>
@@ -163,19 +163,18 @@
                      Applying posts the ordered stop list to /renumber, which always overwrites the current sequence. -->
                 <div class="sm:col-span-6 border border-indigo-200 rounded-md p-4 bg-indigo-50" v-if="showClaudePanel">
                   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                    <label class="text-sm font-medium text-gray-700"> Claude route JSON </label>
+                    <label class="text-sm font-medium text-gray-700"> {{ $t('Claude route JSON') }} </label>
                     <button
                       type="button"
                       @click="copyClaudePrompt"
                       class="text-xs text-indigo-700 font-medium underline text-left"
                     >
-                      Copy planning prompt for Claude (includes this job's stops)
+                      {{ $t('Copy planning prompt for Claude (includes this job\'s stops)') }}
                     </button>
                   </div>
                   <p class="text-xs text-gray-500 mt-1">
-                    Plan the route in Claude with the sys-happyice MCP, then paste the JSON it returns here.
-                    Applying <span class="font-semibold">always overwrites</span> the current sequence.
-                    Stops missing from the JSON are appended at the end in their current order.
+                    {{ $t('Plan the route in Claude with the sys-happyice MCP, then paste the JSON it returns here. Applying') }}
+                    <span class="font-semibold">{{ $t('always overwrites') }}</span> {{ $t('the current sequence. Stops missing from the JSON are appended at the end in their current order.') }}
                   </p>
                   <textarea
                     v-model="claudeJsonText"
@@ -192,7 +191,7 @@
                       <div class="flex space-x-1 items-center">
                         <BarsArrowDownIcon class="h-4 w-4" />
                         <span>
-                          Generate &amp; Overwrite Current Sequence
+                          {{ $t('Generate & Overwrite Current Sequence') }}
                         </span>
                       </div>
                     </button>
@@ -206,7 +205,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Generated Sequence </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Generated Sequence') }} </span>
                     </div>
                   </div>
                 </div>
@@ -222,7 +221,7 @@
                               <TableHead>
                                 <div class="flex flex-col space-x-1">
                                   <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
-                                    Current Sequence
+                                    {{ $t('Current Sequence') }}
                                   </SingleSortItem>
                                   <Button
                                     class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-xs font-medium"
@@ -232,19 +231,19 @@
                                     <div class="flex space-x-1 items-center">
                                       <BarsArrowDownIcon class="h-3 w-3"></BarsArrowDownIcon>
                                       <span>
-                                        Renumber
+                                        {{ $t('Renumber') }}
                                       </span>
                                     </div>
                                   </Button>
                                 </div>
                               </TableHead>
-                              <TableHead> Generated Sequence </TableHead>
-                              <TableHead> Machine ID & Job ID# </TableHead>
-                              <TableHead> Site & Ops Note </TableHead>
+                              <TableHead> {{ $t('Generated Sequence') }} </TableHead>
+                              <TableHead> {{ $t('Machine ID & Job ID#') }} </TableHead>
+                              <TableHead> {{ $t('Site & Ops Note') }} </TableHead>
                               <TableHeadSort modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
-                                Postcode
+                                {{ $t('Postcode') }}
                               </TableHeadSort>
-                              <TableHead> Address </TableHead>
+                              <TableHead> {{ $t('Address') }} </TableHead>
                             </tr>
                           </thead>
                           <tbody class="bg-white">
@@ -333,7 +332,7 @@
                             <!-- Fallback for no records -->
                             <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
                               <td colspan="11" class="whitespace-nowrap py-2 text-sm font-medium text-black text-center">
-                                No Records Found
+                                {{ $t('No Records Found') }}
                               </td>
                             </tr>
                           </tbody>
@@ -364,6 +363,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { vendCodeLabel } from '@/utils/vendCode';
+import { t } from '@/i18n';
 
 const filters = ref({
   sortKey: '',
@@ -441,7 +441,7 @@ onMounted(() => {
 });
 
 function applySequenceJobs() {
-  const approval = confirm('Are you sure to sync and overwrite the current sequence?');
+  const approval = confirm(t('Are you sure to sync and overwrite the current sequence?'));
   if (!approval) {
       return;
   }
@@ -600,9 +600,9 @@ function buildClaudePrompt() {
 
 function copyClaudePrompt() {
   navigator.clipboard.writeText(buildClaudePrompt()).then(() => {
-    toast.success('Planning prompt copied — paste it into Claude', { timeout: 3000 });
+    toast.success(t('Planning prompt copied — paste it into Claude'), { timeout: 3000 });
   }).catch(() => {
-    toast.error('Could not copy to clipboard');
+    toast.error(t('Could not copy to clipboard'));
   });
 }
 
@@ -611,19 +611,19 @@ function applyClaudeJson() {
   try {
     parsed = JSON.parse(claudeJsonText.value);
   } catch (e) {
-    toast.error('Invalid JSON: ' + e.message);
+    toast.error(t('Invalid JSON: :message', { message: e.message }));
     return;
   }
 
   // Accept a bare array or an object holding the array under stops/sequence/route.
   const rawStops = Array.isArray(parsed) ? parsed : (parsed.stops ?? parsed.sequence ?? parsed.route);
   if (!Array.isArray(rawStops) || !rawStops.length) {
-    toast.error('JSON must contain a non-empty "stops" array');
+    toast.error(t('JSON must contain a non-empty "stops" array'));
     return;
   }
   // Guard against pasting another job's plan.
   if (parsed.ops_job_id != null && Number(parsed.ops_job_id) !== Number(opsJob.value.id)) {
-    toast.error('This JSON is for ops job ' + parsed.ops_job_id + ', not ' + opsJob.value.id);
+    toast.error(t('This JSON is for ops job :json_job, not :job', { json_job: parsed.ops_job_id, job: opsJob.value.id }));
     return;
   }
 
@@ -667,7 +667,7 @@ function applyClaudeJson() {
   });
 
   if (!mergedOrder.length) {
-    toast.error('No stops in the JSON match this ops job');
+    toast.error(t('No stops in the JSON match this ops job'));
     return;
   }
 
@@ -676,13 +676,12 @@ function applyClaudeJson() {
   const missing = jobStops.filter(stop => !seen.has(stopKey(stop)));
   missing.forEach(stop => mergedOrder.push({ type: stopTypeOf(stop), id: stop.id }));
 
-  const lines = ['Overwrite the current sequence with ' + mergedOrder.length + ' stops from the Claude JSON?'];
+  const lines = [t('Overwrite the current sequence with :count stops from the Claude JSON?', { count: mergedOrder.length })];
   if (missing.length) {
-    lines.push(missing.length + ' stop(s) not in the JSON will be appended at the end.');
+    lines.push(t(':count stop(s) not in the JSON will be appended at the end.', { count: missing.length }));
   }
   if (unmatched.length) {
-    lines.push(unmatched.length + ' JSON entries do not match this job and will be ignored: '
-      + unmatched.slice(0, 5).join(', ') + (unmatched.length > 5 ? ', …' : ''));
+    lines.push(t(':count JSON entries do not match this job and will be ignored: :entries', { count: unmatched.length, entries: unmatched.slice(0, 5).join(', ') + (unmatched.length > 5 ? ', …' : '') }));
   }
   if (!confirm(lines.join('\n'))) {
     return;
@@ -690,12 +689,12 @@ function applyClaudeJson() {
 
   axios.post('/ops-jobs/' + opsJob.value.id + '/renumber', { mergedOrder })
     .then(() => {
-      toast.success('Route applied from Claude JSON', { timeout: 3000 });
+      toast.success(t('Route applied from Claude JSON'), { timeout: 3000 });
       location.reload();
     })
     .catch(error => {
       console.error(error);
-      toast.error('Failed to apply the route');
+      toast.error(t('Failed to apply the route'));
     });
 }
 
@@ -732,7 +731,7 @@ function onRenumberItemsClicked() {
       url: '/ops-jobs/' + opsJob.value.id + '/renumber',
       data: { mergedOrder },
   }).then(response => {
-      toast.success("Successfully Renumbered", {
+      toast.success(t('Successfully Renumbered'), {
         timeout: 3000
       });
       location.reload()

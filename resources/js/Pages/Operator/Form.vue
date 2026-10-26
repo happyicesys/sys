@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.operator">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.operator">
             {{ props.operator.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Operator
+            {{ $t('Create New Operator') }}
           </span>
         </div>
       </template>
@@ -19,17 +19,17 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-2">
               <FormInput v-model="form.code" :error="form.errors.code">
-                Code
+                {{ $t('Code') }}
               </FormInput>
             </div>
             <div class="sm:col-span-4">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Country
+                {{ $t('Country') }}
               </label>
               <MultiSelect
                 v-model="form.country_id"
@@ -37,7 +37,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -48,7 +48,7 @@
             </div>
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Timezone
+                {{ $t('Timezone') }}
               </label>
               <MultiSelect
                 v-model="form.timezone"
@@ -56,7 +56,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -67,31 +67,31 @@
             </div>
             <div class="sm:col-span-4">
               <FormInput v-model="form.gst_vat_rate" :error="form.errors.gst_vat_rate">
-                GST or VAT Rate (%)
+                {{ $t('GST or VAT Rate (%)') }}
                 <span class="text-[9px]">
-                    (For Gross Margin Calculation)
+                    {{ $t('(For Gross Margin Calculation)') }}
                 </span>
               </FormInput>
             </div>
             <div class="sm:col-span-3">
               <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no">
-                CIMB Bank Account No.
+                {{ $t('CIMB Bank Account No.') }}
                 <span class="text-[9px] ml-1">
-                    (For Refund Bulk Transfer File Header)
+                    {{ $t('(For Refund Bulk Transfer File Header)') }}
                 </span>
               </FormInput>
             </div>
             <div class="sm:col-span-3">
               <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name">
-                Bank Account Name
+                {{ $t('Bank Account Name') }}
                 <span class="text-[9px] ml-1">
-                    (Registered Company Name at Bank)
+                    {{ $t('(Registered Company Name at Bank)') }}
                 </span>
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                Remarks
+                {{ $t('Remarks') }}
               </FormTextarea>
             </div>
 
@@ -101,14 +101,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> QR Payment Gateway(s) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900">{{ $t('QR Payment Gateway(s)') }}</span>
                 </div>
               </div>
             </div>
 
             <div :class="[form.payment_gateway ? 'sm:col-span-6' : 'sm:col-span-5']" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Payment Gateway
+                {{ $t('Payment Gateway') }}
               </label>
               <MultiSelect
                 v-model="form.payment_gateway"
@@ -116,7 +116,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 ref="multiselect"
@@ -139,7 +139,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -164,7 +164,7 @@
 
             <div class="sm:col-span-3" v-if="form.id && form.payment_gateway">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Type
+                {{ $t('Type') }}
                 <span class="text-red-500">*</span>
               </label>
               <MultiSelect
@@ -173,7 +173,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="id"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 ref="multiselect"
@@ -198,7 +198,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -214,16 +214,16 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Name
+                          {{ $t('Name') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Type
+                          {{ $t('Type') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Key(s)
+                          {{ $t('Key(s)') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -252,7 +252,7 @@
                       </tr>
                       <tr v-if="!operator.operatorPaymentGateways.length">
                         <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-center">
-                          No Result Found
+                          {{ $t('No Result Found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -268,14 +268,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Delivery Platform(s) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900">{{ $t('Delivery Platform(s)') }}</span>
                 </div>
               </div>
             </div>
 
             <div :class="[form.payment_gateway ? 'sm:col-span-6' : 'sm:col-span-5']" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Delivery Platform
+                {{ $t('Delivery Platform') }}
               </label>
               <MultiSelect
                 v-model="form.delivery_platform"
@@ -283,7 +283,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 ref="multiselect"
@@ -317,7 +317,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -348,20 +348,20 @@
 
             <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.default_access_method == 'oauth'">
               <FormInput v-model="form.delivery_platform_oauth_client_id" :error="form.errors.delivery_platform_oauth_client_id">
-                Oauth Client ID
+                {{ $t('Oauth Client ID') }}
               </FormInput>
             </div>
 
             <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.default_access_method == 'oauth'">
               <FormInput v-model="form.delivery_platform_oauth_client_secret" :error="form.errors.delivery_platform_oauth_client_secret">
-                Oauth Client Secret
+                {{ $t('Oauth Client Secret') }}
               </FormInput>
             </div>
 
 
             <div class="sm:col-span-3" v-if="form.id && form.delivery_platform">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Type
+                {{ $t('Type') }}
                 <span class="text-red-500">*</span>
               </label>
               <MultiSelect
@@ -370,7 +370,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="id"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 ref="multiselect"
@@ -395,7 +395,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -411,16 +411,16 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Name
+                          {{ $t('Name') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Type
+                          {{ $t('Type') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Merchant ID
+                          {{ $t('Merchant ID') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -449,7 +449,7 @@
                       </tr>
                       <tr v-if="!operator.deliveryPlatformOperators.length">
                         <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-center">
-                          No Result Found
+                          {{ $t('No Result Found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -466,14 +466,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Vending Machine(s) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900">{{ $t('Access Vending Machine(s)') }}</span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-5" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vending Machine to Bind
+                {{ $t('Vending Machine to Bind') }}
               </label>
               <MultiSelect
                 v-model="form.vend_id"
@@ -481,7 +481,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 ref="multiselect"
@@ -502,7 +502,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -518,13 +518,13 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Machine ID
+                          {{ $t('Machine ID') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Name
+                          {{ $t('Name') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -557,7 +557,7 @@
                       </tr>
                       <tr v-if="!operator.vends.length">
                         <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
-                          No Binding = Access to All
+                          {{ $t('No Binding = Access to All') }}
                         </td>
                       </tr>
                     </tbody>
@@ -577,13 +577,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" v-if="permissions.includes('update operators')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -595,6 +595,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
 import { vendCodeLabel } from '@/utils/vendCode';
 import FormInput from '@/Components/FormInput.vue';
@@ -721,11 +722,11 @@ function bindDeliveryPlatform() {
       }))
       .post('/operators/' + form.value.id + '/delivery-platform/create', {
       onSuccess: () => {
-        toast.success("Delivery platform added successfully", { timeout: 3000 })
+        toast.success(t('Delivery platform added successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to add delivery platform", { timeout: 3000 })
+        toast.error(t('Failed to add delivery platform'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -747,7 +748,7 @@ function bindPaymentGateway() {
 
 function unbindDeliveryPlatform(deliveryPlatformOperator) {
   // deliveryPlatformOperators.value.splice(deliveryPlatformOperators.value.indexOf(deliveryPlatformOperator), 1)
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
@@ -770,11 +771,11 @@ function submit() {
     }))
     .post('/operators/create', {
       onSuccess: () => {
-        toast.success("Operator created successfully", { timeout: 3000 })
+        toast.success(t('Operator created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create operator", { timeout: 3000 })
+        toast.error(t('Failed to create operator'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -794,11 +795,11 @@ function submit() {
       }))
       .post('/operators/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Operator updated successfully", { timeout: 3000 })
+        toast.success(t('Operator updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update operator", { timeout: 3000 })
+        toast.error(t('Failed to update operator'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

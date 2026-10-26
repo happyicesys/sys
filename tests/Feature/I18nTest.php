@@ -116,6 +116,24 @@ class I18nTest extends TestCase
         $this->assertSame('zh_CN', app()->getLocale(), 'server messages follow the user too');
     }
 
+    public function test_each_text_says_where_it_is_shown(): void
+    {
+        $places = app(\App\Services\I18n\TranslationPlaces::class);
+        $this->assertContains('Menu & top bar', $places->for('Machine Health'), 'a menu entry is listed under the menu');
+        $this->assertContains('Translations (Translation/Index)', $places->for('Shown on:'), 'a page is named by its title and path');
+        $this->assertArrayHasKey('Translations (Translation/Index)', $places->pages());
+
+        $reader = $this->user(['read translations']);
+        $this->actingAs($reader)->getJson('/translations/places?key=Shown%20on%3A')
+            ->assertOk()->assertJsonPath('places', ['Shared: WordingEditor', 'Translations (Translation/Index)']);
+        $this->actingAs($reader)->get('/translations?page_name='.urlencode('Menu & top bar'))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('entries.data', fn ($rows) => collect($rows)->every(fn ($r) => in_array('Menu & top bar', $r['places'], true)))
+            ->where('entries.total', fn ($total) => $total > 50)
+            ->where('filters.page_name', 'Menu & top bar'));
+        $this->actingAs($this->user())->getJson('/translations/places?key=Save')->assertForbidden();
+    }
+
     public function test_the_deep_scan_finds_text_that_is_not_marked(): void
     {
         $dir = storage_path('framework/testing/i18n-scan');

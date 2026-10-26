@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Campaign" />
+  <Head :title="$t('Delivery Campaign')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform Campaign
+        {{ $t('Delivery Platform Campaign') }}
       </h2>
     </template>
 
@@ -18,29 +18,29 @@
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                Create
+                {{ $t('Create') }}
               </span>
             </Button>
           </Link>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID') }}
           </SearchInput>
           <DatePicker
               v-model="filters.date_from"
           >
-              From
+              {{ $t('From') }}
           </DatePicker>
           <DatePicker
               v-model="filters.date_to"
               :minDate="filters.date_from"
           >
-              To
+              {{ $t('To') }}
           </DatePicker>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Operator
+              {{ $t('Operator') }}
             </label>
             <MultiSelect
               v-model="filters.operator_id"
@@ -48,7 +48,7 @@
               trackBy="id"
               valueProp="id"
               label="full_name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -56,7 +56,7 @@
           </div>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Delivery Platform
+              {{ $t('Delivery Platform') }}
             </label>
             <MultiSelect
               v-model="filters.delivery_platform_type_id"
@@ -64,7 +64,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -80,20 +80,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ deliveryPlatformCampaigns.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ deliveryPlatformCampaigns.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ deliveryPlatformCampaigns.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -101,7 +101,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -121,19 +121,19 @@
                       #
                     </TableHead>
                     <TableHead>
-                      Platform
+                      {{ $t('Platform') }}
                     </TableHead>
                     <TableHead>
-                      Name
+                      {{ $t('Name') }}
                     </TableHead>
                     <TableHead>
-                      Status
+                      {{ $t('Status') }}
                     </TableHead>
                     <TableHead>
-                      Campaign Item(s)
+                      {{ $t('Campaign Item(s)') }}
                     </TableHead>
                     <TableHead>
-                      Product Mapping
+                      {{ $t('Product Mapping') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -151,7 +151,7 @@
                       {{ deliveryPlatformCampaign.name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
-                      {{ deliveryPlatformCampaign.is_active ? 'Active' : 'Not Active' }}
+                      {{ deliveryPlatformCampaign.is_active ? $t('Active') : $t('Not Active') }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">
@@ -185,7 +185,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                         </Link>
@@ -198,10 +198,10 @@
                         >
                           <span class="flex items-center space-x-1">
                             <TrashIcon class="w-4 h-4" />
-                            <span>Delete</span>
+                            <span>{{ $t('Delete') }}</span>
                           </span>
                           <span v-if="deliveryPlatformCampaign.delivery_platform_campaign_item_vends_count > 0">
-                            (Binded)
+                            {{ $t('(Binded)') }}
                           </span>
                         </Button>
                       </div>
@@ -209,7 +209,7 @@
                   </tr>
                   <tr v-if="!deliveryPlatformCampaigns.data.length">
                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                        No Results Found
+                        {{ $t('No Results Found') }}
                     </td>
                   </tr>
                 </tbody>
@@ -237,6 +237,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { t } from '@/i18n';
 
 const props = defineProps({
   deliveryPlatformCampaigns: Object,
@@ -273,15 +274,15 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   deliveryPlatformTypeOptions.value = [
-    {id: 'all', name: 'All'},
+    {id: 'all', name: t('All')},
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    {id: 'all', full_name: t('All')},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
@@ -313,7 +314,7 @@ function sortTable(sortKey) {
 }
 
 function deleteDeliveryPlatformCampaign(deliveryPlatformCampaign) {
-  if (confirm('Are you sure you want to delete this campaign?')) {
+  if (confirm(t('Are you sure you want to delete this campaign?'))) {
     router.delete('/delivery-platform-campaigns/' + deliveryPlatformCampaign.id)
   }
 }

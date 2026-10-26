@@ -387,7 +387,7 @@ class CardTerminalUnitController extends Controller
         $token = trim((string) ($validated['access_token'] ?? ''));
         $existing = $ignoreId ? CardTerminalUnit::find($ignoreId) : null;
         if ($isRemote && $token === '' && ! $existing?->hasAccessToken()) {
-            throw ValidationException::withMessages(['access_token' => 'Paste the T05\'s Payrallel access token.']);
+            throw ValidationException::withMessages(['access_token' => __('Paste the T05\'s Payrallel access token.')]);
         }
 
         $attrs = [

@@ -11,28 +11,28 @@
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <header class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3">
         <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-gray-900">Remote controls</h3>
+          <h3 class="text-sm font-semibold text-gray-900">{{ $t('Remote controls') }}</h3>
           <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset"
                 :class="data.is_online ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-600 ring-gray-300'">
             <span class="h-1.5 w-1.5 rounded-full" :class="data.is_online ? 'bg-emerald-500' : 'bg-gray-400'"></span>
-            {{ data.is_online ? 'online' : 'offline' }}
+            {{ data.is_online ? $t('online') : $t('offline') }}
           </span>
-          <span v-if="data.last_seen_at" class="text-xs text-gray-500">last seen {{ ago(data.last_seen_at) }}</span>
+          <span v-if="data.last_seen_at" class="text-xs text-gray-500">{{ $t('last seen :ago', { ago: ago(data.last_seen_at) }) }}</span>
         </div>
         <span class="inline-block" v-tooltip="canSync ? '' : blockedReason">
           <Button type="button" class="text-white"
                   :class="canSync ? 'bg-sky-700 hover:bg-sky-800' : 'bg-gray-300 cursor-not-allowed'"
                   :disabled="!canSync" @click.prevent="send('status')">
             <ArrowPathIcon class="mr-1 h-4 w-4" :class="data.pending ? 'animate-spin' : ''" />
-            Sync now
+            {{ $t('Sync now') }}
           </Button>
         </span>
       </header>
 
       <div class="space-y-5 p-4 text-sm">
-        <p v-if="!loaded" class="text-gray-500">Loading…</p>
+        <p v-if="!loaded" class="text-gray-500">{{ $t('Loading…') }}</p>
         <p v-else-if="!data.supported" class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
-          This machine's app (versionCode {{ data.apk_version_code ?? 'unknown' }}) is too old for remote controls.
+          {{ $t('This machine\'s app (versionCode :version) is too old for remote controls.', { version: data.apk_version_code ?? $t('unknown') }) }}
         </p>
 
         <!-- A control the controller owns is accepted by the host and changes nothing: say so first. -->
@@ -44,17 +44,17 @@
         <template v-if="loaded">
           <section>
             <header class="flex flex-wrap items-baseline justify-between gap-2">
-              <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Current status</h4>
+              <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $t('Current status') }}</h4>
               <span class="text-xs" :class="statusStale ? 'text-amber-700' : 'text-gray-500'">
-                <template v-if="!data.status_at">No status yet — press Sync now.</template>
-                <template v-else>Reported by the machine {{ formatTime(data.status_at) }} ({{ ago(data.status_at) }})</template>
+                <template v-if="!data.status_at">{{ $t('No status yet — press Sync now.') }}</template>
+                <template v-else>{{ $t('Reported by the machine :time (:ago)', { time: formatTime(data.status_at), ago: ago(data.status_at) }) }}</template>
               </span>
             </header>
 
             <div v-if="status.known" class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <!-- The one number the cold chain is judged on gets the space, and the colour band. -->
               <div class="col-span-2 rounded-lg border px-4 py-3 ring-1 ring-inset" :class="chamberClasses">
-                <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">Chamber</div>
+                <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ $t('Chamber') }}</div>
                 <div class="mt-0.5 text-3xl font-semibold tracking-tight text-gray-900">{{ status.chamber.text }}</div>
                 <div class="mt-0.5 text-xs text-gray-500">{{ status.chamber.detail }}</div>
               </div>
@@ -62,18 +62,20 @@
             </div>
 
             <p v-if="status.identity" class="mt-2 text-xs text-gray-500">
-              Zijia device no. <span class="font-mono text-gray-700">{{ status.identity.deviceNo || '—' }}</span>
-              · modem IMEI <span class="font-mono text-gray-700">{{ status.identity.imei || '—' }}</span>
-              <template v-if="status.identity.hostVersion"> · host {{ status.identity.hostVersion }}</template>
-              <template v-if="status.identity.pluginVersion"> · plugin {{ status.identity.pluginVersion }}</template>
-              <template v-if="status.identity.driverVersion"> · driver {{ status.identity.driverVersion }}</template>
+              {{ $t('Zijia device no.') }} <span class="font-mono text-gray-700">{{ status.identity.deviceNo || '—' }}</span>
+              · {{ $t('modem IMEI') }} <span class="font-mono text-gray-700">{{ status.identity.imei || '—' }}</span>
+              <template v-if="status.identity.hostVersion"> · {{ $t('host :version', { version: status.identity.hostVersion }) }}</template>
+              <template v-if="status.identity.pluginVersion"> · {{ $t('plugin :version', { version: status.identity.pluginVersion }) }}</template>
+              <template v-if="status.identity.driverVersion"> · {{ $t('driver :version', { version: status.identity.driverVersion }) }}</template>
             </p>
             <p v-if="status.telemetry" class="mt-2 text-xs leading-relaxed text-gray-500">
-              Machine reports on its own: temperature &amp; door every {{ everySeconds(status.telemetry.venderSeconds) }},
-              presence every {{ everySeconds(status.telemetry.pSeconds) }}, hardware status every
-              {{ everySeconds(status.telemetry.statusSeconds) }} (and on change), MQTT heartbeat every
-              {{ everySeconds(status.telemetry.heartbeatSeconds) }}; temperature excursions are checked every
-              {{ everySeconds(status.telemetry.excursionSampleSeconds) }}.
+              {{ $t('Machine reports on its own: temperature & door every :door, presence every :presence, hardware status every :hardware (and on change), MQTT heartbeat every :heartbeat; temperature excursions are checked every :excursion.', {
+                door: everySeconds(status.telemetry.venderSeconds),
+                presence: everySeconds(status.telemetry.pSeconds),
+                hardware: everySeconds(status.telemetry.statusSeconds),
+                heartbeat: everySeconds(status.telemetry.heartbeatSeconds),
+                excursion: everySeconds(status.telemetry.excursionSampleSeconds),
+              }) }}
             </p>
           </section>
 
@@ -84,15 +86,15 @@
           -->
           <section v-if="data.can_control && data.supported" class="border-t border-gray-100 pt-4">
             <header class="flex flex-wrap items-baseline justify-between gap-2">
-              <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Controls</h4>
+              <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $t('Controls') }}</h4>
               <span class="text-xs" :class="statusStale ? 'text-amber-700' : 'text-gray-500'">
-                <template v-if="!data.status_at">Values unknown until the machine reports — press Sync now.</template>
-                <template v-else>Values as at {{ formatTime(data.status_at) }} ({{ ago(data.status_at) }})</template>
+                <template v-if="!data.status_at">{{ $t('Values unknown until the machine reports — press Sync now.') }}</template>
+                <template v-else>{{ $t('Values as at :time (:ago)', { time: formatTime(data.status_at), ago: ago(data.status_at) }) }}</template>
               </span>
             </header>
-            <p v-if="data.pending" class="mt-1 text-xs text-sky-700">Waiting for the machine to answer the last command…</p>
+            <p v-if="data.pending" class="mt-1 text-xs text-sky-700">{{ $t('Waiting for the machine to answer the last command…') }}</p>
             <p v-else-if="!data.is_online" class="mt-1 text-xs text-amber-700">
-              The machine is offline, so the controls are disabled — a command it never receives would expire unanswered. Press Sync now to check.
+              {{ $t('The machine is offline, so the controls are disabled — a command it never receives would expire unanswered. Press Sync now to check.') }}
             </p>
 
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -102,20 +104,22 @@
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-sm font-medium text-gray-800">Temperature setpoint</span>
-                  <StateChip v-if="status.setPoint !== null" :value="fmtC(status.setPoint)" tone="ok" note="controller reads" />
-                  <StateChip v-else-if="lastSetpoint" :value="lastSetpoint.celsius + ' °C'" tone="info" note="last sent" />
-                  <StateChip v-else value="not reported" tone="unknown" />
+                  <span class="text-sm font-medium text-gray-800">{{ $t('Temperature setpoint') }}</span>
+                  <StateChip v-if="status.setPoint !== null" :value="fmtC(status.setPoint)" tone="ok" :note="$t('controller reads')" />
+                  <StateChip v-else-if="lastSetpoint" :value="lastSetpoint.celsius + ' °C'" tone="info" :note="$t('last sent')" />
+                  <StateChip v-else :value="$t('not reported')" tone="unknown" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
                   <template v-if="status.setPoint !== null">
-                    Read back from the controller · whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }}
+                    {{ $t('Read back from the controller · whole °C, :min to :max', { min: data.setpoint.min, max: data.setpoint.max }) }}
                   </template>
                   <template v-else-if="lastSetpoint">
-                    Set from mark1 {{ ago(lastSetpoint.at) }}{{ lastSetpoint.by ? ' by ' + lastSetpoint.by : '' }} · whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }}
+                    {{ lastSetpoint.by
+                      ? $t('Set from mark1 :ago by :by · whole °C, :min to :max', { ago: ago(lastSetpoint.at), by: lastSetpoint.by, min: data.setpoint.min, max: data.setpoint.max })
+                      : $t('Set from mark1 :ago · whole °C, :min to :max', { ago: ago(lastSetpoint.at), min: data.setpoint.min, max: data.setpoint.max }) }}
                   </template>
                   <template v-else>
-                    The controller cannot report its setpoint — chamber is {{ status.chamber.text }} · whole °C, {{ data.setpoint.min }} to {{ data.setpoint.max }}
+                    {{ $t('The controller cannot report its setpoint — chamber is :chamber · whole °C, :min to :max', { chamber: status.chamber.text, min: data.setpoint.min, max: data.setpoint.max }) }}
                   </template>
                 </p>
                 <div class="mt-2 flex items-center gap-2" v-tooltip="blockedReason">
@@ -128,8 +132,8 @@
                   </span>
                   <ArrowPathIcon v-if="busyOp === 'setpoint'" class="h-4 w-4 animate-spin text-sky-700" />
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSend"
-                                 @click="ask('setpoint', { celsius: setpoint }, 'Set the temperature controller to ' + setpoint + ' °C?', 'The cabinet will cool to this target until someone changes it. The answer shows what the controller reads back about 10 seconds later.')">
-                    Set
+                                 @click="ask('setpoint', { celsius: setpoint }, $t('Set the temperature controller to :celsius °C?', { celsius: setpoint }), $t('The cabinet will cool to this target until someone changes it. The answer shows what the controller reads back about 10 seconds later.'))">
+                    {{ $t('Set') }}
                   </ControlButton>
                 </div>
               </div>
@@ -137,13 +141,13 @@
               <!-- Delta (C0): the compressor stops at the setpoint and restarts at setpoint + delta. -->
               <div class="rounded-lg border border-gray-200 bg-white p-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-sm font-medium text-gray-800">Delta (C0)</span>
-                  <StateChip v-if="status.delta !== null" :value="fmtC(status.delta)" tone="ok" note="controller reads" />
-                  <StateChip v-else-if="lastDelta" :value="lastDelta.celsius + ' °C'" tone="info" note="last sent" />
-                  <StateChip v-else :value="data.supported_delta ? 'not reported' : 'needs app v22'" :tone="data.supported_delta ? 'unknown' : 'warn'" />
+                  <span class="text-sm font-medium text-gray-800">{{ $t('Delta (C0)') }}</span>
+                  <StateChip v-if="status.delta !== null" :value="fmtC(status.delta)" tone="ok" :note="$t('controller reads')" />
+                  <StateChip v-else-if="lastDelta" :value="lastDelta.celsius + ' °C'" tone="info" :note="$t('last sent')" />
+                  <StateChip v-else :value="data.supported_delta ? $t('not reported') : $t('needs app v22')" :tone="data.supported_delta ? 'unknown' : 'warn'" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  Compressor stops at the setpoint and starts again once the chamber has warmed by the delta<template v-if="restartAt !== null"> — now at <span class="font-semibold text-gray-700">{{ fmtC(restartAt) }}</span></template> · whole °C, {{ data.delta.min }} to {{ data.delta.max }}
+                  {{ $t('Compressor stops at the setpoint and starts again once the chamber has warmed by the delta') }}<template v-if="restartAt !== null"> {{ $t('— now at') }} <span class="font-semibold text-gray-700">{{ fmtC(restartAt) }}</span></template> · {{ $t('whole °C, :min to :max', { min: data.delta.min, max: data.delta.max }) }}
                 </p>
                 <div class="mt-2 flex items-center gap-2" v-tooltip="deltaBlocked">
                   <span class="isolate inline-flex -space-x-px shadow-sm">
@@ -155,8 +159,8 @@
                   </span>
                   <ArrowPathIcon v-if="busyOp === 'delta'" class="h-4 w-4 animate-spin text-sky-700" />
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSendDelta"
-                                 @click="ask('delta', { celsius: delta }, 'Set the delta to ' + delta + ' °C?', deltaDetail)">
-                    Set
+                                 @click="ask('delta', { celsius: delta }, $t('Set the delta to :celsius °C?', { celsius: delta }), deltaDetail)">
+                    {{ $t('Set') }}
                   </ControlButton>
                 </div>
               </div>
@@ -168,30 +172,30 @@
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-sm font-medium text-gray-800">Setpoint schedule</span>
-                  <StateChip :value="activeSchedule ? activeSchedule + ' active' : 'none'" :tone="activeSchedule ? 'info' : 'unknown'" />
+                  <span class="text-sm font-medium text-gray-800">{{ $t('Setpoint schedule') }}</span>
+                  <StateChip :value="activeSchedule ? $t(':count active', { count: activeSchedule }) : $t('none')" :tone="activeSchedule ? 'info' : 'unknown'" />
                 </div>
-                <p class="mt-0.5 text-xs text-gray-500">Every day, Singapore time. An entry more than 15 min late (machine busy or offline) waits for the next day.</p>
+                <p class="mt-0.5 text-xs text-gray-500">{{ $t('Every day, Singapore time. An entry more than 15 min late (machine busy or offline) waits for the next day.') }}</p>
                 <ul v-if="(data.schedule || []).length" class="mt-2 divide-y divide-gray-100 text-xs">
                   <li v-for="entry in data.schedule" :key="entry.id" class="flex flex-wrap items-center gap-2 py-1.5">
                     <span class="w-12 font-mono font-semibold" :class="entry.is_active ? 'text-gray-900' : 'text-gray-400 line-through'">{{ entry.run_at }}</span>
                     <span class="w-14" :class="entry.is_active ? 'text-gray-900' : 'text-gray-400'">{{ entry.celsius }} °C</span>
                     <span class="flex-1 text-gray-500">
-                      <template v-if="entry.last_run_on">last {{ entry.last_run_on }}<template v-if="entry.last_status"> · {{ resultLabel(entry.last_status) }}</template></template>
-                      <template v-else>not run yet</template>
-                      <template v-if="entry.created_by"> · added by {{ entry.created_by }}</template>
+                      <template v-if="entry.last_run_on">{{ $t('last :date', { date: entry.last_run_on }) }}<template v-if="entry.last_status"> · {{ resultLabel(entry.last_status) }}</template></template>
+                      <template v-else>{{ $t('not run yet') }}</template>
+                      <template v-if="entry.created_by"> · {{ $t('added by :name', { name: entry.created_by }) }}</template>
                     </span>
                     <button type="button" class="text-sky-700 hover:underline disabled:text-gray-300" :disabled="scheduleBusy"
-                            @click="toggleSchedule(entry)">{{ entry.is_active ? 'Pause' : 'Resume' }}</button>
+                            @click="toggleSchedule(entry)">{{ entry.is_active ? $t('Pause') : $t('Resume') }}</button>
                     <button type="button" class="text-red-600 hover:underline disabled:text-gray-300" :disabled="scheduleBusy"
-                            @click="removeSchedule(entry)">Remove</button>
+                            @click="removeSchedule(entry)">{{ $t('Remove') }}</button>
                   </li>
                 </ul>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <input v-model="newSchedule.run_at" type="time" class="rounded-md border-gray-300 py-1 text-xs" />
                   <input v-model.number="newSchedule.celsius" type="number" :min="data.setpoint.min" :max="data.setpoint.max" step="1"
                          class="w-20 rounded-md border-gray-300 py-1 text-xs" /> °C
-                  <ControlButton tone="primary" class="rounded-md" :disabled="scheduleBusy || !newSchedule.run_at" @click="addSchedule">Add</ControlButton>
+                  <ControlButton tone="primary" class="rounded-md" :disabled="scheduleBusy || !newSchedule.run_at" @click="addSchedule">{{ $t('Add') }}</ControlButton>
                   <span v-if="scheduleError" class="text-red-600">{{ scheduleError }}</span>
                 </div>
               </div>
@@ -201,60 +205,60 @@
                 it off for that long instead of its 30-minute remote limit, then gives it back to the controller,
                 which starts it from the setpoint. On, or Compressor control → Controller, ends it sooner.
               -->
-              <ControlRow label="Compressor" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)"
+              <ControlRow :label="$t('Compressor')" :busy="busyOp === 'compressor'" :state="onOff(status.compressorOn)" :tone="boolTone(status.compressorOn)"
                           :note="offUntilNote" :reason="compressorRowReason">
                 <ControlButton :disabled="!!compressorBlocked" :active="status.compressorOn === true"
-                               @click="ask('compressor', { on: true }, 'Switch the compressor on?', 'Overrides the controller until it switches again.' + (offUntil ? ' This also ends the timed Off.' : ''))">On</ControlButton>
+                               @click="ask('compressor', { on: true }, $t('Switch the compressor on?'), offUntil ? $t('Overrides the controller until it switches again. This also ends the timed Off.') : $t('Overrides the controller until it switches again.'))">{{ $t('On') }}</ControlButton>
                 <ControlButton v-if="data.supported_timed_off" :disabled="!canSend" :active="status.compressorOn === false"
-                               @click="openTimedOff">Off…</ControlButton>
+                               @click="openTimedOff">{{ $t('Off…') }}</ControlButton>
                 <ControlButton v-else :disabled="!!compressorBlocked" :active="status.compressorOn === false"
-                               @click="ask('compressor', { on: false }, 'Switch the compressor off?', 'The chamber will warm until the controller switches it back on. The machine hands it back to the controller after ' + REMOTE_LEASE_MINUTES + ' minutes; a chosen duration needs app v40.')">Off</ControlButton>
+                               @click="ask('compressor', { on: false }, $t('Switch the compressor off?'), $t('The chamber will warm until the controller switches it back on. The machine hands it back to the controller after :minutes minutes; a chosen duration needs app v40.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Off') }}</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Compressor control" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
-                          :note="data.supported_thermostat_modes ? '' : 'needs app v20'" :reason="thermostatModeBlocked">
+              <ControlRow :label="$t('Compressor control')" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
+                          :note="data.supported_thermostat_modes ? '' : $t('needs app v20')" :reason="thermostatModeBlocked">
                 <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === false"
-                               @click="ask('comprmode', { on: false }, 'Give the compressor back to the controller?', 'The controller then runs it from its own setpoint and differential, and remote on/off stops working.')">Controller</ControlButton>
+                               @click="ask('comprmode', { on: false }, $t('Give the compressor back to the controller?'), $t('The controller then runs it from its own setpoint and differential, and remote on/off stops working.'))">{{ $t('Controller') }}</ControlButton>
                 <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === true"
-                               @click="ask('comprmode', { on: true }, 'Take remote control of the compressor?', 'The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature. From app v21 the machine hands it back by itself after ' + REMOTE_LEASE_MINUTES + ' minutes.')">Remote</ControlButton>
+                               @click="ask('comprmode', { on: true }, $t('Take remote control of the compressor?'), $t('The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
               </ControlRow>
 
               <!--
                 App 22+: the AG-325's fan output is the demister above the glass lid. The machine keeps it on,
                 takes it to remote itself on every press, and turns an Off back on after 30 minutes.
               -->
-              <ControlRow v-if="data.supported_demist_fan" label="Demist fan (glass lid)" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="status.fanOn === false ? 'warn' : boolTone(status.fanOn)"
-                          note="always on · Off lasts 30 min" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
+              <ControlRow v-if="data.supported_demist_fan" :label="$t('Demist fan (glass lid)')" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="status.fanOn === false ? 'warn' : boolTone(status.fanOn)"
+                          :note="$t('always on · Off lasts 30 min')" :reason="blockedReason">
+                <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">{{ $t('On') }}</ControlButton>
                 <ControlButton :disabled="!canSend" :active="status.fanOn === false"
-                               @click="ask('fan', { on: false }, 'Turn the demist fan off?', 'The glass lid may fog while it is off. The machine turns it back on by itself after 30 minutes.')">Off</ControlButton>
+                               @click="ask('fan', { on: false }, $t('Turn the demist fan off?'), $t('The glass lid may fog while it is off. The machine turns it back on by itself after 30 minutes.'))">{{ $t('Off') }}</ControlButton>
               </ControlRow>
 
-              <ControlRow v-if="!data.supported_demist_fan" label="Cabinet fan" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
-                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === true" @click="send('fan', { on: true })">On</ControlButton>
-                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === false" @click="send('fan', { on: false })">Off</ControlButton>
+              <ControlRow v-if="!data.supported_demist_fan" :label="$t('Cabinet fan')" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
+                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === true" @click="send('fan', { on: true })">{{ $t('On') }}</ControlButton>
+                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === false" @click="send('fan', { on: false })">{{ $t('Off') }}</ControlButton>
               </ControlRow>
 
               <!-- The fan's own control register (风机控制): app v20–21 only; from 22 the demist fan row does it. -->
-              <ControlRow v-if="!data.supported_demist_fan" label="Fan control" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
-                          :note="data.supported_thermostat_modes ? '' : 'needs app v20'" :reason="thermostatModeBlocked">
+              <ControlRow v-if="!data.supported_demist_fan" :label="$t('Fan control')" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
+                          :note="data.supported_thermostat_modes ? '' : $t('needs app v20')" :reason="thermostatModeBlocked">
                 <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === false"
-                               @click="ask('fanmode', { on: false }, 'Give the fan back to the controller?', 'The controller then runs it off the door switch, and remote on/off stops working.')">Controller</ControlButton>
+                               @click="ask('fanmode', { on: false }, $t('Give the fan back to the controller?'), $t('The controller then runs it off the door switch, and remote on/off stops working.'))">{{ $t('Controller') }}</ControlButton>
                 <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === true"
-                               @click="ask('fanmode', { on: true }, 'Take remote control of the fan?', 'The controller stops running it off the door switch. Hand it back when you are done. From app v21 the machine hands it back by itself after ' + REMOTE_LEASE_MINUTES + ' minutes.')">Remote</ControlButton>
+                               @click="ask('fanmode', { on: true }, $t('Take remote control of the fan?'), $t('The controller stops running it off the door switch. Hand it back when you are done. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
               </ControlRow>
 
               <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
-              <ControlRow label="Light" :busy="busyOp === 'light'" :state="status.lightState || 'not reported'" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" @click="send('light', { on: true })">On</ControlButton>
-                <ControlButton :disabled="!canSend" @click="send('light', { on: false })">Off</ControlButton>
+              <ControlRow :label="$t('Light')" :busy="busyOp === 'light'" :state="status.lightState || $t('not reported')" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
+                <ControlButton :disabled="!canSend" @click="send('light', { on: true })">{{ $t('On') }}</ControlButton>
+                <ControlButton :disabled="!canSend" @click="send('light', { on: false })">{{ $t('Off') }}</ControlButton>
               </ControlRow>
 
-              <ControlRow label="Music volume" :busy="busyOp === 'volume'" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
+              <ControlRow :label="$t('Music volume')" :busy="busyOp === 'volume'" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
                 <ControlButton :disabled="!canSend"
-                               @click="ask('volume', { step: 'mute' }, 'Mute the machine?', 'Mute persists across restarts until someone turns it back up.')">Mute</ControlButton>
-                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'down' })">Down</ControlButton>
-                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'up' })">Up</ControlButton>
+                               @click="ask('volume', { step: 'mute' }, $t('Mute the machine?'), $t('Mute persists across restarts until someone turns it back up.'))">{{ $t('Mute') }}</ControlButton>
+                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'down' })">{{ $t('Down') }}</ControlButton>
+                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'up' })">{{ $t('Up') }}</ControlButton>
               </ControlRow>
 
               <!--
@@ -267,12 +271,12 @@
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-sm font-medium text-gray-800">Cameras</span>
-                  <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
+                  <span class="text-sm font-medium text-gray-800">{{ $t('Cameras') }}</span>
+                  <StateChip v-if="!data.supported_batch2" :value="$t('needs app v14')" tone="warn" />
                   <StateChip v-else-if="status.cameras.length" :value="cameraSummary" :tone="cameraTone" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  The cabinet's own cameras — the newest shot of each. Click a photo for that camera's history.
+                  {{ $t('The cabinet\'s own cameras — the newest shot of each. Click a photo for that camera\'s history.') }}
                 </p>
                 <div class="mt-2 flex flex-wrap gap-3" v-tooltip="batch2Blocked">
                   <div v-for="tile in cameraTiles" :key="tile.id" class="w-28">
@@ -285,7 +289,7 @@
                       <img :src="tile.photo.thumb_url || tile.photo.url" :alt="tile.label" class="h-16 w-28 object-cover" loading="lazy" />
                     </button>
                     <div v-else class="flex h-16 w-28 items-center justify-center rounded-md border border-dashed border-gray-300 text-[11px] text-gray-400">
-                      No photo yet
+                      {{ $t('No photo yet') }}
                     </div>
                     <p class="mt-1 truncate text-[11px] text-gray-600" :title="tile.label">{{ tile.label }}</p>
                     <p v-if="tile.photo" class="text-[11px] text-gray-400">{{ ago(tile.photo.taken_at) }}</p>
@@ -295,31 +299,31 @@
                       @click="takePhoto(tile.id)"
                     >
                       <ArrowPathIcon v-if="takingCamera === tile.id" class="mr-1 h-3 w-3 animate-spin" />
-                      {{ takingCamera === tile.id ? 'Taking…' : 'Take photo' }}
+                      {{ takingCamera === tile.id ? $t('Taking…') : $t('Take photo') }}
                     </ControlButton>
                   </div>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
-                <div class="text-sm font-medium text-gray-800">Machine log</div>
+                <div class="text-sm font-medium text-gray-800">{{ $t('Machine log') }}</div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  Kept on the machine for about a day; the host's own lines are included when READ_LOGS was granted at install.
+                  {{ $t('Kept on the machine for about a day; the host\'s own lines are included when READ_LOGS was granted at install.') }}
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600" v-tooltip="blockedReason">
-                  <label>last
+                  <label>{{ $t('last') }}
                     <input v-model.number="logPull.minutes" type="number" :min="data.log_pull?.minutes.min" :max="data.log_pull?.minutes.max"
-                           class="ml-1 w-20 rounded-md border-gray-300 py-1 text-xs" /> min</label>
-                  <label>up to
+                           class="ml-1 w-20 rounded-md border-gray-300 py-1 text-xs" /> {{ $t('min') }}</label>
+                  <label>{{ $t('up to') }}
                     <input v-model.number="logPull.lines" type="number" :min="data.log_pull?.lines.min" :max="data.log_pull?.lines.max" step="100"
-                           class="ml-1 w-24 rounded-md border-gray-300 py-1 text-xs" /> lines</label>
-                  <label>containing
-                    <input v-model.trim="logPull.grep" type="text" maxlength="64" placeholder="e.g. Ag325, SERVICE-MODE, camera"
+                           class="ml-1 w-24 rounded-md border-gray-300 py-1 text-xs" /> {{ $t('lines') }}</label>
+                  <label>{{ $t('containing') }}
+                    <input v-model.trim="logPull.grep" type="text" maxlength="64" :placeholder="$t('e.g. Ag325, SERVICE-MODE, camera')"
                            class="ml-1 w-56 rounded-md border-gray-300 py-1 text-xs" /></label>
                   <ArrowPathIcon v-if="busyOp === 'logs'" class="h-4 w-4 animate-spin text-sky-700" />
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSend"
                                  @click="send('logs', { minutes: logPull.minutes, lines: logPull.lines, grep: logPull.grep || undefined })">
-                    <DocumentArrowDownIcon class="mr-1 h-4 w-4" /> Pull logs
+                    <DocumentArrowDownIcon class="mr-1 h-4 w-4" /> {{ $t('Pull logs') }}
                   </ControlButton>
                 </div>
               </div>
@@ -331,22 +335,22 @@
               -->
               <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-sm font-medium text-gray-800">Machine</span>
-                  <StateChip v-if="!data.supported_batch2" value="needs app v14" tone="warn" />
+                  <span class="text-sm font-medium text-gray-800">{{ $t('Machine') }}</span>
+                  <StateChip v-if="!data.supported_batch2" :value="$t('needs app v14')" tone="warn" />
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">
-                  Self-check and diagnostics read; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.
+                  {{ $t('Self-check and diagnostics read; Beep sounds the machine so someone on site can find it; restart and reboot are refused by the machine while a sale is in progress.') }}
                 </p>
                 <div class="mt-2 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
                   <ControlButton tone="primary" class="rounded-md" :disabled="!canSendBatch2" @click="send('selfcheck')">
-                    <ArrowPathIcon v-if="busyOp === 'selfcheck'" class="mr-1 h-4 w-4 animate-spin" /> Self-check
+                    <ArrowPathIcon v-if="busyOp === 'selfcheck'" class="mr-1 h-4 w-4 animate-spin" /> {{ $t('Self-check') }}
                   </ControlButton>
                   <span class="isolate inline-flex -space-x-px shadow-sm">
                     <select v-model="diagProbe" class="rounded-l-md border-gray-300 py-1.5 text-xs" :disabled="!canSendBatch2">
                       <option v-for="(label, key) in data.diag_probes || {}" :key="key" :value="key">{{ label }}</option>
                     </select>
                     <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('diag', { probe: diagProbe })">
-                      <ArrowPathIcon v-if="busyOp === 'diag'" class="mr-1 h-4 w-4 animate-spin" /> Run diagnostics
+                      <ArrowPathIcon v-if="busyOp === 'diag'" class="mr-1 h-4 w-4 animate-spin" /> {{ $t('Run diagnostics') }}
                     </ControlButton>
                   </span>
                   <span class="isolate inline-flex -space-x-px shadow-sm">
@@ -354,41 +358,41 @@
                       <option v-for="s in beepChoices" :key="s" :value="s">{{ s }} s</option>
                     </select>
                     <ControlButton class="rounded-r-md" :disabled="!canSendBatch2" @click="send('beep', { seconds: beepSeconds })">
-                      <ArrowPathIcon v-if="busyOp === 'beep'" class="mr-1 h-4 w-4 animate-spin" /> Beep
+                      <ArrowPathIcon v-if="busyOp === 'beep'" class="mr-1 h-4 w-4 animate-spin" /> {{ $t('Beep') }}
                     </ControlButton>
                   </span>
                   <ControlButton :disabled="!canSendBatch2"
-                                 @click="ask('restart', {}, 'Restart the kiosk app?', 'The app relaunches in a few seconds and reports a boot event when it is back. The machine refuses while a sale is in progress.')">
-                    <ArrowPathIcon v-if="busyOp === 'restart'" class="mr-1 h-4 w-4 animate-spin" /> Restart app
+                                 @click="ask('restart', {}, $t('Restart the kiosk app?'), $t('The app relaunches in a few seconds and reports a boot event when it is back. The machine refuses while a sale is in progress.'))">
+                    <ArrowPathIcon v-if="busyOp === 'restart'" class="mr-1 h-4 w-4 animate-spin" /> {{ $t('Restart app') }}
                   </ControlButton>
                   <ControlButton tone="danger" :disabled="!canSendBatch2"
-                                 @click="ask('reboot', {}, 'Reboot the whole box?', 'Android restarts; the kiosk is back in about a minute and reports a boot event. The machine refuses while a sale is in progress.', true)">
-                    <ArrowPathIcon v-if="busyOp === 'reboot'" class="mr-1 h-4 w-4 animate-spin" /> Reboot Android
+                                 @click="ask('reboot', {}, $t('Reboot the whole box?'), $t('Android restarts; the kiosk is back in about a minute and reports a boot event. The machine refuses while a sale is in progress.'), true)">
+                    <ArrowPathIcon v-if="busyOp === 'reboot'" class="mr-1 h-4 w-4 animate-spin" /> {{ $t('Reboot Android') }}
                   </ControlButton>
                 </div>
                 <div v-if="data.can_sdk_raw" class="mt-3 border-t border-dashed border-gray-200 pt-2">
-                  <div class="text-xs font-medium text-gray-700">Raw SDK call <span class="font-normal text-gray-500">— superadmin · what the host's plugin answers to an action name; e.g. <code>thermostatControl</code> with <code>{"key":"fanMode","value":1}</code></span></div>
+                  <div class="text-xs font-medium text-gray-700">{{ $t('Raw SDK call') }} <span class="font-normal text-gray-500">{{ $t('— superadmin · what the host\'s plugin answers to an action name; e.g.') }} <code>thermostatControl</code> {{ $t('with') }} <code>{"key":"fanMode","value":1}</code></span></div>
                   <div class="mt-1 flex flex-wrap items-center gap-2" v-tooltip="batch2Blocked">
-                    <input v-model.trim="sdkCall.action" type="text" maxlength="40" placeholder="action" pattern="[A-Za-z][A-Za-z0-9_]{2,39}"
+                    <input v-model.trim="sdkCall.action" type="text" maxlength="40" :placeholder="$t('action')" pattern="[A-Za-z][A-Za-z0-9_]{2,39}"
                            class="w-44 rounded-md border-gray-300 py-1 font-mono text-xs" :disabled="!canSendBatch2" />
                     <input v-model.trim="sdkCall.params" type="text" maxlength="512" placeholder='{"doorId":1}'
                            class="w-80 rounded-md border-gray-300 py-1 font-mono text-xs" :disabled="!canSendBatch2" />
                     <ControlButton tone="danger" class="rounded-md" :disabled="!canSendBatch2 || !sdkCall.action"
-                                   @click="ask('sdkcall', { action: sdkCall.action, params: sdkCall.params || '{}' }, 'Send raw action ' + sdkCall.action + '?', 'This hands the action straight to the Zijia host. Whatever it does, it does — the reply is shown in the timeline.', true)">
-                      <ArrowPathIcon v-if="busyOp === 'sdkcall'" class="mr-1 h-4 w-4 animate-spin" /> Send
+                                   @click="ask('sdkcall', { action: sdkCall.action, params: sdkCall.params || '{}' }, $t('Send raw action :action?', { action: sdkCall.action }), $t('This hands the action straight to the Zijia host. Whatever it does, it does — the reply is shown in the timeline.'), true)">
+                      <ArrowPathIcon v-if="busyOp === 'sdkcall'" class="mr-1 h-4 w-4 animate-spin" /> {{ $t('Send') }}
                     </ControlButton>
                   </div>
                 </div>
               </div>
 
-              <ControlRow v-if="data.can_door" label="Door" :busy="['lock', 'unlock'].includes(busyOp)" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
-                          hint="Unlocking here opens the lock with no order, no video and no AI check." class="md:col-span-2">
+              <ControlRow v-if="data.can_door" :label="$t('Door')" :busy="['lock', 'unlock'].includes(busyOp)" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
+                          :hint="$t('Unlocking here opens the lock with no order, no video and no AI check.')" class="md:col-span-2">
                 <ControlButton :disabled="!canSend" @click="send('lock')">
-                  <LockClosedIcon class="mr-1 h-4 w-4" /> Lock
+                  <LockClosedIcon class="mr-1 h-4 w-4" /> {{ $t('Lock') }}
                 </ControlButton>
                 <ControlButton tone="danger" :disabled="!canSend"
-                               @click="ask('unlock', {}, 'Unlock the door remotely?', 'This opens the lock with no order, no video and no AI check — stock taken is not recorded. It is logged with your name. The machine refuses while a customer sale is in progress.', true)">
-                  <LockOpenIcon class="mr-1 h-4 w-4" /> Unlock
+                               @click="ask('unlock', {}, $t('Unlock the door remotely?'), $t('This opens the lock with no order, no video and no AI check — stock taken is not recorded. It is logged with your name. The machine refuses while a customer sale is in progress.'), true)">
+                  <LockOpenIcon class="mr-1 h-4 w-4" /> {{ $t('Unlock') }}
                 </ControlButton>
               </ControlRow>
             </div>
@@ -415,23 +419,22 @@
         @close="cameraOpen = false"
       />
       <Modal :open="timedOff.open" @modalClose="timedOff.open = false">
-        <template #header><span class="font-semibold text-black">Switch the compressor off</span></template>
+        <template #header><span class="font-semibold text-black">{{ $t('Switch the compressor off') }}</span></template>
         <template #default>
           <label class="block text-sm text-gray-700">
-            Turn back on after
+            {{ $t('Turn back on after') }}
             <select v-model.number="timedOff.minutes" class="ml-2 rounded-md border-gray-300 py-1 text-sm">
               <option v-for="m in data.compressor_off_minutes || []" :key="m" :value="m">{{ hoursLabel(m) }}</option>
             </select>
           </label>
           <p class="mt-2 text-sm text-gray-700">
-            Back on at about <span class="font-semibold">{{ backOnAt }}</span>. The chamber warms while it is off.
-            Then the controller takes the compressor back and starts it from its setpoint.
+            {{ $t('Back on at about') }} <span class="font-semibold">{{ backOnAt }}</span>. {{ $t('The chamber warms while it is off. Then the controller takes the compressor back and starts it from its setpoint.') }}
           </p>
-          <p class="mt-1 text-xs text-gray-500">Pressing On, or Compressor control → Controller, ends it sooner. A restart of the machine keeps the time.</p>
+          <p class="mt-1 text-xs text-gray-500">{{ $t('Pressing On, or Compressor control → Controller, ends it sooner. A restart of the machine keeps the time.') }}</p>
           <div class="mt-4 flex justify-end space-x-2">
-            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="timedOff.open = false">Cancel</Button>
+            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="timedOff.open = false">{{ $t('Cancel') }}</Button>
             <Button type="button" class="bg-red-600 hover:bg-red-700 text-white" :disabled="!timedOff.minutes" @click.prevent="sendTimedOff">
-              Off for {{ hoursLabel(timedOff.minutes) }}
+              {{ $t('Off for :duration', { duration: hoursLabel(timedOff.minutes) }) }}
             </Button>
           </div>
         </template>
@@ -441,9 +444,9 @@
         <template #default>
           <p class="text-sm text-gray-700">{{ confirm?.detail }}</p>
           <div class="mt-4 flex justify-end space-x-2">
-            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="confirm = null">Cancel</Button>
+            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="confirm = null">{{ $t('Cancel') }}</Button>
             <Button type="button" class="text-white" :class="confirm?.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-sky-700 hover:bg-sky-800'"
-                    @click.prevent="confirmSend">Yes, send</Button>
+                    @click.prevent="confirmSend">{{ $t('Yes, send') }}</Button>
           </div>
         </template>
       </Modal>
@@ -463,6 +466,7 @@ import StatusTile from '@/Components/SmartFreezer/StatusTile.vue'
 import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
 import { computed, ref } from 'vue'
 import moment from 'moment'
+import { t } from '@/i18n'
 import { resultLabel, useFreezerControls } from '@/composables/useFreezerControls'
 import { boolTone, cameraLabel, cameraOnline, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
 
@@ -508,7 +512,7 @@ const cameraTiles = computed(() => {
   for (const photo of photos) {
     if (known.has(photo.camera_id)) continue
     known.add(photo.camera_id)
-    tiles.push({ id: photo.camera_id, label: `cam ${photo.camera_id}`, photo })
+    tiles.push({ id: photo.camera_id, label: t('cam :id', { id: photo.camera_id }), photo })
   }
   return tiles
 })
@@ -534,7 +538,7 @@ function takePhoto(cameraId) {
 const cameraSummary = computed(() => {
   const cams = status.value.cameras
   const online = cams.filter(cameraOnline).length
-  return `${online}/${cams.length} online`
+  return t(':online/:total online', { online, total: cams.length })
 })
 const cameraTone = computed(() => {
   const cams = status.value.cameras
@@ -558,7 +562,7 @@ async function scheduleCall(fn) {
     await load()
   } catch (e) {
     const errors = e.response?.data?.errors
-    scheduleError.value = errors ? Object.values(errors).flat()[0] : e.response?.data?.message || 'Could not save the schedule.'
+    scheduleError.value = errors ? Object.values(errors).flat()[0] : e.response?.data?.message || t('Could not save the schedule.')
   } finally {
     scheduleBusy.value = false
   }
@@ -573,7 +577,7 @@ function toggleSchedule(entry) {
 }
 
 function removeSchedule(entry) {
-  if (!window.confirm(`Remove the ${entry.run_at} entry (${entry.celsius} °C)?`)) return
+  if (!window.confirm(t('Remove the :time entry (:celsius °C)?', { time: entry.run_at, celsius: entry.celsius }))) return
   scheduleCall(() => axios.delete(`/vends/${props.vendId}/freezer-controls/schedules/${entry.id}`))
 }
 
@@ -584,20 +588,20 @@ const canSendBatch2 = computed(() => canSend.value && !!data.value.supported_bat
  * compressor reached the SDK's cool/heat call instead — never send it there.
  */
 const canSendThermostatMode = computed(() => canSend.value && !!data.value.supported_thermostat_modes)
-const thermostatModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_thermostat_modes ? '' : "This machine's app is older than v20; compressor and fan control need the update."))
+const thermostatModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_thermostat_modes ? '' : t("This machine's app is older than v20; compressor and fan control need the update.")))
 
 /** Delta (C0) needs app v22 (BoxSDK 1.2.0); before it the op is unknown to the machine. */
 const canSendDelta = computed(() => canSend.value && !!data.value.supported_delta)
-const deltaBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_delta ? '' : "This machine's app is older than v22; delta needs the update."))
+const deltaBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_delta ? '' : t("This machine's app is older than v22; delta needs the update.")))
 const lastDelta = computed(() => data.value.delta?.last ?? null)
 
 /** Where the compressor restarts now, from the controller's own read-back only. */
 const restartAt = computed(() => (status.value.setPoint !== null && status.value.delta !== null ? status.value.setPoint + status.value.delta : null))
 const deltaDetail = computed(() => {
   const sp = status.value.setPoint
-  const example = sp !== null ? ' With the setpoint at ' + fmtC(sp) + ', the compressor would restart at ' + fmtC(sp + delta.value) + '.' : ''
-  return 'After stopping at the setpoint, the compressor waits until the chamber has warmed by this much.' + example +
-    ' A bigger delta means fewer compressor starts and a wider temperature swing.'
+  return sp !== null
+    ? t('After stopping at the setpoint, the compressor waits until the chamber has warmed by this much. With the setpoint at :setpoint, the compressor would restart at :restart. A bigger delta means fewer compressor starts and a wider temperature swing.', { setpoint: fmtC(sp), restart: fmtC(sp + delta.value) })
+    : t('After stopping at the setpoint, the compressor waits until the chamber has warmed by this much. A bigger delta means fewer compressor starts and a wider temperature swing.')
 })
 
 /** One decimal, as the controller reports it (0.1 °C registers). */
@@ -612,7 +616,7 @@ const REMOTE_LEASE_MINUTES = 30
  * On/off only reaches the relay while that output is in remote mode; in Controller the AG-325 ignores
  * it. Same rule the machine's own service panel applies, so both screens grey out the same buttons.
  */
-const compressorBlocked = computed(() => blockedReason.value || (status.value.compressorRemote === false ? 'The controller owns the compressor — set Compressor control to Remote first.' : ''))
+const compressorBlocked = computed(() => blockedReason.value || (status.value.compressorRemote === false ? t('The controller owns the compressor — set Compressor control to Remote first.') : ''))
 
 /** The timed compressor Off (app 40+): the chooser, and when a running one ends. */
 const timedOff = ref({ open: false, minutes: 60 })
@@ -620,15 +624,16 @@ const offUntil = computed(() => {
   const until = status.value.compressorOffUntil
   return until !== null && until > now.value ? until : null
 })
-const offUntilNote = computed(() => (offUntil.value ? 'off until ' + moment(offUntil.value).format('ddd HH:mm') : ''))
+const offUntilNote = computed(() => (offUntil.value ? t('off until :time', { time: moment(offUntil.value).format('ddd HH:mm') }) : ''))
 /** Off works in either mode from app 40 (the machine takes the compressor to remote), so only On is held back. */
 const compressorRowReason = computed(() => (data.value.supported_timed_off && !blockedReason.value && compressorBlocked.value
-  ? 'On needs Compressor control set to Remote. Off works either way.'
+  ? t('On needs Compressor control set to Remote. Off works either way.')
   : compressorBlocked.value))
 const backOnAt = computed(() => moment(now.value + (timedOff.value.minutes || 0) * 60000).format('ddd HH:mm'))
 
 function hoursLabel(minutes) {
-  return minutes === 30 ? '0.5 hour' : minutes / 60 + (minutes === 60 ? ' hour' : ' hours')
+  if (minutes === 30) return t('0.5 hour')
+  return minutes === 60 ? t('1 hour') : t(':hours hours', { hours: minutes / 60 })
 }
 
 function openTimedOff() {
@@ -641,13 +646,13 @@ function sendTimedOff() {
   if (minutes) send('compressor', { on: false, minutes })
 }
 
-const fanBlocked = computed(() => blockedReason.value || (status.value.fanRemote === false ? 'The controller owns the fan (door switch) — set Fan control to Remote first.' : ''))
-const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_batch2 ? '' : "This machine's app is older than v14; these controls need the update."))
+const fanBlocked = computed(() => blockedReason.value || (status.value.fanRemote === false ? t('The controller owns the fan (door switch) — set Fan control to Remote first.') : ''))
+const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_batch2 ? '' : t("This machine's app is older than v14; these controls need the update.")))
 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */
 const cameraChoices = computed(() => {
   const listed = status.value.cameras
-  if (listed.length) return listed.map((c, i) => ({ id: c.id, label: cameraLabel(c, i) + (cameraOnline(c) ? '' : ' — offline') }))
+  if (listed.length) return listed.map((c, i) => ({ id: c.id, label: cameraOnline(c) ? cameraLabel(c, i) : t(':camera — offline', { camera: cameraLabel(c, i) }) }))
   // Nothing reported yet: offer the ids these boards use, named by the same order.
   return [3, 4, 5].map((id, i) => ({ id, label: cameraLabel({ id }, i) }))
 })

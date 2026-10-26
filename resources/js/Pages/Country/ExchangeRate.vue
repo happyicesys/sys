@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.country">
-            New Rate for
+            {{ $t('New Rate for') }}
           </span>
           <span v-if="props.country">
             {{ props.country.currency_name }}
@@ -16,7 +16,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.rate" :error="form.errors.rate" required="true">
-                Rate (1 {{authUser.profile.base_currency.currency_name}} &#8776; ? {{props.country.currency_name}})
+                {{ $t('Rate (1 :base ≈ ? :quote)', { base: authUser.profile.base_currency.currency_name, quote: props.country.currency_name }) }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
@@ -30,10 +30,10 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                            History Rate
+                            {{ $t('History Rate') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                            Date
+                            {{ $t('Date') }}
                           </th>
                         </tr>
                       </thead>
@@ -105,13 +105,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>

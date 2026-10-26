@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="UI Setting (Marketing & Campaign Remote Setting)" />
+  <Head :title="$t('UI Setting (Marketing & Campaign Remote Setting)')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        UI Setting (Marketing & Campaign Remote Setting)
+        {{ $t('UI Setting (Marketing & Campaign Remote Setting)') }}
       </h2>
     </template>
 
@@ -17,20 +17,20 @@
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
-                Create
+                {{ $t('Create') }}
               </span>
             </Button>
           </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name" @keyup.enter="onSearchFilterUpdated()">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Name') }}
           </SearchInput>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+            {{ $t('Machine ID') }}
             <span class="text-[9px]">
-                ("," for multiple)
+                {{ $t('("," for multiple)') }}
             </span>
           </SearchInput>
           <!-- <div>
@@ -43,7 +43,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
@@ -52,7 +52,7 @@
           </div> -->
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Prefix
+							{{ $t('Machine Prefix') }}
 						</label>
 						<MultiSelect
 							v-model="filters.vendPrefixes"
@@ -60,7 +60,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							mode="tags"
 							class="mt-1"
@@ -77,20 +77,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ apkSettings.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ apkSettings.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ apkSettings.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -98,7 +98,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -118,13 +118,13 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      UI Name
+                      {{ $t('UI Name') }}
                     </TableHeadSort>
                     <TableHead inputClass="w-44 max-w-[180px]">
-                      Campaign Name
+                      {{ $t('Campaign Name') }}
                     </TableHead>
                     <TableHead>
-                      Binded Machine ID
+                      {{ $t('Binded Machine ID') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -154,7 +154,7 @@
                       <TableData :currentIndex="apkSettingIndex" :totalLength="apkSettings.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1">
                           <span class="text-center text-indigo-600 text-xs">
-                            {{ apkSetting.vends?.length }} Machine(s)
+                            {{ $t(':count Machine(s)', { count: apkSetting.vends?.length }) }}
                           </span>
                           <ul class="divide-y divide-gray-200">
                             <li class="flex py-1 px-3 space-x-2 items-center" v-for="(vend, vendIndex) in apkSetting.vends">
@@ -211,7 +211,7 @@
                               >
                                 <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                                 <span>
-                                    Edit
+                                    {{ $t('Edit') }}
                                 </span>
                               </Button>
                             </Link>
@@ -224,16 +224,16 @@
                             >
                               <div class="flex items-center space-x-1">
                                 <TrashIcon class="w-4 h-4" />
-                                <span>Delete</span>
+                                <span>{{ $t('Delete') }}</span>
                               </div>
-                              <span v-if="apkSetting.is_in_use" class="text-[10px] leading-none">(In Use)</span>
+                              <span v-if="apkSetting.is_in_use" class="text-[10px] leading-none">{{ $t('(In Use)') }}</span>
                             </Button>
                           </div>
                       </TableData>
                       </tr>
                 <tr v-if="!apkSettings.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -247,6 +247,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
@@ -296,16 +297,16 @@ onMounted(() => {
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
-        { id: 'All', value: 'All' },
+        { id: 'All', value: t('All') },
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
+        {id: 'all', full_name: t('All')},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
     ]
     vendPrefixOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'single-ud', value: 'Single UD'},
+        {id: 'all', value: t('All')},
+        {id: 'single-ud', value: t('Single UD')},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
 
@@ -323,31 +324,31 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(apkSetting) {
-  const approval = confirm('Are you sure to delete ' + apkSetting.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: apkSetting.name }));
   if (!approval) {
       return;
   }
   router.delete('/apk-settings/' + apkSetting.id, {
     onSuccess: () => {
-      toast.success("APK setting deleted successfully", { timeout: 3000 })
+      toast.success(t('APK setting deleted successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete APK setting", { timeout: 3000 })
+      toast.error(t('Failed to delete APK setting'), { timeout: 3000 })
     }
   })
 }
 
 function onUnbindVendClicked(vend) {
-  const approval = confirm('Are you sure to unbind mapping for ' + vendCodeLabel(vend) + '?');
+  const approval = confirm(t('Are you sure to unbind mapping for :machine?', { machine: vendCodeLabel(vend) }));
   if (!approval) {
       return;
   }
   router.delete('/apk-settings/unbind-vend/' + vend.id, {
     onSuccess: () => {
-      toast.success("Machine unbound from APK setting successfully", { timeout: 3000 })
+      toast.success(t('Machine unbound from APK setting successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to unbind machine from APK setting", { timeout: 3000 })
+      toast.error(t('Failed to unbind machine from APK setting'), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,

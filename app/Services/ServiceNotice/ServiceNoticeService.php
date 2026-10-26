@@ -34,7 +34,7 @@ class ServiceNoticeService
 
         if ($lines === []) {
             throw ValidationException::withMessages([
-                'items' => 'Enter at least one service item, 请至少输入一个维修项目',
+                'items' => __('Enter at least one service item, 请至少输入一个维修项目'),
             ]);
         }
 
@@ -92,7 +92,7 @@ class ServiceNoticeService
         // New vs cms: "could not finish" without saying why is useless to the office.
         if ($status === ServiceNoticeItem::STATUS_INCOMPLETE && $reason === '') {
             throw ValidationException::withMessages([
-                'incomplete_reason' => 'Say why it could not be completed, 请说明未能完成的原因',
+                'incomplete_reason' => __('Say why it could not be completed, 请说明未能完成的原因'),
             ]);
         }
 
@@ -113,7 +113,7 @@ class ServiceNoticeService
 
         if ($notice->hasUnresolvedItems()) {
             throw ValidationException::withMessages([
-                'status' => 'Not able to complete: every item needs a progress status, 无法完成这维修单，请在每个维修项目，提供状况进展',
+                'status' => __('Not able to complete: every item needs a progress status, 无法完成这维修单，请在每个维修项目，提供状况进展'),
             ]);
         }
 
@@ -129,7 +129,7 @@ class ServiceNoticeService
 
     public function undoComplete(ServiceNotice $notice, User $by): ServiceNotice
     {
-        abort_unless($notice->isCompleted(), 422, 'Only a completed notice can be reopened.');
+        abort_unless($notice->isCompleted(), 422, __('Only a completed notice can be reopened.'));
 
         $notice->update([
             'status' => ServiceNotice::STATUS_PENDING,
@@ -228,6 +228,6 @@ class ServiceNoticeService
     /** A completed or cancelled notice is history until someone reopens it. */
     private function assertOpen(ServiceNotice $notice): void
     {
-        abort_unless($notice->isPending(), 422, 'This service notice is '.strtolower($notice->statusName()).' — reopen it first.');
+        abort_unless($notice->isPending(), 422, __('This service notice is :status — reopen it first.', ['status' => strtolower($notice->statusName())]));
     }
 }

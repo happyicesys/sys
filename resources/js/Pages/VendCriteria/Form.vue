@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.vendCriteria">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span>
             {{ props.vendCriteria.name }}
@@ -16,24 +16,24 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.weightage" :error="form.errors.weightage" required="true">
-                Weightage (%)
+                {{ $t('Weightage (%)') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <hr>
             </div>
             <div class="sm:col-span-6">
-              <h2 class="text-base font-semibold leading-7 text-gray-900">Settings</h2>
+              <h2 class="text-base font-semibold leading-7 text-gray-900">{{ $t('Settings') }}</h2>
               <p class="mt-1 text-sm leading-6 text-gray-600">{{ form.options_json[form.value] }}</p>
             </div>
             <div class="sm:col-span-6">
               <FormInput v-if="form.value2" v-model="form.value2" :error="form.errors.value2" required="true">
-                Value
+                {{ $t('Value') }}
               </FormInput>
             </div>
           </div>
@@ -46,13 +46,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -72,6 +72,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   vendCriteria: Object,
@@ -104,11 +105,11 @@ function submit() {
     form.value
       .post('/vend-criterias/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Machine criteria updated successfully", { timeout: 3000 })
+        toast.success(t("Machine criteria updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update machine criteria", { timeout: 3000 })
+        toast.error(t("Failed to update machine criteria"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

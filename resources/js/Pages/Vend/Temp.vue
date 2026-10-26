@@ -1,20 +1,20 @@
 
 <template>
 
-  <Head title="Vending Machine" />
+  <Head :title="$t('Vending Machine')" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <div class="flex flex-col space-y-1">
               <div class="flex space-x-2 items-center">
                   <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                      Machine ID
+                      {{ $t('Machine ID') }}
                   </h2>
                   <h2 class="font-semibold text-xl md:text-2xl text-gray-900 leading-tight">
                       {{ vendCodeLabel(vend) }}
                   </h2>
                   <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                      Temperature
+                      {{ $t('Temperature') }}
                   </h2>
               </div>
           </div>
@@ -25,14 +25,14 @@
       <div class="p-4 sm:px-6 lg:px-8">
           <div class="pl-1 pb-4 w-full md:w-96">
               <label class="block text-sm font-medium text-gray-700">
-                  Machine
+                  {{ $t('Machine') }}
               </label>
               <MultiSelect
                   v-model="selectedVendOption"
                   :options="vendSelectionOptions"
                   valueProp="id"
                   label="label"
-                  placeholder="Search by code, customer, or ref ID"
+                  :placeholder="$t('Search by code, customer, or ref ID')"
                   open-direction="bottom"
                   class="mt-1"
                   :can-clear="false"
@@ -56,7 +56,7 @@
                   {{ startDateString }}
               </h2>
               <h2>
-                  to
+                  {{ $t('to') }}
               </h2>
               <h2>
                   {{ endDateString }}
@@ -68,7 +68,7 @@
                   class="border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 px-7 sm:px-3"
                   @click="back()">
                   <ArrowUturnLeftIcon class="mr-2 flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
-                  Back
+                  {{ $t('Back') }}
               </Button>
           </div>
 <!--
@@ -93,7 +93,7 @@
           <div class="pl-1 py-2 grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-5">
               <label for="text" class="pt-4 pl-1 block text-sm font-medium text-gray-700">
-                  Shortcut
+                  {{ $t('Shortcut') }}
               </label>
               <div class="pl-1 py-2 flex space-x-2 overflow-x-scroll">
                   <Button
@@ -101,14 +101,14 @@
                       class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
                       :class="hourDurationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
                       @click="onDurationFilterClicked(hourDurationFilter, 'hour')">
-                      {{ hourDurationFilter }} {{ hourDurationFilter > 1 ? 'Hours' : 'Hour' }}
+                      {{ $tc(':count Hour|:count Hours', hourDurationFilter) }}
                   </Button>
                   <Button
                       v-for="durationFilter in durationFilters"
                       class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
                       :class="durationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
                       @click="onDurationFilterClicked(durationFilter, 'day')">
-                      {{ durationFilter }} {{ durationFilter > 1 ? 'Days' : 'Day' }}
+                      {{ $tc(':count Day|:count Days', durationFilter) }}
                   </Button>
               </div>
             </div>
@@ -116,14 +116,14 @@
                   v-model="filters.datetime_from"
                   class="col-span-5 md:col-span-2"
               >
-                  From
+                  {{ $t('From') }}
               </DatetimePicker>
               <DatetimePicker
                   v-model="filters.datetime_to"
                   :minDate="filters.datetime_from"
                   class="col-span-5 md:col-span-2"
               >
-                  To
+                  {{ $t('To') }}
               </DatetimePicker>
               <div class="col-span-5 flex space-x-1 mt-2">
                   <Button
@@ -135,7 +135,7 @@
                       </svg>
 
                       <span>
-                          Search
+                          {{ $t('Search') }}
                       </span>
                   </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-600 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -148,7 +148,7 @@
                           <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                       </svg>
                       <span>
-                          Export Excel
+                          {{ $t('Export Excel') }}
                       </span>
                   </Button>
               </div>
@@ -162,14 +162,14 @@
                                   <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="1" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                          <label class="pl-2">T1: Machine Temp</label>
+                                          <label class="pl-2">{{ $t('T1: Machine Temp') }}</label>
                                       </span>
                                   </span>
                                   <!-- A Smart Freezer has one probe (T1) and no alert logic yet, so T2-T4 and Show Alert Markers are hidden for it. -->
                                   <span class="inline-flex rounded-md shadow-sm" v-if="!isSmartFreezer && 't2' in vend.parameterJson && vend.parameterJson['t2'] != tempError">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                          <label class="pl-2">T2: Evaporator Temp</label>
+                                          <label class="pl-2">{{ $t('T2: Evaporator Temp') }}</label>
                                       </span>
                                   </span>
                                   <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson && vend.parameterJson['t3'] != tempError"> -->
@@ -189,13 +189,13 @@
                                   <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="1" v-model="fans" :disabled="!vend.is_fan_enabled" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50" />
-                                          <label class="pl-2" :class="[!vend.is_fan_enabled ? 'text-gray-400' : '']">Fan</label>
+                                          <label class="pl-2" :class="[!vend.is_fan_enabled ? 'text-gray-400' : '']">{{ $t('Fan') }}</label>
                                       </span>
                                   </span>
                                   <span class="inline-flex rounded-md shadow-sm " v-if="!isSmartFreezer">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" v-model="showMarkers" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                          <label class="pl-2">Show Alert Markers</label>
+                                          <label class="pl-2">{{ $t('Show Alert Markers') }}</label>
                                       </span>
                                   </span>
                               </div>
@@ -206,7 +206,7 @@
                                 >
                                     <div class="flex flex-col">
                                             <span class="font-bold">
-                                                    {{vend.is_online ? 'Online' : 'Offline'}}
+                                                    {{vend.is_online ? $t('Online') : $t('Offline')}}
                                             </span>
                                             <span v-if="vend.last_updated_at">
                                                     {{vend.last_updated_at}}
@@ -234,10 +234,10 @@
                                 >
                                   <div class="flex flex-col">
                                       <span class="font-bold">
-                                          Door
+                                          {{ $t('Door') }}
                                       </span>
                                       <span>
-                                          {{vend.parameterJson['door'] == 'open' ? 'Open' : 'Close'}}
+                                          {{vend.parameterJson['door'] == 'open' ? $t('Open') : $t('Close')}}
                                       </span>
                                   </div>
                                 </div>
@@ -272,6 +272,7 @@ import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import moment from 'moment';
 import { useToast } from "vue-toastification";
 import { vendCodeLabel } from '@/utils/vendCode';
+import { t } from '@/i18n';
 
 const toast = useToast();
 
@@ -350,17 +351,17 @@ const ALERT_TYPE_LABEL = {
 
 // Map alert_type -> human readable title
 const ALERT_TYPE_TITLE = {
-  'connectivity':        'Connectivity',
-  'comp_fan_off':        'Compressor & or Fan, in OFF condition',
-  'temps_above_0':       'T1 & or T2, above 0°C',
-  'temps_above_minus_8': 'T1 & or T2, above -8°C',
-  'not_reach_minus_18':  'T1 & or T2, did not reach -18°C',
-  'lowest_24h_above':    'T1 & T2 lowest (last 24hrs)',
-  'lowest_72h_above':    'T1 & T2 lowest (last 72hrs)',
-  'rising_t1_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
-  'rising_t2_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
-  't2_frozen':           'T2, never above 2°C',
-  'temps_above_minus_17_upward': 'T1 or T2 above -17°C and upward trending',
+  'connectivity':        t('Connectivity'),
+  'comp_fan_off':        t('Compressor & or Fan, in OFF condition'),
+  'temps_above_0':       t('T1 & or T2, above 0°C'),
+  'temps_above_minus_8': t('T1 & or T2, above -8°C'),
+  'not_reach_minus_18':  t('T1 & or T2, did not reach -18°C'),
+  'lowest_24h_above':    t('T1 & T2 lowest (last 24hrs)'),
+  'lowest_72h_above':    t('T1 & T2 lowest (last 72hrs)'),
+  'rising_t1_trend':     t('Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)'),
+  'rising_t2_trend':     t('Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)'),
+  't2_frozen':           t('T2, never above 2°C'),
+  'temps_above_minus_17_upward': t('T1 or T2 above -17°C and upward trending'),
 }
 
 // Map alert_type -> duration offset in minutes (to show when the event actually started)
@@ -435,14 +436,14 @@ function buildAnnotations() {
 
     // Adjust Triggered markers to show when the event started
     let markerValue = log.occurred_at
-    let tooltipTimeLabel = isTriggered ? 'Triggered At' : 'Dismissed At'
+    let tooltipTimeLabel = isTriggered ? t('Triggered At') : t('Dismissed At')
     let eventStartedAt = null
 
     if (isTriggered) {
       // Priority 1: Use explicit 'started_at' from log context (new behavior)
       if (log.context?.started_at) {
         markerValue = moment(log.context.started_at).format('YYYY-MM-DD HH:mm:ss');
-        tooltipTimeLabel = 'Event Started At';
+        tooltipTimeLabel = t('Event Started At');
         eventStartedAt = markerValue;
       } else {
         // Priority 2: Use hardcoded offset (legacy behavior)
@@ -450,7 +451,7 @@ function buildAnnotations() {
         if (offset > 0) {
           const baseTime = log.context?.triggered_at || log.occurred_at;
           markerValue = moment(baseTime).subtract(offset, 'minutes').format('YYYY-MM-DD HH:mm:ss');
-          tooltipTimeLabel = 'Event Started At';
+          tooltipTimeLabel = t('Event Started At');
           eventStartedAt = markerValue;
         }
       }
@@ -482,7 +483,7 @@ function buildAnnotations() {
         ctx.chart.canvas.style.cursor = 'pointer'
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
         const triggerTime = moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')
-        const triggerDisplay = isTriggered ? `\n(Triggered At: ${triggerTime})` : ''
+        const triggerDisplay = isTriggered ? '\n' + t('(Triggered At: :time)', { time: triggerTime }) : ''
 
         ctx.element.options.label.content = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         ctx.element.options.label.backgroundColor = isTriggered ? '#991b1b' : '#15803d'
@@ -505,7 +506,7 @@ function buildAnnotations() {
       click(ctx) {
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
         const triggerTime = moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')
-        const triggerDisplay = isTriggered ? `\n(Triggered At: ${triggerTime})` : ''
+        const triggerDisplay = isTriggered ? '\n' + t('(Triggered At: :time)', { time: triggerTime }) : ''
         const message = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         const config = {
           timeout: 7500,
@@ -854,7 +855,7 @@ function getVendTempsData() {
     datasets.value = []
     vendTemps.value.forEach((vendTemp, vendTempIndex) => {
       datasets.value.push({
-        label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + (vend.value.parameterJson && 'fan' in vend.value.parameterJson ? ('Fan: ' + (vend.value.is_fan_enabled && vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined && vend.value.parameterJson['fan'] !== 'NaN' ? vend.value.parameterJson['fan'] : '--')) : ''),
+        label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + (vend.value.parameterJson && 'fan' in vend.value.parameterJson ? t('Fan: :value', { value: (vend.value.is_fan_enabled && vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined && vend.value.parameterJson['fan'] !== 'NaN' ? vend.value.parameterJson['fan'] : '--') }) : ''),
         data: vendTemp.map((temp) => { return { x: temp.ts, y: temp.value } }),
         borderColor: colors[vendTempIndex - 1],
         backgroundColor: colors[vendTempIndex - 1],
@@ -870,7 +871,7 @@ function getVendTempsData() {
     let fanColors = ['#808080']
     vendFans.value.forEach((vendFan, vendFanIndex) => {
       datasets.value.push({
-        label: 'Fan Speed' + (vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
+        label: t('Fan Speed') + (vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
         data: vendFan.map((fan) => {
           let yVal = parseFloat(fan.value)
           if(isNaN(yVal) || yVal === 0) {

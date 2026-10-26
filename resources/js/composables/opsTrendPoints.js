@@ -1,12 +1,13 @@
 // The Operation Dashboard's trend graphs (TrendSparkline) read the figures SyncVendTransactionTotalsJson stores in
 // a machine's totals — App\Support\TransactionMix (touch_usage, cashless_usage) and
 // App\Services\OpsDashboard\MachineHappyHourTrend (happy_hour). These turn them into the four points, oldest first.
+import { t, tc, tk } from '@/i18n';
 
 const WINDOWS = [
-	{ key: 'thirty_days', label: 'Last 30 days' },
-	{ key: 'seven_days', label: 'Last 7 days' },
-	{ key: 'yesterday', label: 'Yesterday' },
-	{ key: 'today', label: 'Today' },
+	{ key: 'thirty_days', label: tk('Last 30 days') },
+	{ key: 'seven_days', label: tk('Last 7 days') },
+	{ key: 'yesterday', label: tk('Yesterday') },
+	{ key: 'today', label: tk('Today') },
 ];
 
 const rate = (part, total) => (total > 0 ? Math.round((1000 * part) / total) / 10 : null);
@@ -17,7 +18,7 @@ export function ratePoints(usage, partKey) {
 		const win = usage?.[w.key];
 		const part = Number(win?.[partKey] ?? 0);
 		const total = Number(win?.total ?? 0);
-		return { ...w, value: rate(part, total), detail: total > 0 ? `${part} of ${total} transactions` : '' };
+		return { ...w, label: t(w.label), value: rate(part, total), detail: total > 0 ? t(':part of :total transactions', { part, total }) : '' };
 	});
 }
 
@@ -33,8 +34,8 @@ export function happyHourQtyPoints(hh) {
 		const days = Number(hh?.ran_days?.[w.key] ?? 0);
 		const units = Number(hh?.units?.[w.key] ?? 0);
 		const detail = value === null
-			? 'no Happy Hour'
-			: (w.key === 'today' || w.key === 'yesterday' ? `${units} pcs` : `${units} pcs over ${days} HH day${days === 1 ? '' : 's'}`);
-		return { ...w, value, detail };
+			? t('no Happy Hour')
+			: (w.key === 'today' || w.key === 'yesterday' ? t(':units pcs', { units }) : tc(':units pcs over :count HH day|:units pcs over :count HH days', days, { units }));
+		return { ...w, label: t(w.label), value, detail };
 	});
 }

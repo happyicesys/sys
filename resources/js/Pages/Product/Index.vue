@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Product" />
+  <Head :title="$t('Product')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Products
+        {{ $t('Products') }}
       </h2>
     </template>
 
@@ -18,7 +18,7 @@
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
-              Create
+              {{ $t('Create') }}
             </span>
           </Link>
         </div>
@@ -26,15 +26,15 @@
           v-if="permissions.includes('create products')" -->
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Code" v-model="filters.code">
-            Code
+          <SearchInput :placeholderStr="$t('Code')" v-model="filters.code">
+            {{ $t('Code') }}
           </SearchInput>
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput :placeholderStr="$t('Name')" v-model="filters.name">
+            {{ $t('Name') }}
           </SearchInput>
           <div v-if="permissions.includes('admin-access products')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Operator
+              {{ $t('Operator') }}
             </label>
             <MultiSelect
               v-model="filters.operator_id"
@@ -42,7 +42,7 @@
               trackBy="id"
               valueProp="id"
               label="full_name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -66,7 +66,7 @@
           </div> -->
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Is Active?
+              {{ $t('Is Active?') }}
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -74,7 +74,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -108,20 +108,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ products.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ products.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ products.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -129,7 +129,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -149,46 +149,46 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
+                      {{ $t('Code') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Category
+                      {{ $t('Category') }}
                     </TableHead>
                     <TableHead>
-                      SubCategory
+                      {{ $t('SubCategory') }}
                     </TableHead>
                     <TableHead>
-                      Thumbnail
+                      {{ $t('Thumbnail') }}
                     </TableHead>
                     <TableHead>
-                      Artwork
+                      {{ $t('Artwork') }}
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
-                      Operator
+                      {{ $t('Operator') }}
                     </TableHead>
                     <TableHead>
-                      Default Capacity
+                      {{ $t('Default Capacity') }}
                     </TableHead>
                     <TableHead>
-                      Shelf Life <br>
-                      <span class="text-xs text-gray-500">(days)</span>
+                      {{ $t('Shelf Life') }} <br>
+                      <span class="text-xs text-gray-500">{{ $t('(days)') }}</span>
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
-                      Unit Cost <br>
+                      {{ $t('Unit Cost') }} <br>
                       <span class="text-xs text-gray-500">
-                        (before GST)
+                        {{ $t('(before GST)') }}
                       </span>
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
                       <div class="flex flex-col space-y-1">
                         <span>
-                          Reference Price
+                          {{ $t('Reference Price') }}
                         </span>
                         <span class="text-xs text-gray-600">
-                          (tax inclusive)
+                          {{ $t('(tax inclusive)') }}
                         </span>
                       </div>
                     </TableHead>
@@ -199,12 +199,12 @@
                           (before GST)
                         </span> -->
                         <span>
-                          Gross Margin
+                          {{ $t('Gross Margin') }}
                         </span>
                       </div>
                     </TableHead>
                     <TableHead>
-                      Product Label(s)
+                      {{ $t('Product Label(s)') }}
                     </TableHead>
                     <!-- <TableHead>
                       Category
@@ -242,7 +242,7 @@
                           >
                             <div class="flex flex-col">
                                 <span class="font-semibold grow-0">
-                                  {{ product.is_active ? 'Active' : 'Inactive' }}
+                                  {{ product.is_active ? $t('Active') : $t('Inactive') }}
                                 </span>
                             </div>
                           </div>
@@ -263,7 +263,7 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center">
-                          <a :href="product.welcome_sketch_url" target="_blank" v-if="product.welcome_sketch_url" title="Welcome-scene sketch (the chosen drawing)">
+                          <a :href="product.welcome_sketch_url" target="_blank" v-if="product.welcome_sketch_url" :title="$t('Welcome-scene sketch (the chosen drawing)')">
                             <img class="h-28 w-28 md:h-24 md:w-24 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="product.welcome_sketch_url" alt="" loading="lazy" />
                           </a>
                           <span v-else class="text-gray-400">—</span>
@@ -278,8 +278,8 @@
                            mapping item uses unless it carries its own "Real Capacity" override. -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex flex-col space-y-0.5 text-xs whitespace-nowrap" v-if="product.freezer_slot_qty || product.chiller_slot_qty">
-                          <span v-if="product.freezer_slot_qty">Freezer <b class="text-sm">{{ product.freezer_slot_qty }}</b></span>
-                          <span v-if="product.chiller_slot_qty">Chiller <b class="text-sm">{{ product.chiller_slot_qty }}</b></span>
+                          <span v-if="product.freezer_slot_qty">{{ $t('Freezer') }} <b class="text-sm">{{ product.freezer_slot_qty }}</b></span>
+                          <span v-if="product.chiller_slot_qty">{{ $t('Chiller') }} <b class="text-sm">{{ product.chiller_slot_qty }}</b></span>
                         </div>
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
@@ -374,7 +374,7 @@
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
-                                  Edit
+                                  {{ $t('Edit') }}
                               </span>
                             </Button>
                           </Link>
@@ -383,7 +383,7 @@
                       </tr>
                 <tr v-if="!products.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -429,6 +429,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   categories: Object,
@@ -474,23 +475,23 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   booleanOptions.value = [
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
   ]
   // filters.value.is_active = booleanOptions.value[0]
   // filters.value.is_inventory = booleanOptions.value[0]
   commSfOptions.value = [
-    {id: '', value: 'All'},
-    {id: 'comm', value: 'Comm Only'},
-    {id: 'sf', value: 'SF Only'},
-    {id: 'both', value: 'Both Comm & SF'},
+    {id: '', value: t('All')},
+    {id: 'comm', value: t('Comm Only')},
+    {id: 'sf', value: t('SF Only')},
+    {id: 'both', value: t('Both Comm & SF')},
   ]
   operatorOptions.value = [
     {
-        id: 'all', full_name: 'All'
+        id: 'all', full_name: t('All')
     },
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
@@ -548,16 +549,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(product) {
-  const approval = confirm('Are you sure to delete ' + product.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: product.name }));
   if (!approval) {
       return;
   }
   router.delete('/products/' + product.id, {
     onSuccess: () => {
-      toast.success("Product deleted successfully", { timeout: 3000 })
+      toast.success(t("Product deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete product", { timeout: 3000 })
+      toast.error(t("Failed to delete product"), { timeout: 3000 })
     }
   })
 }

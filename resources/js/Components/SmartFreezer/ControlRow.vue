@@ -7,7 +7,7 @@
         <StateChip v-if="state !== undefined" :value="state" :tone="tone" :note="note" />
         <span v-if="busy" class="inline-flex items-center gap-1 text-xs font-medium text-sky-700">
           <ArrowPathIcon class="h-3.5 w-3.5 animate-spin" />
-          waiting for the machine…
+          {{ $t('waiting for the machine…') }}
         </span>
       </div>
       <p v-if="hint" class="mt-0.5 text-xs text-gray-500">{{ hint }}</p>

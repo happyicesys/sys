@@ -1,44 +1,44 @@
 
 <template>
-	<Head title="Operation Dashboard (Lite) - Live Status" />
+	<Head :title="$t('Operation Dashboard (Lite) - Live Status')" />
 
 <BreezeAuthenticatedLayout>
 	<template #header>
 		<h2 class="font-semibold text-xl text-gray-800 leading-tight">
-				Operation Dashboard (Lite)
+				{{ $t('Operation Dashboard (Lite)') }}
 		</h2>
 	</template>
 
 	<div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
 	<div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
 			<div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-				<SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-					Machine ID
+				<SearchInput :placeholderStr="$t('4 to 5 Digits Number')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Machine ID') }}
 					<span class="text-[9px]">
-							("," for multiple)
+							{{ $t('("," for multiple)') }}
 					</span>
 				</SearchInput>
-				<SearchInput v-if="showAllFilters" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
-					Channel ID
+				<SearchInput v-if="showAllFilters" :placeholderStr="$t('Channel ID')" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Channel ID') }}
 					<span class="text-[9px]">
-							("," for multiple)
+							{{ $t('("," for multiple)') }}
 					</span>
 				</SearchInput>
-				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
-					Serial Num
+				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  :placeholderStr="$t('Serial Num')" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Serial Num') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+				<SearchInput :placeholderStr="$t('Number')" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					T1 &gt;&gt;
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+				<SearchInput :placeholderStr="$t('Number')" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					T2 &gt;&gt;
 				</SearchInput>
-				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
-					T1-T2 Delta &gt;&gt;
+				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  :placeholderStr="$t('Number')" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('T1-T2 Delta') }} &gt;&gt;
 				</SearchInput>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Channel Errors
+						{{ $t('Channel Errors') }}
 					</label>
 					<MultiSelect
 							v-model="filters.errors"
@@ -46,7 +46,7 @@
 							valueProp="id"
 							label="desc"
 							mode="tags"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 					>
@@ -55,12 +55,12 @@
 				<!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 						Cust ID
 				</SearchInput> -->
-				<SearchInput placeholderStr="Site name / ID" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Site
+				<SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Site') }}
 				</SearchInput>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Is Online?
+						{{ $t('Is Online?') }}
 					</label>
 					<MultiSelect
 						v-model="filters.is_online"
@@ -68,7 +68,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -76,7 +76,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Site Status
+							{{ $t('Site Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.customer_status"
@@ -85,7 +85,7 @@
 							valueProp="id"
 							label="value"
 							mode="tags"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -93,7 +93,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Machine Status
+						{{ $t('Machine Status') }}
 					</label>
 					<MultiSelect
 						v-model="filters.status"
@@ -101,7 +101,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -109,7 +109,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Sensor Status
+							{{ $t('Sensor Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.is_sensor"
@@ -117,7 +117,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -125,7 +125,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Is Door Open
+							{{ $t('Is Door Open') }}
 						</label>
 						<MultiSelect
 							v-model="filters.is_door_open"
@@ -133,7 +133,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -141,7 +141,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Fan RPM
+						{{ $t('Fan RPM') }}
 					</label>
 					<MultiSelect
 						v-model="filters.fan_rpm"
@@ -149,7 +149,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -157,7 +157,7 @@
 				</div>
 				<div v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Location Type
+							{{ $t('Location Type') }}
 						</label>
 						<MultiSelect
 							v-model="filters.locationType"
@@ -165,30 +165,30 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
 						</MultiSelect>
 				</div>
-				<SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
-					Last Visited Day &gt;&gt;
+				<SearchInput :placeholderStr="$t('How many Day(s)')" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
+					{{ $t('Last Visited Day') }} &gt;&gt;
 				</SearchInput>
-				<SearchInput placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Balance Stock(%) &lt;&lt;
+				<SearchInput :placeholderStr="$t('Balance Stock Less Than')" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('Balance Stock(%)') }} &lt;&lt;
 				</SearchInput>
-				<SearchInput placeholderStr="Remaining Channel Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Remaining Channel(%) &lt;&lt;
+				<SearchInput :placeholderStr="$t('Remaining Channel Less Than')" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('Remaining Channel(%)') }} &lt;&lt;
 				</SearchInput>
-				<SearchInput placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Firmware Ver
+				<SearchInput :placeholderStr="$t('Firmware Ver')" v-model="filters.firmware_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Firmware Ver') }}
 				</SearchInput>
-				<SearchInput placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					APK Ver
+				<SearchInput :placeholderStr="$t('APK Ver')" v-model="filters.apk_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('APK Ver') }}
 				</SearchInput>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Android Device Type
+						{{ $t('Android Device Type') }}
 					</label>
 					<MultiSelect
 						v-model="filters.deviceType"
@@ -196,7 +196,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -204,7 +204,7 @@
 				</div>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Card Terminal
+						{{ $t('Card Terminal') }}
 					</label>
 					<MultiSelect
 						v-model="filters.cashless_mfg"
@@ -212,18 +212,18 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
 					</MultiSelect>
 				</div>
-				<SearchInput placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Avg/Day Sales (30d) &lt;&lt;
+				<SearchInput :placeholderStr="$t('Avg Day Sales Less Than')" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Avg/Day Sales (30d)') }} &lt;&lt;
 				</SearchInput>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Is MQTT?
+						{{ $t('Is MQTT?') }}
 					</label>
 					<MultiSelect
 						v-model="filters.is_mqtt"
@@ -231,7 +231,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -239,7 +239,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Is MQTT Active?
+						{{ $t('Is MQTT Active?') }}
 					</label>
 					<MultiSelect
 						v-model="filters.is_mqtt_active"
@@ -247,21 +247,21 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
 					</MultiSelect>
 				</div>
-				<SearchInput placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
-					Account Manager
+				<SearchInput :placeholderStr="$t('Account Manager')" v-model="filters.account_manager_name" v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Account Manager') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Coin Amount &lt;&lt;
+				<SearchInput :placeholderStr="$t('Number')" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('Coin Amount') }} &lt;&lt;
 				</SearchInput>
 				<div v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Upcoming Job Driver
+						{{ $t('Upcoming Job Driver') }}
 					</label>
 					<MultiSelect
 						v-model="filters.next_planned_driver"
@@ -269,7 +269,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -279,12 +279,12 @@
 					<DatePicker
 						v-model="filters.next_planned_date"
 					>
-					Upcoming Job Date
+					{{ $t('Upcoming Job Date') }}
 					</DatePicker>
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Ref Price Type
+						{{ $t('Ref Price Type') }}
 					</label>
 					<MultiSelect
 						v-model="filters.selling_price_type"
@@ -292,7 +292,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -300,7 +300,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Model
+							{{ $t('Machine Model') }}
 					</label>
 					<MultiSelect
 							v-model="filters.vendModels"
@@ -308,7 +308,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 							mode="tags"
@@ -317,7 +317,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Refilling Routes
+						{{ $t('Refilling Routes') }}
 					</label>
 					<MultiSelect
 						v-model="filters.zones"
@@ -325,7 +325,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
@@ -334,7 +334,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Preferred Day(s)
+						{{ $t('Preferred Day(s)') }}
 					</label>
 					<MultiSelect
 						v-model="filters.preferredDays"
@@ -342,7 +342,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
@@ -351,7 +351,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						#Refill per Week
+						{{ $t('#Refill per Week') }}
 					</label>
 					<MultiSelect
 						v-model="filters.frequency_per_week_status"
@@ -359,7 +359,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
@@ -367,7 +367,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-							Delivery Platform
+							{{ $t('Delivery Platform') }}
 					</label>
 					<MultiSelect
 							v-model="filters.delivery_platform_id"
@@ -375,7 +375,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 					>
@@ -383,7 +383,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Setting Chart
+								{{ $t('Setting Chart') }}
 						</label>
 						<MultiSelect
 								v-model="filters.vendConfigs"
@@ -391,7 +391,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -400,7 +400,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Machine Contract
+								{{ $t('Machine Contract') }}
 						</label>
 						<MultiSelect
 								v-model="filters.vendContracts"
@@ -408,7 +408,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -417,7 +417,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Product Mapping
+								{{ $t('Product Mapping') }}
 						</label>
 						<MultiSelect
 								v-model="filters.productMappings"
@@ -425,7 +425,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -438,7 +438,7 @@
 				     preset upcoming. "— None —" lists machines with no upcoming at all. -->
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Upcoming Mapping
+								{{ $t('Upcoming Mapping') }}
 						</label>
 						<MultiSelect
 								v-model="filters.upcomingProductMappings"
@@ -446,7 +446,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -455,14 +455,14 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 					<label class="block text-sm font-medium text-gray-700">
-						Site Grouping
+						{{ $t('Site Grouping') }}
 					</label>
 					<!-- Grouped? is disabled on the Lite dashboard (2026-08-18) — use the full Operation Dashboard for sibling grouping. -->
 					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-400 cursor-not-allowed select-none"
-						title="Site grouping is not available on Dashboard (Lite). Use the full Operation Dashboard.">
+						:title="$t('Site grouping is not available on Dashboard (Lite). Use the full Operation Dashboard.')">
 						<input type="checkbox" :checked="false" disabled
 							class="rounded border-gray-300 text-gray-400 cursor-not-allowed" />
-						Grouped? (show siblings together)
+						{{ $t('Grouped? (show siblings together)') }}
 					</label>
 				</div>
 			</div>
@@ -475,7 +475,7 @@
 						>
 							<MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
 							<span>
-									Search
+									{{ $t('Search') }}
 							</span>
 						</Button>
 						<Button
@@ -484,22 +484,22 @@
 							v-if="vends.data && vends.data.some(vend => vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude)"
 						>
 							<MapPinIcon class="h-4 w-4" aria-hidden="true" />
-							<span>Show Map Markers</span>
+							<span>{{ $t('Show Map Markers') }}</span>
 						</Button>
 					</div>
 				</div>
 				<div class="flex flex-col space-y-1">
 					<span class="text-sm text-gray-700 leading-5">
-						<p>Last loaded: {{ now }}</p>
+						<p>{{ $t('Last loaded: :time', { time: now }) }}</p>
 					</span>
 					<p class="text-sm text-gray-700 leading-5 flex space-x-1">
-						<span>Showing</span>
+						<span>{{ $t('Showing') }}</span>
 						<span class="font-medium">{{ vends.meta.from ?? 0 }}</span>
-						<span>to</span>
+						<span>{{ $t('to') }}</span>
 						<span class="font-medium">{{ vends.meta.to ?? 0 }}</span>
-						<span>of</span>
+						<span>{{ $t('of') }}</span>
 						<span class="font-medium">{{ vends.meta.total }}</span>
-						<span>results</span>
+						<span>{{ $t('results') }}</span>
 					</p>
 					<MultiSelect
 						v-model="filters.numberPerPage"
@@ -507,7 +507,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						@selected="onSearchFilterUpdated"
@@ -527,7 +527,7 @@
 			<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 			<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
 		</svg>
-		<span>Loading financial &amp; stock columns…</span>
+		<span>{{ $t('Loading financial & stock columns…') }}</span>
 	</div>
 	<div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
 	<div class="cv-scroll overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
@@ -538,33 +538,33 @@
 						#
 					</TableHead>
 					<TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
-						Machine ID
+						{{ $t('Machine ID') }}
 					</TableHeadSort>
 					<TableHead>
 						<div class="flex flex-col space-y-2 max-w-[150px] mx-auto">
 							<SingleSortItem modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
-								Machine ID
+								{{ $t('Machine ID') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="vend_configs.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_configs.name', false)">
-								Setting Chart
+								{{ $t('Setting Chart') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="vend_prefixes.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefixes.name', false)">
-								Machine Prefix
+								{{ $t('Machine Prefix') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="product_mappings.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mappings.name', false)">
-								Product Mapping
+								{{ $t('Product Mapping') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
-								Site
+								{{ $t('Site') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
-								Postcode
+								{{ $t('Postcode') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
-								Ref Price
+								{{ $t('Ref Price') }}
 							</SingleSortItem>
 							<span class="text-sm font-medium text-gray-700">
-								Campaign
+								{{ $t('Campaign') }}
 							</span>
 						</div>
 					</TableHead>
@@ -572,37 +572,37 @@
 						<div class="flex flex-col space-y-2">
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
-									T1: Machine Temp
+									{{ $t('T1: Machine Temp') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Freezer <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Temp Probe Located at the Top of the Freezer <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
-								T2: Evaporator Temp
+								{{ $t('T2: Evaporator Temp') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Evaporator <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Temp Probe Located at the Top of the Evaporator <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
-									Updated
+									{{ $t('Updated') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last Updated Timestamp <br> (every 3 mins)', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Last Updated Timestamp <br> (every 3 mins)'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center mt-2">
 								<SingleSortItem modelName="t1_lowest_48h" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('t1_lowest_48h', true)">
-									T1 lowest L48hr
+									{{ $t('T1 lowest L48hr') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Lowest T1 Temp Last 48h <br> Red: > -18c <br> Blue: -21c to -18c <br> Green: < -21c', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Lowest T1 Temp Last 48h <br> Red: > -18c <br> Blue: -21c to -18c <br> Green: < -21c'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp_diff" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_diff', true)">
 									&Delta;T1-T2
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center mt-2">
 								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
-									Fan RPM
+									{{ $t('Fan RPM') }}
 								</SingleSortItem>
 							</div>
 						</div>
@@ -612,46 +612,46 @@
 							<div class="flex justify-center items-center">
 								<span class="flex flex-col space-y-1">
 									<span>
-										Inventory Status
+										{{ $t('Inventory Status') }}
 									</span>
 									<span>
-										#Channel, Required, Balance/Capacity (LastStockIn)
+										{{ $t('#Channel, Required, Balance/Capacity (LastStockIn)') }}
 									</span>
 								</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '#Channel <br> Black = P1 same as RP, correct <br> Red = P1 not same with RP <br><br> Balance/Capacity <br> Green = Balance > 2 <br> Blue = Balance 1 & 2 <br> Red = Balance = 0', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('#Channel <br> Black = P1 same as RP, correct <br> Red = P1 not same with RP <br><br> Balance/Capacity <br> Green = Balance > 2 <br> Blue = Balance 1 & 2 <br> Red = Balance = 0'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
-									Stock Cost
+									{{ $t('Stock Cost') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Exclusive GST or VAT', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Exclusive GST or VAT'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_stock_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_amount')">
-									Stock Value
+									{{ $t('Stock Value') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Inclusive GST or VAT', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Inclusive GST or VAT'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_full_load_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_full_load_amount')">
-									Full Load Value
+									{{ $t('Full Load Value') }}
 								</SingleSortItem>
 							</div>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						Sales(qty)
+						{{ $t('Sales(qty)') }}
 						<SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', false)">
-							Today
+							{{ $t('Today') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->yesterday_amount', false)">
-							Y'day
+							{{ $t('Y\'day') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_amount', false)">
-							Last7d
+							{{ $t('Last7d') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', false)">
-							Last30d
+							{{ $t('Last30d') }}
 						</SingleSortItem>
 					</TableHead>
 				</tr>
@@ -665,7 +665,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
 						<div class="flex flex-col space-y-2 items-center">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" v-tooltip="'Open this machine\'s settings'">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" v-tooltip="$t('Open this machine\'s settings')">
 							{{ vendCodeLabel(vend) }}
 							</Link>
 							<div
@@ -678,7 +678,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1 max-w-[150px]">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')" v-tooltip="'Open this machine\'s settings'">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')" v-tooltip="$t('Open this machine\'s settings')">
 								{{ vendCodeLabel(vend) }}
 							</Link>
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
@@ -716,16 +716,16 @@
 										:href="'/product-mappings/' + getUpcomingMapping(vend.vend).id + '/edit'"
 										target="_blank"
 										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none hover:bg-indigo-200 hover:underline cursor-pointer"
-										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend) + ' — click to open in a new tab'"
+										:title="$t('Upcoming new mapping: :name — click to open in a new tab', { name: getUpcomingMappingName(vend.vend) })"
 									>
-										New
+										{{ $t('New') }}
 									</a>
 									<span
 										v-else-if="getUpcomingMappingName(vend.vend)"
 										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none"
-										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend)"
+										:title="$t('Upcoming new mapping: :name', { name: getUpcomingMappingName(vend.vend) })"
 									>
-										New
+										{{ $t('New') }}
 									</span>
 								</span>
 								<!-- Mapping implementation date + age, so Ops can see how long the
@@ -735,13 +735,13 @@
 									class="text-[10px] text-gray-500 leading-none w-fit"
 									:title="getMappingDateInfo(vend.vend).title"
 								>
-									Mapped {{ getMappingDateInfo(vend.vend).date }} · {{ getMappingDateInfo(vend.vend).ageLabel }}
+									{{ $t('Mapped :date · :age', { date: getMappingDateInfo(vend.vend).date, age: getMappingDateInfo(vend.vend).ageLabel }) }}
 								</span>
 
 							</span>
 							<span v-if="vend.person_id" class="flex flex-col">
 								<span v-if="permissions.includes('admin-access vend-customers')">
-									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
+									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">
 											{{ vend.customer_id + 20000 }}
 											<br>
 											{{ vend.customer_name }}
@@ -751,7 +751,7 @@
 									{{ vend.customer_name }}
 								</span>
 
-								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="'Open this customer in CMS'">
+								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="$t('Open this customer in CMS')">
 									<div
 											class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
 									>
@@ -769,12 +769,12 @@
 							</span>
 							<span v-else-if="!vend.person_id">
 								<span v-if="permissions.includes('admin-access vend-customers')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
+									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">
 											{{ vend.customer_name }}
 									</a>
 								</span>
 								<span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
+									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">
 									{{ vend.customer_name }}
 									</a>
 								</span>
@@ -798,7 +798,7 @@
 							>
 								<span>{{ campaign.name }}</span>
 								<span v-if="campaign.end_at" class="text-pink-600">
-									Exp: {{ campaign.end_at }}
+									{{ $t('Exp: :date', { date: campaign.end_at }) }}
 								</span>
 							</div>
 							<span class="flex space-x-1 items-center">
@@ -821,20 +821,20 @@
 									rel="noopener noreferrer"
 									type="button"
 									class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs flex space-x-1 w-fit rounded shadow font-bold"
-									v-tooltip="'Open this location in Google Maps'"
+									v-tooltip="$t('Open this location in Google Maps')"
 								>
 									<span class="text-blue-800 underline">GPS</span>
 								</a>
 							</span>
 
 
-              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="'Open the full machine record'">
+              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="$t('Open the full machine record')">
                 <Button
                 type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                 >
                 <EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
                 <span class="text-blue-800 underline">
-                    more
+                    {{ $t('more') }}
                 </span>
                 </Button>
               </Link>
@@ -842,7 +842,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 						<div class="flex flex-col items-center space-y-1">
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full" v-tooltip="'Open T1 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full" v-tooltip="$t('Open T1 temperature history')">
 									<button
 									type="button"
 									class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -850,7 +850,7 @@
 									v-if="vend.temp_updated_at"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
+												<span class="text-blue-800 underline">{{ vend.is_temp_error ? $t('Error') : vend.temp }}</span>
 											</div>
 									</button>
 							</a>
@@ -861,9 +861,9 @@
 									@click="onVendTempClicked(vend.id, 1)"
 									v-if="vend.temp_updated_at"
 							>
-									{{ vend.is_temp_error ? 'Error' : vend.temp }}
+									{{ vend.is_temp_error ? $t('Error') : vend.temp }}
 							</button> -->
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full" v-tooltip="'Open T2 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full" v-tooltip="$t('Open T2 temperature history')">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -871,11 +871,11 @@
 											v-if="vend.parameterJson && 't2' in vend.parameterJson"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? $t('Error') : vend.parameterJson['t2']/10 }}(t2)</span>
 											</div>
 									</button>
 							</a>
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full" v-tooltip="'Open T3 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full" v-tooltip="$t('Open T3 temperature history')">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -883,11 +883,11 @@
 											v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? $t('Error') : vend.parameterJson['t3']/10 }}(t3)</span>
 											</div>
 									</button>
 							</a>
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full" v-tooltip="'Open T4 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full" v-tooltip="$t('Open T4 temperature history')">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -895,7 +895,7 @@
 											v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? $t('Error') : vend.parameterJson['t4']/10 }}(t4)</span>
 											</div>
 									</button>
 							</a>
@@ -920,9 +920,9 @@
 							<div
 								v-if="!vend.is_fan_enabled"
 								class="flex flex-col items-center justify-center border border-gray-400 rounded-md p-1 min-w-[80px] bg-white text-gray-800"
-								v-tooltip="{ content: 'Fan Speed Signal Disabled' }"
+								v-tooltip="{ content: $t('Fan Speed Signal Disabled') }"
 							>
-								<span class="text-[10px] font-bold">Fan RPM</span>
+								<span class="text-[10px] font-bold">{{ $t('Fan RPM') }}</span>
 								<span>N/A</span>
 							</div>
 							<a
@@ -941,9 +941,9 @@
 												: 'bg-gray-200 text-gray-500')
 											: 'bg-gray-300 text-gray-600'
 									]"
-									v-tooltip="{ content: 'Fan Speed Signal exists' }"
+									v-tooltip="{ content: $t('Fan Speed Signal exists') }"
 								>
-									<span class="text-[10px] font-bold">Fan RPM</span>
+									<span class="text-[10px] font-bold">{{ $t('Fan RPM') }}</span>
 									<div class="flex items-center justify-center w-full">
 										<span class="text-blue-800 underline">{{ vend.parameterJson['fan'] }}</span>
 									</div>
@@ -958,9 +958,9 @@
 								<button
 									type="button"
 									class="flex flex-col items-center justify-center border border-transparent rounded-md p-1 min-w-[80px] w-full focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 bg-gray-300 hover:bg-gray-400 active:bg-gray-500 text-gray-600"
-									v-tooltip="{ content: 'Fan Speed Signal Missing' }"
+									v-tooltip="{ content: $t('Fan Speed Signal Missing') }"
 								>
-									<span class="text-[10px] font-bold">Fan RPM</span>
+									<span class="text-[10px] font-bold">{{ $t('Fan RPM') }}</span>
 									<div class="flex items-center justify-center w-full">
 										<span class="text-blue-800 underline">--</span>
 									</div>
@@ -980,7 +980,7 @@
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="'View Channel Status'">
+						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="$t('View Channel Status')">
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr]"
 							v-if="vend && vend.vendChannelsJson"
@@ -1014,21 +1014,21 @@
 									<div
 										class="text-gray-800"
 									>
-										Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ $t('Cost:') }} {{ operatorCountry.currency_symbol }}{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
 								<span>
 									<div
 										class="text-gray-800"
 									>
-										Value: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ $t('Value:') }} {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
 								<span>
 									<div
 										class="text-gray-800"
 									>
-										Full Load Value: {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ $t('Full Load Value:') }} {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
 								<!-- Smart Alerts (Stockout - Hidden per user request for only 1-5) -->
@@ -1094,7 +1094,7 @@
 				</tr>
 				<tr v-if="!vends.data.length">
 					<td colspan="6" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-							No Results Found
+							{{ $t('No Results Found') }}
 					</td>
 				</tr>
 			</tbody>
@@ -1107,7 +1107,7 @@
 	</div>
 	</div>
 	<div v-if="!hasSearched" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
-		Use the available filters and click <span class="font-semibold">Search</span> to load customer vending data.
+		{{ $t('Use the available filters and click') }} <span class="font-semibold">{{ $t('Search') }}</span> {{ $t('to load customer vending data.') }}
 	</div>
 	<ChannelOverview
 		v-if="showChannelOverviewModal"
@@ -1193,29 +1193,29 @@ v-if="showMapMarkerModal"
 		<div class="flex items-center justify-between border-b px-5 py-3">
 			<div>
 				<h3 class="text-base font-semibold text-gray-800">
-					Coin Float History
-					<span class="text-gray-500 font-normal">— Machine {{ vendCodeLabel(coinFloatVend) }}</span>
+					{{ $t('Coin Float History') }}
+					<span class="text-gray-500 font-normal">{{ $t('— Machine :code', { code: vendCodeLabel(coinFloatVend) }) }}</span>
 				</h3>
-				<p class="text-xs text-gray-500">Latest 20 changes shown · last 14 days · {{ operatorCountry.currency_symbol }}</p>
+				<p class="text-xs text-gray-500">{{ $t('Latest 20 changes shown · last 14 days · :currency', { currency: operatorCountry.currency_symbol }) }}</p>
 			</div>
 			<button class="text-gray-400 hover:text-gray-700 text-xl leading-none" @click="onCoinFloatModalClose">&times;</button>
 		</div>
 
 		<div class="px-5 py-3 overflow-y-auto">
-			<div v-if="coinFloatLoading" class="py-10 text-center text-gray-500 text-sm">Loading…</div>
+			<div v-if="coinFloatLoading" class="py-10 text-center text-gray-500 text-sm">{{ $t('Loading…') }}</div>
 			<div v-else-if="coinFloatError" class="py-10 text-center text-red-600 text-sm">
 				{{ coinFloatError }}
 			</div>
 			<div v-else-if="!coinFloatLogs.length" class="py-10 text-center text-gray-500 text-sm">
-				No coin float changes recorded in the last 14 days.
+				{{ $t('No coin float changes recorded in the last 14 days.') }}
 			</div>
 			<table v-else class="w-full text-xs">
 				<thead>
 					<tr class="text-left text-gray-500 border-b">
-						<th class="py-1.5 pr-2 font-semibold">Date / Time</th>
-						<th class="py-1.5 px-2 font-semibold text-right">Coin Float</th>
-						<th class="py-1.5 px-2 font-semibold text-right">Change</th>
-						<th class="py-1.5 pl-2 font-semibold">Coin Acceptor</th>
+						<th class="py-1.5 pr-2 font-semibold">{{ $t('Date / Time') }}</th>
+						<th class="py-1.5 px-2 font-semibold text-right">{{ $t('Coin Float') }}</th>
+						<th class="py-1.5 px-2 font-semibold text-right">{{ $t('Change') }}</th>
+						<th class="py-1.5 pl-2 font-semibold">{{ $t('Coin Acceptor') }}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -1226,24 +1226,24 @@ v-if="showMapMarkerModal"
 							class="py-1.5 px-2 text-right tabular-nums"
 							:class="row.delta === null ? 'text-gray-400' : (row.delta >= 0 ? 'text-green-700' : 'text-red-700')"
 						>{{ coinFloatDelta(row.delta) }}</td>
-						<td class="py-1.5 pl-2">{{ row.coin_stat == 3 ? 'Active' : (row.coin_stat == 1 ? 'Inactive' : 'NA') }}</td>
+						<td class="py-1.5 pl-2">{{ row.coin_stat == 3 ? $t('Active') : (row.coin_stat == 1 ? $t('Inactive') : 'NA') }}</td>
 					</tr>
 				</tbody>
 			</table>
 		</div>
 
 		<div class="flex items-center justify-between border-t px-5 py-3">
-			<span class="text-xs text-gray-500">{{ coinFloatLogs.length }} change(s) in window</span>
+			<span class="text-xs text-gray-500">{{ $t(':count change(s) in window', { count: coinFloatLogs.length }) }}</span>
 			<div class="flex gap-2">
 				<button
 					class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
 					@click="onCoinFloatModalClose"
-				>Close</button>
+				>{{ $t('Close') }}</button>
 				<button
 					class="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
 					:disabled="!coinFloatLogs.length"
 					@click="exportCoinFloatCsv"
-				>Export CSV (14 days)</button>
+				>{{ $t('Export CSV (14 days)') }}</button>
 			</div>
 		</div>
 	</div>
@@ -1336,6 +1336,7 @@ font-size:13px;
 	import axios from 'axios';
 	import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 	import { vendCodeLabel } from '@/utils/vendCode';
+	import { t, tc } from '@/i18n';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
@@ -1739,7 +1740,7 @@ onMounted(() => {
 filters.value.visited = true
 vendChannelErrorsOptions.value = [
 		// {'id': '', 'desc': 'All'},
-		{'id': 'errors_only', 'desc': 'Errors Only'},
+		{'id': 'errors_only', 'desc': t('Errors Only')},
 		...props.vendChannelErrors.data
 ]
 numberPerPageOptions.value = [
@@ -1747,18 +1748,18 @@ numberPerPageOptions.value = [
 		{ id: 100, value: 100 },
 		{ id: 200, value: 200 },
 		{ id: 500, value: 500 },
-		{ id: 'All', value: 'All' },
+		{ id: 'All', value: t('All') },
 ]
 filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
 filters.value.numberPerPage = numberPerPageOptions.value[0]
 
 deliveryPlatformOptions.value = [
-	{id: 'all', value: 'All'},
+	{id: 'all', value: t('All')},
 	...props.deliveryPlatformOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 deviceTypeOptions.value =
 [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...Object.entries(props.deviceTypes).map(([id, name]) => ({id: id, value: name}))
 ]
 // Card terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) sourced from
@@ -1766,34 +1767,34 @@ deviceTypeOptions.value =
 // "Nayax") as the `cashless_mfg` query param; resolved against
 // card_terminals.name via the subquery in HasFilter::filterVendsDB.
 cardTerminalOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...(props.cardTerminalOptions ?? []).map((name) => ({id: name, value: name}))
 ]
 booleanOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'true', value: 'Yes'},
-		{id: 'false', value: 'No'},
+		{id: 'all', value: t('All')},
+		{id: 'true', value: t('Yes')},
+		{id: 'false', value: t('No')},
 ]
 booleanStrictOptions.value = [
-		{id: 'true', value: 'Yes'},
-		{id: 'false', value: 'No'},
+		{id: 'true', value: t('Yes')},
+		{id: 'false', value: t('No')},
 ]
 dayOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...Object.entries(props.dayOptions).map(([id, name]) => ({id: id, value: name}))
 ]
 enableOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'true', value: 'Enabled'},
-		{id: 'false', value: 'Disabled'},
+		{id: 'all', value: t('All')},
+		{id: 'true', value: t('Enabled')},
+		{id: 'false', value: t('Disabled')},
 ]
 doorOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'open', value: 'Open'},
-		{id: 'close', value: 'Close'},
+		{id: 'all', value: t('All')},
+		{id: 'open', value: t('Open')},
+		{id: 'close', value: t('Close')},
 ]
 fanRpmOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		{id: '0', value: '0'},
 		{id: '>0', value: '>0'},
 		{id: 'N/A', value: 'N/A'},
@@ -1808,62 +1809,62 @@ frequencyPerWeekOptions.value = [
 	})
 ]
 isActiveFactoryOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: '1', value: 'Factory (JB)'},
-		{id: '2', value: 'Active'},
-		{id: '3', value: 'Not Active'},
-		{id: '4', value: 'Disposed'},
-		{id: '5', value: 'Sold'},
+		{id: 'all', value: t('All')},
+		{id: '1', value: t('Factory (JB)')},
+		{id: '2', value: t('Active')},
+		{id: '3', value: t('Not Active')},
+		{id: '4', value: t('Disposed')},
+		{id: '5', value: t('Sold')},
 ]
 locationTypeOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 nextDeliveryDriverOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.nextDeliveryDriverOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 operatorOptions.value = [
-		{id: 'all', full_name: 'All'},
+		{id: 'all', full_name: t('All')},
 		...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
 ]
 sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
 statusOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'factory', value: 'Factory (JB)'},
-		{id: 'active', value: 'Active'},
-		{id: 'inactive', value: 'Not Active'},
-		{id: 'disposed', value: 'Disposed'},
-		{id: 'sold', value: 'Sold'},
+		{id: 'all', value: t('All')},
+		{id: 'factory', value: t('Factory (JB)')},
+		{id: 'active', value: t('Active')},
+		{id: 'inactive', value: t('Not Active')},
+		{id: 'disposed', value: t('Disposed')},
+		{id: 'sold', value: t('Sold')},
 ]
 // 5-value Site Status — controller passes {id, name}; remap to {id, value}
 // to match the MultiSelect `label` prop used by every other dropdown here.
 customerStatusOptions.value = (props.customerStatuses ?? []).map((s) => ({id: s.id, value: s.name}))
 vendConfigOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
 vendContractOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
 vendModelOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 vendPrefixOptions.value = [
-		{id: 'single-ud', value: 'Single UD'},
+		{id: 'single-ud', value: t('Single UD')},
 		...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 zoneOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 productMappingOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
@@ -1871,8 +1872,8 @@ productMappingOptions.value = [
 // machine has no effective upcoming mapping". Kept next to 'all' so both
 // sentinels sit at the top of the list, ahead of the alphabetical mappings.
 upcomingProductMappingOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'none', value: '— None —'},
+		{id: 'all', value: t('All')},
+		{id: 'none', value: t('— None —')},
 		...props.upcomingProductMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
@@ -2145,21 +2146,21 @@ const getAlertTooltip = (alert) => {
 	let header = '';
 
 	if (alert.group === 'no_transactions') {
-		header = '(4) Alert on Lost of Transaction/Sales';
+		header = t('(4) Alert on Lost of Transaction/Sales');
 	} else if (alert.group === 'connectivity') {
-		header = '(1) Alert on Lost of Connectivity or Electricity';
+		header = t('(1) Alert on Lost of Connectivity or Electricity');
 	} else if (alert.group === 'error_code') {
-		header = '(5) Channel Errors';
+		header = t('(5) Channel Errors');
 	} else if (alert.group === 'stockout') {
-		header = '(6) Stockout Alert';
+		header = t('(6) Stockout Alert');
 	} else if (alert.group === 'temperature') {
 		const code = getAlertLabel(alert);
 		if (code && code.startsWith('1')) {
-			header = '(1) Alert on Lost of Connectivity or Electricity';
+			header = t('(1) Alert on Lost of Connectivity or Electricity');
 		} else if (code && code.startsWith('2')) {
-			header = '(2) Operation Error / Critical Parts Failure';
+			header = t('(2) Operation Error / Critical Parts Failure');
 		} else if (code && code.startsWith('3')) {
-			header = '(3) Preventive maintenance / Temp raise alert';
+			header = t('(3) Preventive maintenance / Temp raise alert');
 		}
 	}
 
@@ -2174,12 +2175,12 @@ const getAlertTooltip = (alert) => {
 	// Add duration if available
 	const duration = (alert.duration && String(alert.duration).toLowerCase() !== 'null' && String(alert.duration).toLowerCase() !== 'null hours') ? alert.duration : null;
 	if (duration) {
-		parts.push(`Duration: ${duration}`);
+		parts.push(t('Duration: :duration', { duration }));
 	}
 
 	// Add occurred at if available
 	if (alert.occurred_at) {
-		parts.push(`Since: ${moment(alert.occurred_at).format('DD MMM YY, HH:mm')}`);
+		parts.push(t('Since: :time', { time: moment(alert.occurred_at).format('DD MMM YY, HH:mm') }));
 	}
 
 	return {
@@ -2347,11 +2348,11 @@ function getMappingDateInfo(vendData) {
 	const binded = moment(vendData.binded_at)
 	if (!binded.isValid()) return null
 	const days = moment().startOf('day').diff(binded.clone().startOf('day'), 'days')
-	const ageLabel = days <= 0 ? 'today' : days === 1 ? '1 day' : `${days} days`
+	const ageLabel = days <= 0 ? t('today') : tc(':count day|:count days', days)
 	const info = {
 		date: binded.format('YYMMDD'),
 		ageLabel,
-		title: `Current mapping implemented on ${binded.format('YYMMDD HH:mm')} (${ageLabel} ago)`,
+		title: t('Current mapping implemented on :date (:age ago)', { date: binded.format('YYMMDD HH:mm'), age: ageLabel }),
 	}
 	mappingDateInfoCache.set(vendData, { bindedAt: vendData.binded_at, today, info })
 	return info
@@ -2562,9 +2563,9 @@ function onCoinFloatClicked(vendData) {
 		})
 		.catch((error) => {
 			coinFloatLogs.value = []
-			coinFloatError.value = 'Could not load coin float history'
-				+ (error?.response?.status ? ` (HTTP ${error.response.status})` : '')
-				+ '. The endpoint may be unreachable or the table not yet migrated.'
+			coinFloatError.value = error?.response?.status
+				? t('Could not load coin float history (HTTP :status). The endpoint may be unreachable or the table not yet migrated.', { status: error.response.status })
+				: t('Could not load coin float history. The endpoint may be unreachable or the table not yet migrated.')
 		})
 		.finally(() => {
 			coinFloatLoading.value = false

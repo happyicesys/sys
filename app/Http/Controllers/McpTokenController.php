@@ -94,6 +94,6 @@ class McpTokenController extends Controller
             $token->update(['revoked_at' => now()]);
         }
 
-        return redirect()->route('mcp-tokens')->with('success', 'Token revoked.');
+        return redirect()->route('mcp-tokens')->with('success', __('Token revoked.'));
     }
 }

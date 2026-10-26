@@ -1,11 +1,11 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header >
         <div class="flex flex-col md:flex-row justify-between items-center w-full">
           <div class="flex flex-col md:flex-row space-x-2">
             <span class="text-gray-600" v-if="opsJob && opsJob.id">
-              Daily Job for
+              {{ $t('Daily Job for') }}
             </span>
             <div
               v-if="opsJob.stock_action_type"
@@ -13,7 +13,7 @@
               :class="opsJob.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJob.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : opsJob.stock_action_type == 'melted_stock' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
             >
               <span class="font-semibold grow-0">
-                {{ opsJob.stock_action_type.replace(/_/g, ' ') }}
+                {{ ({ implement_new_mapping: $t('Implement New Mapping'), return_stock: $t('Return Stock'), melted_stock: $t('Melted Stock'), onsite_adjustment: $t('Onsite Adjustment') })[opsJob.stock_action_type] ?? opsJob.stock_action_type.replace(/_/g, ' ') }}
               </span>
             </div>
           </div>
@@ -28,7 +28,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Date
+                {{ $t('Date') }}
               </label>
               <div class="mt-1">
                 <input
@@ -41,7 +41,7 @@
             </div>
             <div class="sm:col-span-5">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Delivery By
+                {{ $t('Delivery By') }}
               </label>
               <div class="mt-1">
                 <input
@@ -55,7 +55,7 @@
 
             <div class="sm:col-span-6">
               <label for="remarks" class="flex justify-start text-sm font-medium text-gray-700">
-                Remarks
+                {{ $t('Remarks') }}
               </label>
               <div class="mt-1 flex flex-col items-end space-y-2">
                 <textarea
@@ -72,7 +72,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -85,14 +85,14 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Job(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Job(s)') }} </span>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Add Job / Stock Count / Service Notice
+                  {{ $t('Add Job / Stock Count / Service Notice') }}
                 </label>
                 <MultiSelect
                   v-model="form.vend_id"
@@ -100,7 +100,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   ref="multiselect"
@@ -122,10 +122,10 @@
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
                   :class="[!canOpenNewJob ? 'opacity-50 cursor-not-allowed' : '']"
                   :disabled="!canOpenNewJob"
-                  :title="form.vend_id && form.vend_id.in_job ? 'This machine is already on this job' : ''"
+                  :title="form.vend_id && form.vend_id.in_job ? $t('This machine is already on this job') : ''"
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                  <span>Open New Job</span>
+                  <span>{{ $t('Open New Job') }}</span>
                 </Button>
                 <Button
                   v-if="permissions.includes('create stock-checks')"
@@ -136,7 +136,7 @@
                   :disabled="!form.vend_id"
                 >
                   <ClipboardDocumentListIcon class="w-4 h-4"></ClipboardDocumentListIcon>
-                  <span>Open Stock Count</span>
+                  <span>{{ $t('Open Stock Count') }}</span>
                 </Button>
                 <Button
                   v-if="permissions.includes('create service-notices')"
@@ -147,7 +147,7 @@
                   :disabled="!form.vend_id"
                 >
                   <WrenchScrewdriverIcon class="w-4 h-4"></WrenchScrewdriverIcon>
-                  <span>Open Service Notice</span>
+                  <span>{{ $t('Open Service Notice') }}</span>
                 </Button>
               </div>
 
@@ -161,7 +161,7 @@
                       || (opsJob.opsJobTasks && opsJob.opsJobTasks.some(task => task.latitude && task.longitude))"
                   >
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
-                    <span>Show Map Markers</span>
+                    <span>{{ $t('Show Map Markers') }}</span>
                   </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-blue bg-blue-400 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                   @click.prevent="onGeneratePickListClicked()"
@@ -170,7 +170,7 @@
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
                       <span>
-                          Qty List (Live)
+                          {{ $t('Qty List (Live)') }}
                       </span>
                     </span>
                   </Button>
@@ -181,7 +181,7 @@
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
                       <span>
-                        Qty List (Picked)
+                        {{ $t('Qty List (Picked)') }}
                       </span>
                     </span>
                   </Button>
@@ -192,14 +192,14 @@
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
                       <span>
-                        Qty List (Stocked In)
+                        {{ $t('Qty List (Stocked In)') }}
                       </span>
                     </span>
                   </Button>
                   <a :href="'/ops-jobs/' + opsJob.id + '/route'" target="_blank" class="text-blue-700 inline-flex" v-if="opsJob.opsJobItems">
                     <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer">
                       <PlayIcon class="h-4 w-4" aria-hidden="true" />
-                      <span>Route Planning</span>
+                      <span>{{ $t('Route Planning') }}</span>
                     </span>
                   </a>
 
@@ -213,7 +213,7 @@
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
-                      <span>Batch Assign Driver ({{ selectedItemIds.length + selectedTaskIds.length }})</span>
+                      <span>{{ $t('Batch Assign Driver (:count)', { count: selectedItemIds.length + selectedTaskIds.length }) }}</span>
                     </Button>
                     <!-- Batch mode on, none selected: show cancel hint -->
                     <Button
@@ -223,7 +223,7 @@
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <XMarkIcon class="h-4 w-4" aria-hidden="true" />
-                      <span>Cancel Batch</span>
+                      <span>{{ $t('Cancel Batch') }}</span>
                     </Button>
                     <!-- Default: enter batch mode -->
                     <Button
@@ -233,7 +233,7 @@
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
-                      <span>Batch Assign Driver</span>
+                      <span>{{ $t('Batch Assign Driver') }}</span>
                     </Button>
                   </template>
 
@@ -245,32 +245,32 @@
                     class="inline-flex space-x-1 items-center rounded-md bg-violet-500 hover:bg-violet-600 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm"
                   >
                     <PlusCircleIcon class="h-4 w-4" aria-hidden="true" />
-                    <span>New Task</span>
+                    <span>{{ $t('New Task') }}</span>
                   </Button>
                 </div>
                 <div class="flex flex-col space-y-1">
                   <span class="text-gray-500">
-                    Total of
+                    {{ $t('Total of') }}
                     <span class="text-gray-800">
                       {{ (opsJob.opsJobItems ? opsJob.opsJobItems.length : 0) + (opsJob.opsJobTasks ? opsJob.opsJobTasks.length : 0) }}
                     </span>
-                    Job(s)
+                    {{ $t('Job(s)') }}
                   </span>
                   <span class="text-gray-500" v-if="opsJob.stockChecks && opsJob.stockChecks.length">
-                    <span class="text-cyan-800">{{ opsJob.stockChecks.length }}</span> Stock Count(s)
+                    <span class="text-cyan-800">{{ opsJob.stockChecks.length }}</span> {{ $t('Stock Count(s)') }}
                   </span>
                   <span class="text-gray-500" v-if="opsJob.serviceNotices && opsJob.serviceNotices.length">
-                    <span class="text-amber-800">{{ opsJob.serviceNotices.length }}</span> Service Notice(s)
+                    <span class="text-amber-800">{{ opsJob.serviceNotices.length }}</span> {{ $t('Service Notice(s)') }}
                   </span>
                   <span class="text-gray-500">
-                    Total of
+                    {{ $t('Total of') }}
                     <span class="text-gray-800">
                       {{ opsJob.opsJobItems ? getApiInvCount() : 0 }}
                     </span>
-                    API Inv(s)
+                    {{ $t('API Inv(s)') }}
                   </span>
                   <span v-if="opsJob.opsJobItems && getCancelledCount() > 0" class="text-xs text-rose-500">
-                    incl. {{ getCancelledCount() }} cancelled (no API Inv)
+                    {{ $t('incl. :count cancelled (no API Inv)', { count: getCancelledCount() }) }}
                   </span>
                 </div>
               </div>
@@ -284,7 +284,7 @@
                           <TableHead>
                             <div class="flex flex-col space-y-1 max-w-20 items-center">
                               <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
-                                Job Sequence
+                                {{ $t('Job Sequence') }}
                               </SingleSortItem>
                               <!-- <span>
                                 Job Sequence
@@ -309,7 +309,7 @@
                                 <div class="flex space-x-1 items-center">
                                   <BarsArrowDownIcon class="h-3 w-3"></BarsArrowDownIcon>
                                   <span>
-                                    Renumber
+                                    {{ $t('Renumber') }}
                                   </span>
                                 </div>
                               </Button>
@@ -318,90 +318,90 @@
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
-                                Machine ID
+                                {{ $t('Machine ID') }}
                               </span>
                               <span>
-                                Machine Prefix
+                                {{ $t('Machine Prefix') }}
                               </span>
                               <span>
-                                Product Mapping
+                                {{ $t('Product Mapping') }}
                               </span>
                               <span>
-                                Job ID#
+                                {{ $t('Job ID#') }}
                               </span>
                               <span>
-                                Remarks
+                                {{ $t('Remarks') }}
                               </span>
                             </div>
                           </TableHead>
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
-                                Status
+                                {{ $t('Status') }}
                               </span>
                               <span>
-                                Site
+                                {{ $t('Site') }}
                               </span>
                               <SingleSortItem modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
-                                Postcode
+                                {{ $t('Postcode') }}
                               </SingleSortItem>
                               <span>
-                                Ops Note
+                                {{ $t('Ops Note') }}
                               </span>
                             </div>
                           </TableHead>
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
-                                Value <br>
-                                (Qty)
+                                {{ $t('Value') }} <br>
+                                {{ $t('(Qty)') }}
                               </span>
                               <SingleSortItem modelName="refillable_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refillable_amount')">
-                                Refillable
+                                {{ $t('Refillable') }}
                               </SingleSortItem>
                               <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
-                                Picked
+                                {{ $t('Picked') }}
                               </SingleSortItem>
                               <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                                Stock-in
+                                {{ $t('Stock-in') }}
                               </SingleSortItem>
                               <SingleSortItem modelName="acc_vend_transactions_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('acc_vend_transactions_amount')">
-                                Stock-out <br>
-                                (Transactions)
+                                {{ $t('Stock-out') }} <br>
+                                {{ $t('(Transactions)') }}
                               </SingleSortItem>
                             </div>
                           </TableHead>
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
-                                Cash Amount
+                                {{ $t('Cash Amount') }}
                               </span>
                               <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                                Cash Collected (Machine)
+                                {{ $t('Cash Collected (Machine)') }}
                               </SingleSortItem>
                               <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
-                                CashAmt$ (VMC)
+                                {{ $t('CashAmt$ (VMC)') }}
                               </SingleSortItem>
                               <SingleSortItem modelName="delta_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delta_cash_amount')">
-                                Cash Adjustment
+                                {{ $t('Cash Adjustment') }}
                               </SingleSortItem>
                               <SingleSortItem modelName="acc_vend_transactions_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('acc_vend_transactions_cash_amount')">
-                                CashAmt$ (Trans)
+                                {{ $t('CashAmt$ (Trans)') }}
                               </SingleSortItem>
                             </div>
                           </TableHead>
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
-                                Refilling Routes
+                                {{ $t('Refilling Routes') }}
                               </SingleSortItem>
                               <span>
-                                Address
+                                {{ $t('Address') }}
                               </span>
                             </div>
                           </TableHead>
                           <TableHead>
-                            Action
+                            {{ $t('Action') }}
                           </TableHead>
                         </tr>
 
@@ -424,7 +424,7 @@
                           <!-- Task name / badge -->
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <div class="flex flex-col space-y-2 max-w-24">
-                              <span class="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold bg-violet-600 text-white w-fit mx-auto">TASK</span>
+                              <span class="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold bg-violet-600 text-white w-fit mx-auto">{{ $t('TASK') }}</span>
                               <span class="text-violet-800 font-semibold break-words">{{ row.task_name }}</span>
                               <a
                                 v-if="row.ref_url"
@@ -434,7 +434,7 @@
                                 class="inline-flex items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline break-all"
                               >
                                 <LinkIcon class="h-3 w-3 flex-shrink-0" />
-                                <span>Link</span>
+                                <span>{{ $t('Link') }}</span>
                               </a>
                             </div>
                           </td>
@@ -448,7 +448,7 @@
                                 :class="taskStatusClass(row.status)"
                                 @click.prevent="openTaskStatusModal(row)"
                               >
-                                {{ row.status_name || 'Pending' }}
+                                {{ row.status_name || $t('Pending') }}
                               </button>
                               <span v-if="row.created_at" class="text-xs font-medium text-gray-600">
                                 {{ row.created_at }}
@@ -500,7 +500,7 @@
                                 >
                                   <div class="flex space-x-2 items-center">
                                     <ArrowsRightLeftIcon class="h-3 w-3" />
-                                    <span>Driver</span>
+                                    <span>{{ $t('Driver') }}</span>
                                   </div>
                                 </Button>
                                 <Button
@@ -509,7 +509,7 @@
                                 >
                                   <div class="flex space-x-2 items-center">
                                     <PencilSquareIcon class="h-3 w-3" />
-                                    <span>Edit</span>
+                                    <span>{{ $t('Edit') }}</span>
                                   </div>
                                 </Button>
                               </div>
@@ -549,7 +549,7 @@
                               <span class="flex flex-col text-xs font-medium whitespace-normal break-all max-w-24 min-w-0 mt-1" v-if="rowMappingCurrent(row)">
                                 <span class="text-gray-500 break-all">{{ rowMappingCurrent(row) }}</span>
                                 <span class="flex flex-wrap items-center justify-center gap-1 mt-0.5 max-w-24 min-w-0" v-if="rowMappingUpcoming(row)">
-                                  <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded shrink-0">New</span>
+                                  <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded shrink-0">{{ $t('New') }}</span>
                                   <span class="text-red-500 text-xs font-medium break-all max-w-24 min-w-0">{{ rowMappingUpcoming(row) }}</span>
                                 </span>
                               </span>
@@ -591,9 +591,9 @@
                                   <span
                                     v-if="row.frozen_at"
                                     class="inline-flex items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-gray-200 text-gray-700 border-gray-300"
-                                    :title="'Freezed ' + row.frozen_at + ' — mapping / channel errors / coin float snapshotted 10 min after stock-in.'"
+                                    :title="$t('Freezed :time — mapping / channel errors / coin float snapshotted 10 min after stock-in.', { time: row.frozen_at })"
                                   >
-                                    🔒 Freezed
+                                    🔒 {{ $t('Freezed') }}
                                   </span>
                                 </div>
                                 <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
@@ -607,7 +607,7 @@
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
                                       :class="row.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : row.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : row.stock_action_type == 'melted_stock' ? 'bg-rose-100 text-rose-700' : 'bg-orange-100 text-orange-700'"
                                   >
-                                      {{ row.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : row.stock_action_type == 'return_stock' ? 'Return Stock' : row.stock_action_type == 'melted_stock' ? 'Melted Stock' : 'Onsite Adjustment' }}
+                                      {{ row.stock_action_type == 'implement_new_mapping' ? $t('Implement New Mapping') : row.stock_action_type == 'return_stock' ? $t('Return Stock') : row.stock_action_type == 'melted_stock' ? $t('Melted Stock') : $t('Onsite Adjustment') }}
                                   </div>
                                   <div
                                       class="text-xs text-gray-700 whitespace-pre-line break-words max-w-40 border border-purple-300 rounded px-1.5 py-1 bg-purple-50"
@@ -624,7 +624,7 @@
                               >
                                   <div class="flex flex-col">
                                       <span class="font-semibold grow-0">
-                                        {{ opsJobItemChannelErrorCheck(row) == 2 ? 'Not tally havent fixed' : (opsJobItemChannelErrorCheck(row) == 1 ? 'Not tally fixed' : 'All tally') }}
+                                        {{ opsJobItemChannelErrorCheck(row) == 2 ? $t('Not tally havent fixed') : (opsJobItemChannelErrorCheck(row) == 1 ? $t('Not tally fixed') : $t('All tally')) }}
                                       </span>
                                   </div>
                               </div>
@@ -683,7 +683,7 @@
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-normal grow-0">
-                                            API Inv
+                                            {{ $t('API Inv') }}
                                           </span>
                                       </div>
                                   </div>
@@ -726,7 +726,7 @@
                                 :class="rowCoinFloat(row) > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200 text-gray-800 border-green-300' : 'bg-red-200 text-gray-800 border-red-300'"
                                 v-if="rowCoinFloat(row)"
                               >
-                                <span class="font-bold mr-1">Coin Float</span>
+                                <span class="font-bold mr-1">{{ $t('Coin Float') }}</span>
                                 <span>
                                   {{ operatorCountry.currency_symbol }}{{ (rowCoinFloat(row) / Math.pow(10, operatorCountry.currency_exponent)).toFixed(operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }}
                                 </span>
@@ -736,7 +736,7 @@
                                 class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-red-100 text-red-800 border-red-300"
                                 v-if="rowChannelErrorLogs(row).length"
                               >
-                                <span class="font-semibold mr-1">Error:</span>
+                                <span class="font-semibold mr-1">{{ $t('Error:') }}</span>
                                 <span>
                                   <template v-for="(vendChannelErrorLog, errIndex) in rowChannelErrorLogs(row)" :key="vendChannelErrorLog.id">
                                     <span v-if="errIndex > 0">, </span>#{{ vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : (vendChannelErrorLog['vend_channel'] ? vendChannelErrorLog['vend_channel']['code'] : '') }}<span class="font-bold">({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : (vendChannelErrorLog['vend_channel_error'] ? vendChannelErrorLog['vend_channel_error']['code'] : '') }})</span>
@@ -858,15 +858,15 @@
                                   source="ops_job_page"
                                   compact
                                   :disabled="row.status < 3 && !(row.restock_photos?.before?.length)"
-                                  :disabled-reason="row.status < 3 && !(row.restock_photos?.before?.length) ? 'Take the before restock photo first (open the item)' : ''"
+                                  :disabled-reason="row.status < 3 && !(row.restock_photos?.before?.length) ? $t('Take the before restock photo first (open the item)') : ''"
                                 />
                                 <div class="text-[10px] mt-0.5 space-x-1">
-                                  <span :class="row.restock_photos?.before?.length ? 'text-green-700' : 'text-amber-700'">📷 Before {{ row.restock_photos?.before?.length ? '✓' : '—' }}</span>
-                                  <span :class="row.restock_photos?.after?.length ? 'text-green-700' : (row.status >= 3 ? 'text-red-600 font-semibold' : 'text-gray-500')">After {{ row.restock_photos?.after?.length ? '✓' : '—' }}</span>
+                                  <span :class="row.restock_photos?.before?.length ? 'text-green-700' : 'text-amber-700'">📷 {{ $t('Before') }} {{ row.restock_photos?.before?.length ? '✓' : '—' }}</span>
+                                  <span :class="row.restock_photos?.after?.length ? 'text-green-700' : (row.status >= 3 ? 'text-red-600 font-semibold' : 'text-gray-500')">{{ $t('After') }} {{ row.restock_photos?.after?.length ? '✓' : '—' }}</span>
                                 </div>
-                                <div class="text-[10px] mt-0.5" v-if="row.citybox_submit_status === 'failed'"><span class="text-amber-700 font-semibold">CityBox push failed</span></div>
-                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok' && row.status >= 3"><span class="text-green-700">Count pushed</span></div>
-                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'reverted'"><span class="text-gray-600">Count reverted</span></div>
+                                <div class="text-[10px] mt-0.5" v-if="row.citybox_submit_status === 'failed'"><span class="text-amber-700 font-semibold">{{ $t('CityBox push failed') }}</span></div>
+                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'ok' && row.status >= 3"><span class="text-green-700">{{ $t('Count pushed') }}</span></div>
+                                <div class="text-[10px] mt-0.5" v-else-if="row.citybox_submit_status === 'reverted'"><span class="text-gray-600">{{ $t('Count reverted') }}</span></div>
                               </div>
                               <!-- Smart Freezer: the same driver door-open (FREEZERCTL unlock). -->
                               <div class="mb-1" v-if="row.is_smart_freezer">
@@ -877,11 +877,11 @@
                                   :offline="row.vend ? !row.vend.is_online : false"
                                   compact
                                   :disabled="row.status < 3 && !(row.restock_photos?.before?.length)"
-                                  :disabled-reason="row.status < 3 && !(row.restock_photos?.before?.length) ? 'Take the before restock photo first (open the item)' : ''"
+                                  :disabled-reason="row.status < 3 && !(row.restock_photos?.before?.length) ? $t('Take the before restock photo first (open the item)') : ''"
                                 />
                                 <div class="text-[10px] mt-0.5 space-x-1">
-                                  <span :class="row.restock_photos?.before?.length ? 'text-green-700' : 'text-amber-700'">📷 Before {{ row.restock_photos?.before?.length ? '✓' : '—' }}</span>
-                                  <span :class="row.restock_photos?.after?.length ? 'text-green-700' : (row.status >= 3 ? 'text-red-600 font-semibold' : 'text-gray-500')">After {{ row.restock_photos?.after?.length ? '✓' : '—' }}</span>
+                                  <span :class="row.restock_photos?.before?.length ? 'text-green-700' : 'text-amber-700'">📷 {{ $t('Before') }} {{ row.restock_photos?.before?.length ? '✓' : '—' }}</span>
+                                  <span :class="row.restock_photos?.after?.length ? 'text-green-700' : (row.status >= 3 ? 'text-red-600 font-semibold' : 'text-gray-500')">{{ $t('After') }} {{ row.restock_photos?.after?.length ? '✓' : '—' }}</span>
                                 </div>
                               </div>
                               <Button
@@ -893,7 +893,7 @@
                               >
                                 <div class="flex space-x-2 items-center">
                                   <ArrowsRightLeftIcon class="h-3 w-3"></ArrowsRightLeftIcon>
-                                  <span>Driver</span>
+                                  <span>{{ $t('Driver') }}</span>
                                 </div>
                               </Button>
                             </template>
@@ -902,7 +902,7 @@
                         </template><!-- end mergedRows v-for -->
                         <tr v-if="!mergedRows.length">
                           <td colspan="11" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
-                            No Records Found
+                            {{ $t('No Records Found') }}
                           </td>
                         </tr>
                       </tbody>
@@ -925,7 +925,7 @@
                     <span class="flex space-x-1 items-center">
                       <TrashIcon class="w-4 h-4"></TrashIcon>
                       <span>
-                        Delete
+                        {{ $t('Delete') }}
                       </span>
                     </span>
                   </Button>
@@ -936,7 +936,7 @@
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
                       <span>
-                          Create API Invoice(s)
+                          {{ $t('Create API Invoice(s)') }}
                       </span>
                     </span>
                   </Button>
@@ -949,7 +949,7 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
@@ -1031,19 +1031,19 @@
           <span
             class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border"
             :class="taskStatusClass(statusTask?.status)"
-          >{{ statusTask?.status_name || 'Pending' }}</span>
+          >{{ statusTask?.status_name || $t('Pending') }}</span>
         </div>
       </template>
       <template #default>
         <div class="space-y-3 px-1">
           <!-- Picked by -->
           <div v-if="statusTask?.status >= 2 && statusTask?.picked_by_name" class="flex space-x-2 text-sm">
-            <span class="font-medium text-gray-700 w-28 shrink-0">Picked By</span>
+            <span class="font-medium text-gray-700 w-28 shrink-0">{{ $t('Picked By') }}</span>
             <span class="text-gray-600">{{ statusTask.picked_by_name }} ({{ statusTask.picked_at }})</span>
           </div>
           <!-- Completed by -->
           <div v-if="statusTask?.status >= 3 && statusTask?.completed_by_name" class="flex space-x-2 text-sm">
-            <span class="font-medium text-gray-700 w-28 shrink-0">Completed By</span>
+            <span class="font-medium text-gray-700 w-28 shrink-0">{{ $t('Completed By') }}</span>
             <span class="text-gray-600">{{ statusTask.completed_by_name }} ({{ statusTask.completed_at }})</span>
           </div>
 
@@ -1059,7 +1059,7 @@
               @click.prevent="undoTaskStatus(statusTask)"
             >
               <ArrowUturnLeftIcon class="w-4 h-4" />
-              <span>{{ statusTask?.status === 2 ? 'Undo Picked' : 'Undo Completed' }}</span>
+              <span>{{ statusTask?.status === 2 ? $t('Undo Picked') : $t('Undo Completed') }}</span>
             </Button>
             <div v-else />
 
@@ -1073,7 +1073,7 @@
               @click.prevent="advanceTaskStatus(statusTask)"
             >
               <CheckCircleIcon class="w-4 h-4" />
-              <span>{{ statusTask?.status === 1 ? 'Mark as Picked' : 'Mark as Completed' }}</span>
+              <span>{{ statusTask?.status === 1 ? $t('Mark as Picked') : $t('Mark as Completed') }}</span>
             </Button>
           </div>
         </div>
@@ -1088,14 +1088,14 @@
       :opsJobId="opsJob.id"
       :vend="form.vend_id || null"
       @close="showStockCheckModal = false"
-      @created="onStopCreated('Stock Count', $event)"
+      @created="onStopCreated($t('Stock Count'), $event)"
     />
     <CreateServiceNoticeModal
       :open="showServiceNoticeModal"
       :opsJobId="opsJob.id"
       :vend="form.vend_id || null"
       @close="showServiceNoticeModal = false"
-      @created="onStopCreated('Service Notice', $event)"
+      @created="onStopCreated($t('Service Notice'), $event)"
     />
   </Teleport>
 
@@ -1103,7 +1103,7 @@
   <Teleport to="body">
     <Modal :open="showTaskModal" @modalClose="closeTaskModal">
       <template #header>
-        <span class="text-base font-semibold">{{ editingTask ? 'Edit Task' : 'New Task' }}</span>
+        <span class="text-base font-semibold">{{ editingTask ? $t('Edit Task') : $t('New Task') }}</span>
       </template>
       <template #default>
         <form @submit.prevent="submitTask">
@@ -1112,16 +1112,16 @@
             <!-- Status badge only (edit mode) -->
             <div class="sm:col-span-6" v-if="editingTask">
               <div class="flex flex-wrap items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
-                <span class="text-sm font-medium text-gray-700">Status:</span>
+                <span class="text-sm font-medium text-gray-700">{{ $t('Status:') }}</span>
                 <span
                   class="inline-flex justify-center items-center rounded px-2 py-0.5 text-xs font-medium border"
                   :class="taskStatusClass(editingTask.status)"
-                >{{ editingTask.status_name || 'Pending' }}</span>
+                >{{ editingTask.status_name || $t('Pending') }}</span>
                 <span v-if="editingTask.status >= 2 && editingTask.picked_by_name" class="text-xs text-gray-500">
-                  · Picked by <span class="font-medium text-gray-700">{{ editingTask.picked_by_name }}</span> ({{ editingTask.picked_at }})
+                  · {{ $t('Picked by') }} <span class="font-medium text-gray-700">{{ editingTask.picked_by_name }}</span> ({{ editingTask.picked_at }})
                 </span>
                 <span v-if="editingTask.status >= 3 && editingTask.completed_by_name" class="text-xs text-gray-500">
-                  · Completed by <span class="font-medium text-gray-700">{{ editingTask.completed_by_name }}</span> ({{ editingTask.completed_at }})
+                  · {{ $t('Completed by') }} <span class="font-medium text-gray-700">{{ editingTask.completed_by_name }}</span> ({{ editingTask.completed_at }})
                 </span>
               </div>
             </div>
@@ -1129,7 +1129,7 @@
             <!-- Sequence (optional) -->
             <div class="sm:col-span-6">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Sequence <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+                {{ $t('Sequence') }} <span class="text-gray-400 ml-1 text-xs">{{ $t('(optional)') }}</span>
               </label>
               <input
                 type="number"
@@ -1137,21 +1137,21 @@
                 step="any"
                 v-model="taskForm.sequence"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
-                placeholder="Leave blank to append"
+                :placeholder="$t('Leave blank to append')"
               />
             </div>
 
             <!-- Task Name -->
             <div class="sm:col-span-6">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Task Name <span class="text-red-500 ml-0.5">*</span>
+                {{ $t('Task Name') }} <span class="text-red-500 ml-0.5">*</span>
               </label>
               <input
                 type="text"
                 v-model="taskForm.task_name"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
                 :class="taskFormErrors.task_name ? 'border-red-400' : ''"
-                placeholder="e.g. Collect key from security"
+                :placeholder="$t('e.g. Collect key from security')"
               />
               <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.task_name">{{ taskFormErrors.task_name }}</p>
             </div>
@@ -1159,7 +1159,7 @@
             <!-- Postcode + Address (same row) -->
             <div class="sm:col-span-2">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Postcode <span class="text-red-500 ml-0.5">*</span>
+                {{ $t('Postcode') }} <span class="text-red-500 ml-0.5">*</span>
               </label>
               <input
                 type="text"
@@ -1167,21 +1167,21 @@
                 maxlength="6"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
                 :class="taskFormErrors.postcode ? 'border-red-400' : ''"
-                placeholder="6-digit postcode"
+                :placeholder="$t('6-digit postcode')"
               />
               <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.postcode">{{ taskFormErrors.postcode }}</p>
             </div>
 
             <div class="sm:col-span-4">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Address <span class="text-red-500 ml-0.5">*</span>
+                {{ $t('Address') }} <span class="text-red-500 ml-0.5">*</span>
               </label>
               <input
                 type="text"
                 v-model="taskForm.address"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
                 :class="taskFormErrors.address ? 'border-red-400' : ''"
-                placeholder="Full address"
+                :placeholder="$t('Full address')"
               />
               <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.address">{{ taskFormErrors.address }}</p>
             </div>
@@ -1189,7 +1189,7 @@
             <!-- Amount + Qty (same row) -->
             <div class="sm:col-span-3">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Amount <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+                {{ $t('Amount') }} <span class="text-gray-400 ml-1 text-xs">{{ $t('(optional)') }}</span>
               </label>
               <input
                 type="number"
@@ -1205,7 +1205,7 @@
 
             <div class="sm:col-span-3">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Qty <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+                {{ $t('Qty') }} <span class="text-gray-400 ml-1 text-xs">{{ $t('(optional)') }}</span>
               </label>
               <input
                 type="number"
@@ -1214,7 +1214,7 @@
                 v-model="taskForm.qty"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
                 :class="taskFormErrors.qty ? 'border-red-400' : ''"
-                placeholder="e.g. 5"
+                :placeholder="$t('e.g. 5')"
               />
               <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.qty">{{ taskFormErrors.qty }}</p>
             </div>
@@ -1222,27 +1222,27 @@
             <!-- Ops Note -->
             <div class="sm:col-span-6">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Ops Note <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+                {{ $t('Ops Note') }} <span class="text-gray-400 ml-1 text-xs">{{ $t('(optional)') }}</span>
               </label>
               <textarea
                 rows="2"
                 v-model="taskForm.ops_note"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
-                placeholder="Any special instructions..."
+                :placeholder="$t('Any special instructions...')"
               ></textarea>
             </div>
 
             <!-- Ref URL -->
             <div class="sm:col-span-6">
               <label class="flex justify-start text-sm font-medium text-gray-700">
-                Ref URL <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+                {{ $t('Ref URL') }} <span class="text-gray-400 ml-1 text-xs">{{ $t('(optional)') }}</span>
               </label>
               <input
                 type="text"
                 v-model="taskForm.ref_url"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
                 :class="taskFormErrors.ref_url ? 'border-red-400' : ''"
-                placeholder="https:// or www."
+                :placeholder="$t('https:// or www.')"
               />
               <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.ref_url">{{ taskFormErrors.ref_url }}</p>
             </div>
@@ -1259,7 +1259,7 @@
                 @click.prevent="deleteTask(editingTask)"
               >
                 <TrashIcon class="w-4 h-4" />
-                <span>Delete</span>
+                <span>{{ $t('Delete') }}</span>
               </Button>
               <div v-else />
 
@@ -1275,7 +1275,7 @@
                   @click.prevent="undoTaskStatusInline(editingTask)"
                 >
                   <ArrowUturnLeftIcon class="w-4 h-4" />
-                  <span>{{ editingTask.status === 2 ? 'Undo Picked' : 'Undo Completed' }}</span>
+                  <span>{{ editingTask.status === 2 ? $t('Undo Picked') : $t('Undo Completed') }}</span>
                 </Button>
 
                 <!-- Advance status (Picked / Completed) -->
@@ -1288,7 +1288,7 @@
                   @click.prevent="advanceTaskStatusInline(editingTask)"
                 >
                   <CheckCircleIcon class="w-4 h-4" />
-                  <span>{{ editingTask.status === 1 ? 'Picked' : 'Completed' }}</span>
+                  <span>{{ editingTask.status === 1 ? $t('Picked') : $t('Completed') }}</span>
                 </Button>
 
                 <!-- Update Task -->
@@ -1299,7 +1299,7 @@
                   :disabled="taskFormProcessing"
                 >
                   <CheckCircleIcon class="w-4 h-4" />
-                  <span>{{ editingTask ? 'Update Task' : 'Create Task' }}</span>
+                  <span>{{ editingTask ? $t('Update Task') : $t('Create Task') }}</span>
                 </Button>
               </div>
             </div>
@@ -1313,6 +1313,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
@@ -1349,8 +1350,8 @@ const props = defineProps({
 })
 
 const booleanStrictOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
 ])
 
 const emit = defineEmits(['modalClose'])
@@ -1437,17 +1438,17 @@ const mergedRows = ref([])
 // modelName. Used by the Renumber confirmation so it names the sort the way the
 // header does instead of leaking the DB column ("acc_vend_transactions_amount").
 const SORT_COLUMN_LABELS = {
-  sequence: 'Job Sequence',
-  delivery_postcode: 'Postcode',
-  refillable_amount: 'Refillable',
-  picked_amount: 'Picked',
-  stock_in_amount: 'Stock-in',
-  acc_vend_transactions_amount: 'Stock-out',
-  total_cash_amount: 'Cash Collected (Machine)',
-  total_cash_amount_from_vmc: 'CashAmt$ (VMC)',
-  delta_cash_amount: 'Cash Adjustment',
-  acc_vend_transactions_cash_amount: 'CashAmt$ (Trans)',
-  zone_name: 'Refilling Routes',
+  sequence: t('Job Sequence'),
+  delivery_postcode: t('Postcode'),
+  refillable_amount: t('Refillable'),
+  picked_amount: t('Picked'),
+  stock_in_amount: t('Stock-in'),
+  acc_vend_transactions_amount: t('Stock-out'),
+  total_cash_amount: t('Cash Collected (Machine)'),
+  total_cash_amount_from_vmc: t('CashAmt$ (VMC)'),
+  delta_cash_amount: t('Cash Adjustment'),
+  acc_vend_transactions_cash_amount: t('CashAmt$ (Trans)'),
+  zone_name: t('Refilling Routes'),
 }
 
 function rebuildMergedRows() {
@@ -1541,7 +1542,7 @@ function onStopCreated(label, created) {
   showStockCheckModal.value = false
   showServiceNoticeModal.value = false
   form.value.vend_id = ''
-  toast.success(label + ' ' + (created.display_code || '') + ' opened', { timeout: 3000 })
+  toast.success(t(':stop :code opened', { stop: label, code: created.display_code || '' }), { timeout: 3000 })
   statusUpdated()
 }
 
@@ -1554,7 +1555,7 @@ function addOpsJobItem() {
     }))
     .post('/ops-jobs/' + opsJob.value.id + '/item/create', {
       onSuccess: () => {
-        toast.success("Successfully Saved", {
+        toast.success(t("Successfully Saved"), {
           timeout: 3000
         });
         form.value.vend_id = ''
@@ -1566,7 +1567,7 @@ function addOpsJobItem() {
 }
 
 function syncCMSInvoices() {
-  const approval = confirm('Are you sure to send the data to CMS?');
+  const approval = confirm(t('Are you sure to send the data to CMS?'));
   if (!approval) {
       return;
   }
@@ -1579,7 +1580,7 @@ function syncCMSInvoices() {
       if (flash.error) {
         toast.error(flash.error, { timeout: 8000 })
       } else {
-        toast.success(flash.success || "Data Sent to CMS", { timeout: 3000 })
+        toast.success(flash.success || t("Data Sent to CMS"), { timeout: 3000 })
       }
     },
     preserveState: true,
@@ -1588,13 +1589,13 @@ function syncCMSInvoices() {
 }
 
 function syncInventory() {
-  const approval = confirm('Are you sure to sync inventory?');
+  const approval = confirm(t('Are you sure to sync inventory?'));
   if (!approval) {
       return;
   }
   form.value.post('/ops-jobs/' + opsJob.value.id + '/sync-inventory', {
     onSuccess: () => {
-      toast.success("Inventory Synced", {
+      toast.success(t("Inventory Synced"), {
         timeout: 3000
       });
     },
@@ -1604,14 +1605,14 @@ function syncInventory() {
 }
 
 function deleteOpsJobItem(opsJobItem) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
 
   form.value.delete('/ops-jobs/items/' + opsJobItem.id, {
     onSuccess: () => {
-      toast.success("Successfully Deleted", {
+      toast.success(t("Successfully Deleted"), {
         timeout: 3000
       });
       opsJob.value = props.opsJob.data
@@ -1723,7 +1724,7 @@ function onBatchAssignSuccess() {
 }
 
 function onDeleteClicked() {
-  const approval = confirm('Are you sure to delete this job?');
+  const approval = confirm(t('Are you sure to delete this job?'));
   if (!approval) {
       return;
   }
@@ -1863,10 +1864,11 @@ function onRenumberItemsClicked() {
   const sortKey = filters.value.sortKey
   const isDesc = filters.value.sortBy === false
   if (sortKey && (sortKey !== 'sequence' || isDesc)) {
+    const column = SORT_COLUMN_LABELS[sortKey] || sortKey
     const orderLabel = sortKey === 'sequence'
-      ? 'reversed Job Sequence (descending)'
-      : (SORT_COLUMN_LABELS[sortKey] || sortKey) + (isDesc ? ', descending' : ', ascending')
-    if (!confirm('Renumber will rewrite the Job Sequence as 1..N in the current display order (' + orderLabel + '). Continue?')) {
+      ? t('reversed Job Sequence (descending)')
+      : (isDesc ? t(':column, descending', { column }) : t(':column, ascending', { column }))
+    if (!confirm(t('Renumber will rewrite the Job Sequence as 1..N in the current display order (:order). Continue?', { order: orderLabel }))) {
       return
     }
   }
@@ -1883,7 +1885,7 @@ function onRenumberItemsClicked() {
     }))
     .post('/ops-jobs/' + opsJob.value.id + '/renumber', {
     onSuccess: () => {
-      toast.success("Successfully Renumbered", {
+      toast.success(t("Successfully Renumbered"), {
         timeout: 3000
       });
       opsJob.value = props.opsJob.data
@@ -1902,7 +1904,7 @@ function onSortClicked() {
     }))
     .post('/ops-jobs/' + opsJob.value.id + '/sort', {
     onSuccess: () => {
-      toast.success("Successfully Sort", {
+      toast.success(t("Successfully Sort"), {
         timeout: 3000
       });
       opsJob.value = props.opsJob.data
@@ -2142,23 +2144,23 @@ function advanceTaskStatus(task) {
   taskStatusProcessing.value = true
   axios.post('/ops-jobs/tasks/' + task.id + '/update-status')
     .then(res => {
-      toast.success('Status updated', { timeout: 3000 })
+      toast.success(t('Status updated'), { timeout: 3000 })
       _applyTaskUpdate(res.data.task)
     })
-    .catch(() => toast.error('Failed to update status', { timeout: 3000 }))
+    .catch(() => toast.error(t('Failed to update status'), { timeout: 3000 }))
     .finally(() => { taskStatusProcessing.value = false })
 }
 
 function undoTaskStatus(task) {
   if (!task) return
-  if (!confirm('Undo status change?')) return
+  if (!confirm(t('Undo status change?'))) return
   taskStatusProcessing.value = true
   axios.post('/ops-jobs/tasks/' + task.id + '/undo-status')
     .then(res => {
-      toast.success('Status undone', { timeout: 3000 })
+      toast.success(t('Status undone'), { timeout: 3000 })
       _applyTaskUpdate(res.data.task)
     })
-    .catch(() => toast.error('Failed to undo status', { timeout: 3000 }))
+    .catch(() => toast.error(t('Failed to undo status'), { timeout: 3000 }))
     .finally(() => { taskStatusProcessing.value = false })
 }
 
@@ -2168,26 +2170,26 @@ function advanceTaskStatusInline(task) {
   taskStatusProcessing.value = true
   axios.post('/ops-jobs/tasks/' + task.id + '/update-status')
     .then(res => {
-      toast.success('Status updated', { timeout: 3000 })
+      toast.success(t('Status updated'), { timeout: 3000 })
       _applyTaskUpdate(res.data.task)
       // patch editingTask so the modal badge + info refreshes immediately
       Object.assign(editingTask.value, res.data.task)
     })
-    .catch(() => toast.error('Failed to update status', { timeout: 3000 }))
+    .catch(() => toast.error(t('Failed to update status'), { timeout: 3000 }))
     .finally(() => { taskStatusProcessing.value = false })
 }
 
 function undoTaskStatusInline(task) {
   if (!task) return
-  if (!confirm('Undo status change?')) return
+  if (!confirm(t('Undo status change?'))) return
   taskStatusProcessing.value = true
   axios.post('/ops-jobs/tasks/' + task.id + '/undo-status')
     .then(res => {
-      toast.success('Status undone', { timeout: 3000 })
+      toast.success(t('Status undone'), { timeout: 3000 })
       _applyTaskUpdate(res.data.task)
       Object.assign(editingTask.value, res.data.task)
     })
-    .catch(() => toast.error('Failed to undo status', { timeout: 3000 }))
+    .catch(() => toast.error(t('Failed to undo status'), { timeout: 3000 }))
     .finally(() => { taskStatusProcessing.value = false })
 }
 
@@ -2236,20 +2238,20 @@ function submitTask() {
   taskFormErrors.value = {}
   // Client-side validation
   if (!taskForm.value.task_name?.trim()) {
-    taskFormErrors.value.task_name = 'Task name is required.'
+    taskFormErrors.value.task_name = t('Task name is required.')
   }
   if (!taskForm.value.address?.trim()) {
-    taskFormErrors.value.address = 'Address is required.'
+    taskFormErrors.value.address = t('Address is required.')
   }
   if (!taskForm.value.postcode?.trim()) {
-    taskFormErrors.value.postcode = 'Postcode is required.'
+    taskFormErrors.value.postcode = t('Postcode is required.')
   } else if (!/^\d{6}$/.test(taskForm.value.postcode.trim())) {
-    taskFormErrors.value.postcode = 'Postcode must be a 6-digit number.'
+    taskFormErrors.value.postcode = t('Postcode must be a 6-digit number.')
   }
   if (taskForm.value.value !== '' && taskForm.value.value !== null) {
     const val = parseFloat(taskForm.value.value)
     if (isNaN(val) || val < 0) {
-      taskFormErrors.value.value = 'Must be a non-negative number.'
+      taskFormErrors.value.value = t('Must be a non-negative number.')
     }
   }
   if (Object.keys(taskFormErrors.value).length > 0) return
@@ -2281,7 +2283,7 @@ function submitTask() {
 
   axios.post(url, payload)
     .then(() => {
-      toast.success(editingTask.value ? 'Task updated' : 'Task created', { timeout: 3000 })
+      toast.success(editingTask.value ? t('Task updated') : t('Task created'), { timeout: 3000 })
       closeTaskModal()
       statusUpdated()
     })
@@ -2295,7 +2297,7 @@ function submitTask() {
         })
         taskFormErrors.value = serverErrors
       } else {
-        toast.error('Failed to save task', { timeout: 3000 })
+        toast.error(t('Failed to save task'), { timeout: 3000 })
       }
     })
     .finally(() => {
@@ -2304,15 +2306,15 @@ function submitTask() {
 }
 
 function deleteTask(task) {
-  if (!confirm('Are you sure to delete this task?')) return
+  if (!confirm(t('Are you sure to delete this task?'))) return
   closeTaskModal()
   axios.delete('/ops-jobs/tasks/' + task.id)
     .then(() => {
-      toast.success('Task deleted', { timeout: 3000 })
+      toast.success(t('Task deleted'), { timeout: 3000 })
       statusUpdated()
     })
     .catch(() => {
-      toast.error('Failed to delete task', { timeout: 3000 })
+      toast.error(t('Failed to delete task'), { timeout: 3000 })
     })
 }
 

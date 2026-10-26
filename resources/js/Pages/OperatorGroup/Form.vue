@@ -3,43 +3,43 @@
     <Modal :open="showModal" @modalClose="$emit('modalClose')">
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
-          <span class="text-gray-600" v-if="props.group">Editing</span>
+          <span class="text-gray-600" v-if="props.group">{{ $t('Editing') }}</span>
           <span v-if="props.group">{{ props.group.name }}</span>
-          <span class="text-gray-600" v-else>Create Operator Group</span>
+          <span class="text-gray-600" v-else>{{ $t('Create Operator Group') }}</span>
         </div>
       </template>
       <template #default>
         <form @submit.prevent="submit" id="submit">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-2">
-              <FormInput v-model="form.code" :error="form.errors.code" required="true" placeholderStr="e.g. HIPL">
-                Code
+              <FormInput v-model="form.code" :error="form.errors.code" required="true" :placeholderStr="$t('e.g. HIPL')">
+                {{ $t('Code') }}
               </FormInput>
             </div>
             <div class="sm:col-span-4">
-              <FormInput v-model="form.name" :error="form.errors.name" required="true" placeholderStr="e.g. HIPL Group">
-                Name
+              <FormInput v-model="form.name" :error="form.errors.name" required="true" :placeholderStr="$t('e.g. HIPL Group')">
+                {{ $t('Name') }}
               </FormInput>
             </div>
 
             <div class="sm:col-span-6 border-t pt-3">
-              <p class="text-xs font-semibold text-gray-500 uppercase">Shared CIMB account</p>
-              <p class="text-xs text-gray-400">The originating account for this group's refund settlement (CIMB bulk file header).</p>
+              <p class="text-xs font-semibold text-gray-500 uppercase">{{ $t('Shared CIMB account') }}</p>
+              <p class="text-xs text-gray-400">{{ $t("The originating account for this group's refund settlement (CIMB bulk file header).") }}</p>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no" placeholderStr="10-digit CIMB account">
-                Bank Account No.
+              <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no" :placeholderStr="$t('10-digit CIMB account')">
+                {{ $t('Bank Account No.') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name" placeholderStr="Account holder name">
-                Bank Account Name
+              <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name" :placeholderStr="$t('Account holder name')">
+                {{ $t('Bank Account Name') }}
               </FormInput>
             </div>
 
             <div class="sm:col-span-6 border-t pt-3">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Operators in this group</label>
-              <p class="text-xs text-gray-400 mb-1">These operators all pay refunds from the account above.</p>
+              <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Operators in this group') }}</label>
+              <p class="text-xs text-gray-400 mb-1">{{ $t('These operators all pay refunds from the account above.') }}</p>
               <MultiSelect
                 v-model="form.operators"
                 :options="operatorChoices"
@@ -47,7 +47,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="label"
-                placeholder="Select operators"
+                :placeholder="$t('Select operators')"
                 open-direction="bottom"
                 :searchable="true"
                 class="mt-1"
@@ -61,7 +61,7 @@
                 v-model="form.is_active"
                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
               />
-              <label for="group_is_active" class="text-sm font-medium text-gray-700 cursor-pointer">Active</label>
+              <label for="group_is_active" class="text-sm font-medium text-gray-700 cursor-pointer">{{ $t('Active') }}</label>
             </div>
           </div>
           <div class="sm:col-span-6">
@@ -72,11 +72,11 @@
                 form="submit"
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                <span>Back</span>
+                <span>{{ $t('Back') }}</span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                <span>Save</span>
+                <span>{{ $t('Save') }}</span>
               </Button>
             </div>
           </div>
@@ -95,6 +95,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   group: Object,
@@ -153,10 +154,10 @@ function submit() {
 
   const opts = {
     onSuccess: () => {
-      toast.success('Operator group saved', { timeout: 3000 })
+      toast.success(t('Operator group saved'), { timeout: 3000 })
       emit('modalClose')
     },
-    onError: () => toast.error('Failed to save', { timeout: 3000 }),
+    onError: () => toast.error(t('Failed to save'), { timeout: 3000 }),
     preserveState: true,
     replace: true,
   }

@@ -9,6 +9,7 @@ import { CheckCircleIcon } from '@heroicons/vue/24/solid'
 import { ClockIcon } from '@heroicons/vue/24/outline'
 import Modal from '@/Components/Modal.vue'
 import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds'
+import { t, tk } from '@/i18n'
 
 const props = defineProps({
   machineHealth: {
@@ -278,42 +279,42 @@ const matrix21 = computed(() => {
   const meta = [
       {
           id: 'comp_fan_off',
-          label: '2A) Cooling Fan, in OFF condition',
-          sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning \niv) Alert dismissed once detected fan speed',
+          label: t('2A) Cooling Fan, in OFF condition'),
+          sub: t('Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning \niv) Alert dismissed once detected fan speed'),
           types: ['comp_fan_off'],
-          headers: { 1: '> 40 mins', 2: '> 60 mins' }
+          headers: { 1: tk('> 40 mins'), 2: tk('> 60 mins') }
       },
       {
           id: 'temps_above_0',
-          label: '2B) T1 or T2, above 0°C',
-          sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins',
-          note: 'Alert dismissed once temp below 0c',
+          label: t('2B) T1 or T2, above 0°C'),
+          sub: t('Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins'),
+          note: t('Alert dismissed once temp below 0c'),
           types: ['temps_above_0'],
-          headers: { 1: '> 30 mins', 2: '> 50 mins' }
+          headers: { 1: tk('> 30 mins'), 2: tk('> 50 mins') }
       },
       {
           id: 'temps_above_minus_8',
-          label: '2C) T1 or T2, above -8°C',
-          sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins',
-          note: 'Alert dismissed once temp below -8c',
+          label: t('2C) T1 or T2, above -8°C'),
+          sub: t('Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins'),
+          note: t('Alert dismissed once temp below -8c'),
           types: ['temps_above_minus_8'],
-          headers: { 1: '> 60 mins', 2: '> 90 mins' }
+          headers: { 1: tk('> 60 mins'), 2: tk('> 90 mins') }
       },
       {
           id: 'not_reach_minus_18',
-          label: '2D) T1 or T2, did not reach -18°C',
-          sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
-          note: 'Alert dismissed once temp below -18c',
+          label: t('2D) T1 or T2, did not reach -18°C'),
+          sub: t('Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur'),
+          note: t('Alert dismissed once temp below -18c'),
           types: ['not_reach_minus_18'],
-          headers: { 1: 'Within last 8 hours', 2: '> 8 hours' }
+          headers: { 1: tk('Within last 8 hours'), 2: tk('> 8 hours') }
       },
       {
           id: 'temps_above_minus_17_upward',
-          label: '2E) T1 or T2, above -17°C and upward trending',
-          sub: 'Possible component issue:\ni) Actuator door open and fan keeps running\nii) Compressor fail but fan still running',
-          note: 'Alert dismissed once temp below -17c',
+          label: t('2E) T1 or T2, above -17°C and upward trending'),
+          sub: t('Possible component issue:\ni) Actuator door open and fan keeps running\nii) Compressor fail but fan still running'),
+          note: t('Alert dismissed once temp below -17c'),
           types: ['temps_above_minus_17_upward'],
-          headers: { 1: '> 30 mins', 2: '> 50 mins' }
+          headers: { 1: tk('> 30 mins'), 2: tk('> 50 mins') }
       },
   ]
   const rows = [
@@ -326,35 +327,35 @@ const matrix22 = computed(() => {
     const meta = [
         {
             id: 'lowest_24h',
-            label: '3A) T1 & T2 lowest (last 24hrs)',
-            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Many purchases occur',
+            label: t('3A) T1 & T2 lowest (last 24hrs)'),
+            sub: t('Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Many purchases occur'),
             note: null,
             types: ['lowest_24h_above'],
-            headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
+            headers: { 1: tk('Above -21c'), 2: tk('Above -20c'), 3: tk('Above -19c') }
         },
         {
             id: 'lowest_72h',
-            label: '3B) T1 & T2 lowest (last 72hrs)',
-            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Temp probe malfunction',
+            label: t('3B) T1 & T2 lowest (last 72hrs)'),
+            sub: t('Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Temp probe malfunction'),
             note: null,
             types: ['lowest_72h_above'],
-            headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
+            headers: { 1: tk('Above -21c'), 2: tk('Above -20c'), 3: tk('Above -19c') }
         },
         {
             id: 'rising_lowest',
-            label: '3C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
-            sub: 'Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole air-leak',
+            label: t('3C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)'),
+            sub: t('Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole air-leak'),
             note: null,
             types: ['rising_t1_trend', 'rising_t2_trend'],
-            headers: { 1: 'Δ ≥ 1c', 2: 'Δ ≥ 2c', 3: 'Δ ≥ 3c' }
+            headers: { 1: tk('Δ ≥ 1c'), 2: tk('Δ ≥ 2c'), 3: tk('Δ ≥ 3c') }
         },
         {
             id: 't2_frozen',
-            label: '3D) T2, never above 2°C',
-            sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temp probe malfunction',
-            note: '\u2022 only for E/F/EG\n\u2022 exclude UDD\nAuto dismiss alert, once T2 reaches to -23.5c',
+            label: t('3D) T2, never above 2°C'),
+            sub: t('Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temp probe malfunction'),
+            note: t('• only for E/F/EG\n• exclude UDD\nAuto dismiss alert, once T2 reaches to -23.5c'),
             types: ['t2_frozen'],
-            headers: { 1: '> 24 hr', 2: '> 48 hr', 3: '> 72 hr' }
+            headers: { 1: tk('> 24 hr'), 2: tk('> 48 hr'), 3: tk('> 72 hr') }
         },
     ]
     const risingT1 = temperature.value.rising_lowest_t1_smart?.rows ?? []
@@ -687,15 +688,15 @@ const formatErrorDesc = (code, desc) => {
 
   const codeNum = Number(code)
   if (codeNum === 3) {
-    text = 'Microswitch not detected (Channel locked)'
+    text = t('Microswitch not detected (Channel locked)')
   } else if (codeNum === 5) {
-    text = 'Current overlimit, motor not turning (Channel locked)'
+    text = t('Current overlimit, motor not turning (Channel locked)')
   } else if (codeNum === 6) {
-    text = 'Microswitch pressed over time (Channel locked)'
+    text = t('Microswitch pressed over time (Channel locked)')
   } else if (codeNum === 7) {
-    text = 'Sensor error or fail to detect dispensed product'
+    text = t('Sensor error or fail to detect dispensed product')
   } else if (codeNum === 9) {
-    text = 'Sensor error and channel locked<br><span class="block mt-1 text-[10px] text-gray-500 font-medium leading-tight">3 consecutive Error #7</span>'
+    text = t('Sensor error and channel locked') + '<br><span class="block mt-1 text-[10px] text-gray-500 font-medium leading-tight">' + t('3 consecutive Error #7') + '</span>'
   }
 
   return text
@@ -703,7 +704,8 @@ const formatErrorDesc = (code, desc) => {
 
 const highlightChannelLocked = (text) => {
   if (!text) return ''
-  return text.replace(/(channel locked)/gi, '<span class="text-red-600 font-semibold">$1</span>')
+  // English, and the Chinese wording of "(channel locked)" in the translated descriptions (货道已锁定).
+  return text.replace(/(channel locked|货道已锁定)/gi, '<span class="text-red-600 font-semibold">$1</span>')
 }
 
 // History Modal Logic
@@ -796,11 +798,11 @@ const loadMoreHistory = () => {
 
 <template>
   <AuthenticatedLayout>
-    <Head title="Machine Health Dashboard" />
+    <Head :title="$t('Machine Health Dashboard')" />
 
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Machine Health Dashboard
+        {{ $t('Machine Health Dashboard') }}
       </h2>
     </template>
 
@@ -809,15 +811,15 @@ const loadMoreHistory = () => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900">Filters</h3>
+              <h3 class="text-lg font-semibold text-gray-900">{{ $t('Filters') }}</h3>
               <p class="text-sm text-gray-500">
-                Tune limits and detection windows to focus on the right cohorts.
+                {{ $t('Tune limits and detection windows to focus on the right cohorts.') }}
               </p>
             </div>
             <form class="mt-4 space-y-4" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Machine Limit</span>
+                  <span class="font-medium text-gray-700">{{ $t('Machine Limit') }}</span>
                   <input
                     v-model.number="filters.machine_limit"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -829,14 +831,14 @@ const loadMoreHistory = () => {
                 </label>
 
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Vend Prefix</span>
+                  <span class="font-medium text-gray-700">{{ $t('Vend Prefix') }}</span>
                   <MultiSelect
                     v-model="vendPrefixSelections"
                     :options="vendPrefixSelectOptions"
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     mode="tags"
                     class="mt-1"
@@ -845,14 +847,14 @@ const loadMoreHistory = () => {
                 </label>
 
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Operator</span>
+                  <span class="font-medium text-gray-700">{{ $t('Operator') }}</span>
                   <MultiSelect
                     v-model="operatorSelections"
                     :options="operatorSelectOptions"
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     mode="tags"
                     class="mt-1"
@@ -861,16 +863,16 @@ const loadMoreHistory = () => {
                 </label>
                 <SearchInput
                   v-model="filters.machine_codes_input"
-                  placeholderStr="Machine ID"
+                  :placeholderStr="$t('Machine ID')"
                 >
-                  Machine ID
-                  <span class="text-[9px]"> ("," for multiple) </span>
+                  {{ $t('Machine ID') }}
+                  <span class="text-[9px]"> {{ $t('("," for multiple)') }} </span>
                 </SearchInput>
               </div>
 
               <div class="flex space-x-3">
                 <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                  Apply
+                  {{ $t('Apply') }}
                 </Button>
               </div>
             </form>
@@ -881,14 +883,14 @@ const loadMoreHistory = () => {
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900">(1) Alert on Lost of Connectivity or Electricity</h3>
-                <p class="text-sm text-gray-500">Handling methods:</p>
+                <h3 class="text-lg font-semibold text-gray-900">{{ $t('(1) Alert on Lost of Connectivity or Electricity') }}</h3>
+                <p class="text-sm text-gray-500">{{ $t('Handling methods:') }}</p>
                 <div class="mt-2 text-xs text-gray-500 space-y-1">
-                  <div>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</div>
-                  <div>ii) Contact location personnel to confirm is power-trip happen on machine</div>
-                  <div>iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check</div>
+                  <div>{{ $t('i) Cross-check with other source of connectivity device (eg: cashless device; cctv)') }}</div>
+                  <div>{{ $t('ii) Contact location personnel to confirm is power-trip happen on machine') }}</div>
+                  <div>{{ $t('iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check') }}</div>
                 </div>
-                <p class="pt-2 text-sm text-gray-500">Offline hours</p>
+                <p class="pt-2 text-sm text-gray-500">{{ $t('Offline hours') }}</p>
               </div>
             </div>
 
@@ -908,10 +910,10 @@ const loadMoreHistory = () => {
                           ({{ bucket.rows.length }})
                         </span>
                         <span v-if="bucket.label === '> 12hr'" class="ml-2 text-xs font-normal text-gray-700">
-                          Max 60hr
+                          {{ $t('Max 60hr') }}
                         </span>
                       </span>
-                      <button @click="fetchHistory('connectivity', bucket.label, 'Offline History (' + bucket.label + ')', null, bucket.rows)" class="text-gray-500 hover:text-indigo-600">
+                      <button @click="fetchHistory('connectivity', bucket.label, $t('Offline History (:bucket)', { bucket: bucket.label }), null, bucket.rows)" class="text-gray-500 hover:text-indigo-600">
                           <ClockIcon class="w-4 h-4" />
                       </button>
                     </h4>
@@ -937,7 +939,7 @@ const loadMoreHistory = () => {
                           <div>{{ row.vend_prefix_name ?? '—' }}</div>
                           <div>{{ row.customer_name ?? '—' }}</div>
                           <div class="text-gray-400">
-                            Last connect: {{ formatDateTimeComma(row.last_contact_at) }}
+                            {{ $t('Last connect: :time', { time: formatDateTimeComma(row.last_contact_at) }) }}
                           </div>
                           <div
                               class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
@@ -945,7 +947,7 @@ const loadMoreHistory = () => {
                           >
                               <div class="flex flex-col items-center text-center">
                                   <span class="font-bold">
-                                      Card Terminal
+                                      {{ $t('Card Terminal') }}
                                   </span>
                                   <span>
                                       {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
@@ -958,7 +960,7 @@ const loadMoreHistory = () => {
                         v-if="!bucket.rows.length"
                         class="text-xs text-gray-400 italic text-center py-4"
                       >
-                        No machines
+                        {{ $t('No machines') }}
                       </li>
                     </ul>
                   </div>
@@ -970,18 +972,18 @@ const loadMoreHistory = () => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">Temperature Alert</h3>
+            <h3 class="text-lg font-semibold text-gray-900">{{ $t('Temperature Alert') }}</h3>
             <div class="text-sm text-gray-500">
-              <div>T1 = Machine's freezer temp</div>
-              <div>T2 = Evaporator Temp</div>
-              <div class="mt-1 text-xs italic">Note: Temperature alert, not able to monitor machines with 'offline' status</div>
+              <div>{{ $t('T1 = Machine\'s freezer temp') }}</div>
+              <div>{{ $t('T2 = Evaporator Temp') }}</div>
+              <div class="mt-1 text-xs italic">{{ $t('Note: Temperature alert, not able to monitor machines with \'offline\' status') }}</div>
             </div>
 
             <div v-if="false">
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temperature Window</span>
+                  <span class="font-medium text-gray-700">{{ $t('Temperature Window') }}</span>
                   <div class="grid grid-cols-2 gap-2">
                     <input
                       v-model.number="filters.temperature_window_days"
@@ -997,12 +999,12 @@ const loadMoreHistory = () => {
                     />
                   </div>
                   <span class="text-xs text-gray-500">
-                    Short vs. long lookback (days)
+                    {{ $t('Short vs. long lookback (days)') }}
                   </span>
                 </label>
 
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temp Delta Threshold</span>
+                  <span class="font-medium text-gray-700">{{ $t('Temp Delta Threshold') }}</span>
                   <input
                     v-model.number="filters.temperature_delta_threshold"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1012,7 +1014,7 @@ const loadMoreHistory = () => {
                 </label>
 
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temp Minimum Threshold (°C)</span>
+                  <span class="font-medium text-gray-700">{{ $t('Temp Minimum Threshold (°C)') }}</span>
                   <input
                     v-model.number="filters.temperature_min_threshold"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1023,7 +1025,7 @@ const loadMoreHistory = () => {
 
                 <div>
                   <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
+                    {{ $t('Apply') }}
                   </Button>
                 </div>
               </div>
@@ -1031,11 +1033,10 @@ const loadMoreHistory = () => {
             <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-3">
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  Rising Lowest Temperature
+                  {{ $t('Rising Lowest Temperature') }}
                 </h4>
                 <p class="text-xs text-gray-500">
-                  Δ ≥ {{ formatNumber(filters.temperature_delta_threshold, 1) }}°C over
-                  {{ temperature.rising_lowest?.window_days ?? filters.temperature_window_days }} days
+                  {{ $t('Δ ≥ :delta°C over :days days', { delta: formatNumber(filters.temperature_delta_threshold, 1), days: temperature.rising_lowest?.window_days ?? filters.temperature_window_days }) }}
                 </p>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1061,7 +1062,7 @@ const loadMoreHistory = () => {
                     </div>
                   </li>
                   <li v-if="!(temperature.rising_lowest?.rows?.length)">
-                    No machines breached the delta threshold.
+                    {{ $t('No machines breached the delta threshold.') }}
                   </li>
                 </ul>
                 <div v-if="canLoadMoreRising" class="mt-3 flex justify-center">
@@ -1070,14 +1071,14 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingRising"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  Highest Minimum ({{ temperature.worst_minima?.window_days ?? filters.temperature_long_window_days }} days)
+                  {{ $t('Highest Minimum (:days days)', { days: temperature.worst_minima?.window_days ?? filters.temperature_long_window_days }) }}
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1102,7 +1103,7 @@ const loadMoreHistory = () => {
                     </div>
                   </li>
                   <li v-if="!(temperature.worst_minima?.rows?.length)">
-                    All machines remained below target in the selected window.
+                    {{ $t('All machines remained below target in the selected window.') }}
                   </li>
                 </ul>
                 <div v-if="canLoadMoreWorstMinima" class="mt-3 flex justify-center">
@@ -1111,16 +1112,16 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingWorstMinima"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  Did Not Reach {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
+                  {{ $t('Did Not Reach :temp°C', { temp: formatNumber(filters.temperature_min_threshold, 1) }) }}
                 </h4>
-                <p class="text-xs text-gray-500">Last 12 hours of telemetry</p>
+                <p class="text-xs text-gray-500">{{ $t('Last 12 hours of telemetry') }}</p>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
                     v-for="row in notReachingRows"
@@ -1140,12 +1141,11 @@ const loadMoreHistory = () => {
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_recorded_at) }} ({{ row.reading_count }} samples)
+                      {{ formatDateTime(row.last_recorded_at) }} ({{ $t(':count samples', { count: row.reading_count }) }})
                     </div>
                   </li>
                   <li v-if="!(temperature.not_reaching_threshold?.rows?.length)">
-                    Every monitored machine hit the minimum threshold within the last 12
-                    hours.
+                    {{ $t('Every monitored machine hit the minimum threshold within the last 12 hours.') }}
                   </li>
                 </ul>
                 <div
@@ -1157,7 +1157,7 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingNotReaching"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
@@ -1167,7 +1167,7 @@ const loadMoreHistory = () => {
               <!-- (2) Operation Error / Critical Parts Failure -->
               <div class="mt-8">
                 <h4 class="text-sm font-bold text-gray-900 mb-4 bg-gray-100 p-2 rounded">
-                  (2) Operation Error / Critical Parts Failure
+                  {{ $t('(2) Operation Error / Critical Parts Failure') }}
                 </h4>
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
                   <div v-for="(group, idx) in matrix21" :key="group.id" class="border-b border-gray-200 last:border-b-0">
@@ -1185,8 +1185,8 @@ const loadMoreHistory = () => {
                       <div class="md:col-span-3 grid" :style="`grid-template-columns: repeat(${Object.keys(group.headers).length}, minmax(0, 1fr))`">
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
                             <div class="border-b border-red-800 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide shadow-sm flex justify-between items-center" :class="getMatrixHeaderClass(sev)">
-                              <span>{{ header }}</span>
-                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + header, null, group.cells[sev])" class="text-white hover:text-gray-200">
+                              <span>{{ $t(header) }}</span>
+                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + $t(header), null, group.cells[sev])" class="text-white hover:text-gray-200">
                                   <ClockIcon class="w-4 h-4" />
                               </button>
                             </div>
@@ -1209,11 +1209,11 @@ const loadMoreHistory = () => {
                                         <div class="text-xs text-gray-700 mb-2">
                                           <template v-if="row.alert_type === 't1_higher_than_t2'">
                                             <span class="block">
-                                              T1 vs T2 Diff: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.delta, 1) }}°C</span>
+                                              {{ $t('T1 vs T2 Diff:') }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.delta, 1) }}°C</span>
                                             </span>
                                           </template>
                                           <template v-else-if="row.alert_type === 'comp_fan_off'">
-                                            <span class="block text-gray-400 italic">No temp data</span>
+                                            <span class="block text-gray-400 italic">{{ $t('No temp data') }}</span>
                                           </template>
                                           <template v-else>
                                             <span v-if="row.meta_min_t1" class="block">
@@ -1223,15 +1223,15 @@ const loadMoreHistory = () => {
                                                 T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t2, 1) }}°C</span>
                                             </span>
                                             <span v-if="row.meta_val" class="block">
-                                                Val: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_val, 1) }}°C</span>
+                                                {{ $t('Val:') }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_val, 1) }}°C</span>
                                             </span>
                                           </template>
-                                          <div class="text-[10px] text-gray-400 mt-0.5" v-if="row.alert_type !== 'comp_fan_off'">at {{ formatDateTime(row.updated_at) }}</div>
+                                          <div class="text-[10px] text-gray-400 mt-0.5" v-if="row.alert_type !== 'comp_fan_off'">{{ $t('at :time', { time: formatDateTime(row.updated_at) }) }}</div>
                                         </div>
 
                                         <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
                                         <div class="flex flex-col space-y-1 w-full max-w-[120px]">
-                                          <span class="text-xs font-bold text-gray-900">Current Temp:</span>
+                                          <span class="text-xs font-bold text-gray-900">{{ $t('Current Temp:') }}</span>
 
                                           <!-- T1 -->
                                           <a :href="'/vends/' + row.vend_id + '/temp/1'" target="_blank" class="w-full">
@@ -1265,7 +1265,7 @@ const loadMoreHistory = () => {
               <!-- (3) Preventive Maintenance -->
               <div class="mt-8">
                 <h4 class="text-sm font-bold text-gray-900 mb-4 bg-gray-100 p-2 rounded">
-                  (3) Preventive maintenance / Temp raise alert
+                  {{ $t('(3) Preventive maintenance / Temp raise alert') }}
                 </h4>
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
                   <div v-for="(group, idx) in matrix22" :key="group.id" class="border-b border-gray-200 last:border-b-0">
@@ -1283,8 +1283,8 @@ const loadMoreHistory = () => {
                       <div class="md:col-span-3 grid" :style="`grid-template-columns: repeat(${Object.keys(group.headers).length}, minmax(0, 1fr))`">
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
                             <div :class="getMatrixHeaderClassGray(sev)" class="border-b border-gray-600 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide flex justify-between items-center">
-                              <span>{{ header }}</span>
-                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + header, null, group.cells[sev])" class="text-white hover:text-gray-200">
+                              <span>{{ $t(header) }}</span>
+                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + $t(header), null, group.cells[sev])" class="text-white hover:text-gray-200">
                                   <ClockIcon class="w-4 h-4" />
                               </button>
                             </div>
@@ -1306,33 +1306,33 @@ const loadMoreHistory = () => {
                                         <!-- Value Display -->
                                         <div class="text-xs text-gray-700 mb-2">
                                            <div v-if="row.alert_type.includes('rising')">
-                                              Last 24hrs lowest {{ row.alert_type.includes('t2') ? 'T2' : 'T1' }}: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.latest_min_temp, 1) }}°C</span>
-                                              <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
+                                              {{ $t('Last 24hrs lowest :sensor:', { sensor: row.alert_type.includes('t2') ? 'T2' : 'T1' }) }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.latest_min_temp, 1) }}°C</span>
+                                              <div class="text-[10px] text-gray-400 mt-0.5">{{ $t('at :time', { time: formatDateTime(row.updated_at) }) }}</div>
 
                                               <div class="mt-2" v-if="row.first_min_temp !== null">
-                                                  Last 48hrs lowest {{ row.alert_type.includes('t2') ? 'T2' : 'T1' }}: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.first_min_temp, 1) }}°C</span>
-                                                  <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.first_min_temp_at) }}</div>
+                                                  {{ $t('Last 48hrs lowest :sensor:', { sensor: row.alert_type.includes('t2') ? 'T2' : 'T1' }) }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.first_min_temp, 1) }}°C</span>
+                                                  <div class="text-[10px] text-gray-400 mt-0.5">{{ $t('at :time', { time: formatDateTime(row.first_min_temp_at) }) }}</div>
                                               </div>
 
-                                              <div class="mt-1 text-xs">Delta: {{ formatNumber(row.delta, 1) }}°C</div>
+                                              <div class="mt-1 text-xs">{{ $t('Delta: :delta°C', { delta: formatNumber(row.delta, 1) }) }}</div>
                                            </div>
                                            <div v-else>
                                               <span v-if="row.meta_min_t1" class="block">
-                                                  Last lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
+                                                  {{ $t('Last lowest T1:') }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
                                               </span>
                                               <span v-if="row.meta_min_t2" class="block">
-                                                  Last lowest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t2, 1) }}°C</span>
+                                                  {{ $t('Last lowest T2:') }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t2, 1) }}°C</span>
                                               </span>
                                               <span v-if="row.meta_max_temp" class="block">
-                                                  Last highest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_max_temp, 1) }}°C</span>
+                                                  {{ $t('Last highest T2:') }} <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_max_temp, 1) }}°C</span>
                                               </span>
-                                              <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
+                                              <div class="text-[10px] text-gray-400 mt-0.5">{{ $t('at :time', { time: formatDateTime(row.updated_at) }) }}</div>
                                            </div>
                                         </div>
 
                                         <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
                                         <div class="flex flex-col space-y-1 w-full max-w-[120px]">
-                                          <span class="text-xs font-bold text-gray-900">Current Temp:</span>
+                                          <span class="text-xs font-bold text-gray-900">{{ $t('Current Temp:') }}</span>
 
                                           <!-- T1 -->
                                           <a :href="'/vends/' + row.vend_id + '/temp/1'" target="_blank" class="w-full">
@@ -1368,7 +1368,7 @@ const loadMoreHistory = () => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">(4) Alert on Lost of Transaction/Sales</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ $t('(4) Alert on Lost of Transaction/Sales') }}</h3>
 
             <div class="mb-5 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
               <div class="flex">
@@ -1380,19 +1380,19 @@ const loadMoreHistory = () => {
                 <div class="ml-3 flex-1 text-sm text-blue-700">
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p class="font-bold text-blue-800 mb-1">Possible caused by:</p>
+                      <p class="font-bold text-blue-800 mb-1">{{ $t('Possible caused by:') }}</p>
                       <ol class="list-decimal list-inside ml-1 text-blue-800 space-y-0.5">
-                        <li>System or hardware hanged / faulty</li>
-                        <li>Poor connectivity (for cashless sales)</li>
-                        <li>No sales</li>
+                        <li>{{ $t('System or hardware hanged / faulty') }}</li>
+                        <li>{{ $t('Poor connectivity (for cashless sales)') }}</li>
+                        <li>{{ $t('No sales') }}</li>
                       </ol>
                     </div>
                     <div>
-                      <p class="font-bold text-blue-800 mb-1">Solution:</p>
+                      <p class="font-bold text-blue-800 mb-1">{{ $t('Solution:') }}</p>
                       <ol class="list-decimal list-inside ml-1 text-blue-800 space-y-0.5">
-                        <li>Remote restart VMC and APK</li>
-                        <li>Onsite check and reboot system</li>
-                        <li>Change sim card telco if is poor connectivity</li>
+                        <li>{{ $t('Remote restart VMC and APK') }}</li>
+                        <li>{{ $t('Onsite check and reboot system') }}</li>
+                        <li>{{ $t('Change sim card telco if is poor connectivity') }}</li>
                       </ol>
                     </div>
                   </div>
@@ -1403,7 +1403,7 @@ const loadMoreHistory = () => {
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-5 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No any Sales (>= hr)</span>
+                  <span class="font-medium text-gray-700">{{ $t('No any Sales (>= hr)') }}</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.any"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1412,7 +1412,7 @@ const loadMoreHistory = () => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Cash Sales (>= hr)</span>
+                  <span class="font-medium text-gray-700">{{ $t('No Cash Sales (>= hr)') }}</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.cash"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1421,7 +1421,7 @@ const loadMoreHistory = () => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Sales via Card Terminal (>= hr)</span>
+                  <span class="font-medium text-gray-700">{{ $t('No Sales via Card Terminal (>= hr)') }}</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.card"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1430,7 +1430,7 @@ const loadMoreHistory = () => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Sales via QR (>= hr)</span>
+                  <span class="font-medium text-gray-700">{{ $t('No Sales via QR (>= hr)') }}</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.qr"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1439,7 +1439,7 @@ const loadMoreHistory = () => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Digital Screen Activity (>= hr)</span>
+                  <span class="font-medium text-gray-700">{{ $t('No Digital Screen Activity (>= hr)') }}</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.digitalscreen"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1449,7 +1449,7 @@ const loadMoreHistory = () => {
                 </label>
                 <div>
                   <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
+                    {{ $t('Apply') }}
                   </Button>
                 </div>
               </div>
@@ -1457,7 +1457,7 @@ const loadMoreHistory = () => {
             <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  No any Sales ({{ noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }}hr)
+                  {{ $t('No any Sales (:hourshr)', { hours: noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }) }}
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1481,11 +1481,11 @@ const loadMoreHistory = () => {
                       L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                      {{ $t('Last on: :time', { time: formatDateTimeComma(row.last_transaction_at) }) }}
                     </div>
                   </li>
                   <li v-if="!(noTransactions.any_sales?.length)">
-                    All machines recorded recent transactions.
+                    {{ $t('All machines recorded recent transactions.') }}
                   </li>
                 </ul>
                 <div
@@ -1497,14 +1497,14 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingNoTxnAny"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  No Cash Sales ({{ noTransactions.thresholds?.cash ?? filters.no_txn_threshold_hours.cash }}hr)
+                  {{ $t('No Cash Sales (:hourshr)', { hours: noTransactions.thresholds?.cash ?? filters.no_txn_threshold_hours.cash }) }}
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1528,7 +1528,7 @@ const loadMoreHistory = () => {
                       L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                      {{ $t('Last on: :time', { time: formatDateTimeComma(row.last_transaction_at) }) }}
                     </div>
                     <div
                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
@@ -1537,7 +1537,7 @@ const loadMoreHistory = () => {
                     >
                        <div class="flex flex-col items-center text-center">
                            <span class="font-bold">
-                               Coin Float
+                               {{ $t('Coin Float') }}
                            </span>
                            <span>
                                {{ getCoinFloat(row) }}
@@ -1546,7 +1546,7 @@ const loadMoreHistory = () => {
                     </div>
                   </li>
                   <li v-if="!(noTransactions.cash_sales?.length)">
-                    No cash-specific gaps detected.
+                    {{ $t('No cash-specific gaps detected.') }}
                   </li>
                 </ul>
                 <div
@@ -1558,14 +1558,14 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingNoTxnCash"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  No Sales via Card Terminal ({{ noTransactions.thresholds?.card ?? filters.no_txn_threshold_hours.card }}hr)
+                  {{ $t('No Sales via Card Terminal (:hourshr)', { hours: noTransactions.thresholds?.card ?? filters.no_txn_threshold_hours.card }) }}
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1589,7 +1589,7 @@ const loadMoreHistory = () => {
                       L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                      {{ $t('Last on: :time', { time: formatDateTimeComma(row.last_transaction_at) }) }}
                     </div>
                     <div
                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
@@ -1597,7 +1597,7 @@ const loadMoreHistory = () => {
                     >
                        <div class="flex flex-col items-center text-center">
                            <span class="font-bold">
-                               Card Terminal
+                               {{ $t('Card Terminal') }}
                            </span>
                            <span>
                                {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
@@ -1606,7 +1606,7 @@ const loadMoreHistory = () => {
                     </div>
                   </li>
                   <li v-if="!(noTransactions.card_sales?.length)">
-                    No credit card gaps detected.
+                    {{ $t('No credit card gaps detected.') }}
                   </li>
                 </ul>
                 <div
@@ -1618,14 +1618,14 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingNoTxnCard"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  No Sales via QR ({{ noTransactions.thresholds?.qr ?? filters.no_txn_threshold_hours.qr }}hr)
+                  {{ $t('No Sales via QR (:hourshr)', { hours: noTransactions.thresholds?.qr ?? filters.no_txn_threshold_hours.qr }) }}
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1649,12 +1649,12 @@ const loadMoreHistory = () => {
                       L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                      {{ $t('Last on: :time', { time: formatDateTimeComma(row.last_transaction_at) }) }}
                     </div>
 
                   </li>
                   <li v-if="!(noTransactions.qr_sales?.length)">
-                    No QR sales gaps detected.
+                    {{ $t('No QR sales gaps detected.') }}
                   </li>
                 </ul>
                 <div
@@ -1666,14 +1666,14 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingNoTxnQrReal"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  No Digital Screen Activity ({{ noTransactions.thresholds?.digitalscreen ?? filters.no_txn_threshold_hours.digitalscreen }}hr)
+                  {{ $t('No Digital Screen Activity (:hourshr)', { hours: noTransactions.thresholds?.digitalscreen ?? filters.no_txn_threshold_hours.digitalscreen }) }}
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1697,7 +1697,7 @@ const loadMoreHistory = () => {
                       L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                      {{ $t('Last on: :time', { time: formatDateTimeComma(row.last_transaction_at) }) }}
                     </div>
                     <div class="flex gap-2 flex-wrap">
                       <div
@@ -1707,7 +1707,7 @@ const loadMoreHistory = () => {
                       >
                          <div class="flex flex-col items-center text-center">
                              <span class="font-bold">
-                                 Coin Float
+                                 {{ $t('Coin Float') }}
                              </span>
                              <span>
                                  {{ getCoinFloat(row) }}
@@ -1720,7 +1720,7 @@ const loadMoreHistory = () => {
                       >
                          <div class="flex flex-col items-center text-center">
                              <span class="font-bold">
-                                 Card Terminal
+                                 {{ $t('Card Terminal') }}
                              </span>
                              <span>
                                  {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
@@ -1730,7 +1730,7 @@ const loadMoreHistory = () => {
                     </div>
                   </li>
                   <li v-if="!(noTransactions.digitalscreen_sales?.length)">
-                    No digital screen gaps detected.
+                    {{ $t('No digital screen gaps detected.') }}
                   </li>
                 </ul>
                 <div
@@ -1742,7 +1742,7 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="loadRemainingNoTxnDigitalScreen"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
@@ -1753,16 +1753,16 @@ const loadMoreHistory = () => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900">(5) Channel Errors</h3>
+              <h3 class="text-lg font-semibold text-gray-900">{{ $t('(5) Channel Errors') }}</h3>
               <p class="text-sm text-gray-500">
-                Grouped by dispense stability vs. mechanical codes.
+                {{ $t('Grouped by dispense stability vs. mechanical codes.') }}
               </p>
             </div>
 
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Error Window (days)</span>
+                  <span class="font-medium text-gray-700">{{ $t('Error Window (days)') }}</span>
                   <input
                     v-model.number="filters.error_window_days"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1772,18 +1772,18 @@ const loadMoreHistory = () => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Show All Error(s)?</span>
+                  <span class="font-medium text-gray-700">{{ $t('Show All Error(s)?') }}</span>
                   <select
                     v-model="filters.show_all_errors"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   >
-                    <option :value="true">Yes (Include Cleared)</option>
-                    <option :value="false">No (Not yet Cleared only)</option>
+                    <option :value="true">{{ $t('Yes (Include Cleared)') }}</option>
+                    <option :value="false">{{ $t('No (Not yet Cleared only)') }}</option>
                   </select>
                 </label>
                 <div>
                   <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
+                    {{ $t('Apply') }}
                   </Button>
                 </div>
               </div>
@@ -1801,17 +1801,16 @@ const loadMoreHistory = () => {
                       {{ bucket.label }}
                     </h4>
                     <p class="text-xs text-gray-500">
-                      Window: {{ bucket.window_days }} days · Limit:
-                      {{ bucket.limit }} machines
+                      {{ $t('Window: :days days · Limit: :limit machines', { days: bucket.window_days, limit: bucket.limit }) }}
                     </p>
                   </div>
                   <div class="text-xs text-gray-500 flex flex-col items-end space-y-1">
                     <div>
-                      Errors: {{ bucket.codes?.map((code) => `E${code}`).join(', ') }}
+                      {{ $t('Errors: :codes', { codes: bucket.codes?.map((code) => `E${code}`).join(', ') }) }}
                     </div>
                     <div class="flex items-center space-x-1">
                       <CheckCircleIcon class="h-4 w-4 text-green-500" />
-                      <span>= Cleared</span>
+                      <span>{{ $t('= Cleared') }}</span>
                     </div>
                   </div>
                 </div>
@@ -1823,16 +1822,16 @@ const loadMoreHistory = () => {
                       </svg>
                     </div>
                     <div class="ml-3 flex-1 text-sm text-blue-700">
-                      <p class="font-bold text-blue-800 mb-2">Possible caused by:</p>
+                      <p class="font-bold text-blue-800 mb-2">{{ $t('Possible caused by:') }}</p>
                       <ol class="list-decimal pl-5 text-blue-800 space-y-1">
-                        <li>Spring position: need onsite to perform position tuning</li>
-                        <li>Sensor faulty: replace</li>
-                        <li>Product object too small/reflective surface, causing occasional sensor not able to detect</li>
+                        <li>{{ $t('Spring position: need onsite to perform position tuning') }}</li>
+                        <li>{{ $t('Sensor faulty: replace') }}</li>
+                        <li>{{ $t('Product object too small/reflective surface, causing occasional sensor not able to detect') }}</li>
                         <li>
-                          Human operation error:
+                          {{ $t('Human operation error:') }}
                           <ul class="list-disc pl-5 mt-1 space-y-0.5 text-blue-700">
-                            <li>no stock in the spring's slot;</li>
-                            <li>wrong inventory qty</li>
+                            <li>{{ $t('no stock in the spring\'s slot;') }}</li>
+                            <li>{{ $t('wrong inventory qty') }}</li>
                           </ul>
                         </li>
                       </ol>
@@ -1848,18 +1847,18 @@ const loadMoreHistory = () => {
                       </svg>
                     </div>
                     <div class="ml-3 flex-1 text-sm text-blue-700">
-                      <p class="font-bold text-blue-800 mb-2">Error caused by Switch and Motor:</p>
+                      <p class="font-bold text-blue-800 mb-2">{{ $t('Error caused by Switch and Motor:') }}</p>
                       <ul class="list-none space-y-2 text-blue-800">
                         <li>
-                          <span class="font-semibold">Error 3 & 6: Switch.</span>
+                          <span class="font-semibold">{{ $t('Error 3 & 6: Switch.') }}</span>
                           <ul class="list-disc pl-5 mt-0.5 text-blue-700">
-                            <li>Check switch position; replace faulty switch</li>
+                            <li>{{ $t('Check switch position; replace faulty switch') }}</li>
                           </ul>
                         </li>
                         <li>
-                          <span class="font-semibold">Error 4 & 5: Motor.</span>
+                          <span class="font-semibold">{{ $t('Error 4 & 5: Motor.') }}</span>
                           <ul class="list-disc pl-5 mt-0.5 text-blue-700">
-                            <li>Check motor's cable connection; replace faulty motor</li>
+                            <li>{{ $t('Check motor\'s cable connection; replace faulty motor') }}</li>
                           </ul>
                         </li>
                       </ul>
@@ -1873,21 +1872,21 @@ const loadMoreHistory = () => {
                       <tr>
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
                           <div class="flex flex-col space-y-1">
-                            <span>Machine</span>
-                            <span>Vend Prefix</span>
-                            <span>Site</span>
+                            <span>{{ $t('Machine') }}</span>
+                            <span>{{ $t('Vend Prefix') }}</span>
+                            <span>{{ $t('Site') }}</span>
                           </div>
                         </th>
 
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Counts of Error
+                          {{ $t('Counts of Error') }}
                         </th>
                         <th
                           v-for="code in bucket.codes"
                           :key="code"
                           class="px-4 py-2 text-left font-medium text-gray-500 align-top"
                         >
-                          <div class="whitespace-nowrap">Error {{ code }}</div>
+                          <div class="whitespace-nowrap">{{ $t('Error :code', { code }) }}</div>
                           <div class="text-xs font-normal text-gray-600 break-words w-24" v-html="highlightChannelLocked(formatErrorDesc(code, errorDefinitions[code]))"></div>
                         </th>
 
@@ -1920,7 +1919,7 @@ const loadMoreHistory = () => {
                           class="px-4 py-2 text-gray-700 text-xs"
                         >
                           <div class="font-bold mb-1 border-b border-gray-100 pb-1">
-                            Count = {{ getEventsForCode(row.events, code).length }}
+                            {{ $t('Count = :count', { count: getEventsForCode(row.events, code).length }) }}
                           </div>
                           <div
                             v-for="(event, index) in getEventsForCode(row.events, code)"
@@ -1945,7 +1944,7 @@ const loadMoreHistory = () => {
                           class="px-4 py-6 text-center text-sm text-gray-500"
                           :colspan="4 + (bucket.codes?.length ?? 0)"
                         >
-                          No events detected for this grouping.
+                          {{ $t('No events detected for this grouping.') }}
                         </td>
                       </tr>
                     </tbody>
@@ -1960,7 +1959,7 @@ const loadMoreHistory = () => {
                     type="button"
                     @click="expandBucketRows(bucket.key)"
                   >
-                    Load remaining
+                    {{ $t('Load remaining') }}
                   </Button>
                 </div>
               </div>
@@ -1971,17 +1970,16 @@ const loadMoreHistory = () => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-900">
-              (6) Stockout KPI Overview
+              {{ $t('(6) Stockout KPI Overview') }}
             </h3>
             <p class="text-sm text-gray-500">
-              Rolling {{ stockouts.metadata?.lookback_days ?? 30 }}-day window based on
-              refill telemetry.
+              {{ $t('Rolling :days-day window based on refill telemetry.', { days: stockouts.metadata?.lookback_days ?? 30 }) }}
             </p>
 
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Channel Limit (Stockouts)</span>
+                  <span class="font-medium text-gray-700">{{ $t('Channel Limit (Stockouts)') }}</span>
                   <input
                     v-model.number="filters.channel_limit"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -1992,7 +1990,7 @@ const loadMoreHistory = () => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Stockout Target (hours)</span>
+                  <span class="font-medium text-gray-700">{{ $t('Stockout Target (hours)') }}</span>
                   <input
                     v-model.number="filters.stockout_target_hours"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -2002,7 +2000,7 @@ const loadMoreHistory = () => {
                 </label>
                 <div>
                   <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
+                    {{ $t('Apply') }}
                   </Button>
                 </div>
               </div>
@@ -2010,17 +2008,17 @@ const loadMoreHistory = () => {
 
             <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
               <div class="rounded-lg border border-gray-200 p-4">
-                <p class="text-sm text-gray-500">Avg Stockout Duration</p>
+                <p class="text-sm text-gray-500">{{ $t('Avg Stockout Duration') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-indigo-700">
                   {{ formatDays(summary.average_duration_days) }}
                 </p>
                 <p class="text-xs text-gray-400">
-                  Target ≤ {{ formatDays(summary.target_days) }}
+                  {{ $t('Target ≤ :days', { days: formatDays(summary.target_days) }) }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
-                <p class="text-sm text-gray-500">Longest Stockout</p>
+                <p class="text-sm text-gray-500">{{ $t('Longest Stockout') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-rose-600">
                   {{ formatDays(summary.longest_duration_days) }}
                 </p>
@@ -2030,48 +2028,48 @@ const loadMoreHistory = () => {
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
-                <p class="text-sm text-gray-500">Recovery Within Target</p>
+                <p class="text-sm text-gray-500">{{ $t('Recovery Within Target') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-emerald-600">
                   {{ formatPercent(summary.recovery_rate) }}
                 </p>
                 <p class="text-xs text-gray-400">
-                  {{ summary.closed_events_count ?? 0 }} closed events
+                  {{ $t(':count closed events', { count: summary.closed_events_count ?? 0 }) }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-gray-200 p-4">
-                <p class="text-sm text-gray-500">Target (Hours)</p>
+                <p class="text-sm text-gray-500">{{ $t('Target (Hours)') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-gray-900">
                   {{ formatHours(summary.target_hours) }}
                 </p>
                 <p class="text-xs text-gray-400">
-                  Equivalent {{ formatDays(summary.target_days) }}
+                  {{ $t('Equivalent :days', { days: formatDays(summary.target_days) }) }}
                 </p>
               </div>
             </div>
 
             <div class="mt-6">
               <h4 class="text-sm font-semibold text-gray-700">
-                Top Channels by Stockout Duration
+                {{ $t('Top Channels by Stockout Duration') }}
               </h4>
               <div class="mt-2 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-4 py-2 text-left font-medium text-gray-500">
-                        Machine / Channel
+                        {{ $t('Machine / Channel') }}
                       </th>
                       <th class="px-4 py-2 text-left font-medium text-gray-500">
-                        Product
+                        {{ $t('Product') }}
                       </th>
                       <th class="px-4 py-2 text-left font-medium text-gray-500">
-                        Duration
+                        {{ $t('Duration') }}
                       </th>
                       <th class="px-4 py-2 text-left font-medium text-gray-500">
-                        Stockout At
+                        {{ $t('Stockout At') }}
                       </th>
                       <th class="px-4 py-2 text-left font-medium text-gray-500">
-                        Restocked At
+                        {{ $t('Restocked At') }}
                       </th>
                     </tr>
                   </thead>
@@ -2091,7 +2089,7 @@ const loadMoreHistory = () => {
                           {{ row.vend_prefix_name ?? '—' }}
                         </div>
                         <div class="text-xs text-gray-500">
-                          {{ row.customer_name ?? 'Unassigned' }}
+                          {{ row.customer_name ?? $t('Unassigned') }}
                         </div>
                       </td>
                       <td class="px-4 py-2 text-gray-700">
@@ -2105,7 +2103,7 @@ const loadMoreHistory = () => {
                             v-if="row.is_open"
                             class="ml-2 inline-flex items-center rounded bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700"
                           >
-                            Ongoing
+                            {{ $t('Ongoing') }}
                           </span>
                         </div>
                       </td>
@@ -2123,7 +2121,7 @@ const loadMoreHistory = () => {
                         class="px-4 py-6 text-center text-sm text-gray-500"
                         colspan="5"
                       >
-                        No stockout episodes recorded in the selected window.
+                        {{ $t('No stockout episodes recorded in the selected window.') }}
                       </td>
                     </tr>
                   </tbody>
@@ -2135,7 +2133,7 @@ const loadMoreHistory = () => {
                   type="button"
                   @click="loadRemainingStockouts"
                 >
-                  Load remaining
+                  {{ $t('Load remaining') }}
                 </Button>
               </div>
             </div>
@@ -2148,15 +2146,15 @@ const loadMoreHistory = () => {
     <Modal :show="showHistoryModal" @modalClose="showHistoryModal = false">
         <div class="p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">{{ historyTitle }}</h3>
-            <div v-if="historyLoading" class="text-center py-4">Loading...</div>
-            <div v-else-if="historyLogs.length === 0" class="text-center py-4 text-gray-500">No history found.</div>
+            <div v-if="historyLoading" class="text-center py-4">{{ $t('Loading...') }}</div>
+            <div v-else-if="historyLogs.length === 0" class="text-center py-4 text-gray-500">{{ $t('No history found.') }}</div>
             <div v-else class="overflow-x-auto max-h-[60vh]">
               <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th class="px-4 py-2 text-left font-medium text-gray-500">Machine</th>
-                    <th class="px-4 py-2 text-left font-bold text-red-600">Triggered at</th>
-                    <th class="px-4 py-2 text-left font-bold text-red-600">Dismissed at</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500">{{ $t('Machine') }}</th>
+                    <th class="px-4 py-2 text-left font-bold text-red-600">{{ $t('Triggered at') }}</th>
+                    <th class="px-4 py-2 text-left font-bold text-red-600">{{ $t('Dismissed at') }}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
@@ -2179,7 +2177,7 @@ const loadMoreHistory = () => {
                         <div class="text-xs text-gray-500">{{ log.customer_name }}</div>
                         <div class="text-xs text-gray-400 mt-0.5">{{ log.operator_name }}</div>
                         <div class="text-xs text-gray-400 mt-1" v-if="log.last_contact_at">
-                            Last connect: {{ formatDateTimeComma(log.last_contact_at) }}
+                            {{ $t('Last connect: :time', { time: formatDateTimeComma(log.last_contact_at) }) }}
                         </div>
                     </td>
                     <td class="px-4 py-2 text-gray-700">
@@ -2203,11 +2201,11 @@ const loadMoreHistory = () => {
                     @click="loadMoreHistory"
                     :disabled="historyLoading"
                 >
-                    {{ historyLoading ? 'Loading...' : 'Show More' }}
+                    {{ historyLoading ? $t('Loading...') : $t('Show More') }}
                 </Button>
             </div>
             <div class="mt-6 flex justify-end">
-                <Button @click="showHistoryModal = false" class="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 border">Close</Button>
+                <Button @click="showHistoryModal = false" class="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 border">{{ $t('Close') }}</Button>
             </div>
         </div>
     </Modal>

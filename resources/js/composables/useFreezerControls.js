@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useToast } from 'vue-toastification';
 import { FreezerStatus } from '@/support/freezerStatus';
+import { t, tk } from '@/i18n';
 
 /**
  * Talks to FreezerControlController for one freezer: polls its state, sends one command at a time,
@@ -37,10 +38,10 @@ export function useFreezerControls(vendId) {
 
     /** Why the controls are disabled, for the hover — empty when they are not. */
     const blockedReason = computed(() => {
-        if (!data.value.can_control) return 'You do not have permission to send commands to this machine.';
-        if (!data.value.supported) return "This machine's app is too old for remote controls.";
-        if (data.value.pending || sending.value) return 'Waiting for the machine to answer the last command.';
-        if (!data.value.is_online) return 'The machine is offline, so it cannot receive commands. Press Sync now to check.';
+        if (!data.value.can_control) return t('You do not have permission to send commands to this machine.');
+        if (!data.value.supported) return t("This machine's app is too old for remote controls.");
+        if (data.value.pending || sending.value) return t('Waiting for the machine to answer the last command.');
+        if (!data.value.is_online) return t('The machine is offline, so it cannot receive commands. Press Sync now to check.');
         return '';
     });
     /** Older than 10 minutes and the panel stops presenting the snapshot as current. */
@@ -87,8 +88,8 @@ export function useFreezerControls(vendId) {
                 const last = res.data.commands.find((c) => c.source === 'mark1');
                 if (last && last.op !== 'status') {
                     last.status === 'ok'
-                        ? toast.success(`${describeCommand(last)}: done`)
-                        : toast.warning(`${describeCommand(last)}: ${resultLabel(last.status)}`);
+                        ? toast.success(t(':command: done', { command: describeCommand(last) }))
+                        : toast.warning(t(':command: :result', { command: describeCommand(last), result: resultLabel(last.status) }));
                 }
             }
         } catch (e) {
@@ -105,7 +106,7 @@ export function useFreezerControls(vendId) {
             await axios.post(`/vends/${id()}/freezer-controls`, { op, args });
             await load();
         } catch (e) {
-            toast.error(e.response?.data?.message || 'Could not send the command.');
+            toast.error(e.response?.data?.message || t('Could not send the command.'));
         } finally {
             sending.value = false;
             inFlight.value = null;
@@ -142,68 +143,72 @@ export function useFreezerControls(vendId) {
 const SENT_BY_MARK1 = ['mark1', 'schedule'];
 
 const OP_LABELS = {
-    status: 'Sync status',
-    lock: 'Lock door',
-    unlock: 'Unlock door',
-    fan: 'Demist fan',
-    demistfan: 'Demist fan (auto)',
-    light: 'Light',
-    compressor: 'Compressor',
-    comprmode: 'Compressor control',
-    fanmode: 'Fan control',
-    setpoint: 'Setpoint',
-    delta: 'Delta (C0)',
-    volume: 'Volume',
-    logs: 'Pull logs',
-    boot: 'Machine booted',
-    selfcheck: 'Self-check',
-    restart: 'Restart app',
-    reboot: 'Reboot Android',
-    photo: 'Take photo',
-    diag: 'Diagnostics',
-    sdkcall: 'SDK call',
-    beep: 'Beep',
-    power: 'Mains',
-    thermostat: 'Compressor handed back',
-    camera: 'Camera',
+    status: tk('Sync status'),
+    lock: tk('Lock door'),
+    unlock: tk('Unlock door'),
+    fan: tk('Demist fan'),
+    demistfan: tk('Demist fan (auto)'),
+    light: tk('Light'),
+    compressor: tk('Compressor'),
+    comprmode: tk('Compressor control'),
+    fanmode: tk('Fan control'),
+    setpoint: tk('Setpoint'),
+    delta: tk('Delta (C0)'),
+    volume: tk('Volume'),
+    logs: tk('Pull logs'),
+    boot: tk('Machine booted'),
+    selfcheck: tk('Self-check'),
+    restart: tk('Restart app'),
+    reboot: tk('Reboot Android'),
+    photo: tk('Take photo'),
+    diag: tk('Diagnostics'),
+    sdkcall: tk('SDK call'),
+    beep: tk('Beep'),
+    power: tk('Mains'),
+    thermostat: tk('Compressor handed back'),
+    camera: tk('Camera'),
 };
 
 const RESULT_LABELS = {
-    pending: 'waiting',
-    ok: 'done',
-    refused: 'refused',
-    indeterminate: 'no answer from host',
-    unsupported: 'not supported',
-    busy: 'busy (sale)',
-    invalid: 'invalid',
-    expired: 'expired',
-    duplicate: 'duplicate',
-    error: 'error',
-    timeout: 'no answer',
+    pending: tk('waiting'),
+    ok: tk('done'),
+    refused: tk('refused'),
+    indeterminate: tk('no answer from host'),
+    unsupported: tk('not supported'),
+    busy: tk('busy (sale)'),
+    invalid: tk('invalid'),
+    expired: tk('expired'),
+    duplicate: tk('duplicate'),
+    error: tk('error'),
+    timeout: tk('no answer'),
 };
 
 /** One row of the timeline in words — shared by the table and the toast. */
 export function describeCommand(command) {
     const args = command.args || {};
-    if (command.op && command.op.startsWith('error:')) return `Error logged by ${command.op.slice(6)}`;
+    if (command.op && command.op.startsWith('error:')) return t('Error logged by :source', { source: command.op.slice(6) });
     if (command.op === 'compressor' && args.on === false && args.minutes) {
-        return `Compressor off for ${args.minutes === 30 ? '0.5' : args.minutes / 60} h`;
+        return t('Compressor off for :hours h', { hours: args.minutes === 30 ? '0.5' : args.minutes / 60 });
     }
-    if ('on' in args) return `${OP_LABELS[command.op]} ${args.on ? 'on' : 'off'}`;
-    if ('celsius' in args) return `${OP_LABELS[command.op]} ${args.celsius} °C`;
-    if ('step' in args) return `${OP_LABELS[command.op]} ${args.step}`;
+    if ('on' in args) return args.on ? t(':label on', { label: opLabel(command.op) }) : t(':label off', { label: opLabel(command.op) });
+    if ('celsius' in args) return `${opLabel(command.op)} ${args.celsius} °C`;
+    if ('step' in args) return `${opLabel(command.op)} ${args.step}`;
     if (command.op === 'logs') {
-        return 'Pull logs' + (args.minutes ? ` · last ${args.minutes} min` : '') + (args.grep ? ` · "${args.grep}"` : '');
+        return t('Pull logs') + (args.minutes ? ` · ${t('last :minutes min', { minutes: args.minutes })}` : '') + (args.grep ? ` · "${args.grep}"` : '');
     }
-    if (command.op === 'photo') return `Take photo · camera ${args.cameraId ?? 0}`;
-    if (command.op === 'diag') return `Diagnostics · ${args.probe || '?'}`;
-    if (command.op === 'sdkcall') return `SDK call · ${args.action || '?'}`;
-    if (command.op === 'beep') return `Beep · ${args.seconds ?? 3} s`;
-    return OP_LABELS[command.op] || command.op;
+    if (command.op === 'photo') return t('Take photo · camera :camera', { camera: args.cameraId ?? 0 });
+    if (command.op === 'diag') return `${t('Diagnostics')} · ${args.probe || '?'}`;
+    if (command.op === 'sdkcall') return `${t('SDK call')} · ${args.action || '?'}`;
+    if (command.op === 'beep') return `${t('Beep')} · ${args.seconds ?? 3} s`;
+    return opLabel(command.op);
+}
+
+function opLabel(op) {
+    return OP_LABELS[op] ? t(OP_LABELS[op]) : op;
 }
 
 export function resultLabel(status) {
-    return RESULT_LABELS[status] || status;
+    return RESULT_LABELS[status] ? t(RESULT_LABELS[status]) : status;
 }
 
 export function resultBadge(status) {

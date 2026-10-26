@@ -1,10 +1,10 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header >
         <div class="flex md:flex-row space-x-1">
           <span class="text-gray-600">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="user">
             {{ user.name }}
@@ -24,41 +24,41 @@
                     v-if="user"
                 >
                   <span v-if="user.is_active">
-                    Active
+                    {{ $t('Active') }}
                   </span>
                   <span v-if="!user.is_active">
-                    Not Active
+                    {{ $t('Not Active') }}
                   </span>
                 </div>
               </div>
               <div class="col-span-12 sm:col-span-4">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="col-span-12 sm:col-span-2">
                 <FormInput v-model="form.alias" :error="form.errors.alias">
-                  Alias
+                  {{ $t('Alias') }}
                 </FormInput>
               </div>
               <div class="col-span-12 sm:col-span-6">
                 <FormInput v-model="form.email" :error="form.errors.email">
-                  Email
+                  {{ $t('Email') }}
                 </FormInput>
               </div>
               <div class="col-span-12 sm:col-span-6">
                 <FormInput v-model="form.username" :error="form.errors.username">
-                  Username
+                  {{ $t('Username') }}
                 </FormInput>
               </div>
               <div class="col-span-12 sm:col-span-6">
-                <FormInput v-model="form.password" :error="form.errors.password" :placeholderStr="[type == 'update' ? 'Leave blank for same password' : '']" inputType="password" autocomplete="new-password">
-                  Password {{type == 'update' ? '(Override)' : ''}}
+                <FormInput v-model="form.password" :error="form.errors.password" :placeholderStr="[type == 'update' ? $t('Leave blank for same password') : '']" inputType="password" autocomplete="new-password">
+                  {{ type == 'update' ? $t('Password (Override)') : $t('Password') }}
                 </FormInput>
               </div>
               <div class="col-span-12 sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Phone Code
+                  {{ $t('Phone Code') }}
                 </label>
                 <MultiSelect
                   v-model="form.phone_country_id"
@@ -66,7 +66,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="country_name_phone_code"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -77,12 +77,12 @@
               </div>
               <div class="col-span-12 sm:col-span-3">
                 <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
-                  Phone Number
+                  {{ $t('Phone Number') }}
                 </FormInput>
               </div>
               <div class="col-span-12 sm:col-span-6" v-if="!operatorRole">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Role
+                  {{ $t('Role') }}
                 </label>
                 <MultiSelect
                   v-model="form.role_id"
@@ -90,7 +90,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -98,7 +98,7 @@
               </div>
               <div class="col-span-12 sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
                 </label>
                 <MultiSelect
                   v-model="form.operator_id"
@@ -106,7 +106,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 >
@@ -118,8 +118,8 @@
 
               <AccessBindingSection
                 v-if="form.id && user"
-                title="Access Vending Machine(s)"
-                addLabel="Vending Machine to Bind"
+                :title="$t('Access Vending Machine(s)')"
+                :addLabel="$t('Vending Machine to Bind')"
                 :showMode="false"
                 itemNoun="machine"
                 subjectNoun="user"
@@ -132,8 +132,8 @@
 
               <AccessBindingSection
                 v-if="form.id && user"
-                title="Access Product(s)"
-                addLabel="Product to Bind"
+                :title="$t('Access Product(s)')"
+                :addLabel="$t('Product to Bind')"
                 itemNoun="product"
                 subjectNoun="user"
                 optionLabel="full_name"
@@ -163,28 +163,26 @@
                     :minValue="operatorTransactionFloor ? operatorTransactionFloor.from : null"
                     :disabled="!permissions.includes('update users')"
                   >
-                    Transaction Access From
+                    {{ $t('Transaction Access From') }}
                   </FormInput>
                   <p class="mt-1 text-sm text-gray-500">
-                    Sales before this date are hidden from this user everywhere &mdash;
-                    Transactions, dashboards, reports and exports.
-                    <span class="font-medium">Leave blank to show all history.</span>
+                    {{ $t('Sales before this date are hidden from this user everywhere — Transactions, dashboards, reports and exports.') }}
+                    <span class="font-medium">{{ $t('Leave blank to show all history.') }}</span>
                   </p>
                   <p
                     v-if="operatorTransactionFloor"
                     class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
                   >
-                    <span class="font-semibold">Capped by operator.</span>
-                    {{ operatorTransactionFloor.operatorName }} is set to
+                    <span class="font-semibold">{{ $t('Capped by operator.') }}</span>
+                    {{ $t(':operator is set to', { operator: operatorTransactionFloor.operatorName }) }}
                     <span class="font-semibold">{{ operatorTransactionFloor.from }}</span>,
-                    so this user cannot see anything earlier &mdash; whatever is set here.
-                    Pick a later date to restrict them further.
+                    {{ $t('so this user cannot see anything earlier — whatever is set here. Pick a later date to restrict them further.') }}
                   </p>
                   <p
                     v-if="form.transaction_access_from"
                     class="mt-2 text-sm text-gray-600"
                   >
-                    Clear the field to give this user full history again.
+                    {{ $t('Clear the field to give this user full history again.') }}
                   </p>
                 </div>
               </div>
@@ -196,13 +194,13 @@
                     <span class="flex space-x-1 items-center" v-if="form.is_active">
                       <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
                       <span>
-                        Deactivate
+                        {{ $t('Deactivate') }}
                       </span>
                     </span>
                     <span class="flex space-x-1 items-center" v-else>
                       <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
                       <span>
-                        Activate
+                        {{ $t('Activate') }}
                       </span>
                     </span>
                   </div>
@@ -214,7 +212,7 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
@@ -222,7 +220,7 @@
                     <!-- @click.prevent="submit" -->
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save
+                      {{ $t('Save') }}
                     </span>
                   </Button>
                 </div>
@@ -238,6 +236,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
@@ -280,12 +279,12 @@ const unbindedProductOptions = ref([])
 const user = ref()
 
 const vendColumns = [
-  { key: 'code', label: 'Machine ID' },
-  { key: 'customer.name', label: 'Site' },
+  { key: 'code', label: t('Machine ID') },
+  { key: 'customer.name', label: t('Site') },
 ]
 const productColumns = [
-  { key: 'code', label: 'Product Code' },
-  { key: 'name', label: 'Product Name' },
+  { key: 'code', label: t('Product Code') },
+  { key: 'name', label: t('Product Name') },
 ]
 
 

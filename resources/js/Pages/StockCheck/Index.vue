@@ -1,6 +1,6 @@
 <template>
   <StopIndex
-    title="Stock Counts"
+    :title="$t('Stock Counts')"
     basePath="/stock-checks"
     exportName="StockCounts"
     exportPermission="export stock-checks"
@@ -11,16 +11,16 @@
     :extraFilter="MISMATCH_FILTER"
   >
     <template #head="{ filters: state, sortTable }">
-      <TableHead>Channel(s)</TableHead>
-      <TableHead>Mismatch</TableHead>
-      <TableHead>Variance (pcs)</TableHead>
-      <TableHead>Variance ({{ operatorCountry?.currency_symbol ?? '$' }})</TableHead>
-      <TableHead>Synced</TableHead>
-      <TableHeadSort modelName="counted_at" :sortKey="state.sortKey" :sortBy="state.sortBy" @sort-table="sortTable('counted_at')">Counted</TableHeadSort>
+      <TableHead>{{ $t('Channel(s)') }}</TableHead>
+      <TableHead>{{ $t('Mismatch') }}</TableHead>
+      <TableHead>{{ $t('Variance (pcs)') }}</TableHead>
+      <TableHead>{{ $t('Variance (:currency)', { currency: operatorCountry?.currency_symbol ?? '$' }) }}</TableHead>
+      <TableHead>{{ $t('Synced') }}</TableHead>
+      <TableHeadSort modelName="counted_at" :sortKey="state.sortKey" :sortBy="state.sortBy" @sort-table="sortTable('counted_at')">{{ $t('Counted') }}</TableHeadSort>
     </template>
     <template #cells="{ row, index, total }">
       <TableData :currentIndex="index" :totalLength="total" inputClass="text-center">
-        {{ row.channels_count }} <span class="text-xs text-gray-500">{{ row.is_random ? 'random' : 'all' }}</span>
+        {{ row.channels_count }} <span class="text-xs text-gray-500">{{ row.is_random ? $t('random') : $t('all') }}</span>
       </TableData>
       <TableData :currentIndex="index" :totalLength="total" inputClass="text-center">
         <template v-if="row.status === 3">
@@ -37,7 +37,7 @@
       </TableData>
       <TableData :currentIndex="index" :totalLength="total" inputClass="text-center">
         <span v-if="row.synced_at">{{ row.synced_at }}<br>{{ row.synced_by_name }}</span>
-        <span v-else-if="row.unsynced_mismatch_count" class="text-orange-600 text-xs">not synced</span>
+        <span v-else-if="row.unsynced_mismatch_count" class="text-orange-600 text-xs">{{ $t('not synced') }}</span>
       </TableData>
       <TableData :currentIndex="index" :totalLength="total" inputClass="text-center">
         {{ row.counted_at }}<span v-if="row.counted_by_name"><br>{{ row.counted_by_name }}</span>
@@ -52,6 +52,7 @@ import TableData from '@/Components/TableData.vue'
 import TableHead from '@/Components/TableHead.vue'
 import TableHeadSort from '@/Components/TableHeadSort.vue'
 import { usePage } from '@inertiajs/vue3'
+import { t } from '@/i18n'
 
 defineProps({
   stockChecks: Object,
@@ -64,8 +65,8 @@ const operatorCountry = usePage().props.auth.operatorCountry
 
 const MISMATCH_FILTER = {
   key: 'mismatch',
-  label: 'Result',
-  options: [{ id: 'all', value: 'All' }, { id: 'true', value: 'Any mismatch' }, { id: 'short', value: 'Short only' }],
+  label: t('Result'),
+  options: [{ id: 'all', value: t('All') }, { id: 'true', value: t('Any mismatch') }, { id: 'short', value: t('Short only') }],
 }
 
 function signed(value) {

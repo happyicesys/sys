@@ -26,7 +26,7 @@
         type="button"
         v-if="gatewayKey.secret"
         class="text-gray-400 hover:text-gray-600"
-        v-tooltip="revealed[gatewayKey.index] ? 'Hide' : 'Show'"
+        v-tooltip="revealed[gatewayKey.index] ? $t('Hide') : $t('Show')"
         @click.prevent="revealed[gatewayKey.index] = !revealed[gatewayKey.index]"
       >
         <EyeSlashIcon v-if="revealed[gatewayKey.index]" class="w-4 h-4"></EyeSlashIcon>
@@ -35,7 +35,7 @@
       <button
         type="button"
         class="text-gray-400 hover:text-gray-600"
-        v-tooltip="'Copy ' + gatewayKey.label"
+        v-tooltip="$t('Copy :label', { label: gatewayKey.label })"
         @click.prevent="copyGatewayKey(gatewayKey)"
       >
         <ClipboardIcon class="w-4 h-4"></ClipboardIcon>
@@ -51,6 +51,7 @@
 import { computed, reactive } from 'vue';
 import { ClipboardIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/20/solid';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   operatorPaymentGateway: Object,
@@ -89,9 +90,9 @@ async function copyGatewayKey(gatewayKey) {
   // that into a "copy it manually" toast rather than an unhandled rejection.
   try {
     await navigator.clipboard.writeText(gatewayKey.value)
-    toast.success(`${gatewayKey.label} copied.`)
+    toast.success(t(':label copied.', { label: gatewayKey.label }))
   } catch (error) {
-    toast.error('Could not copy to clipboard. Please copy manually.')
+    toast.error(t('Could not copy to clipboard. Please copy manually.'))
   }
 }
 </script>

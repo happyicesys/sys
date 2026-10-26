@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.user">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.user">
             {{ props.user.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New User
+            {{ $t('Create New User') }}
           </span>
         </div>
       </template>
@@ -19,32 +19,32 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="col-span-12 sm:col-span-4">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="col-span-12 sm:col-span-2">
               <FormInput v-model="form.alias" :error="form.errors.alias">
-                Alias
+                {{ $t('Alias') }}
               </FormInput>
             </div>
             <div class="col-span-12 sm:col-span-6">
               <FormInput v-model="form.email" :error="form.errors.email">
-                Email
+                {{ $t('Email') }}
               </FormInput>
             </div>
             <div class="col-span-12 sm:col-span-6">
               <FormInput v-model="form.username" :error="form.errors.username">
-                Username
+                {{ $t('Username') }}
               </FormInput>
             </div>
             <div class="col-span-12 sm:col-span-6">
-              <FormInput v-model="form.password" :error="form.errors.password" :placeholderStr="[type == 'update' ? 'Leave blank for same password' : '']" inputType="password" autocomplete="new-password">
-                Password {{type == 'update' ? '(Override)' : ''}}
+              <FormInput v-model="form.password" :error="form.errors.password" :placeholderStr="[type == 'update' ? $t('Leave blank for same password') : '']" inputType="password" autocomplete="new-password">
+                {{ type == 'update' ? $t('Password (Override)') : $t('Password') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Phone Code
+                {{ $t('Phone Code') }}
               </label>
               <MultiSelect
                 v-model="form.phone_country_id"
@@ -52,7 +52,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -63,12 +63,12 @@
             </div>
             <div class="sm:col-span-3">
               <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
-                Phone Number
+                {{ $t('Phone Number') }}
               </FormInput>
             </div>
             <div class="col-span-12 sm:col-span-6" v-if="!operatorRole">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Role
+                {{ $t('Role') }}
               </label>
               <MultiSelect
                 v-model="form.role_id"
@@ -76,7 +76,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -84,7 +84,7 @@
             </div>
             <div class="col-span-12 sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Operator
+                {{ $t('Operator') }}
               </label>
               <MultiSelect
                 v-model="form.operator_id"
@@ -92,7 +92,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -108,14 +108,14 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Vending Machine(s) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900">{{ $t('Access Vending Machine(s)') }}</span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-5" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vending Machine to Bind
+                {{ $t('Vending Machine to Bind') }}
               </label>
               <MultiSelect
                 v-model="form.vend_id"
@@ -123,7 +123,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 ref="multiselect"
@@ -144,7 +144,7 @@
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
-                  Add
+                  {{ $t('Add') }}
                 </span>
               </Button>
             </div>
@@ -160,13 +160,13 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Machine ID
+                          {{ $t('Machine ID') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Name
+                          {{ $t('Name') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Action
+                          {{ $t('Action') }}
                         </th>
                       </tr>
                     </thead>
@@ -199,7 +199,7 @@
                       </tr>
                       <tr v-if="!user.vends.length">
                         <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
-                          No Binding = Access to All
+                          {{ $t('No Binding = Access to All') }}
                         </td>
                       </tr>
                     </tbody>
@@ -218,14 +218,14 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <!-- @click.prevent="submit" -->
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -246,6 +246,7 @@ import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } fr
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   user: Object,
@@ -322,11 +323,11 @@ function submit() {
     }))
     .post('/users/create', {
       onSuccess: () => {
-        toast.success("User created successfully", { timeout: 3000 })
+        toast.success(t('User created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create user", { timeout: 3000 })
+        toast.error(t('Failed to create user'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -343,11 +344,11 @@ function submit() {
       }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("User updated successfully", { timeout: 3000 })
+        toast.success(t('User updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update user", { timeout: 3000 })
+        toast.error(t('Failed to update user'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

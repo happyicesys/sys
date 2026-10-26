@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col space-y-2 md:flex-row md:space-x-3 md:space-y-0 text-left">
           <span>
-            Job ID#
+            {{ $t('Job ID#') }}
             <span class="text-blue-800">
               {{ opsJobItem.ref_id }}
             </span>
           </span>
           <span>
-            Machine ID#
+            {{ $t('Machine ID#') }}
             <span class="text-blue-800">
               {{ vendCodeLabel(vend) }}
             </span>
@@ -36,7 +36,7 @@
           <dl class="divide-y divide-gray-100">
             <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2  && opsJobItem.pickedBy">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Picked By
+                {{ $t('Picked By') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <div class="flex space-x-2">
@@ -51,7 +51,7 @@
             </div>
             <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 3 && opsJobItem.completedBy">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Stock In By
+                {{ $t('Stock In By') }}
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <div class="flex space-x-2">
@@ -66,13 +66,13 @@
             </div>
             <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Remarks
+                {{ $t('Remarks') }}
               </dt>
               <dd class="text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <FormTextarea v-model="form.remarks" class="w-full" rows="3">
                 </FormTextarea>
                 <span v-if="opsJobItem.remarks_updated_at" class="text-gray-500 text-xs">
-                  Last {{ opsJobItem.remarks_updated_at }} ({{ opsJobItem.remarksUpdatedBy.name }})
+                  {{ $t('Last :time (:name)', { time: opsJobItem.remarks_updated_at, name: opsJobItem.remarksUpdatedBy.name }) }}
                 </span>
               </dd>
             </div>
@@ -87,7 +87,7 @@
           <span class="flex space-x-1 items-center">
             <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
             <span>
-              Save Remarks
+              {{ $t('Save Remarks') }}
             </span>
           </span>
         </Button>
@@ -106,7 +106,7 @@
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                         <div class="flex flex-col space-y-1 items-center">
                           <span>
-                            From {{ machineLabel }}
+                            {{ $t('From :machine', { machine: machineLabel }) }}
                           </span>
                           <div
                             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -117,7 +117,7 @@
                                (B) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                               </span>
                               <span v-else>
-                               Not Detected
+                               {{ $t('Not Detected') }}
                               </span>
                             </div>
                           </div>
@@ -137,28 +137,28 @@
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         <div class="flex flex-col space-y-2">
                           <span>
-                            Channel
+                            {{ $t('Channel') }}
                           </span>
                           <span>
-                            Image
+                            {{ $t('Image') }}
                           </span>
                           <span>
-                            Product
+                            {{ $t('Product') }}
                           </span>
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         <div class="flex flex-col space-y-2">
                           <span>
-                            Needed Qty/Capacity
+                            {{ $t('Needed Qty/Capacity') }}
                           </span>
                           <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                            Picked
+                            {{ $t('Picked') }}
                           </span>
                           <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                             <div class="flex flex-col space-y-1">
                               <span>
-                                Stock In
+                                {{ $t('Stock In') }}
                               </span>
                               <span>
                                 <div
@@ -173,25 +173,25 @@
                             </div>
                           </span>
                           <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            {{ machineLabel }} Inventory Count
+                            {{ $t(':machine Inventory Count', { machine: machineLabel }) }}
                           </span>
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div class="flex flex-col space-y-2">
                           <span>
-                            Before Refill
+                            {{ $t('Before Refill') }}
                           </span>
                           <span>
-                            Stock In
+                            {{ $t('Stock In') }}
                           </span>
                           <span>
-                            After Refill
+                            {{ $t('After Refill') }}
                           </span>
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                        {{ machineLabel }} Inventory Not Tally, Fixed?
+                        {{ $t(':machine Inventory Not Tally, Fixed?', { machine: machineLabel }) }}
                       </th>
                     </tr>
                   </thead>
@@ -263,7 +263,7 @@
                         v-if="channel.virtual_is_error && !channel.is_error_settle"
                         >
                           <span class="text-white text-xs shadow-sm">
-                            Fix?
+                            {{ $t('Fix?') }}
                           </span>
                         </button>
 
@@ -274,7 +274,7 @@
                           >
                             <div class="flex flex-col">
                                 <span class="font-semibold grow-0">
-                                  Fixed
+                                  {{ $t('Fixed') }}
                                 </span>
                             </div>
                           </div>
@@ -287,7 +287,7 @@
                     <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
                       <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="1">
                         <div class="flex justify-center">
-                          Total
+                          {{ $t('Total') }}
                         </div>
                       </td>
                       <td class="py-4 text-sm font-bold text-center text-gray-800">
@@ -345,7 +345,7 @@
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                         <div class="flex flex-col space-y-1 items-center">
                           <span>
-                            From {{ machineLabel }}
+                            {{ $t('From :machine', { machine: machineLabel }) }}
                           </span>
                           <div
                             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -356,7 +356,7 @@
                                (B) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                               </span>
                               <span v-else>
-                               Not Detected
+                               {{ $t('Not Detected') }}
                               </span>
                             </div>
                           </div>
@@ -377,21 +377,21 @@
                         #
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
-                        Image
+                        {{ $t('Image') }}
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
-                        Product
+                        {{ $t('Product') }}
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
-                        Needed Qty/ Capacity
+                        {{ $t('Needed Qty/ Capacity') }}
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                        Picked
+                        {{ $t('Picked') }}
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         <div class="flex flex-col space-y-1">
                           <span>
-                            Stock In
+                            {{ $t('Stock In') }}
                           </span>
                           <span>
                             <div
@@ -406,12 +406,12 @@
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                        {{ machineLabel }} Inventory Count
+                        {{ $t(':machine Inventory Count', { machine: machineLabel }) }}
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div class="flex flex-col space-y-1">
                           <span>
-                            Before Refill
+                            {{ $t('Before Refill') }}
                           </span>
                           <!-- <div
                             class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs font-medium border w-xs bg-green-500 text-white w-fit"
@@ -426,12 +426,12 @@
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                        Stock In
+                        {{ $t('Stock In') }}
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div>
                           <span>
-                            After Refill
+                            {{ $t('After Refill') }}
                           </span>
                           <!-- <div
                             class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs font-medium border w-xs bg-green-500 text-white w-fit"
@@ -446,7 +446,7 @@
                         </div>
                       </th>
                       <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                        {{ machineLabel }} Inventory Not Tally, Fixed?
+                        {{ $t(':machine Inventory Not Tally, Fixed?', { machine: machineLabel }) }}
                       </th>
                     </tr>
                   </thead>
@@ -516,7 +516,7 @@
                         v-if="channel.virtual_is_error && !channel.is_error_settle"
                         >
                           <span class="text-white text-xs shadow-sm">
-                            Fix?
+                            {{ $t('Fix?') }}
                           </span>
                         </button>
 
@@ -527,7 +527,7 @@
                           >
                             <div class="flex flex-col">
                                 <span class="font-semibold grow-0">
-                                  Fixed
+                                  {{ $t('Fixed') }}
                                 </span>
                             </div>
                           </div>
@@ -540,7 +540,7 @@
                     <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
                       <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="3">
                         <div class="flex justify-center">
-                          Total
+                          {{ $t('Total') }}
                         </div>
                       </td>
                       <td class="py-4 text-sm font-bold text-center text-gray-800">
@@ -577,7 +577,7 @@
             <div class="flex justify-between">
               <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Cash Collected (Machine)
+                  {{ $t('Cash Collected (Machine)') }}
                   <span class="text-red-500">*</span>
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
@@ -587,7 +587,7 @@
                   </div>
                 </dd>
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  CashAmt$ (VMC)
+                  {{ $t('CashAmt$ (VMC)') }}
                   <span class="text-red-500">*</span>
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
@@ -597,7 +597,7 @@
                   </div>
                 </dd>
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Cash Adjustment
+                  {{ $t('Cash Adjustment') }}
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
@@ -617,7 +617,7 @@
                   <span class="flex space-x-1 items-center">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Cash Collected
+                      {{ $t('Cash Collected') }}
                     </span>
                   </span>
                 </Button>
@@ -627,7 +627,7 @@
               <dt class="text-sm font-medium leading-6 text-gray-900">
                 <div class="flex flex-col space-y-1 items-center">
                   <div>
-                    Stock Out (Transactions)
+                    {{ $t('Stock Out (Transactions)') }}
                   </div>
                   <div
                     class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
@@ -635,14 +635,14 @@
                   >
                     <div class="flex flex-col font-semibold grow-0">
                       <span v-if="!opsJobItem.previous_ops_job_item_id">
-                        Not Detected
+                        {{ $t('Not Detected') }}
                       </span>
                       <span v-if="opsJobItem.previous_ops_job_item_id">
                         #{{ opsJobItem.previousOpsJobItem.ref_id }}
                       </span>
                       <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id">
                         <span>
-                          from
+                          {{ $t('from') }}
                         </span>
                         <span>
                           {{ opsJobItem.previousOpsJobItem ? opsJobItem.previousOpsJobItem.completed_at : '' }}
@@ -650,7 +650,7 @@
                       </span>
                       <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id">
                         <span>
-                          to
+                          {{ $t('to') }}
                         </span>
                         <span>
                           {{ opsJobItem.completed_at ? opsJobItem.completed_at : '' }}
@@ -663,7 +663,7 @@
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_count" class="font-semibold">
-                    Total Qty
+                    {{ $t('Total Qty') }}
                   </label>
                   <span class="py-3 px-2 font-semibold">
                     {{form.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0 })}}
@@ -674,7 +674,7 @@
                 </div>
                 <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_amount" class="font-semibold">
-                    Total Amount
+                    {{ $t('Total Amount') }}
                   </label>
                   <span class="py-3 px-2 font-semibold">
                     {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -684,7 +684,7 @@
                 </div>
                 <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_cash_amount" class="font-semibold">
-                    Cash Amount
+                    {{ $t('Cash Amount') }}
                   </label>
                   <span class="py-3 px-2 font-semibold">
                     {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -694,7 +694,7 @@
                 </div>
                 <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_cashless_amount" class="font-semibold">
-                    Cashless Amount
+                    {{ $t('Cashless Amount') }}
                   </label>
                   <span class="py-3 px-2 font-semibold">
                     {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_cashless_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -704,7 +704,7 @@
                 </div>
                 <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_promo_amount" class="font-semibold">
-                    Discount Amount
+                    {{ $t('Discount Amount') }}
                   </label>
                   <span class="py-3 px-2 font-semibold">
                     {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -723,7 +723,7 @@
               <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-center ">
-              <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+              <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> {{ $t('Attachment(s)') }} </span>
             </div>
           </div>
         </div>
@@ -748,7 +748,7 @@
               <span class="flex space-x-1 items-center">
                 <XCircleIcon class="w-4 h-4"></XCircleIcon>
                 <span>
-                  Cancel
+                  {{ $t('Cancel') }}
                 </span>
               </span>
             </Button>
@@ -761,7 +761,7 @@
               <span class="flex space-x-1 items-center">
                 <TrashIcon class="w-4 h-4"></TrashIcon>
                 <span>
-                  Delete
+                  {{ $t('Delete') }}
                 </span>
               </span>
             </Button>
@@ -776,7 +776,7 @@
               <span class="flex space-x-1 items-center">
                 <ClipboardDocumentCheckIcon class="w-4 h-4"></ClipboardDocumentCheckIcon>
                 <span>
-                  Picked
+                  {{ $t('Picked') }}
                 </span>
               </span>
             </Button>
@@ -789,7 +789,7 @@
             <span class="flex space-x-1 items-center">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Stock In
+                  {{ $t('Stock In') }}
                 </span>
               </span>
             </Button>
@@ -803,7 +803,7 @@
               <span class="flex space-x-1 items-center">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Verified
+                  {{ $t('Verified') }}
                 </span>
               </span>
             </Button>
@@ -816,7 +816,7 @@
               <span class="flex space-x-1 items-center">
                 <FlagIcon class="w-4 h-4"></FlagIcon>
                 <span>
-                  Flagged
+                  {{ $t('Flagged') }}
                 </span>
               </span>
             </Button>
@@ -838,6 +838,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import {ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ComputerDesktopIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import AttachmentList from '@/Components/AttachmentList.vue';
 import Button from '@/Components/Button.vue';
@@ -963,7 +964,7 @@ function isErrorSettleClicked(channel) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Settled", {
+      toast.success(t("Successfully Settled"), {
         timeout: 3000
       });
       emit('updatedNoRefresh')
@@ -982,24 +983,24 @@ function onConfirmClicked() {
   let confirmText = '';
 
   if(form.value.status == 1) {
-    confirmText = 'Are you sure you want to Picked? ';
+    confirmText = t('Are you sure you want to Picked?') + ' ';
     isConfirm = true;
   }
 
   if(form.value.status == 2) {
-    confirmText = 'Are you sure you want to Stock In? ';
+    confirmText = t('Are you sure you want to Stock In?') + ' ';
     isConfirm = true;
   }
 
   // Cash checks only where cash exists — a CityBox chiller has no cash block.
   const hasCash = !props.opsJobItem?.is_citybox_chiller;
   if(form.value.status == 2 && hasCash && form.value.cash_amount == 0) {
-    confirmText += 'Cash Collected = 0; ';
+    confirmText += t('Cash Collected = 0;') + ' ';
     isConfirm = true;
   }
 
   if(form.value.status == 2 && hasCash && form.value.temp_cash_amount_from_vmc == 0) {
-    confirmText += 'VMC Cash Amount = 0; ';
+    confirmText += t('VMC Cash Amount = 0;') + ' ';
     isConfirm = true;
   }
 
@@ -1024,7 +1025,7 @@ function onConfirmClicked() {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t("Successfully Updated"), {
         timeout: 3000
       });
       emit('statusUpdated')
@@ -1034,13 +1035,13 @@ function onConfirmClicked() {
 }
 
 function onCashCollectedClicked() {
-  const approval = confirm('Are you sure to confirm Cash Collection?');
+  const approval = confirm(t('Are you sure to confirm Cash Collection?'));
   if (!approval) {
       return;
   }
 
   if(form.value.cash_amount == 0 && form.value.temp_cash_amount_from_vmc == 0) {
-    const zeroApproval = confirm('Are you sure to confirm Cash Collection with 0 amount?');
+    const zeroApproval = confirm(t('Are you sure to confirm Cash Collection with 0 amount?'));
     if (!zeroApproval) {
         return;
     }
@@ -1051,7 +1052,7 @@ function onCashCollectedClicked() {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t("Successfully Saved"), {
         timeout: 3000
       });
       emit('statusUpdated')
@@ -1064,7 +1065,7 @@ function onSaveFormClicked() {
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update', form.value, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t("Successfully Saved"), {
         timeout: 3000
       });
     }
@@ -1075,7 +1076,7 @@ function onSaveRemarksClicked() {
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update/remarks', {remarks: form.value.remarks}, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t("Successfully Saved"), {
         timeout: 3000
       });
     }
@@ -1089,7 +1090,7 @@ function onStatusClicked(nextStatus) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Updated", {
+      toast.success(t("Successfully Updated"), {
         timeout: 3000
       });
       emit('statusUpdated')
@@ -1104,7 +1105,7 @@ function onVerifyClicked(verify) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      toast.success("Successfully Verified", {
+      toast.success(t("Successfully Verified"), {
         timeout: 3000
       });
       emit('statusUpdated')

@@ -11,36 +11,35 @@
       class="text-white flex items-center space-x-1"
       :class="[compact ? 'text-xs px-2 py-1' : '', disabled ? 'bg-gray-300 cursor-not-allowed' : 'bg-sky-700 hover:bg-sky-800']"
       :disabled="disabled || busy"
-      :title="disabledReason || 'Unlock the freezer for restocking'"
+      :title="disabledReason || $t('Unlock the freezer for restocking')"
       @click.prevent="askConfirm"
     >
       <LockOpenIcon class="h-4 w-4" />
-      <span>{{ busy ? 'Opening…' : label }}</span>
+      <span>{{ busy ? $t('Opening…') : label }}</span>
     </Button>
 
     <Teleport to="body">
       <Modal :open="confirming" @modalClose="confirming = false">
         <template #header>
-          <span class="font-semibold text-black">Open the freezer door?</span>
+          <span class="font-semibold text-black">{{ $t('Open the freezer door?') }}</span>
         </template>
         <template #default>
           <div class="text-sm text-gray-700 space-y-2">
             <p>
-              Open the door of freezer <b>{{ machineCode }}</b>
-              <span v-if="customerName"> at <b>{{ customerName }}</b></span>?
-              The lid will unlock <b>now</b>.
+              {{ $t('Open the door of freezer') }} <b>{{ machineCode }}</b>
+              <span v-if="customerName"> {{ $t('at') }} <b>{{ customerName }}</b></span>{{ $t('? The lid will unlock') }}
+              <b>{{ $t('now') }}</b>.
             </p>
             <p class="text-xs text-gray-500">
-              This is a restock (ops) open — not a customer sale. It is logged with your name and time.
-              The freezer refuses while a customer is mid-purchase; wait and try again.
+              {{ $t('This is a restock (ops) open — not a customer sale. It is logged with your name and time. The freezer refuses while a customer is mid-purchase; wait and try again.') }}
             </p>
             <p v-if="offline" class="text-xs text-amber-700">
-              This freezer is reported <b>offline</b> — the open will likely time out. You can still try.
+              {{ $t('This freezer is reported') }} <b>{{ $t('offline') }}</b> {{ $t('— the open will likely time out. You can still try.') }}
             </p>
           </div>
           <div class="mt-4 flex justify-end space-x-2">
-            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="confirming = false">Cancel</Button>
-            <Button type="button" class="bg-sky-700 hover:bg-sky-800 text-white" @click.prevent="open">Yes, open</Button>
+            <Button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800" @click.prevent="confirming = false">{{ $t('Cancel') }}</Button>
+            <Button type="button" class="bg-sky-700 hover:bg-sky-800 text-white" @click.prevent="open">{{ $t('Yes, open') }}</Button>
           </div>
         </template>
       </Modal>
@@ -55,6 +54,7 @@ import { LockOpenIcon } from '@heroicons/vue/20/solid'
 import axios from 'axios'
 import { onBeforeUnmount, ref } from 'vue'
 import { useToast } from 'vue-toastification'
+import { t, tk } from '@/i18n'
 
 const props = defineProps({
   itemId: { type: Number, required: true },
@@ -63,7 +63,7 @@ const props = defineProps({
   offline: Boolean,
   disabled: Boolean,
   disabledReason: String,
-  label: { type: String, default: 'Open Door' },
+  label: { type: String, default: () => t('Open Door') },
   compact: Boolean,
 })
 const emit = defineEmits(['opened'])
@@ -78,9 +78,9 @@ const POLL_MS = 2000
 const POLL_LIMIT = 60
 
 const REFUSALS = {
-  busy: 'A customer is using the freezer — wait for the sale to finish, then try again.',
-  timeout: 'The freezer did not answer — it may be offline. Check power / network at the site.',
-  unsupported: 'This freezer\'s app cannot open the door remotely.',
+  busy: tk('A customer is using the freezer — wait for the sale to finish, then try again.'),
+  timeout: tk('The freezer did not answer — it may be offline. Check power / network at the site.'),
+  unsupported: tk('This freezer\'s app cannot open the door remotely.'),
 }
 
 function askConfirm() { if (!props.disabled) confirming.value = true }
@@ -92,7 +92,7 @@ async function open() {
     const { data } = await axios.post(`/ops-jobs/items/${props.itemId}/freezer-open-door`)
     poll(data.cmd_id, 0)
   } catch (e) {
-    toast.error(e.response?.data?.message || 'Door open failed', { timeout: 8000 })
+    toast.error(e.response?.data?.message || t('Door open failed'), { timeout: 8000 })
     busy.value = false
   }
 }
@@ -106,13 +106,13 @@ function poll(cmdId, attempt) {
         return
       }
       if (data.status === 'ok') {
-        toast.success('Door unlocked — restock, then Stock In your count', { timeout: 6000 })
+        toast.success(t('Door unlocked — restock, then Stock In your count'), { timeout: 6000 })
         emit('opened')
       } else {
-        toast.error(REFUSALS[data.status] || ('Door open failed: ' + (data.message || data.status)), { timeout: 10000 })
+        toast.error(REFUSALS[data.status] ? t(REFUSALS[data.status]) : t('Door open failed: :reason', { reason: data.message || data.status }), { timeout: 10000 })
       }
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Could not read the freezer\'s answer', { timeout: 8000 })
+      toast.error(e.response?.data?.message || t('Could not read the freezer\'s answer'), { timeout: 8000 })
     }
     busy.value = false
   }, POLL_MS)

@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.status">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.status">
             {{ props.status.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Status
+            {{ $t('Create New Status') }}
           </span>
         </div>
       </template>
@@ -19,7 +19,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
           </div>
@@ -32,13 +32,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -57,6 +57,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   status: Object,
@@ -88,11 +89,11 @@ function submit() {
     form.value
     .post('/statuses/create', {
       onSuccess: () => {
-        toast.success("Status created successfully", { timeout: 3000 })
+        toast.success(t("Status created successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create status", { timeout: 3000 })
+        toast.error(t("Failed to create status"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -103,11 +104,11 @@ function submit() {
     form.value
       .post('/statuses/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Status updated successfully", { timeout: 3000 })
+        toast.success(t("Status updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update status", { timeout: 3000 })
+        toast.error(t("Failed to update status"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

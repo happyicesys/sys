@@ -1,7 +1,7 @@
 <template>
   <div v-if="children.length" class="mt-1.5 border-l-4 border-indigo-300 bg-indigo-50/70 rounded-r-md px-2 py-1.5 text-left">
     <div class="flex items-center gap-1 mb-1">
-      <span class="text-xs font-semibold text-indigo-700">↳ Blind flavours ({{ children.length }})</span>
+      <span class="text-xs font-semibold text-indigo-700">↳ {{ $t('Blind flavours (:count)', { count: children.length }) }}</span>
     </div>
     <div class="flex flex-wrap gap-1.5">
       <span
@@ -14,11 +14,11 @@
           :src="child.child_product.thumbnail_url"
           class="h-7 w-7 rounded-md object-contain bg-white p-0.5 ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
           alt=""
-          title="Click to enlarge"
+          :title="$t('Click to enlarge')"
           @click="openPreview(child)"
         />
         <span v-else class="h-7 w-7 rounded-md bg-indigo-100"></span>
-        {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : 'Flavour' }}
+        {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : $t('Flavour') }}
         <span class="text-indigo-500">{{ child.weight_pct }}%</span>
       </span>
     </div>

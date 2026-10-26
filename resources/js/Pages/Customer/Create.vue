@@ -1,9 +1,9 @@
 <template>
-  <Head title="Site" />
+  <Head :title="$t('Site')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create Site
+        {{ $t('Create Site') }}
       </h2>
     </template>
 
@@ -13,13 +13,13 @@
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
           <form @submit.prevent="submit" id="submit">
             <div class=" pb-5">
-                <!-- <h3 class="text-base font-semibold leading-6 text-gray-900 pb-3">Site</h3> -->
+                <!-- <h3 class="text-base font-semibold leading-6 text-gray-900 pb-3">{{ $t('Site') }}</h3> -->
                 <div class="relative mb-5">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-start">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Site </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site') }} </span>
                   </div>
                 </div>
 
@@ -37,7 +37,7 @@
                     v-if="customer.id && customer.person_id"
                 >
                     <div class="flex flex-col">
-                      From CMS
+                      {{ $t('From CMS') }}
                     </div>
                 </div>
                 <!-- <div
@@ -56,11 +56,11 @@
               <div class="sm:col-span-6">
                 <div class="flex items-end gap-2">
                   <div class="flex-1 min-w-0">
-                    <FormInput v-model="form.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                    <FormInput v-model="form.person_id" inputType="number" :placeholderStr="$t('CMS person id — links invoicing')">
                       <span class="inline-flex items-center gap-2">
-                        CMS Linking ID
+                        {{ $t('CMS Linking ID') }}
                         <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
-                          Open in CMS ↗
+                          {{ $t('Open in CMS ↗') }}
                         </a>
                       </span>
                     </FormInput>
@@ -79,7 +79,7 @@
                     @click.prevent="pullFromCms()"
                   >
                     <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': cmsPulling }"></ArrowPathIcon>
-                    <span>{{ cmsPulling ? 'Pulling…' : 'Pull from CMS' }}</span>
+                    <span>{{ cmsPulling ? $t('Pulling…') : $t('Pull from CMS') }}</span>
                   </Button>
                 </div>
                 <p
@@ -105,14 +105,14 @@
                 CMS link is re-enabled.
               -->
               <fieldset class="sm:col-span-6" v-if="false">
-                <legend class="sr-only">Plan</legend>
+                <legend class="sr-only">{{ $t('Plan') }}</legend>
                 <div class="flex space-x-5">
                   <div class="relative flex items-start" v-if="cmsEndpoint">
                     <div class="flex h-6 items-center">
                       <input id="isExisting" aria-describedby="is-existing-description" name="isExisting" type="radio" v-model="isExisting" value="1" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
-                      <label for="is_existing" class="font-medium text-gray-900">Pull From CMS</label>
+                      <label for="is_existing" class="font-medium text-gray-900">{{ $t('Pull From CMS') }}</label>
                     </div>
                   </div>
                   <div class="relative flex items-start">
@@ -120,7 +120,7 @@
                       <input id="isExisting" aria-describedby="is-new-description" name="isExisting" type="radio" v-model="isExisting" value="0" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
-                      <label for="is_new" class="font-medium text-gray-900">Create New Site</label>
+                      <label for="is_new" class="font-medium text-gray-900">{{ $t('Create New Site') }}</label>
                     </div>
                   </div>
                 </div>
@@ -129,7 +129,7 @@
               <div class="sm:col-span-6" v-if="!customer.id && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    CMS Customer
+                    {{ $t('CMS Customer') }}
                   </label>
                   <MultiSelect
                     v-model="form.cms_customer_id"
@@ -137,7 +137,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -153,15 +153,15 @@
                   </FormInput>
                 </div> -->
                 <div class="sm:col-span-5">
-                  <FormInput v-model="form.name" :error="form.errors.name" required="true" placeholderStr="Site Name">
-                    Site Name
+                  <FormInput v-model="form.name" :error="form.errors.name" required="true" :placeholderStr="$t('Site Name')">
+                    {{ $t('Site Name') }}
                   </FormInput>
                 </div>
 
                 <div class="sm:col-span-2">
                   <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
                   v-if="permissions.includes('update customers')">
-                    Begin Date
+                    {{ $t('Begin Date') }}
                   </DatePicker>
                 </div>
               </div>
@@ -172,7 +172,7 @@
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <div class="sm:col-span-3">
                   <label for="text" class="flex justify-start items-center text-sm font-medium text-gray-700">
-                    Status (Site)
+                    {{ $t('Status (Site)') }}
                   </label>
                   <MultiSelect
                     v-model="form.status_id"
@@ -180,7 +180,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   ></MultiSelect>
@@ -189,21 +189,21 @@
                   </div>
                   <!-- Active / Removed dates captured via the status prompt. -->
                   <p class="mt-1 text-xs text-gray-500" v-if="form.active_date">
-                    Active Date: {{ fmtDate(form.active_date) }}
+                    {{ $t('Active Date: :date', { date: fmtDate(form.active_date) }) }}
                   </p>
                   <p class="mt-1 text-xs text-gray-500" v-if="form.removed_date">
-                    Removed Date: {{ fmtDate(form.removed_date) }}
+                    {{ $t('Removed Date: :date', { date: fmtDate(form.removed_date) }) }}
                   </p>
                 </div>
                 <!-- Inactive Date — auto-captured server-side when the status is
                      set to "Inactive". Read-only (not user-settable). -->
                 <div class="sm:col-span-3" v-if="form.termination_date">
-                  <label class="flex justify-start text-sm font-medium text-gray-700">Inactive Date</label>
+                  <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Inactive Date') }}</label>
                   <div class="mt-1 text-sm text-gray-700">
                     {{ fmtDate(form.termination_date) }}
                   </div>
                   <p class="mt-1 text-xs text-gray-400">
-                    Auto-set when the site status is changed to Inactive.
+                    {{ $t('Auto-set when the site status is changed to Inactive.') }}
                   </p>
                 </div>
               </div>
@@ -211,8 +211,8 @@
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <div class="sm:col-span-3">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Reference Price Type
-                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
+                    {{ $t('Reference Price Type') }}
+                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Desired Price to be Set on Vending Machine')"></ExclamationCircleIcon>
                   </label>
                   <MultiSelect
                     v-model="form.selling_price_type"
@@ -220,7 +220,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   ></MultiSelect>
@@ -230,7 +230,7 @@
                      Reference Price Type. Inline with it on desktop. -->
                 <div class="sm:col-span-3">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Operator
+                    {{ $t('Operator') }}
                     <span class="text-red-500">
                        *
                     </span>
@@ -241,7 +241,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -265,16 +265,16 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Site Address (Machine Placement Exact Location) </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site Address (Machine Placement Exact Location)') }} </span>
                 </div>
               </div>
             </div>
 
 
             <div class="sm:col-span-6">
-              <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']" placeholderStr="Google Map URL">
+              <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']" :placeholderStr="$t('Google Map URL')">
                 <div class="flex space-x-1">
-                  <span> Google Map URL </span>
+                  <span> {{ $t('Google Map URL') }} </span>
                   <span v-if="form.address.map_url">
                     <a class="text-blue-700" target="_blank" rel="noopener noreferrer" :href="'//' + form.address.map_url">
                       <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
@@ -285,40 +285,40 @@
             </div>
             <div class="sm:col-span-6">
               <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider">
-                Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span>
+                {{ $t('Postcode') }} <span class="text-gray-400 font-normal">{{ $t('(key in to autofill)') }}</span>
               </SearchAddressInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']" placeholderStr="Unit Num">
-                Unit Num
+              <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']" :placeholderStr="$t('Unit Num')">
+                {{ $t('Unit Num') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" placeholderStr="Block Num">
-                Block Num
+              <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" :placeholderStr="$t('Block Num')">
+                {{ $t('Block Num') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields" placeholderStr="Building Name">
-                Building Name
+              <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields" :placeholderStr="$t('Building Name')">
+                {{ $t('Building Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields" placeholderStr="Street Name">
-                Street Name
+              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields" :placeholderStr="$t('Street Name')">
+                {{ $t('Street Name') }}
               </FormInput>
             </div>
             <!-- Country field removed from UI — single-country localized deployment.
                  form.address.country_id is defaulted from the operator's country
                  (auth.operatorCountry) in onMounted. -->
             <div class="sm:col-span-3 hidden">
-              <FormInput v-model="form.address.latitude" placeholderStr="Latitude">
-                Latitude
+              <FormInput v-model="form.address.latitude" :placeholderStr="$t('Latitude')">
+                {{ $t('Latitude') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3 hidden">
-              <FormInput v-model="form.address.longitude" placeholderStr="Longitude">
-                Longitude
+              <FormInput v-model="form.address.longitude" :placeholderStr="$t('Longitude')">
+                {{ $t('Longitude') }}
               </FormInput>
             </div>
 
@@ -326,26 +326,26 @@
                  Stored directly on the customers table. Phone is plain text —
                  no country code (single-country localized deployment). -->
             <div class="sm:col-span-6">
-              <FormInput v-model="form.site_contact_person" :error="form.errors.site_contact_person" placeholderStr="Site Contact Person">
-                Site Contact Person
+              <FormInput v-model="form.site_contact_person" :error="form.errors.site_contact_person" :placeholderStr="$t('Site Contact Person')">
+                {{ $t('Site Contact Person') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.site_phone_number" :error="form.errors.site_phone_number" placeholderStr="Site Phone Number">
-                Site Phone Number
+              <FormInput v-model="form.site_phone_number" :error="form.errors.site_phone_number" :placeholderStr="$t('Site Phone Number')">
+                {{ $t('Site Phone Number') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.site_alt_phone_number" :error="form.errors.site_alt_phone_number" placeholderStr="Alt Site Phone Number">
-                Alt Site Phone Number
+              <FormInput v-model="form.site_alt_phone_number" :error="form.errors.site_alt_phone_number" :placeholderStr="$t('Alt Site Phone Number')">
+                {{ $t('Alt Site Phone Number') }}
               </FormInput>
             </div>
 
             <!-- Remarks for the delivery address — free text, stored on the
                  customers table (address_remarks). -->
             <div class="sm:col-span-6">
-              <FormTextarea v-model="form.address_remarks" :error="form.errors.address_remarks" placeholderStr="e.g. Loading bay at rear, ask security for access" rows="2">
-                Remarks for Address
+              <FormTextarea v-model="form.address_remarks" :error="form.errors.address_remarks" :placeholderStr="$t('e.g. Loading bay at rear, ask security for access')" rows="2">
+                {{ $t('Remarks for Address') }}
               </FormTextarea>
             </div>
 
@@ -355,12 +355,12 @@
             <div class="sm:col-span-6 bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3 mb-3 shadow-sm" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
               <!-- Billing Contact -->
               <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-blue-200">
-                Billing Contact
+                {{ $t('Billing Contact') }}
               </h3>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
-              <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company">
-                Bill From (Company Full Name or Personal Name)
+              <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" :placeholderStr="$t('Company')">
+                {{ $t('Bill From (Company Full Name or Personal Name)') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
@@ -370,31 +370,31 @@
                   v-model="form.is_gst_registered"
                   class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                 />
-                <span class="text-sm font-medium text-gray-700"> Is GST Registered? </span>
+                <span class="text-sm font-medium text-gray-700"> {{ $t('Is GST Registered?') }} </span>
               </label>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" placeholderStr="Contact Person">
-                Billing Contact Person
+              <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" :placeholderStr="$t('Contact Person')">
+                {{ $t('Billing Contact Person') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" placeholderStr="One email per line (or comma-separated)" rows="2">
-                Email
+              <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" :placeholderStr="$t('One email per line (or comma-separated)')" rows="2">
+                {{ $t('Email') }}
               </FormTextarea>
             </div>
             <!-- Phone Code removed from UI — single-country localized deployment.
                  form.contact.phone_country_id is defaulted from the operator's
                  country (auth.operatorCountry) in onMounted. -->
             <div class="sm:col-span-3">
-              <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" placeholderStr="Phone Number">
-                Phone Number
+              <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" :placeholderStr="$t('Phone Number')">
+                {{ $t('Phone Number') }}
               </FormInput>
             </div>
             <!-- Alt Phone Code removed from UI — defaulted from operator country. -->
             <div class="sm:col-span-3">
-              <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" placeholderStr="Alt Phone Number">
-                Alt Phone Number
+              <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" :placeholderStr="$t('Alt Phone Number')">
+                {{ $t('Alt Phone Number') }}
               </FormInput>
             </div>
 
@@ -410,34 +410,34 @@
                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
               />
               <label for="billing_same_as_delivery" class="text-sm font-medium text-gray-700 cursor-pointer">
-                Billing Address same as Site Address
+                {{ $t('Billing Address same as Site Address') }}
               </label>
             </div>
 
             <template v-if="!form.is_billing_same_as_delivery">
               <div class="sm:col-span-6">
                 <SearchAddressInput v-model="form.billing_address.postcode" @selected="onBillingAddressSelected" :error="form.errors['billing_address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider">
-                  Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span>
+                  {{ $t('Postcode') }} <span class="text-gray-400 font-normal">{{ $t('(key in to autofill)') }}</span>
                 </SearchAddressInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.billing_address.unit_num" :error="form.errors['billing_address.unit_num']" placeholderStr="Unit Num">
-                  Unit Num
+                <FormInput v-model="form.billing_address.unit_num" :error="form.errors['billing_address.unit_num']" :placeholderStr="$t('Unit Num')">
+                  {{ $t('Unit Num') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.billing_address.block_num" :error="form.errors['billing_address.block_num']" placeholderStr="Block Num">
-                  Block Num
+                <FormInput v-model="form.billing_address.block_num" :error="form.errors['billing_address.block_num']" :placeholderStr="$t('Block Num')">
+                  {{ $t('Block Num') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.billing_address.building" :error="form.errors['billing_address.building']" :disabled="lockAddressFields" placeholderStr="Building Name">
-                  Building Name
+                <FormInput v-model="form.billing_address.building" :error="form.errors['billing_address.building']" :disabled="lockAddressFields" :placeholderStr="$t('Building Name')">
+                  {{ $t('Building Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.billing_address.street_name" :error="form.errors['billing_address.street_name']" :disabled="lockAddressFields" placeholderStr="Street Name">
-                  Street Name
+                <FormInput v-model="form.billing_address.street_name" :error="form.errors['billing_address.street_name']" :disabled="lockAddressFields" :placeholderStr="$t('Street Name')">
+                  {{ $t('Street Name') }}
                 </FormInput>
               </div>
               <!-- Country field removed from UI — defaulted from operator country. -->
@@ -446,12 +446,12 @@
 
               <!-- Bank Details -->
               <h3 class="text-lg font-semibold text-gray-900 mt-5 mb-3 pb-2 border-b border-blue-200">
-                Bank Details
+                {{ $t('Bank Details') }}
               </h3>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Bank Name
+                  {{ $t('Bank Name') }}
                 </label>
                 <MultiSelect
                   v-model="form.bank_id"
@@ -459,7 +459,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="top"
                   class="mt-1"
                 ></MultiSelect>
@@ -468,13 +468,13 @@
                 </div>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name" placeholderStr="Account Holder Name">
-                  Account Holder Name
+                <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name" :placeholderStr="$t('Account Holder Name')">
+                  {{ $t('Account Holder Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.bank_account_number" :error="form.errors.bank_account_number" placeholderStr="Account Number">
-                  Account Number
+                <FormInput v-model="form.bank_account_number" :error="form.errors.bank_account_number" :placeholderStr="$t('Account Number')">
+                  {{ $t('Account Number') }}
                 </FormInput>
               </div>
               </div>
@@ -491,7 +491,7 @@
                     >
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
-                        Save Site
+                        {{ $t('Save Site') }}
                       </span>
                     </Button>
                     <Link :href="'/customers'">
@@ -500,7 +500,7 @@
                       >
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                         <span>
-                          Back
+                          {{ $t('Back') }}
                         </span>
                       </Button>
                     </Link>
@@ -515,15 +515,15 @@
               <Teleport to="body">
                 <Modal :open="statusDateModal.open" @modalClose="cancelStatusDate">
                   <template #header>
-                    <span>{{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }}</span>
+                    <span>{{ statusDateModal.status === STATUS_REMOVED ? $t('Removed Date') : $t('Active Date') }}</span>
                   </template>
                   <div class="text-left">
                     <p class="text-xs text-gray-500 mb-3">
                       <template v-if="statusDateModal.status === STATUS_REMOVED">
-                        Enter the date this site is removed. Commission stops after this date (the removal month is prorated).
+                        {{ $t('Enter the date this site is removed. Commission stops after this date (the removal month is prorated).') }}
                       </template>
                       <template v-else>
-                        Enter the date this site becomes active. Commission is calculated from this date.
+                        {{ $t('Enter the date this site becomes active. Commission is calculated from this date.') }}
                       </template>
                     </p>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
@@ -532,7 +532,7 @@
                           v-model="statusDateModal.date"
                           :isPreviousNextButton="false"
                         >
-                          {{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }} <span class="text-red-500">*</span>
+                          {{ statusDateModal.status === STATUS_REMOVED ? $t('Removed Date') : $t('Active Date') }} <span class="text-red-500">*</span>
                         </DatePicker>
                         <p class="text-xs text-red-600 mt-1" v-if="statusDateModal.error">{{ statusDateModal.error }}</p>
                       </div>
@@ -543,14 +543,14 @@
                         class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                         @click="cancelStatusDate"
                       >
-                        Cancel
+                        {{ $t('Cancel') }}
                       </button>
                       <button
                         type="button"
                         class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                         @click="confirmStatusDate"
                       >
-                        Confirm
+                        {{ $t('Confirm') }}
                       </button>
                     </div>
                   </div>
@@ -566,6 +566,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
@@ -600,11 +601,11 @@ const form = ref(
 // Site Status options (mirrors Customer/Edit.vue + Customer::STATUSES_MAPPING).
 // id 3 is the relabelled "Removed" (formerly "Pending").
 const statusOptions = ref([
-  { id: 5, value: 'Potential' },
-  { id: 4, value: 'New' },
-  { id: 2, value: 'Active' },
-  { id: 3, value: 'Removed' },
-  { id: 1, value: 'Inactive' },
+  { id: 5, value: t('Potential') },
+  { id: 4, value: t('New') },
+  { id: 2, value: t('Active') },
+  { id: 3, value: t('Removed') },
+  { id: 1, value: t('Inactive') },
 ]);
 
 // Status ids that prompt for an effective date when chosen (mirrors
@@ -641,7 +642,7 @@ watch(() => form.value.status_id, (newVal, oldVal) => {
 function confirmStatusDate() {
   const d = statusDateModal.value.date;
   if (!d || d === 'Invalid date') {
-    statusDateModal.value.error = 'Please choose a date.';
+    statusDateModal.value.error = t('Please choose a date.');
     return;
   }
   const formatted = moment(d).format('YYYY-MM-DD');
@@ -667,8 +668,8 @@ function cancelStatusDate() {
 const adminCustomerOptions = ref([])
 
 const booleanStrictOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
 ])
 
 const cmsCustomerOptions = ref([])
@@ -929,15 +930,15 @@ async function pullFromCms() {
     })
     if (!data.found) {
       cmsPullOk.value = false
-      cmsPullMessage.value = data.message || 'No CMS person found for this ID.'
+      cmsPullMessage.value = data.message || t('No CMS person found for this ID.')
       return
     }
     applyCmsPull(data.data)
     cmsPullOk.value = true
-    cmsPullMessage.value = 'Pulled from CMS — review the fields below, then Save.'
+    cmsPullMessage.value = t('Pulled from CMS — review the fields below, then Save.')
   } catch (e) {
     cmsPullOk.value = false
-    cmsPullMessage.value = e?.response?.data?.message || 'Pull failed — please try again.'
+    cmsPullMessage.value = e?.response?.data?.message || t('Pull failed — please try again.')
   } finally {
     cmsPulling.value = false
   }

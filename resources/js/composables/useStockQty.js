@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import axios from 'axios';
 import moment from 'moment';
 import { useToast } from 'vue-toastification';
+import { t } from '@/i18n';
 
 /**
  * The SAVED machine's on-hand qty per SKU (VendStockQtyController), with each row's last hand
@@ -28,7 +29,7 @@ export function useStockQty(vendId) {
                 refusal.value = res.data.refusal;
                 isChiller.value = !!res.data.is_chiller;
             })
-            .catch(() => toast.error('Could not load stock qty', { timeout: 4000 }))
+            .catch(() => toast.error(t('Could not load stock qty'), { timeout: 4000 }))
             .finally(() => { loading.value = false });
     }
 
@@ -38,5 +39,5 @@ export function useStockQty(vendId) {
 /** One hand overwrite as "brian · 260930 11:03 pm (3 → 7)". */
 export function stockQtyLine(entry) {
     const at = entry.at ? moment(entry.at).format('YYMMDD hh:mm a') : '';
-    return (entry.who || 'unknown') + ' · ' + at + ' (' + entry.from + ' → ' + entry.to + ')';
+    return (entry.who || t('unknown')) + ' · ' + at + ' (' + entry.from + ' → ' + entry.to + ')';
 }

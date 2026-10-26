@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.cardTerminal">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.cardTerminal">
             {{ props.cardTerminal.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Card Terminal Company
+            {{ $t('Create New Card Terminal Company') }}
           </span>
         </div>
       </template>
@@ -19,7 +19,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6 flex items-start gap-2">
@@ -30,10 +30,9 @@
                 class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
               />
               <label for="card_terminal_can_bind_multiple_vends" class="text-sm text-gray-700 cursor-pointer">
-                <span class="font-medium">One terminal can serve several machines</span>
+                <span class="font-medium">{{ $t('One terminal can serve several machines') }}</span>
                 <span class="block text-xs text-gray-500">
-                  Off (default): binding a terminal to a machine releases it from any other machine.
-                  On: the same terminal stays bound to every machine it is given to.
+                  {{ $t('Off (default): binding a terminal to a machine releases it from any other machine. On: the same terminal stays bound to every machine it is given to.') }}
                 </span>
               </label>
             </div>
@@ -50,13 +49,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -75,6 +74,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   cardTerminal: Object,
@@ -107,11 +107,11 @@ function submit() {
     form.value
     .post('/card-terminals/create', {
       onSuccess: () => {
-        toast.success("Card terminal company created successfully", { timeout: 3000 })
+        toast.success(t('Card terminal company created successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create card terminal company", { timeout: 3000 })
+        toast.error(t('Failed to create card terminal company'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -122,11 +122,11 @@ function submit() {
     form.value
       .post('/card-terminals/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Card terminal company updated successfully", { timeout: 3000 })
+        toast.success(t('Card terminal company updated successfully'), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update card terminal company", { timeout: 3000 })
+        toast.error(t('Failed to update card terminal company'), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

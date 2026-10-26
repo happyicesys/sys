@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Error Code" />
+  <Head :title="$t('Error Code')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Weightage (Error Code)
+        {{ $t('Weightage (Error Code)') }}
       </h2>
     </template>
 
@@ -22,8 +22,8 @@
           </Button>
         </div> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Code" v-model="filters.code">
-            Code
+          <SearchInput :placeholderStr="$t('Code')" v-model="filters.code">
+            {{ $t('Code') }}
           </SearchInput>
         </div>
 
@@ -36,20 +36,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ vendChannelErrors.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ vendChannelErrors.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ vendChannelErrors.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -57,7 +57,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -77,13 +77,13 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
+                      {{ $t('Code') }}
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      {{ $t('Desc') }}
                     </TableHead>
                     <TableHeadSort modelName="weightage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('weightage')">
-                      Weightage (%)
+                      {{ $t('Weightage (%)') }}
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -111,7 +111,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                           <!-- <Button
@@ -128,7 +128,7 @@
                       </tr>
                 <tr v-if="!vendChannelErrors.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -150,6 +150,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/VendChannelError/Form.vue';
@@ -185,7 +186,7 @@ onMounted(() => {
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
@@ -197,16 +198,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(vendChannelError) {
-  const approval = confirm('Are you sure to delete ' + vendChannelError.name + '?');
+  const approval = confirm(t('Are you sure to delete :name?', { name: vendChannelError.name }));
   if (!approval) {
       return;
   }
   router.delete('/vend-channel-errors/' + vendChannelError.id, {
     onSuccess: () => {
-      toast.success("Machine channel error deleted successfully", { timeout: 3000 })
+      toast.success(t("Machine channel error deleted successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to delete machine channel error", { timeout: 3000 })
+      toast.error(t("Failed to delete machine channel error"), { timeout: 3000 })
     }
   })
 }

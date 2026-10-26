@@ -1,16 +1,16 @@
 <template>
 
-  <Head title="Happy Hour Campaign" />
+  <Head :title="$t('Happy Hour Campaign')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Happy Hour Campaign
+        {{ $t('Happy Hour Campaign') }}
         <span class="ml-2 align-middle inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-sky-100 text-sky-800 border-sky-300">
-          Smart Freezer
+          {{ $t('Smart Freezer') }}
         </span>
         <span class="ml-1 align-middle inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-violet-100 text-violet-800 border-violet-300">
-          Vending {{ minVendingApkVersion }}+
+          {{ $t('Vending :version+', { version: minVendingApkVersion }) }}
         </span>
       </h2>
     </template>
@@ -18,22 +18,14 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <p class="text-xs text-gray-500">
-          During a campaign's hours each machine shows one discounted SKU at a time on its welcome screen
-          (Happy Hour page) and charges the promo price for it. Each slot's SKU is picked about 2 minutes before
-          the slot starts, from that machine's stock at that moment — by default the highest stock balance %
-          (qty ÷ capacity; a tie goes to the higher stock) — and the top SKUs (the number set below) take turns, slot by slot.
-          A SKU that sells out ends its slot early.
-          Only freezers on app {{ minApkVersion }} or later and touchscreen vending machines (big board) on app
-          {{ minVendingApkVersion }} or later can run it. On a vending machine the promo price applies to orders placed
-          on the screen only (keypad, cash and coin stay at the machine price), and a machine bound to a UI Setting
-          ignores Happy Hour (<ExclamationCircleIcon class="inline w-3.5 h-3.5 text-orange-600 -mt-0.5" />) — it runs
-          its UI Setting only — until it is unbound from it.
+          {{ $t('During a campaign\'s hours each machine shows one discounted SKU at a time on its welcome screen (Happy Hour page) and charges the promo price for it. Each slot\'s SKU is picked about 2 minutes before the slot starts, from that machine\'s stock at that moment — by default the highest stock balance % (qty ÷ capacity; a tie goes to the higher stock) — and the top SKUs (the number set below) take turns, slot by slot. A SKU that sells out ends its slot early. Only freezers on app :freezer_version or later and touchscreen vending machines (big board) on app :vending_version or later can run it. On a vending machine the promo price applies to orders placed on the screen only (keypad, cash and coin stay at the machine price), and a machine bound to a UI Setting ignores Happy Hour', { freezer_version: minApkVersion, vending_version: minVendingApkVersion }) }}
+          (<ExclamationCircleIcon class="inline w-3.5 h-3.5 text-orange-600 -mt-0.5" />) — {{ $t('it runs its UI Setting only — until it is unbound from it.') }}
         </p>
 
         <div class="flex justify-end mt-3" v-if="permissions.includes('create happy-hour-campaigns')">
           <Button class="bg-green-500 hover:bg-green-600 text-white flex space-x-1" @click="openCreate()">
             <PlusIcon class="w-4 h-4" />
-            <span>New campaign</span>
+            <span>{{ $t('New campaign') }}</span>
           </Button>
         </div>
       </div>
@@ -45,11 +37,11 @@
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
-                  <TableHead>Campaign</TableHead>
+                  <TableHead>{{ $t('Campaign') }}</TableHead>
                   <!-- Status: the live boxes sort by Machine ID, Site Name or the machine's last 24 h of Happy Hour
                        (Brian, 2026-10-15; L24h qty, most first, by default); a second click flips the order. -->
                   <TableHead>
-                    <div>Status</div>
+                    <div>{{ $t('Status') }}</div>
                     <div v-for="(row, r) in liveSortRows" :key="r" class="mt-1 flex justify-center gap-3 font-normal">
                       <button v-for="k in row" :key="k.id" type="button" class="inline-flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
                         :title="k.title" @click="sortLive(k.id)">
@@ -60,13 +52,13 @@
                       </button>
                     </div>
                   </TableHead>
-                  <TableHead>Days</TableHead>
-                  <TableHead>Hours</TableHead>
-                  <TableHead>Per Slot</TableHead>
-                  <TableHead>Discount</TableHead>
-                  <TableHead>Skip When</TableHead>
-                  <TableHead>Machines</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead>{{ $t('Days') }}</TableHead>
+                  <TableHead>{{ $t('Hours') }}</TableHead>
+                  <TableHead>{{ $t('Per Slot') }}</TableHead>
+                  <TableHead>{{ $t('Discount') }}</TableHead>
+                  <TableHead>{{ $t('Skip When') }}</TableHead>
+                  <TableHead>{{ $t('Machines') }}</TableHead>
+                  <TableHead>{{ $t('Action') }}</TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -82,8 +74,8 @@
                       <thead>
                         <tr class="text-gray-500">
                           <th class="pr-3 text-left font-normal"></th>
-                          <th class="px-1 text-right font-normal whitespace-nowrap">Last 24h</th>
-                          <th class="pl-2 text-right font-normal whitespace-nowrap">/ Last 30d</th>
+                          <th class="px-1 text-right font-normal whitespace-nowrap">{{ $t('Last 24h') }}</th>
+                          <th class="pl-2 text-right font-normal whitespace-nowrap">/ {{ $t('Last 30d') }}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -95,7 +87,7 @@
                       </tbody>
                     </table>
                     <button v-if="c.stats" type="button" class="mt-2 text-xs font-normal text-blue-700 hover:underline" @click="openStats(c)">
-                      Show graph
+                      {{ $t('Show graph') }}
                     </button>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
@@ -105,13 +97,13 @@
                       </span>
                       <!-- How many machines have a slot on offer right now = the boxes below. -->
                       <span v-if="liveGroups[c.id].length" class="text-xs font-semibold text-gray-700 whitespace-nowrap">
-                        Total {{ liveGroups[c.id].length }} machine{{ liveGroups[c.id].length === 1 ? '' : 's' }}
+                        {{ $tc('Total :count machine|Total :count machines', liveGroups[c.id].length) }}
                       </span>
                     </div>
                     <!-- How many of them hold top sellers back right now (the bestseller hold after a Stock In). -->
                     <div v-if="heldMachineCount(c) > 0" class="mt-1 text-xs text-orange-700 whitespace-nowrap"
-                      v-tooltip="`Machines whose top ${c.bestseller_hold_count} sellers are held back for ${c.bestseller_hold_hours} h after a Stock In`">
-                      {{ heldMachineCount(c) }} holding top sellers back
+                      v-tooltip="$t('Machines whose top :count sellers are held back for :hours h after a Stock In', { count: c.bestseller_hold_count, hours: c.bestseller_hold_hours })">
+                      {{ $t(':count holding top sellers back', { count: heldMachineCount(c) }) }}
                     </div>
                     <!-- What is on offer right now, one box per machine (Brian, 2026-10-12: a flat list mixed the machines). -->
                     <div v-for="(g, gIndex) in liveGroups[c.id]" :key="g.vendId" class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left">
@@ -140,14 +132,14 @@
                             class="ml-1 inline-flex rounded px-0.5 py-0.5 text-[11px] leading-none border align-middle"
                             :class="g.boardPrice ? 'bg-gray-100 text-gray-500 border-gray-300' : 'bg-indigo-100 text-indigo-800 border-indigo-300'"
                             v-tooltip="g.boardPrice
-                              ? `The Site is on ${g.rp}, but this machine sells at its board price (Is Using Server Price? = No), so these prices are board prices.`
-                              : `This machine sells at the Site's ${g.rp} price.`"
+                              ? $t('The Site is on :rp, but this machine sells at its board price (Is Using Server Price? = No), so these prices are board prices.', { rp: g.rp })
+                              : $t('This machine sells at the Site\'s :rp price.', { rp: g.rp })"
                           >{{ g.rp }}</span>
                         </span>
                         <span class="shrink-0 flex items-baseline gap-2">
                           <!-- This machine's last 24 h of Happy Hour, all slots and SKUs: discount given · units sold. -->
                           <span class="text-[11px] font-semibold text-emerald-700 whitespace-nowrap"
-                            title="Last 24 h on this machine, every Happy Hour slot: discount given · units sold">L24h {{ money(g.l24hDiscount) }} · {{ g.l24hUnits }}</span>
+                            :title="$t('Last 24 h on this machine, every Happy Hour slot: discount given · units sold')">L24h {{ money(g.l24hDiscount) }} · {{ g.l24hUnits }}</span>
                           <span class="text-[11px] text-amber-800 whitespace-nowrap">{{ g.from }}–{{ g.to }}</span>
                         </span>
                       </div>
@@ -157,11 +149,11 @@
                         <span class="min-w-0 flex-1 flex items-baseline gap-1">
                           <span class="font-semibold truncate" :title="s.product">{{ s.product }}</span>
                           <span v-if="s.is_priority" class="shrink-0 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800"
-                            v-tooltip="'Prioritized SKU: offered every other slot'">PRIORITY</span>
-                          <span v-if="s.qty !== null" class="shrink-0 text-gray-600" title="On hand now / capacity">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
+                            v-tooltip="$t('Prioritized SKU: offered every other slot')">{{ $t('PRIORITY') }}</span>
+                          <span v-if="s.qty !== null" class="shrink-0 text-gray-600" :title="$t('On hand now / capacity')">({{ s.qty }}/{{ s.capacity ?? '—' }})</span>
                           <!-- Sold in THIS slot so far — not a running total; the next slot starts at 0. -->
                           <span class="shrink-0 whitespace-nowrap" :class="s.sold ? 'font-bold text-emerald-700' : 'text-gray-400'"
-                            title="Sold at the Happy Hour price in this slot so far">HH: {{ s.sold ?? 0 }}</span>
+                            :title="$t('Sold at the Happy Hour price in this slot so far')">{{ $t('HH: :count', { count: s.sold ?? 0 }) }}</span>
                         </span>
                         <span class="shrink-0 whitespace-nowrap">
                           <span class="text-gray-400 line-through mr-1">{{ money(s.original_price) }}</span>
@@ -178,37 +170,37 @@
                           <span class="ml-auto shrink-0 whitespace-nowrap text-gray-500">{{ skipDetail(c, k) }}</span>
                         </div>
                       </div>
-                      <div v-else-if="skipped[c.id] === undefined && c.status === 'running'" class="mt-1 text-[11px] text-gray-400">Checking skipped SKUs…</div>
+                      <div v-else-if="skipped[c.id] === undefined && c.status === 'running'" class="mt-1 text-[11px] text-gray-400">{{ $t('Checking skipped SKUs…') }}</div>
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     {{ c.days_label }}
                     <div class="text-xs font-normal text-gray-500 whitespace-nowrap" v-if="c.starts_on || c.ends_on">
-                      {{ c.starts_on || '…' }} → {{ c.ends_on || 'no end' }}
+                      {{ c.starts_on || '…' }} → {{ c.ends_on || $t('no end') }}
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <span class="whitespace-nowrap">{{ c.window_start }}–{{ c.window_end }}</span>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
-                    <span class="whitespace-nowrap">{{ c.slot_minutes }} min</span>
+                    <span class="whitespace-nowrap">{{ $t(':count min', { count: c.slot_minutes }) }}</span>
                     <div class="text-xs font-normal text-gray-500 whitespace-nowrap">
-                      <span v-if="c.skus_per_slot > 1">{{ c.skus_per_slot }} at a time · </span>top {{ c.sku_count }} SKUs
+                      <span v-if="c.skus_per_slot > 1">{{ $t(':count at a time', { count: c.skus_per_slot }) }} · </span>{{ $t('top :count SKUs', { count: c.sku_count }) }}
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
                     <span class="font-semibold text-rose-600">−{{ c.discount_pct }}%</span>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
-                    <span class="whitespace-nowrap">stock ≤ {{ c.min_balance_pct }}%</span>
-                    <div class="whitespace-nowrap">or &lt; {{ c.min_qty }} units</div>
+                    <span class="whitespace-nowrap">{{ $t('stock ≤ :pct%', { pct: c.min_balance_pct }) }}</span>
+                    <div class="whitespace-nowrap" v-text="$t('or < :count units', { count: c.min_qty })"></div>
                     <div v-if="c.bestseller_hold_hours > 0 && c.bestseller_hold_count > 0" class="text-xs text-gray-500 whitespace-nowrap"
-                      v-tooltip="`For ${c.bestseller_hold_hours} h after a Stock In, the machine's top ${c.bestseller_hold_count} sellers of the last ${c.bestseller_lookback_days} days are not discounted`">
-                      top {{ c.bestseller_hold_count }} sellers {{ c.bestseller_hold_hours }} h after Stock In
+                      v-tooltip="$t('For :hours h after a Stock In, the machine\'s top :count sellers of the last :days days are not discounted', { hours: c.bestseller_hold_hours, count: c.bestseller_hold_count, days: c.bestseller_lookback_days })">
+                      {{ $t('top :count sellers :hours h after Stock In', { count: c.bestseller_hold_count, hours: c.bestseller_hold_hours }) }}
                     </div>
                     <div v-if="c.priority_product_ids?.length" class="text-xs text-amber-700 whitespace-nowrap"
                       v-tooltip="productNames(c.priority_product_ids)">
-                      {{ c.priority_product_ids.length }} prioritized, every other slot
+                      {{ $t(':count prioritized, every other slot', { count: c.priority_product_ids.length }) }}
                     </div>
                   </TableData>
                   <TableData :currentIndex="cIndex" :totalLength="campaigns.length" inputClass="text-center">
@@ -222,20 +214,20 @@
                     </div>
                     <!-- Picked by name in another campaign: that one wins while it is in force. -->
                     <div v-for="o in c.overridden" :key="o.code" class="text-xs text-gray-500 mb-1 whitespace-nowrap"
-                      v-tooltip="`Picked by name in “${o.by}”, which takes priority over this campaign's group while it is on`">
+                      v-tooltip="$t('Picked by name in “:campaign”, which takes priority over this campaign\'s group while it is on', { campaign: o.by })">
                       <span class="line-through">{{ o.code }}</span> → {{ o.by }}
                     </div>
                     <div class="flex flex-wrap justify-center gap-1">
                       <button v-for="v in shownVends(c)" :key="v.id" type="button" @click="openPreview(c, v)"
                         class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border hover:ring-2 hover:ring-indigo-300"
                         :class="chipClass(v)"
-                        v-tooltip="unsupportedTooltip(v) ?? pausedTooltip(v) ?? 'Show the lineup now'">
+                        v-tooltip="unsupportedTooltip(v) ?? pausedTooltip(v) ?? $t('Show the lineup now')">
                         {{ v.code }}<span v-if="!v.supported">&nbsp;⚠</span>
-                        <ExclamationCircleIcon v-else-if="v.paused" class="ml-0.5 w-3.5 h-3.5 text-orange-600" aria-label="Happy Hour paused" />
+                        <ExclamationCircleIcon v-else-if="v.paused" class="ml-0.5 w-3.5 h-3.5 text-orange-600" :aria-label="$t('Happy Hour paused')" />
                       </button>
                       <button v-if="c.vends.length > shownVends(c).length || expanded[c.id]" type="button"
                         class="text-xs text-indigo-600 hover:text-indigo-800 underline" @click="expanded[c.id] = !expanded[c.id]">
-                        {{ expanded[c.id] ? 'show less' : `+${c.vends.length - shownVends(c).length} more` }}
+                        {{ expanded[c.id] ? $t('show less') : $t('+:count more', { count: c.vends.length - shownVends(c).length }) }}
                       </button>
                     </div>
                   </TableData>
@@ -243,18 +235,18 @@
                     <div class="flex justify-center space-x-1 items-start">
                       <Button v-if="permissions.includes('update happy-hour-campaigns')" type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1" @click="openEdit(c)">
                         <PencilSquareIcon class="w-4 h-4" />
-                        <span>Edit</span>
+                        <span>{{ $t('Edit') }}</span>
                       </Button>
                       <Button v-if="permissions.includes('delete happy-hour-campaigns')" type="button" class="bg-red-500 hover:bg-red-600 px-2 py-1 text-xs text-white flex space-x-1" @click="destroy(c)">
                         <TrashIcon class="w-4 h-4" />
-                        <span>Delete</span>
+                        <span>{{ $t('Delete') }}</span>
                       </Button>
                     </div>
                   </TableData>
                 </tr>
                 <tr v-if="!campaigns.length">
                   <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                    No Results Found
+                    {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>
@@ -267,25 +259,25 @@
     <!-- Create / edit -->
     <Modal :open="showForm" @modalClose="showForm = false">
       <template #header>
-        <span>{{ editingId ? 'Edit Happy Hour campaign' : 'New Happy Hour campaign' }}</span>
+        <span>{{ editingId ? $t('Edit Happy Hour campaign') : $t('New Happy Hour campaign') }}</span>
       </template>
       <template #default>
         <form @submit.prevent="submit">
           <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
             <div class="md:col-span-4">
-              <label class="block text-sm font-medium text-gray-700">Name</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Name') }}</label>
               <input v-model="form.name" type="text" :class="inputClass" />
               <p v-if="form.errors.name" class="text-red-600 text-xs mt-1">{{ form.errors.name }}</p>
             </div>
             <div class="md:col-span-2 flex items-end">
               <label class="inline-flex items-center space-x-2 text-sm text-gray-700">
                 <input type="checkbox" v-model="form.is_active" class="rounded border-gray-300" />
-                <span>Active</span>
+                <span>{{ $t('Active') }}</span>
               </label>
             </div>
 
             <div class="md:col-span-6">
-              <label class="block text-sm font-medium text-gray-700">Machine groups</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Machine groups') }}</label>
               <div class="mt-1 flex flex-wrap gap-x-5 gap-y-1">
                 <label v-for="g in machineGroups" :key="g.id" class="inline-flex items-center space-x-2 text-sm text-gray-700">
                   <input type="checkbox" :value="g.id" v-model="form.machine_groups" class="rounded border-gray-300" />
@@ -293,18 +285,17 @@
                 </label>
               </div>
               <p class="text-xs text-gray-500 mt-1">
-                Every one of your operator's machines of that kind that can run Happy Hour — now, and each new one as it qualifies
-                (a big board joins when it reaches app {{ minVendingApkVersion }}). No need to pick them below.
+                {{ $t('Every one of your operator\'s machines of that kind that can run Happy Hour — now, and each new one as it qualifies (a big board joins when it reaches app :version). No need to pick them below.', { version: minVendingApkVersion }) }}
               </p>
               <p v-if="form.errors.machine_groups" class="text-red-600 text-xs mt-1">{{ form.errors.machine_groups }}</p>
             </div>
 
             <div class="md:col-span-6">
-              <label class="block text-sm font-medium text-gray-700">{{ form.machine_groups.length ? 'Other machines' : 'Machines' }}</label>
+              <label class="block text-sm font-medium text-gray-700">{{ form.machine_groups.length ? $t('Other machines') : $t('Machines') }}</label>
               <MultiSelect v-model="selectedMachines" :options="machines" mode="tags" trackBy="id" valueProp="id" label="name"
-                placeholder="Smart freezers / vending machines" open-direction="bottom" class="mt-1" />
+                :placeholder="$t('Smart freezers / vending machines')" open-direction="bottom" class="mt-1" />
               <p class="text-xs text-gray-500 mt-1" v-if="unsupportedPicked.length">
-                ⚠ {{ unsupportedPicked.join(', ') }}: cannot run Happy Hour yet — kept, but no slots until it can.
+                ⚠ {{ $t(':machines: cannot run Happy Hour yet — kept, but no slots until it can.', { machines: unsupportedPicked.join(', ') }) }}
               </p>
               <p v-for="m in pausedPicked" :key="m.id" class="text-xs text-orange-700 mt-1 flex items-start gap-1">
                 <ExclamationCircleIcon class="w-4 h-4 shrink-0" />
@@ -314,49 +305,49 @@
             </div>
 
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Discount %</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Discount %') }}</label>
               <input v-model.number="form.discount_pct" type="number" min="1" max="90" :class="inputClass" />
               <p v-if="form.errors.discount_pct" class="text-red-600 text-xs mt-1">{{ form.errors.discount_pct }}</p>
             </div>
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Duration per slot (minutes)</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Duration per slot (minutes)') }}</label>
               <input v-model.number="form.slot_minutes" type="number" min="5" max="720" step="5" :class="inputClass" />
               <p v-if="form.errors.slot_minutes" class="text-red-600 text-xs mt-1">{{ form.errors.slot_minutes }}</p>
             </div>
             <div class="md:col-span-1">
-              <label class="block text-sm font-medium text-gray-700">Total SKUs</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Total SKUs') }}</label>
               <input v-model.number="form.sku_count" type="number" min="1" max="30" :class="inputClass" />
               <p v-if="form.errors.sku_count" class="text-red-600 text-xs mt-1">{{ form.errors.sku_count }}</p>
             </div>
             <div class="md:col-span-1">
-              <label class="block text-sm font-medium text-gray-700">At the same time</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('At the same time') }}</label>
               <input v-model.number="form.skus_per_slot" type="number" min="1" :max="Math.min(10, form.sku_count || 1)" :class="inputClass" />
               <p v-if="form.errors.skus_per_slot" class="text-red-600 text-xs mt-1">{{ form.errors.skus_per_slot }}</p>
             </div>
 
             <div :class="form.selection_rule === 'days_of_cover' ? 'md:col-span-3' : 'md:col-span-6'">
-              <label class="block text-sm font-medium text-gray-700">Pick SKUs by</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Pick SKUs by') }}</label>
               <select v-model="form.selection_rule" :class="inputClass">
                 <option v-for="r in rules" :key="r.id" :value="r.id">{{ r.name }}</option>
               </select>
             </div>
             <!-- Only days of cover reads past sales; balance % ranks the live stock at pick time. -->
             <div class="md:col-span-3" v-if="form.selection_rule === 'days_of_cover'">
-              <label class="block text-sm font-medium text-gray-700">Sales look back (days)</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Sales look back (days)') }}</label>
               <input v-model.number="form.lookback_days" type="number" min="1" max="90" :class="inputClass" />
             </div>
 
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Skip when stock ≤ (%)</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Skip when stock ≤ (%)') }}</label>
               <input v-model.number="form.min_balance_pct" type="number" min="0" max="99" :class="inputClass" />
-              <p class="text-xs text-gray-400 mt-0.5">Where Real Capacity is set</p>
+              <p class="text-xs text-gray-400 mt-0.5">{{ $t('Where Real Capacity is set') }}</p>
             </div>
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Skip when fewer units than</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Skip when fewer units than') }}</label>
               <input v-model.number="form.min_qty" type="number" min="1" max="999" :class="inputClass" />
             </div>
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700">Round promo price up to</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Round promo price up to') }}</label>
               <select v-model.number="form.price_step_cents" :class="inputClass">
                 <option :value="1">1¢</option>
                 <option :value="5">5¢</option>
@@ -369,20 +360,20 @@
             <!-- Bestseller hold (Brian, 2026-10-16): a Stock In fills every SKU, so balance % would discount the
                  fast sellers first. Either number 0 = off. Sales are counted over the last 7 days. -->
             <div class="md:col-span-3">
-              <label class="block text-sm font-medium text-gray-700">After Stock In, hold top sellers for (hours)</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('After Stock In, hold top sellers for (hours)') }}</label>
               <input v-model.number="form.bestseller_hold_hours" type="number" min="0" max="168" :class="inputClass" />
               <p v-if="form.errors.bestseller_hold_hours" class="text-red-600 text-xs mt-1">{{ form.errors.bestseller_hold_hours }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">0 = off</p>
+              <p class="text-xs text-gray-400 mt-0.5">{{ $t('0 = off') }}</p>
             </div>
             <div class="md:col-span-3">
-              <label class="block text-sm font-medium text-gray-700">How many top sellers to hold</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('How many top sellers to hold') }}</label>
               <input v-model.number="form.bestseller_hold_count" type="number" min="0" max="30" :class="inputClass" />
               <p v-if="form.errors.bestseller_hold_count" class="text-red-600 text-xs mt-1">{{ form.errors.bestseller_hold_count }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">By units sold on that machine in the last {{ form.bestseller_lookback_days }} days</p>
+              <p class="text-xs text-gray-400 mt-0.5">{{ $t('By units sold on that machine in the last :days days', { days: form.bestseller_lookback_days }) }}</p>
             </div>
 
             <div class="md:col-span-6">
-              <label class="block text-sm font-medium text-gray-700">Days</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Days') }}</label>
               <div class="flex flex-wrap gap-2 mt-1">
                 <button v-for="p in dayPresets" :key="p.mask" type="button" @click="form.days_mask = p.mask"
                   class="rounded border px-2 py-1 text-xs"
@@ -400,47 +391,47 @@
             </div>
 
             <div class="md:col-span-3">
-              <label class="block text-sm font-medium text-gray-700">Hours from</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Hours from') }}</label>
               <input v-model="form.window_start" type="time" :class="inputClass" />
             </div>
             <div class="md:col-span-3">
-              <label class="block text-sm font-medium text-gray-700">Hours to</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Hours to') }}</label>
               <input v-model="form.window_end" type="time" :class="inputClass" />
               <p v-if="form.errors.window_end" class="text-red-600 text-xs mt-1">{{ form.errors.window_end }}</p>
             </div>
             <div class="md:col-span-3">
-              <DatePicker v-model="form.starts_on">Active from (optional)</DatePicker>
+              <DatePicker v-model="form.starts_on">{{ $t('Active from (optional)') }}</DatePicker>
             </div>
             <div class="md:col-span-3">
-              <DatePicker v-model="form.ends_on" :minDate="form.starts_on">Active to (optional)</DatePicker>
+              <DatePicker v-model="form.ends_on" :minDate="form.starts_on">{{ $t('Active to (optional)') }}</DatePicker>
               <p v-if="form.errors.ends_on" class="text-red-600 text-xs mt-1">{{ form.errors.ends_on }}</p>
             </div>
 
             <div class="md:col-span-4">
-              <label class="block text-sm font-medium text-gray-700">Never discount</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Never discount') }}</label>
               <MultiSelect v-model="selectedExcluded" :options="products" mode="tags" trackBy="id" valueProp="id" label="name"
-                placeholder="Products to leave out" open-direction="top" class="mt-1" />
+                :placeholder="$t('Products to leave out')" open-direction="top" class="mt-1" />
             </div>
             <div class="md:col-span-2 flex flex-col justify-end gap-2">
               <!-- On by default (Brian, 2026-10-16): a SKU whose warehouse Available? tick is off is never picked. -->
               <label class="inline-flex items-center space-x-2 text-sm text-gray-700"
-                v-tooltip="'A SKU whose Available? tick is off in the warehouse (Product Movement) is skipped when a slot picks its SKUs.'">
+                v-tooltip="$t('A SKU whose Available? tick is off in the warehouse (Product Movement) is skipped when a slot picks its SKUs.')">
                 <input type="checkbox" v-model="form.skip_unavailable" class="rounded border-gray-300" />
-                <span>No discount on SKUs not Available in the warehouse</span>
+                <span>{{ $t('No discount on SKUs not Available in the warehouse') }}</span>
               </label>
               <label class="inline-flex items-center space-x-2 text-sm text-gray-700">
                 <input type="checkbox" v-model="form.allow_below_cost" class="rounded border-gray-300" />
-                <span>Allow below unit cost</span>
+                <span>{{ $t('Allow below unit cost') }}</span>
               </label>
             </div>
             <!-- Prioritize (Brian, 2026-10-16): to clear stock, or when a supplier funds the discount. Every other
                  slot offers these first; the campaign's discount % and below-cost rule still apply. -->
             <div class="md:col-span-6">
-              <label class="block text-sm font-medium text-gray-700">Prioritize</label>
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Prioritize') }}</label>
               <MultiSelect v-model="selectedPriority" :options="products" mode="tags" trackBy="id" valueProp="id" label="name"
-                placeholder="Products to offer every other slot" open-direction="top" class="mt-1" />
+                :placeholder="$t('Products to offer every other slot')" open-direction="top" class="mt-1" />
               <p v-if="form.errors.priority_product_ids" class="text-red-600 text-xs mt-1">{{ form.errors.priority_product_ids }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">Offered first in every other slot, down to the last unit (stock floor, minimum units, warehouse Available? and the bestseller hold do not apply)</p>
+              <p class="text-xs text-gray-400 mt-0.5">{{ $t('Offered first in every other slot, down to the last unit (stock floor, minimum units, warehouse Available? and the bestseller hold do not apply)') }}</p>
             </div>
           </div>
 
@@ -449,8 +440,8 @@
           </p>
 
           <div class="flex space-x-1 mt-5 justify-end">
-            <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700" type="button" @click="showForm = false">Back</Button>
-            <Button type="submit" :disabled="form.processing" class="bg-green-500 hover:bg-green-600 text-white">Save</Button>
+            <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700" type="button" @click="showForm = false">{{ $t('Back') }}</Button>
+            <Button type="submit" :disabled="form.processing" class="bg-green-500 hover:bg-green-600 text-white">{{ $t('Save') }}</Button>
           </div>
         </form>
       </template>
@@ -459,13 +450,13 @@
     <!-- Campaign graph: daily figures over a chosen range (default the last 7 days). -->
     <Modal :open="showStats" @modalClose="showStats = false">
       <template #header>
-        <span>Happy Hour results · {{ statsCampaign?.name }}</span>
+        <span>{{ $t('Happy Hour results · :name', { name: statsCampaign?.name }) }}</span>
       </template>
       <template #default>
         <div class="space-y-4">
           <div class="flex flex-wrap items-end gap-3">
-            <DatePicker v-model="statsRange.from" :maxDate="statsRange.to" :clearable="false">From</DatePicker>
-            <DatePicker v-model="statsRange.to" :minDate="statsRange.from" :clearable="false">To</DatePicker>
+            <DatePicker v-model="statsRange.from" :maxDate="statsRange.to" :clearable="false">{{ $t('From') }}</DatePicker>
+            <DatePicker v-model="statsRange.to" :minDate="statsRange.from" :clearable="false">{{ $t('To') }}</DatePicker>
             <div class="flex gap-1 pb-0.5">
               <button v-for="p in statsPresets" :key="p.days" type="button"
                 class="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100" @click="setStatsPreset(p.days)">
@@ -473,19 +464,16 @@
               </button>
             </div>
           </div>
-          <div v-if="statsLoading && !statsData" class="text-sm text-gray-500">Loading…</div>
+          <div v-if="statsLoading && !statsData" class="text-sm text-gray-500">{{ $t('Loading…') }}</div>
           <template v-if="statsData">
             <p class="text-xs text-gray-500">
-              {{ statsData.from }} → {{ statsData.to }}: sales {{ money(statsData.total.revenue) }}, discount {{ money(statsData.total.discount) }},
-              {{ statsData.total.units }} units over {{ statsData.total.machine_days }} machine-days
-              ({{ statsData.total.avg_daily_units_per_machine ?? '—' }} units per machine per day). A machine counts on each day it ran a slot.
+              {{ $t(':from → :to: sales :sales, discount :discount, :units units over :machine_days machine-days (:per_machine units per machine per day). A machine counts on each day it ran a slot.', { from: statsData.from, to: statsData.to, sales: money(statsData.total.revenue), discount: money(statsData.total.discount), units: statsData.total.units, machine_days: statsData.total.machine_days, per_machine: statsData.total.avg_daily_units_per_machine ?? '—' }) }}
             </p>
             <!-- HH is the bridge (Daniel, 2026-10-22): the whole of every transaction that held a Happy Hour unit. -->
             <p class="mt-1 mb-3 text-xs text-gray-700">
-              Related Total Sales {{ money(statsData.total.related_revenue) }} over {{ statsData.total.related_transactions }} transactions
-              ({{ statsData.total.related_multiple }} multiple purchases), {{ statsData.total.related_units }} units —
-              <span class="font-semibold">non-HH {{ statsData.total.non_hh_revenue_pct ?? '—' }}% of sales, {{ statsData.total.non_hh_units_pct ?? '—' }}% of units</span>.
-              A transaction counts whole when it holds at least one Happy Hour unit.
+              {{ $t('Related Total Sales :sales over :transactions transactions (:multiple multiple purchases), :units units —', { sales: money(statsData.total.related_revenue), transactions: statsData.total.related_transactions, multiple: statsData.total.related_multiple, units: statsData.total.related_units }) }}
+              <span class="font-semibold">{{ $t('non-HH :sales_pct% of sales, :units_pct% of units', { sales_pct: statsData.total.non_hh_revenue_pct ?? '—', units_pct: statsData.total.non_hh_units_pct ?? '—' }) }}</span>.
+              {{ $t('A transaction counts whole when it holds at least one Happy Hour unit.') }}
             </p>
             <CampaignStatsCharts :days="statsData.days" :total="statsData.total" />
           </template>
@@ -496,15 +484,15 @@
     <!-- Preview lineup -->
     <Modal :open="showPreview" @modalClose="showPreview = false">
       <template #header>
-        <span>Lineup now · {{ previewTitle }}</span>
+        <span>{{ $t('Lineup now · :title', { title: previewTitle }) }}</span>
       </template>
       <template #default>
-        <div v-if="!preview" class="text-sm text-gray-500">Loading…</div>
+        <div v-if="!preview" class="text-sm text-gray-500">{{ $t('Loading…') }}</div>
         <div v-else class="space-y-4 max-h-[70vh] overflow-y-auto">
-          <p class="text-xs text-gray-500">As ranked at {{ preview.at }}. Each slot is ranked again as it comes up, so this order moves with the stock.</p>
+          <p class="text-xs text-gray-500">{{ $t('As ranked at :time. Each slot is ranked again as it comes up, so this order moves with the stock.', { time: preview.at }) }}</p>
           <div v-for="m in preview.machines" :key="m.vend_id">
             <div v-if="!m.supported" class="text-xs text-amber-700">
-              ⚠ {{ m.unsupported_reason ?? `app ${m.apk_version_code ?? '?'} — no slots until it runs ${minApkVersion}+` }}
+              ⚠ {{ m.unsupported_reason ?? $t('app :version — no slots until it runs :min+', { version: m.apk_version_code ?? '?', min: minApkVersion }) }}
             </div>
             <div v-else-if="m.paused" class="text-xs text-orange-700 flex items-start gap-1">
               <ExclamationCircleIcon class="w-4 h-4 shrink-0" />
@@ -514,13 +502,13 @@
               <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">
-                    <TableHead>Rank</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Sold / Day</TableHead>
-                    <TableHead>Days of Cover</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Why Not</TableHead>
+                    <TableHead>{{ $t('Rank') }}</TableHead>
+                    <TableHead>{{ $t('SKU') }}</TableHead>
+                    <TableHead>{{ $t('Stock') }}</TableHead>
+                    <TableHead>{{ $t('Sold / Day') }}</TableHead>
+                    <TableHead>{{ $t('Days of Cover') }}</TableHead>
+                    <TableHead>{{ $t('Price') }}</TableHead>
+                    <TableHead>{{ $t('Why Not') }}</TableHead>
                   </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -531,7 +519,7 @@
                     </TableData>
                     <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-left">
                       {{ row.product_code }} {{ row.product_name }}
-                      <span v-if="row.priority" class="ml-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800">PRIORITY</span>
+                      <span v-if="row.priority" class="ml-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800">{{ $t('PRIORITY') }}</span>
                     </TableData>
                     <TableData :currentIndex="rowIndex" :totalLength="m.candidates.length" inputClass="text-center">
                       <span class="whitespace-nowrap">{{ row.qty }}<span v-if="row.capacity"> / {{ row.capacity }} ({{ row.balance_pct }}%)</span></span>
@@ -553,7 +541,7 @@
                   </tr>
                   <tr v-if="!m.candidates.length">
                     <td colspan="7" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
-                      No stock rows on this machine
+                      {{ $t('No stock rows on this machine') }}
                     </td>
                   </tr>
                 </tbody>
@@ -579,6 +567,7 @@ import { ChevronDownIcon, ChevronUpDownIcon, ChevronUpIcon, ExclamationCircleIco
 import { computed, onMounted, ref, watch } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import { t, tc } from '@/i18n';
 
 const props = defineProps({
   campaigns: Array,
@@ -593,13 +582,13 @@ const props = defineProps({
 const permissions = computed(() => usePage().props.auth?.permissions ?? [])
 
 const inputClass = 'mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md'
-const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const dayNames = [t('Mon'), t('Tue'), t('Wed'), t('Thu'), t('Fri'), t('Sat'), t('Sun')]
 const dayPresets = [
-  { name: 'Every day', mask: 127 },
-  { name: 'Weekdays', mask: 31 },
-  { name: 'Weekends', mask: 96 },
+  { name: t('Every day'), mask: 127 },
+  { name: t('Weekdays'), mask: 31 },
+  { name: t('Weekends'), mask: 96 },
 ]
-const statusLabels = { running: 'Running now', scheduled: 'Scheduled', paused: 'Paused', ended: 'Ended' }
+const statusLabels = { running: t('Running now'), scheduled: t('Scheduled'), paused: t('Paused'), ended: t('Ended') }
 
 const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
@@ -620,19 +609,19 @@ const showPreview = ref(false)
 
 // The Campaign column's figures (last 24 h / last 30 days) and the graph modal (Brian, 2026-10-16).
 const statRows = [
-  { key: 'revenue', name: 'Total sales', format: (v) => money(v ?? 0), title: 'Paid for Happy Hour units' },
-  { key: 'discount', name: 'Total $disc', format: (v) => money(v ?? 0), title: 'Normal price less the Happy Hour price, per unit sold' },
-  { key: 'units', name: 'Total qty', format: (v) => v ?? 0, title: 'Happy Hour units sold' },
-  { key: 'avg_daily_units_per_machine', name: 'Avg daily qty / VM', format: (v) => v ?? '—', title: 'Units per machine per day it ran a slot' },
-  { key: 'related_revenue', name: 'Related sales', format: (v) => money(v ?? 0), title: 'The whole of every transaction that held a Happy Hour unit' },
-  { key: 'non_hh_revenue_pct', name: 'Non-HH %', format: (v) => (v == null ? '—' : v + '%'), title: 'Share of Related sales that is not the Happy Hour units — what Happy Hour pulled along' },
+  { key: 'revenue', name: t('Total sales'), format: (v) => money(v ?? 0), title: t('Paid for Happy Hour units') },
+  { key: 'discount', name: t('Total $disc'), format: (v) => money(v ?? 0), title: t('Normal price less the Happy Hour price, per unit sold') },
+  { key: 'units', name: t('Total qty'), format: (v) => v ?? 0, title: t('Happy Hour units sold') },
+  { key: 'avg_daily_units_per_machine', name: t('Avg daily qty / VM'), format: (v) => v ?? '—', title: t('Units per machine per day it ran a slot') },
+  { key: 'related_revenue', name: t('Related sales'), format: (v) => money(v ?? 0), title: t('The whole of every transaction that held a Happy Hour unit') },
+  { key: 'non_hh_revenue_pct', name: t('Non-HH %'), format: (v) => (v == null ? '—' : v + '%'), title: t('Share of Related sales that is not the Happy Hour units — what Happy Hour pulled along') },
 ]
 const showStats = ref(false)
 const statsCampaign = ref(null)
 const statsData = ref(null)
 const statsLoading = ref(false)
 const statsRange = ref({ from: null, to: null })
-const statsPresets = [{ name: '7d', days: 7 }, { name: '14d', days: 14 }, { name: '30d', days: 30 }]
+const statsPresets = [{ name: t('7d'), days: 7 }, { name: t('14d'), days: 14 }, { name: t('30d'), days: 30 }]
 let statsRequest = 0
 
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -671,7 +660,7 @@ const expanded = ref({})
 const CHIP_LIMIT = 12
 
 const groupLabel = (id) => props.machineGroups.find(g => g.id === id)?.name ?? id
-const groupTooltip = (c, g) => `${groupLabel(g)}: ${c.vends.filter(v => v.via_group === g).length} machine(s) now — joins and leaves by itself`
+const groupTooltip = (c, g) => t(':group: :count machine(s) now — joins and leaves by itself', { group: groupLabel(g), count: c.vends.filter(v => v.via_group === g).length })
 // Hand-picked machines always; a group's members up to the limit unless expanded.
 function shownVends(c) {
   if (expanded.value[c.id]) return c.vends
@@ -690,18 +679,18 @@ const unsupportedTooltip = (v) => {
   if (v.supported) return null
   const code = escapeHtml(v.code)
   if (!v.is_active) {
-    return tooltipBox(`<strong>${code} is inactive.</strong><br>Happy Hour never runs on an inactive machine. Set it active in Machine Settings and it joins this campaign.`)
+    return tooltipBox(`<strong>${t(':code is inactive.', { code })}</strong><br>${t('Happy Hour never runs on an inactive machine. Set it active in Machine Settings and it joins this campaign.')}`)
   }
   if (v.machine_type === 'vending_machine') {
     const min = props.minVendingApkVersion
-    return tooltipBox(`<strong>${code}: ${escapeHtml(v.unsupported_reason ?? 'cannot run Happy Hour')}.</strong><br>`
-      + `Happy Hour runs on the big touchscreen board on app ${min} or later, so no slots are planned for it and it keeps selling at the normal price.<br>`
-      + `A big board joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`)
+    return tooltipBox(`<strong>${code}: ${escapeHtml(v.unsupported_reason ?? t('cannot run Happy Hour'))}.</strong><br>`
+      + `${t('Happy Hour runs on the big touchscreen board on app :min or later, so no slots are planned for it and it keeps selling at the normal price.', { min })}<br>`
+      + t('A big board joins this campaign by itself once it updates to app :min+ — nothing to change here.', { min }))
   }
   const min = props.minApkVersion
-  return tooltipBox(`<strong>${code} runs freezer app ${escapeHtml(v.apk_version_code ?? 'unknown')}.</strong><br>`
-    + `Happy Hour needs app ${min} or later, so no slots are planned for it and it keeps selling at the normal price.<br>`
-    + `It joins this campaign by itself once it updates to app ${min}+ — nothing to change here.`)
+  return tooltipBox(`<strong>${t(':code runs freezer app :version.', { code, version: escapeHtml(v.apk_version_code ?? t('unknown')) })}</strong><br>`
+    + `${t('Happy Hour needs app :min or later, so no slots are planned for it and it keeps selling at the normal price.', { min })}<br>`
+    + t('It joins this campaign by itself once it updates to app :min+ — nothing to change here.', { min }))
 }
 
 // The failsafe: a machine bound to a UI Setting ignores Happy Hour (server-written text).
@@ -723,15 +712,15 @@ const slotSummary = computed(() => {
   const total = form.sku_count || 1
   const together = Math.min(form.skus_per_slot || 1, total)
   const turns = together > 1
-    ? `${together} SKUs at a time from the top ${total} (ranks ${groupsLabel(total, together)} …)`
-    : `the top ${total} SKU${total === 1 ? '' : 's'} take turns`
+    ? t(':together SKUs at a time from the top :total (ranks :groups …)', { together, total, groups: groupsLabel(total, together) })
+    : tc('the top :count SKU take turns|the top :count SKUs take turns', total)
   const hold = form.bestseller_hold_hours > 0 && form.bestseller_hold_count > 0
-    ? ` For ${form.bestseller_hold_hours} h after each Stock In, the machine's top ${form.bestseller_hold_count} seller${form.bestseller_hold_count === 1 ? '' : 's'} of the last ${form.bestseller_lookback_days} days ${form.bestseller_hold_count === 1 ? 'is' : 'are'} not discounted.`
+    ? ' ' + tc('For :hours h after each Stock In, the machine\'s top :count seller of the last :days days is not discounted.|For :hours h after each Stock In, the machine\'s top :count sellers of the last :days days are not discounted.', form.bestseller_hold_count, { hours: form.bestseller_hold_hours, days: form.bestseller_lookback_days })
     : ''
   const priority = selectedPriority.value.length
-    ? ` Every other slot (the 1st, 3rd, 5th …) offers the ${selectedPriority.value.length} prioritized SKU${selectedPriority.value.length === 1 ? '' : 's'} first, where the machine has ${selectedPriority.value.length === 1 ? 'it' : 'them'}.`
+    ? ' ' + tc('Every other slot (the 1st, 3rd, 5th …) offers the :count prioritized SKU first, where the machine has it.|Every other slot (the 1st, 3rd, 5th …) offers the :count prioritized SKUs first, where the machine has them.', selectedPriority.value.length)
     : ''
-  return `${slots} slot${slots === 1 ? '' : 's'} a day of ${form.slot_minutes} min; ${turns}, at ${form.discount_pct}% off.${priority}${hold}`
+  return tc(':count slot a day of :minutes min; :turns, at :pct% off.|:count slots a day of :minutes min; :turns, at :pct% off.', slots, { minutes: form.slot_minutes, turns, pct: form.discount_pct }) + priority + hold
 })
 
 // "1+2, 3+4, then 1+2 again" for 4 SKUs, 2 at a time (the first full loop).
@@ -740,7 +729,7 @@ function groupsLabel(total, together) {
   for (let i = 0; i < total; i += together) {
     groups.push(Array.from({ length: Math.min(together, total - i) }, (_, k) => i + k + 1).join('+'))
   }
-  return groups.join(', ') + ', then ' + groups[0] + ' again'
+  return t(':groups, then :first again', { groups: groups.join(', '), first: groups[0] })
 }
 
 function ruleLabel(id) {
@@ -787,10 +776,10 @@ function liveByMachine(c) {
 // sorts last either way); the last-24 h figures start with the most first. Default: L24h qty, most first
 // (Brian, 2026-10-15: "we know who sold the most in 24 hours"). Ties fall back to Machine ID.
 const liveSortRows = [
-  [{ id: 'code', name: 'ID' }, { id: 'site', name: 'Site Name' }],
+  [{ id: 'code', name: t('ID') }, { id: 'site', name: t('Site Name') }],
   [
-    { id: 'l24hDiscount', name: 'L24h $disc', title: 'Happy Hour discount given on the machine in the last 24 h' },
-    { id: 'l24hUnits', name: 'L24h qty', title: 'Happy Hour units sold on the machine in the last 24 h' },
+    { id: 'l24hDiscount', name: t('L24h $disc'), title: t('Happy Hour discount given on the machine in the last 24 h') },
+    { id: 'l24hUnits', name: t('L24h qty'), title: t('Happy Hour units sold on the machine in the last 24 h') },
   ],
 ]
 const numericSortKeys = ['l24hDiscount', 'l24hUnits']
@@ -827,32 +816,32 @@ function skippedFor(campaignId, vendId) {
 }
 
 const skipTags = {
-  priority_empty: { label: 'PRIORITY', cls: 'bg-amber-100 text-amber-800' },
-  min_qty: { label: 'LOW', cls: 'bg-red-100 text-red-700' },
-  floor: { label: 'LOW', cls: 'bg-red-100 text-red-700' },
-  unavailable: { label: 'N/A', cls: 'bg-gray-200 text-gray-700' },
-  no_price: { label: 'PRICE', cls: 'bg-purple-100 text-purple-700' },
-  no_discount: { label: 'PRICE', cls: 'bg-purple-100 text-purple-700' },
-  below_cost: { label: 'COST', cls: 'bg-purple-100 text-purple-700' },
-  campaign: { label: 'NEVER', cls: 'bg-slate-200 text-slate-700' },
+  priority_empty: { label: t('PRIORITY'), cls: 'bg-amber-100 text-amber-800' },
+  min_qty: { label: t('LOW'), cls: 'bg-red-100 text-red-700' },
+  floor: { label: t('LOW'), cls: 'bg-red-100 text-red-700' },
+  unavailable: { label: t('N/A'), cls: 'bg-gray-200 text-gray-700' },
+  no_price: { label: t('PRICE'), cls: 'bg-purple-100 text-purple-700' },
+  no_discount: { label: t('PRICE'), cls: 'bg-purple-100 text-purple-700' },
+  below_cost: { label: t('COST'), cls: 'bg-purple-100 text-purple-700' },
+  campaign: { label: t('NEVER'), cls: 'bg-slate-200 text-slate-700' },
 }
 
 function skipTag(k) {
-  if (k.code === 'bestseller') return { label: `TOP ${k.hold_place}`, cls: 'bg-orange-100 text-orange-800' }
-  return skipTags[k.code] ?? { label: 'SKIP', cls: 'bg-gray-100 text-gray-600' }
+  if (k.code === 'bestseller') return { label: t('TOP :place', { place: k.hold_place }), cls: 'bg-orange-100 text-orange-800' }
+  return skipTags[k.code] ?? { label: t('SKIP'), cls: 'bg-gray-100 text-gray-600' }
 }
 
 // The reason in a few words, right-aligned on the SKU's line.
 function skipDetail(c, k) {
   switch (k.code) {
-    case 'bestseller': return `${k.hold_sold} sold/${c.bestseller_lookback_days}d · held till ${heldUntilLabel(k.held_until)}`
-    case 'min_qty': return `only ${k.qty} left · min ${c.min_qty}`
-    case 'floor': return `stock ${k.capacity ? Math.round(k.qty * 1000 / k.capacity) / 10 : '—'}% · floor ${c.min_balance_pct}%`
-    case 'priority_empty': return 'prioritized, sold out'
-    case 'unavailable': return 'not available in warehouse'
-    case 'no_price': return 'no selling price'
-    case 'no_discount': return 'discount changes nothing'
-    case 'campaign': return 'never discount'
+    case 'bestseller': return t(':sold sold/:period · held till :time', { sold: k.hold_sold, period: c.bestseller_lookback_days + 'd', time: heldUntilLabel(k.held_until) })
+    case 'min_qty': return t('only :qty left · min :min', { qty: k.qty, min: c.min_qty })
+    case 'floor': return t('stock :pct% · floor :floor%', { pct: k.capacity ? Math.round(k.qty * 1000 / k.capacity) / 10 : '—', floor: c.min_balance_pct })
+    case 'priority_empty': return t('prioritized, sold out')
+    case 'unavailable': return t('not available in warehouse')
+    case 'no_price': return t('no selling price')
+    case 'no_discount': return t('discount changes nothing')
+    case 'campaign': return t('never discount')
     default: return k.reason ?? ''
   }
 }
@@ -930,7 +919,7 @@ function submit() {
 }
 
 function destroy(c) {
-  if (!confirm(`Delete "${c.name}"? Its remaining slots today stop at once.`)) return
+  if (!confirm(t('Delete ":name"? Its remaining slots today stop at once.', { name: c.name }))) return
   router.delete(`/happy-hour-campaigns/${c.id}`, { preserveScroll: true })
 }
 

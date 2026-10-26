@@ -41,6 +41,16 @@
                     <div class="text-xs text-gray-500">{{ t('English (in the code)') }}</div>
                     <div class="whitespace-pre-wrap break-words rounded bg-gray-50 px-2 py-1 text-gray-800">{{ dialog.key }}</div>
                 </div>
+                <!-- Where else it is shown: one wording serves every place listed (TranslationPlaces). -->
+                <div v-if="dialog.places && dialog.places.length" class="text-xs text-gray-600">
+                    <div class="text-gray-500">{{ t('Shown on:') }}</div>
+                    <div class="mt-1 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+                        <span v-for="place in dialog.places" :key="place" class="rounded bg-gray-100 px-1.5 py-0.5">{{ place }}</span>
+                    </div>
+                    <div v-if="dialog.places.length > 1" class="mt-1 text-amber-700">
+                        {{ t('Saving changes this text in all :count places.', { count: dialog.places.length }) }}
+                    </div>
+                </div>
                 <label class="block">
                     <span class="text-xs text-gray-500">{{ t('Wording shown') }}</span>
                     <textarea v-model="dialog.value" rows="3" class="mt-1 block w-full rounded-md border-gray-300 text-sm"></textarea>
@@ -52,7 +62,7 @@
                     <a :href="translationsLink" target="_blank" class="text-xs text-indigo-600 hover:underline">{{ t('Open in Translations') }}</a>
                     <div class="space-x-2">
                         <button type="button" class="rounded border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-100" :disabled="saving" @click="save('')">
-                            {{ t('Reset') }}
+                            {{ t('Reset to default') }}
                         </button>
                         <button type="button" class="rounded bg-indigo-600 px-4 py-1 font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
                             :disabled="saving || !dialog.value.trim()" @click="save(dialog.value)">
@@ -101,6 +111,10 @@ function shown(key) {
 function pick(key) {
     dialog.value.key = key;
     dialog.value.value = rawText(key) === key && locale.value !== 'en' ? '' : rawText(key);
+    dialog.value.places = [];
+    window.axios.get('/translations/places', { params: { key } })
+        .then(({ data }) => { if (dialog.value && dialog.value.key === key) dialog.value.places = data.places || []; })
+        .catch(() => {});
 }
 
 const ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'alt', 'value'];
@@ -133,7 +147,7 @@ function onClick(event) {
         toast.info(t('No editable text here. Tooltips and pop-up boxes are changed on the Translations page.'));
         return;
     }
-    dialog.value = { keys, key: keys[0], value: '' };
+    dialog.value = { keys, key: keys[0], value: '', places: [] };
     pick(keys[0]);
 }
 

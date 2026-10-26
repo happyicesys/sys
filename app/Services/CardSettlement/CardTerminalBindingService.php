@@ -290,7 +290,7 @@ class CardTerminalBindingService
             $at = Carbon::parse($boundFrom);
         } catch (\Throwable) {
             throw ValidationException::withMessages([
-                'card_terminal_bound_from' => 'Bound From is not a valid date.',
+                'card_terminal_bound_from' => __('Bound From is not a valid date.'),
             ]);
         }
 
@@ -311,8 +311,7 @@ class CardTerminalBindingService
         foreach ($currentOnVend as $binding) {
             if ($binding->from_at && $binding->from_at->gt($at)) {
                 throw ValidationException::withMessages([
-                    'card_terminal_bound_from' => 'Bound From cannot be earlier than the current terminal\'s start ('
-                        .$binding->from_at->format('Y-m-d H:i').').',
+                    'card_terminal_bound_from' => __('Bound From cannot be earlier than the current terminal\'s start (:start).', ['start' => $binding->from_at->format('Y-m-d H:i')]),
                 ]);
             }
         }

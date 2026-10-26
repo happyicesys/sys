@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import { t } from '@/i18n';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { MagnifyingGlassIcon, BackspaceIcon, ArrowDownTrayIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid'
 import axios from 'axios'
@@ -40,7 +41,7 @@ const filters = ref({
 onMounted(() => {
     // Initialize Operators
     operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
+        {id: 'all', full_name: t('All')},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
     ]
 
@@ -135,17 +136,17 @@ const onExcelExportClicked = () => {
 </script>
 
 <template>
-    <Head title="Movements Log" />
+    <Head :title="$t('Movements Log')" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
             <div class="flex items-center">
                 <Link :href="route('product-movements.index')" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-4">
                     <ArrowLeftIcon class="-ml-1 mr-2 h-4 w-4 text-gray-500" aria-hidden="true" />
-                    Back
+                    {{ $t('Back') }}
                 </Link>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Movements Log
+                    {{ $t('Movements Log') }}
                 </h2>
             </div>
         </template>
@@ -154,14 +155,14 @@ const onExcelExportClicked = () => {
             <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
                     <div class="col-span-5 md:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700">Product</label>
+                        <label class="block text-sm font-medium text-gray-700">{{ $t('Product') }}</label>
                         <MultiSelect
                             v-model="filters.product_id"
                             :options="productOptions"
                             trackBy="id"
                             valueProp="id"
                             label="name"
-                            placeholder="Select Product"
+                            :placeholder="$t('Select Product')"
                             open-direction="bottom"
                             class="mt-1"
                             :searchable="true"
@@ -169,18 +170,18 @@ const onExcelExportClicked = () => {
                         </MultiSelect>
                     </div>
                     <div class="col-span-5 md:col-span-1">
-                        <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.vend_code">
-                            Machine ID ("," for multiple)
+                        <SearchInput :placeholderStr="$t('4 to 5 Digits Number')" v-model="filters.vend_code">
+                            {{ $t('Machine ID ("," for multiple)') }}
                         </SearchInput>
                     </div>
                     <div class="col-span-5 md:col-span-1">
                         <OperatorFilter v-model="filters.operators" />
                     </div>
                     <div class="col-span-5 md:col-span-1">
-                        <DatePicker v-model="filters.date_from">From</DatePicker>
+                        <DatePicker v-model="filters.date_from">{{ $t('From') }}</DatePicker>
                     </div>
                     <div class="col-span-5 md:col-span-1">
-                        <DatePicker v-model="filters.date_to" :minDate="filters.date_from">To</DatePicker>
+                        <DatePicker v-model="filters.date_to" :minDate="filters.date_from">{{ $t('To') }}</DatePicker>
                     </div>
                 </div>
 
@@ -191,25 +192,25 @@ const onExcelExportClicked = () => {
                                 @click.prevent="onSearchFilterUpdated()"
                             >
                                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                                <span>Search</span>
+                                <span>{{ $t('Search') }}</span>
                             </Button>
                             <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                 @click="onExcelExportClicked()" v-if="permissions.includes('export products')"
                             >
                                 <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
-                                <span>Export Excel</span>
+                                <span>{{ $t('Export Excel') }}</span>
                             </Button>
                         </div>
                     </div>
                     <div class="flex flex-col space-y-2">
                         <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                             <span>Showing</span>
+                             <span>{{ $t('Showing') }}</span>
                             <span class="font-medium">{{ movements.from ?? 0 }}</span>
-                            <span>to</span>
+                            <span>{{ $t('to') }}</span>
                             <span class="font-medium">{{ movements.to ?? 0 }}</span>
-                            <span>of</span>
+                            <span>{{ $t('of') }}</span>
                             <span class="font-medium">{{ movements.total }}</span>
-                            <span>results</span>
+                            <span>{{ $t('results') }}</span>
                         </p>
                     </div>
                 </div>
@@ -222,17 +223,17 @@ const onExcelExportClicked = () => {
                             <thead class="">
                                 <tr class="divide-x bg-gray-400">
                                     <TableHead>#</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Time</TableHead>
+                                    <TableHead>{{ $t('Date') }}</TableHead>
+                                    <TableHead>{{ $t('Time') }}</TableHead>
 
-                                    <TableHead>Movement</TableHead>
-                                    <TableHead>Product Code</TableHead>
-                                    <TableHead>Product Name</TableHead>
-                                    <TableHead>Qty</TableHead>
-                                    <TableHead>By</TableHead>
-                                    <TableHead>Machine ID</TableHead>
-                                    <TableHead>Job Number</TableHead>
-                                    <TableHead>Job Delivery Date</TableHead>
+                                    <TableHead>{{ $t('Movement') }}</TableHead>
+                                    <TableHead>{{ $t('Product Code') }}</TableHead>
+                                    <TableHead>{{ $t('Product Name') }}</TableHead>
+                                    <TableHead>{{ $t('Qty') }}</TableHead>
+                                    <TableHead>{{ $t('By') }}</TableHead>
+                                    <TableHead>{{ $t('Machine ID') }}</TableHead>
+                                    <TableHead>{{ $t('Job Number') }}</TableHead>
+                                    <TableHead>{{ $t('Job Delivery Date') }}</TableHead>
 
                                 </tr>
                             </thead>
@@ -285,7 +286,7 @@ const onExcelExportClicked = () => {
                                 </tr>
                                 <tr v-if="movements.data.length === 0">
                                     <td colspan="11" class="p-3 text-center text-gray-500">
-                                        No tracking data found for the selected criteria.
+                                        {{ $t('No tracking data found for the selected criteria.') }}
                                     </td>
                                 </tr>
                             </tbody>

@@ -1,9 +1,9 @@
 <template>
-  <Head title="Edit Machine Parameters" />
+  <Head :title="$t('Edit Machine Parameters')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Editing Machine Parameters
+        {{ $t('Editing Machine Parameters') }}
         {{ vendCodeLabel(vend) }}
       </h2>
     </template>
@@ -16,7 +16,7 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-5" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Machine ID#
+                {{ $t('Machine ID#') }}
               </label>
               <div class="mt-1">
                 <input
@@ -34,17 +34,17 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Campaigns </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Campaigns') }} </span>
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Promo Header Text?
+                {{ $t('Enable Promo Header Text?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable Main Banner text show on MainView)
+                {{ $t('(Enable Main Banner text show on MainView)') }}
               </span>
               <MultiSelect
                 v-model="form.enablePromoHeaderText"
@@ -52,7 +52,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -63,10 +63,10 @@
               <FormInput v-model="form.promoHeaderText">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Promo Header Text
+                    {{ $t('Promo Header Text') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Set Main Banner text)
+                    {{ $t('(Set Main Banner text)') }}
                   </span>
                 </div>
               </FormInput>
@@ -74,10 +74,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Header Text Running?
+                {{ $t('Enable Header Text Running?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Main Banner show as running text, default is line by line)
+                {{ $t('(Main Banner show as running text, default is line by line)') }}
               </span>
               <MultiSelect
                 v-model="form.enableHeaderTextRunning"
@@ -85,7 +85,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -94,10 +94,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Promo Banner Kind
+                {{ $t('Promo Banner Kind') }}
               </label>
               <span class="text-xs text-gray-600">
-                (MainView Campaign background type picture/video)
+                {{ $t('(MainView Campaign background type picture/video)') }}
               </span>
               <MultiSelect
                 v-model="form.promoBannerKind"
@@ -105,7 +105,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -116,10 +116,10 @@
               <DatePicker v-model="form.headerTextStartDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Header Text Start Date
+                    {{ $t('Header Text Start Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Main Banner starting time)
+                    {{ $t('(Main Banner starting time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -129,10 +129,10 @@
               <DatePicker v-model="form.headerTextEndDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Header Text End Date
+                    {{ $t('Header Text End Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Main Banner ending time)
+                    {{ $t('(Main Banner ending time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -142,10 +142,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Promo Running Text?
+                {{ $t('Enable Promo Running Text?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable Promo Banner text show on SoftKeybadView)
+                {{ $t('(Enable Promo Banner text show on SoftKeybadView)') }}
               </span>
               <MultiSelect
                 v-model="form.enablePromoRunningText"
@@ -153,7 +153,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -164,10 +164,10 @@
               <FormInput v-model="form.promoRunningText">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Promo Running Text
+                    {{ $t('Promo Running Text') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Set Promo Banner text)
+                    {{ $t('(Set Promo Banner text)') }}
                   </span>
                 </div>
               </FormInput>
@@ -177,10 +177,10 @@
               <DatePicker v-model="form.runningTextStartDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Running Text Start Date
+                    {{ $t('Running Text Start Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Promo Banner text starting time)
+                    {{ $t('(Promo Banner text starting time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -190,10 +190,10 @@
               <DatePicker v-model="form.runningTextEndDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Running Text End Date
+                    {{ $t('Running Text End Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Promo Banner text ending time)
+                    {{ $t('(Promo Banner text ending time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -203,10 +203,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Disable P1 P2 Cross Group?
+                {{ $t('Disable P1 P2 Cross Group?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Disable Old Discount Logic cross group, old discount logic can cross group to apply)
+                {{ $t('(Disable Old Discount Logic cross group, old discount logic can cross group to apply)') }}
               </span>
               <MultiSelect
                 v-model="form.disableP1P2CrossGrp"
@@ -214,7 +214,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -225,10 +225,10 @@
 
             <div class="sm:col-span-4">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Buy 1 Free 1?
+                {{ $t('Enable Buy 1 Free 1?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable buy1free1 Campaign)
+                {{ $t('(Enable buy1free1 Campaign)') }}
               </span>
               <MultiSelect
                 v-model="form.enableBuy1Free1"
@@ -236,7 +236,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -247,10 +247,10 @@
               <FormInput v-model="form.buy1free1X">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 1 Free 1 (Buy Group)
+                    {{ $t('Buy 1 Free 1 (Buy Group)') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy1free1 buy group, *cannot same with buy2free1X, numbers only)
+                    {{ $t('(buy1free1 buy group, *cannot same with buy2free1X, numbers only)') }}
                   </span>
                 </div>
               </FormInput>
@@ -260,10 +260,10 @@
               <FormInput v-model="form.buy1free1Y">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 1 Free 1 (Free Group)
+                    {{ $t('Buy 1 Free 1 (Free Group)') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy1free1 free group, numbers only)
+                    {{ $t('(buy1free1 free group, numbers only)') }}
                   </span>
                 </div>
               </FormInput>
@@ -273,10 +273,10 @@
               <DatePicker v-model="form.buy1free1StartDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 1 Free 1 Start Date
+                    {{ $t('Buy 1 Free 1 Start Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy1free1 campaign starting time)
+                    {{ $t('(buy1free1 campaign starting time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -286,10 +286,10 @@
               <DatePicker v-model="form.buy1free1EndDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 1 Free 1 End Date
+                    {{ $t('Buy 1 Free 1 End Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy1free1 campaign ending time)
+                    {{ $t('(buy1free1 campaign ending time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -299,10 +299,10 @@
 
             <div class="sm:col-span-4">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Buy 2 Free 1?
+                {{ $t('Enable Buy 2 Free 1?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable buy2free1 Campaign)
+                {{ $t('(Enable buy2free1 Campaign)') }}
               </span>
               <MultiSelect
                 v-model="form.enableBuy2Free1"
@@ -310,7 +310,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -321,10 +321,10 @@
               <FormInput v-model="form.buy2free1X">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 2 Free 1 (Buy Group)
+                    {{ $t('Buy 2 Free 1 (Buy Group)') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy2free1 buy group, *cannot same with buy1free1X, numbers only)
+                    {{ $t('(buy2free1 buy group, *cannot same with buy1free1X, numbers only)') }}
                   </span>
                 </div>
               </FormInput>
@@ -334,10 +334,10 @@
               <FormInput v-model="form.buy2free1Y">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 2 Free 1 (Free Group)
+                    {{ $t('Buy 2 Free 1 (Free Group)') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy2free1 buy group, numbers only)
+                    {{ $t('(buy2free1 buy group, numbers only)') }}
                   </span>
                 </div>
               </FormInput>
@@ -347,10 +347,10 @@
               <DatePicker v-model="form.buy2free1StartDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 2 Free 1 Start Date
+                    {{ $t('Buy 2 Free 1 Start Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy2free1 campaign starting time)
+                    {{ $t('(buy2free1 campaign starting time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -360,10 +360,10 @@
               <DatePicker v-model="form.buy2free1EndDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 2 Free 1 End Date
+                    {{ $t('Buy 2 Free 1 End Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (buy2free1 campaign ending time)
+                    {{ $t('(buy2free1 campaign ending time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -373,10 +373,10 @@
 
             <div class="sm:col-span-4">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Bundle Discount?
+                {{ $t('Enable Bundle Discount?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable bundle discount Campaign)
+                {{ $t('(Enable bundle discount Campaign)') }}
               </span>
               <MultiSelect
                 v-model="form.enableBundleDiscount"
@@ -384,7 +384,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -395,10 +395,10 @@
               <DatePicker v-model="form.bundleStartDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Bundle Start Date
+                    {{ $t('Bundle Start Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (bundle discount Campaign starting time)
+                    {{ $t('(bundle discount Campaign starting time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -408,10 +408,10 @@
               <DatePicker v-model="form.bundleEndDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Bundle End Date
+                    {{ $t('Bundle End Date') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (bundle discount Campaign ending time)
+                    {{ $t('(bundle discount Campaign ending time)') }}
                   </span>
                 </div>
               </DatePicker>
@@ -419,10 +419,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Buy 2 Get Discount?
+                {{ $t('Enable Buy 2 Get Discount?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable buy2 get discount)
+                {{ $t('(Enable buy2 get discount)') }}
               </span>
               <MultiSelect
                 v-model="form.enableDiscount01"
@@ -430,7 +430,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -441,10 +441,10 @@
               <FormInput v-model="form.discountPercent01">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 2 Discount %
+                    {{ $t('Buy 2 Discount %') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (set buy2 get how many % discount, *default 10%)
+                    {{ $t('(set buy2 get how many % discount, *default 10%)') }}
                   </span>
                 </div>
               </FormInput>
@@ -452,10 +452,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Buy 3 Get Discount?
+                {{ $t('Enable Buy 3 Get Discount?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable buy3 get discount)
+                {{ $t('(Enable buy3 get discount)') }}
               </span>
               <MultiSelect
                 v-model="form.enableDiscount02"
@@ -463,7 +463,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -474,10 +474,10 @@
               <FormInput v-model="form.discountPercent02">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 3 Discount %
+                    {{ $t('Buy 3 Discount %') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (set buy3 get how many % discount, *default 10%)
+                    {{ $t('(set buy3 get how many % discount, *default 10%)') }}
                   </span>
                 </div>
               </FormInput>
@@ -485,10 +485,10 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Buy 4 Get Discount?
+                {{ $t('Enable Buy 4 Get Discount?') }}
               </label>
               <span class="text-xs text-gray-600">
-                (Enable buy4 get discount)
+                {{ $t('(Enable buy4 get discount)') }}
               </span>
               <MultiSelect
                 v-model="form.enableDiscount03"
@@ -496,7 +496,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -507,10 +507,10 @@
               <FormInput v-model="form.discountPercent03">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Buy 4 Discount %
+                    {{ $t('Buy 4 Discount %') }}
                   </span>
                   <span class="text-xs text-gray-600">
-                    (set buy4 get how many % discount, *default 10%)
+                    {{ $t('(set buy4 get how many % discount, *default 10%)') }}
                   </span>
                 </div>
               </FormInput>
@@ -525,7 +525,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save Parameter Settings
+                    {{ $t('Save Parameter Settings') }}
                   </span>
                 </Button>
               </span>
@@ -540,6 +540,7 @@
 </template>
 
 <script setup>
+import { t } from '@/i18n';
 import AttachmentList from '@/Components/AttachmentList.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
@@ -561,13 +562,13 @@ const props = defineProps({
   })
 
 const booleanStrictOptions = ref([
-  {id: 'true', value: 'Yes'},
-  {id: 'false', value: 'No'},
+  {id: 'true', value: t('Yes')},
+  {id: 'false', value: t('No')},
 ])
 
 const promoBannerKindOptions = ref([
-  {id: 'video', value: 'Video'},
-  {id: 'picture', value: 'Picture'},
+  {id: 'video', value: t('Video')},
+  {id: 'picture', value: t('Picture')},
 ])
 
 const operatorOptions = ref([])
@@ -760,12 +761,12 @@ function saveParameterSettings(vendID) {
     }))
     .post('/settings/vend/' + vend.value.id + '/parameter', {
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t("Successfully Saved"), {
         timeout: 3000
       });
     },
     onError: (errors) => {
-      toast.error("Failed, Please Try Again", {
+      toast.error(t("Failed, Please Try Again"), {
         timeout: 3000
       });
     },

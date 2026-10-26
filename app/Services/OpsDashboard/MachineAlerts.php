@@ -93,7 +93,7 @@ class MachineAlerts
                 $tags['http_offline'] = null;
             }
             if (isset($channelErrors[$id])) {
-                $tags['channel_error'] = $channelErrors[$id].' uncleared';
+                $tags['channel_error'] = __(':count uncleared', ['count' => $channelErrors[$id]]);
             }
             $rate = max(array_map(fn ($k) => (float) ($totals[$k] ?? 0), ['one_day_error_rate', 'two_days_error_rate', 'seven_days_error_rate']));
             if ($rate >= self::ERROR_RATE_PERCENT) {
@@ -115,12 +115,12 @@ class MachineAlerts
                 $tags['coin_float_low'] = null;
             }
             foreach (PaymentRailIdle::forRow((array) $vend, $now) as $rail => $idle) {
-                $tags['rail_'.$rail] = $idle['hours_since'] !== null ? $this->hours($idle['hours_since']) : 'never';
+                $tags['rail_'.$rail] = $idle['hours_since'] !== null ? $this->hours($idle['hours_since']) : __('never');
             }
 
             foreach ($tags as $key => $detail) {
                 [$short, $severity] = self::REASONS[$key];
-                $byVend[$id][] = ['key' => $key, 'short' => $short, 'severity' => $severity, 'detail' => $detail];
+                $byVend[$id][] = ['key' => $key, 'short' => __($short), 'severity' => $severity, 'detail' => $detail];
             }
         }
 

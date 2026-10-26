@@ -546,7 +546,7 @@ class RefundController extends Controller
             'ticket_ids.*' => ['integer'],
             'bank' => ['required', 'string'],
         ]);
-        abort_unless(\App\Services\Refund\BankTemplates\BankTemplateRegistry::has($data['bank']), 422, 'Unknown bank template.');
+        abort_unless(\App\Services\Refund\BankTemplates\BankTemplateRegistry::has($data['bank']), 422, __('Unknown bank template.'));
 
         try {
             $res = $this->payout->exportBank($data['ticket_ids'], $data['bank'], auth()->id());
@@ -631,7 +631,17 @@ class RefundController extends Controller
     private function guardTransition(RefundTicket $ticket, array $allowedFrom, string $verb): void
     {
         if (! in_array($ticket->status, $allowedFrom, true)) {
-            abort(422, "Cannot {$verb} a refund that is currently '".($this->statusLabels()[$ticket->status] ?? $ticket->status)."'.");
+            $status = __($this->statusLabels()[$ticket->status] ?? $ticket->status);
+            abort(422, match ($verb) {
+                'verify' => __("Cannot verify a refund that is currently ':status'.", ['status' => $status]),
+                'resolve' => __("Cannot resolve a refund that is currently ':status'.", ['status' => $status]),
+                'drop' => __("Cannot drop a refund that is currently ':status'.", ['status' => $status]),
+                'reject' => __("Cannot reject a refund that is currently ':status'.", ['status' => $status]),
+                'mark pending' => __("Cannot mark pending a refund that is currently ':status'.", ['status' => $status]),
+                'request info on' => __("Cannot request info on a refund that is currently ':status'.", ['status' => $status]),
+                'complete' => __("Cannot complete a refund that is currently ':status'.", ['status' => $status]),
+                default => "Cannot {$verb} a refund that is currently '{$status}'.",
+            });
         }
     }
 
@@ -1012,7 +1022,7 @@ class RefundController extends Controller
             .($remarks ? ' — '.$remarks : '');
         $this->tickets->log($ticket, 'final_amount', null, null, $note, auth()->user()?->name ?? 'Admin', auth()->id());
 
-        return back()->with('success', 'Final refund amount saved.');
+        return back()->with('success', __('Final refund amount saved.'));
     }
 
     /**
@@ -1063,7 +1073,7 @@ class RefundController extends Controller
             .($remarks ? ' — '.$remarks : '');
         $this->tickets->log($ticket, 'status_override', $from, $newStatus, $note, auth()->user()?->name ?? 'Admin', auth()->id());
 
-        return back()->with('success', 'Status overwritten to '.$toLabel.'.');
+        return back()->with('success', __('Status overwritten to :status.', ['status' => __($toLabel)]));
     }
 
     public function sendEmail(Request $request, RefundTicket $ticket)
@@ -1090,7 +1100,7 @@ class RefundController extends Controller
 
         $template = (string) $request->query('template', RefundEmailService::T_RECEIVED);
         $html = $this->email->previewHtml($ticket, $template);
-        abort_if($html === null, 404, 'Unknown email template: '.$template);
+        abort_if($html === null, 404, __('Unknown email template: :template', ['template' => $template]));
 
         return response($html);
     }
@@ -1128,7 +1138,7 @@ class RefundController extends Controller
         $ticket->logs()->delete();
         $ticket->forceDelete();
 
-        return redirect('/refunds')->with('success', 'Refund ticket deleted.');
+        return redirect('/refunds')->with('success', __('Refund ticket deleted.'));
     }
 
     public function downloadBatch(RefundPayoutBatch $batch)

@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row md:space-x-4 text-black">
           <span class="text-gray-500">
-            Error List
+            {{ $t('Error List') }}
           </span>
           <span>
-            Vend# {{ vendCodeLabel(vend) }}
+            {{ $t('Vend# :code', { code: vendCodeLabel(vend) }) }}
           </span>
           <span>
-            Channel# {{ channel.code }}
+            {{ $t('Channel# :code', { code: channel.code }) }}
           </span>
         </div>
       </template>
@@ -26,10 +26,10 @@
                         #
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Transaction Datetime
+                        {{ $t('Transaction Datetime') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Error
+                        {{ $t('Error') }}
                       </th>
                     </tr>
                   </thead>
@@ -47,7 +47,7 @@
                     </tr>
                     <tr v-if="!channel.vendChannelErrorLogs.length">
                       <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                          No Results Found
+                          {{ $t('No Results Found') }}
                       </td>
                     </tr>
                   </tbody>

@@ -24,8 +24,8 @@
     <!-- Machine ID · Setting Chart · Prefix · Product Mapping · Site · Postcode · Ref Price · Campaign -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1 max-w-[150px]">
-        <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-tooltip="'Open this machine\'s settings'">{{ vendCodeLabel(vend) }}</Link>
-        <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">Smart Chiller · CityBox</span>
+        <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-tooltip="$t('Open this machine\'s settings')">{{ vendCodeLabel(vend) }}</Link>
+        <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">{{ $t('Smart Chiller · CityBox') }}</span>
         <span class="text-[10px] text-gray-500 font-mono leading-none">{{ vend.citybox_equipment_id }}</span>
         <!-- Their OPS Pro name is meant to BE our machine ID (vends.code_prefix +
              code), so showing it every row just reads as the ID twice. Render it
@@ -33,15 +33,15 @@
              (a chiller ops call it C6002 while mark1 calls it 10004) and this is
              the only screen it surfaces on. -->
         <span v-if="nameMismatch" class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-amber-100 text-amber-800 border-amber-300 leading-none"
-          v-tooltip="'CityBox OPS Pro calls this machine ' + status.name + ' — it should match mark1\'s machine ID. Rename it in OPS Pro, or fix the prefix/code in this machine\'s settings.'">OPS Pro: {{ status.name }}</span>
+          v-tooltip="$t('CityBox OPS Pro calls this machine :name — it should match mark1\'s machine ID. Rename it in OPS Pro, or fix the prefix/code in this machine\'s settings.', { name: status.name })">{{ $t('OPS Pro: :name', { name: status.name }) }}</span>
         <span class="flex flex-col space-y-0.5" v-if="mappingName">
           <a v-if="mappingId" :href="'/product-mappings/' + mappingId + '/edit'" target="_blank" :title="mappingName" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2 min-w-0 break-all">{{ mappingName }}</a>
           <span v-else :title="mappingName" class="text-xs text-gray-800 min-w-0 break-all">{{ mappingName }}</span>
         </span>
         <span v-if="vend.customer_id" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-          <a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">{{ vend.customer_name }}</a>
+          <a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">{{ vend.customer_name }}</a>
         </span>
-        <span v-else class="text-xs text-red-600">No site bound</span>
+        <span v-else class="text-xs text-red-600">{{ $t('No site bound') }}</span>
         <div class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-gray-100 text-gray-800 border-gray-300" v-if="vend.postcode">{{ vend.postcode }}</div>
         <div class="flex flex-col space-y-1 pt-1">
           <ActionButtons :vend="vend" :status="status" :machine="machine" />
@@ -52,18 +52,18 @@
     <!-- T1/T2/Updated/Fan/PWRON/SIM → the chiller's machine telemetry from CityBox -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
       <div class="flex flex-col space-y-1">
-        <Badge :title="machine.stateLabel" :sub="machine.stateAt ? shortAgo(machine.stateAt) : 'not polled'" :cls="active ? machine.stateBadge : 'bg-gray-200 text-gray-400'" tip="Live session state (get_device_status_new)" />
-        <Badge v-if="status.recoveredAt" title="Last back online" :sub="status.recoveredAt" :cls="active ? 'bg-gray-100' : 'bg-gray-200 text-gray-400'" />
-        <Badge v-if="machine.lastOpen" title="Last door open" :sub="machine.lastOpen.at + (machine.lastOpen.source ? ' · ' + sourceLabel(machine.lastOpen.source) : '')" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" tip="Last ops door-open through ConnectVend" />
-        <Badge v-if="machine.poll" title="Last poll" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU, ' + machine.poll.duration_ms + ' ms' : 'failed')" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
-        <Badge v-if="signal" :title="'Signal ' + signal.bars" :sub="signal.at ? shortAgo(signal.at) : ''" :cls="active ? signal.cls : 'bg-gray-200 text-gray-400'" :tip="signal.tip" />
-        <Badge v-if="stockCheck.count" :title="stockCheck.count + ' SKU differ from CityBox'" :sub="stockCheck.at ? 'checked ' + shortAgo(stockCheck.at) : ''" :cls="active ? 'bg-amber-200' : 'bg-gray-200 text-gray-400'" :tip="stockCheck.tip" />
+        <Badge :title="machine.stateLabel" :sub="machine.stateAt ? shortAgo(machine.stateAt) : $t('not polled')" :cls="active ? machine.stateBadge : 'bg-gray-200 text-gray-400'" :tip="$t('Live session state (get_device_status_new)')" />
+        <Badge v-if="status.recoveredAt" :title="$t('Last back online')" :sub="status.recoveredAt" :cls="active ? 'bg-gray-100' : 'bg-gray-200 text-gray-400'" />
+        <Badge v-if="machine.lastOpen" :title="$t('Last door open')" :sub="machine.lastOpen.at + (machine.lastOpen.source ? ' · ' + sourceLabel(machine.lastOpen.source) : '')" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" :tip="$t('Last ops door-open through ConnectVend')" />
+        <Badge v-if="machine.poll" :title="$t('Last poll')" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU, ' + machine.poll.duration_ms + ' ms' : $t('failed'))" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
+        <Badge v-if="signal" :title="$t('Signal :bars', { bars: signal.bars })" :sub="signal.at ? shortAgo(signal.at) : ''" :cls="active ? signal.cls : 'bg-gray-200 text-gray-400'" :tip="signal.tip" />
+        <Badge v-if="stockCheck.count" :title="$t(':count SKU differ from CityBox', { count: stockCheck.count })" :sub="stockCheck.at ? $t('checked :ago', { ago: shortAgo(stockCheck.at) }) : ''" :cls="active ? 'bg-amber-200' : 'bg-gray-200 text-gray-400'" :tip="stockCheck.tip" />
       </div>
     </TableData>
 
     <!-- Inventory Status: #Channel, Required, Balance/Capacity · Stock Cost/Value → channels + their prices -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
-      <div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="$emit('overview', vend)" v-tooltip="'View Channel Status'">
+      <div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="$emit('overview', vend)" v-tooltip="$t('View Channel Status')">
         <ul class="sm:grid sm:grid-cols-[1fr_1fr_1fr] sm:gap-x-2" v-if="rows.length">
           <li v-for="(ch, i) in rows" :key="ch.key" class="quick-look" :class="[i > 0 && ch.layer !== rows[i - 1].layer ? 'col-start-1' : '']">
             <span :class="[i > 0 && ch.layer !== rows[i - 1].layer ? 'border-t-4 border-gray-600 pt-1' : '']">
@@ -78,12 +78,12 @@
             </span>
           </li>
         </ul>
-        <span v-else class="text-xs text-gray-500">No planogram — bind a product mapping in this machine's settings.</span>
+        <span v-else class="text-xs text-gray-500">{{ $t('No planogram — bind a product mapping in this machine\'s settings.') }}</span>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
-          <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
-          <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
-          <div class="text-gray-800">Stock Qty: {{ stock.qty }} pcs</div>
-          <div class="text-[11px] text-gray-500">Layers {{ machine.layersUsed.join(', ') }} of {{ machine.layerCount }}</div>
+          <div class="text-gray-800">{{ $t('Value: :amount', { amount: money(stock.valueCents) }) }}</div>
+          <div class="text-gray-800">{{ $t('Full Load Value: :amount', { amount: money(stock.fullLoadCents) }) }}</div>
+          <div class="text-gray-800">{{ $t('Stock Qty: :qty pcs', { qty: stock.qty }) }}</div>
+          <div class="text-[11px] text-gray-500">{{ $t('Layers :layers of :count', { layers: machine.layersUsed.join(', '), count: machine.layerCount }) }}</div>
         </div>
       </div>
     </TableData>
@@ -91,7 +91,7 @@
     <!-- Error: Uncleared / rates / refunds → the only error a chiller reports is a failed poll -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
       <div class="flex flex-col space-y-1" v-if="machine.poll && !machine.poll.ok">
-        <span class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border bg-amber-100 text-amber-800 border-amber-300" v-tooltip="machine.poll.error || ''">Poll failed</span>
+        <span class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border bg-amber-100 text-amber-800 border-amber-300" v-tooltip="machine.poll.error || ''">{{ $t('Poll failed') }}</span>
         <span class="text-[10px] text-gray-500 break-all">{{ machine.poll.error }}</span>
       </div>
     </TableData>
@@ -109,8 +109,8 @@
             <!-- Stock with no channel is in neither ratio above; say so, so the counts
                  never look like they lost a SKU. -->
             <span v-if="offPlanogram.length" class="block text-[10px] text-gray-400"
-              :title="offPlanogram.length + ' SKU in the chiller are not in its CityBox restock config, so they have no channel and cannot be refilled'">
-              +{{ offPlanogramQty }} off-plan
+              :title="$t(':count SKU in the chiller are not in its CityBox restock config, so they have no channel and cannot be refilled', { count: offPlanogram.length })">
+              {{ $t('+:qty off-plan', { qty: offPlanogramQty }) }}
             </span>
           </span>
         </div>
@@ -123,8 +123,8 @@
     <!-- Machine Status: HTTP/MQTT/SIM/Modem → CityBox online + their ops status -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center" v-if="!isDriver">
       <div class="flex flex-col space-y-1">
-        <Badge :title="vend.is_online ? 'CityBox Online' : 'CityBox Offline'" :sub="vend.is_online ? (status.syncedAt ? shortAgo(status.syncedAt) : '') : (status.offlineSince || '')" :cls="active ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400'" />
-        <Badge :title="status.opsLabel" :sub="status.isStale ? 'stale — last sync ' + shortAgo(status.syncedAt) : ''" :cls="active ? (status.isRunning ? 'bg-green-100' : 'bg-red-100') : 'bg-gray-200 text-gray-400'" tip="CityBox ops status (box_list.status)" />
+        <Badge :title="vend.is_online ? $t('CityBox Online') : $t('CityBox Offline')" :sub="vend.is_online ? (status.syncedAt ? shortAgo(status.syncedAt) : '') : (status.offlineSince || '')" :cls="active ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400'" />
+        <Badge :title="status.opsLabel" :sub="status.isStale ? $t('stale — last sync :ago', { ago: shortAgo(status.syncedAt) }) : ''" :cls="active ? (status.isRunning ? 'bg-green-100' : 'bg-red-100') : 'bg-gray-200 text-gray-400'" :tip="$t('CityBox ops status (box_list.status)')" />
       </div>
     </TableData>
 
@@ -154,10 +154,10 @@
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-left">
       <div class="flex flex-col space-y-1">
         <Link :href="settingsHref" :class="[active ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">{{ vendCodeLabel(vend) }}</Link>
-        <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">Smart Chiller · CityBox</span>
+        <span class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-300 leading-none">{{ $t('Smart Chiller · CityBox') }}</span>
         <span class="text-[10px] text-gray-500 font-mono leading-none">{{ vend.citybox_equipment_id }}</span>
         <span v-if="nameMismatch" class="inline-flex rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-amber-100 text-amber-800 border-amber-300 leading-none"
-          :title="'CityBox OPS Pro calls this machine ' + status.name + ' — it should match mark1\'s machine ID.'">OPS Pro: {{ status.name }}</span>
+          :title="$t('CityBox OPS Pro calls this machine :name — it should match mark1\'s machine ID.', { name: status.name })">{{ $t('OPS Pro: :name', { name: status.name }) }}</span>
         <span class="flex flex-col space-y-0.5" v-if="mappingName">
           <a v-if="mappingId" :href="'/product-mappings/' + mappingId + '/edit'" target="_blank" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2">{{ mappingName }}</a>
           <span v-else class="text-xs text-gray-800">{{ mappingName }}</span>
@@ -165,18 +165,18 @@
         <span v-if="vend.customer_id" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
           <a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
         </span>
-        <span v-else class="text-xs text-red-600">No site bound</span>
+        <span v-else class="text-xs text-red-600">{{ $t('No site bound') }}</span>
       </div>
     </TableData>
 
     <!-- T1: Machine Temp … → machine telemetry from CityBox -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
       <div class="flex flex-col space-y-1">
-        <Badge :title="machine.stateLabel" :sub="machine.stateAt ? shortAgo(machine.stateAt) : 'not polled'" :cls="active ? machine.stateBadge : 'bg-gray-200 text-gray-400'" tip="Live session state (get_device_status_new)" />
-        <Badge v-if="machine.lastOpen" title="Last door open" :sub="machine.lastOpen.at" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" />
-        <Badge v-if="machine.poll" title="Last poll" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU' : 'failed')" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
-        <Badge v-if="signal" :title="'Signal ' + signal.bars" :sub="signal.at ? shortAgo(signal.at) : ''" :cls="active ? signal.cls : 'bg-gray-200 text-gray-400'" :tip="signal.tip" />
-        <Badge v-if="stockCheck.count" :title="stockCheck.count + ' SKU differ from CityBox'" :sub="stockCheck.at ? 'checked ' + shortAgo(stockCheck.at) : ''" :cls="active ? 'bg-amber-200' : 'bg-gray-200 text-gray-400'" :tip="stockCheck.tip" />
+        <Badge :title="machine.stateLabel" :sub="machine.stateAt ? shortAgo(machine.stateAt) : $t('not polled')" :cls="active ? machine.stateBadge : 'bg-gray-200 text-gray-400'" :tip="$t('Live session state (get_device_status_new)')" />
+        <Badge v-if="machine.lastOpen" :title="$t('Last door open')" :sub="machine.lastOpen.at" :cls="active ? 'bg-indigo-100' : 'bg-gray-200 text-gray-400'" />
+        <Badge v-if="machine.poll" :title="$t('Last poll')" :sub="shortAgo(machine.poll.at) + ' · ' + (machine.poll.ok ? machine.poll.products_seen + ' SKU' : $t('failed'))" :cls="active ? (machine.poll.ok ? 'bg-green-100' : 'bg-amber-100') : 'bg-gray-200 text-gray-400'" :tip="machine.poll.error || ''" />
+        <Badge v-if="signal" :title="$t('Signal :bars', { bars: signal.bars })" :sub="signal.at ? shortAgo(signal.at) : ''" :cls="active ? signal.cls : 'bg-gray-200 text-gray-400'" :tip="signal.tip" />
+        <Badge v-if="stockCheck.count" :title="$t(':count SKU differ from CityBox', { count: stockCheck.count })" :sub="stockCheck.at ? $t('checked :ago', { ago: shortAgo(stockCheck.at) }) : ''" :cls="active ? 'bg-amber-200' : 'bg-gray-200 text-gray-400'" :tip="stockCheck.tip" />
       </div>
     </TableData>
 
@@ -202,18 +202,18 @@
             </span>
           </li>
         </ul>
-        <span v-else class="text-xs text-gray-500">No planogram — bind a product mapping in this machine's settings.</span>
+        <span v-else class="text-xs text-gray-500">{{ $t('No planogram — bind a product mapping in this machine\'s settings.') }}</span>
         <div class="flex flex-col space-y-1 pl-2 text-center" v-if="machine.prices.length">
-          <div class="text-gray-800">Value: {{ money(stock.valueCents) }}</div>
-          <div class="text-gray-800">Full Load Value: {{ money(stock.fullLoadCents) }}</div>
-          <div class="text-gray-800">Stock Qty: {{ stock.qty }} pcs</div>
+          <div class="text-gray-800">{{ $t('Value: :amount', { amount: money(stock.valueCents) }) }}</div>
+          <div class="text-gray-800">{{ $t('Full Load Value: :amount', { amount: money(stock.fullLoadCents) }) }}</div>
+          <div class="text-gray-800">{{ $t('Stock Qty: :qty pcs', { qty: stock.qty }) }}</div>
         </div>
       </div>
     </TableData>
 
     <!-- Errors -->
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
-      <span v-if="machine.poll && !machine.poll.ok" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border bg-amber-100 text-amber-800 border-amber-300" v-tooltip="machine.poll.error || ''">Poll failed</span>
+      <span v-if="machine.poll && !machine.poll.ok" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border bg-amber-100 text-amber-800 border-amber-300" v-tooltip="machine.poll.error || ''">{{ $t('Poll failed') }}</span>
     </TableData>
 
     <!-- Balance Stock · Remaining SKU# -->
@@ -227,8 +227,8 @@
           <!-- Stock with no channel is in neither ratio above; say so, so the counts
                never look like they lost a SKU. -->
           <span v-if="offPlanogram.length" class="block text-[10px] text-gray-400"
-            :title="offPlanogram.length + ' SKU in the chiller are not in its CityBox restock config, so they have no channel and cannot be refilled'">
-            +{{ offPlanogramQty }} off-plan
+            :title="$t(':count SKU in the chiller are not in its CityBox restock config, so they have no channel and cannot be refilled', { count: offPlanogram.length })">
+            {{ $t('+:qty off-plan', { qty: offPlanogramQty }) }}
           </span>
         </span>
       </div>
@@ -242,8 +242,8 @@
     <TableData :currentIndex="vendIndex" :totalLength="totalLength" inputClass="text-center">
       <div class="flex flex-col space-y-1">
         <MachineBadge :vend="vend" />
-        <Badge :title="vend.is_online ? 'Online' : 'Offline'" :sub="vend.is_online ? (status.syncedAt ? shortAgo(status.syncedAt) : '') : (status.offlineSince || '')" :cls="active ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400'" />
-        <Badge :title="status.opsLabel" :sub="status.isStale ? 'stale' : ''" :cls="active ? (status.isRunning ? 'bg-green-100' : 'bg-red-100') : 'bg-gray-200 text-gray-400'" tip="CityBox ops status (box_list.status)" />
+        <Badge :title="vend.is_online ? $t('Online') : $t('Offline')" :sub="vend.is_online ? (status.syncedAt ? shortAgo(status.syncedAt) : '') : (status.offlineSince || '')" :cls="active ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400'" />
+        <Badge :title="status.opsLabel" :sub="status.isStale ? $t('stale') : ''" :cls="active ? (status.isRunning ? 'bg-green-100' : 'bg-red-100') : 'bg-gray-200 text-gray-400'" :tip="$t('CityBox ops status (box_list.status)')" />
       </div>
     </TableData>
 
@@ -268,7 +268,7 @@
       <div class="flex flex-col items-center space-y-1">
         <Link :href="'/vends/' + vendId + '/edit'">
           <Button type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1">
-            <EllipsisHorizontalCircleIcon class="w-4 h-4" /><span>more</span>
+            <EllipsisHorizontalCircleIcon class="w-4 h-4" /><span>{{ $t('more') }}</span>
           </Button>
         </Link>
         <ActionButtons :vend="vend" :status="status" :machine="machine" />
@@ -284,6 +284,7 @@ import { computed, defineComponent, h } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { ArrowPathIcon, EllipsisHorizontalCircleIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
 import { useToast } from 'vue-toastification'
+import { t } from '@/i18n'
 import Button from '@/Components/Button.vue'
 import TableData from '@/Components/TableData.vue'
 
@@ -308,11 +309,11 @@ const mappingName = computed(() => props.vend.productMapping?.name ?? props.vend
 const mappingId = computed(() => props.vend.productMapping?.id ?? props.vend.vend?.productMapping?.id ?? props.vend.product_mapping_id ?? null)
 
 // Vocabularies mirror the PHP enums (DeviceOpsStatus / DeviceState / DeviceType); ChillerStatus is the source.
-const OPS_LABELS = { 0: 'Banned (禁运)', 1: 'Running (启运)', 98: 'Being removed (撤机中)', 99: 'Removed (已撤机)' }
+const OPS_LABELS = { 0: t('Banned (禁运)'), 1: t('Running (启运)'), 98: t('Being removed (撤机中)'), 99: t('Removed (已撤机)') }
 const MODELS = { 'visual-2': 'CityBox F5 (visual-2)', 'visual-8': 'CityBox C5 (visual-8)' }
-const STATE_LABELS = { FREE: 'Idle', OPENING: 'Door open', BUSY: 'In use', MAINTENANCE: 'Maintenance', NOT_FOUND: 'Unreachable', OTHER: 'Unknown state' }
+const STATE_LABELS = { FREE: t('Idle'), OPENING: t('Door open'), BUSY: t('In use'), MAINTENANCE: t('Maintenance'), NOT_FOUND: t('Unreachable'), OTHER: t('Unknown state') }
 const STATE_BADGES = { FREE: 'bg-green-200', OPENING: 'bg-indigo-200', BUSY: 'bg-blue-200', MAINTENANCE: 'bg-amber-200', NOT_FOUND: 'bg-gray-200' }
-const SOURCE_LABELS = { ops_job_page: 'ops job', ops_job_item_page: 'ops job item', vend_settings: 'settings', api: 'API' }
+const SOURCE_LABELS = { ops_job_page: t('ops job'), ops_job_item_page: t('ops job item'), vend_settings: t('settings'), api: 'API' }
 const STALE_AFTER_MS = 5 * 60 * 1000
 function sourceLabel(src) { return SOURCE_LABELS[src] || src }
 
@@ -324,7 +325,7 @@ const status = computed(() => {
   return {
     name: j.name || null,
     model: MODELS[j.device_type] || 'CityBox',
-    opsLabel: (ops !== null && OPS_LABELS[ops]) || j.equipment_status_str || 'Status unknown',
+    opsLabel: (ops !== null && OPS_LABELS[ops]) || j.equipment_status_str || t('Status unknown'),
     isRunning: ops === 1,
     offlineSince: j.heartbeat_last_offline || null,
     recoveredAt: j.heartbeat_last_recovery || null,
@@ -348,7 +349,7 @@ const machine = computed(() => {
   const stock = j.stock && typeof j.stock === 'object' ? Object.values(j.stock) : []
   return {
     state,
-    stateLabel: state ? (STATE_LABELS[state] || state) : 'State not polled',
+    stateLabel: state ? (STATE_LABELS[state] || state) : t('State not polled'),
     stateBadge: (state && STATE_BADGES[state]) || 'bg-gray-100',
     stateAt: j.device_state_at || null,
     // Only a KNOWN busy state blocks Open Door; NOT_FOUND does not (units are seen online per
@@ -372,7 +373,7 @@ const signal = computed(() => {
   if (!j.signal || j.signal.bars === undefined || j.signal.bars === null) return null
   const link = { internet_source: 'telco', internet_signal: Number(j.signal.bars), internet_signal_max: 5 }
   const parts = [j.signal.rsrp_dbm !== null && j.signal.rsrp_dbm !== undefined ? 'RSRP ' + j.signal.rsrp_dbm + ' dBm' : null, j.signal.quality]
-  return { bars: signalBars(link), cls: signalBadgeClass(link), at: j.signal.at || null, tip: 'CityBox signal: ' + parts.filter(Boolean).join(' · ') }
+  return { bars: signalBars(link), cls: signalBadgeClass(link), at: j.signal.at || null, tip: t('CityBox signal: :reading', { reading: parts.filter(Boolean).join(' · ') }) }
 })
 
 // Our stock ledger vs their live count (StockPollService::checkLedger). Only differences that
@@ -383,7 +384,7 @@ const stockCheck = computed(() => {
   return {
     count: real.length,
     at: c.at || null,
-    tip: real.map(d => (d.label || d.product_id) + ': ours ' + d.ours + ', CityBox ' + d.theirs + ' (since ' + d.since + ')').join('\n'),
+    tip: real.map(d => t(':product: ours :ours, CityBox :theirs (since :since)', { product: d.label || d.product_id, ours: d.ours, theirs: d.theirs, since: d.since })).join('\n'),
   }
 })
 
@@ -437,9 +438,8 @@ const rows = computed(() => [
   || (a.off_plan ? a.id - b.id : (Number(a.code) - Number(b.code) || a.suffix.localeCompare(b.suffix)))))
 
 function offTitle(r) {
-  return 'CityBox SKU ' + r.id + (r.name ? ' — ' + r.name : '')
-    + ' · on layer ' + (r.layer || '?') + ' but not in this chiller\'s CityBox restock config'
-    + ' — no channel, no par, cannot be refilled'
+  return t('CityBox SKU :id:name · on layer :layer but not in this chiller\'s CityBox restock config — no channel, no par, cannot be refilled',
+    { id: r.id, name: r.name ? ' — ' + r.name : '', layer: r.layer || '?' })
 }
 
 const stock = computed(() => {
@@ -462,11 +462,11 @@ function shortAgo(v) {
   const d = v instanceof Date ? v : new Date(String(v).replace(' ', 'T'))
   if (isNaN(d.getTime())) return String(v)
   const m = Math.round((Date.now() - d.getTime()) / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return m + ' min ago'
+  if (m < 1) return t('just now')
+  if (m < 60) return t(':minutes min ago', { minutes: m })
   const h = Math.round(m / 60)
-  if (h < 48) return h + ' h ago'
-  return Math.round(h / 24) + ' d ago'
+  if (h < 48) return t(':hours h ago', { hours: h })
+  return t(':days d ago', { days: Math.round(h / 24) })
 }
 
 // ── tiny render helpers, same badge shape the vending cells use ─────────────
@@ -483,9 +483,9 @@ const MachineBadge = defineComponent({
   setup: (p) => () => {
     const v = p.vend
     const cls = v.is_sold ? 'bg-yellow-200' : (v.is_testing ? 'bg-gray-200' : ((v.vend_is_active ?? v.is_active) ? 'bg-blue-200' : (v.is_disposed ? 'bg-red-300' : 'bg-red-200')))
-    const label = v.is_sold ? 'Sold' : (v.is_testing ? 'Testing' : ((v.vend_is_active ?? v.is_active) ? 'Active' : (v.is_disposed ? 'Disposed' : 'Not Active')))
+    const label = v.is_sold ? t('Sold') : (v.is_testing ? t('Testing') : ((v.vend_is_active ?? v.is_active) ? t('Active') : (v.is_disposed ? t('Disposed') : t('Not Active'))))
     return h('div', { class: ['inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full', cls] },
-      [h('div', { class: 'flex flex-col' }, [h('span', { class: 'font-bold' }, 'Machine'), h('span', label)])])
+      [h('div', { class: 'flex flex-col' }, [h('span', { class: 'font-bold' }, t('Machine')), h('span', label)])])
   },
 })
 
@@ -496,12 +496,12 @@ const ActionButtons = defineComponent({
     let busy = false
     const id = () => p.vend.vend_id ?? p.vend.id
     const openDoor = () => {
-      if (!confirm('Open chiller ' + vendCodeLabel(p.vend) + ' (' + (p.status.name || p.vend.citybox_equipment_id) + ') for restocking now?')) return
+      if (!confirm(t('Open chiller :machine (:device) for restocking now?', { machine: vendCodeLabel(p.vend), device: p.status.name || p.vend.citybox_equipment_id }))) return
       busy = true
       router.post('/vends/' + id() + '/citybox-open-door', {}, {
         preserveScroll: true,
-        onSuccess: () => toast.success('Door opened', { timeout: 3000 }),
-        onError: (e) => toast.error(e.citybox || 'Door open failed', { timeout: 6000 }),
+        onSuccess: () => toast.success(t('Door opened'), { timeout: 3000 }),
+        onError: (e) => toast.error(e.citybox || t('Door open failed'), { timeout: 6000 }),
         onFinish: () => { busy = false },
       })
     }
@@ -509,22 +509,22 @@ const ActionButtons = defineComponent({
       busy = true
       router.post('/vends/' + id() + '/citybox-pull', {}, {
         preserveScroll: true,
-        onSuccess: () => toast.success('Pulled from CityBox', { timeout: 3000 }),
-        onError: (e) => toast.error(e.citybox || 'Pull failed', { timeout: 6000 }),
+        onSuccess: () => toast.success(t('Pulled from CityBox'), { timeout: 3000 }),
+        onError: (e) => toast.error(e.citybox || t('Pull failed'), { timeout: 6000 }),
         onFinish: () => { busy = false },
       })
     }
     return () => {
       const noLink = !p.vend.citybox_equipment_id
       const blocked = noLink || !p.vend.is_online || p.machine.doorBlocked
-      const why = noLink ? 'Not linked to a CityBox device' : !p.vend.is_online ? 'Offline — CityBox cannot open the door' : p.machine.doorBlocked ? 'CityBox reports the machine is ' + p.machine.stateLabel.toLowerCase() : 'Unlock the cabinet for restocking (ops open)'
+      const why = noLink ? t('Not linked to a CityBox device') : !p.vend.is_online ? t('Offline — CityBox cannot open the door') : p.machine.doorBlocked ? t('CityBox reports the machine is :state', { state: p.machine.stateLabel.toLowerCase() }) : t('Unlock the cabinet for restocking (ops open)')
       return h('div', { class: 'flex flex-wrap gap-1' }, [
         h('button', { type: 'button', title: why, disabled: busy || blocked, onClick: (e) => { e.preventDefault(); openDoor() },
           class: 'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed' },
-          [h(LockOpenIcon, { class: 'w-3.5 h-3.5' }), 'Open Door']),
-        h('button', { type: 'button', title: 'Refresh status, planogram and live stock from CityBox now', disabled: busy || noLink, onClick: (e) => { e.preventDefault(); pull() },
+          [h(LockOpenIcon, { class: 'w-3.5 h-3.5' }), t('Open Door')]),
+        h('button', { type: 'button', title: t('Refresh status, planogram and live stock from CityBox now'), disabled: busy || noLink, onClick: (e) => { e.preventDefault(); pull() },
           class: 'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50' },
-          [h(ArrowPathIcon, { class: 'w-3.5 h-3.5' }), 'Pull']),
+          [h(ArrowPathIcon, { class: 'w-3.5 h-3.5' }), t('Pull')]),
       ])
     }
   },

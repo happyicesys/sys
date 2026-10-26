@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="APK OTA Updates" />
+  <Head :title="$t('APK OTA Updates')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        APK OTA Updates
+        {{ $t('APK OTA Updates') }}
       </h2>
     </template>
 
@@ -13,7 +13,7 @@
 
       <!-- Channel tabs: one Android build per fleet, independent version streams -->
       <div class="border-b border-gray-200 overflow-x-auto">
-        <nav class="-mb-px flex space-x-2 sm:space-x-4" aria-label="APK channel">
+        <nav class="-mb-px flex space-x-2 sm:space-x-4" :aria-label="$t('APK channel')">
           <button
             v-for="c in channels"
             :key="c.key"
@@ -36,9 +36,9 @@
       <div class="bg-white rounded-md border px-4 py-3">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="min-w-0">
-            <h3 class="text-sm font-semibold text-gray-800">Fleet version spread</h3>
+            <h3 class="text-sm font-semibold text-gray-800">{{ $t('Fleet version spread') }}</h3>
             <p class="text-xs text-gray-500">
-              {{ fleetCount }} machine(s) on {{ activeChannel.label }}. Each reports its running APK version when it polls for updates.
+              {{ $t(':count machine(s) on :channel. Each reports its running APK version when it polls for updates.', { count: fleetCount, channel: activeChannel.label }) }}
             </p>
           </div>
           <Button
@@ -47,20 +47,20 @@
             @click="pushOtaCheck"
           >
             <ArrowPathIcon class="h-4 w-4" />
-            <span>Push OTA check to fleet</span>
+            <span>{{ $t('Push OTA check to fleet') }}</span>
           </Button>
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
-          <span v-if="!fleetVersions.length" class="text-xs text-gray-400">No machines on this channel yet.</span>
+          <span v-if="!fleetVersions.length" class="text-xs text-gray-400">{{ $t('No machines on this channel yet.') }}</span>
           <button
             v-for="row in fleetVersions"
             :key="row.version_code ?? 'unknown'"
             type="button"
             class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            :title="`Show the ${row.total} machine(s) on this version`"
+            :title="$t('Show the :count machine(s) on this version', { count: row.total })"
             @click="openFleetBucket(row)"
           >
-            {{ row.version_code ? ('code ' + row.version_code) : 'never checked in' }}
+            {{ row.version_code ? $t('code :code', { code: row.version_code }) : $t('never checked in') }}
             <span class="ml-1 rounded-full bg-gray-700 px-1.5 text-white">{{ row.total }}</span>
           </button>
         </div>
@@ -70,7 +70,7 @@
       <Modal :open="fleetModal.open" @modalClose="closeFleetBucket">
         <template #header>
           <span>
-            {{ fleetModal.versionCode ? ('APK code ' + fleetModal.versionCode) : 'Never checked in' }}
+            {{ fleetModal.versionCode ? $t('APK code :code', { code: fleetModal.versionCode }) : $t('Never checked in') }}
             <span class="text-base font-normal text-gray-500">— {{ activeChannel.label }}</span>
           </span>
         </template>
@@ -78,19 +78,19 @@
         <div class="text-sm">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-3">
             <p class="text-xs text-gray-500">
-              <span v-if="fleetModal.loading">Loading…</span>
+              <span v-if="fleetModal.loading">{{ $t('Loading…') }}</span>
               <span v-else>
-                {{ fleetModal.total }} machine(s).
+                {{ $t(':count machine(s).', { count: fleetModal.total }) }}
                 <span v-if="fleetModal.truncated" class="text-amber-600">
-                  Showing the first {{ fleetModal.machines.length }} by machine ID.
+                  {{ $t('Showing the first :count by machine ID.', { count: fleetModal.machines.length }) }}
                 </span>
-                <span v-if="canOpenSettings"> Click a row to open its Setting/Edit.</span>
+                <span v-if="canOpenSettings"> {{ $t('Click a row to open its Setting/Edit.') }}</span>
               </span>
             </p>
             <input
               v-model="fleetModal.filter"
               type="text"
-              placeholder="Filter machine ID or site…"
+              :placeholder="$t('Filter machine ID or site…')"
               class="w-full sm:w-56 rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
@@ -101,15 +101,15 @@
             <table class="min-w-full divide-y divide-gray-200 text-left">
               <thead class="bg-gray-50 sticky top-0">
                 <tr class="text-xs font-semibold text-gray-600">
-                  <th class="px-3 py-2">Machine ID</th>
-                  <th class="px-3 py-2">Site</th>
-                  <th class="px-3 py-2">Status</th>
-                  <th class="px-3 py-2">Last OTA check-in</th>
+                  <th class="px-3 py-2">{{ $t('Machine ID') }}</th>
+                  <th class="px-3 py-2">{{ $t('Site') }}</th>
+                  <th class="px-3 py-2">{{ $t('Status') }}</th>
+                  <th class="px-3 py-2">{{ $t('Last OTA check-in') }}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 bg-white text-xs">
                 <tr v-if="!fleetModal.loading && !filteredFleetMachines.length">
-                  <td colspan="4" class="px-3 py-4 text-center text-gray-400">No machines match.</td>
+                  <td colspan="4" class="px-3 py-4 text-center text-gray-400">{{ $t('No machines match.') }}</td>
                 </tr>
                 <tr
                   v-for="m in filteredFleetMachines"
@@ -124,12 +124,12 @@
                       <span v-if="m.site_ref && m.site_name"> — </span>
                       <span>{{ m.site_name }}</span>
                     </span>
-                    <span v-else class="text-gray-400">No site</span>
+                    <span v-else class="text-gray-400">{{ $t('No site') }}</span>
                   </td>
                   <td class="px-3 py-2">
-                    <span v-if="m.is_disposed" class="rounded-full bg-red-100 px-2 py-0.5 text-red-700">Disposed</span>
-                    <span v-else-if="m.is_active" class="rounded-full bg-green-100 px-2 py-0.5 text-green-700">Active</span>
-                    <span v-else class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">Inactive</span>
+                    <span v-if="m.is_disposed" class="rounded-full bg-red-100 px-2 py-0.5 text-red-700">{{ $t('Disposed') }}</span>
+                    <span v-else-if="m.is_active" class="rounded-full bg-green-100 px-2 py-0.5 text-green-700">{{ $t('Active') }}</span>
+                    <span v-else class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{{ $t('Inactive') }}</span>
                   </td>
                   <td class="px-3 py-2 text-gray-500">{{ m.apk_checked_in_at ?? '—' }}</td>
                 </tr>
@@ -141,14 +141,14 @@
 
       <!-- Upload a new APK build -->
       <div v-if="canCreate" class="bg-white rounded-md border px-4 py-3">
-        <h3 class="text-sm font-semibold text-gray-800 mb-1">Upload new build — {{ activeChannel.label }}</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-1">{{ $t('Upload new build — :channel', { channel: activeChannel.label }) }}</h3>
         <p class="text-xs text-gray-500 mb-3">
-          Goes into the <span class="font-mono">{{ activeChannel.package_name }}</span> channel only. Uploads land as <strong>draft</strong>; nothing reaches a machine until you publish.
+          {{ $t('Goes into the') }} <span class="font-mono">{{ activeChannel.package_name }}</span> {{ $t('channel only. Uploads land as') }} <strong>{{ $t('draft') }}</strong>{{ $t('; nothing reaches a machine until you publish.') }}
         </p>
         <form @submit.prevent="submitUpload" class="grid grid-cols-1 md:grid-cols-2 gap-3">
 
           <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700">Signed APK file <span class="text-red-500">*</span></label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Signed APK file') }} <span class="text-red-500">*</span></label>
             <!--
               No `accept` filter: iOS has no file type for .apk, so Safari greyed out every APK in
               the picker and the build could not be uploaded from an iPhone (2026-09-17). The name
@@ -160,45 +160,45 @@
               class="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700"
             />
             <p v-if="uploadForm.errors.apk" class="text-xs text-red-500 mt-1">{{ uploadForm.errors.apk }}</p>
-            <p class="text-xs text-gray-400 mt-1">Must be signed with this channel's pinned release key. SHA-256 &amp; size are computed on the server.</p>
+            <p class="text-xs text-gray-400 mt-1">{{ $t("Must be signed with this channel's pinned release key. SHA-256 & size are computed on the server.") }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">versionCode <span class="text-red-500">*</span></label>
-            <input v-model="uploadForm.version_code" type="number" min="1" class="mt-1 block w-full rounded-md border-gray-300 text-sm" placeholder="e.g. 302" />
+            <label class="block text-sm font-medium text-gray-700">{{ $t('versionCode') }} <span class="text-red-500">*</span></label>
+            <input v-model="uploadForm.version_code" type="number" min="1" class="mt-1 block w-full rounded-md border-gray-300 text-sm" :placeholder="$t('e.g. 302')" />
             <p v-if="uploadForm.errors.version_code" class="text-xs text-red-500 mt-1">{{ uploadForm.errors.version_code }}</p>
             <p class="text-xs text-gray-400 mt-1">
-              Unique within this channel, and strictly greater than the build it replaces (Android refuses downgrades).
-              <span v-if="liveRelease">Live now: code {{ liveRelease.version_code }}.</span>
+              {{ $t('Unique within this channel, and strictly greater than the build it replaces (Android refuses downgrades).') }}
+              <span v-if="liveRelease">{{ $t('Live now: code :code.', { code: liveRelease.version_code }) }}</span>
             </p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">versionName <span class="text-red-500">*</span></label>
-            <input v-model="uploadForm.version_name" type="text" class="mt-1 block w-full rounded-md border-gray-300 text-sm" placeholder="e.g. 3.0.2" />
+            <label class="block text-sm font-medium text-gray-700">{{ $t('versionName') }} <span class="text-red-500">*</span></label>
+            <input v-model="uploadForm.version_name" type="text" class="mt-1 block w-full rounded-md border-gray-300 text-sm" :placeholder="$t('e.g. 3.0.2')" />
             <p v-if="uploadForm.errors.version_name" class="text-xs text-red-500 mt-1">{{ uploadForm.errors.version_name }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Rollout (‰, 0–1000)</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Rollout (‰, 0–1000)') }}</label>
             <input v-model="uploadForm.rollout_permille" type="number" min="0" max="1000" class="mt-1 block w-full rounded-md border-gray-300 text-sm" />
-            <p class="text-xs text-gray-400 mt-1">{{ permilleLabel(uploadForm.rollout_permille) }} — start small (10 = 1% canary), then ramp after publishing.</p>
+            <p class="text-xs text-gray-400 mt-1">{{ permilleLabel(uploadForm.rollout_permille) }} — {{ $t('start small (10 = 1% canary), then ramp after publishing.') }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Min supported versionCode</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Min supported versionCode') }}</label>
             <input v-model="uploadForm.min_supported_version_code" type="number" min="0" class="mt-1 block w-full rounded-md border-gray-300 text-sm" placeholder="0" />
-            <p class="text-xs text-gray-400 mt-1">Informational — builds at/below this are flagged end-of-life.</p>
+            <p class="text-xs text-gray-400 mt-1">{{ $t('Informational — builds at/below this are flagged end-of-life.') }}</p>
           </div>
 
           <div class="flex items-center mt-6">
             <input id="mandatory" v-model="uploadForm.mandatory" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600" />
-            <label for="mandatory" class="ml-2 text-sm text-gray-700">Mandatory (bypass rollout — security fixes only)</label>
+            <label for="mandatory" class="ml-2 text-sm text-gray-700">{{ $t('Mandatory (bypass rollout — security fixes only)') }}</label>
           </div>
 
           <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700">Release notes</label>
-            <textarea v-model="uploadForm.release_notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 text-sm" placeholder="What changed in this build"></textarea>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Release notes') }}</label>
+            <textarea v-model="uploadForm.release_notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 text-sm" :placeholder="$t('What changed in this build')"></textarea>
           </div>
 
           <div class="md:col-span-2 flex justify-end">
@@ -207,7 +207,7 @@
               :disabled="uploadForm.processing"
               class="inline-flex items-center rounded-md bg-green-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
             >
-              {{ uploadForm.processing ? ('Uploading… ' + uploadProgress + '%') : 'Upload as draft' }}
+              {{ uploadForm.processing ? $t('Uploading… :percent%', { percent: uploadProgress }) : $t('Upload as draft') }}
             </Button>
           </div>
         </form>
@@ -215,32 +215,32 @@
 
       <!-- Releases table -->
       <div class="bg-white rounded-md border px-4 py-3">
-        <h3 class="text-sm font-semibold text-gray-800 mb-3">Releases — {{ activeChannel.label }}</h3>
+        <h3 class="text-sm font-semibold text-gray-800 mb-3">{{ $t('Releases — :channel', { channel: activeChannel.label }) }}</h3>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
             <thead>
               <tr class="text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                <th class="px-2 py-2">Version</th>
-                <th class="px-2 py-2">Status</th>
-                <th class="px-2 py-2">Rollout</th>
-                <th class="px-2 py-2">Mandatory</th>
-                <th class="px-2 py-2">Size</th>
+                <th class="px-2 py-2">{{ $t('Version') }}</th>
+                <th class="px-2 py-2">{{ $t('Status') }}</th>
+                <th class="px-2 py-2">{{ $t('Rollout') }}</th>
+                <th class="px-2 py-2">{{ $t('Mandatory') }}</th>
+                <th class="px-2 py-2">{{ $t('Size') }}</th>
                 <th class="px-2 py-2">SHA-256</th>
-                <th class="px-2 py-2">Uploaded</th>
-                <th class="px-2 py-2 text-right">Actions</th>
+                <th class="px-2 py-2">{{ $t('Uploaded') }}</th>
+                <th class="px-2 py-2 text-right">{{ $t('Actions') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
               <tr v-if="!releases.length">
-                <td colspan="8" class="px-2 py-4 text-center text-gray-400">No builds uploaded to this channel yet.</td>
+                <td colspan="8" class="px-2 py-4 text-center text-gray-400">{{ $t('No builds uploaded to this channel yet.') }}</td>
               </tr>
               <tr v-for="r in releases" :key="r.id" :class="{ 'bg-green-50': r.is_live }">
                 <td class="px-2 py-2">
                   <div class="font-medium text-gray-800">
                     {{ r.version_name }}
-                    <span v-if="r.is_live" class="ml-1 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">live</span>
+                    <span v-if="r.is_live" class="ml-1 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">{{ $t('live') }}</span>
                   </div>
-                  <div class="text-xs text-gray-500">code {{ r.version_code }}</div>
+                  <div class="text-xs text-gray-500">{{ $t('code :code', { code: r.version_code }) }}</div>
                 </td>
                 <td class="px-2 py-2">
                   <span :class="statusClass(r.status)" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize">{{ r.status }}</span>
@@ -248,15 +248,15 @@
                 <td class="px-2 py-2">
                   <div v-if="canUpdate" class="flex items-center space-x-1">
                     <input v-model.number="rolloutEdits[r.id]" type="number" min="0" max="1000" class="w-20 rounded-md border-gray-300 text-xs py-1" />
-                    <button type="button" class="text-indigo-600 text-xs hover:underline" @click="saveRollout(r)">save</button>
+                    <button type="button" class="text-indigo-600 text-xs hover:underline" @click="saveRollout(r)">{{ $t('save') }}</button>
                   </div>
                   <span v-else class="text-xs text-gray-600">{{ r.rollout_percent }}%</span>
                 </td>
                 <td class="px-2 py-2">
                   <button v-if="canUpdate" type="button" @click="toggleMandatory(r)" :class="r.mandatory ? 'text-red-600' : 'text-gray-400'" class="text-xs hover:underline">
-                    {{ r.mandatory ? 'YES' : 'no' }}
+                    {{ r.mandatory ? $t('YES') : $t('no') }}
                   </button>
-                  <span v-else class="text-xs">{{ r.mandatory ? 'YES' : 'no' }}</span>
+                  <span v-else class="text-xs">{{ r.mandatory ? $t('YES') : $t('no') }}</span>
                 </td>
                 <td class="px-2 py-2 text-xs text-gray-600">{{ r.size_mb }} MB</td>
                 <td class="px-2 py-2">
@@ -268,10 +268,10 @@
                 </td>
                 <td class="px-2 py-2">
                   <div class="flex items-center justify-end space-x-2 whitespace-nowrap">
-                    <button type="button" v-if="canUpdate && r.status !== 'published'" @click="publish(r)" class="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">Publish</button>
-                    <button type="button" v-if="canUpdate && r.status === 'published'" @click="unpublish(r)" class="rounded bg-amber-500 px-2 py-1 text-xs text-white hover:bg-amber-600">Unpublish</button>
+                    <button type="button" v-if="canUpdate && r.status !== 'published'" @click="publish(r)" class="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">{{ $t('Publish') }}</button>
+                    <button type="button" v-if="canUpdate && r.status === 'published'" @click="unpublish(r)" class="rounded bg-amber-500 px-2 py-1 text-xs text-white hover:bg-amber-600">{{ $t('Unpublish') }}</button>
                     <a :href="r.file_url" target="_blank" class="rounded border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">APK</a>
-                    <button type="button" v-if="canDelete && r.status !== 'published'" @click="destroy(r)" class="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Delete</button>
+                    <button type="button" v-if="canDelete && r.status !== 'published'" @click="destroy(r)" class="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">{{ $t('Delete') }}</button>
                   </div>
                 </td>
               </tr>
@@ -279,7 +279,7 @@
           </table>
         </div>
         <p class="text-xs text-gray-400 mt-3">
-          The live manifest served to this channel's fleet is its highest-versionCode <strong>published</strong> release. To roll back, publish a higher versionCode carrying the previous good build.
+          {{ $t("The live manifest served to this channel's fleet is its highest-versionCode") }} <strong>{{ $t('published') }}</strong> {{ $t('release. To roll back, publish a higher versionCode carrying the previous good build.') }}
         </p>
       </div>
 
@@ -296,6 +296,7 @@ import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import { ArrowPathIcon } from '@heroicons/vue/20/solid';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useToast } from 'vue-toastification';
+import { t } from '@/i18n';
 
 const props = defineProps({
   channel: { type: String, default: '' },
@@ -366,8 +367,8 @@ function openFleetBucket(row) {
     fleetModal.truncated = !!data.truncated;
   }).catch((e) => {
     fleetModal.error = e?.response?.status === 403
-      ? 'You do not have permission to list these machines.'
-      : 'Could not load the machine list. Please try again.';
+      ? t('You do not have permission to list these machines.')
+      : t('Could not load the machine list. Please try again.');
   }).finally(() => {
     fleetModal.loading = false;
   });
@@ -409,7 +410,7 @@ watch(() => page.props.errors?.release, (msg) => { if (msg) toast.error(msg); })
 
 const reloadOpts = {
   preserveScroll: true,
-  onError: () => toast.error('Something went wrong.'),
+  onError: () => toast.error(t('Something went wrong.')),
 };
 
 function switchChannel(key) {
@@ -423,7 +424,7 @@ function onApkPicked(e) {
   uploadForm.clearErrors('apk')
   if (file && !file.name.toLowerCase().endsWith('.apk')) {
     uploadForm.apk = null
-    uploadForm.setError('apk', `"${file.name}" is not an .apk file.`)
+    uploadForm.setError('apk', t('":name" is not an .apk file.', { name: file.name }))
     e.target.value = ''
     return
   }
@@ -438,12 +439,12 @@ function submitUpload() {
       preserveScroll: true,
       onProgress: (e) => { uploadProgress.value = e ? Math.round(e.percentage) : 0; },
       onSuccess: () => { uploadForm.reset(); uploadForm.channel = props.channel; uploadProgress.value = 0; },
-      onError: () => { uploadProgress.value = 0; toast.error('Upload failed — check the fields.'); },
+      onError: () => { uploadProgress.value = 0; toast.error(t('Upload failed — check the fields.')); },
     });
 }
 
 function publish(r) {
-  if (!confirm(`Publish v${r.version_name} (code ${r.version_code}) to ${activeChannel.value.label}?`)) return;
+  if (!confirm(t('Publish v:name (code :code) to :channel?', { name: r.version_name, code: r.version_code, channel: activeChannel.value.label }))) return;
   router.post(`/apk-releases/releases/${r.id}/publish`, {}, reloadOpts);
 }
 function unpublish(r) { router.post(`/apk-releases/releases/${r.id}/unpublish`, {}, reloadOpts); }
@@ -452,17 +453,17 @@ function saveRollout(r) {
   router.post(`/apk-releases/releases/${r.id}/rollout`, { rollout_permille: rolloutEdits[r.id] ?? 0 }, reloadOpts);
 }
 function destroy(r) {
-  if (!confirm(`Delete APK v${r.version_name} (code ${r.version_code})? This removes the file too.`)) return;
+  if (!confirm(t('Delete APK v:name (code :code)? This removes the file too.', { name: r.version_name, code: r.version_code }))) return;
   router.delete(`/apk-releases/releases/${r.id}`, reloadOpts);
 }
 function pushOtaCheck() {
-  if (!confirm(`Notify all active machines on ${activeChannel.value.label} to check for updates now?`)) return;
+  if (!confirm(t('Notify all active machines on :channel to check for updates now?', { channel: activeChannel.value.label }))) return;
   router.post('/apk-releases/push-ota-check', { channel: props.channel }, reloadOpts);
 }
 
-function copy(text) { navigator.clipboard?.writeText(text); toast.success('SHA-256 copied.'); }
+function copy(text) { navigator.clipboard?.writeText(text); toast.success(t('SHA-256 copied.')); }
 function shortHash(h) { return h ? h.slice(0, 10) + '…' : ''; }
-function permilleLabel(p) { const n = Number(p) || 0; return (n / 10).toFixed(1) + '% of the fleet'; }
+function permilleLabel(p) { const n = Number(p) || 0; return t(':percent% of the fleet', { percent: (n / 10).toFixed(1) }); }
 function statusClass(s) {
   return {
     published: 'bg-green-100 text-green-700',

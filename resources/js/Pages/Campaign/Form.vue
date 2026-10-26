@@ -6,13 +6,13 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-3">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
               <label for="operator" class="flex justify-start text-sm font-medium text-gray-700 space-x-1">
                 <span>
-                  Operator
+                  {{ $t('Operator') }}
                 </span>
                 <span class="text-red-600">*</span>
               </label>
@@ -22,7 +22,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 :required="true"
@@ -34,12 +34,12 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.slug" :error="form.errors.slug" required="true">
-                Slug (Appear in Machine Display)
+                {{ $t('Slug (Appear in Machine Display)') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.description" :error="form.errors.description" rows="3">
-                Description
+                {{ $t('Description') }}
               </FormTextarea>
             </div>
             <div class="sm:col-span-6 pt-2">
@@ -48,7 +48,7 @@
             <div class="sm:col-span-4">
               <label class="flex justify-start text-sm font-medium text-gray-700 space-x-1">
                 <span>
-                  Promotion Type
+                  {{ $t('Promotion Type') }}
                 </span>
                 <span class="text-red-600">*</span>
               </label>
@@ -58,7 +58,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 :required="true"
@@ -69,7 +69,7 @@
               </div>
             </div>
             <div class="sm:col-span-3">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Labels X</label>
+              <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Labels X') }}</label>
               <MultiSelect
                 v-model="form.labels_x"
                 :options="tagOptions"
@@ -77,7 +77,7 @@
                 valueProp="id"
                 label="name"
                 mode="tags"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -87,7 +87,7 @@
               </div>
             </div>
             <div class="sm:col-span-3">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Labels Y</label>
+              <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Labels Y') }}</label>
               <MultiSelect
                 v-model="form.labels_y"
                 :options="tagOptions"
@@ -95,7 +95,7 @@
                 valueProp="id"
                 label="name"
                 mode="tags"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -107,7 +107,7 @@
             <div class="sm:col-span-3">
               <label class="flex justify-start text-sm font-medium text-gray-700 space-x-1">
                 <span>
-                  Discount Basis
+                  {{ $t('Discount Basis') }}
                 </span>
                 <span class="text-red-600">*</span>
               </label>
@@ -117,7 +117,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
                 required="true"
@@ -128,12 +128,12 @@
               </div>
             </div>
             <div class="sm:col-span-3" v-if="showBundleQtyField">
-              <FormInput v-model="form.bundle_qty" :error="form.errors.bundle_qty" inputType="number" placeholderStr="Bundle quantity">
-                Bundle Quantity X
+              <FormInput v-model="form.bundle_qty" :error="form.errors.bundle_qty" inputType="number" :placeholderStr="$t('Bundle quantity')">
+                {{ $t('Bundle Quantity X') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3" v-if="showValueField">
-              <FormInput v-model="form.value" :error="form.errors.value" inputType="number" placeholderStr="Discount value">
+              <FormInput v-model="form.value" :error="form.errors.value" inputType="number" :placeholderStr="$t('Discount value')">
                 {{ valueFieldLabel }}
               </FormInput>
             </div>
@@ -142,9 +142,9 @@
                 v-model="form.min_basket_value"
                 :error="form.errors.min_basket_value"
                 inputType="number"
-                placeholderStr="Minimum basket amount"
+                :placeholderStr="$t('Minimum basket amount')"
               >
-                Min Basket Value
+                {{ $t('Min Basket Value') }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
@@ -152,20 +152,20 @@
                 v-model="form.max_discount_value"
                 :error="form.errors.max_discount_value"
                 inputType="number"
-                placeholderStr="Maximum discount amount"
+                :placeholderStr="$t('Maximum discount amount')"
               >
-                Max Discount Value
+                {{ $t('Max Discount Value') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6 grid grid-cols-1 gap-y-3 sm:grid-cols-2 sm:gap-x-3">
               <div>
                 <DatePicker v-model="form.start_at" :error="form.errors.start_at">
-                  Start At
+                  {{ $t('Start At') }}
                 </DatePicker>
               </div>
               <div>
                 <DatePicker v-model="form.end_at" :error="form.errors.end_at" :minDate="form.start_at">
-                  End At
+                  {{ $t('End At') }}
                 </DatePicker>
               </div>
             </div>
@@ -178,14 +178,14 @@
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
-                      Back
+                      {{ $t('Back') }}
                     </span>
                   </Button>
                 </Link>
                 <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -207,6 +207,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   type: {
@@ -312,15 +313,15 @@ function mapTagOptions(optionsResource) {
 
   return options.map((data) => ({
     id: data.id,
-    name: data.name ?? data.slug ?? data.desc ?? `Tag ${data.id}`,
+    name: data.name ?? data.slug ?? data.desc ?? t('Tag :id', { id: data.id }),
   }))
 }
 
 function getIsUsingQtyOptions() {
   return [
-    { id: 'qty', name: 'By Qty' },
-    { id: 'amount', name: 'By Amount' },
-    { id: 'both', name: 'Both' },
+    { id: 'qty', name: t('By Qty') },
+    { id: 'amount', name: t('By Amount') },
+    { id: 'both', name: t('Both') },
   ]
 }
 
@@ -426,14 +427,14 @@ function mapCampaignToForm(campaignResource) {
   let labelsX = extractCollectionValues(campaign.labels_x).map((tag) => {
     return tagOptions.value.find(option => option.id === tag.id) ?? {
       id: tag.id,
-      name: tag.name ?? tag.slug ?? `Tag ${tag.id}`,
+      name: tag.name ?? tag.slug ?? t('Tag :id', { id: tag.id }),
     }
   })
 
   let labelsY = extractCollectionValues(campaign.labels_y).map((tag) => {
     return tagOptions.value.find(option => option.id === tag.id) ?? {
       id: tag.id,
-      name: tag.name ?? tag.slug ?? `Tag ${tag.id}`,
+      name: tag.name ?? tag.slug ?? t('Tag :id', { id: tag.id }),
     }
   })
 
@@ -494,18 +495,18 @@ function getValueFieldLabel(promoType) {
   const normalized = (promoId ?? promoName ?? '').toString().toLowerCase()
 
   if (normalized.includes('percent')) {
-    return 'Discount Percent Value (%)'
+    return t('Discount Percent Value (%)')
   }
 
   if (normalized.includes('absolute')) {
-    return 'Absolute Price Value ($)'
+    return t('Absolute Price Value ($)')
   }
 
   if (normalized.includes('amount')) {
-    return 'Discount Amount Value ($)'
+    return t('Discount Amount Value ($)')
   }
 
-  return 'Discount Value'
+  return t('Discount Value')
 }
 
 function submit() {
@@ -540,10 +541,10 @@ function submit() {
 
   request.post(url, {
     onSuccess: () => {
-      toast.success(props.type === 'update' ? "Campaign updated successfully" : "Campaign created successfully", { timeout: 3000 })
+      toast.success(props.type === 'update' ? t('Campaign updated successfully') : t('Campaign created successfully'), { timeout: 3000 })
     },
     onError: () => {
-      toast.error(props.type === 'update' ? "Failed to update campaign" : "Failed to create campaign", { timeout: 3000 })
+      toast.error(props.type === 'update' ? t('Failed to update campaign') : t('Failed to create campaign'), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,

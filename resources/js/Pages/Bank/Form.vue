@@ -4,13 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.bank">
-            Editing
+            {{ $t('Editing') }}
           </span>
           <span v-if="props.bank">
             {{ props.bank.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Bank
+            {{ $t('Create New Bank') }}
           </span>
         </div>
       </template>
@@ -19,19 +19,19 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                {{ $t('Name') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <!-- BIC / SWIFT — used as column E of the CIMB bulk payment
                    file when paying this bank's account holders. -->
-              <FormInput v-model="form.bic_code" :error="form.errors.bic_code" placeholderStr="e.g. DBSSSGSGXXX">
-                BIC / SWIFT Code
+              <FormInput v-model="form.bic_code" :error="form.errors.bic_code" :placeholderStr="$t('e.g. DBSSSGSGXXX')">
+                {{ $t('BIC / SWIFT Code') }}
               </FormInput>
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Country
+                {{ $t('Country') }}
               </label>
               <MultiSelect
                 v-model="form.country_id"
@@ -39,7 +39,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="name"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               ></MultiSelect>
@@ -52,7 +52,7 @@
                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
               />
               <label for="bank_is_active" class="text-sm font-medium text-gray-700 cursor-pointer">
-                Active
+                {{ $t('Active') }}
               </label>
             </div>
           </div>
@@ -65,13 +65,13 @@
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
-                  Back
+                  {{ $t('Back') }}
                 </span>
               </Button>
               <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save
+                  {{ $t('Save') }}
                 </span>
               </Button>
             </div>
@@ -91,6 +91,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   bank: Object,
@@ -142,11 +143,11 @@ function submit() {
   if (props.type === 'create') {
     transformed.post('/banks/store', {
       onSuccess: () => {
-        toast.success("Bank created successfully", { timeout: 3000 })
+        toast.success(t("Bank created successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create bank", { timeout: 3000 })
+        toast.error(t("Failed to create bank"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -156,11 +157,11 @@ function submit() {
   if (props.type === 'update') {
     transformed.post('/banks/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Bank updated successfully", { timeout: 3000 })
+        toast.success(t("Bank updated successfully"), { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update bank", { timeout: 3000 })
+        toast.error(t("Failed to update bank"), { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

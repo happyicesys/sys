@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Operator" />
+  <Head :title="$t('Operator')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create New Operator
+        {{ $t('Create New Operator') }}
       </h2>
     </template>
 
@@ -17,17 +17,17 @@
             <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
               <div class="sm:col-span-2">
                 <FormInput v-model="form.code" :error="form.errors.code">
-                  Code
+                  {{ $t('Code') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-4">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                  Name
+                  {{ $t('Name') }}
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Country
+                  {{ $t('Country') }}
                 </label>
                 <MultiSelect
                   v-model="form.country_id"
@@ -35,7 +35,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -46,7 +46,7 @@
               </div>
               <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Timezone
+                  {{ $t('Timezone') }}
                 </label>
                 <MultiSelect
                   v-model="form.timezone"
@@ -54,7 +54,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -65,15 +65,15 @@
               </div>
               <div class="sm:col-span-4">
                 <FormInput v-model="form.gst_vat_rate" :error="form.errors.gst_vat_rate">
-                  GST or VAT Rate (%)
+                  {{ $t('GST or VAT Rate (%)') }}
                   <span class="text-[9px]">
-                      (For Gross Margin Calculation)
+                      {{ $t('(For Gross Margin Calculation)') }}
                   </span>
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                  Remarks
+                  {{ $t('Remarks') }}
                 </FormTextarea>
               </div>
 
@@ -85,14 +85,14 @@
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>
-                        Back
+                        {{ $t('Back') }}
                       </span>
                     </Button>
                   </Link>
                   <Button type="submit" v-if="permissions.includes('update operators')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Save
+                      {{ $t('Save') }}
                     </span>
                   </Button>
                 </div>

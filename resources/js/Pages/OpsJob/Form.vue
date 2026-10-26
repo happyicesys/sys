@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600">
-            Create New Job
+            {{ $t('Create New Job') }}
           </span>
         </div>
       </template>
@@ -13,7 +13,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <DatePicker v-model="form.date" :error="form.errors.date" @input="onDateChanged()">
-                Date
+                {{ $t('Date') }}
                 <span class="text-red-500">
                    *
                 </span>
@@ -21,7 +21,7 @@
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Delivery By
+                {{ $t('Delivery By') }}
                 <span class="text-red-500">
                    *
                 </span>
@@ -32,7 +32,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="top"
                 class="mt-1"
               >
@@ -72,13 +72,13 @@
                 >
                   <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                   <span>
-                    Back
+                    {{ $t('Back') }}
                   </span>
                 </Button>
                 <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    {{ $t('Save') }}
                   </span>
                 </Button>
               </div>
@@ -102,6 +102,7 @@ import { useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 import { ref, onMounted } from 'vue'
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const authOperator = usePage().props.auth.operator
 
@@ -174,11 +175,11 @@ function submit() {
   })
   .post('/ops-jobs/store', {
     onSuccess: () => {
-      toast.success("Ops job created successfully", { timeout: 3000 })
+      toast.success(t('Ops job created successfully'), { timeout: 3000 })
       emit('modalClose')
     },
     onError: () => {
-      toast.error("Failed to create ops job", { timeout: 3000 })
+      toast.error(t('Failed to create ops job'), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,

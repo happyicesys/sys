@@ -1,15 +1,14 @@
 <template>
-  <Head title="Site Performance" />
+  <Head :title="$t('Site Performance')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex flex-col">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          Site Performance
+          {{ $t('Site Performance') }}
         </h2>
         <p class="text-sm text-black leading-tight mt-1">
-          Aggregate across the filtered sites — “Avg L30d” (rolling last 30 days)
-          plus the last 8 completed months.
+          {{ $t('Aggregate across the filtered sites — “Avg L30d” (rolling last 30 days) plus the last 8 completed months.') }}
         </p>
       </div>
     </template>
@@ -18,27 +17,27 @@
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
-          <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
-          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer">Site</SearchInput>
+          <SearchInput :placeholderStr="$t('ID')" v-model="filters.ref_id">{{ $t('Site ID') }}</SearchInput>
+          <SearchInput :placeholderStr="$t('ID')" v-model="filters.vend_code">{{ $t('Machine ID') }}</SearchInput>
+          <SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer">{{ $t('Site') }}</SearchInput>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Site Status</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Site Status') }}</label>
             <MultiSelect
               v-model="filters.status"
               :options="statusOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Tags</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Tags') }}</label>
             <MultiSelect
               v-model="filters.tags"
               :options="tagOptions"
               trackBy="id" valueProp="id" label="name" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
@@ -47,32 +46,32 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Machine Prefix</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Machine Prefix') }}</label>
             <MultiSelect
               v-model="filters.vendPrefixes"
               :options="vendPrefixOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <div v-if="permissions.includes('admin-access customers')">
-            <label class="block text-sm font-medium text-gray-700">Location Type</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Location Type') }}</label>
             <MultiSelect
               v-model="filters.location_types"
               :options="locationTypeOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Placement Contract Type</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('Placement Contract Type') }}</label>
             <MultiSelect
               v-model="filters.contract_commission_types"
               :options="contractCommissionTypeLocalOptions"
               trackBy="id" valueProp="id" label="value" mode="tags"
-              placeholder="Select" open-direction="bottom" class="mt-1"
+              :placeholder="$t('Select')" open-direction="bottom" class="mt-1"
             />
           </div>
         </div>
@@ -84,14 +83,14 @@
               @click="onSearchFilterUpdated"
             >
               <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
-              <span>Search</span>
+              <span>{{ $t('Search') }}</span>
             </Button>
             <Button
               class="inline-flex space-x-1 items-center rounded-md border border-gray bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400"
               @click.prevent="resetFilters()"
             >
               <BackspaceIcon class="h-4 w-4" aria-hidden="true" />
-              <span>Reset</span>
+              <span>{{ $t('Reset') }}</span>
             </Button>
             <Button
               type="button"
@@ -104,7 +103,7 @@
                   <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
                   <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                 </svg>
-                <span>Export Excel</span>
+                <span>{{ $t('Export Excel') }}</span>
               </div>
             </Button>
           </div>
@@ -117,7 +116,7 @@
           <thead>
             <tr class="bg-gray-50">
               <th class="sticky left-0 top-0 z-30 bg-gray-50 border-b border-r px-3 py-2 text-left font-semibold text-gray-700 min-w-[18rem]">
-                Metric
+                {{ $t('Metric') }}
               </th>
               <th
                 v-for="col in columns"
@@ -159,10 +158,7 @@
       </div>
 
       <p class="text-[11px] text-gray-500 px-1 mb-6">
-        Money/lock/paid/contract-type figures per month are reconstructed from the
-        stored monthly snapshots. Profile status and contract end-dates are not
-        historized, so those reflect each site’s current setting evaluated against
-        that month.
+        {{ $t('Money/lock/paid/contract-type figures per month are reconstructed from the stored monthly snapshots. Profile status and contract end-dates are not historized, so those reflect each site’s current setting evaluated against that month.') }}
       </p>
     </div>
   </BreezeAuthenticatedLayout>
@@ -180,6 +176,7 @@ import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon } from '@heroicon
 import { ref, onMounted } from 'vue';
 import fileDownload from 'js-file-download';
 import moment from 'moment';
+import { t } from '@/i18n';
 
 const props = defineProps({
   columns: { type: Array, default: () => [] },
@@ -201,107 +198,107 @@ const loading = ref(false);
 
 // ── Row layout (mirrors CustomerController::performanceRowLayout) ───────────
 const feeBands = [
-  ['neg', 'Negative (Subsidized)'],
-  ['b0_50', '$0 to $50'],
-  ['b51_100', '$51 to $100'],
-  ['b101_150', '$101 to $150'],
-  ['b151_200', '$151 to $200'],
-  ['b201_300', '$201 to $300'],
-  ['b301_500', '$301 to $500'],
-  ['b500p', 'Above $500'],
+  ['neg', t('Negative (Subsidized)')],
+  ['b0_50', t('$0 to $50')],
+  ['b51_100', t('$51 to $100')],
+  ['b101_150', t('$101 to $150')],
+  ['b151_200', t('$151 to $200')],
+  ['b201_300', t('$201 to $300')],
+  ['b301_500', t('$301 to $500')],
+  ['b500p', t('Above $500')],
 ];
 const accBands = [
-  ['neg', 'Negative'],
-  ['a0_500', '$0 to $500'],
-  ['a500_1000', '$500 to $1000'],
-  ['a1000_5000', '$1000 to $5000'],
-  ['a5000_10000', '$5000 to $10000'],
-  ['a10k_20k', '$10k to $20k'],
-  ['a20k_30k', '$20k to $30k'],
-  ['a30kp', '$30k above'],
+  ['neg', t('Negative')],
+  ['a0_500', t('$0 to $500')],
+  ['a500_1000', t('$500 to $1000')],
+  ['a1000_5000', t('$1000 to $5000')],
+  ['a5000_10000', t('$5000 to $10000')],
+  ['a10k_20k', t('$10k to $20k')],
+  ['a20k_30k', t('$20k to $30k')],
+  ['a30kp', t('$30k above')],
 ];
 
 const sections = [
   {
-    title: 'Performance',
+    title: t('Performance'),
     rows: [
-      { label: 'Total Customer (Active Status)', key: 'total_customers', format: 'int', dir: 'up' },
-      { label: 'Total Sales (Inc GST), $', key: 'sales_cents', format: 'money', dir: 'up' },
-      { label: 'Total Sales (excl GST), $', key: 'sales_excl_cents', format: 'money', dir: 'up' },
-      { label: 'Total Gross Earning, $', key: 'gross_cents', format: 'money_pct', dir: 'up' },
-      { label: 'Total Location Fees, $', key: 'location_fees_cents', format: 'money_pct', dir: 'down' },
-      { label: 'Total VendEarning, $', key: 'vend_earning_cents', format: 'money_pct', dir: 'up' },
+      { label: t('Total Customer (Active Status)'), key: 'total_customers', format: 'int', dir: 'up' },
+      { label: t('Total Sales (Inc GST), $'), key: 'sales_cents', format: 'money', dir: 'up' },
+      { label: t('Total Sales (excl GST), $'), key: 'sales_excl_cents', format: 'money', dir: 'up' },
+      { label: t('Total Gross Earning, $'), key: 'gross_cents', format: 'money_pct', dir: 'up' },
+      { label: t('Total Location Fees, $'), key: 'location_fees_cents', format: 'money_pct', dir: 'down' },
+      { label: t('Total VendEarning, $'), key: 'vend_earning_cents', format: 'money_pct', dir: 'up' },
     ],
   },
   {
-    title: 'Admin and Finance — Customer Profile Status',
+    title: t('Admin and Finance — Customer Profile Status'),
     rows: [
-      { label: 'Total', key: 'profile_total', format: 'int' },
-      { label: 'Potential', key: 'profile_potential', format: 'count_pct', denom: 'profile_total' },
-      { label: 'New', key: 'profile_new', format: 'count_pct', denom: 'profile_total' },
-      { label: 'Active', key: 'profile_active', format: 'count_pct', denom: 'profile_total', dir: 'up' },
-      { label: 'Pending', key: 'profile_pending', format: 'count_pct', denom: 'profile_total' },
-      { label: 'Inactive', key: 'profile_inactive', format: 'count_pct', denom: 'profile_total', dir: 'down' },
+      { label: t('Total'), key: 'profile_total', format: 'int' },
+      { label: t('Potential'), key: 'profile_potential', format: 'count_pct', denom: 'profile_total' },
+      { label: t('New'), key: 'profile_new', format: 'count_pct', denom: 'profile_total' },
+      { label: t('Active'), key: 'profile_active', format: 'count_pct', denom: 'profile_total', dir: 'up' },
+      { label: t('Pending'), key: 'profile_pending', format: 'count_pct', denom: 'profile_total' },
+      { label: t('Inactive'), key: 'profile_inactive', format: 'count_pct', denom: 'profile_total', dir: 'down' },
     ],
   },
   {
-    title: 'Admin and Finance — Month-End Lock',
+    title: t('Admin and Finance — Month-End Lock'),
     rows: [
-      { label: 'Done', key: 'lock_done', format: 'count_pct', denom: 'lock_total', dir: 'up' },
-      { label: 'Still open', key: 'lock_open', format: 'count_pct', denom: 'lock_total', dir: 'down' },
+      { label: t('Done'), key: 'lock_done', format: 'count_pct', denom: 'lock_total', dir: 'up' },
+      { label: t('Still open'), key: 'lock_open', format: 'count_pct', denom: 'lock_total', dir: 'down' },
     ],
   },
   {
-    title: 'Admin and Finance — Location Fees payment',
+    title: t('Admin and Finance — Location Fees payment'),
     rows: [
-      { label: 'Paid, qty', key: 'paid_qty', format: 'count_pct', denom: 'paid_total', dir: 'up' },
-      { label: 'Paid, $', key: 'paid_amt_cents', format: 'money', dir: 'up' },
-      { label: 'Unpaid, qty', key: 'unpaid_qty', format: 'count_pct', denom: 'paid_total', dir: 'down' },
-      { label: 'Unpaid, $', key: 'unpaid_amt_cents', format: 'money', dir: 'down' },
+      { label: t('Paid, qty'), key: 'paid_qty', format: 'count_pct', denom: 'paid_total', dir: 'up' },
+      { label: t('Paid, $'), key: 'paid_amt_cents', format: 'money', dir: 'up' },
+      { label: t('Unpaid, qty'), key: 'unpaid_qty', format: 'count_pct', denom: 'paid_total', dir: 'down' },
+      { label: t('Unpaid, $'), key: 'unpaid_amt_cents', format: 'money', dir: 'down' },
     ],
   },
   {
-    title: 'Placement Contract Type',
+    title: t('Placement Contract Type'),
     rows: [
-      { label: 'F: Free Placement', key: 'ct_F', format: 'int' },
-      { label: 'S: Subsidized Plan', key: 'ct_S', format: 'int' },
-      { label: 'R: Fix Rental', key: 'ct_R', format: 'int' },
-      { label: 'U: Utility only', key: 'ct_U', format: 'int' },
-      { label: 'R + U', key: 'ct_RU', format: 'int' },
-      { label: 'PS: Profit Sharing', key: 'ct_PS', format: 'int' },
-      { label: 'PS + U', key: 'ct_PSU', format: 'int' },
-      { label: 'PS or U', key: 'ct_PSORU', format: 'int' },
-      { label: 'External Subsidize?', key: 'ct_ext_sub', format: 'int' },
+      { label: t('F: Free Placement'), key: 'ct_F', format: 'int' },
+      { label: t('S: Subsidized Plan'), key: 'ct_S', format: 'int' },
+      { label: t('R: Fix Rental'), key: 'ct_R', format: 'int' },
+      { label: t('U: Utility only'), key: 'ct_U', format: 'int' },
+      { label: t('R + U'), key: 'ct_RU', format: 'int' },
+      { label: t('PS: Profit Sharing'), key: 'ct_PS', format: 'int' },
+      { label: t('PS + U'), key: 'ct_PSU', format: 'int' },
+      { label: t('PS or U'), key: 'ct_PSORU', format: 'int' },
+      { label: t('External Subsidize?'), key: 'ct_ext_sub', format: 'int' },
     ],
   },
   {
-    title: 'Contract availability',
+    title: t('Contract availability'),
     rows: [
-      { label: 'Contract available? — Yes', key: 'contract_avail_yes', format: 'count_pct', denom: 'contract_avail_total', dir: 'up' },
-      { label: 'Contract available? — No', key: 'contract_avail_no', format: 'count_pct', denom: 'contract_avail_total', dir: 'down' },
-      { label: 'Contract End (no Auto Renewal) — Next 15d', key: 'contract_end_15', format: 'int' },
-      { label: 'Contract End (no Auto Renewal) — Next 30d', key: 'contract_end_30', format: 'int' },
-      { label: 'Contract End (no Auto Renewal) — Next 60d', key: 'contract_end_60', format: 'int' },
+      { label: t('Contract available? — Yes'), key: 'contract_avail_yes', format: 'count_pct', denom: 'contract_avail_total', dir: 'up' },
+      { label: t('Contract available? — No'), key: 'contract_avail_no', format: 'count_pct', denom: 'contract_avail_total', dir: 'down' },
+      { label: t('Contract End (no Auto Renewal) — Next 15d'), key: 'contract_end_15', format: 'int' },
+      { label: t('Contract End (no Auto Renewal) — Next 30d'), key: 'contract_end_30', format: 'int' },
+      { label: t('Contract End (no Auto Renewal) — Next 60d'), key: 'contract_end_60', format: 'int' },
     ],
   },
   {
-    title: 'Net Location Fees (per machine)',
+    title: t('Net Location Fees (per machine)'),
     rows: [
-      { label: 'Avg per machine, $', key: 'nlf_avg_per_machine_cents', format: 'money', dir: 'down' },
+      { label: t('Avg per machine, $'), key: 'nlf_avg_per_machine_cents', format: 'money', dir: 'down' },
       ...feeBands.map(([k, label]) => ({ label, key: 'nlf_' + k, format: 'int' })),
     ],
   },
   {
-    title: 'Vend Earning (per machine)',
+    title: t('Vend Earning (per machine)'),
     rows: [
-      { label: 'Avg per machine, $', key: 've_avg_per_machine_cents', format: 'money', dir: 'up' },
+      { label: t('Avg per machine, $'), key: 've_avg_per_machine_cents', format: 'money', dir: 'up' },
       ...feeBands.map(([k, label]) => ({ label, key: 've_' + k, format: 'int' })),
     ],
   },
   {
-    title: 'Accumulated Vend Earning (per machine)',
+    title: t('Accumulated Vend Earning (per machine)'),
     rows: [
-      { label: 'Avg per machine, $', key: 'ave_avg_per_machine_cents', format: 'money', dir: 'up' },
+      { label: t('Avg per machine, $'), key: 'ave_avg_per_machine_cents', format: 'money', dir: 'up' },
       ...accBands.map(([k, label]) => ({ label, key: 'ave_' + k, format: 'int' })),
     ],
   },
@@ -392,15 +389,15 @@ onMounted(() => {
   statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
   tagOptions.value = (props.tags?.data ?? []).map((d) => ({ id: d.id, name: d.name }));
   locationTypeOptions.value = [
-    { id: 'all', value: 'All' },
+    { id: 'all', value: t('All') },
     ...(props.locationTypeOptions?.data ?? []).map((d) => ({ id: d.id, value: d.name })),
   ];
   operatorOptions.value = [
-    { id: 'all', full_name: 'All' },
+    { id: 'all', full_name: t('All') },
     ...(props.operatorOptions?.data ?? []).map((d) => ({ id: d.id, code: d.code, full_name: d.full_name })),
   ];
   vendPrefixOptions.value = [
-    { id: 'single-ud', value: 'Single UD' },
+    { id: 'single-ud', value: t('Single UD') },
     ...(props.vendPrefixOptions?.data ?? []).map((d) => ({ id: d.id, value: d.name })),
   ];
   contractCommissionTypeLocalOptions.value = (props.contractCommissionTypeOptions ?? []).map((o) => ({

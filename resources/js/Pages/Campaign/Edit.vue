@@ -1,10 +1,10 @@
 <template>
-  <Head title="Campaign" />
+  <Head :title="$t('Campaign')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Editing Campaign
+        {{ $t('Editing Campaign') }}
         <span v-if="props.campaign?.name">
           &mdash; {{ props.campaign.name }}
         </span>

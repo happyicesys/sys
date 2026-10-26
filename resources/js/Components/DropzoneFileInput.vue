@@ -8,7 +8,7 @@
       ref="dropzoneForm"
     >
       <div class="dz-message">
-        Click to Browse or Drop files here...
+        {{ $t('Click to Browse or Drop files here...') }}
       </div>
     </form>
   </div>

@@ -1,10 +1,10 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex flex-col md:flex-row md:items-center md:space-x-2 gap-1">
         <span class="text-gray-600" v-if="productMapping.data && productMapping.data.id">
-          Editing
+          {{ $t('Editing') }}
         </span>
         <span v-if="productMapping.data && productMapping.data.id">
           {{ productMapping.data.name }}
@@ -20,7 +20,7 @@
           class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold w-fit"
           :class="machineTypeBadge.class"
         >
-          {{ machineTypeBadge.label }}
+          {{ $t(machineTypeBadge.label) }}
         </span>
         <!--
           Convert the mapping type. Vending→Smart seeds the basket grid from the
@@ -36,7 +36,7 @@
           class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 w-fit"
           @click="convertMappingType"
         >
-          {{ productMapping.data.is_smart ? 'Convert to Vending' : 'Convert to Smart Freezer' }}
+          {{ productMapping.data.is_smart ? $t('Convert to Vending') : $t('Convert to Smart Freezer') }}
         </button>
       </div>
     </template>
@@ -45,10 +45,8 @@
            the list their AI recognises, so a product mapped here must also exist on the machine
            over there (the machine's settings page flags any that do not). -->
       <div v-if="isSmartChiller" class="mt-4 rounded-md bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-900">
-        <span class="font-semibold">Smart Chiller planogram.</span>
-        Channel codes run <b>101–599</b> — the first digit is the layer (101 = layer 1, slot 1). Only
-        products in CityBox's catalogue can be selected, and each product must also be loaded on that
-        machine in the CityBox portal, or their AI cannot recognise it.
+        <span class="font-semibold">{{ $t('Smart Chiller planogram.') }}</span>
+        {{ $t('Channel codes run') }} <b>101–599</b> {{ $t('— the first digit is the layer (101 = layer 1, slot 1). Only products in CityBox\'s catalogue can be selected, and each product must also be loaded on that machine in the CityBox portal, or their AI cannot recognise it.') }}
       </div>
       <div class="mt-6 flex flex-col overflow-visible">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8 overflow-visible">
@@ -63,27 +61,27 @@
                     v-if="productMapping.data && productMapping.data.id"
                   >
                     <span v-if="productMapping.data.is_active">
-                      Active
+                      {{ $t('Active') }}
                     </span>
                     <span v-if="!productMapping.data.is_active">
-                      Not Active
+                      {{ $t('Not Active') }}
                     </span>
                   </div>
                 </div>
                 <div class="sm:col-span-6">
                   <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                    Name
+                    {{ $t('Name') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-6">
                   <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                    Remarks
+                    {{ $t('Remarks') }}
                   </FormTextarea>
                 </div>
 
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Operator
+                    {{ $t('Operator') }}
                   </label>
                   <MultiSelect
                     v-model="form.operator_id"
@@ -91,7 +89,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -99,7 +97,7 @@
                 </div>
                 <div class="sm:col-span-3">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Upcoming Product Mapping
+                    {{ $t('Upcoming Product Mapping') }}
                   </label>
                   <MultiSelect
                     v-model="form.upcoming_product_mapping_id"
@@ -107,7 +105,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -119,12 +117,12 @@
                     :isPreviousNextButton="false"
                     :disabled="!form.upcoming_product_mapping_id"
                   >
-                    Upcoming Product Mapping Start Date
+                    {{ $t('Upcoming Product Mapping Start Date') }}
                   </DatePicker>
                   <p class="mt-1 text-xs text-gray-500">
                     {{ form.upcoming_product_mapping_id
-                      ? 'When the upcoming product mapping is scheduled to start.'
-                      : 'Select an upcoming product mapping first.' }}
+                      ? $t('When the upcoming product mapping is scheduled to start.')
+                      : $t('Select an upcoming product mapping first.') }}
                   </p>
                   <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_start_date">
                     {{ form.errors.upcoming_product_mapping_start_date }}
@@ -137,7 +135,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center ">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> {{ $t('Attachment(s)') }} </span>
                     </div>
                   </div>
                 </div>
@@ -167,7 +165,7 @@
                     </div>
                     <div class="relative flex justify-center">
                       <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">
-                        {{ form.is_smart ? 'Smart Freezer Basket Layout' : 'Vend Channels Product Mapping' }}
+                        {{ form.is_smart ? $t('Smart Freezer Basket Layout') : $t('Vend Channels Product Mapping') }}
                       </span>
                     </div>
                   </div>
@@ -192,19 +190,19 @@
                 </div>
 
                 <div class="sm:col-span-1" v-if="form.id && !form.is_smart && !isSmartChiller">
-                  <label class="flex justify-start text-sm font-medium text-gray-700">Display Sequence</label>
+                  <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Display Sequence') }}</label>
                   <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
                     <option v-for="n in productMappingItems.length + 1" :key="n" :value="n">{{ n }}</option>
                   </select>
                 </div>
                 <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
-                  <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
-                    Channel ID
+                  <FormInput v-model="form.channel_code" :error="form.errors.channel_code" :placeholderStr="$t('Channel ID')">
+                    {{ $t('Channel ID') }}
                   </FormInput>
                 </div>
                 <div class="sm:col-span-3" v-if="form.id && !form.is_smart">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Product
+                    {{ $t('Product') }}
                   </label>
                   <MultiSelect
                     v-model="form.product_id"
@@ -212,7 +210,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -232,7 +230,7 @@
                   >
                     <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                     <span>
-                      Add
+                      {{ $t('Add') }}
                     </span>
                   </Button>
                 </div>
@@ -255,7 +253,7 @@
                                 :sortBy="form.sortBy"
                                 @sort-table="sortTable('sequence')"
                               >
-                                Display Sequence
+                                {{ $t('Display Sequence') }}
                               </TableHeadSort>
                               <TableHeadSort
                                 modelName="channel_code"
@@ -263,28 +261,28 @@
                                 :sortBy="form.sortBy"
                                 @sort-table="sortTable('channel_code')"
                               >
-                                Channel Code
+                                {{ $t('Channel Code') }}
                               </TableHeadSort>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Thumbnail
+                                {{ $t('Thumbnail') }}
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Product
+                                {{ $t('Product') }}
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Category
+                                {{ $t('Category') }}
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                SubCategory
+                                {{ $t('SubCategory') }}
                               </th>
                               <!-- Capacity per SKU (Brian, 2026-09-22): Default Capacity = the product's
                                    chiller_slot_qty (Product → Edit); Real Capacity (was "Reality") = this mapping's override,
                                    saved with the page's Save. Blank = use the default. -->
-                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="From Product → Edit → Smart Chiller (read-only here)">
-                                Default<br>Capacity
+                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" :title="$t('From Product → Edit → Smart Chiller (read-only here)')">
+                                {{ $t('Default') }}<br>{{ $t('Capacity') }}
                               </th>
-                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" title="Pieces this channel really holds, for this mapping only; blank uses the Default Capacity">
-                                Real<br>Capacity
+                              <th v-if="isSmartChiller" scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" :title="$t('Pieces this channel really holds, for this mapping only; blank uses the Default Capacity')">
+                                {{ $t('Real') }}<br>{{ $t('Capacity') }}
                               </th>
                               <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Server Price ({{ operatorCountry.currency_symbol }}) <br>
@@ -303,7 +301,7 @@
 
                               </th> -->
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Action
+                                {{ $t('Action') }}
                               </th>
                             </tr>
                           </thead>
@@ -338,7 +336,7 @@
                                     @blur="onChannelCodeBlur(productMappingItem)"
                                     class="w-20 rounded-md text-center text-sm font-semibold focus:ring-indigo-500"
                                     :class="channelCodeProblems[productMappingItem.channel_code] ? 'border-red-500 bg-red-50 text-red-700 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'"
-                                    title="Save the page to apply"
+                                    :title="$t('Save the page to apply')"
                                   />
                                   <div v-if="channelCodeProblems[productMappingItem.channel_code]" class="mt-1 text-xs text-red-600 whitespace-normal max-w-[9rem] mx-auto">
                                     {{ channelCodeProblems[productMappingItem.channel_code] }}
@@ -381,7 +379,7 @@
                                   placeholder="-"
                                   class="w-20 rounded-md border-gray-300 text-center text-sm focus:border-indigo-500 focus:ring-indigo-500"
                                   :class="isCapacityOverridden(productMappingItem) ? 'bg-amber-50 border-amber-300 font-semibold' : ''"
-                                  title="Pre-filled with the product's default; type a different number to override. Save the page to apply."
+                                  :title="$t('Pre-filled with the product\'s default; type a different number to override. Save the page to apply.')"
                                 />
                               </td>
                               <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
@@ -406,10 +404,10 @@
                                 <div class="pl-8 text-left">
                                   <div class="flex items-center justify-between flex-wrap gap-2">
                                     <span class="text-xs font-semibold text-indigo-700">
-                                      ↳ Blind flavours of {{ productMappingItem.product.code }} ({{ (productMappingItem.product.blindChildren || []).length }})
+                                      {{ $t('↳ Blind flavours of :code (:count)', { code: productMappingItem.product.code, count: (productMappingItem.product.blindChildren || []).length }) }}
                                     </span>
                                     <Link :href="'/products/' + productMappingItem.product.id + '/edit'" class="text-[11px] text-indigo-600 hover:text-indigo-800 underline">
-                                      Edit on product →
+                                      {{ $t('Edit on product →') }}
                                     </Link>
                                   </div>
                                   <div v-if="(productMappingItem.product.blindChildren || []).length" class="mt-1.5 flex flex-wrap gap-1.5">
@@ -423,16 +421,16 @@
                                         :src="child.child_product.thumbnail_url"
                                         class="h-8 w-8 rounded-md object-contain bg-white p-0.5 ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
                                         alt=""
-                                        title="Click to enlarge"
+                                        :title="$t('Click to enlarge')"
                                         @click="openImagePreview(child)"
                                       />
                                       <span v-else class="h-8 w-8 rounded-md bg-indigo-100"></span>
-                                      {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : 'Flavour' }}
+                                      {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : $t('Flavour') }}
                                       <span class="text-indigo-500">{{ child.weight_pct }}%</span>
                                     </span>
                                   </div>
                                   <p v-else class="mt-1 text-[11px] text-amber-600">
-                                    No flavours bound yet — set them in Product → Edit.
+                                    {{ $t('No flavours bound yet — set them in Product → Edit.') }}
                                   </p>
                                 </div>
                               </td>
@@ -440,7 +438,7 @@
                             </template>
                             <tr v-if="!productMappingItems.length">
                               <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                                No Records Found
+                                {{ $t('No Records Found') }}
                               </td>
                             </tr>
                           </tbody>
@@ -457,7 +455,7 @@
                     <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
                       <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                       <span>
-                        Replicate
+                        {{ $t('Replicate') }}
                       </span>
                     </Button>
 
@@ -467,17 +465,17 @@
                           <span class="flex space-x-1 items-center">
                             <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
                             <span>
-                              Deactivate
+                              {{ $t('Deactivate') }}
                             </span>
                           </span>
                           <span class="text-xs">
-                            (Product Mapping(s) still Binded)
+                            {{ $t('(Product Mapping(s) still Binded)') }}
                           </span>
                         </span>
                         <span class="flex space-x-1 items-center" v-else>
                           <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
                           <span>
-                            Activate
+                            {{ $t('Activate') }}
                           </span>
                         </span>
                       </div>
@@ -491,7 +489,7 @@
                       >
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                         <span>
-                          Back
+                          {{ $t('Back') }}
                         </span>
                       </Button>
                     </Link>
@@ -499,7 +497,7 @@
                     <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
-                        Save
+                        {{ $t('Save') }}
                       </span>
                     </Button>
                   </div>
@@ -539,6 +537,7 @@ import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIc
 import { ref, onMounted, computed, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { t, tk } from '@/i18n';
 
 const props = defineProps({
   priceTypeOptions: Object,
@@ -557,9 +556,9 @@ const isSmartChiller = computed(() => props.productMapping?.data?.machine_type =
 // smart_freezer, so a chiller used to fall through to the "Vending Machine"
 // label (Brian, 2026-09-22). Labels match Vend::MACHINE_TYPE_MAPPINGS.
 const MACHINE_TYPE_BADGES = {
-  smart_freezer: { label: 'Smart Freezer', class: 'bg-indigo-600 text-white' },
-  smart_chiller: { label: 'Smart Chiller (CityBox)', class: 'bg-emerald-600 text-white' },
-  vending_machine: { label: 'Vending Machine', class: 'bg-slate-200 text-slate-800' },
+  smart_freezer: { label: tk('Smart Freezer'), class: 'bg-indigo-600 text-white' },
+  smart_chiller: { label: tk('Smart Chiller (CityBox)'), class: 'bg-emerald-600 text-white' },
+  vending_machine: { label: tk('Vending Machine'), class: 'bg-slate-200 text-slate-800' },
 }
 const machineTypeBadge = computed(
   () => MACHINE_TYPE_BADGES[props.productMapping?.data?.machine_type] ?? MACHINE_TYPE_BADGES.vending_machine
@@ -639,7 +638,7 @@ const channelCodeProblems = computed(() => {
   }
   const problems = {}
   for (const [code, n] of Object.entries(byCode)) {
-    if (n > 1) problems[code] = `Duplicate: ${code} is used ${n} times`
+    if (n > 1) problems[code] = t('Duplicate: :code is used :count times', { code, count: n })
   }
   return problems
 })
@@ -681,13 +680,13 @@ function onRealityBlur(item, idx) {
 onMounted(() => {
 
   priceTypeOptions.value = [
-    {id: '', name: '--- Clear ---' },
+    {id: '', name: t('--- Clear ---') },
     ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
   ]
   productOptions.value = props.products.data;
 
   upcomingOptions.value = [
-    {id: '', name: '--- Clear ---'},
+    {id: '', name: t('--- Clear ---')},
     ...props.upcomingProductMappingOptions.data
   ];
 
@@ -764,7 +763,7 @@ function onSmartItemsChanged() {
 function onSequenceChanged(changedItem) {
   // Validate that the item has a valid ID before attempting to update
   if (!changedItem.id || typeof changedItem.id !== 'number') {
-    toast.error("Unable to update sequence. Please refresh the page and try again.", {
+    toast.error(t("Unable to update sequence. Please refresh the page and try again."), {
       timeout: 5000
     });
     // Reload the page to get fresh data
@@ -781,7 +780,7 @@ function onSequenceChanged(changedItem) {
     sequence: changedItem.sequence,
   }, {
     onSuccess: () => {
-      toast.success("Sequence updated", {
+      toast.success(t("Sequence updated"), {
         timeout: 3000
       });
       productMappingItems.value = props.productMapping
@@ -795,7 +794,7 @@ function onSequenceChanged(changedItem) {
       })
     },
     onError: (errors) => {
-      toast.error("Failed to update sequence: " + (errors.sequence || "Unknown error"), {
+      toast.error(t("Failed to update sequence: :error", { error: errors.sequence || t("Unknown error") }), {
         timeout: 5000
       });
     },
@@ -808,15 +807,15 @@ function onSequenceChanged(changedItem) {
 function convertMappingType() {
   const toSmart = !props.productMapping.data.is_smart
   const msg = toSmart
-    ? 'Convert this mapping to a Smart Freezer? The editor switches to the basket planogram (bound channels keep their codes).'
-    : 'Convert this mapping back to a Vending Machine? The editor switches to the channel table.'
+    ? t('Convert this mapping to a Smart Freezer? The editor switches to the basket planogram (bound channels keep their codes).')
+    : t('Convert this mapping back to a Vending Machine? The editor switches to the channel table.')
   if (!window.confirm(msg)) return
   router.post('/product-mappings/' + props.productMapping.data.id + '/toggle-smart', {}, {
     preserveScroll: true,
     // The server refuses for chiller mappings, duplicate channel codes, and while machines
     // of the old kind are bound — without a toast those refusals are an invisible no-op.
     onError: (errors) => {
-      toast.error(errors.machine_type || errors.is_smart || errors.productMappingItems || 'Convert failed.', {
+      toast.error(errors.machine_type || errors.is_smart || errors.productMappingItems || t('Convert failed.'), {
         timeout: 8000
       });
     },
@@ -829,7 +828,7 @@ function submit() {
   // server refuses too, but the row-level flags are what tell the operator which one.
   const problems = Object.values(channelCodeProblems.value)
   if (problems.length) {
-    toast.error(problems[0] + '. Fix the highlighted channel code(s) before saving.', { timeout: 8000 })
+    toast.error(t(':problem. Fix the highlighted channel code(s) before saving.', { problem: problems[0] }), { timeout: 8000 })
     return
   }
   if (isSmartChiller.value) {
@@ -893,7 +892,7 @@ function bindProductMappingItem() {
       productMappingItems.value = props.productMapping
       ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
       : []
-      toast.success("Product Mapping Item added", {
+      toast.success(t("Product Mapping Item added"), {
         timeout: 3000
       });
 
@@ -1010,7 +1009,7 @@ function unbindProductMappingItem(productMappingItem) {
         productMappingItems.value = props.productMapping
         ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
         : []
-        toast.success("Product Mapping Item Deleted", {
+        toast.success(t("Product Mapping Item Deleted"), {
           timeout: 3000
         });
       },
@@ -1027,7 +1026,7 @@ function replicateProductMapping() {
     },
     {
       onSuccess: () => {
-        toast.success("Mappings replicated", {
+        toast.success(t("Mappings replicated"), {
           timeout: 3000
         });
       },

@@ -1,9 +1,9 @@
 <template>
-  <Head title="Edit Platform ID" />
+  <Head :title="$t('Edit Platform ID')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Edit Platform ID
+        {{ $t('Edit Platform ID') }}
       </h2>
     </template>
 
@@ -17,16 +17,16 @@
                   <FormInput
                     v-model="form.ref_number"
                     required
-                    placeholderStr="Platform ID"
+                    :placeholderStr="$t('Platform ID')"
                     :error="form.errors.ref_number"
                   >
-                    Platform ID
+                    {{ $t('Platform ID') }}
                   </FormInput>
                 </div>
 
                 <div class="sm:col-span-3">
                   <label class="text-sm font-medium text-gray-700">
-                    Operator <span class="text-red-500">*</span>
+                    {{ $t('Operator') }} <span class="text-red-500">*</span>
                   </label>
                   <MultiSelect
                     v-model="form.operator_id"
@@ -34,7 +34,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     class="mt-1"
                   />
                   <div class="text-sm text-red-600" v-if="form.errors.operator_id">
@@ -45,22 +45,22 @@
                 <div class="sm:col-span-6">
                   <FormInput
                     v-model="form.remarks"
-                    placeholderStr="Remarks"
+                    :placeholderStr="$t('Remarks')"
                     :error="form.errors.remarks"
                   >
-                    Remarks
+                    {{ $t('Remarks') }}
                   </FormInput>
                 </div>
 
                 <div class="sm:col-span-3">
-                  <label class="text-sm font-medium text-gray-700">Status</label>
+                  <label class="text-sm font-medium text-gray-700">{{ $t('Status') }}</label>
                   <MultiSelect
                     v-model="form.is_active"
                     :options="booleanOptions"
                     trackBy="id"
                     valueProp="id"
                     label="value"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     class="mt-1"
                   />
                   <div class="text-sm text-red-600" v-if="form.errors.is_active">
@@ -71,7 +71,7 @@
                 <div class="sm:col-span-6 py-4">
                   <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4" />
-                    <span>Update</span>
+                    <span>{{ $t('Update') }}</span>
                   </Button>
                 </div>
               </div>
@@ -83,11 +83,11 @@
                 <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-start">
-                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded">Binding History</span>
+                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded">{{ $t('Binding History') }}</span>
               </div>
             </div>
 
-            <nav aria-label="Binding History">
+            <nav :aria-label="$t('Binding History')">
               <ol role="list" class="overflow-hidden">
                 <li
                   v-for="(entry, entryIndex) in bindingHistory"
@@ -124,7 +124,7 @@
                 </span>
                 <span class="ml-4 flex min-w-0 flex-col pt-2">
                   <span class="text-sm font-medium">
-                    No Records Found
+                    {{ $t('No Records Found') }}
                   </span>
                 </span>
               </span>
@@ -146,6 +146,7 @@ import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { CheckCircleIcon, LockClosedIcon, LockOpenIcon, MinusCircleIcon } from '@heroicons/vue/20/solid'
 import moment from 'moment'
+import { t } from '@/i18n'
 
 const props = defineProps({
   deliveryPlatformRefNumber: Object,
@@ -161,8 +162,8 @@ const form = ref(useForm(getDefaultForm()))
 onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
   booleanOptions.value = [
-    { id: 'true', value: 'Active' },
-    { id: 'false', value: 'Inactive' },
+    { id: 'true', value: t('Active') },
+    { id: 'false', value: t('Inactive') },
   ]
 
   // hydrate form from props
@@ -192,7 +193,7 @@ function getDefaultForm() {
     operator_id: '',
     ref_number: '',
     remarks: '',
-    is_active: { id: 'true', value: 'Active' },
+    is_active: { id: 'true', value: t('Active') },
   }
 }
 
@@ -204,19 +205,19 @@ function buildBindingHistory(vendBindings) {
     const customerName = binding.vend?.customer?.name
     const contextParts = []
     if (machineCode) {
-      contextParts.push(`Machine ${machineCode}`)
+      contextParts.push(t('Machine :code', { code: machineCode }))
     }
     if (customerName) {
       contextParts.push(customerName)
     }
-    const context = contextParts.length ? ` (${contextParts.join(' · ')})` : ''
+    const context = contextParts.join(' · ')
 
     const bindMoment = parseToMoment(binding.created_at_iso || binding.created_at)
     if (bindMoment) {
       entries.push({
         id: `${binding.id}-bind`,
         is_binding: true,
-        description: `Bound${context}`,
+        description: context ? t('Bound (:context)', { context }) : t('Bound'),
         moment: bindMoment,
       })
     }
@@ -226,7 +227,7 @@ function buildBindingHistory(vendBindings) {
       entries.push({
         id: `${binding.id}-unbind`,
         is_binding: false,
-        description: `Unbound${context}`,
+        description: context ? t('Unbound (:context)', { context }) : t('Unbound'),
         moment: unbindMoment,
       })
     }

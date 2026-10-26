@@ -398,7 +398,7 @@ class FreezerControlController extends Controller
     {
         abort_unless($vend->isSmartFreezer(), 404);
         if (empty($vend->code)) {
-            return response()->json(['message' => 'This machine has no code.'], 422);
+            return response()->json(['message' => __('This machine has no code.')], 422);
         }
 
         $data = $request->validate([
@@ -407,15 +407,15 @@ class FreezerControlController extends Controller
         ]);
 
         if (in_array($data['op'], ['lock', 'unlock'], true) && ! $request->user()->can(self::DOOR_PERMISSION)) {
-            return response()->json(['message' => 'You do not have permission to lock or unlock the door remotely.'], 403);
+            return response()->json(['message' => __('You do not have permission to lock or unlock the door remotely.')], 403);
         }
         if ($data['op'] === 'sdkcall' && ! $request->user()->can(self::SDK_RAW_PERMISSION)) {
-            return response()->json(['message' => 'Raw SDK calls are limited to superadmins.'], 403);
+            return response()->json(['message' => __('Raw SDK calls are limited to superadmins.')], 403);
         }
 
         $minApk = FreezerControlService::minApkVersionForCommand($data['op'], $data['args'] ?? []);
         if ((int) $vend->apk_version_code < $minApk) {
-            return response()->json(['message' => 'This machine\'s app is too old for this control (needs versionCode '.$minApk.').'], 422);
+            return response()->json(['message' => __('This machine\'s app is too old for this control (needs versionCode :version).', ['version' => $minApk])], 422);
         }
 
         // One command at a time per machine: the device executes them serially anyway, and a
@@ -426,7 +426,7 @@ class FreezerControlController extends Controller
             ->where('expires_at', '>', $now)
             ->exists();
         if ($busy) {
-            return response()->json(['message' => 'Waiting for the machine to answer the previous command.'], 429);
+            return response()->json(['message' => __('Waiting for the machine to answer the previous command.')], 429);
         }
 
         $command = $this->service->dispatch($vend, $data['op'], $data['args'] ?? [], $request->user(), $request->ip());

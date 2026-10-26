@@ -8,8 +8,7 @@
                     {{ pageTitle }}
                 </h2>
                 <p class="mt-1 text-xs text-gray-500" v-if="isCmsUrlSet">
-                    Products whose warehouse quantity is kept in this system (incoming + adjustments − picks) — e.g. CityBox SKUs.
-                    CMS-sourced products are on <Link href="/products/availability" class="text-indigo-600 hover:underline">Warehouse Qty (via API)</Link>.
+                    {{ $t('Products whose warehouse quantity is kept in this system (incoming + adjustments − picks) — e.g. CityBox SKUs. CMS-sourced products are on') }} <Link href="/products/availability" class="text-indigo-600 hover:underline">{{ $t('Warehouse Qty (via API)') }}</Link>.
                 </p>
             </div>
         </template>
@@ -26,36 +25,36 @@
                                     >
                                         <ClipboardDocumentListIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
-                                            Warehouse Log
+                                            {{ $t('Warehouse Log') }}
                                         </span>
                                     </Button>
                                     <Link :href="route('product-movements.incoming-history')" class="inline-flex space-x-1 items-center rounded-md border border-purple-500 bg-purple-500 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                                         <ClockIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
-                                            Incoming History
+                                            {{ $t('Incoming History') }}
                                         </span>
                                     </Link>
                                     <Link :href="route('product-movements.batch-incoming')" class="inline-flex space-x-1 items-center rounded-md border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                                         <PlusIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
-                                            Stock Incoming to Warehouse
+                                            {{ $t('Stock Incoming to Warehouse') }}
                                         </span>
                                     </Link>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                                <SearchInput placeholderStr="Product ID/ Code" v-model="filters.product_code">
-                                    Product ID
+                                <SearchInput :placeholderStr="$t('Product ID/ Code')" v-model="filters.product_code">
+                                    {{ $t('Product ID') }}
                                 </SearchInput>
-                                <SearchInput placeholderStr="Product Name" v-model="filters.product_name">
-                                    Product Name
+                                <SearchInput :placeholderStr="$t('Product Name')" v-model="filters.product_name">
+                                    {{ $t('Product Name') }}
                                 </SearchInput>
                                 <div>
                                     <OperatorFilter v-model="filters.operators" />
                                 </div>
                                 <div>
                                     <label for="text" class="block text-sm font-medium text-gray-700">
-                                        Is Available?
+                                        {{ $t('Is Available?') }}
                                     </label>
                                     <MultiSelect
                                         v-model="filters.is_available"
@@ -63,7 +62,7 @@
                                         trackBy="id"
                                         valueProp="id"
                                         label="value"
-                                        placeholder="Select"
+                                        :placeholder="$t('Select')"
                                         open-direction="bottom"
                                         class="mt-1"
                                     >
@@ -77,7 +76,7 @@
                                     >
                                         <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
-                                            Search
+                                            {{ $t('Search') }}
                                         </span>
                                     </Button>
 
@@ -86,16 +85,16 @@
                                     >
                                         <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
-                                            Export Excel
+                                            {{ $t('Export Excel') }}
                                         </span>
                                     </Button>
                                 </div>
                                 <div class="flex flex-col gap-2 items-end">
                                     <span class="text-xs text-gray-500 self-center">
-                                        {{ products.data.length }} products found
+                                        {{ $t(':count products found', { count: products.data.length }) }}
                                     </span>
                                     <div class="flex flex-row items-center gap-2">
-                                      <label class="text-xs font-semibold text-gray-700">Planning Date</label>
+                                      <label class="text-xs font-semibold text-gray-700">{{ $t('Planning Date') }}</label>
                                       <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated" :minDate="today">
                                           <template #trigger>
                                               <span class="p-1 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-100 flex flex-row gap-2 justify-center items-center h-full text-xs">
@@ -115,15 +114,15 @@
                                     <tr>
                                         <th colspan="8" class="bg-gray-100"></th>
                                         <th colspan="2" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
-                                            Planning
+                                            {{ $t('Planning') }}
                                         </th>
                                     </tr>
                                     <tr>
                                         <th  scope="col" class="th-header w-[2%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">#</th>
-                                        <th  scope="col" class="th-header w-[5%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">Image</th>
+                                        <th  scope="col" class="th-header w-[5%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">{{ $t('Image') }}</th>
                                         <th  scope="col" class="th-header w-[20%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
                                             <div class="flex items-center justify-center gap-1">
-                                                Product
+                                                {{ $t('Product') }}
                                                 <span v-if="filters.sortKey === 'code'">
                                                   <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -136,7 +135,7 @@
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                                             <div class="flex items-center justify-center gap-1">
-                                                <span>Daily Sold Qty</span>
+                                                <span>{{ $t('Daily Sold Qty') }}</span>
                                                 <span v-if="filters.sortKey === 'avg_seven_days_count'">
                                                     <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -146,15 +145,15 @@
                                                     </svg>
                                                 </span>
                                             </div>
-                                            <span class="font-normal text-gray-600">(average last 7days)</span>
+                                            <span class="font-normal text-gray-600">{{ $t('(average last 7days)') }}</span>
                                             <br>
-                                            <span class="font-semibold text-gray-900">Y'day sold</span>
+                                            <span class="font-semibold text-gray-900">{{ $t('Y\'day sold') }}</span>
                                         </th>
 
                                         <!-- Last incoming: the ledger's latest incoming movement (adjustments excluded). Sorted by date. -->
                                         <th  scope="col" class="th-header w-[8%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('last_incoming_at')">
                                             <div class="flex items-center justify-center gap-1">
-                                                <span>Last incoming</span>
+                                                <span>{{ $t('Last incoming') }}</span>
                                             <span v-if="filters.sortKey === 'last_incoming_at'">
                                                 <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -164,33 +163,33 @@
                                                 </svg>
                                             </span>
                                             </div>
-                                            <span class="font-normal text-gray-600">(Qty, Date)</span>
+                                            <span class="font-normal text-gray-600">{{ $t('(Qty, Date)') }}</span>
                                             <br>
-                                            <span class="font-semibold text-gray-900">Last 2 incoming</span>
+                                            <span class="font-semibold text-gray-900">{{ $t('Last 2 incoming') }}</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                                            Qty in Warehouse<br>
-                                            <span class="font-normal text-gray-600">(self-system ledger: incoming + adjustments)</span>
+                                            {{ $t('Qty in Warehouse') }}<br>
+                                            <span class="font-normal text-gray-600">{{ $t('(self-system ledger: incoming + adjustments)') }}</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                                            Picked Qty<br>
-                                            <span class="font-normal text-gray-600">(as Job on Date)</span>
+                                            {{ $t('Picked Qty') }}<br>
+                                            <span class="font-normal text-gray-600">{{ $t('(as Job on Date)') }}</span>
                                         </th>
 
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
                                             <div class="flex items-center justify-center gap-1">
-                                                <span>Remaining Qty</span>
-                                                <ExclamationCircleIcon class="min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: 'Red = Remaining Qty not enough to cover \'To Pick Qty\' as in Planning Date', html: true }"></ExclamationCircleIcon>
+                                                <span>{{ $t('Remaining Qty') }}</span>
+                                                <ExclamationCircleIcon class="min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: $t('Red = Remaining Qty not enough to cover \'To Pick Qty\' as in Planning Date'), html: true }"></ExclamationCircleIcon>
                                             </div>
-                                            <span class="font-normal text-gray-600">(after Picked)</span>
+                                            <span class="font-normal text-gray-600">{{ $t('(after Picked)') }}</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[15%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                                            To Pick Qty<br>
-                                            <span class="font-normal text-gray-600">(Live Update, for Jobs on Date)</span>
+                                            {{ $t('To Pick Qty') }}<br>
+                                            <span class="font-normal text-gray-600">{{ $t('(Live Update, for Jobs on Date)') }}</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
-                                            Capped Qty per Channel<br>
-                                            <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Planning Date & 4 Days Onwards)</span>
+                                            {{ $t('Capped Qty per Channel') }}<br>
+                                            <span class="font-normal text-xs text-gray-600">{{ $t('(max Qty after Refilling on Planning Date & 4 Days Onwards)') }}</span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -209,7 +208,7 @@
                                                 <span class="font-bold">{{ product.code }}</span>
                                                 <span class="text-gray-600 mb-1">{{ product.name }}</span>
                                                 <div class="flex items-center gap-1">
-                                                    <span class="text-green-700 font-bold text-xs">Available?</span>
+                                                    <span class="text-green-700 font-bold text-xs">{{ $t('Available?') }}</span>
                                                     <span v-if="product.is_available">
                                                         <CheckCircleIcon class="h-5 w-5 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
                                                     </span>
@@ -226,14 +225,14 @@
                                                         @change="onRemarksChanged(product)"
                                                         rows="1"
                                                         class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full"
-                                                        placeholder="Remarks"
+                                                        :placeholder="$t('Remarks')"
                                                     ></textarea>
                                                     <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
                                                       {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
                                                     </span>
                                                 </div>
-                                                <span v-if="product.is_parent_sku" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">Blind housing</span>
-                                                <span v-else-if="product.blind_parent_codes && product.blind_parent_codes.length" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">child of {{ product.blind_parent_codes.join(', ') }}</span>
+                                                <span v-if="product.is_parent_sku" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">{{ $t('Blind housing') }}</span>
+                                                <span v-else-if="product.blind_parent_codes && product.blind_parent_codes.length" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{{ $t('child of :codes', { codes: product.blind_parent_codes.join(', ') }) }}</span>
                                                 <BlindFlavourChips v-if="product.is_parent_sku" :product="product" />
                                             </div>
                                         </td>
@@ -243,8 +242,8 @@
                                           </div>
                                           <!-- Y'day sold: same measure as the 7-day average above it, for yesterday alone. -->
                                           <div class="text-xs sm:text-sm font-semibold mt-0.5" :class="[product.is_available ? 'text-gray-900' : 'text-gray-400']"
-                                            v-tooltip="{ content: 'Sold yesterday (' + yesterdayLabel + '), counted the same way as the 7-day average above.' }">
-                                            Y'day {{ Number(product.yesterday_sold_count ?? 0).toLocaleString() }}
+                                            v-tooltip="{ content: $t('Sold yesterday (:date), counted the same way as the 7-day average above.', { date: yesterdayLabel }) }">
+                                            {{ $t('Y\'day :count', { count: Number(product.yesterday_sold_count ?? 0).toLocaleString() }) }}
                                           </div>
                                         </td>
 
@@ -279,11 +278,11 @@
                                         <!-- Reusing limit logic if needed, or keeping it readonly -->
                                         <div class="flex flex-col items-center gap-1">
                                             <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
-                                                <option :value="null">No</option>
+                                                <option :value="null">{{ $t('No') }}</option>
                                                 <option v-for="n in 25 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                                             </select>
                                             <span class="text-[10px] text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
-                                                from Yesterday
+                                                {{ $t('from Yesterday') }}
                                             </span>
                                             <span class="text-[10px] text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits && product.productLimits[0] && product.productLimits[0].createdBy">
                                                 {{ product.productLimits[0].createdBy.name }}
@@ -299,9 +298,9 @@
                                         <tr class="bg-gray-50 font-bold">
                                             <td colspan="3" class="p-3 text-left text-gray-900">
                                                 <div class="flex flex-col space-y-1 items-start">
-                                                    <span>Total Pcs</span>
-                                                    <span>Total Cost$</span>
-                                                    <span class="text-gray-900">Stock Value</span>
+                                                    <span>{{ $t('Total Pcs') }}</span>
+                                                    <span>{{ $t('Total Cost$') }}</span>
+                                                    <span class="text-gray-900">{{ $t('Stock Value') }}</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
@@ -355,35 +354,35 @@
         <Modal :show="showMovementModal" @close="closeMovementModal">
             <div class="p-6">
                 <h3 class="text-lg font-medium text-gray-900">
-                    Record Product Incoming
+                    {{ $t('Record Product Incoming') }}
                 </h3>
                 <div class="mt-2" v-if="selectedProduct">
                     <p class="text-sm text-gray-500">
-                        Recording incoming for <span class="font-bold">{{ selectedProduct.code }} - {{ selectedProduct.name }}</span>
+                        {{ $t('Recording incoming for') }} <span class="font-bold">{{ selectedProduct.code }} - {{ selectedProduct.name }}</span>
                     </p>
                     <div class="mt-4 flex flex-col gap-3">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Type</label>
+                            <label class="block text-sm font-medium text-gray-700">{{ $t('Type') }}</label>
                             <select v-model="form.type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md">
-                                <option :value="1">Incoming (Stock In)</option>
-                                <option :value="2">Adjustment (Correction)</option>
+                                <option :value="1">{{ $t('Incoming (Stock In)') }}</option>
+                                <option :value="2">{{ $t('Adjustment (Correction)') }}</option>
                             </select>
                             <InputError :message="form.errors.type" class="mt-2" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Quantity (pcs)</label>
-                             <p class="text-xs text-gray-400">For Adjustment, use negative value to deduct.</p>
-                            <input type="number" v-model="form.qty" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm" placeholder="e.g. 100 or -5">
+                            <label class="block text-sm font-medium text-gray-700">{{ $t('Quantity (pcs)') }}</label>
+                             <p class="text-xs text-gray-400">{{ $t('For Adjustment, use negative value to deduct.') }}</p>
+                            <input type="number" v-model="form.qty" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm" :placeholder="$t('e.g. 100 or -5')">
                             <InputError :message="form.errors.qty" class="mt-2" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Date</label>
+                            <label class="block text-sm font-medium text-gray-700">{{ $t('Date') }}</label>
                             <DatePicker v-model="form.created_at" class="mt-1" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply>
                             </DatePicker>
                             <InputError :message="form.errors.created_at" class="mt-2" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Remarks</label>
+                            <label class="block text-sm font-medium text-gray-700">{{ $t('Remarks') }}</label>
                             <textarea v-model="form.remarks" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
                             <InputError :message="form.errors.remarks" class="mt-2" />
                         </div>
@@ -391,10 +390,10 @@
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none" @click="closeMovementModal">
-                        Cancel
+                        {{ $t('Cancel') }}
                     </button>
                     <button type="button" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none" :disabled="form.processing" @click="submitMovement">
-                        Save
+                        {{ $t('Save') }}
                     </button>
                 </div>
             </div>
@@ -417,6 +416,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
 import InputError from '@/Components/InputError.vue'
 import axios from 'axios'
+import { t } from '@/i18n'
 
 const props = defineProps({
     operatorOptions: Object,
@@ -429,7 +429,7 @@ const subtotalProducts = computed(() => (props.products?.data ?? []).filter(p =>
 
 const permissions = usePage().props.auth.permissions
 const isCmsUrlSet = !!usePage().props.isCmsUrlSet
-const pageTitle = isCmsUrlSet ? 'Warehouse Qty (self-system ledger)' : 'Warehouse Qty & Planning'
+const pageTitle = isCmsUrlSet ? t('Warehouse Qty (self-system ledger)') : t('Warehouse Qty & Planning')
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
 
@@ -448,7 +448,7 @@ const yesterdayLabel = moment().subtract(1, 'days').format('YYMMDD');
 // Age of the "Last incoming" date by the user's local calendar day: today / 1d ago / Nd ago.
 const daysAgoLabel = (date) => {
     const days = moment().startOf('day').diff(moment(date).startOf('day'), 'days');
-    return days <= 0 ? 'today' : `${days}d ago`;
+    return days <= 0 ? t('today') : t(':days ago', { days: days + 'd' });
 };
 const booleanOptions = ref([])
 
@@ -465,7 +465,7 @@ const form = useForm({
 
 onMounted(() => {
   operatorOptions.value = [
-			{id: 'all', full_name: 'All'},
+			{id: 'all', full_name: t('All')},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   // Default = All (Brian, 2026-08-20): the ledger spans operators (CityBox SKUs
@@ -481,9 +481,9 @@ onMounted(() => {
         ).filter(Boolean); // Filter out any undefined if an ID doesn't match
     }
     booleanOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'true', value: 'Yes'},
-        {id: 'false', value: 'No'},
+        {id: 'all', value: t('All')},
+        {id: 'true', value: t('Yes')},
+        {id: 'false', value: t('No')},
     ]
     if(props.filters && props.filters.is_available) {
         // Handle string/boolean value from URL query

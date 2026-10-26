@@ -1,44 +1,44 @@
 
 <template>
-	<Head title="Operation Dashboard - Live Status" />
+	<Head :title="$t('Operation Dashboard - Live Status')" />
 
 <BreezeAuthenticatedLayout>
 	<template #header>
 		<h2 class="font-semibold text-xl text-gray-800 leading-tight">
-				Operation Dashboard (Live Status)
+				{{ $t('Operation Dashboard (Live Status)') }}
 		</h2>
 	</template>
 
 	<div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
 	<div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
 			<div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-				<SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-					Machine ID
+				<SearchInput :placeholderStr="$t('4 to 5 Digits Number')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Machine ID') }}
 					<span class="text-[9px]">
-							("," for multiple)
+							{{ $t('("," for multiple)') }}
 					</span>
 				</SearchInput>
-				<SearchInput v-if="showAllFilters" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
-					Channel ID
+				<SearchInput v-if="showAllFilters" :placeholderStr="$t('Channel ID')" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Channel ID') }}
 					<span class="text-[9px]">
-							("," for multiple)
+							{{ $t('("," for multiple)') }}
 					</span>
 				</SearchInput>
-				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
-					Serial Num
+				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  :placeholderStr="$t('Serial Num')" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Serial Num') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					T1 &gt;&gt;
+				<SearchInput :placeholderStr="$t('Number')" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('T1 >>') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					T2 &gt;&gt;
+				<SearchInput :placeholderStr="$t('Number')" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('T2 >>') }}
 				</SearchInput>
-				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
-					T1-T2 Delta &gt;&gt;
+				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  :placeholderStr="$t('Number')" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('T1-T2 Delta >>') }}
 				</SearchInput>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Channel Errors
+						{{ $t('Channel Errors') }}
 					</label>
 					<MultiSelect
 							v-model="filters.errors"
@@ -46,7 +46,7 @@
 							valueProp="id"
 							label="desc"
 							mode="tags"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 					>
@@ -55,12 +55,12 @@
 				<!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 						Cust ID
 				</SearchInput> -->
-				<SearchInput placeholderStr="Site name / ID" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Site
+				<SearchInput :placeholderStr="$t('Site name / ID')" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Site') }}
 				</SearchInput>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Is Online?
+						{{ $t('Is Online?') }}
 					</label>
 					<MultiSelect
 						v-model="filters.is_online"
@@ -68,7 +68,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -76,7 +76,7 @@
 				</div>
 				<div>
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Machine Prefix
+						{{ $t('Machine Prefix') }}
 					</label>
 					<MultiSelect
 						v-model="filters.vendPrefixes"
@@ -84,7 +84,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						mode="tags"
 						class="mt-1"
@@ -93,7 +93,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Site Status
+							{{ $t('Site Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.customer_status"
@@ -102,7 +102,7 @@
 							valueProp="id"
 							label="value"
 							mode="tags"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -110,7 +110,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Machine Status
+						{{ $t('Machine Status') }}
 					</label>
 					<MultiSelect
 						v-model="filters.status"
@@ -118,7 +118,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -126,7 +126,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Sensor Status
+							{{ $t('Sensor Status') }}
 						</label>
 						<MultiSelect
 							v-model="filters.is_sensor"
@@ -134,7 +134,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -142,7 +142,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Is Door Open
+							{{ $t('Is Door Open') }}
 						</label>
 						<MultiSelect
 							v-model="filters.is_door_open"
@@ -150,7 +150,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -158,7 +158,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Fan RPM
+						{{ $t('Fan RPM') }}
 					</label>
 					<MultiSelect
 						v-model="filters.fan_rpm"
@@ -166,7 +166,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -177,7 +177,7 @@
 				</div>
 				<div v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Location Type
+							{{ $t('Location Type') }}
 						</label>
 						<MultiSelect
 							v-model="filters.locationType"
@@ -185,7 +185,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 						>
@@ -193,36 +193,36 @@
 				</div>
 				<div v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					<label class="block text-sm font-medium text-gray-700">
-						Machine with no Site
+						{{ $t('Machine with no Site') }}
 					</label>
 					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
-						title="One row per machine, including machines not bound to any site (site columns blank, judged active by the machine's own flag). Sites with no machine drop out while this is on. Every other filter still applies.">
+						:title="$t('One row per machine, including machines not bound to any site (site columns blank, judged active by the machine\'s own flag). Sites with no machine drop out while this is on. Every other filter still applies.')">
 						<input type="checkbox" v-model="filters.include_unbound_vends"
 							class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
 						<span class="flex flex-col leading-tight">
-							<span>Include unbound?</span>
-							<span class="text-xs text-gray-500">(show all machines)</span>
+							<span>{{ $t('Include unbound?') }}</span>
+							<span class="text-xs text-gray-500">{{ $t('(show all machines)') }}</span>
 						</span>
 					</label>
 				</div>
-				<SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
-					Last Visited Day &gt;&gt;
+				<SearchInput :placeholderStr="$t('How many Day(s)')" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
+					{{ $t('Last Visited Day >>') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Balance Stock(%) &lt;&lt;
+				<SearchInput :placeholderStr="$t('Balance Stock Less Than')" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('Balance Stock(%) <<') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Remaining Channel Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Remaining Channel(%) &lt;&lt;
+				<SearchInput :placeholderStr="$t('Remaining Channel Less Than')" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('Remaining Channel(%) <<') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Firmware Ver
+				<SearchInput :placeholderStr="$t('Firmware Ver')" v-model="filters.firmware_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Firmware Ver') }}
 				</SearchInput>
-				<SearchInput placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					APK Ver
+				<SearchInput :placeholderStr="$t('APK Ver')" v-model="filters.apk_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('APK Ver') }}
 				</SearchInput>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Android Device Type
+						{{ $t('Android Device Type') }}
 					</label>
 					<MultiSelect
 						v-model="filters.deviceType"
@@ -230,7 +230,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -238,7 +238,7 @@
 				</div>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Card Terminal
+						{{ $t('Card Terminal') }}
 					</label>
 					<MultiSelect
 						v-model="filters.cashless_mfg"
@@ -246,7 +246,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -259,7 +259,7 @@
 				     wording for nothing bound. -->
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Modem
+						{{ $t('Modem') }}
 					</label>
 					<MultiSelect
 						v-model="filters.modem_type_id"
@@ -267,7 +267,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -275,7 +275,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						LCD Monitor
+						{{ $t('LCD Monitor') }}
 					</label>
 					<MultiSelect
 						v-model="filters.lcd_monitor_id"
@@ -283,7 +283,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -294,7 +294,7 @@
 				     default and means "don't filter". -->
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						SimCard Package
+						{{ $t('SimCard Package') }}
 					</label>
 					<MultiSelect
 						v-model="filters.telcos"
@@ -302,19 +302,19 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
 					>
 					</MultiSelect>
 				</div>
-				<SearchInput placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Avg/Day Sales (30d) &lt;&lt;
+				<SearchInput :placeholderStr="$t('Avg Day Sales Less Than')" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Avg/Day Sales (30d) <<') }}
 				</SearchInput>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Is MQTT?
+						{{ $t('Is MQTT?') }}
 					</label>
 					<MultiSelect
 						v-model="filters.is_mqtt"
@@ -322,7 +322,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -330,7 +330,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Is MQTT Active?
+						{{ $t('Is MQTT Active?') }}
 					</label>
 					<MultiSelect
 						v-model="filters.is_mqtt_active"
@@ -338,21 +338,21 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
 					</MultiSelect>
 				</div>
-				<SearchInput placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
-					Account Manager
+				<SearchInput :placeholderStr="$t('Account Manager')" v-model="filters.account_manager_name" v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
+					{{ $t('Account Manager') }}
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Coin Amount &lt;&lt;
+				<SearchInput :placeholderStr="$t('Number')" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					{{ $t('Coin Amount <<') }}
 				</SearchInput>
 				<div v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Upcoming Job Driver
+						{{ $t('Upcoming Job Driver') }}
 					</label>
 					<MultiSelect
 						v-model="filters.next_planned_driver"
@@ -360,7 +360,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -370,12 +370,12 @@
 					<DatePicker
 						v-model="filters.next_planned_date"
 					>
-					Upcoming Job Date
+					{{ $t('Upcoming Job Date') }}
 					</DatePicker>
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Ref Price Type
+						{{ $t('Ref Price Type') }}
 					</label>
 					<MultiSelect
 						v-model="filters.selling_price_type"
@@ -383,7 +383,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 					>
@@ -391,7 +391,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Model
+							{{ $t('Machine Model') }}
 					</label>
 					<MultiSelect
 							v-model="filters.vendModels"
@@ -399,7 +399,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 							mode="tags"
@@ -408,7 +408,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Refilling Routes
+						{{ $t('Refilling Routes') }}
 					</label>
 					<MultiSelect
 						v-model="filters.zones"
@@ -416,7 +416,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
@@ -425,7 +425,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Preferred Day(s)
+						{{ $t('Preferred Day(s)') }}
 					</label>
 					<MultiSelect
 						v-model="filters.preferredDays"
@@ -433,7 +433,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
@@ -442,7 +442,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						#Refill per Week
+						{{ $t('#Refill per Week') }}
 					</label>
 					<MultiSelect
 						v-model="filters.frequency_per_week_status"
@@ -450,7 +450,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						mode="tags"
@@ -458,7 +458,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-							Delivery Platform
+							{{ $t('Delivery Platform') }}
 					</label>
 					<MultiSelect
 							v-model="filters.delivery_platform_id"
@@ -466,7 +466,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
-							placeholder="Select"
+							:placeholder="$t('Select')"
 							open-direction="bottom"
 							class="mt-1"
 					>
@@ -474,7 +474,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Setting Chart
+								{{ $t('Setting Chart') }}
 						</label>
 						<MultiSelect
 								v-model="filters.vendConfigs"
@@ -482,7 +482,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -491,7 +491,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Machine Contract
+								{{ $t('Machine Contract') }}
 						</label>
 						<MultiSelect
 								v-model="filters.vendContracts"
@@ -499,7 +499,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -508,7 +508,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Product Mapping
+								{{ $t('Product Mapping') }}
 						</label>
 						<MultiSelect
 								v-model="filters.productMappings"
@@ -516,7 +516,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -529,7 +529,7 @@
 				     preset upcoming. "— None —" lists machines with no upcoming at all. -->
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-								Upcoming Mapping
+								{{ $t('Upcoming Mapping') }}
 						</label>
 						<MultiSelect
 								v-model="filters.upcomingProductMappings"
@@ -537,7 +537,7 @@
 								trackBy="id"
 								valueProp="id"
 								label="value"
-								placeholder="Select"
+								:placeholder="$t('Select')"
 								open-direction="bottom"
 								mode="tags"
 								class="mt-1"
@@ -546,13 +546,13 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 					<label class="block text-sm font-medium text-gray-700">
-						Site Grouping
+						{{ $t('Site Grouping') }}
 					</label>
 					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
-						title="Show co-located sites as a group: if any member matches the filters, all its group-mates appear too, kept next to each other.">
+						:title="$t('Show co-located sites as a group: if any member matches the filters, all its group-mates appear too, kept next to each other.')">
 						<input type="checkbox" v-model="filters.group_siblings"
 							class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-						Grouped? (show siblings together)
+						{{ $t('Grouped? (show siblings together)') }}
 					</label>
 				</div>
 			</div>
@@ -565,7 +565,7 @@
 						>
 							<MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
 							<span>
-									Search
+									{{ $t('Search') }}
 							</span>
 						</Button>
 						<Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -573,14 +573,14 @@
 						>
 							<span v-if="!showAllFilters" class="flex">
 									<ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
-									Show
+									{{ $t('Show') }}
 							</span>
 							<span v-if="showAllFilters" class="flex">
 									<ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true"/>
-									Hide
+									{{ $t('Hide') }}
 							</span>
 							<span>
-									All Filters
+									{{ $t('All Filters') }}
 							</span>
 						</Button>
 						<Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
@@ -592,7 +592,7 @@
 											<ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true" v-if="isShowOperationDiv"/>
 									</div>
 									<span>
-											Operations
+											{{ $t('Operations') }}
 									</span>
 							</div>
 						</Button>
@@ -606,13 +606,13 @@
 							v-if="indexType === 'customers'"
 						>
 							<ExclamationTriangleIcon class="h-4 w-4" aria-hidden="true" />
-							<span>{{ alertsOnly ? 'Showing Alert/Error · Show all' : 'Show Alert/Error' }}</span>
+							<span>{{ alertsOnly ? $t('Showing Alert/Error · Show all') : $t('Show Alert/Error') }}</span>
 							<!-- The count, like an unread badge (Brian, 2026-10-19). -->
 							<span
 								v-if="alertCount !== null"
 								class="absolute -top-2 -right-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none tabular-nums shadow ring-2 ring-white"
 								:class="alertCount === 0 ? 'bg-gray-400 text-white' : 'bg-red-600 text-white'"
-								:aria-label="`${alertCount} machines with an alert or error`"
+								:aria-label="$t(':count machines with an alert or error', { count: alertCount })"
 							>{{ alertCount > 999 ? '999+' : alertCount }}</span>
 						</Button>
 						<Button
@@ -621,22 +621,22 @@
 							v-if="vends.data && vends.data.some(vend => vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude)"
 						>
 							<MapPinIcon class="h-4 w-4" aria-hidden="true" />
-							<span>Show Map Markers</span>
+							<span>{{ $t('Show Map Markers') }}</span>
 						</Button>
 					</div>
 				</div>
 				<div class="flex flex-col space-y-1">
 					<span class="text-sm text-gray-700 leading-5">
-						<p>Last loaded: {{ now }}</p>
+						<p>{{ $t('Last loaded: :time', { time: now }) }}</p>
 					</span>
 					<p class="text-sm text-gray-700 leading-5 flex space-x-1">
-						<span>Showing</span>
+						<span>{{ $t('Showing') }}</span>
 						<span class="font-medium">{{ vends.meta.from ?? 0 }}</span>
-						<span>to</span>
+						<span>{{ $t('to') }}</span>
 						<span class="font-medium">{{ vends.meta.to ?? 0 }}</span>
-						<span>of</span>
+						<span>{{ $t('of') }}</span>
 						<span class="font-medium">{{ vends.meta.total }}</span>
-						<span>results</span>
+						<span>{{ $t('results') }}</span>
 					</p>
 					<MultiSelect
 						v-model="filters.numberPerPage"
@@ -644,7 +644,7 @@
 						trackBy="id"
 						valueProp="id"
 						label="value"
-						placeholder="Select"
+						:placeholder="$t('Select')"
 						open-direction="bottom"
 						class="mt-1"
 						@selected="onSearchFilterUpdated"
@@ -667,7 +667,7 @@
 									</svg>
 							</div>
 							<span>
-									Export Channels Excel
+									{{ $t('Export Channels Excel') }}
 							</span>
 						</div>
 					</Button>
@@ -679,10 +679,10 @@
 						<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
 						<span class="flex flex-col space-y-1">
 							<span>
-									Generate Pick List
+									{{ $t('Generate Pick List') }}
 							</span>
 							<span class="text-xs leading-3">
-								(Checkbox)
+								{{ $t('(Checkbox)') }}
 							</span>
 						</span>
 					</Button>
@@ -692,7 +692,7 @@
 						<PlayCircleIcon class="h-4 w-4" aria-hidden="true"/>
 						<span class="flex flex-col space-y-1">
 							<span>
-									Set Product Availability
+									{{ $t('Set Product Availability') }}
 							</span>
 						</span>
 					</a>
@@ -706,10 +706,10 @@
 						<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
 						<span class="flex flex-col space-y-1">
 							<span>
-									Assign Job(s)
+									{{ $t('Assign Job(s)') }}
 							</span>
 							<span class="text-xs leading-3">
-									(Checkbox)
+									{{ $t('(Checkbox)') }}
 							</span>
 						</span>
 					</Button>
@@ -724,7 +724,7 @@
 			     the FULL filtered fleet, not the 50-per-page table scope they'll
 			     get after clicking Search. -->
 			<div v-if="!hasSearched && initialStats" class="mt-4 text-xs italic text-gray-500">
-				Based on all {{ (initialStats.vmCount ?? 0).toLocaleString() }} units matching the current filters
+				{{ $t('Based on all :count units matching the current filters', { count: (initialStats.vmCount ?? 0).toLocaleString() }) }}
 			</div>
 			<div v-if="hasSearched || initialStats" :class="(!hasSearched && initialStats) ? 'mt-2' : 'mt-4'" class="grid grid-cols-1 gap-3 lg:grid-cols-2 items-start">
 				<!-- ============ Group 1: Last 30 days (Total / Avg per VM) ============
@@ -733,13 +733,13 @@
 				     Each cell: big Total + small darker (Avg/VM) in parens. -->
 				<section class="overflow-hidden rounded-xl bg-sky-50 ring-1 ring-gray-300 shadow-sm">
 					<header class="flex items-baseline gap-2 border-b border-gray-300 bg-sky-100 px-4 py-2.5">
-						<h3 class="text-sm font-semibold text-gray-800">Last 30 days</h3>
-						<span class="text-xs font-medium text-sky-700">Total (Avg / VM)</span>
+						<h3 class="text-sm font-semibold text-gray-800">{{ $t('Last 30 days') }}</h3>
+						<span class="text-xs font-medium text-sky-700">{{ $t('Total (Avg / VM)') }}</span>
 					</header>
 					<dl class="grid grid-cols-2 gap-px bg-gray-300 sm:grid-cols-3 lg:grid-cols-3 [&>div]:bg-sky-50">
 						<!-- 1. Stock-in Value $ -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Stock-in Value $</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('Stock-in Value $') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{cardTotals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ (cardTotals['thirthyDaysStockIn'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
@@ -747,7 +747,7 @@
 						</div>
 						<!-- 2. Sales $ -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Sales $</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('Sales $') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{cardTotals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ (cardTotals['thirtyDays'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
@@ -755,7 +755,7 @@
 						</div>
 						<!-- 3. VendEarning $ = Gross − Location Fees (mirrors Site Summary "Total Vend Earnings"). -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">VendEarning $</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('VendEarning $') }}</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
 								:class="(cardTotals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
@@ -766,7 +766,7 @@
 						</div>
 						<!-- 4. LocEarning $ = Location Fees (mirrors Site Summary "Total Location Fees"). Emerald when negative = subsidy. -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Loc Fees</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('Loc Fees') }}</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
 								:class="(cardTotals['thirtyDaysLocationFees'] || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
@@ -777,7 +777,7 @@
 						</div>
 						<!-- 5. # of Job done = completed ops_job_items L30d. Integer total; Avg/VM to 1 dp. -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500"># of Job done</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('# of Job done') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{(cardTotals['thirtyDaysJobsDone'] || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
 								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((cardTotals['thirtyDaysJobsDone'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) }})</span>
@@ -787,7 +787,7 @@
 							30-day sales beat the last full calendar month. Client-side
 							(currentStats), shown as % with (count/total). -->
 						<div class="px-4 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Sales L30D &gt; LMth</dt>
+							<dt class="text-xs font-medium leading-tight text-gray-500">{{ $t('% of VM, Sales L30D > LMth') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{ currentStats.salesUpPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}%
 								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ currentStats.salesUpCount }}/{{ currentStats.salesUpTotal }})</span>
@@ -802,25 +802,25 @@
 				     machines (currentStats computed). -->
 				<section class="overflow-hidden rounded-xl bg-indigo-50 ring-1 ring-gray-300 shadow-sm">
 					<header class="flex items-baseline gap-2 border-b border-gray-300 bg-indigo-100 px-4 py-2.5">
-						<h3 class="text-sm font-semibold text-gray-800">Current</h3>
-						<span class="text-xs font-medium text-indigo-700">Avg</span>
+						<h3 class="text-sm font-semibold text-gray-800">{{ $t('Current') }}</h3>
+						<span class="text-xs font-medium text-indigo-700">{{ $t('Avg') }}</span>
 					</header>
 					<dl class="grid grid-cols-2 gap-px bg-gray-300 sm:grid-cols-3 lg:grid-cols-3 [&>div]:bg-indigo-50">
 						<!-- Stock Qty Bal — avg balance_percent over rows with stock data -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Stock Qty Bal</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('Stock Qty Bal') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.stockQtyBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
 						<!-- Stock SKU Bal — avg (100 − out_of_stock_sku_percent) -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Stock SKU Bal</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('Stock SKU Bal') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.stockSkuBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
 						<!-- % of VM, Avg Daily Sales L30D >= Avg/Day — % of machines whose
 							L30D avg daily sales are at/above the fleet-wide overall avg/day
 							(currentStats baseline). Label may wrap to 2 lines. -->
 						<div class="px-4 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Avg Daily Sales L30D &gt;= Avg/Day</dt>
+							<dt class="text-xs font-medium leading-tight text-gray-500">{{ $t('% of VM, Avg Daily Sales L30D >= Avg/Day') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-green-700">{{ currentStats.greenPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}% <span class="text-xs font-normal text-gray-400">({{ currentStats.greenCount }}/{{ currentStats.greenTotal }})</span></dd>
 						</div>
 						<!-- # of VM (# of Job Next Day), Refillable > $120/$150/$200/$250 —
@@ -828,7 +828,7 @@
 							Value exceeds it, with the subset of those that have an ops job
 							scheduled TOMORROW in parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500">&gt;Refillable $: # of VM <span class="text-blue-600 text-[0.625rem]">(# of Job Next Day)</span></dt>
+							<dt class="text-xs font-medium leading-tight text-gray-500">{{ $t('>Refillable $: # of VM') }} <span class="text-blue-600 text-[0.625rem]">{{ $t('(# of Job Next Day)') }}</span></dt>
 							<dd class="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm leading-5 font-semibold tracking-tight tabular-nums text-gray-800">
 								<span class="whitespace-nowrap">&gt;$120: {{ currentStats.refillableOver120 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver120 }})</span></span><span class="whitespace-nowrap">&gt;$150: {{ currentStats.refillableOver150 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver150 }})</span></span><span class="whitespace-nowrap">&gt;$200: {{ currentStats.refillableOver200 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver200 }})</span></span><span class="whitespace-nowrap">&gt;$250: {{ currentStats.refillableOver250 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver250 }})</span></span>
 							</dd>
@@ -838,14 +838,14 @@
 							count over each threshold with the next-day-job subset in
 							parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500">&gt;Refillable $: # of VM <span class="text-blue-600 text-[0.625rem]">(# of Job Next Day)</span></dt>
+							<dt class="text-xs font-medium leading-tight text-gray-500">{{ $t('>Refillable $: # of VM') }} <span class="text-blue-600 text-[0.625rem]">{{ $t('(# of Job Next Day)') }}</span></dt>
 							<dd class="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm leading-5 font-semibold tracking-tight tabular-nums text-gray-800">
 								<span class="whitespace-nowrap">&gt;$300: {{ currentStats.refillableOver300 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver300 }})</span></span><span class="whitespace-nowrap">&gt;$350: {{ currentStats.refillableOver350 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver350 }})</span></span><span class="whitespace-nowrap">&gt;$400: {{ currentStats.refillableOver400 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver400 }})</span></span><span class="whitespace-nowrap">&gt;$450: {{ currentStats.refillableOver450 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver450 }})</span></span>
 							</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500"># of Job, next day</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">{{ $t('# of Job, next day') }}</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-blue-600">{{ currentStats.nextDayJobCount }} <span class="text-xs font-normal text-gray-600">/ {{ currentStats.total }}</span></dd>
 						</div>
 					</dl>
@@ -865,20 +865,20 @@
 	<!-- Before Search: the full rows of the machines that need attention (Brian, 2026-10-18), most
 	     urgent first. The section above narrows them; Search replaces them as usual. -->
 	<div v-if="!hasSearched && attention.rows" ref="attentionTableTop" class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
-		<span class="font-semibold">Needs attention</span>
-		<span v-if="attention.title">{{ attention.title }} · {{ vends.data.length }} {{ vends.data.length === 1 ? 'machine' : 'machines' }}</span>
-		<span v-else-if="attention.rows.length < attention.total">The {{ attention.rows.length }} most urgent of {{ attention.total }} machines · open a category above for the rest</span>
-		<span v-else>All {{ attention.total }} machines, most urgent first</span>
-		<button v-if="attention.title" type="button" class="font-medium text-indigo-600 hover:underline" @click="showAllAttentionRows">Show all loaded</button>
-		<span v-if="attention.loading" class="text-xs text-rose-700">Loading…</span>
+		<span class="font-semibold">{{ $t('Needs attention') }}</span>
+		<span v-if="attention.title">{{ attention.title }} · {{ $tc(':count machine|:count machines', vends.data.length) }}</span>
+		<span v-else-if="attention.rows.length < attention.total">{{ $t('The :count most urgent of :total machines · open a category above for the rest', { count: attention.rows.length, total: attention.total }) }}</span>
+		<span v-else>{{ $t('All :total machines, most urgent first', { total: attention.total }) }}</span>
+		<button v-if="attention.title" type="button" class="font-medium text-indigo-600 hover:underline" @click="showAllAttentionRows">{{ $t('Show all loaded') }}</button>
+		<span v-if="attention.loading" class="text-xs text-rose-700">{{ $t('Loading…') }}</span>
 	</div>
-	<div v-else-if="!hasSearched && attention.loading" class="mb-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">Loading the machines that need attention…</div>
+	<div v-else-if="!hasSearched && attention.loading" class="mb-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">{{ $t('Loading the machines that need attention…') }}</div>
 	<!-- "Show Alert/Error": how many machines, and a count per reason; a reason narrows the list. -->
 	<div v-if="hasSearched && machineAlerts" class="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
 		<div class="flex flex-wrap items-baseline gap-x-2">
-			<span class="font-semibold">Alert/Error</span>
-			<span>{{ machineAlerts.total }} of {{ machineAlerts.machine_count }} machines have at least one</span>
-			<button type="button" class="ml-auto text-xs font-medium text-indigo-600 hover:underline" @click="toggleAlertsOnly">Show all machines</button>
+			<span class="font-semibold">{{ $t('Alert/Error') }}</span>
+			<span>{{ $t(':count of :total machines have at least one', { count: machineAlerts.total, total: machineAlerts.machine_count }) }}</span>
+			<button type="button" class="ml-auto text-xs font-medium text-indigo-600 hover:underline" @click="toggleAlertsOnly">{{ $t('Show all machines') }}</button>
 		</div>
 		<div class="mt-1.5 flex flex-wrap gap-1.5">
 			<button
@@ -886,7 +886,7 @@
 				class="rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
 				:class="!machineAlerts.reason ? 'bg-red-600 text-white ring-red-600' : 'bg-white text-red-800 ring-red-200 hover:bg-red-100'"
 				@click="filterAlertReason('')"
-			>All {{ machineAlerts.total }}</button>
+			>{{ $t('All :count', { count: machineAlerts.total }) }}</button>
 			<button
 				v-for="reason in machineAlerts.reasons"
 				:key="reason.key"
@@ -908,7 +908,7 @@
 			<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 			<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
 		</svg>
-		<span>Loading financial &amp; stock columns…</span>
+		<span>{{ $t('Loading financial & stock columns…') }}</span>
 	</div>
 	<div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
 	<div class="cv-scroll overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
@@ -928,36 +928,36 @@
 						#
 					</TableHead>
 					<TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
-						Machine ID
+						{{ $t('Machine ID') }}
 					</TableHeadSort>
 					<TableHead>
 						<div class="flex flex-col space-y-2 max-w-[150px] mx-auto">
 							<SingleSortItem modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
-								Machine ID
+								{{ $t('Machine ID') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="vend_configs.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_configs.name', false)">
-								Setting Chart
+								{{ $t('Setting Chart') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="vend_prefixes.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefixes.name', false)">
-								Machine Prefix
+								{{ $t('Machine Prefix') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="product_mappings.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mappings.name', false)">
-								Product Mapping
+								{{ $t('Product Mapping') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
-								Site
+								{{ $t('Site') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
-								Postcode
+								{{ $t('Postcode') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
-								Ref Price
+								{{ $t('Ref Price') }}
 							</SingleSortItem>
 							<span class="text-sm font-medium text-gray-700">
-								Campaign
+								{{ $t('Campaign') }}
 							</span>
 							<span class="text-sm font-medium text-gray-700">
-								Happy Hour
+								{{ $t('Happy Hour') }}
 							</span>
 						</div>
 					</TableHead>
@@ -965,37 +965,37 @@
 						<div class="flex flex-col space-y-2">
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
-									T1: Machine
+									{{ $t('T1: Machine') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Freezer <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Temp Probe Located at the Top of the Freezer <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
-								T2: Evaporator
+								{{ $t('T2: Evaporator') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Evaporator <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Temp Probe Located at the Top of the Evaporator <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
-									Updated
+									{{ $t('Updated') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last Updated Timestamp <br> (every 3 mins)', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Last Updated Timestamp <br> (every 3 mins)'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center mt-2">
 								<SingleSortItem modelName="t1_lowest_48h" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('t1_lowest_48h', true)">
-									T1 lowest L48hr
+									{{ $t('T1 lowest L48hr') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Lowest T1 Temp Last 48h <br> Red: > -18c <br> Blue: -21c to -18c <br> Green: < -21c', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Lowest T1 Temp Last 48h <br> Red: > -18c <br> Blue: -21c to -18c <br> Green: < -21c'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp_diff" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_diff', true)">
 									&Delta;T1-T2
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center mt-2">
 								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
-									Fan RPM
+									{{ $t('Fan RPM') }}
 								</SingleSortItem>
 							</div>
 							<!-- PWRON 1d/2d/3d trend block — moved here from the Error column
@@ -1008,7 +1008,7 @@
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
 								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center space-x-1">
 								<SingleSortItem modelName="pwron_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_1d_count', false)">
@@ -1030,8 +1030,8 @@
 							     do not report sort last. Data renders at the bottom of the cell. -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900">MQTT Offline (min)</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Minutes per day the machine had no working MQTT session (QR payments and remote commands unavailable), measured by the machine itself. Includes outages still in progress. Hover today\'s value for drops / client recycles / failed connects.<br>Green under 10 min, amber 10-59, red 60+. “–” = no data: the machine runs a build older than big 306 / small v14.', html: true }"></ExclamationCircleIcon>
+								<span class="text-[11px] font-semibold text-gray-900">{{ $t('MQTT Offline (min)') }}</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Minutes per day the machine had no working MQTT session (QR payments and remote commands unavailable), measured by the machine itself. Includes outages still in progress. Hover today\'s value for drops / client recycles / failed connects.<br>Green under 10 min, amber 10-59, red 60+. “–” = no data: the machine runs a build older than big 306 / small v14.'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center space-x-1">
 								<SingleSortItem modelName="mqtt_offline_1d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_1d_s', false)">
@@ -1053,17 +1053,17 @@
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="trade_queue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('trade_queue', false)">
-									<span class="text-[11px] font-semibold text-gray-900">Unsent Sales</span>
+									<span class="text-[11px] font-semibold text-gray-900">{{ $t('Unsent Sales') }}</span>
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Sales the machine has saved on its own storage that mark1 has not received yet, with how long the oldest has waited. The machine keeps resending them until mark1 confirms, so a number that stays above 0 means sales are happening that mark1 cannot see yet (poor signal, server unreachable).<br>Green 0, amber waiting under 30 min, red 30 min+. “–” = no data today: the machine runs a build older than big 307 / small v15.', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Sales the machine has saved on its own storage that mark1 has not received yet, with how long the oldest has waited. The machine keeps resending them until mark1 confirms, so a number that stays above 0 means sales are happening that mark1 cannot see yet (poor signal, server unreachable).<br>Green 0, amber waiting under 30 min, red 30 min+. “–” = no data today: the machine runs a build older than big 307 / small v15.'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<!-- SIM Card block — telco (or Wi-Fi/LAN) the machine reports,
 							     plus its signal strength pill. Data renders at the bottom
 							     of the cell below. -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900">SIM Card</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Internet link the machine itself reports (VENDER packet, big board v302+ / smart freezer): the SIM card\'s telco (or Wi-Fi / LAN) and its signal strength.<br>Signal: 1-2 red, 3 yellow, 4-5 green.', html: true }"></ExclamationCircleIcon>
+								<span class="text-[11px] font-semibold text-gray-900">{{ $t('SIM Card') }}</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Internet link the machine itself reports (VENDER packet, big board v302+ / smart freezer): the SIM card\'s telco (or Wi-Fi / LAN) and its signal strength.<br>Signal: 1-2 red, 3 yellow, 4-5 green.'), html: true }"></ExclamationCircleIcon>
 							</div>
 						</div>
 					</TableHead>
@@ -1072,40 +1072,40 @@
 							<div class="flex justify-center items-center">
 								<span class="flex flex-col space-y-1">
 									<span>
-										Inventory Status
+										{{ $t('Inventory Status') }}
 									</span>
 									<span>
-										#Channel, Required, Balance/Capacity (LastStockIn)
+										{{ $t('#Channel, Required, Balance/Capacity (LastStockIn)') }}
 									</span>
 								</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '#Channel <br> Black = P1 same as RP, correct <br> Red = P1 not same with RP <br><br> Balance/Capacity <br> Green = Balance > 2 <br> Blue = Balance 1 & 2 <br> Red = Balance = 0', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('#Channel <br> Black = P1 same as RP, correct <br> Red = P1 not same with RP <br><br> Balance/Capacity <br> Green = Balance > 2 <br> Blue = Balance 1 & 2 <br> Red = Balance = 0'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
-									Stock Cost
+									{{ $t('Stock Cost') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Exclusive GST or VAT', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Exclusive GST or VAT'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_stock_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_amount')">
-									Stock Value
+									{{ $t('Stock Value') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Inclusive GST or VAT', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Inclusive GST or VAT'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_full_load_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_full_load_amount')">
-									Full Load Value
+									{{ $t('Full Load Value') }}
 								</SingleSortItem>
 							</div>
 							<div class="flex flex-col items-center pt-2 space-y-1 w-full mt-2">
 								<span>
-									Refill Planning
+									{{ $t('Refill Planning') }}
 								</span>
 								<div class="bg-gray-300 px-2 py-0.5 rounded text-xs text-gray-800 w-fit">
-									Grey: Capped Qty (Next Day)
+									{{ $t('Grey: Capped Qty (Next Day)') }}
 								</div>
 								<div class="bg-red-200 px-2 py-0.5 rounded text-xs text-gray-800 w-fit flex items-center space-x-1">
-									<span>Red: Not Available</span>
+									<span>{{ $t('Red: Not Available') }}</span>
 								</div>
 							</div>
 						</div>
@@ -1113,31 +1113,31 @@
 					<TableHead>
 						<div class="flex flex-col space-y-0.5">
 							<span>
-								Error
+								{{ $t('Error') }}
 							</span>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
-									Uncleared Error(s)
+									{{ $t('Uncleared Error(s)') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Error(s) occurred before and need to be cleared in VMC', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Error(s) occurred before and need to be cleared in VMC'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="totals_json->one_day_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->one_day_error_rate', false)">
-									1d Rate
+									{{ $t('1d Rate') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Today error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Today error rates <br> Green: < 2% <br> Red: >= 2%'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="totals_json->two_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->two_days_error_rate', false)">
-									2d Rate
+									{{ $t('2d Rate') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 2 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Last 2 days error rates <br> Green: < 2% <br> Red: >= 2%'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
-									7d Rate
+									{{ $t('7d Rate') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Last 7 days error rates <br> Green: < 2% <br> Red: >= 2%'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<!-- "# of Refund" 1d/2d/3d block (Daniel, 2026-08-24) — RF tickets
 							     submitted for this machine per day (any status), counted from
@@ -1148,8 +1148,8 @@
 							     to the bottom of the Temperature column.) -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900"># of Refund</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Refund requests (RF tickets) submitted for this machine per day, whatever their status. 1d = today, 2d = yesterday, 3d = day before (baseline).<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
+								<span class="text-[11px] font-semibold text-gray-900">{{ $t('# of Refund') }}</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Refund requests (RF tickets) submitted for this machine per day, whatever their status. 1d = today, 2d = yesterday, 3d = day before (baseline).<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center space-x-1">
 								<SingleSortItem modelName="refund_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refund_1d_count', false)">
@@ -1169,44 +1169,44 @@
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
-								Stock
+								{{ $t('Stock') }}
 							</span>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
-									Balance Qty
+									{{ $t('Balance Qty') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Balance Qty % <br> Red: < 30% <br> Blue: >= 30% and < 50% <br> Green: >= 50%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Balance Qty % <br> Red: < 30% <br> Blue: >= 30% and < 50% <br> Green: >= 50%'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center border-b border-gray-300 pb-2 mb-2 w-full">
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
-									Remaining Channel#
+									{{ $t('Remaining Channel#') }}
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Sellable Channels / Total Channels <br> A channel is excluded when it is empty (qty 0) <b>or</b> has an uncleared error, so a machine with no empty channel can still be below full count. <br> Hover the number for the per-channel breakdown. <br><br> Channel Availability % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Sellable Channels / Total Channels <br> A channel is excluded when it is empty (qty 0) <b>or</b> has an uncleared error, so a machine with no empty channel can still be below full count. <br> Hover the number for the per-channel breakdown. <br><br> Channel Availability % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<span>
-									Refill Planning
+									{{ $t('Refill Planning') }}
 							</span>
 							<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
-								Refillable Value
+								{{ $t('Refillable Value') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="actual_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_qty')">
-								Refillable Qty
+								{{ $t('Refillable Qty') }}
 							</SingleSortItem>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						Sales(qty)
+						{{ $t('Sales(qty)') }}
 						<SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', false)">
-							Today
+							{{ $t('Today') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->yesterday_amount', false)">
-							Y'day
+							{{ $t("Y'day") }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_amount', false)">
-							Last7d
+							{{ $t('Last7d') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', false)">
-							Last30d
+							{{ $t('Last30d') }}
 						</SingleSortItem>
 						<!-- Mthly Sales $ — calendar-month split sitting under the rolling
 							Today/Yday/Last7d/Last30d block. Four sub-rows (Current Mth /
@@ -1215,18 +1215,18 @@
 							SyncVendTransactionTotalsJson. Up/down arrow chips on the data
 							side compare each row to the previous month. -->
 						<hr class="border-t border-gray-300 my-2" />
-						<span class="text-[11px] font-semibold text-gray-900">Mthly Sales $</span>
+						<span class="text-[11px] font-semibold text-gray-900">{{ $t('Mthly Sales $') }}</span>
 						<SingleSortItem modelName="totals_json->current_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->current_mth_amount', false)">
-							Current Mth
+							{{ $t('Current Mth') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->last_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_mth_amount', false)">
-							Last Mth
+							{{ $t('Last Mth') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->last_2_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_2_mth_amount', false)">
-							Last 2Mth
+							{{ $t('Last 2Mth') }}
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->last_3_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_3_mth_amount', false)">
-							Last 3Mth
+							{{ $t('Last 3Mth') }}
 						</SingleSortItem>
 						<!-- Avg Mthly Sales $ — true average monthly sales over the
 							machine's operating lifetime: lifetime sales
@@ -1236,25 +1236,25 @@
 							stored totals_json field, so the label carries no dedicated sort
 							key. Matching <hr>/figure sits in the TableData below. -->
 						<hr class="border-t border-gray-300 my-2" />
-						<span class="text-[11px] font-semibold text-gray-900">Avg Mthly Sales $</span>
+						<span class="text-[11px] font-semibold text-gray-900">{{ $t('Avg Mthly Sales $') }}</span>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2 max-w-28 mx-auto">
 							<span>
-								Last Job
+								{{ $t('Last Job') }}
 							</span>
 							<span>
-								Stock In Value{{ operatorCountry.currency_symbol }}
+								{{ $t('Stock In Value:currency', { currency: operatorCountry.currency_symbol }) }}
 							</span>
 							<span>
-								Qty
+								{{ $t('Qty') }}
 							</span>
 							<span>
-								Transaction{{ operatorCountry.currency_symbol }} (Qty)
+								{{ $t('Transaction:currency (Qty)', { currency: operatorCountry.currency_symbol }) }}
 							</span>
 							<div class="border-t border-gray-300 my-1 pt-1">
 								<span>
-									Last 2 Job
+									{{ $t('Last 2 Job') }}
 								</span>
 							</div>
 						</div>
@@ -1262,13 +1262,13 @@
 					<TableHead v-if="!roles.includes('operator_driver')" inputClass="!px-1">
 						<div class="flex flex-col space-y-2 max-w-28 mx-auto">
 							<span>
-								Upcoming Job
+								{{ $t('Upcoming Job') }}
 							</span>
 							<span>
-								Picked Value{{ operatorCountry.currency_symbol }}
+								{{ $t('Picked Value:currency', { currency: operatorCountry.currency_symbol }) }}
 							</span>
 							<span>
-								Qty
+								{{ $t('Qty') }}
 							</span>
 							<!-- # of Job Done L30d — count of completed ops_job_items
 								for this customer in the trailing 30 days. Sortable
@@ -1279,14 +1279,14 @@
 								this column's TableData. -->
 							<div v-if="indexType === 'customers'" class="border-t border-gray-300 !mt-5 pt-5 mb-1 flex flex-col space-y-1">
 								<SingleSortItem modelName="last_thirty_days_jobs_done_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_thirty_days_jobs_done_count', true)">
-									# of Job Done L30d
+									{{ $t('# of Job Done L30d') }}
 								</SingleSortItem>
 								<!-- Avg $ per Job = L30d stock-in value ÷ # of Job Done L30d.
 									Display-only (derived in the cell from two already-exposed
 									fields); the matching value sits directly below the count
 									at the bottom of this column's TableData. -->
 								<span>
-									Avg {{ operatorCountry.currency_symbol }} per Job
+									{{ $t('Avg :currency per Job', { currency: operatorCountry.currency_symbol }) }}
 								</span>
 							</div>
 						</div>
@@ -1294,26 +1294,26 @@
 					<TableHead v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
-								Refilling Routes
+								{{ $t('Refilling Routes') }}
 							</SingleSortItem>
 							<div>
-								Preferred Day(s)
+								{{ $t('Preferred Day(s)') }}
 							</div>
 							<SingleSortItem modelName="frequency_per_week_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('frequency_per_week_status')">
-								#Refill per Week
+								{{ $t('#Refill per Week') }}
 							</SingleSortItem>
 							<div>
-								Ops Note
+								{{ $t('Ops Note') }}
 							</div>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
-								Lifetime Sales
+								{{ $t('Lifetime Sales') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
-								Accumulated VendEarning
+								{{ $t('Accumulated VendEarning') }}
 							</SingleSortItem>
 							<!-- Section divider — visually groups the sales metrics
 								above (Lifetime / Accumulated) from the contract /
@@ -1321,7 +1321,7 @@
 								<hr> sits at the same position in the TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
 							<SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
-								Begin Dt
+								{{ $t('Begin Dt') }}
 							</SingleSortItem>
 							<!-- Contract End Date — moved out of the Contract Type
 								column so it sits beside Begin Dt, which makes the
@@ -1329,14 +1329,14 @@
 								The auto-renewal icon travels with it (see the
 								matching span in the TableData below). -->
 							<SingleSortItem modelName="customers.contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_until', false)">
-								Contract End Date
+								{{ $t('Contract End Date') }}
 							</SingleSortItem>
 							<!-- Notice Period — string column (e.g. "1 mth"). Pairs
 								with Contract End Date so the contract summary reads
 								end-date + notice together. Same column as Site
 								Summary's Contract terms cluster. -->
 							<SingleSortItem modelName="customers.contract_notice_period" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_notice_period', false)">
-								Notice Period
+								{{ $t('Notice Period') }}
 							</SingleSortItem>
 							<!-- Section divider — closes off the contract/date
 								cluster (Begin Dt → Contract End Date → Notice
@@ -1344,10 +1344,10 @@
 								→ AvgDailySales). Matching <hr> in the TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
 							<SingleSortItem modelName="totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_average_day', true)">
-								Avg Sales/ Day
+								{{ $t('Avg Sales/ Day') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
-								AvgDailySales (Last30d)
+								{{ $t('AvgDailySales (Last30d)') }}
 							</SingleSortItem>
 							<!-- Section divider — separates the daily-sales pair
 								from the VM Binding History block below. Matching
@@ -1361,7 +1361,7 @@
 								opening the site. Values render at the matching
 								position in this column's TableData. -->
 							<span v-if="indexType === 'customers'">
-								VM Binding History
+								{{ $t('VM Binding History') }}
 							</span>
 							<!-- Section divider — closes the VM Binding History
 								block before the Site Tag chips. Matching <hr>
@@ -1373,24 +1373,24 @@
 								customers-index path because tag_bindings is empty
 								on the regular /vends rows. -->
 							<span v-if="indexType === 'customers'">
-								Site Tag
+								{{ $t('Site Tag') }}
 							</span>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="customers.contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_commission_type', false)">
-								Contract Type
+								{{ $t('Contract Type') }}
 							</SingleSortItem>
 							<!-- External Subsidize + Net Loc Fee replace the old
 								"Location Fees" line (Net Loc Fee already nets out
 								to Location Fees when no subsidy applies). Both
 								sortable server-side via SQL aliases. -->
 							<SingleSortItem modelName="external_subsidize" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('external_subsidize', true)">
-								Ext Subsidize
+								{{ $t('Ext Subsidize') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="net_loc_fee" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('net_loc_fee', true)">
-								Loc Fees
+								{{ $t('Loc Fees') }}
 							</SingleSortItem>
 							<!-- Section divider — splits the contract terms
 								(Contract Type / Net Loc Fee) from the L30d
@@ -1398,10 +1398,10 @@
 								Matching <hr> in the TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
-								L30d GrossEarning
+								{{ $t('L30d GrossEarning') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="thirty_days_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_vending_earning_cents', true)">
-								L30d VendEarning
+								{{ $t('L30d VendEarning') }}
 							</SingleSortItem>
 							<!-- Section divider — splits the L30d earnings pair
 								from the Loc Grading + Site Note cluster
@@ -1409,9 +1409,9 @@
 							<hr class="border-t border-gray-300 my-2" />
 							<div class="flex justify-center items-center">
 								<span>
-									Loc Grading
+									{{ $t('Loc Grading') }}
 								</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '<div class=&quot;text-left&quot;><b>Machine placement &amp; removal</b><br>A = Smooth surface, 1 person can perform<br>B = Smooth surface, need 2 persons to perform<br>C = Not smooth surface, need min 2 persons to perform<br><br><b>Easy access &amp; refill</b><br>A = Low/Free parking and easy access<br>B = Low/Free parking, but need to pre-apply entry<br>C = No proper parking space; need guide to go in<br><br><b>Flexible to terminate/ or replace with another machine later</b><br>A = Less than 1 week<br>B = Less than 2 week<br>C = 2 weeks and above</div>', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '<div class=&quot;text-left&quot;><b>' + $t('Machine placement & removal') + '</b><br>' + $t('A = Smooth surface, 1 person can perform') + '<br>' + $t('B = Smooth surface, need 2 persons to perform') + '<br>' + $t('C = Not smooth surface, need min 2 persons to perform') + '<br><br><b>' + $t('Easy access & refill') + '</b><br>' + $t('A = Low/Free parking and easy access') + '<br>' + $t('B = Low/Free parking, but need to pre-apply entry') + '<br>' + $t('C = No proper parking space; need guide to go in') + '<br><br><b>' + $t('Flexible to terminate/ or replace with another machine later') + '</b><br>' + $t('A = Less than 1 week') + '<br>' + $t('B = Less than 2 week') + '<br>' + $t('C = 2 weeks and above') + '</div>', html: true }"></ExclamationCircleIcon>
 							</div>
 							<!-- Site Note — inline-editable textarea renders at
 								the bottom of this column's TableData, mirroring the
@@ -1419,26 +1419,26 @@
 								the regular /vends path since notes aren't loaded
 								for vend rows. -->
 							<span v-if="indexType === 'customers'">
-								Site Note
+								{{ $t('Site Note') }}
 							</span>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						Machine Status
+						{{ $t('Machine Status') }}
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						Payment Device
+						{{ $t('Payment Device') }}
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-								Operator
+								{{ $t('Operator') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')">
-								Acc Manager
+								{{ $t('Acc Manager') }}
 							</SingleSortItem>
 							<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
-								Location
+								{{ $t('Location') }}
 							</SingleSortItem>
 							<!-- Section divider — splits the operator/location
 								cluster (Operator / Acc Manager / Location) from
@@ -1447,22 +1447,22 @@
 								TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
 							<span>
-								VMC Board
+								{{ $t('VMC Board') }}
 							</span>
 							<span class="text-blue-600">
-								Firmware Rev
+								{{ $t('Firmware Rev') }}
 							</span>
 							<span>
-								Android Board
+								{{ $t('Android Board') }}
 							</span>
 							<span>
-								APK Ver
+								{{ $t('APK Ver') }}
 							</span>
 							<span class="text-green-600">
-								ACB Rev
+								{{ $t('ACB Rev') }}
 							</span>
 							<span>
-								Screen
+								{{ $t('Screen') }}
 							</span>
 						</div>
 					</TableHead>
@@ -1473,7 +1473,7 @@
 					class="cv-row divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100"
 					:style="groupRowStyle(vend)">
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="isShowOperationDiv">
-						<input type="checkbox" v-model="vend.is_selected" :disabled="!vend.customer_id" :title="vend.customer_id ? '' : 'Unbound machine — no site to assign a job to'" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40">
+						<input type="checkbox" v-model="vend.is_selected" :disabled="!vend.customer_id" :title="vend.customer_id ? '' : $t('Unbound machine — no site to assign a job to')" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40">
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 						{{ (vends.meta ? vends.meta.from : 1) + vendIndex }}
@@ -1500,7 +1500,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
 						<div class="flex flex-col space-y-2 items-center">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" v-tooltip="'Open this machine\'s settings'">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" v-tooltip="$t('Open this machine\'s settings')">
 							{{ vendCodeLabel(vend) }}
 							</Link>
 							<div
@@ -1518,7 +1518,7 @@
 					<template v-else>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1 max-w-[150px]">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')" v-tooltip="'Open this machine\'s settings'">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')" v-tooltip="$t('Open this machine\'s settings')">
 								{{ vendCodeLabel(vend) }}
 							</Link>
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
@@ -1564,16 +1564,16 @@
 										:href="'/product-mappings/' + getUpcomingMapping(vend.vend).id + '/edit'"
 										target="_blank"
 										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none hover:bg-indigo-200 hover:underline cursor-pointer"
-										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend) + ' — click to open in a new tab'"
+										:title="$t('Upcoming new mapping: :name — click to open in a new tab', { name: getUpcomingMappingName(vend.vend) })"
 									>
-										New
+										{{ $t('New') }}
 									</a>
 									<span
 										v-else-if="getUpcomingMappingName(vend.vend)"
 										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none"
-										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend)"
+										:title="$t('Upcoming new mapping: :name', { name: getUpcomingMappingName(vend.vend) })"
 									>
-										New
+										{{ $t('New') }}
 									</span>
 								</span>
 								<!-- Mapping implementation date + age, so Ops can see how long the
@@ -1583,7 +1583,7 @@
 									class="text-[10px] text-gray-500 leading-none w-fit"
 									:title="getMappingDateInfo(vend.vend).title"
 								>
-									Mapped {{ getMappingDateInfo(vend.vend).date }} · {{ getMappingDateInfo(vend.vend).ageLabel }}
+									{{ $t('Mapped :date · :age', { date: getMappingDateInfo(vend.vend).date, age: getMappingDateInfo(vend.vend).ageLabel }) }}
 								</span>
 
 							</span>
@@ -1593,7 +1593,7 @@
 							<div
 								v-if="vend.vend_name"
 								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-cyan-100 text-cyan-800 border-cyan-300"
-								v-tooltip="'Machine name'"
+								v-tooltip="$t('Machine name')"
 							>
 								{{ vend.vend_name }}
 							</div>
@@ -1601,12 +1601,12 @@
 							     no site link, no CMS badge and no site-keyed editors. -->
 							<span v-if="!vend.customer_id"
 								class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold border w-fit bg-amber-100 text-amber-800 border-amber-400"
-								v-tooltip="'This machine is not bound to any site'">
-								No site (unbound)
+								v-tooltip="$t('This machine is not bound to any site')">
+								{{ $t('No site (unbound)') }}
 							</span>
 							<span v-else-if="vend.person_id" class="flex flex-col">
 								<span v-if="permissions.includes('admin-access vend-customers')">
-									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
+									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">
 											{{ vend.customer_id + 20000 }}
 											<br>
 											{{ vend.customer_name }}
@@ -1616,11 +1616,11 @@
 									{{ vend.customer_name }}
 								</span>
 
-								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="'Open this customer in CMS'">
+								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="$t('Open this customer in CMS')">
 									<div
 											class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
 									>
-											CMS
+											{{ $t('CMS') }}
 									</div>
 								</a>
 								<span v-if="vend && vend.vend" v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends">
@@ -1634,12 +1634,12 @@
 							</span>
 							<span v-else-if="!vend.person_id">
 								<span v-if="permissions.includes('admin-access vend-customers')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
+									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">
 											{{ vend.customer_name }}
 									</a>
 								</span>
 								<span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
+									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="$t('Open this site in the Site editor')">
 									{{ vend.customer_name }}
 									</a>
 								</span>
@@ -1663,10 +1663,10 @@
 							>
 								<span>{{ campaign.name }}</span>
 								<span v-if="campaign.end_at" class="text-pink-600">
-									Exp: {{ campaign.end_at }}
+									{{ $t('Exp: :date', { date: campaign.end_at }) }}
 								</span>
 								<span v-if="campaign.l7d_units !== null && campaign.l7d_units !== undefined" class="text-red-600 font-semibold">
-									L7d: {{ campaign.l7d_units }} pcs sold
+									{{ $t('L7d: :count pcs sold', { count: campaign.l7d_units }) }}
 								</span>
 							</div>
 							<div
@@ -1676,36 +1676,36 @@
 								v-tooltip="happyHourTooltip(hh)"
 							>
 								<!-- No days / time line (Brian, 2026-10-23); the schedule stays in the hover. -->
-								<span class="font-semibold">★ HH −{{ hh.discount_pct }}% {{ hh.name }}</span>
+								<span class="font-semibold">{{ $t('★ HH −:pct%', { pct: hh.discount_pct }) }} {{ hh.name }}</span>
 								<span v-if="hh.starts_on" class="text-amber-700">
-									Starts: {{ hh.starts_on }}
+									{{ $t('Starts: :date', { date: hh.starts_on }) }}
 								</span>
 								<span v-if="hh.ends_on" class="text-amber-700">
-									Exp: {{ hh.ends_on }}
+									{{ $t('Exp: :date', { date: hh.ends_on }) }}
 								</span>
 								<span v-if="hh.l7d_units !== null && hh.l7d_units !== undefined" class="text-red-600 font-semibold">
-									L7d: {{ hh.l7d_units }} pcs sold
+									{{ $t('L7d: :count pcs sold', { count: hh.l7d_units }) }}
 								</span>
 								<!-- The machine's L7d Non-HH % (Brian, 2026-10-23): the campaign page's formula, in $ —
 								     how much other spending its Happy Hour sales brought along. -->
 								<span v-if="happyHourTrend(vend) && happyHourTrend(vend).non_hh_pct_7d !== null" class="font-semibold text-amber-900"
 									v-tooltip="{ content: nonHhTooltip(happyHourTrend(vend)), html: true }">
-									L7d Non-HH: {{ happyHourTrend(vend).non_hh_pct_7d }}%
+									{{ $t('L7d Non-HH: :pct%', { pct: happyHourTrend(vend).non_hh_pct_7d }) }}
 								</span>
 								<span v-if="hh.ineligible" class="text-red-600 font-semibold">
-									⚠ Not running
+									{{ $t('⚠ Not running') }}
 								</span>
 								<span v-else-if="hh.ignored_by" class="text-red-600 font-semibold">
-									⚠ Ignored: UI Setting
+									{{ $t('⚠ Ignored: UI Setting') }}
 								</span>
 							</div>
 							<!-- Daily HH sold qty, L30d → today (Brian, 2026-10-23). -->
 							<TrendSparkline
 								v-if="happyHourTrend(vend) && vend.vend && vend.vend.happy_hour_campaigns && vend.vend.happy_hour_campaigns.length"
 								class="max-w-[9rem]"
-								title="Daily HH sold qty"
+								:title="$t('Daily HH sold qty')"
 								:percent="false"
-								hint="Happy Hour pieces sold per day; L30d and L7d are the average over the days it ran Happy Hour"
+								:hint="$t('Happy Hour pieces sold per day; L30d and L7d are the average over the days it ran Happy Hour')"
 								:points="happyHourQtyPoints(happyHourTrend(vend))"
 							/>
 							<span class="flex space-x-1 items-center">
@@ -1728,20 +1728,20 @@
 									rel="noopener noreferrer"
 									type="button"
 									class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs flex space-x-1 w-fit rounded shadow font-bold"
-									v-tooltip="'Open this location in Google Maps'"
+									v-tooltip="$t('Open this location in Google Maps')"
 								>
 									<span class="text-blue-800 underline">GPS</span>
 								</a>
 							</span>
 
 
-              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="'Open the full machine record'">
+              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="$t('Open the full machine record')">
                 <Button
                 type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                 >
                 <EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
                 <span class="text-blue-800 underline">
-                    more
+                    {{ $t('more') }}
                 </span>
                 </Button>
               </Link>
@@ -1749,7 +1749,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 						<div class="flex flex-col items-center space-y-1">
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full" v-tooltip="'Open T1 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full" v-tooltip="$t('Open T1 temperature history')">
 									<button
 									type="button"
 									class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1757,7 +1757,7 @@
 									v-if="vend.temp_updated_at"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
+												<span class="text-blue-800 underline">{{ vend.is_temp_error ? $t('Error') : vend.temp }}</span>
 											</div>
 									</button>
 							</a>
@@ -1770,7 +1770,7 @@
 							>
 									{{ vend.is_temp_error ? 'Error' : vend.temp }}
 							</button> -->
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full" v-tooltip="'Open T2 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full" v-tooltip="$t('Open T2 temperature history')">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1778,11 +1778,11 @@
 											v-if="vend.parameterJson && 't2' in vend.parameterJson"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? $t('Error') : vend.parameterJson['t2']/10 }}(t2)</span>
 											</div>
 									</button>
 							</a>
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full" v-tooltip="'Open T3 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full" v-tooltip="$t('Open T3 temperature history')">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1790,11 +1790,11 @@
 											v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? $t('Error') : vend.parameterJson['t3']/10 }}(t3)</span>
 											</div>
 									</button>
 							</a>
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full" v-tooltip="'Open T4 temperature history'">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full" v-tooltip="$t('Open T4 temperature history')">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1802,7 +1802,7 @@
 											v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
 									>
 											<div class="flex items-center justify-center w-full">
-												<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? $t('Error') : vend.parameterJson['t4']/10 }}(t4)</span>
 											</div>
 									</button>
 							</a>
@@ -1827,9 +1827,9 @@
 							<div
 								v-if="!vend.is_fan_enabled"
 								class="flex flex-col items-center justify-center border border-gray-400 rounded-md p-1 min-w-[80px] bg-white text-gray-800"
-								v-tooltip="{ content: 'Fan Speed Signal Disabled' }"
+								v-tooltip="{ content: $t('Fan Speed Signal Disabled') }"
 							>
-								<span class="text-[10px] font-bold">Fan RPM</span>
+								<span class="text-[10px] font-bold">{{ $t('Fan RPM') }}</span>
 								<span>N/A</span>
 							</div>
 							<a
@@ -1848,9 +1848,9 @@
 												: 'bg-gray-200 text-gray-500')
 											: 'bg-gray-300 text-gray-600'
 									]"
-									v-tooltip="{ content: 'Fan Speed Signal exists' }"
+									v-tooltip="{ content: $t('Fan Speed Signal exists') }"
 								>
-									<span class="text-[10px] font-bold">Fan RPM</span>
+									<span class="text-[10px] font-bold">{{ $t('Fan RPM') }}</span>
 									<div class="flex items-center justify-center w-full">
 										<span class="text-blue-800 underline">{{ vend.parameterJson['fan'] }}</span>
 									</div>
@@ -1865,9 +1865,9 @@
 								<button
 									type="button"
 									class="flex flex-col items-center justify-center border border-transparent rounded-md p-1 min-w-[80px] w-full focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 bg-gray-300 hover:bg-gray-400 active:bg-gray-500 text-gray-600"
-									v-tooltip="{ content: 'Fan Speed Signal Missing' }"
+									v-tooltip="{ content: $t('Fan Speed Signal Missing') }"
 								>
-									<span class="text-[10px] font-bold">Fan RPM</span>
+									<span class="text-[10px] font-bold">{{ $t('Fan RPM') }}</span>
 									<div class="flex items-center justify-center w-full">
 										<span class="text-blue-800 underline">--</span>
 									</div>
@@ -1974,7 +1974,7 @@
 										class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border"
 										:class="[(vend.is_active || vend.is_testing) ? signalBadgeClass(vend) : 'bg-gray-200 text-gray-400']"
 									>
-										{{ signalBars(vend) || 'No Link' }}
+										{{ signalBars(vend) || $t('No Link') }}
 									</span>
 									<span class="text-xs text-gray-500" v-if="vend.internet_updated_at">
 										{{ shortTimeAgo(vend.internet_updated_at) }}
@@ -1985,7 +1985,7 @@
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="'View Channel Status'">
+						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="$t('View Channel Status')">
 							<!--
 								A Smart Freezer's channels are written from its planogram by
 								FreezerChannelSync (it sends no CHANNEL frame of its own), so from
@@ -1995,7 +1995,7 @@
 								names what the click opens.
 							-->
 							<div v-if="isFreezer(vend) && !vend.vendChannelsJson" class="flex flex-col items-center gap-1 py-1">
-								<span class="inline-flex items-center rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white">View planogram</span>
+								<span class="inline-flex items-center rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white">{{ $t('View planogram') }}</span>
 								<span v-if="vend.product_mapping_name" class="text-xs text-gray-500">{{ vend.product_mapping_name }}</span>
 							</div>
 							<ul
@@ -2032,21 +2032,21 @@
 									<div
 										class="text-gray-800"
 									>
-										Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ $t('Cost:') }} {{ operatorCountry.currency_symbol }}{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
 								<span>
 									<div
 										class="text-gray-800"
 									>
-										Value: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ $t('Value:') }} {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
 								<span>
 									<div
 										class="text-gray-800"
 									>
-										Full Load Value: {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ $t('Full Load Value:') }} {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
 								<!-- Smart Alerts (Stockout - Hidden per user request for only 1-5) -->
@@ -2091,7 +2091,7 @@
 							:href="todayTransactionsUrl(vend)"
 							target="_blank"
 							class="hover:underline"
-							v-tooltip="'Open today\'s transactions for this machine'"
+							v-tooltip="$t('Open today\'s transactions for this machine')"
 							:class="[
 									vend.is_active || vend.is_testing ?
 									(vend.vendTransactionTotalsJson['one_day_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
@@ -2214,7 +2214,7 @@
 						:href="todayTransactionsUrl(vend)"
 						target="_blank"
 						class="hover:underline"
-						v-tooltip="'Open today\'s transactions for this machine'"
+						v-tooltip="$t('Open today\'s transactions for this machine')"
 						:class="[
 								vend.is_active || vend.is_testing ?
 								((vend.vendTransactionTotalsJson['today_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700') :
@@ -2286,14 +2286,14 @@
 								<span
 									v-if="vend.vendTransactionTotalsJson['current_mth_amount'] > vend.vendTransactionTotalsJson['last_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Higher than last month'"
+									v-tooltip="$t('Higher than last month')"
 								>
 									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="vend.vendTransactionTotalsJson['current_mth_amount'] < vend.vendTransactionTotalsJson['last_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Lower than last month'"
+									v-tooltip="$t('Lower than last month')"
 								>
 									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
@@ -2305,14 +2305,14 @@
 								<span
 									v-if="vend.vendTransactionTotalsJson['last_mth_amount'] > vend.vendTransactionTotalsJson['last_2_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Higher than 2 months ago'"
+									v-tooltip="$t('Higher than 2 months ago')"
 								>
 									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="vend.vendTransactionTotalsJson['last_mth_amount'] < vend.vendTransactionTotalsJson['last_2_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Lower than 2 months ago'"
+									v-tooltip="$t('Lower than 2 months ago')"
 								>
 									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
@@ -2324,14 +2324,14 @@
 								<span
 									v-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_2_mth_amount'] > vend.vendTransactionTotalsJson['last_3_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Higher than 3 months ago'"
+									v-tooltip="$t('Higher than 3 months ago')"
 								>
 									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_2_mth_amount'] < vend.vendTransactionTotalsJson['last_3_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Lower than 3 months ago'"
+									v-tooltip="$t('Lower than 3 months ago')"
 								>
 									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
@@ -2343,14 +2343,14 @@
 								<span
 									v-if="'last_4_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_3_mth_amount'] > vend.vendTransactionTotalsJson['last_4_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Higher than 4 months ago'"
+									v-tooltip="$t('Higher than 4 months ago')"
 								>
 									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="'last_4_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_3_mth_amount'] < vend.vendTransactionTotalsJson['last_4_mth_amount']"
 									class="inline-flex items-center justify-center"
-									v-tooltip="'Lower than 4 months ago'"
+									v-tooltip="$t('Lower than 4 months ago')"
 								>
 									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
@@ -2377,7 +2377,7 @@
 								<span v-if="vend.lastOpsJobItem.sequence" class="font-semibold">
 									({{ vend.lastOpsJobItem.sequence }})
 								</span>
-								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
+								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'" v-tooltip="$t('Open this ops job item')">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
@@ -2423,7 +2423,7 @@
 									class="flex flex-col items-center mt-1 space-y-0.5"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
-										Implement New Mapping
+										{{ $t('Implement New Mapping') }}
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="lastJobMappingHas(vend.lastOpsJobItem)">
 										{{ lastJobMappingCurrent(vend.lastOpsJobItem) }}
@@ -2438,7 +2438,7 @@
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
-										Return Stock
+										{{ $t('Return Stock') }}
 									</span>
 								</div>
 								<div
@@ -2446,7 +2446,7 @@
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-rose-100 text-rose-700 border-rose-300">
-										Melted Stock
+										{{ $t('Melted Stock') }}
 									</span>
 								</div>
 							</div>
@@ -2456,7 +2456,7 @@
 								<span v-if="vend.lastSecondOpsJobItem.sequence" class="font-semibold">
 									({{ vend.lastSecondOpsJobItem.sequence }})
 								</span>
-								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
+								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'" v-tooltip="$t('Open this ops job item')">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
@@ -2502,7 +2502,7 @@
 									class="flex flex-col items-center mt-1 space-y-0.5"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
-										Implement New Mapping
+										{{ $t('Implement New Mapping') }}
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
 										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }}
@@ -2519,7 +2519,7 @@
 												v-if="getUpcomingMapping(vend.lastSecondOpsJobItem.vend)?.id"
 												:href="'/product-mappings/' + getUpcomingMapping(vend.lastSecondOpsJobItem.vend).id + '/edit'"
 												target="_blank"
-												:title="'Open ' + getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) + ' in a new tab'"
+												:title="$t('Open :name in a new tab', { name: getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) })"
 											>{{ getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) }}</a>
 											<template v-else>{{ getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) }}</template>
 										</span>
@@ -2530,7 +2530,7 @@
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
-										Return Stock
+										{{ $t('Return Stock') }}
 									</span>
 								</div>
 								<div
@@ -2538,7 +2538,7 @@
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-rose-100 text-rose-700 border-rose-300">
-										Melted Stock
+										{{ $t('Melted Stock') }}
 									</span>
 								</div>
 							</div>
@@ -2550,7 +2550,7 @@
 								<span v-if="vend.nextOpsJobItem.sequence && vend.nextOpsJobItem.status < 3" class="font-semibold">
 									({{ vend.nextOpsJobItem.sequence }})
 								</span>
-								<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
+								<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'" v-tooltip="$t('Open this ops job item')">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
@@ -2594,7 +2594,7 @@
 									class="flex flex-col items-center mt-1 space-y-0.5"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
-										Implement New Mapping
+										{{ $t('Implement New Mapping') }}
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.nextOpsJobItem.vend && (vend.nextOpsJobItem.vend.upcomingProductMapping || (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping))">
 										{{ vend.nextOpsJobItem.vend.productMapping ? vend.nextOpsJobItem.vend.productMapping.name : '' }}
@@ -2606,7 +2606,7 @@
 												v-if="getUpcomingMapping(vend.nextOpsJobItem.vend)?.id"
 												:href="'/product-mappings/' + getUpcomingMapping(vend.nextOpsJobItem.vend).id + '/edit'"
 												target="_blank"
-												:title="'Open ' + getUpcomingMappingName(vend.nextOpsJobItem.vend) + ' in a new tab'"
+												:title="$t('Open :name in a new tab', { name: getUpcomingMappingName(vend.nextOpsJobItem.vend) })"
 											>{{ getUpcomingMappingName(vend.nextOpsJobItem.vend) }}</a>
 											<template v-else>{{ getUpcomingMappingName(vend.nextOpsJobItem.vend) }}</template>
 										</span>
@@ -2617,7 +2617,7 @@
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
-										Return Stock
+										{{ $t('Return Stock') }}
 									</span>
 								</div>
 								<div
@@ -2625,7 +2625,7 @@
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-rose-100 text-rose-700 border-rose-300">
-										Melted Stock
+										{{ $t('Melted Stock') }}
 									</span>
 								</div>
 							</div>
@@ -2697,7 +2697,7 @@
 										:ref="(el) => autoGrowTextarea(el)"
 										rows="4"
 										class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
-										placeholder="Ops Note"
+										:placeholder="$t('Ops Note')"
 									></textarea>
 									<span class="text-[10px] text-gray-500 mt-1" v-if="vend.ops_note_updated_by_user">
 										{{ vend.ops_note_updated_by_user.name }} ({{ moment(vend.ops_note_updated_at).format('YYMMDD hh:mma') }})
@@ -2746,13 +2746,13 @@
 									v-if="vend.contract_auto_renewal === true"
 									class="h-4 w-4 text-green-600 shrink-0"
 									aria-hidden="true"
-									v-tooltip="'Auto Renewal: Yes'"
+									v-tooltip="$t('Auto Renewal: Yes')"
 								/>
 								<XCircleIcon
 									v-else-if="vend.contract_auto_renewal === false"
 									class="h-4 w-4 text-red-600 shrink-0"
 									aria-hidden="true"
-									v-tooltip="'Auto Renewal: No'"
+									v-tooltip="$t('Auto Renewal: No')"
 								/>
 							</span>
 							<!-- Notice Period — free-text string column (e.g.
@@ -2784,12 +2784,12 @@
 									<ArrowUpIcon
 										v-if="vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100"
 										class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
-										v-tooltip="'Above lifetime daily average'"
+										v-tooltip="$t('Above lifetime daily average')"
 									/>
 									<ArrowDownIcon
 										v-else
 										class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
-										v-tooltip="'Below lifetime daily average'"
+										v-tooltip="$t('Below lifetime daily average')"
 									/>
 								</template>
 							</span>
@@ -2807,10 +2807,10 @@
 								VendController::attachVmBindingHistory. -->
 							<div v-if="indexType === 'customers'" class="flex flex-col gap-0.5 text-[11px] leading-tight text-gray-800 break-words whitespace-normal">
 								<span v-if="vmBindingLabel(vend.vm_binding_now)">
-									now: {{ vmBindingLabel(vend.vm_binding_now) }}
+									{{ $t('now: :machine', { machine: vmBindingLabel(vend.vm_binding_now) }) }}
 								</span>
 								<span v-if="vmBindingLabel(vend.vm_binding_was)">
-									was: {{ vmBindingLabel(vend.vm_binding_was) }}
+									{{ $t('was: :machine', { machine: vmBindingLabel(vend.vm_binding_was) }) }}
 								</span>
 								<span v-if="!vmBindingLabel(vend.vm_binding_now) && !vmBindingLabel(vend.vm_binding_was)" class="text-gray-400">
 									—
@@ -2849,7 +2849,7 @@
 									<span v-if="['PS','PS+U','PSORU'].includes(vend.contract_commission_type)">
 										{{ Number(vend.contract_commission_value) }}%<span
 											v-if="vend.contract_commission_value2 != null && ['PS+U','PSORU'].includes(vend.contract_commission_type)"
-										>{{ vend.contract_commission_type === 'PSORU' ? ' or ' : '+' }}{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2) }}</span>
+										>{{ vend.contract_commission_type === 'PSORU' ? ' ' + $t('or') + ' ' : '+' }}{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2) }}</span>
 									</span>
 									<span v-else>
 										{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}<span
@@ -2861,7 +2861,7 @@
 									(PS / PS+U / PSORU). Hide it for R, R+U, etc. even if a
 									stale ps_term value lingers on the contract. -->
 								<span v-if="vend.contract_ps_term != null && ['PS','PS+U','PSORU'].includes(vend.contract_commission_type)" class="block text-[11px] font-normal text-gray-600">
-									PS Term: {{ Number(vend.contract_ps_term) }}%
+									{{ $t('PS Term: :pct%', { pct: Number(vend.contract_ps_term) }) }}
 								</span>
 							</span>
 							<!-- External Subsidize — number only (label lives in the
@@ -2898,7 +2898,7 @@
 							<span
 								v-if="vend.location_grading_placement || vend.location_grading_access || vend.location_grading_flexibility"
 								class="text-gray-700"
-								v-tooltip="{ content: 'Placement / Access / Flexibility', html: true }"
+								v-tooltip="{ content: $t('Placement / Access / Flexibility'), html: true }"
 							>
 								{{ vend.location_grading_placement || '-' }}, {{ vend.location_grading_access || '-' }}, {{ vend.location_grading_flexibility || '-' }}
 							</span>
@@ -2923,7 +2923,7 @@
 									:users="mentionableUsers"
 									:rows="4"
 									:autogrow="true"
-									placeholder="Cust Notes"
+									:placeholder="$t('Cust Notes')"
 									textarea-class="text-xs text-gray-700 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
 								/>
 								<span class="text-[10px] text-gray-500 mt-1" v-if="vend.notes_updated_by_user">
@@ -2942,7 +2942,7 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													{{vend.is_online ? 'HTTP Online' : 'HTTP Offline'}}
+													{{vend.is_online ? $t('HTTP Online') : $t('HTTP Offline')}}
 											</span>
 											<span v-if="vend.last_online_at">
 													{{ shortTimeAgo(vend.last_online_at) }}
@@ -2957,7 +2957,7 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-												{{vend.is_mqtt_active ? 'MQTT Online' : 'MQTT Offline'}}
+												{{vend.is_mqtt_active ? $t('MQTT Online') : $t('MQTT Offline')}}
 											</span>
 											<span v-if="vend.mqtt_last_updated_at">
 													{{ shortTimeAgo(vend.mqtt_last_updated_at) }}
@@ -3009,7 +3009,7 @@
 									v-tooltip="{ content: fieldAuditTooltip(vend.vend_id, [{ key: 'simcard_id' }]), html: true }"
 							>
 									<div class="flex flex-col">
-											<span class="font-bold">SimCard Package</span>
+											<span class="font-bold">{{ $t('SimCard Package') }}</span>
 											<span>{{ vend.telco_name }}</span>
 									</div>
 							</div>
@@ -3049,10 +3049,10 @@
 								]"
 							>
 								<div class="flex flex-col">
-									<span class="font-bold">Remote Modem</span>
+									<span class="font-bold">{{ $t('Remote Modem') }}</span>
 									<template v-if="vend.modem_unit_last_updated_at">
 										<span class="font-bold">
-											{{ vend.modem_unit_is_online ? 'Online' : 'Offline' }}
+											{{ vend.modem_unit_is_online ? $t('Online') : $t('Offline') }}
 										</span>
 										<span>
 											{{ vend.modem_unit_last_updated_at }}
@@ -3070,10 +3070,10 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Product Drop Sensor
+													{{ $t('Product Drop Sensor') }}
 											</span>
 											<span>
-													{{vend.parameterJson['Sensor'] % 2 == 0 ? 'Disabled' : 'Enabled'}}
+													{{vend.parameterJson['Sensor'] % 2 == 0 ? $t('Disabled') : $t('Enabled')}}
 											</span>
 									</div>
 							</div>
@@ -3085,10 +3085,10 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Dispensing Door
+													{{ $t('Dispensing Door') }}
 											</span>
 											<span>
-													{{vend.parameterJson['door'] == 'open' ? 'Open' : 'Close'}}
+													{{vend.parameterJson['door'] == 'open' ? $t('Open') : $t('Close')}}
 											</span>
 									</div>
 							</div>
@@ -3098,7 +3098,7 @@
 							>
 											<div class="flex flex-col">
 													<span class="font-bold">
-															Temp Limit
+															{{ $t('Temp Limit') }}
 													</span>
 													<span>
 															{{vend.acbVmcPaJson['TempLimit']}}
@@ -3116,10 +3116,10 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Keypad QR Code
+													{{ $t('Keypad QR Code') }}
 											</span>
 											<span>
-													{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Enabled' : 'Disabled'}}
+													{{vend.acbVmcPaJson['QRCode'] == 1 ? $t('Enabled') : $t('Disabled')}}
 											</span>
 									</div>
 							</div>
@@ -3148,7 +3148,7 @@
 							>
 									<div class="flex flex-col">
 										<span class="font-bold">
-											Modem
+											{{ $t('Modem') }}
 										</span>
 										<span>
 											{{ vend.modem_type_alias ? vend.modem_type_alias : 'N/A' }}
@@ -3182,7 +3182,7 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													LCD Monitor
+													{{ $t('LCD Monitor') }}
 											</span>
 											<span>
 													{{ vend.vend && vend.vend.lcd_monitor_short ? vend.vend.lcd_monitor_short : 'N/A' }}
@@ -3200,10 +3200,10 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Bill Acceptor
+													{{ $t('Bill Acceptor') }}
 											</span>
 											<span>
-													{{vend.parameterJson['BILLStat'] == 3 ? 'Active' : (vend.parameterJson['BILLStat'] == 1 ? 'Inactive' : 'NA') }}
+													{{vend.parameterJson['BILLStat'] == 3 ? $t('Active') : (vend.parameterJson['BILLStat'] == 1 ? $t('Inactive') : 'NA') }}
 											</span>
 									</div>
 							</div>
@@ -3228,10 +3228,10 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Coin Acceptor
+													{{ $t('Coin Acceptor') }}
 											</span>
 											<span>
-													{{vend.parameterJson['CHGEStat'] == 3 ? 'Active' : (vend.parameterJson['CHGEStat'] == 1 ? 'Inactive' : 'NA') }}
+													{{vend.parameterJson['CHGEStat'] == 3 ? $t('Active') : (vend.parameterJson['CHGEStat'] == 1 ? $t('Inactive') : 'NA') }}
 											</span>
 									</div>
 							</div>
@@ -3240,12 +3240,12 @@
 							:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400', railIdle(vend, 'cash') ? RAIL_IDLE_FRAME : '']"
 							v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
 							@click.stop="onCoinFloatClicked(vend)"
-							v-tooltip="railIdle(vend, 'cash') ? { content: railIdleTooltip(vend, 'cash') + '<div class=&quot;mt-1 opacity-80&quot;>Click the badge for the 14-day coin float history; the red tag opens the transactions.</div>', html: true } : null"
-							:title="railIdle(vend, 'cash') ? null : 'Click to view 14-day coin float change history'"
+							v-tooltip="railIdle(vend, 'cash') ? { content: railIdleTooltip(vend, 'cash') + '<div class=&quot;mt-1 opacity-80&quot;>' + $t('Click the badge for the 14-day coin float history; the red tag opens the transactions.') + '</div>', html: true } : null"
+							:title="railIdle(vend, 'cash') ? null : $t('Click to view 14-day coin float change history')"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold underline decoration-dotted">
-													Coin Float
+													{{ $t('Coin Float') }}
 											</span>
 											<span>
 													{{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
@@ -3291,11 +3291,11 @@
 									:class="[vend.is_active || vend.is_testing ? (vend.card_terminal_name ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400', railIdle(vend, 'card') ? RAIL_IDLE_FRAME + ' cursor-pointer' : '']"
 									@mouseenter="loadFieldAudit(vend.vend_id)"
 									@click="openRailTransactions(vend, 'card')"
-									v-tooltip="{ content: (railIdle(vend, 'card') ? railIdleTooltip(vend, 'card') + '<hr class=&quot;my-1.5 opacity-30&quot;>' : '') + fieldAuditTooltip(vend.vend_id, [{ key: 'card_terminal_id', label: 'Company' }, { key: 'card_terminal_unit_id', label: 'Terminal ID' }]), html: true }"
+									v-tooltip="{ content: (railIdle(vend, 'card') ? railIdleTooltip(vend, 'card') + '<hr class=&quot;my-1.5 opacity-30&quot;>' : '') + fieldAuditTooltip(vend.vend_id, [{ key: 'card_terminal_id', label: $t('Company') }, { key: 'card_terminal_unit_id', label: $t('Terminal ID') }]), html: true }"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Card Terminal
+													{{ $t('Card Terminal') }}
 											</span>
 											<span>
 													{{ vend.card_terminal_name ? vend.card_terminal_name : 'N/A' }}
@@ -3310,22 +3310,22 @@
 													 ordinary case and carry no badge. -->
 											<span v-if="vend.card_terminal_will_auto_refund === true"
 													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-green-100 px-1.5 text-[10px] font-semibold text-green-800"
-													:title="'Terminal ' + vend.card_terminal_unit_id + ' — voids a failed single-item sale by itself. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is on Sales Transactions.'">
-													Auto refund
+													:title="$t('Terminal :id — voids a failed single-item sale by itself. This is what the TERMINAL does in general, not a statement about this sale — whether THIS one was refunded is on Sales Transactions.', { id: vend.card_terminal_unit_id })">
+													{{ $t('Auto refund') }}
 											</span>
 									</div>
 							</div>
 							<!-- Touch screen and cashless rates by transaction count, L30d → today (Brian, 2026-10-22/23). -->
 							<TrendSparkline
 								v-if="hasRate(totalsOf(vend).touch_usage, 'touch')"
-								title="Touch screen"
-								hint="Transactions made on the touch screen ÷ all transactions"
+								:title="$t('Touch screen')"
+								:hint="$t('Transactions made on the touch screen ÷ all transactions')"
 								:points="ratePoints(totalsOf(vend).touch_usage, 'touch')"
 							/>
 							<TrendSparkline
 								v-if="hasRate(totalsOf(vend).cashless_usage, 'cashless')"
-								title="Cashless"
-								hint="Transactions paid any way but cash ÷ all paid transactions"
+								:title="$t('Cashless')"
+								:hint="$t('Transactions paid any way but cash ÷ all paid transactions')"
 								:points="ratePoints(totalsOf(vend).cashless_usage, 'cashless')"
 							/>
 						</div>
@@ -3364,11 +3364,11 @@
 										here instead of a blank. build_time is frame-only;
 										checked_in_at is filled for the OTA-only case. -->
 									<span class="text-gray-900" v-if="vend.apkVersion && vend.apkVersion.code">
-										Apk: {{ vend.apkVersion.code }}
+										{{ $t('Apk: :code', { code: vend.apkVersion.code }) }}
 										<span v-if="vend.apkVersion.build_time">
 												{{ moment(new Date(vend.apkVersion.build_time)).format('YYMMDD HH:mm:ss')  }}
 										</span>
-										<span v-else-if="vend.apkVersion.checked_in_at" class="text-gray-500" :title="'Reported by OTA check-in at ' + vend.apkVersion.checked_in_at">
+										<span v-else-if="vend.apkVersion.checked_in_at" class="text-gray-500" :title="$t('Reported by OTA check-in at :time', { time: vend.apkVersion.checked_in_at })">
 												OTA {{ vend.apkVersion.checked_in_at }}
 										</span>
 									</span>
@@ -3382,10 +3382,10 @@
 									v-if="vend.latest_screenshot"
 									type="button"
 									class="flex flex-col items-center self-center rounded border border-gray-200 p-0.5 hover:border-sky-500"
-									v-tooltip="'Machine screen ' + vend.latest_screenshot.captured_at + (vend.latest_screenshot.auto ? ' (auto)' : '') + ' - click to enlarge'"
-									@click="screenPreview = { url: vend.latest_screenshot.url, title: 'Machine Screen - #' + vendCodeLabel(vend) + ' - ' + vend.latest_screenshot.captured_at }"
+									v-tooltip="vend.latest_screenshot.auto ? $t('Machine screen :time (auto) - click to enlarge', { time: vend.latest_screenshot.captured_at }) : $t('Machine screen :time - click to enlarge', { time: vend.latest_screenshot.captured_at })"
+									@click="screenPreview = { url: vend.latest_screenshot.url, title: $t('Machine Screen - #:code - :time', { code: vendCodeLabel(vend), time: vend.latest_screenshot.captured_at }) }"
 								>
-									<img :src="vend.latest_screenshot.url" loading="lazy" alt="Machine screen" class="h-16 w-auto rounded" />
+									<img :src="vend.latest_screenshot.url" loading="lazy" :alt="$t('Machine screen')" class="h-16 w-auto rounded" />
 									<span class="text-[10px] text-gray-500">{{ moment(vend.latest_screenshot.captured_at).format('YYMMDD HH:mm') }}</span>
 								</button>
 
@@ -3396,7 +3396,7 @@
 				</tr>
 				<tr v-if="!vends.data.length">
 					<td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-							No Results Found
+							{{ $t('No Results Found') }}
 					</td>
 				</tr>
 			</tbody>
@@ -3409,7 +3409,7 @@
 	</div>
 	</div>
 	<div v-if="!hasSearched && !attention.rows && !attention.loading" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
-		Use the available filters and click <span class="font-semibold">Search</span> to load customer vending data.
+		{{ $t('Use the available filters and click') }} <span class="font-semibold">{{ $t('Search') }}</span> {{ $t('to load customer vending data.') }}
 	</div>
 	<ImagePreviewModal
 		:open="!!screenPreview"
@@ -3501,29 +3501,29 @@ v-if="showMapMarkerModal"
 		<div class="flex items-center justify-between border-b px-5 py-3">
 			<div>
 				<h3 class="text-base font-semibold text-gray-800">
-					Coin Float History
-					<span class="text-gray-500 font-normal">— Machine {{ vendCodeLabel(coinFloatVend) }}</span>
+					{{ $t('Coin Float History') }}
+					<span class="text-gray-500 font-normal">— {{ $t('Machine :code', { code: vendCodeLabel(coinFloatVend) }) }}</span>
 				</h3>
-				<p class="text-xs text-gray-500">Latest 20 changes shown · last 14 days · {{ operatorCountry.currency_symbol }}</p>
+				<p class="text-xs text-gray-500">{{ $t('Latest 20 changes shown · last 14 days · :currency', { currency: operatorCountry.currency_symbol }) }}</p>
 			</div>
 			<button class="text-gray-400 hover:text-gray-700 text-xl leading-none" @click="onCoinFloatModalClose">&times;</button>
 		</div>
 
 		<div class="px-5 py-3 overflow-y-auto">
-			<div v-if="coinFloatLoading" class="py-10 text-center text-gray-500 text-sm">Loading…</div>
+			<div v-if="coinFloatLoading" class="py-10 text-center text-gray-500 text-sm">{{ $t('Loading…') }}</div>
 			<div v-else-if="coinFloatError" class="py-10 text-center text-red-600 text-sm">
 				{{ coinFloatError }}
 			</div>
 			<div v-else-if="!coinFloatLogs.length" class="py-10 text-center text-gray-500 text-sm">
-				No coin float changes recorded in the last 14 days.
+				{{ $t('No coin float changes recorded in the last 14 days.') }}
 			</div>
 			<table v-else class="w-full text-xs">
 				<thead>
 					<tr class="text-left text-gray-500 border-b">
-						<th class="py-1.5 pr-2 font-semibold">Date / Time</th>
-						<th class="py-1.5 px-2 font-semibold text-right">Coin Float</th>
-						<th class="py-1.5 px-2 font-semibold text-right">Change</th>
-						<th class="py-1.5 pl-2 font-semibold">Coin Acceptor</th>
+						<th class="py-1.5 pr-2 font-semibold">{{ $t('Date / Time') }}</th>
+						<th class="py-1.5 px-2 font-semibold text-right">{{ $t('Coin Float') }}</th>
+						<th class="py-1.5 px-2 font-semibold text-right">{{ $t('Change') }}</th>
+						<th class="py-1.5 pl-2 font-semibold">{{ $t('Coin Acceptor') }}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -3534,24 +3534,24 @@ v-if="showMapMarkerModal"
 							class="py-1.5 px-2 text-right tabular-nums"
 							:class="row.delta === null ? 'text-gray-400' : (row.delta >= 0 ? 'text-green-700' : 'text-red-700')"
 						>{{ coinFloatDelta(row.delta) }}</td>
-						<td class="py-1.5 pl-2">{{ row.coin_stat == 3 ? 'Active' : (row.coin_stat == 1 ? 'Inactive' : 'NA') }}</td>
+						<td class="py-1.5 pl-2">{{ row.coin_stat == 3 ? $t('Active') : (row.coin_stat == 1 ? $t('Inactive') : 'NA') }}</td>
 					</tr>
 				</tbody>
 			</table>
 		</div>
 
 		<div class="flex items-center justify-between border-t px-5 py-3">
-			<span class="text-xs text-gray-500">{{ coinFloatLogs.length }} change(s) in window</span>
+			<span class="text-xs text-gray-500">{{ $t(':count change(s) in window', { count: coinFloatLogs.length }) }}</span>
 			<div class="flex gap-2">
 				<button
 					class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
 					@click="onCoinFloatModalClose"
-				>Close</button>
+				>{{ $t('Close') }}</button>
 				<button
 					class="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
 					:disabled="!coinFloatLogs.length"
 					@click="exportCoinFloatCsv"
-				>Export CSV (14 days)</button>
+				>{{ $t('Export CSV (14 days)') }}</button>
 			</div>
 		</div>
 	</div>
@@ -3653,6 +3653,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import { telcoBadgeStyle } from '@/constants/telcoColors';
 	import { freezerHealthBadges } from '@/support/freezerHealth';
 	import { vendCodeLabel } from '@/utils/vendCode';
+	import { t, tc, tk } from '@/i18n';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
@@ -3740,9 +3741,9 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 
 	function mqttLinkTooltip(vend) {
 		if (vend.mqtt_offline_1d_s === null || vend.mqtt_offline_1d_s === undefined) {
-			return 'No link health reported today (build older than big 306 / small v14, or no heartbeat yet).';
+			return t('No link health reported today (build older than big 306 / small v14, or no heartbeat yet).');
 		}
-		return `Today: ${vend.mqtt_drops_1d ?? 0} drops · ${vend.mqtt_recycles_1d ?? 0} client recycles · ${vend.mqtt_conn_fails_1d ?? 0} failed connects`;
+		return t('Today: :drops drops · :recycles client recycles · :fails failed connects', { drops: vend.mqtt_drops_1d ?? 0, recycles: vend.mqtt_recycles_1d ?? 0, fails: vend.mqtt_conn_fails_1d ?? 0 });
 	}
 
 	// ── Unsent sales (vend_daily_stats via RecordVendTradeQueue) ────────────
@@ -3771,11 +3772,11 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 
 	function tradeQueueTooltip(vend) {
 		if (vend.trade_queue === null || vend.trade_queue === undefined) {
-			return 'No unsent-sales reading today (build older than big 307 / small v15, or no heartbeat yet).';
+			return t('No unsent-sales reading today (build older than big 307 / small v15, or no heartbeat yet).');
 		}
-		const at = vend.trade_queue_at ? ` Reported ${vend.trade_queue_at}.` : '';
-		if (vend.trade_queue === 0) return `No unsent sales.${at}`;
-		return `${vend.trade_queue} sale(s) saved on the machine, not yet received by mark1; oldest waiting ${tradeQueueAge(vend.trade_queue_age_s)}.${at}`;
+		const at = vend.trade_queue_at ? ' ' + t('Reported :time.', { time: vend.trade_queue_at }) : '';
+		if (vend.trade_queue === 0) return t('No unsent sales.') + at;
+		return t(':count sale(s) saved on the machine, not yet received by mark1; oldest waiting :age.', { count: vend.trade_queue, age: tradeQueueAge(vend.trade_queue_age_s) }) + at;
 	}
 
 	// ── Deferred aggregates (perf) ──────────────────────────────────────────
@@ -4186,10 +4187,10 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 		}
 		const cached = fieldAuditCache.value[vendId]
 		if (!cached || cached.loading) {
-			return 'Loading last change…';
+			return t('Loading last change…');
 		}
 		if (cached.error) {
-			return 'Could not load the last change.';
+			return t('Could not load the last change.');
 		}
 
 		const groups = []
@@ -4208,7 +4209,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 		})
 
 		if (!groups.length) {
-			return 'No change recorded in the audit log.';
+			return t('No change recorded in the audit log.');
 		}
 
 		const lines = groups.map(group => {
@@ -4220,7 +4221,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			return prefix + escapeTooltipHtml(group.entry.who) + (at ? ' &middot; ' + at : '');
 		})
 
-		return 'Last changed<br>' + lines.join('<br>');
+		return t('Last changed') + '<br>' + lines.join('<br>');
 	}
 
 	// Smart Chiller rows render their own cells under the same headers (SmartChillerRowCells).
@@ -4323,7 +4324,7 @@ onMounted(() => {
 filters.value.visited = true
 vendChannelErrorsOptions.value = [
 		// {'id': '', 'desc': 'All'},
-		{'id': 'errors_only', 'desc': 'Errors Only'},
+		{'id': 'errors_only', 'desc': t('Errors Only')},
 		...props.vendChannelErrors.data
 ]
 numberPerPageOptions.value = [
@@ -4331,18 +4332,18 @@ numberPerPageOptions.value = [
 		{ id: 100, value: 100 },
 		{ id: 200, value: 200 },
 		{ id: 500, value: 500 },
-		{ id: 'All', value: 'All' },
+		{ id: 'All', value: t('All') },
 ]
 filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
 filters.value.numberPerPage = numberPerPageOptions.value[0]
 
 deliveryPlatformOptions.value = [
-	{id: 'all', value: 'All'},
+	{id: 'all', value: t('All')},
 	...props.deliveryPlatformOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 deviceTypeOptions.value =
 [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...Object.entries(props.deviceTypes).map(([id, name]) => ({id: id, value: name}))
 ]
 // Card terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) sourced from
@@ -4350,7 +4351,7 @@ deviceTypeOptions.value =
 // "Nayax") as the `cashless_mfg` query param; resolved against
 // card_terminals.name via the subquery in HasFilter::filterVendsDB.
 cardTerminalOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		// "N/A" = vends.card_terminal_id IS NULL, the value the Card Terminal
 		// badge shows when nothing is bound. Sent as cashless_mfg=undefined.
 		{id: 'undefined', value: 'N/A'},
@@ -4359,7 +4360,7 @@ cardTerminalOptions.value = [
 // Modem — labelled by modem_types.alias (the badge's value); posts back the
 // modem_type_id. 'undefined' = no modem type bound = the badge's "N/A".
 modemTypeOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		{id: 'undefined', value: 'N/A'},
 		...(props.modemTypeOptions?.data ?? []).map((modemType) => ({
 			id: modemType.id,
@@ -4371,37 +4372,37 @@ modemTypeOptions.value = [
 // so one 'na' option covers both and 99 is dropped from the list rather than
 // offered as a second, narrower "N/A".
 lcdMonitorOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		{id: 'na', value: 'N/A'},
 		...Object.entries(props.lcdMonitorOptions ?? {})
 			.filter(([id]) => String(id) !== '99')
 			.map(([id, name]) => ({id: id, value: name}))
 ]
 booleanOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'true', value: 'Yes'},
-		{id: 'false', value: 'No'},
+		{id: 'all', value: t('All')},
+		{id: 'true', value: t('Yes')},
+		{id: 'false', value: t('No')},
 ]
 booleanStrictOptions.value = [
-		{id: 'true', value: 'Yes'},
-		{id: 'false', value: 'No'},
+		{id: 'true', value: t('Yes')},
+		{id: 'false', value: t('No')},
 ]
 dayOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...Object.entries(props.dayOptions).map(([id, name]) => ({id: id, value: name}))
 ]
 enableOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'true', value: 'Enabled'},
-		{id: 'false', value: 'Disabled'},
+		{id: 'all', value: t('All')},
+		{id: 'true', value: t('Enabled')},
+		{id: 'false', value: t('Disabled')},
 ]
 doorOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'open', value: 'Open'},
-		{id: 'close', value: 'Close'},
+		{id: 'all', value: t('All')},
+		{id: 'open', value: t('Open')},
+		{id: 'close', value: t('Close')},
 ]
 fanRpmOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		{id: '0', value: '0'},
 		{id: '>0', value: '>0'},
 		{id: 'N/A', value: 'N/A'},
@@ -4416,66 +4417,66 @@ frequencyPerWeekOptions.value = [
 	})
 ]
 isActiveFactoryOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: '1', value: 'Factory (JB)'},
-		{id: '2', value: 'Active'},
-		{id: '3', value: 'Not Active'},
-		{id: '4', value: 'Disposed'},
-		{id: '5', value: 'Sold'},
+		{id: 'all', value: t('All')},
+		{id: '1', value: t('Factory (JB)')},
+		{id: '2', value: t('Active')},
+		{id: '3', value: t('Not Active')},
+		{id: '4', value: t('Disposed')},
+		{id: '5', value: t('Sold')},
 ]
 locationTypeOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 nextDeliveryDriverOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.nextDeliveryDriverOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 operatorOptions.value = [
-		{id: 'all', full_name: 'All'},
+		{id: 'all', full_name: t('All')},
 		...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
 ]
 sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
 statusOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'factory', value: 'Factory (JB)'},
-		{id: 'active', value: 'Active'},
-		{id: 'inactive', value: 'Not Active'},
-		{id: 'disposed', value: 'Disposed'},
-		{id: 'sold', value: 'Sold'},
+		{id: 'all', value: t('All')},
+		{id: 'factory', value: t('Factory (JB)')},
+		{id: 'active', value: t('Active')},
+		{id: 'inactive', value: t('Not Active')},
+		{id: 'disposed', value: t('Disposed')},
+		{id: 'sold', value: t('Sold')},
 ]
 // 5-value Site Status — controller passes {id, name}; remap to {id, value}
 // to match the MultiSelect `label` prop used by every other dropdown here.
 customerStatusOptions.value = (props.customerStatuses ?? []).map((s) => ({id: s.id, value: s.name}))
 vendConfigOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
 vendContractOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
 telcoOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...(props.telcoOptions?.data ?? []).map((data) => {return {id: data.id, value: data.name}})
 	]
 vendModelOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 vendPrefixOptions.value = [
-		{id: 'single-ud', value: 'Single UD'},
+		{id: 'single-ud', value: t('Single UD')},
 		...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 zoneOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 productMappingOptions.value = [
-		{id: 'all', value: 'All'},
+		{id: 'all', value: t('All')},
 		...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
@@ -4483,8 +4484,8 @@ productMappingOptions.value = [
 // machine has no effective upcoming mapping". Kept next to 'all' so both
 // sentinels sit at the top of the list, ahead of the alphabetical mappings.
 upcomingProductMappingOptions.value = [
-		{id: 'all', value: 'All'},
-		{id: 'none', value: '— None —'},
+		{id: 'all', value: t('All')},
+		{id: 'none', value: t('— None —')},
 		...props.upcomingProductMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
@@ -4777,21 +4778,21 @@ const getAlertTooltip = (alert) => {
 	let header = '';
 
 	if (alert.group === 'no_transactions') {
-		header = '(4) Alert on Lost of Transaction/Sales';
+		header = t('(4) Alert on Lost of Transaction/Sales');
 	} else if (alert.group === 'connectivity') {
-		header = '(1) Alert on Lost of Connectivity or Electricity';
+		header = t('(1) Alert on Lost of Connectivity or Electricity');
 	} else if (alert.group === 'error_code') {
-		header = '(5) Channel Errors';
+		header = t('(5) Channel Errors');
 	} else if (alert.group === 'stockout') {
-		header = '(6) Stockout Alert';
+		header = t('(6) Stockout Alert');
 	} else if (alert.group === 'temperature') {
 		const code = getAlertLabel(alert);
 		if (code && code.startsWith('1')) {
-			header = '(1) Alert on Lost of Connectivity or Electricity';
+			header = t('(1) Alert on Lost of Connectivity or Electricity');
 		} else if (code && code.startsWith('2')) {
-			header = '(2) Operation Error / Critical Parts Failure';
+			header = t('(2) Operation Error / Critical Parts Failure');
 		} else if (code && code.startsWith('3')) {
-			header = '(3) Preventive maintenance / Temp raise alert';
+			header = t('(3) Preventive maintenance / Temp raise alert');
 		}
 	}
 
@@ -4806,12 +4807,12 @@ const getAlertTooltip = (alert) => {
 	// Add duration if available
 	const duration = (alert.duration && String(alert.duration).toLowerCase() !== 'null' && String(alert.duration).toLowerCase() !== 'null hours') ? alert.duration : null;
 	if (duration) {
-		parts.push(`Duration: ${duration}`);
+		parts.push(t('Duration: :duration', { duration }));
 	}
 
 	// Add occurred at if available
 	if (alert.occurred_at) {
-		parts.push(`Since: ${moment(alert.occurred_at).format('DD MMM YY, HH:mm')}`);
+		parts.push(t('Since: :time', { time: moment(alert.occurred_at).format('DD MMM YY, HH:mm') }));
 	}
 
 	return {
@@ -4849,7 +4850,7 @@ function remainingChannelTooltip(vend) {
 
 	const emptyCodes = channels
 		.filter(channel => Number(channel.qty) === 0)
-		.map(channel => `#${channel.code}${activeErrorLogs(channel).length ? ' (also error-locked)' : ''}`);
+		.map(channel => `#${channel.code}${activeErrorLogs(channel).length ? ' ' + t('(also error-locked)') : ''}`);
 
 	// Only the in-stock ones — an empty channel that also errors is already
 	// listed above, and counting it here too is the bug this replaced.
@@ -4857,26 +4858,26 @@ function remainingChannelTooltip(vend) {
 		.filter(channel => Number(channel.qty) > 0 && activeErrorLogs(channel).length);
 	const errorCodes = errorLockedChannels
 		.flatMap(channel => activeErrorLogs(channel)
-			.map(errorLog => `#${channel.code} (${errorLog.code}) since ${errorLog.created_at}`));
+			.map(errorLog => t('#:channel (:code) since :time', { channel: channel.code, code: errorLog.code, time: errorLog.created_at })));
 
 	const parts = [
-		'<b>Remaining Channel#</b>',
-		'Channels still sellable = not empty <i>and</i> not error-locked.',
-		`${count} total &minus; ${outOfStock} empty &minus; ${activeErrors} error-locked = <b>${remaining}</b>`,
+		'<b>' + t('Remaining Channel#') + '</b>',
+		t('Channels still sellable = not empty <i>and</i> not error-locked.'),
+		t(':count total &minus; :empty empty &minus; :locked error-locked = <b>:remaining</b>', { count, empty: outOfStock, locked: activeErrors, remaining }),
 	];
 
 	if (emptyCodes.length) {
-		parts.push(`<b>Empty:</b> ${emptyCodes.join(', ')}`);
+		parts.push('<b>' + t('Empty:') + '</b> ' + emptyCodes.join(', '));
 	}
 	if (errorCodes.length) {
-		parts.push(`<b>Error-locked:</b><br>${errorCodes.join('<br>')}`);
+		parts.push('<b>' + t('Error-locked:') + '</b><br>' + errorCodes.join('<br>'));
 	}
 	if (activeErrors > errorLockedChannels.length) {
 		const hidden = activeErrors - errorLockedChannels.length;
-		parts.push(`<i>+ ${hidden} more error-locked channel${hidden > 1 ? 's' : ''} whose error is not tied to a transaction</i>`);
+		parts.push('<i>' + tc('+ :count more error-locked channel whose error is not tied to a transaction|+ :count more error-locked channels whose error is not tied to a transaction', hidden) + '</i>');
 	}
 	if (!emptyCodes.length && !errorCodes.length) {
-		parts.push('All channels sellable.');
+		parts.push(t('All channels sellable.'));
 	}
 
 	return {
@@ -4907,25 +4908,25 @@ return 'text-gray-900'
 
 // Hover text for the "★ HH" badge in the Machine ID column (VendResource.happy_hour_campaigns).
 function happyHourTooltip(hh) {
-	let text = `Happy Hour campaign "${hh.name}": −${hh.discount_pct}% on ${hh.days}, ${hh.window}.`
-	if (hh.starts_on) text += ` Starts ${hh.starts_on}.`
-	if (hh.ends_on) text += ` Last day ${hh.ends_on}.`
-	if (hh.ineligible) text += ` Not running on this machine: ${hh.ineligible}.`
-	else if (hh.ignored_by) text += ` Ignored on this machine: it runs UI Setting "${hh.ignored_by}". Unbind the UI Setting to run Happy Hour here.`
+	let text = t('Happy Hour campaign ":name": −:pct% on :days, :window.', { name: hh.name, pct: hh.discount_pct, days: hh.days, window: hh.window })
+	if (hh.starts_on) text += ' ' + t('Starts :date.', { date: hh.starts_on })
+	if (hh.ends_on) text += ' ' + t('Last day :date.', { date: hh.ends_on })
+	if (hh.ineligible) text += ' ' + t('Not running on this machine: :reason.', { reason: hh.ineligible })
+	else if (hh.ignored_by) text += ' ' + t('Ignored on this machine: it runs UI Setting ":setting". Unbind the UI Setting to run Happy Hour here.', { setting: hh.ignored_by })
 	return text
 }
 
 // Maps contract type code to human-readable label. Mirrors Customer/Summary.vue.
 function contractTypeLabel(type) {
 	switch (type) {
-		case 'F':     return 'Free Placement'
-		case 'S':     return 'Subsidized Plan'
-		case 'R':     return 'Fix Rental'
-		case 'U':     return 'Utility only'
+		case 'F':     return t('Free Placement')
+		case 'S':     return t('Subsidized Plan')
+		case 'R':     return t('Fix Rental')
+		case 'U':     return t('Utility only')
 		case 'R+U':   return 'R + U'
 		case 'PS':    return 'PS'
 		case 'PS+U':  return 'PS + U'
-		case 'PSORU': return 'PS OR U'
+		case 'PSORU': return t('PS OR U')
 		default:      return type ?? ''
 	}
 }
@@ -5055,9 +5056,8 @@ function settingChartVersionTooltip(vend) {
 	if (!settingChartIsOutdated(vend)) return ''
 	const current = settingChartVersion(vend.vend_vend_config_version)
 	const behind = settingChartVersionsBehind(vend)
-	return 'Current Version: ' + (current || '-')
-		+ ' | Latest Version: ' + settingChartVersion(vend.vend_config_version)
-		+ (behind !== null && behind >= 2 ? ' | ' + behind + ' versions behind' : '')
+	return t('Current Version: :current | Latest Version: :latest', { current: current || '-', latest: settingChartVersion(vend.vend_config_version) })
+		+ (behind !== null && behind >= 2 ? ' | ' + t(':count versions behind', { count: behind }) : '')
 }
 
 // Name-only wrapper — kept because the Last 2 Job / Upcoming Job columns render
@@ -5122,11 +5122,11 @@ function getMappingDateInfo(vendData) {
 	const binded = moment(vendData.binded_at)
 	if (!binded.isValid()) return null
 	const days = moment().startOf('day').diff(binded.clone().startOf('day'), 'days')
-	const ageLabel = days <= 0 ? 'today' : days === 1 ? '1 day' : `${days} days`
+	const ageLabel = days <= 0 ? t('today') : tc(':count day|:count days', days)
 	const info = {
 		date: binded.format('YYMMDD'),
 		ageLabel,
-		title: `Current mapping implemented on ${binded.format('YYMMDD HH:mm')} (${ageLabel} ago)`,
+		title: t('Current mapping implemented on :time (:age ago)', { time: binded.format('YYMMDD HH:mm'), age: ageLabel }),
 	}
 	mappingDateInfoCache.set(vendData, { bindedAt: vendData.binded_at, today, info })
 	return info
@@ -5230,7 +5230,7 @@ function avgMthlySales(vend) {
 // 2026-10-17): the Card Terminal, LCD Monitor (QR / Omise) and Coin Float badges get a red frame;
 // hovering says why, clicking opens the machine's last 7 days of Sales Transactions in a new tab.
 const RAIL_IDLE_FRAME = 'relative ring-2 ring-red-500 ring-offset-1 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]'
-const RAIL_NAMES = { card: 'card', qr: 'QR (Omise)', cash: 'cash' }
+const RAIL_NAMES = { card: tk('card'), qr: 'QR (Omise)', cash: tk('cash') }
 
 function railIdle(vend, rail) {
 		return vend.payment_idle?.[rail] || null
@@ -5239,25 +5239,25 @@ function railIdle(vend, rail) {
 function railIdleShort(vend, rail) {
 		const idle = railIdle(vend, rail)
 		if (!idle) return ''
-		const name = { card: 'No card', qr: 'No QR', cash: 'No cash' }[rail]
-		if (idle.hours_since === null) return name + ' ever'
-		return name + ' ' + (idle.hours_since >= 72 ? Math.floor(idle.hours_since / 24) + 'd' : Math.floor(idle.hours_since) + 'h')
+		if (idle.hours_since === null) return { card: t('No card ever'), qr: t('No QR ever'), cash: t('No cash ever') }[rail]
+		const time = idle.hours_since >= 72 ? Math.floor(idle.hours_since / 24) + 'd' : Math.floor(idle.hours_since) + 'h'
+		return { card: t('No card :time', { time }), qr: t('No QR :time', { time }), cash: t('No cash :time', { time }) }[rail]
 }
 
 function railIdleTooltip(vend, rail) {
 		const idle = railIdle(vend, rail)
 		if (!idle) return ''
-		const name = RAIL_NAMES[rail]
+		const name = t(RAIL_NAMES[rail])
 		const last = idle.last_at
-				? `Last ${name} sale: ${moment(idle.last_at).fromNow()} (${moment(idle.last_at).format('D MMM HH:mm')}).`
-				: `No ${name} sale on record for this machine.`
+				? t('Last :rail sale: :ago (:time).', { rail: name, ago: moment(idle.last_at).fromNow(), time: moment(idle.last_at).format('D MMM HH:mm') })
+				: t('No :rail sale on record for this machine.', { rail: name })
 		const lines = [
-				`<strong>No ${name} sale in the last 48 h</strong>`,
+				'<strong>' + t('No :rail sale in the last 48 h', { rail: name }) + '</strong>',
 				last,
 				idle.machine_idle
-						? 'The machine took no sale of any kind in 48 h either — check it is up before the payment device.'
-						: 'Other payments are still coming in, so this payment device is the likely fault.',
-				'<span class="opacity-80">Click to open its Sales Transactions in a new tab.</span>',
+						? t('The machine took no sale of any kind in 48 h either — check it is up before the payment device.')
+						: t('Other payments are still coming in, so this payment device is the likely fault.'),
+				'<span class="opacity-80">' + t('Click to open its Sales Transactions in a new tab.') + '</span>',
 		]
 		return '<div class="max-w-xs space-y-1 text-left">' + lines.map((l) => `<div>${l}</div>`).join('') + '</div>'
 }
@@ -5415,9 +5415,9 @@ function onCoinFloatClicked(vendData) {
 		})
 		.catch((error) => {
 			coinFloatLogs.value = []
-			coinFloatError.value = 'Could not load coin float history'
-				+ (error?.response?.status ? ` (HTTP ${error.response.status})` : '')
-				+ '. The endpoint may be unreachable or the table not yet migrated.'
+			coinFloatError.value = (error?.response?.status
+				? t('Could not load coin float history (HTTP :status). The endpoint may be unreachable or the table not yet migrated.', { status: error.response.status })
+				: t('Could not load coin float history. The endpoint may be unreachable or the table not yet migrated.'))
 		})
 		.finally(() => {
 			coinFloatLoading.value = false
@@ -5488,9 +5488,9 @@ function onShowAllFiltersClicked() {
 // The stored totals the trend graphs read (SyncVendTransactionTotalsJson) — {} when the row has none.
 const totalsOf = (vend) => vend.vendTransactionTotalsJson || {}
 const happyHourTrend = (vend) => totalsOf(vend).happy_hour || null
-const nonHhTooltip = (hh) => '<div class="mb-1 font-semibold">Non-HH % (last 7 days)</div>'
-	+ '<div class="mb-1 opacity-80">Related sales that were not Happy Hour units — every HH sale and every basket holding one, counted whole — the campaign page\'s formula, in $</div>'
-	+ `<div>Related sales <b>${money(hh.related_revenue_7d)}</b>, of which Happy Hour <b>${money(hh.hh_revenue_7d)}</b></div>`
+const nonHhTooltip = (hh) => '<div class="mb-1 font-semibold">' + t('Non-HH % (last 7 days)') + '</div>'
+	+ '<div class="mb-1 opacity-80">' + t('Related sales that were not Happy Hour units — every HH sale and every basket holding one, counted whole — the campaign page\'s formula, in $') + '</div>'
+	+ '<div>' + t('Related sales <b>:related</b>, of which Happy Hour <b>:hh</b>', { related: money(hh.related_revenue_7d), hh: money(hh.hh_revenue_7d) }) + '</div>'
 // Integer cents → the operator's currency, at display only.
 const money = (cents) => `${operatorCountry?.currency_symbol ?? '$'}${(Number(cents || 0) / Math.pow(10, operatorCountry?.currency_exponent ?? 2)).toFixed(2)}`
 

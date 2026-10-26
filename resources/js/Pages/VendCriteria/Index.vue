@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Holidays" />
+  <Head :title="$t('Holidays')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Criteria
+        {{ $t('Criteria') }}
       </h2>
     </template>
 
@@ -21,13 +21,13 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      {{ $t('Name') }}
                     </TableHeadSort>
                     <TableHead>
-                      Value
+                      {{ $t('Value') }}
                     </TableHead>
                     <TableHeadSort modelName="weightage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('weightage')">
-                      Weightage (%)
+                      {{ $t('Weightage (%)') }}
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -58,7 +58,7 @@
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
-                                Edit
+                                {{ $t('Edit') }}
                             </span>
                           </Button>
                         </div>
@@ -66,7 +66,7 @@
                       </tr>
                 <tr v-if="!vendCriterias.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                      {{ $t('No Results Found') }}
                   </td>
                 </tr>
               </tbody>

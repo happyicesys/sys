@@ -1,9 +1,9 @@
 <template>
-  <Head title="VM Edit" />
+  <Head :title="$t('VM Edit')" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Editing Machine
+        {{ $t('Editing Machine') }}
         {{ vendCodeLabel(vend) }}
       </h2>
     </template>
@@ -31,19 +31,19 @@
                   :class="[vend.is_testing ? 'bg-gray-300' : (vend.is_active ? 'bg-green-300' : 'bg-red-300')]"
               >
                 <span v-if="vend.is_testing">
-                  Factory
+                  {{ $t('Factory') }}
                 </span>
                 <span v-if="!vend.is_testing && vend.is_active">
-                  Active
+                  {{ $t('Active') }}
                 </span>
                 <span v-if="!vend.is_testing && !vend.is_active && !vend.is_disposed && !vend.is_sold">
-                  Not Active
+                  {{ $t('Not Active') }}
                 </span>
                 <span v-if="vend.is_disposed">
-                  Disposed
+                  {{ $t('Disposed') }}
                 </span>
                 <span v-if="vend.is_sold">
-                  Sold
+                  {{ $t('Sold') }}
                 </span>
               </div>
               <!-- <span v-if="vend.delivery_product_mapping_vends" v-for="(deliveryProductMappingVend, index) in vend.delivery_product_mapping_vends">
@@ -58,7 +58,7 @@
 
             <div class="sm:col-span-2" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Machine ID#
+                {{ $t('Machine ID#') }}
               </label>
               <div class="mt-1">
                 <input
@@ -90,13 +90,13 @@
                       @click="viewScreen()"
                     >
                       <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
-                      {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
+                      {{ screenshotBusy ? $t('Waiting for machine...') : $t('View Screen') }}
                     </Button>
                   </span>
                   <ExclamationCircleIcon
                     v-if="!screenshotSupported"
                     class="w-5 h-5 text-amber-500 cursor-help"
-                    aria-label="Why View Screen is unavailable"
+                    :aria-label="$t('Why View Screen is unavailable')"
                     v-tooltip="screenshotUnavailableReason"
                   />
                 </span>
@@ -104,7 +104,7 @@
             </div>
             <div class="sm:col-span-4">
               <FormInput v-model="form.label_name" :error="form.errors.label_name">
-                Label
+                {{ $t('Label') }}
               </FormInput>
                 <FieldAudit :entry="fieldAudit.label_name" />
             </div>
@@ -115,18 +115,18 @@
                  mapping filters and the submit transform read it. -->
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Machine Type
+                {{ $t('Machine Type') }}
               </label>
               <div class="mt-1">
                 <input
                   type="text"
                   class="shadow-sm block w-full sm:w-1/2 text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value="form.machine_type ? form.machine_type.value : ''"
+                  :value="form.machine_type ? $t(form.machine_type.value) : ''"
                   disabled
                 />
               </div>
               <p class="mt-1 text-xs text-blue-600">
-                Set when the machine was created — not editable. Restricts the mapping lists below to mappings built for this machine kind.
+                {{ $t('Set when the machine was created — not editable. Restricts the mapping lists below to mappings built for this machine kind.') }}
               </p>
               <div class="text-sm text-red-600" v-if="form.errors.machine_type">
                 {{ form.errors.machine_type }}
@@ -136,14 +136,14 @@
             <div class="sm:col-span-2">
               <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
               v-if="permissions.includes('update machine-settings')">
-                Begin Date
+                {{ $t('Begin Date') }}
               </DatePicker>
                 <FieldAudit :entry="fieldAudit.begin_date" />
             </div>
             <div class="sm:col-span-2">
               <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
               v-if="permissions.includes('update machine-settings')">
-                Retired Date
+                {{ $t('Retired Date') }}
               </DatePicker>
                 <FieldAudit :entry="fieldAudit.termination_date" />
             </div>
@@ -187,7 +187,7 @@
             </div> -->
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Status
+                {{ $t('Status') }}
               </label>
               <MultiSelect
                 v-model="form.status"
@@ -195,7 +195,7 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
-                placeholder="Select"
+                :placeholder="$t('Select')"
                 open-direction="bottom"
                 class="mt-1"
               >
@@ -207,7 +207,7 @@
             </div>
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Model
+                  {{ $t('Model') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -228,12 +228,12 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
                 </MultiSelect>
-                <p v-if="isChiller" class="mt-1 text-xs text-blue-600">From CityBox (`type`) — not editable.</p>
+                <p v-if="isChiller" class="mt-1 text-xs text-blue-600">{{ $t('From CityBox (`type`) — not editable.') }}</p>
                 <FieldAudit :entry="fieldAudit.vend_model_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
                   {{ form.errors.vend_model_id }}
@@ -241,7 +241,7 @@
             </div>
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Machine Sticker
+                  {{ $t('Machine Sticker') }}
                 </label>
                 <MultiSelect
                   v-model="form.sticker_id"
@@ -249,7 +249,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -260,7 +260,7 @@
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 <div class="flex space-x-2 items-center">
                     <span>
-                      Serial Number
+                      {{ $t('Serial Number') }}
                     </span>
                     <span v-if="form.vend_serial_number_id && form.vend_serial_number_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/vend-serial-numbers?id=' + form.vend_serial_number_id.id">
@@ -275,7 +275,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -287,7 +287,7 @@
             </div>
             <div v-if="!isChiller" class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Machine Key
+                  {{ $t('Machine Key') }}
                 </label>
                 <MultiSelect
                   v-model="form.key_id"
@@ -295,7 +295,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -307,7 +307,7 @@
             </div>
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  {{ $t('Operator') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -318,7 +318,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -328,14 +328,14 @@
                   {{ form.errors.operator_id }}
                 </div>
                 <div class="sm:col-span-3 text-blue-600 text-xs">
-                  ** If change Operator, the Binded Site's Operator will be changed as well
+                  {{ $t('** If change Operator, the Binded Site\'s Operator will be changed as well') }}
                 </div>
             </div>
 
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Contract
+                  {{ $t('Contract') }}
                 </label>
                 <MultiSelect
                   v-model="form.vend_contract_id"
@@ -343,7 +343,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -358,7 +358,7 @@
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
-                    Setting Chart
+                    {{ $t('Setting Chart') }}
                     <span class="text-red-500">
                       *
                     </span>
@@ -375,7 +375,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onVendConfigSelected"
@@ -388,7 +388,7 @@
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Current Version
+                  {{ $t('Current Version') }}
                 </label>
                 <MultiSelect
                   v-model="form.vend_vend_config_version"
@@ -396,7 +396,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -408,7 +408,7 @@
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Latest Version
+                  {{ $t('Latest Version') }}
                 </label>
                 <input
                   type="text"
@@ -420,7 +420,7 @@
             <div class="sm:col-span-3" v-if="isVendingMachine && form.vend_config_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
-                    Machine Prefix
+                    {{ $t('Machine Prefix') }}
                     <span class="text-red-500" v-if="!isVendConfigNA">
                       *
                     </span>
@@ -437,7 +437,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onVendPrefixSelected"
@@ -451,7 +451,7 @@
 
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Simcard &amp; Number
+                  {{ $t('Simcard & Number') }}
                 </label>
                 <MultiSelect
                   v-model="form.simcard_id"
@@ -459,7 +459,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -473,7 +473,7 @@
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
-                    Card Terminal Company
+                    {{ $t('Card Terminal Company') }}
                     <span v-if="form.card_terminal_id && form.card_terminal_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/card-terminals'">
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
@@ -487,7 +487,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -508,7 +508,7 @@
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
-                    Card Terminal (Terminal ID)
+                    {{ $t('Card Terminal (Terminal ID)') }}
                     <span>
                       <a class="text-blue-700" target="_blank" :href="'/card-terminal-units'">
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
@@ -522,7 +522,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -536,7 +536,7 @@
                   Hover for the machine's last three bindings.
                 -->
                 <p v-if="cardTerminalBinding?.bound_at" class="mt-1 text-xs text-blue-600 italic" :title="bindingHistoryTitle">
-                  bound {{ fmtBoundAt(cardTerminalBinding.bound_at) }} &middot; by {{ cardTerminalBinding.bound_by }}
+                  {{ $t('bound :time · by :name', { time: fmtBoundAt(cardTerminalBinding.bound_at), name: cardTerminalBinding.bound_by }) }}
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_unit_id">
                   {{ form.errors.card_terminal_unit_id }}
@@ -545,7 +545,7 @@
 
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Card Terminal Bound From
+                  {{ $t('Card Terminal Bound From') }}
                 </label>
                 <input
                   type="datetime-local"
@@ -553,8 +553,8 @@
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 <p class="mt-1 text-xs text-gray-500">
-                  Leave blank to bind from the moment you save. Only used when the terminal above changes — set the time the terminal was actually fitted if that was earlier.
-                  <span v-if="cardTerminalBinding?.bound_from">Current terminal bound from {{ cardTerminalBinding.bound_from }}.</span>
+                  {{ $t('Leave blank to bind from the moment you save. Only used when the terminal above changes — set the time the terminal was actually fitted if that was earlier.') }}
+                  <span v-if="cardTerminalBinding?.bound_from">{{ $t('Current terminal bound from :time.', { time: cardTerminalBinding.bound_from }) }}</span>
                 </p>
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_bound_from">
                   {{ form.errors.card_terminal_bound_from }}
@@ -564,7 +564,7 @@
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
-                    Modem Model
+                    {{ $t('Modem Model') }}
                     <span v-if="form.modem_type_id && form.modem_type_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/modem-types?id=' + form.modem_type_id.id">
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
@@ -578,7 +578,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -592,7 +592,7 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
                     <span>
-                      Modem IMEI
+                      {{ $t('Modem IMEI') }}
                     </span>
                     <span v-if="form.modem_unit_id && form.modem_unit_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/modem-units?id=' + form.modem_unit_id.id">
@@ -607,7 +607,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -619,7 +619,7 @@
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Menu Frame
+                  {{ $t('Menu Frame') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -630,7 +630,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -643,7 +643,7 @@
             <!-- hardcode form.vend_model_id is equals to claw -->
             <div class="sm:col-span-3" v-if="form.vend_model_id && form.vend_model_id.id == 5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Claw Machine Body
+                  {{ $t('Claw Machine Body') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -654,7 +654,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -666,7 +666,7 @@
             </div>
             <div class="sm:col-span-3" v-if="form.vend_model_id && form.vend_model_id.id == 5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Claw Machine Board
+                  {{ $t('Claw Machine Board') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -677,7 +677,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -689,7 +689,7 @@
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  LCD Monitor
+                  {{ $t('LCD Monitor') }}
                   <span class="text-red-500">
                     *
                   </span>
@@ -700,7 +700,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -712,7 +712,7 @@
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  LED Matrix Panel
+                  {{ $t('LED Matrix Panel') }}
                 </label>
                 <MultiSelect
                   v-model="form.led_matrix_panel_id"
@@ -720,7 +720,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -732,7 +732,7 @@
             </div>
             <div v-if="!isChiller" class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Is Server Price?
+                  {{ $t('Is Server Price?') }}
                 </label>
                 <MultiSelect
                   v-model="form.is_using_server_price"
@@ -740,7 +740,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   :disabled="isSmartFreezer"
@@ -748,13 +748,13 @@
                 >
                 </MultiSelect>
                 <p v-if="isSmartFreezer" class="mt-1 text-xs text-gray-500">
-                  A Smart Freezer always uses Server Price — it has no machine price.
+                  {{ $t('A Smart Freezer always uses Server Price — it has no machine price.') }}
                 </p>
                 <!-- Server Price = the Site's Reference Price Type (Site edit page, which carries the same
                      switch — one column on the machine, so the two pages always agree). Only the case that
                      needs action is spelled out. -->
                 <p v-if="!siteSellingPriceType" class="mt-1 text-xs text-amber-700">
-                  No Site bound / no Reference Price Type on the Site — the machine uses its machine price until one is set.
+                  {{ $t('No Site bound / no Reference Price Type on the Site — the machine uses its machine price until one is set.') }}
                 </p>
                 <FieldAudit :entry="fieldAudit.is_using_server_price" />
                 <div class="text-sm text-red-600" v-if="form.errors.is_using_server_price">
@@ -766,25 +766,25 @@
                      detected the first time the board reports it running, and stays detected — a fan
                      that later reads 0 is broken, which the 2A alarm is for. -->
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Fan speed signal
+                  {{ $t('Fan speed signal') }}
                 </label>
                 <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
                   <span v-if="fanDetected" class="inline-flex items-center rounded-md bg-green-100 px-2 py-1 font-medium text-green-800">
-                    Detected<template v-if="vend.fan_detected_at">&nbsp;since {{ moment(vend.fan_detected_at).format('YYMMDD h:mm a') }}</template>
+                    {{ $t('Detected') }}<template v-if="vend.fan_detected_at">&nbsp;{{ $t('since :time', { time: moment(vend.fan_detected_at).format('YYMMDD h:mm a') }) }}</template>
                   </span>
-                  <span v-else class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 font-medium text-gray-700">Not detected</span>
+                  <span v-else class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 font-medium text-gray-700">{{ $t('Not detected') }}</span>
                   <button
                     v-if="fanDetected && permissions.includes('update machine-settings')"
                     type="button"
                     class="text-xs font-medium text-indigo-600 hover:underline disabled:text-gray-400"
                     :disabled="fanResetting"
                     @click="resetFanDetection"
-                  >Reset fan detection</button>
+                  >{{ $t('Reset fan detection') }}</button>
                 </div>
                 <p class="mt-1 text-xs text-gray-500">
                   {{ fanDetected
-                    ? 'Set by the system when the board reported a running fan. Reset only after a board or fan is changed or removed.'
-                    : 'Switches on by itself the first time the board reports a running fan (above 1000). No fan alarm until then.' }}
+                    ? $t('Set by the system when the board reported a running fan. Reset only after a board or fan is changed or removed.')
+                    : $t('Switches on by itself the first time the board reports a running fan (above 1000). No fan alarm until then.') }}
                 </p>
                 <FieldAudit :entry="fieldAudit.is_fan_enabled" />
             </div>
@@ -792,7 +792,7 @@
             <hr class="sm:col-span-6">
             <div class="sm:col-span-6" v-if="form.machine_type && form.machine_type.id === 'smart_chiller'">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Citybox Equipment ID
+                  {{ $t('Citybox Equipment ID') }}
                 </label>
                 <!-- Bound at creation (Machine Management › Create › Smart Chiller) and read-only
                      from then on — there is no unbind/rebind for chillers. Editable only while
@@ -810,7 +810,7 @@
                     v-model="form.citybox_equipment_id"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   >
-                    <option :value="null">— pick the CityBox device —</option>
+                    <option :value="null">{{ $t('— pick the CityBox device —') }}</option>
                     <option v-for="d in cbRepair.devices" :key="d.equipment_id" :value="d.equipment_id">
                       {{ d.name }} · {{ d.equipment_id }} · {{ d.model }} · {{ d.online ? 'online' : 'offline' }}
                     </option>
@@ -819,20 +819,20 @@
                     v-else
                     v-model="form.citybox_equipment_id"
                     type="text"
-                    placeholder="e.g. ICB23EHWFC5B"
+                    :placeholder="$t('e.g. ICB23EHWFC5B')"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
                   <p class="mt-1 text-xs" :class="cbRepair.matched ? 'text-green-700' : 'text-gray-500'">
-                    <span v-if="cbRepair.loading">Loading the CityBox fleet…</span>
-                    <span v-else-if="cbRepair.matched">Pre-selected <b>{{ cbRepair.matched.name }}</b> ({{ cbRepair.matched.equipment_id }}) — the device this vend was last synced with. Save to re-link.</span>
-                    <span v-else-if="cbRepair.devices.length">{{ cbRepair.devices.length }} unlinked device(s) in the CityBox fleet.</span>
+                    <span v-if="cbRepair.loading">{{ $t('Loading the CityBox fleet…') }}</span>
+                    <span v-else-if="cbRepair.matched">{{ $t('Pre-selected') }} <b>{{ cbRepair.matched.name }}</b> ({{ cbRepair.matched.equipment_id }}) {{ $t('— the device this vend was last synced with. Save to re-link.') }}</span>
+                    <span v-else-if="cbRepair.devices.length">{{ $t(':count unlinked device(s) in the CityBox fleet.', { count: cbRepair.devices.length }) }}</span>
                     <span v-else-if="cbRepair.error">{{ cbRepair.error }}</span>
-                    <a v-if="cbRepair.devices.length" href="#" class="ml-1 text-indigo-600 hover:underline" @click.prevent="cbRepair.manual = !cbRepair.manual">{{ cbRepair.manual ? 'pick from list' : 'type it instead' }}</a>
+                    <a v-if="cbRepair.devices.length" href="#" class="ml-1 text-indigo-600 hover:underline" @click.prevent="cbRepair.manual = !cbRepair.manual">{{ cbRepair.manual ? $t('pick from list') : $t('type it instead') }}</a>
                   </p>
                 </template>
                 <p class="mt-1 text-xs text-blue-600">
-                  <template v-if="vend.citybox_equipment_id">Linked to this CityBox device at creation · last synced {{ vend.citybox_synced_at ? formatDatetime(vend.citybox_synced_at) : 'never' }} · not editable.</template>
-                  <template v-else>Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — set it here only to repair a lost link.</template>
+                  <template v-if="vend.citybox_equipment_id">{{ $t('Linked to this CityBox device at creation · last synced :time · not editable.', { time: vend.citybox_synced_at ? formatDatetime(vend.citybox_synced_at) : $t('never') }) }}</template>
+                  <template v-else>{{ $t('Device serial from Citybox (设备号). Normally set automatically when the vend is created from the CityBox fleet — set it here only to repair a lost link.') }}</template>
                 </p>
                 <FieldAudit :entry="fieldAudit.citybox_equipment_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.citybox_equipment_id">
@@ -844,28 +844,25 @@
                  only recognises SKUs loaded on the machine in OPS Pro. Anything we map that their
                  Pre-Stock Setup lacks is listed here, and the Stock In push refuses it. -->
             <div class="sm:col-span-6" v-if="isChiller && chillerUnrecognisable.length">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Not loaded in CityBox</label>
+              <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Not loaded in CityBox') }}</label>
               <div class="mt-1 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
                 <div class="font-semibold">
-                  {{ chillerUnrecognisable.length }} mapped channel{{ chillerUnrecognisable.length === 1 ? '' : 's' }}
-                  carry a product this machine does not have in CityBox.
+                  {{ $tc(':count mapped channel carry a product this machine does not have in CityBox.|:count mapped channels carry a product this machine does not have in CityBox.', chillerUnrecognisable.length) }}
                 </div>
                 <div class="mt-1">
-                  Channel{{ chillerUnrecognisable.length === 1 ? '' : 's' }}
+                  {{ $tc('Channel|Channels', chillerUnrecognisable.length) }}
                   <b>{{ chillerUnrecognisable.map(c => c.code).join(', ') }}</b> —
-                  add the product to this machine's Pre-Stock Setup in OPS Pro, or their AI cannot
-                  recognise it when a customer takes one. Stock In refuses to push until then.
+                  {{ $t("add the product to this machine's Pre-Stock Setup in OPS Pro, or their AI cannot recognise it when a customer takes one. Stock In refuses to push until then.") }}
                 </div>
               </div>
             </div>
 
             <div class="sm:col-span-6" v-if="isChiller && chillerUnrecognisableUpcoming.length">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Upcoming mapping — not loaded in CityBox yet</label>
+              <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('Upcoming mapping — not loaded in CityBox yet') }}</label>
               <div class="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                Channel{{ chillerUnrecognisableUpcoming.length === 1 ? '' : 's' }}
-                <b>{{ chillerUnrecognisableUpcoming.map(c => c.code).join(', ') }}</b> of the upcoming mapping carry a
-                product this machine does not have in CityBox. Add it to the machine's Pre-Stock Setup in OPS Pro
-                <b>before</b> the changeover job, or Stock In will withhold those channels.
+                {{ $tc('Channel|Channels', chillerUnrecognisableUpcoming.length) }}
+                <b>{{ chillerUnrecognisableUpcoming.map(c => c.code).join(', ') }}</b> {{ $t("of the upcoming mapping carry a product this machine does not have in CityBox. Add it to the machine's Pre-Stock Setup in OPS Pro") }}
+                <b>{{ $t('before') }}</b> {{ $t('the changeover job, or Stock In will withhold those channels.') }}
               </div>
             </div>
 
@@ -874,37 +871,37 @@
                  the other (mark1's Status also carries factory/disposed/sold, which their API has no
                  opinion about). -->
             <div class="sm:col-span-6" v-if="isChiller && chillerStatus">
-              <label class="flex justify-start text-sm font-medium text-gray-700">CityBox status</label>
+              <label class="flex justify-start text-sm font-medium text-gray-700">{{ $t('CityBox status') }}</label>
               <div class="mt-1 rounded-md border p-3 text-sm"
                    :class="!chillerStatus.is_known ? 'border-gray-200 bg-gray-50' : chillerStatus.is_stale ? 'border-amber-300 bg-amber-50' : chillerStatus.is_retired ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'">
                 <div class="flex flex-wrap gap-x-6 gap-y-1 items-center">
                   <span>
-                    <span class="text-gray-500">Ops status:</span>
+                    <span class="text-gray-500">{{ $t('Ops status:') }}</span>
                     <span :class="chillerStatus.is_running ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">{{ chillerStatus.ops_label }}</span>
                   </span>
                   <span>
-                    <span class="text-gray-500">Connection:</span>
-                    <span :class="chillerStatus.online ? 'text-green-700' : 'text-gray-700'">{{ chillerStatus.online ? 'online' : 'offline' }}</span>
-                    <span v-if="!chillerStatus.online && chillerStatus.heartbeat_last_offline" class="text-xs text-gray-500"> since {{ chillerStatus.heartbeat_last_offline }}</span>
+                    <span class="text-gray-500">{{ $t('Connection:') }}</span>
+                    <span :class="chillerStatus.online ? 'text-green-700' : 'text-gray-700'">{{ chillerStatus.online ? $t('online') : $t('offline') }}</span>
+                    <span v-if="!chillerStatus.online && chillerStatus.heartbeat_last_offline" class="text-xs text-gray-500"> {{ $t('since :time', { time: chillerStatus.heartbeat_last_offline }) }}</span>
                   </span>
                   <span v-if="chillerStatus.device_state">
-                    <span class="text-gray-500">Machine:</span>
+                    <span class="text-gray-500">{{ $t('Machine:') }}</span>
                     <span :class="chillerStatus.device_state === 'FREE' ? 'text-green-700' : chillerStatus.device_state === 'NOT_FOUND' ? 'text-gray-600' : 'text-indigo-700 font-medium'">{{ chillerStatus.device_state_label }}</span>
                     <span class="text-xs text-gray-500"> ({{ chillerStatus.device_state }})</span>
                   </span>
-                  <span><span class="text-gray-500">Model:</span> {{ chillerStatus.model }}</span>
-                  <span v-if="chillerStatus.name"><span class="text-gray-500">CityBox name:</span> {{ chillerStatus.name }}</span>
+                  <span><span class="text-gray-500">{{ $t('Model:') }}</span> {{ chillerStatus.model }}</span>
+                  <span v-if="chillerStatus.name"><span class="text-gray-500">{{ $t('CityBox name:') }}</span> {{ chillerStatus.name }}</span>
                   <span class="text-xs" :class="chillerStatus.is_stale ? 'text-amber-800 font-medium' : 'text-gray-500'">
-                    <template v-if="!chillerStatus.is_known">Not polled yet.</template>
-                    <template v-else-if="chillerStatus.is_stale">Stale — last sync {{ formatDatetime(chillerStatus.synced_at) }}. Press Pull.</template>
-                    <template v-else>Synced {{ formatDatetime(chillerStatus.synced_at) }}</template>
+                    <template v-if="!chillerStatus.is_known">{{ $t('Not polled yet.') }}</template>
+                    <template v-else-if="chillerStatus.is_stale">{{ $t('Stale — last sync :time. Press Pull.', { time: formatDatetime(chillerStatus.synced_at) }) }}</template>
+                    <template v-else>{{ $t('Synced :time', { time: formatDatetime(chillerStatus.synced_at) }) }}</template>
                   </span>
                 </div>
                 <p v-if="chillerStatus.poll" class="mt-2 text-xs" :class="chillerStatus.poll.ok ? 'text-gray-500' : 'text-amber-800'">
-                  Last poll {{ chillerStatus.poll.at }} · {{ chillerStatus.poll.ok ? chillerStatus.poll.products_seen + ' SKU seen, ' + chillerStatus.poll.duration_ms + ' ms' : 'failed: ' + (chillerStatus.poll.error || 'error') }}
-                  <span v-if="chillerStatus.last_ops_open"> · Last ops door-open {{ chillerStatus.last_ops_open.at }}</span>
+                  {{ $t('Last poll :time', { time: chillerStatus.poll.at }) }} · {{ chillerStatus.poll.ok ? $t(':count SKU seen, :ms ms', { count: chillerStatus.poll.products_seen, ms: chillerStatus.poll.duration_ms }) : $t('failed: :error', { error: chillerStatus.poll.error || $t('error') }) }}
+                  <span v-if="chillerStatus.last_ops_open"> · {{ $t('Last ops door-open :time', { time: chillerStatus.last_ops_open.at }) }}</span>
                 </p>
-                <p v-if="chillerStatus.is_retired" class="mt-2 text-xs text-red-700">CityBox reports this unit as removed (已撤机). Set ConnectVend's Status to Inactive if it is no longer in service.</p>
+                <p v-if="chillerStatus.is_retired" class="mt-2 text-xs text-red-700">{{ $t('CityBox reports this unit as removed (已撤机). Set ConnectVend\'s Status to Inactive if it is no longer in service.') }}</p>
               </div>
             </div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now
@@ -913,7 +910,7 @@
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
-                    Product Mapping (current)
+                    {{ $t('Product Mapping (current)') }}
                     <span class="text-red-500" v-if="isVendingMachine && !isVendConfigNA">
                       *
                     </span>
@@ -933,7 +930,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -942,10 +939,8 @@
                      moment of choosing — 2487's wrong mapping sat here for six days and
                      the page gave no hint on any of the visits in between. -->
                 <div v-if="currentMappingCoversNothing" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-                  <span class="font-semibold">Covers 0 of {{ activeChannelCount }} active slot(s).</span>
-                  This mapping holds no product for any slot this machine reports, which usually
-                  means it belongs to a different machine model. Sales will record no product and
-                  no cost, so gross profit will read as 100%.
+                  <span class="font-semibold">{{ $t('Covers 0 of :count active slot(s).', { count: activeChannelCount }) }}</span>
+                  {{ $t('This mapping holds no product for any slot this machine reports, which usually means it belongs to a different machine model. Sales will record no product and no cost, so gross profit will read as 100%.') }}
                 </div>
                 <FieldAudit :entry="fieldAudit.product_mapping_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
@@ -958,14 +953,14 @@
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
-                    Product Mapping (upcoming)
+                    {{ $t('Product Mapping (upcoming)') }}
                     <span v-if="form.upcoming_product_mapping_id && form.upcoming_product_mapping_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/product-mappings/' + form.upcoming_product_mapping_id.id + '/edit'">
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
                       </a>
                     </span>
                     <span v-if="presetUpcomingName" class="text-xs font-normal text-blue-600">
-                      Pre-set upcoming: {{ presetUpcomingName }}
+                      {{ $t('Pre-set upcoming: :name', { name: presetUpcomingName }) }}
                     </span>
                   </div>
                 </label>
@@ -975,7 +970,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="name"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                 >
@@ -984,10 +979,8 @@
                      moment of choosing — 2487's wrong mapping sat here for six days and
                      the page gave no hint on any of the visits in between. -->
                 <div v-if="upcomingMappingCoversNothing" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-                  <span class="font-semibold">Covers 0 of {{ activeChannelCount }} active slot(s).</span>
-                  This mapping holds no product for any slot this machine reports, which usually
-                  means it belongs to a different machine model. Sales will record no product and
-                  no cost, so gross profit will read as 100%.
+                  <span class="font-semibold">{{ $t('Covers 0 of :count active slot(s).', { count: activeChannelCount }) }}</span>
+                  {{ $t('This mapping holds no product for any slot this machine reports, which usually means it belongs to a different machine model. Sales will record no product and no cost, so gross profit will read as 100%.') }}
                 </div>
                 <FieldAudit :entry="fieldAudit.upcoming_product_mapping_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
@@ -1018,20 +1011,20 @@
             <div v-if="isSmartFreezer" class="sm:col-span-6">
               <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <span class="text-sm font-medium text-gray-700">
-                  Planogram
+                  {{ $t('Planogram') }}
                   <span class="text-xs font-normal text-gray-500">
-                    · {{ freezerPlanogramItems.length }} of {{ freezerSlotCount }} slots bound
-                    <template v-if="vend?.customer?.selling_price_type"> · prices at RP{{ vend.customer.selling_price_type }}</template>
-                    · qty on hand now
+                    · {{ $t(':count of :total slots bound', { count: freezerPlanogramItems.length, total: freezerSlotCount }) }}
+                    <template v-if="vend?.customer?.selling_price_type"> · {{ $t('prices at RP:type', { type: vend.customer.selling_price_type }) }}</template>
+                    {{ $t('· qty on hand now') }}
                   </span>
                 </span>
                 <button type="button" class="text-xs text-blue-600 hover:underline" @click="loadStock" :disabled="stockLoading">
-                  {{ stockLoading ? 'Loading…' : 'Refresh qty' }}
+                  {{ stockLoading ? $t('Loading…') : $t('Refresh qty') }}
                 </button>
               </div>
               <p v-if="stockRefusal" class="mb-2 text-xs text-amber-700">{{ stockRefusal }}</p>
               <div v-if="!freezerPlanogramItems.length" class="rounded-md border border-dashed border-gray-300 py-8 text-center text-sm text-gray-500">
-                No products mapped yet.
+                {{ $t('No products mapped yet.') }}
               </div>
               <!-- On-hand qty sits in each cell and is overwritten there (no separate Stock Qty
                    table for a freezer — Brian, 2026-10-03). It is the SAVED machine's stock, so a
@@ -1055,7 +1048,7 @@
                   <span
                     v-else
                     class="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-400"
-                    v-tooltip="stockLoading ? 'Loading…' : 'Not on the saved machine yet — Save to stock this slot'"
+                    v-tooltip="stockLoading ? $t('Loading…') : $t('Not on the saved machine yet — Save to stock this slot')"
                   >—</span>
                 </template>
                 <template #cell-footer="{ item }">
@@ -1077,15 +1070,15 @@
                 <div v-if="isChiller" class="mb-3">
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <span class="text-xs text-gray-500">
-                      Qty = on hand now (CityBox's count, refreshed every minute)
+                      {{ $t('Qty = on hand now (CityBox\'s count, refreshed every minute)') }}
                     </span>
                     <button type="button" class="text-xs text-blue-600 hover:underline" @click="loadStock" :disabled="stockLoading">
-                      {{ stockLoading ? 'Loading…' : 'Refresh qty' }}
+                      {{ stockLoading ? $t('Loading…') : $t('Refresh qty') }}
                     </button>
                   </div>
                   <p v-if="stockRefusal" class="mt-1 text-xs text-amber-700">{{ stockRefusal }}</p>
                   <p v-else-if="canEditStock" class="mt-1 text-xs text-gray-500">
-                    An Adjust is sent to CityBox straight away (on the chiller's last door-open session) and read back.
+                    {{ $t('An Adjust is sent to CityBox straight away (on the chiller\'s last door-open session) and read back.') }}
                   </p>
                 </div>
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
@@ -1094,18 +1087,18 @@
                       <table class="min-w-full divide-y divide-gray-300">
                         <thead class="bg-gray-50">
                           <tr>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Channel Code </th>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> Thumbnail </th>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> Product </th>
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> {{ $t('Channel Code') }} </th>
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> {{ $t('Thumbnail') }} </th>
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> {{ $t('Product') }} </th>
                             <!-- P1/P2 are VMC price levels. A CityBox chiller has no VMC and
                                  sells at one price their portal sets, so it gets a single column. -->
                             <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="isChiller">
                               <div class="flex justify-center">
-                                <span> CityBox Price </span>
+                                <span> {{ $t('CityBox Price') }} </span>
                                 <span v-if="profile && profile.base_currency">
                                   ({{ profile.base_currency.currency_symbol }})
                                 </span>
-                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Selling price from CityBox — the promo price when their portal sets one, otherwise the list price. Read-only.'"></ExclamationCircleIcon>
+                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Selling price from CityBox — the promo price when their portal sets one, otherwise the list price. Read-only.')"></ExclamationCircleIcon>
                               </div>
                             </th>
                             <!-- A Smart Freezer has no board price either: it always sells at the Ref Price. -->
@@ -1116,7 +1109,7 @@
                                   <span v-if="profile && profile.base_currency">
                                     ({{ profile.base_currency.currency_symbol }})
                                   </span>
-                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Actual Price on Vending Machine')"></ExclamationCircleIcon>
                                 </div>
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900" v-if="vendChannels.some(channel => 'amount2' in channel)">
@@ -1125,14 +1118,14 @@
                                   <span v-if="profile && profile.base_currency">
                                     ({{ profile.base_currency.currency_symbol }})
                                   </span>
-                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
+                                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="$t('Discounted Price on 2nd Purchase')"></ExclamationCircleIcon>
                                 </div>
                               </th>
                             </template>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Ref Price<template v-if="!isChiller"> {{ vend?.customer?.selling_price_type }}</template> </th>
+                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> {{ $t('Ref Price') }}<template v-if="!isChiller"> {{ vend?.customer?.selling_price_type }}</template> </th>
                             <template v-if="isChiller">
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> Qty </th>
-                              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"> Last changed by hand </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"> {{ $t('Qty') }} </th>
+                              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"> {{ $t('Last changed by hand') }} </th>
                             </template>
                           </tr>
                         </thead>
@@ -1151,7 +1144,7 @@
                             <td
                               class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
                               v-if="isChiller"
-                              v-tooltip="channel.amount2 != null && channel.amount2 !== channel.amount ? 'CityBox list price ' + formatCurrency(channel.amount2) : ''"
+                              v-tooltip="channel.amount2 != null && channel.amount2 !== channel.amount ? $t('CityBox list price :price', { price: formatCurrency(channel.amount2) }) : ''"
                             >
                               {{ formatCurrency(channel.amount) }}
                             </td>
@@ -1184,12 +1177,12 @@
                                 <span
                                   v-else-if="channel.product"
                                   class="text-gray-400"
-                                  v-tooltip="stockLoading ? 'Loading…' : 'Not on the saved machine yet — Save to stock this product'"
+                                  v-tooltip="stockLoading ? $t('Loading…') : $t('Not on the saved machine yet — Save to stock this product')"
                                 >—</span>
                                 <div
                                   v-if="chillerStockRows[channelIndex]?.stock && !chillerStockRows[channelIndex].primary"
                                   class="text-[11px] text-gray-400"
-                                >same stock as {{ chillerStockRows[channelIndex].primaryCode }}</div>
+                                >{{ $t('same stock as :code', { code: chillerStockRows[channelIndex].primaryCode }) }}</div>
                               </td>
                               <td class="px-3 py-4 text-xs text-blue-600 italic">
                                 <template v-if="chillerStockRows[channelIndex]?.primary && chillerStockRows[channelIndex].stock.history.length">
@@ -1198,13 +1191,13 @@
                                     v-if="chillerStockRows[channelIndex].stock.history.length > 1"
                                     class="not-italic text-gray-500"
                                     v-tooltip="chillerStockRows[channelIndex].stock.history.slice(1).map(stockQtyLine).join('  |  ')"
-                                  >earlier ({{ chillerStockRows[channelIndex].stock.history.length - 1 }})</div>
+                                  >{{ $t('earlier (:count)', { count: chillerStockRows[channelIndex].stock.history.length - 1 }) }}</div>
                                 </template>
                               </td>
                             </template>
                           </tr>
                           <tr v-if="!vendChannels || !vendChannels.length">
-                            <td :colspan="isVendingMachine ? 6 : (isChiller ? 7 : 5)" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> No Records Found </td>
+                            <td :colspan="isVendingMachine ? 6 : (isChiller ? 7 : 5)" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center"> {{ $t('No Records Found') }} </td>
                           </tr>
                         </tbody>
                       </table>
@@ -1224,7 +1217,7 @@
               <div class="flex items-start space-x-2">
                 <ExclamationCircleIcon class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
                 <div class="flex-1">
-                  <p class="text-sm font-semibold text-red-700 mb-1">Please fix the following errors before saving:</p>
+                  <p class="text-sm font-semibold text-red-700 mb-1">{{ $t('Please fix the following errors before saving:') }}</p>
                   <ul class="list-disc list-inside space-y-0.5">
                     <li
                       v-for="(message, field) in form.errors"
@@ -1252,14 +1245,14 @@
                 >
                   <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                   <span>
-                    Replace Current Product Mapping
+                    {{ $t('Replace Current Product Mapping') }}
                   </span>
                 </Button>
               </template>
               <Link :href="'/settings'">
                 <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
                   <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                  <span> Back </span>
+                  <span> {{ $t('Back') }} </span>
                 </Button>
               </Link>
               <Button
@@ -1270,7 +1263,7 @@
               >
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Save {{ machineKindLabel }}
+                  {{ $t('Save :kind', { kind: machineKindLabel }) }}
                 </span>
               </Button>
             </FloatingActionBar>
@@ -1282,7 +1275,7 @@
                 <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-start">
-                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Site </span>
+                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site') }} </span>
               </div>
             </div>
 
@@ -1293,7 +1286,7 @@
                     v-if="vend.customer && vend.customer.person_id"
                 >
                     <div class="flex flex-col">
-                      From CMS
+                      {{ $t('From CMS') }}
                     </div>
                 </div>
                 <!-- <div
@@ -1309,14 +1302,14 @@
               {{ Boolean(form.customer.id && !form.customer.person_id) }}
               {{ Boolean(!form.customer.id) }} -->
               <fieldset class="sm:col-span-6" v-if="!vend.customer">
-                <legend class="sr-only">Plan</legend>
+                <legend class="sr-only">{{ $t('Plan') }}</legend>
                 <div class="space-y-5">
                   <div class="relative flex items-start">
                     <div class="flex h-6 items-center">
                       <input id="isExisting" aria-describedby="is-existing-description" name="isExisting" type="radio" v-model="isExisting" value="1" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
-                      <label for="is_existing" class="font-medium text-gray-900">Select Existing Site</label>
+                      <label for="is_existing" class="font-medium text-gray-900">{{ $t('Select Existing Site') }}</label>
                     </div>
                   </div>
                   <!-- <div class="relative flex items-start">
@@ -1333,7 +1326,7 @@
               <div class="sm:col-span-6" v-if="!vend.customer && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Site
+                    {{ $t('Site') }}
                   </label>
                   <MultiSelect
                     v-model="form.customer_id"
@@ -1341,7 +1334,7 @@
                     trackBy="id"
                     valueProp="id"
                     label="full_name"
-                    placeholder="Select"
+                    :placeholder="$t('Select')"
                     open-direction="bottom"
                     class="mt-1"
                   >
@@ -1352,7 +1345,7 @@
 
               <div class="sm:col-span-6" v-if="vend.customer && vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Site
+                  {{ $t('Site') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -1366,7 +1359,7 @@
               </div>
               <div class="sm:col-span-6" v-if="vend.customer && !vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Site
+                  {{ $t('Site') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -1391,18 +1384,18 @@
                   </FormInput>
                 </div> -->
                 <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.customer && vend.customer.person_id">
-                  ** Customer Data only editable from CMS
+                  {{ $t('** Customer Data only editable from CMS') }}
                   <span>
                     <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
-                      (Click Here)
+                      {{ $t('(Click Here)') }}
                     </a>
                   </span>
                 </div>
                 <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.customer && !vend.customer.person_id">
-                  ** Edit customer data
+                  {{ $t('** Edit customer data') }}
                   <span>
                     <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
-                      (Click Here)
+                      {{ $t('(Click Here)') }}
                     </a>
                   </span>
                 </div>
@@ -1418,7 +1411,7 @@
                     >
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
-                        Save Site
+                        {{ $t('Save Site') }}
                       </span>
                     </Button>
                     <Link :href="'/settings'">
@@ -1427,7 +1420,7 @@
                       >
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                         <span>
-                          Back
+                          {{ $t('Back') }}
                         </span>
                       </Button>
                     </Link>
@@ -1440,7 +1433,7 @@
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>
-                      Unbind Machine & Site
+                      {{ $t('Unbind Machine & Site') }}
                     </span>
                   </Button>
                   <Button
@@ -1451,7 +1444,7 @@
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>
-                      Unbind Machine & Deactivate Site
+                      {{ $t('Unbind Machine & Deactivate Site') }}
                     </span>
                   </Button>
                 </span>
@@ -1464,10 +1457,10 @@
               <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-start">
-              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Site Binding History </span>
+              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Site Binding History') }} </span>
             </div>
           </div>
-          <nav aria-label="Progress">
+          <nav :aria-label="$t('Progress')">
             <ol role="list" class="overflow-hidden">
               <li v-for="(customerVendBinding, customerVendBindingIndex) in customerVendBindings" :key="customerVendBinding.id" :class="[customerVendBindingIndex !== customerVendBindings.length - 1? 'pb-3' : 'relative bg-gray-300 rounded']">
                 <template v-if="true">
@@ -1490,7 +1483,7 @@
                         <!-- Who did it. Rows before 2025-01-15 have no user_id
                              (the column was added later), so fall back to a
                              dash rather than showing nothing. -->
-                        <span class="ml-1">&middot; by {{ customerVendBinding.user ? customerVendBinding.user.name : '—' }}</span>
+                        <span class="ml-1">&middot; {{ $t('by :name', { name: customerVendBinding.user ? customerVendBinding.user.name : '—' }) }}</span>
                       </span>
                     </span>
                   </span>
@@ -1507,7 +1500,7 @@
               </span>
               <span class="ml-4 flex min-w-0 flex-col pt-2">
                 <span class="text-sm font-medium">
-                  No Records Found
+                  {{ $t('No Records Found') }}
                 </span>
               </span>
             </span>
@@ -1520,7 +1513,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> APK Logs </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('APK Logs') }} </span>
                 </div>
               </div>
             </div>
@@ -1530,7 +1523,7 @@
                   <DatePicker
                       v-model="form.trigger_log_date"
                   >
-                      From
+                      {{ $t('From') }}
                   </DatePicker>
                 </div>
                 <Button
@@ -1539,7 +1532,7 @@
                 >
                   <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
                   <span>
-                    Trigger Log Upload
+                    {{ $t('Trigger Log Upload') }}
                   </span>
                 </Button>
               </div>
@@ -1555,10 +1548,10 @@
                           #
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Created At
+                          {{ $t('Created At') }}
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          File
+                          {{ $t('File') }}
                         </th>
                       </tr>
                     </thead>
@@ -1573,13 +1566,13 @@
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <div class="flex w-0 space-x-2 items-center">
                             <PaperClipIcon class="h-5 w-5 flex-shrink-0 text-gray-400" aria-hidden="true" />
-                            <a :href="log.full_url" target="_blank" class="font-medium text-indigo-600 hover:text-indigo-500">Download</a>
+                            <a :href="log.full_url" target="_blank" class="font-medium text-indigo-600 hover:text-indigo-500">{{ $t('Download') }}</a>
                           </div>
                         </td>
                       </tr>
                       <tr v-if="!vend.logs || !vend.logs.length">
                         <td colspan="3" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
-                          No records found
+                          {{ $t('No records found') }}
                         </td>
                       </tr>
                     </tbody>
@@ -1595,69 +1588,69 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> APK Parameter </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('APK Parameter') }} </span>
                 </div>
               </div>
             </div>
 
              <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Grab Enabled?
+                  {{ $t('Grab Enabled?') }}
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_grab_collection)" class="w-5 h-5 text-green-500" />
                    <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_grab_collection)" class="w-5 h-5 text-red-500" />
-                   <span v-else>Not Detected</span>
+                   <span v-else>{{ $t('Not Detected') }}</span>
                 </div>
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Display Screen Available?
+                  {{ $t('Display Screen Available?') }}
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.has_display_screen)" class="w-5 h-5 text-green-500" />
                    <XMarkIcon v-else-if="isApkParamFalse(vend.has_display_screen)" class="w-5 h-5 text-red-500" />
-                   <span v-else>Not Detected</span>
+                   <span v-else>{{ $t('Not Detected') }}</span>
                 </div>
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  QR Payment Method
+                  {{ $t('QR Payment Method') }}
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_qr_pay)" class="w-5 h-5 text-green-500" />
                    <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_qr_pay)" class="w-5 h-5 text-red-500" />
-                   <span v-else>Not Detected</span>
+                   <span v-else>{{ $t('Not Detected') }}</span>
                 </div>
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Cash Payment Method
+                  {{ $t('Cash Payment Method') }}
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_cash_pay)" class="w-5 h-5 text-green-500" />
                    <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_cash_pay)" class="w-5 h-5 text-red-500" />
-                   <span v-else>Not Detected</span>
+                   <span v-else>{{ $t('Not Detected') }}</span>
                 </div>
             </div>
              <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Credit Card Payment Method
+                  {{ $t('Credit Card Payment Method') }}
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_credit_card_pay)" class="w-5 h-5 text-green-500" />
                    <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_credit_card_pay)" class="w-5 h-5 text-red-500" />
-                   <span v-else>Not Detected</span>
+                   <span v-else>{{ $t('Not Detected') }}</span>
                 </div>
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  HID Payment Method
+                  {{ $t('HID Payment Method') }}
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_hid_pay)" class="w-5 h-5 text-green-500" />
                    <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_hid_pay)" class="w-5 h-5 text-red-500" />
-                   <span v-else>Not Detected</span>
+                   <span v-else>{{ $t('Not Detected') }}</span>
                 </div>
             </div>
 
@@ -1667,7 +1660,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Advance Control </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> {{ $t('Advance Control') }} </span>
                 </div>
               </div>
             </div>
@@ -1681,24 +1674,24 @@
                 </div>
                 <div class="ml-3 flex-1 text-sm text-blue-700">
                   <p class="font-bold text-blue-800 mb-1">
-                    Remote Restart Instructions
+                    {{ $t('Remote Restart Instructions') }}
                   </p>
                   <p>
-                    Remotely restart VMC and APK to address issues of Card Terminal not responding and Alert on Lost of Transaction/Sales from Cash Sales/ Card Terminal /via QR / No Digital Screen Activity.
+                    {{ $t('Remotely restart VMC and APK to address issues of Card Terminal not responding and Alert on Lost of Transaction/Sales from Cash Sales/ Card Terminal /via QR / No Digital Screen Activity.') }}
                   </p>
                   <div class="mt-3 text-blue-800">
-                    <p class="font-semibold">Steps:</p>
+                    <p class="font-semibold">{{ $t('Steps:') }}</p>
                     <ol class="list-decimal list-inside ml-1 mt-1 font-medium">
-                      <li>Restart VMC. Wait for 1 min, then</li>
-                      <li>Restart APK</li>
+                      <li>{{ $t('Restart VMC. Wait for 1 min, then') }}</li>
+                      <li>{{ $t('Restart APK') }}</li>
                     </ol>
                   </div>
                   <div class="mt-4 flex flex-col space-y-1">
                     <p class="text-red-500 font-semibold text-xs">
-                      * Note: Not able to remote restart on machines with 'offline' status.
+                      {{ $t('* Note: Not able to remote restart on machines with \'offline\' status.') }}
                     </p>
                     <p class="text-xs italic text-blue-600">
-                      If issue persists after restarting, an onsite check is needed for connectivity and hardware.
+                      {{ $t('If issue persists after restarting, an onsite check is needed for connectivity and hardware.') }}
                     </p>
                   </div>
                 </div>
@@ -1712,20 +1705,20 @@
                    CityBox last reported: offline, or a session in progress, and their API
                    refuses anyway — say why instead of failing. -->
               <div class="rounded-md bg-indigo-50 p-3 mb-2 text-xs text-indigo-800">
-                <span class="font-semibold">CityBox Smart Chiller.</span>
-                Open Door unlocks the cabinet for restocking (ops open — not a customer session). Pull refreshes status and live stock from CityBox now.
-                <span v-if="!vend.citybox_equipment_id" class="text-red-600 font-semibold">Set the Citybox Equipment ID above and save first.</span>
+                <span class="font-semibold">{{ $t('CityBox Smart Chiller.') }}</span>
+                {{ $t('Open Door unlocks the cabinet for restocking (ops open — not a customer session). Pull refreshes status and live stock from CityBox now.') }}
+                <span v-if="!vend.citybox_equipment_id" class="text-red-600 font-semibold">{{ $t('Set the Citybox Equipment ID above and save first.') }}</span>
                 <span v-else-if="openDoorBlockedReason" class="text-amber-800 font-semibold">{{ openDoorBlockedReason }}</span>
               </div>
               <span class="flex space-x-1">
                 <Button
                     class="bg-indigo-600 hover:bg-indigo-700 text-white flex space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     :disabled="!vend.citybox_equipment_id || !!openDoorBlockedReason"
-                    v-tooltip="openDoorBlockedReason || 'Unlock the cabinet for restocking'"
+                    v-tooltip="openDoorBlockedReason || $t('Unlock the cabinet for restocking')"
                     @click.prevent="cityboxOpenDoor(vend.id)"
                   >
                     <LockOpenIcon class="w-4 h-4"></LockOpenIcon>
-                    <span>Open Door (Restock)</span>
+                    <span>{{ $t('Open Door (Restock)') }}</span>
                 </Button>
                 <Button
                     class="bg-indigo-500 hover:bg-indigo-600 text-white flex space-x-1"
@@ -1733,7 +1726,7 @@
                     @click.prevent="cityboxPull(vend.id)"
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-                    <span>Pull from CityBox</span>
+                    <span>{{ $t('Pull from CityBox') }}</span>
                 </Button>
               </span>
             </div>
@@ -1753,10 +1746,9 @@
                  nudges it does act on are offered (TYPESYNCAPICHANNELSLOTLIST → re-fetch /menu,
                  TYPESYNCSETTINGSPARAM → re-read settings). -->
             <div v-if="isSmartFreezer" class="sm:col-span-6 rounded-md bg-blue-50 p-3 text-xs text-blue-800 border border-blue-200">
-              <span class="font-semibold">Smart Freezer.</span>
-              Push Products Info makes the kiosk re-fetch its menu now; Sync APK Settings makes it re-read its settings.
-              Remote restart is not available — use Restart app in the kiosk's maintenance menu on site.
-              <span class="text-red-500 font-semibold">Not delivered to machines with 'offline' status.</span>
+              <span class="font-semibold">{{ $t('Smart Freezer.') }}</span>
+              {{ $t("Push Products Info makes the kiosk re-fetch its menu now; Sync APK Settings makes it re-read its settings. Remote restart is not available — use Restart app in the kiosk's maintenance menu on site.") }}
+              <span class="text-red-500 font-semibold">{{ $t('Not delivered to machines with \'offline\' status.') }}</span>
             </div>
 
             <div v-if="!isChiller" class="sm:col-span-6">
@@ -1768,7 +1760,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Restart VMC
+                      {{ $t('Restart VMC') }}
                     </span>
                 </Button>
                 <Button
@@ -1778,7 +1770,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Restart APK
+                      {{ $t('Restart APK') }}
                     </span>
                 </Button>
                 <Button
@@ -1787,7 +1779,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Push Products Info to Machine
+                      {{ $t('Push Products Info to Machine') }}
                     </span>
                 </Button>
                 <Button
@@ -1797,10 +1789,10 @@
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <div class="flex flex-col text-left">
                       <span>
-                        Sync APK Settings
+                        {{ $t('Sync APK Settings') }}
                       </span>
                       <span class="text-xs" v-if="vend.latest_sync_apk_setting_job && vend.latest_sync_apk_setting_job.response_at">
-                        (last response at: {{ formatDatetime(vend.latest_sync_apk_setting_job.response_at) }})
+                        {{ $t('(last response at: :time)', { time: formatDatetime(vend.latest_sync_apk_setting_job.response_at) }) }}
                       </span>
                     </div>
                 </Button>
@@ -1879,7 +1871,7 @@
        in a shared cache. -->
   <Modal :open="screenshotModalOpen" @modalClose="closeScreenshot()">
     <template #header>
-      Machine Screen - #{{ vendCodeLabel(vend) }}
+      {{ $t('Machine Screen - #:code', { code: vendCodeLabel(vend) }) }}
     </template>
 
     <div class="flex flex-col items-center">
@@ -1887,54 +1879,54 @@
       <div class="mb-3 flex justify-end w-full">
         <Button type="button" :disabled="screenshotBusy || !screenshotSupported" @click="openScreenshot()">
           <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
-          {{ screenshotBusy ? 'Waiting for machine...' : 'Capture again' }}
+          {{ screenshotBusy ? $t('Waiting for machine...') : $t('Capture again') }}
         </Button>
       </div>
 
       <div v-if="screenshotState === 'pending'" class="py-16 flex flex-col items-center text-gray-600">
         <ArrowPathIcon class="w-10 h-10 animate-spin text-sky-500" />
-        <p class="mt-4 text-base">Asking the machine...</p>
+        <p class="mt-4 text-base">{{ $t('Asking the machine...') }}</p>
         <p class="mt-1 text-sm text-gray-400 text-center max-w-md">
-          Nothing appears on the machine's own screen. If someone is using it, it waits until they finish (up to a minute).
+          {{ $t('Nothing appears on the machine\'s own screen. If someone is using it, it waits until they finish (up to a minute).') }}
         </p>
       </div>
 
       <div v-else-if="screenshotState === 'busy'" class="py-16 flex flex-col items-center text-gray-600">
         <ExclamationCircleIcon class="w-10 h-10 text-amber-500" />
-        <p class="mt-4 text-base">The machine is in use, so no screenshot was taken.</p>
+        <p class="mt-4 text-base">{{ $t('The machine is in use, so no screenshot was taken.') }}</p>
         <p v-if="screenshotMessage" class="mt-1 text-sm text-gray-500 text-center max-w-md">{{ screenshotMessage }}</p>
-        <p class="mt-1 text-sm text-gray-400 text-center max-w-md">A sale is never interrupted. Try again in a minute.</p>
+        <p class="mt-1 text-sm text-gray-400 text-center max-w-md">{{ $t('A sale is never interrupted. Try again in a minute.') }}</p>
       </div>
 
       <div v-else-if="screenshotState === 'failed'" class="py-16 flex flex-col items-center text-gray-600">
         <ExclamationCircleIcon class="w-10 h-10 text-red-500" />
-        <p class="mt-4 text-base">No screenshot.</p>
+        <p class="mt-4 text-base">{{ $t('No screenshot.') }}</p>
         <p v-if="screenshotMessage" class="mt-1 text-sm text-gray-500 text-center max-w-md">{{ screenshotMessage }}</p>
       </div>
 
       <div v-else-if="screenshotState === 'timeout'" class="py-16 flex flex-col items-center text-gray-600">
         <ExclamationCircleIcon class="w-10 h-10 text-amber-500" />
-        <p class="mt-4 text-base">The machine did not answer.</p>
+        <p class="mt-4 text-base">{{ $t('The machine did not answer.') }}</p>
         <p class="mt-1 text-sm text-gray-400 text-center max-w-md">
-          It may be offline or on a weak connection. Check that it is online and try again.
+          {{ $t('It may be offline or on a weak connection. Check that it is online and try again.') }}
         </p>
       </div>
 
       <div v-else-if="screenshotState === 'ready'" class="w-full flex flex-col items-center">
         <img
           :src="screenshotUrl"
-          alt="Machine screen"
+          :alt="$t('Machine screen')"
           class="max-h-[70vh] w-auto rounded border border-gray-300 shadow-sm"
         />
         <p class="mt-3 text-xs text-gray-500">
-          Captured {{ screenshotCapturedAt }}<template v-if="screenshotViewingId"> (from history)</template> - only this machine's last {{ screenshotHistoryKeep }} pictures are kept; older ones are deleted. The system also takes one at 07:00 and 17:00.
+          {{ $t('Captured :time', { time: screenshotCapturedAt }) }}<template v-if="screenshotViewingId"> {{ $t('(from history)') }}</template> - {{ $t("only this machine's last :count pictures are kept; older ones are deleted. The system also takes one at 07:00 and 17:00.", { count: screenshotHistoryKeep }) }}
         </p>
       </div>
 
       <!-- History: the machine's last five pictures (VendScreenshotHistory), each served through
            the same permission-checked route as the live one. -->
       <div v-if="screenshotHistory.length" class="mt-5 w-full border-t border-gray-200 pt-3">
-        <p class="mb-2 text-xs font-medium text-gray-600">Last {{ screenshotHistoryKeep }} pictures</p>
+        <p class="mb-2 text-xs font-medium text-gray-600">{{ $t('Last :count pictures', { count: screenshotHistoryKeep }) }}</p>
         <div class="flex gap-2 overflow-x-auto pb-1">
           <button
             v-for="shot in screenshotHistory"
@@ -1946,7 +1938,7 @@
           >
             <img :src="shot.image_url" loading="lazy" alt="" class="h-24 w-auto rounded" />
             <span class="mt-1 text-[11px] text-gray-600">{{ shot.captured_at }}</span>
-            <span v-if="shot.auto" class="text-[11px] text-gray-400">Auto</span>
+            <span v-if="shot.auto" class="text-[11px] text-gray-400">{{ $t('Auto') }}</span>
             <span v-else-if="shot.requested_by" class="text-[11px] text-gray-400">{{ shot.requested_by }}</span>
           </button>
         </div>
@@ -1981,6 +1973,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import moment from 'moment';
 import { useToast } from "vue-toastification";
+import { t, tc } from '@/i18n';
 
 const props = defineProps({
     adminCustomerOptions: Object,
@@ -2034,7 +2027,7 @@ const isSmartFreezer = computed(() => props.vend && props.vend.machine_type === 
 // RESET / REBOOTANDROID / UPDATELOG / screenshot frames. VendController::update relaxes
 // the matching `required` rules for both kinds.
 const isVendingMachine = computed(() => !isChiller.value && !isSmartFreezer.value)
-const machineKindLabel = computed(() => isChiller.value ? 'Smart Chiller' : (isSmartFreezer.value ? 'Smart Freezer' : 'Vending Machine'))
+const machineKindLabel = computed(() => isChiller.value ? t('Smart Chiller') : (isSmartFreezer.value ? t('Smart Freezer') : t('Vending Machine')))
 
 // Why Open Door cannot be pressed right now, from CityBox's last poll (ChillerStatus):
 // null = go ahead. Only a KNOWN busy state blocks (door open / customer session /
@@ -2045,9 +2038,9 @@ const DOOR_BUSY_STATES = ['OPENING', 'BUSY', 'MAINTENANCE']
 const openDoorBlockedReason = computed(() => {
   const s = props.chillerStatus
   if (!isChiller.value || !s || !s.is_known) return null
-  if (!s.online) return 'Offline — CityBox cannot open the door. Pull to re-check.'
+  if (!s.online) return t('Offline — CityBox cannot open the door. Pull to re-check.')
   if (s.device_state && DOOR_BUSY_STATES.includes(String(s.device_state).toUpperCase())) {
-    return 'CityBox reports the machine is ' + (s.device_state_label || s.device_state).toLowerCase() + ' — try again when idle.'
+    return t('CityBox reports the machine is :state — try again when idle.', { state: (s.device_state_label || s.device_state).toLowerCase() })
   }
   return null
 })
@@ -2060,19 +2053,19 @@ const page = usePage();
 const adminCustomerOptions = ref([])
 
 const booleanStrictOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: t('Yes')},
+    {id: 'false', value: t('No')},
 ])
 const booleanStrictLEDOptions = ref([
-    {id: 'true', value: 'Yes -> Hard'},
-    {id: 'false', value: 'No -> Soft'},
+    {id: 'true', value: t('Yes -> Hard')},
+    {id: 'false', value: t('No -> Soft')},
 ])
 const statusOptions = ref([
-    {id: 'factory', value: 'Factory (JB)'},
-    {id: 'active', value: 'Active'},
-    {id: 'inactive', value: 'Inactive'},
-    {id: 'disposed', value: 'Disposed'},
-    {id: 'sold', value: 'Sold'},
+    {id: 'factory', value: t('Factory (JB)')},
+    {id: 'active', value: t('Active')},
+    {id: 'inactive', value: t('Inactive')},
+    {id: 'disposed', value: t('Disposed')},
+    {id: 'sold', value: t('Sold')},
 ])
 
 const cardTerminalOptions = ref([])
@@ -2087,10 +2080,10 @@ const bindingHistoryTitle = computed(() => {
     return ''
   }
 
-  return 'Last ' + rows.length + ' binding' + (rows.length === 1 ? '' : 's') + ' on this machine:\n'
+  return tc('Last :count binding on this machine:|Last :count bindings on this machine:', rows.length) + '\n'
     + rows.map((r) => r.terminal_id
-      + ' · ' + (r.bound_from ?? 'open') + ' → ' + (r.bound_until ?? 'open')
-      + ' · recorded ' + fmtBoundAt(r.bound_at) + ' by ' + r.bound_by).join('\n')
+      + ' · ' + (r.bound_from ?? t('open')) + ' → ' + (r.bound_until ?? t('open'))
+      + ' · ' + t('recorded :time by :name', { time: fmtBoundAt(r.bound_at), name: r.bound_by })).join('\n')
 })
 const cardTerminalUnitOptions = ref([])
 const cashlessTerminalOptions = ref([])
@@ -2189,10 +2182,9 @@ function confirmMappingChoice(field, label) {
     prompted[field] = newId
 
     const ok = window.confirm(
-      `"${selection.name}" covers 0 of this machine's ${activeChannelCount.value} active slot(s).\n\n` +
-      'That usually means it belongs to a different machine model. If you save it, ' +
-      'sales will still take money but will be recorded with no product and no cost, ' +
-      `so gross profit will read as 100%.\n\nSet it as the ${label} mapping anyway?`
+      t('":name" covers 0 of this machine\'s :count active slot(s).', { name: selection.name, count: activeChannelCount.value }) + '\n\n' +
+      t('That usually means it belongs to a different machine model. If you save it, sales will still take money but will be recorded with no product and no cost, so gross profit will read as 100%.') +
+      '\n\n' + (label === 'current' ? t('Set it as the current mapping anyway?') : t('Set it as the upcoming mapping anyway?'))
     )
 
     if (!ok) {
@@ -2221,8 +2213,8 @@ watch(
 // Pricing source per machine. The tier (RP1–RP5) is never chosen here — it is
 // the Site's selling_price_type; the machine only follows it or not.
 const serverPriceOptions = ref([
-  {id: 'true', value: 'Server Price'},
-  {id: 'false', value: 'Machine Price'},
+  {id: 'true', value: t('Server Price')},
+  {id: 'false', value: t('Machine Price')},
 ])
 const siteSellingPriceType = computed(() => props.vend?.selling_price_type ?? props.vend?.customer?.selling_price_type ?? null)
 const simcardOptions = ref([])
@@ -2244,7 +2236,7 @@ const screenshotUnavailableReason = computed(() => props.screenshotUnavailableRe
 const screenshotSupported = computed(() => !screenshotUnavailableReason.value)
 
 const screenshotTooltip = computed(() => screenshotSupported.value
-  ? 'Show this machine\'s latest screenshot (taken automatically at 07:00 and 17:00, or by an earlier click). Capture again asks the machine for a fresh one: it waits until nobody is using it (up to a minute), and nothing appears on its screen.'
+  ? t('Show this machine\'s latest screenshot (taken automatically at 07:00 and 17:00, or by an earlier click). Capture again asks the machine for a fresh one: it waits until nobody is using it (up to a minute), and nothing appears on its screen.')
   : screenshotUnavailableReason.value)
 
 const screenshotModalOpen = ref(false)
@@ -2368,7 +2360,7 @@ function openScreenshot() {
         // Server-side cooldown. The machine is fine - we simply asked too soon,
         // so don't tell the operator it failed to answer. Keep the popup on the
         // newest kept picture when there is one; close it when there is none.
-        toast.info(msg || 'Give the machine a few seconds before asking again.')
+        toast.info(msg || t('Give the machine a few seconds before asking again.'))
         history.then(() => {
           const newest = screenshotHistory.value[0]
           if (newest && screenshotModalOpen.value) {
@@ -2383,11 +2375,11 @@ function openScreenshot() {
       if (e?.response?.status === 422) {
         // Not supported (old build, small board) - the button's hover says the same.
         screenshotState.value = 'failed'
-        screenshotMessage.value = msg || 'This machine cannot take a screenshot.'
+        screenshotMessage.value = msg || t('This machine cannot take a screenshot.')
         return
       }
       screenshotState.value = 'timeout'
-      toast.error(msg || 'Could not ask the machine for a screenshot.')
+      toast.error(msg || t('Could not ask the machine for a screenshot.'))
     })
 }
 
@@ -2614,7 +2606,7 @@ async function loadCityboxRepairDevices() {
     cbRepair.matched = remembered ? (cbRepair.devices.find(d => d.name === remembered) || null) : null;
     if (cbRepair.matched && !form.value.citybox_equipment_id) form.value.citybox_equipment_id = cbRepair.matched.equipment_id;
   } catch (e) {
-    cbRepair.error = e?.response?.status === 403 ? 'No permission to list the CityBox fleet — type the serial.' : 'Could not load the CityBox fleet — type the serial.';
+    cbRepair.error = e?.response?.status === 403 ? t('No permission to list the CityBox fleet — type the serial.') : t('Could not load the CityBox fleet — type the serial.');
   } finally { cbRepair.loading = false; }
 }
 
@@ -2626,11 +2618,11 @@ async function loadCityboxRepairDevices() {
 const fanDetected = computed(() => [true, 1, '1', 'true'].includes(props.vend.is_fan_enabled))
 const fanResetting = ref(false)
 function resetFanDetection() {
-  if (!confirm('Reset fan detection for this machine?\n\nUse this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan again.')) return
+  if (!confirm(t('Reset fan detection for this machine?') + '\n\n' + t('Use this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan again.'))) return
   fanResetting.value = true
   axios.post(`/vends/${props.vend.id}/fan-detection/reset`)
     .then(() => { props.vend.is_fan_enabled = false; props.vend.fan_detected_at = null; loadFieldAudit() })
-    .catch(() => alert('Could not reset fan detection. Please try again.'))
+    .catch(() => alert(t('Could not reset fan detection. Please try again.')))
     .finally(() => { fanResetting.value = false })
 }
 
@@ -2645,14 +2637,14 @@ function loadFieldAudit() {
 
 onMounted(() => {
   loadCityboxRepairDevices();
-  stickerOptions.value = [{ id: '', name: '--- Clear ---' }, ...(((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map(s => ({ id: s.id, name: s.name })))]
+  stickerOptions.value = [{ id: '', name: t('--- Clear ---') }, ...(((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map(s => ({ id: s.id, name: s.name })))]
 
   loadFieldAudit();
 
   // Card Terminal COMPANY (Nayax / Nets / Nets-Auresys / PAX / MLS / HID) —
   // populated from CardTerminalResource::collection in SettingController@edit.
   cardTerminalOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...((props.cardTerminalOptions?.data) ?? []).map(terminal => ({
       id: terminal.id,
       name: terminal.name,
@@ -2662,7 +2654,7 @@ onMounted(() => {
   // Labelled "TID — Company" so a NETS and an Auresys unit are distinguishable
   // in a list of 300-odd bare 8-digit numbers.
   cardTerminalUnitOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     // A Payrallel (T05) unit is offered on smart freezers only — no other machine's app can use it.
     ...((props.cardTerminalUnitOptions?.data) ?? [])
       .filter(unit => isSmartFreezer.value || !unit.is_remote_terminal)
@@ -2674,39 +2666,39 @@ onMounted(() => {
       })),
   ]
   cashlessTerminalOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.cashlessTerminalOptions.data.map(terminal => ({
       id: terminal.id,
       name: terminal.code
     })),
   ]
   clawMachineBoardOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...Object.entries(props.clawMachineBoardOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
   countryOptions.value = props.countries.data
   clawMachineBodyOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...Object.entries(props.clawMachineBodyOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
   lcdMonitorOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
   ledMatrixPanelOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...Object.entries(props.ledMatrixPanelOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
   keyOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.keyOptions.data,
   ]
   menuFrameOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...Object.entries(props.menuFrameOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
   modemTypeOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.modemTypeOptions.data.map(modemType => ({
       id: modemType.id,
       name: modemType.name,
@@ -2714,7 +2706,7 @@ onMounted(() => {
   ];
 
   modemUnitOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.modemUnitOptions.data.filter(modemUnit => modemUnit.modem_type_id == props.vend.modem_type_id).map(modemUnit => ({
       id: modemUnit.id,
       name: modemUnit.imei,
@@ -2723,40 +2715,40 @@ onMounted(() => {
   ];
   operatorOptions.value = props.operatorOptions.data
   productMappingOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.productMappingOptions.data,
   ]
   machineTypeOptions.value = Object.entries(props.machineTypeOptions).map(([id, name]) => ({id: id, value: name}))
   simcardOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.simcardOptions.data.map(simcard => ({
       id: simcard.id,
       name: simcard.telco ? `${simcard.telco.name} - ${simcard.code}` : simcard.code,
     }))
   ]
   upcomingProductMappingOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.upcomingProductMappingOptions.data,
   ]
   vendConfigOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.vendConfigOptions.data,
   ]
   vendContractOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.vendContractOptions.data,
   ]
   vendModelOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.vendModelOptions.data,
   ]
   vendPrefixOptions.value = props.vendPrefixOptions ? [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.vendPrefixOptions.data,
   ] : []
 
   vendSerialNumberOptions.value = [
-    { id: '', name: '--- Clear ---'},
+    { id: '', name: t('--- Clear ---')},
     ...props.vendSerialNumberOptions.data.map(vendSerialNumber => ({
       id: vendSerialNumber.id,
       name: vendSerialNumber.code,
@@ -2946,11 +2938,11 @@ function isApkParamFalse(value) {
 
 function formatApkParameter(value) {
   if (value === true || value === 1 || value === '1') {
-    return 'Yes'
+    return t('Yes')
   } else if (value === false || value === 0 || value === '0') {
-    return 'No'
+    return t('No')
   }
-  return 'Not Detected'
+  return t('Not Detected')
 }
 
 function computeUpcomingSelection(existingId = null) {
@@ -3344,7 +3336,7 @@ function onVendConfigSelected() {
     onSuccess: page => {
       vendPrefixOptions.value = page.props.vendPrefixOptions
         ? [
-            { id: '', name: '--- Clear ---'},
+            { id: '', name: t('--- Clear ---')},
             ...page.props.vendPrefixOptions.data,
           ]
         : []
@@ -3365,7 +3357,7 @@ function promoteUpcomingProductMapping() {
     return
   }
 
-  const approval = confirm('Are you sure you want to update the current product mapping to the selected upcoming product mapping?')
+  const approval = confirm(t('Are you sure you want to update the current product mapping to the selected upcoming product mapping?'))
   if (!approval) {
     return
   }
@@ -3412,12 +3404,12 @@ function promoteUpcomingProductMapping() {
 
       refreshUpcomingSelection()
 
-      toast.success('Product mapping updated successfully.', {
+      toast.success(t('Product mapping updated successfully.'), {
         timeout: 3000,
       })
     },
     onError: () => {
-      toast.error('Failed to update product mapping. Please try again.', {
+      toast.error(t('Failed to update product mapping. Please try again.'), {
         timeout: 3000,
       })
     },
@@ -3428,7 +3420,7 @@ function promoteUpcomingProductMapping() {
 }
 
 function replaceProductMapping(vendID) {
-  const approval = confirm('Are you sure to replace the current product mapping to upcoming product mapping?');
+  const approval = confirm(t('Are you sure to replace the current product mapping to upcoming product mapping?'));
   if (!approval) {
       return;
   }
@@ -3449,12 +3441,12 @@ function replaceProductMapping(vendID) {
 }
 
 function cityboxOpenDoor(vendID) {
-  if (!confirm('Open this chiller door for restocking now?')) return
+  if (!confirm(t('Open this chiller door for restocking now?'))) return
   router.post('/vends/' + vendID + '/citybox-open-door', {}, {
     preserveScroll: true,
     preserveState: false,
-    onSuccess: () => toast.success('Door opened', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors.citybox || 'Door open failed', { timeout: 6000 }),
+    onSuccess: () => toast.success(t('Door opened'), { timeout: 3000 }),
+    onError: (errors) => toast.error(errors.citybox || t('Door open failed'), { timeout: 6000 }),
   })
 }
 
@@ -3462,8 +3454,8 @@ function cityboxPull(vendID) {
   router.post('/vends/' + vendID + '/citybox-pull', {}, {
     preserveScroll: true,
     preserveState: false,
-    onSuccess: () => toast.success('Pulled from CityBox', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors.citybox || 'Pull failed', { timeout: 6000 }),
+    onSuccess: () => toast.success(t('Pulled from CityBox'), { timeout: 3000 }),
+    onError: (errors) => toast.error(errors.citybox || t('Pull failed'), { timeout: 6000 }),
   })
 }
 
@@ -3568,7 +3560,7 @@ function saveVend(vendID) {
     }))
     .post('/vends/' + vendID + '/update', {
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success(t('Successfully Saved'), {
         timeout: 3000
       });
       loadFieldAudit();
@@ -3576,9 +3568,7 @@ function saveVend(vendID) {
     onError: (errors) => {
       const errorCount = Object.keys(errors).length;
       toast.error(
-        errorCount === 1
-          ? `1 validation error — see details below`
-          : `${errorCount} validation errors — see details below`,
+        tc(':count validation error — see details below|:count validation errors — see details below', errorCount),
         { timeout: 5000 }
       );
       nextTick(() => {
@@ -3603,7 +3593,7 @@ function syncApkSettings(vendID) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-        toast.success('Sync APK Settings command sent successfully', {
+        toast.success(t('Sync APK Settings command sent successfully'), {
             timeout: 3000
         });
     }
@@ -3647,7 +3637,7 @@ function onAddressSelected(address) {
 }
 
 function unbindCustomer(vendID) {
-  const approval = confirm('Are you sure to unbind this customer?');
+  const approval = confirm(t('Are you sure to unbind this customer?'));
   if (!approval) {
     return;
   }
@@ -3661,7 +3651,7 @@ function unbindCustomer(vendID) {
 }
 
 function unbindCustomerDeactivate(vendID) {
-  const approval = confirm('Are you sure to unbind this customer and deactivate it ?');
+  const approval = confirm(t('Are you sure to unbind this customer and deactivate it ?'));
   if (!approval) {
     return;
   }

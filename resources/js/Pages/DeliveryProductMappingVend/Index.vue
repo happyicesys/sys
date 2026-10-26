@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Platform Machine" />
+  <Head :title="$t('Delivery Platform Machine')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform Machine
+        {{ $t('Delivery Platform Machine') }}
       </h2>
     </template>
 
@@ -17,7 +17,7 @@
           </div>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Delivery Platform
+              {{ $t('Delivery Platform') }}
             </label>
             <MultiSelect
               v-model="filters.delivery_platform_type_id"
@@ -25,7 +25,7 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
@@ -33,7 +33,7 @@
           </div>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Del Product Mapping
+              {{ $t('Del Product Mapping') }}
             </label>
             <MultiSelect
               v-model="filters.delivery_product_mapping_id"
@@ -41,18 +41,18 @@
               trackBy="id"
               valueProp="id"
               label="name"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
-            Machine ID
+          <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
+            {{ $t('Machine ID') }}
           </SearchInput>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Platform ID
+              {{ $t('Platform ID') }}
             </label>
             <MultiSelect
               v-model="selectedPlatformRefNumber"
@@ -60,7 +60,7 @@
               trackBy="id"
               valueProp="id"
               label="ref_number"
-              placeholder="Select"
+              :placeholder="$t('Select')"
               open-direction="bottom"
               class="mt-1"
               :canClear="false"
@@ -69,7 +69,7 @@
           </div>
           <div>
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Binding Status
+                  {{ $t('Binding Status') }}
               </label>
               <MultiSelect
                   v-model="filters.is_active"
@@ -77,7 +77,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
               >
@@ -87,7 +87,7 @@
               <DatePicker
                   v-model="filters.date_from"
               >
-                  From
+                  {{ $t('From') }}
               </DatePicker>
           </div>
           <div>
@@ -95,7 +95,7 @@
                   v-model="filters.date_to"
                   :minDate="filters.date_from"
               >
-                  To
+                  {{ $t('To') }}
               </DatePicker>
           </div>
         </div>
@@ -108,20 +108,20 @@
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
-                  Search
+                  {{ $t('Search') }}
                 </span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
+                  <span>{{ $t('Showing') }}</span>
                   <span class="font-medium">{{ deliveryProductMappingVends.meta.from ?? 0 }}</span>
-                  <span>to</span>
+                  <span>{{ $t('to') }}</span>
                   <span class="font-medium">{{ deliveryProductMappingVends.meta.to ?? 0 }}</span>
-                  <span>of</span>
+                  <span>{{ $t('of') }}</span>
                   <span class="font-medium">{{ deliveryProductMappingVends.meta.total }}</span>
-                  <span>results</span>
+                  <span>{{ $t('results') }}</span>
               </p>
               <MultiSelect
                   v-model="filters.numberPerPage"
@@ -129,7 +129,7 @@
                   trackBy="id"
                   valueProp="id"
                   label="value"
-                  placeholder="Select"
+                  :placeholder="$t('Select')"
                   open-direction="bottom"
                   class="mt-1"
                   @selected="onSearchFilterUpdated"
@@ -139,13 +139,13 @@
         </div>
         <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Delivered)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Total Amount (Delivered)') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals.subtotal_amount - totals.promo_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Count (Delivered)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Total Count (Delivered)') }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{totals.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                 </dd>
@@ -163,28 +163,28 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Machine ID
+                      {{ $t('Machine ID') }}
                     </TableHeadSort>
                     <TableHead>
-                      Platform ID
+                      {{ $t('Platform ID') }}
                     </TableHead>
                     <TableHead>
-                      Cust ID
+                      {{ $t('Cust ID') }}
                     </TableHead>
                     <TableHead>
-                      Cust Name
+                      {{ $t('Cust Name') }}
                     </TableHead>
                     <TableHead>
-                      Channel
+                      {{ $t('Channel') }}
                     </TableHead>
                     <TableHead>
-                      VM Status
+                      {{ $t('VM Status') }}
                     </TableHead>
                     <TableHeadSort modelName="delivery_platform_orders_sum_subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_orders_sum_subtotal_amount', true)">
-                      Amount
+                      {{ $t('Amount') }}
                     </TableHeadSort>
                     <TableHeadSort modelName="delivery_platform_orders_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_orders_count', true)">
-                      Count
+                      {{ $t('Count') }}
                     </TableHeadSort>
                     <!-- <TableHead>
                     </TableHead> -->
@@ -240,13 +240,13 @@
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <div class="flex flex-col items-center space-y-1">
                         <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
-                          Binded
+                          {{ $t('Binded') }}
                         </span>
                         <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0 && !deliveryProductMappingVend.end_date">
-                          Paused
+                          {{ $t('Paused') }}
                         </span>
                         <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0 && deliveryProductMappingVend.end_date">
-                          Unbinded
+                          {{ $t('Unbinded') }}
                         </span>
                         <span class="text-[10px] text-gray-500 whitespace-nowrap" v-if="deliveryProductMappingVend.is_active == 0 && deliveryProductMappingVend.end_date">
                           {{ deliveryProductMappingVend.end_date }}
@@ -269,10 +269,10 @@
                           <PauseCircleIcon class="w-3 h-3" v-if="deliveryProductMappingVend.is_active"></PauseCircleIcon>
                           <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
                           <span class="text-xs" v-if="deliveryProductMappingVend.is_active">
-                            Pause VM
+                            {{ $t('Pause VM') }}
                           </span>
                           <span class="text-xs" v-else>
-                            Resume VM
+                            {{ $t('Resume VM') }}
                           </span>
                         </Button>
                         <Button
@@ -281,7 +281,7 @@
                           @click.prevent="unbindVend(deliveryProductMappingVend.id)"
                         >
                           <XCircleIcon class="w-3 h-3" ></XCircleIcon>
-                          <span class="text-xs">Unbind VM</span>
+                          <span class="text-xs">{{ $t('Unbind VM') }}</span>
                         </Button>
                       </div>
                     </TableData>
@@ -303,7 +303,7 @@
                   </tr>
                   <tr v-if="!deliveryProductMappingVends.data.length">
                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                        No Results Found
+                        {{ $t('No Results Found') }}
                     </td>
                   </tr>
                 </tbody>
@@ -374,6 +374,7 @@ import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { useToast } from "vue-toastification";
+import { t } from '@/i18n';
 
 const props = defineProps({
   deliveryProductMappingVends: Object,
@@ -415,31 +416,31 @@ const toast = useToast()
 
 onMounted(() => {
   booleanOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'true', value: 'Binded'},
-      {id: 'false', value: 'Unbinded'},
+      {id: 'all', value: t('All')},
+      {id: 'true', value: t('Binded')},
+      {id: 'false', value: t('Unbinded')},
   ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
-    { id: 'All', value: 'All' },
+    { id: 'All', value: t('All') },
   ]
   deliveryProductMappingOptions.value = [
-    { id: 'all', name: 'All' },
+    { id: 'all', name: t('All') },
     ...props.deliveryProductMappingOptions.data.map((data) => {
     return {id: data.id, name: data.name }})
   ]
   deliveryPlatformTypeOptions.value = [
-    {id: 'all', name: 'All'},
+    {id: 'all', name: t('All')},
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
   operatorOptions.value = [
-		{id: 'all', full_name: 'All'},
+		{id: 'all', full_name: t('All')},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   platformRefNumberOptions.value = [
-    { id: 'all', ref_number: 'All' },
+    { id: 'all', ref_number: t('All') },
     ...(props.platformRefNumberOptions?.data || []).map((data) => ({ id: data.id, ref_number: data.ref_number })),
   ]
 
@@ -501,7 +502,7 @@ function sortTable(sortKey, inverse = false) {
 }
 
 function togglePauseVend(deliveryProductMappingVend) {
-  let approvalText = deliveryProductMappingVend.is_active ? 'Are you sure to pause this vending machine?' : 'Are you sure to resume this vending machine?'
+  let approvalText = deliveryProductMappingVend.is_active ? t('Are you sure to pause this vending machine?') : t('Are you sure to resume this vending machine?')
   const approval = confirm(approvalText);
   if (!approval) {
       return;
@@ -514,16 +515,16 @@ function togglePauseVend(deliveryProductMappingVend) {
 }
 
 function unbindVend(deliveryProductMappingVendId) {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm(t('Are you sure to delete this entry?'));
   if (!approval) {
       return;
   }
   router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
     onSuccess: () => {
-      toast.success("Delivery product mapping vend unbound successfully", { timeout: 3000 })
+      toast.success(t("Delivery product mapping vend unbound successfully"), { timeout: 3000 })
     },
     onError: () => {
-      toast.error("Failed to unbind delivery product mapping vend", { timeout: 3000 })
+      toast.error(t("Failed to unbind delivery product mapping vend"), { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
