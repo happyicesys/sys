@@ -121,6 +121,18 @@ class HandleInertiaRequests extends Middleware
             // What an HIPL viewer's Operator filter opens with. One list, on
             // the server: see OperatorScope::DEFAULT_FILTER_CODES.
             'defaultOperatorCodes' => \App\Support\OperatorScope::DEFAULT_FILTER_CODES,
+            // The UI language (users.locale, set by the top-right switch) and the version of its
+            // dictionary, which the page fetches once from /i18n/{locale}.json?v= (TranslationCatalog).
+            'i18n' => function () use ($user) {
+                $catalog = app(\App\Services\I18n\TranslationCatalog::class);
+                $locale = \App\Services\I18n\TranslationCatalog::normalize($user?->locale);
+
+                return [
+                    'locale' => $locale,
+                    'version' => $catalog->version($locale),
+                    'locales' => \App\Services\I18n\TranslationCatalog::LOCALES,
+                ];
+            },
             'logoUrl' => $logoUrl,
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,

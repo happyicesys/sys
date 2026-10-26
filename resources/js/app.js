@@ -14,13 +14,20 @@ import Toast, { POSITION } from 'vue-toastification';  // Import vue-toastificat
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'Laravel';
 
 import FloatingVue from 'floating-vue'
+import { i18nPlugin, loadLocale, stripMarks } from './i18n';
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => `${stripMarks(title)} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
-    setup({ el, App, props, plugin }) {
+    async setup({ el, App, props, plugin }) {
+        // The user's language is loaded before the first paint, so a Chinese page never flashes English.
+        // Wording edit mode is offered only to those who may change wording (Settings → Translations).
+        const permissions = props.initialPage.props.auth?.permissions ?? [];
+        await loadLocale(props.initialPage.props.i18n, permissions.includes('update translations'));
+
         return createApp({ render: () => h(App, props) })
             .use(plugin)
+            .use(i18nPlugin)
             .use(ZiggyVue, Ziggy)
             .use(FloatingVue)
             .use(Toast, {  // Set up vue-toastification with options

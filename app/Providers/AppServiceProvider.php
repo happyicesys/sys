@@ -26,6 +26,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
+        // One UI dictionary for Vue and PHP: the Translations page's wording over lang/{locale}.json.
+        $this->app->singleton(\App\Services\I18n\TranslationCatalog::class);
+        $this->app->extend('translation.loader', fn ($loader, $app) => new \App\Services\I18n\OverridingTranslationLoader(
+            $loader, $app->make(\App\Services\I18n\TranslationCatalog::class)
+        ));
+
         // One registry per process: the dirty-day set's per-process dedupe and
         // the in-memory store used by tests both live on the instance.
         $this->app->singleton(\App\Services\Sales\DirtyDayRegistry::class);

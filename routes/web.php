@@ -26,6 +26,7 @@ use App\Http\Controllers\HappyHourCampaignController;
 use App\Http\Controllers\HidCardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\McpOAuthController;
@@ -61,6 +62,8 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelcoController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TranslationController;
+use App\Http\Controllers\TranslationDictionaryController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\TxnRevenueSettlementController;
 use App\Http\Controllers\UomController;
@@ -983,6 +986,17 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/create', [RolePermissionController::class, 'createRole']);
         Route::post('/{id}/update', [RolePermissionController::class, 'updateRole']);
         Route::delete('/{id}', [RolePermissionController::class, 'deleteRole']);
+    });
+
+    // English / Simplified Chinese UI (2026-10-26): the top-right switch, the dictionary the pages
+    // load, and the Translations page where wording is changed without a deploy.
+    Route::post('/user/locale', [LocaleController::class, 'update'])->name('user.locale');
+    Route::get('/i18n/{locale}.json', [TranslationDictionaryController::class, 'show'])->name('i18n.dictionary');
+    Route::prefix('translations')->group(function () {
+        Route::get('/', [TranslationController::class, 'index'])->name('translations')
+            ->middleware('can:read translations');
+        Route::put('/', [TranslationController::class, 'update'])
+            ->middleware('can:update translations');
     });
 
     Route::prefix('self')->group(function () {

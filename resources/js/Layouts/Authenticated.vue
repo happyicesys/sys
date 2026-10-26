@@ -4,6 +4,9 @@ import BreezeDropdown from '@/Components/Dropdown.vue';
 import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import MonthlySalesPopup from '@/Components/MonthlySalesPopup.vue';
+import LanguageSwitch from '@/Components/LanguageSwitch.vue';
+import WordingEditor from '@/Components/I18n/WordingEditor.vue';
+import { tk } from '@/i18n';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { ArrowsPointingInIcon, BuildingOfficeIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon, TicketIcon } from '@heroicons/vue/20/solid'
@@ -13,7 +16,7 @@ const page = usePage()
 
 const navigation = computed(() => [
     {
-        name: 'Dashboards',
+        name: tk('Dashboards'),
         icon: ClipboardDocumentListIcon,
         current: false,
         href: 'dashboard',
@@ -29,13 +32,13 @@ const navigation = computed(() => [
         permission: ['read dashboard', 'read dashboard-performance-lite'],
         tagline: null,
         children: [
-            {name: 'Performance', href: '/dashboard/performance', permission: 'read dashboard-performance'},
+            {name: tk('Performance'), href: '/dashboard/performance', permission: 'read dashboard-performance'},
             // Own permission, matching DashboardController's gate on indexLite —
             // 'read dashboard-performance' here would show the link to every role
             // that has the full Performance page and then 403 prod_owner, which
             // holds ONLY the Lite one. Same pattern as Dashboard (Lite) below.
-            {name: 'Performance (Lite)', href: '/dashboard/performance-lite', permission: 'read dashboard-performance-lite'},
-            {name: 'Machine Health', href: '/reports/machine-health', permission: 'read dashboard-machine-health'},
+            {name: tk('Performance (Lite)'), href: '/dashboard/performance-lite', permission: 'read dashboard-performance-lite'},
+            {name: tk('Machine Health'), href: '/reports/machine-health', permission: 'read dashboard-machine-health'},
         ]
     },
 
@@ -56,7 +59,7 @@ const navigation = computed(() => [
     //     tagline: 'Device',
     // },
     {
-        name: 'Operations',
+        name: tk('Operations'),
         icon: CommandLineIcon,
         current: false,
         href: 'vends.customer',
@@ -66,52 +69,52 @@ const navigation = computed(() => [
         permission: ['read vends', 'read vend-customers-lite'],
         tagline: null,
         children: [
-            {name: 'Dashboard', href: '/vends/customers', permission: 'read vends'},
+            {name: tk('Dashboard'), href: '/vends/customers', permission: 'read vends'},
             // Own permission, matching VendController's gate on
             // indexCustomerLite — 'read vends' here would show the link to every
             // role that has the full Dashboard and then 403 prod_owner.
-            {name: 'Dashboard (Lite)', href: '/vends/customers-lite', permission: 'read vend-customers-lite'},
+            {name: tk('Dashboard (Lite)'), href: '/vends/customers-lite', permission: 'read vend-customers-lite'},
             // Sheet puts Ops Performance and Site Grouping at superadmin/admin/supervisor,
             // but 'read vends' is the Ops Dashboard permission held by nine roles.
             // 'admin-access vends' is already exactly superadmin/admin/supervisor.
-            {name: 'Ops Performance', href: '/vends/ops-performance', permission: 'admin-access vends'},
-            {name: 'Site Grouping', href: '/vends/grouping', permission: 'admin-access vends'},
+            {name: tk('Ops Performance'), href: '/vends/ops-performance', permission: 'admin-access vends'},
+            {name: tk('Site Grouping'), href: '/vends/grouping', permission: 'admin-access vends'},
         ]
     },
     {
-        name: 'Transactions',
+        name: tk('Transactions'),
         icon: CreditCardIcon,
         current: false,
         href: 'vends-transactions',
         permission: 'read transactions',
         tagline: null,
         children: [
-            {name: 'All Transactions', href: '/vends/transactions', permission: 'read transactions-sales'},
+            {name: tk('All Transactions'), href: '/vends/transactions', permission: 'read transactions-sales'},
             // Its own permission (NOT transactions-sales) so All Transactions and
             // Daily Summary can be granted separately - the sheet gives prod_owner
             // the former and not the latter. Every other role holds both.
-            {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-daily-summary'},
-            {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
-            {name: 'Txn, Revenue & Settlement', href: '/vends/txn-revenue-settlement', permission: 'read transactions-revenue-settlement'},
-            {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
-            {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},
-            {name: 'Card Settlement', href: '/card-settlements', permission: 'read card-settlements'},
-            {name: 'AI Recognition', href: '/ai-recognition', permission: 'read ai-recognition'},
+            {name: tk('Daily Summary'), href: '/vends/transactions-daily-summary', permission: 'read transactions-daily-summary'},
+            {name: tk('Payment Gateway Txn'), href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
+            {name: tk('Txn, Revenue & Settlement'), href: '/vends/txn-revenue-settlement', permission: 'read transactions-revenue-settlement'},
+            {name: tk('Refund Requests'), href: '/refunds', permission: 'read refunds'},
+            {name: tk('Refund Settlement'), href: '/refund-settlements', permission: 'read refunds'},
+            {name: tk('Card Settlement'), href: '/card-settlements', permission: 'read card-settlements'},
+            {name: tk('AI Recognition'), href: '/ai-recognition', permission: 'read ai-recognition'},
         ]
     },
     {
-        name: 'Daily Jobs',
+        name: tk('Daily Jobs'),
         icon: ArrowsPointingInIcon,
         current: false,
         href: 'ops-jobs',
         permission: 'read operations',
         tagline: null,
         children: [
-            {name: 'Jobs', href: '/ops-jobs', permission: 'read operation-jobs'},
-            {name: 'Summary', href: '/ops-jobs/summary', permission: 'read operation-job-summaries'}, // Changed permission to match seeder
+            {name: tk('Jobs'), href: '/ops-jobs', permission: 'read operation-jobs'},
+            {name: tk('Summary'), href: '/ops-jobs/summary', permission: 'read operation-job-summaries'}, // Changed permission to match seeder
             // "Stock Counts" = driver spot checks. Not Reports > "Daily Stock Count" (the nightly valuation snapshot).
-            {name: 'Stock Counts', href: '/stock-checks', permission: 'read stock-checks'},
-            {name: 'Service Notices', href: '/service-notices', permission: 'read service-notices'},
+            {name: tk('Stock Counts'), href: '/stock-checks', permission: 'read stock-checks'},
+            {name: tk('Service Notices'), href: '/service-notices', permission: 'read service-notices'},
         ]
     },
     // {
@@ -139,29 +142,29 @@ const navigation = computed(() => [
     //     tagline: null,
     // },
     {
-        name: 'Machine Management',
+        name: tk('Machine Management'),
         icon: Cog8ToothIcon,
         current: false,
         href: 'settings',
         permission: 'read vend-settings',
         tagline: null,
         children: [
-            {name: 'Machines View', href: '/vends', permission: 'read machine-view'},
-            {name: 'Machines Settings', href: '/settings', permission: 'read machine-settings'},
-            {name: 'Machine Alert Parameters', href: '/machine-alert-parameters', permission: 'read machine-alert-parameters'},
+            {name: tk('Machines View'), href: '/vends', permission: 'read machine-view'},
+            {name: tk('Machines Settings'), href: '/settings', permission: 'read machine-settings'},
+            {name: tk('Machine Alert Parameters'), href: '/machine-alert-parameters', permission: 'read machine-alert-parameters'},
             // Happy Hour sits directly above UI Setting on purpose: it is the default, and a UI Setting
             // campaign bound to a machine overrides it (HappyHourPause) - the menu reads in that order.
-            {name: 'Happy Hour Campaign', href: '/happy-hour-campaigns', permission: 'read happy-hour-campaigns'},
-            {name: 'UI Setting (Marketing & Campaign Remote Setting)', href: '/apk-settings', permission: 'read apk-settings'},
-            {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
-            {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
-            {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
-            {name: 'APK OTA Updates', href: '/apk-releases', permission: 'read apk-releases'},
+            {name: tk('Happy Hour Campaign'), href: '/happy-hour-campaigns', permission: 'read happy-hour-campaigns'},
+            {name: tk('UI Setting (Marketing & Campaign Remote Setting)'), href: '/apk-settings', permission: 'read apk-settings'},
+            {name: tk('Setting Charts'), href: '/vend-configs', permission: 'read vend-configs'},
+            {name: tk('Machine Prefix'), href: '/vend-prefixes', permission: 'read vend-prefixes'},
+            {name: tk('Modem IMEI'), href: '/modem-units', permission: 'read modem-imei'},
+            {name: tk('APK OTA Updates'), href: '/apk-releases', permission: 'read apk-releases'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]
     },
     {
-        name: 'Site Management',
+        name: tk('Site Management'),
         icon: IdentificationIcon,
         current: false,
         href: 'customers',
@@ -173,15 +176,15 @@ const navigation = computed(() => [
             // (superadmin/admin/supervisor/technician). All four were on 'read customers',
             // so the operator roles saw all four. 'admin-access customers' already holds
             // exactly the staff four, so no new permission is needed.
-            {name: 'Sites', href: '/customers', permission: 'read customers'},
-            {name: 'Summary & Comm', href: '/customers/summary', permission: 'admin-access customers'},
-            {name: 'Site Settlement', href: '/site-settlements', permission: 'admin-access customers'},
-            {name: 'Performance', href: '/customers/performance', permission: 'admin-access customers'},
-            {name: 'Tags', href: '/tags?classname=App\\Models\\Customer', permission: 'admin-access customers'},
+            {name: tk('Sites'), href: '/customers', permission: 'read customers'},
+            {name: tk('Summary & Comm'), href: '/customers/summary', permission: 'admin-access customers'},
+            {name: tk('Site Settlement'), href: '/site-settlements', permission: 'admin-access customers'},
+            {name: tk('Performance'), href: '/customers/performance', permission: 'admin-access customers'},
+            {name: tk('Tags'), href: '/tags?classname=App\\Models\\Customer', permission: 'admin-access customers'},
         ]
     },
     {
-        name: 'Product Management',
+        name: tk('Product Management'),
         icon: RectangleStackIcon,
         current: false,
         href: 'products',
@@ -202,19 +205,19 @@ const navigation = computed(() => [
         ],
         tagline: null,
         children: [
-            {name: 'Products', href: '/products', permission: 'read products'},
-            {name: 'Mappings', href: '/product-mappings', permission: 'read product-mappings'},
-            ...(page.props.isCmsUrlSet ? [{name: 'Warehouse Qty (via API) & Planning', href: '/products/availability', permission: 'read product-availability'}] : []),
+            {name: tk('Products'), href: '/products', permission: 'read products'},
+            {name: tk('Mappings'), href: '/product-mappings', permission: 'read product-mappings'},
+            ...(page.props.isCmsUrlSet ? [{name: tk('Warehouse Qty (via API) & Planning'), href: '/products/availability', permission: 'read product-availability'}] : []),
             // The mark1 ledger page. Without CMS it is THE warehouse page; with CMS it
             // still carries the products whose qty is kept manually (CityBox SKUs).
             {name: page.props.isCmsUrlSet ? 'Warehouse Qty (self-system ledger)' : 'Warehouse Qty & Planning', href: '/products/movements', permission: 'read products'},
-            {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
-            {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
-            {name: 'Product Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
+            {name: tk('Categories'), href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
+            {name: tk('SubCategories'), href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
+            {name: tk('Product Labels'), href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
         ]
     },
     {
-        name: 'Campaign Management',
+        name: tk('Campaign Management'),
         icon: TicketIcon,
         current: false,
         href: 'campaigns',
@@ -228,47 +231,47 @@ const navigation = computed(() => [
         permission: ['read campaigns', 'read vouchers'],
         tagline: null,
         children: [
-            {name: 'Settings', href: '/campaigns', permission: 'read campaigns'},
-            {name: 'Voucher', href: '/vouchers', permission: 'read vouchers'},
+            {name: tk('Settings'), href: '/campaigns', permission: 'read campaigns'},
+            {name: tk('Voucher'), href: '/vouchers', permission: 'read vouchers'},
         ]
     },
     {
-        name: 'Data Management',
+        name: tk('Data Management'),
         icon: FolderIcon,
         current: false,
         href: 'data-management',
         permission: 'read data-settings',
         children: [
-            {name: 'Machine Serial No', href: '/vend-serial-numbers', permission: 'read serial-numbers'},
-            {name: 'Machine Models', href: '/vend-models', permission: 'read vend-models'},
-            {name: 'Machine Key No', href: '/keys', permission: 'read keys'},
-            {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},
-            {name: 'Card Terminal Company', href: '/card-terminals', permission: 'read card-terminals'},
-            {name: 'Card Terminal', href: '/card-terminal-units', permission: 'read card-terminals'},
-            {name: 'Machine Sticker', href: '/machine-stickers', permission: 'read machine-stickers'},
-            {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
-            {name: 'SimCard Package', href: '/telcos', permission: 'read telcos'},
-            {name: 'SIM Card', href: '/simcards', permission: 'read simcards'},
-            {name: 'Machine Contract Type', href: '/vend-contracts', permission: 'read vend-contracts'},
-            {name: 'Location Types', href: '/location-types', permission: 'read location-types'},
-            {name: 'HID Card', href: '/hid-cards', permission: 'read hid-cards'},
-            {name: 'Refilling Routes', href: '/zones', permission: 'read zones'},
-            {name: 'Banks', href: '/banks', permission: 'read banks'},
+            {name: tk('Machine Serial No'), href: '/vend-serial-numbers', permission: 'read serial-numbers'},
+            {name: tk('Machine Models'), href: '/vend-models', permission: 'read vend-models'},
+            {name: tk('Machine Key No'), href: '/keys', permission: 'read keys'},
+            {name: tk('Modem Models'), href: '/modem-types', permission: 'read modem-models'},
+            {name: tk('Card Terminal Company'), href: '/card-terminals', permission: 'read card-terminals'},
+            {name: tk('Card Terminal'), href: '/card-terminal-units', permission: 'read card-terminals'},
+            {name: tk('Machine Sticker'), href: '/machine-stickers', permission: 'read machine-stickers'},
+            {name: tk('Cashless Terminals'), href: '/cashless-terminals', permission: 'read cashless-terminals'},
+            {name: tk('SimCard Package'), href: '/telcos', permission: 'read telcos'},
+            {name: tk('SIM Card'), href: '/simcards', permission: 'read simcards'},
+            {name: tk('Machine Contract Type'), href: '/vend-contracts', permission: 'read vend-contracts'},
+            {name: tk('Location Types'), href: '/location-types', permission: 'read location-types'},
+            {name: tk('HID Card'), href: '/hid-cards', permission: 'read hid-cards'},
+            {name: tk('Refilling Routes'), href: '/zones', permission: 'read zones'},
+            {name: tk('Banks'), href: '/banks', permission: 'read banks'},
         ],
     },
     {
-        name: 'Delivery Platform',
+        name: tk('Delivery Platform'),
         icon: TruckIcon,
         current: false,
         href: 'delivery-product-mappings',
         permission: 'read delivery-platforms',
         tagline: null,
         children: [
-            {name: 'Grab Platform ID', href: '/delivery-platform-ref-numbers', permission: 'read delivery-platform-vends'},
-            {name: 'Machines', href: '/delivery-product-mapping-vends', permission: 'read delivery-platform-vends'},
-            {name: 'Grab Orders', href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
-            {name: 'Grab Product Mapping', href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
-            {name: 'Grab Campaign', href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
+            {name: tk('Grab Platform ID'), href: '/delivery-platform-ref-numbers', permission: 'read delivery-platform-vends'},
+            {name: tk('Machines'), href: '/delivery-product-mapping-vends', permission: 'read delivery-platform-vends'},
+            {name: tk('Grab Orders'), href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
+            {name: tk('Grab Product Mapping'), href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
+            {name: tk('Grab Campaign'), href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
         ]
     },
     // {
@@ -288,7 +291,7 @@ const navigation = computed(() => [
     //     tagline: null,
     // },
     {
-        name: 'Report',
+        name: tk('Report'),
         icon: DocumentTextIcon,
         current: false,
         href: 'reports',
@@ -298,15 +301,15 @@ const navigation = computed(() => [
             // These carried no `permission` at all, so canSee() returned true for
             // anyone who passed the section gate - i.e. the margin reports were visible
             // to operator_admin / operator_supervisor. Gated explicitly per the sheet.
-            {name: 'Stock Count Dashboard', href: '/reports/stock-count-dashboard', permission: 'read reports'},
-            {name: 'Daily Stock Count', href: '/reports/stock-count', permission: 'read reports'},
-            {name: 'Machine Monthly Snapshot', href: '/reports/snapshot', permission: 'read reports-gp'},
-            {name: 'Sales Report', href: '/reports/sales/operator', permission: 'read reports'},
-            {name: 'GP by VM', href: '/reports/gp/vend', permission: 'read reports-gp'},
-            {name: 'GP by Product', href: '/reports/gp/product', permission: 'read reports-gp'},
-            {name: 'Sales Performance by Product', href: '/reports/sales-performance/product', permission: 'read reports-gp'},
+            {name: tk('Stock Count Dashboard'), href: '/reports/stock-count-dashboard', permission: 'read reports'},
+            {name: tk('Daily Stock Count'), href: '/reports/stock-count', permission: 'read reports'},
+            {name: tk('Machine Monthly Snapshot'), href: '/reports/snapshot', permission: 'read reports-gp'},
+            {name: tk('Sales Report'), href: '/reports/sales/operator', permission: 'read reports'},
+            {name: tk('GP by VM'), href: '/reports/gp/vend', permission: 'read reports-gp'},
+            {name: tk('GP by Product'), href: '/reports/gp/product', permission: 'read reports-gp'},
+            {name: tk('Sales Performance by Product'), href: '/reports/sales-performance/product', permission: 'read reports-gp'},
             // {name: 'GP by Category', href: '/reports/gp/category'},
-            {name: 'GP by Location Type', href: '/reports/gp/location-type', permission: 'read reports-gp'},
+            {name: tk('GP by Location Type'), href: '/reports/gp/location-type', permission: 'read reports-gp'},
         ]
     },
     // {
@@ -341,22 +344,23 @@ const navigation = computed(() => [
     //     tagline: null,
     // },
     {
-        name: 'Admin',
+        name: tk('Admin'),
         icon: UserCircleIcon,
         current: false,
         href: 'admins',
         permission: 'read users',
         tagline: null,
         children: [
-            {name: 'Operators', href: '/operators', permission: 'read operators'},
-            {name: 'Operator Group', href: '/operator-groups', permission: 'read operator-groups'},
-            {name: 'Users', href: '/users', permission: 'read users'},
-            {name: 'MCP Access', href: '/mcp-tokens', permission: 'read mcp-tokens'},
-            {name: 'Visitor History', href: '/visitor-history', permission: 'read visitor-history'},
+            {name: tk('Operators'), href: '/operators', permission: 'read operators'},
+            {name: tk('Operator Group'), href: '/operator-groups', permission: 'read operator-groups'},
+            {name: tk('Users'), href: '/users', permission: 'read users'},
+            {name: tk('MCP Access'), href: '/mcp-tokens', permission: 'read mcp-tokens'},
+            {name: tk('Visitor History'), href: '/visitor-history', permission: 'read visitor-history'},
+            {name: tk('Translations'), href: '/translations', permission: 'read translations'},
         ]
     },
     {
-        name: 'Tutorial (with CMS)',
+        name: tk('Tutorial (with CMS)'),
         icon: BookOpenIcon,
         current: false,
         href: 'resource-centers',
@@ -365,7 +369,7 @@ const navigation = computed(() => [
     },
 
     {
-        name: 'Tutorial',
+        name: tk('Tutorial'),
         icon: BookOpenIcon,
         current: false,
         href: 'tutorials',
@@ -692,6 +696,7 @@ onBeforeUnmount(() => {
 <template>
     <div>
         <MonthlySalesPopup v-if="isHipl" />
+        <WordingEditor host />
         <div class="min-h-screen w-full md:flex bg-gray-100">
             <div
                 :class="[sidebarCollapsed ? 'md:w-16' : 'md:w-1/6 xl:w-2/12 2xl:w-1/12 2xl:min-w-48', 'hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white transition-all duration-200']">
@@ -699,34 +704,34 @@ onBeforeUnmount(() => {
                 <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                     <Link href="/">
                         <div class="h-fit w-fit">
-                            <img v-if="sidebarCollapsed" class="h-10 w-10 object-contain" :src="smallLogoUrl" alt="Company Logo">
-                            <img v-else :class="[useContainLogo ? 'object-contain h-24 w-36 p-2' : 'object-cover h-24 w-36']" :src="logoUrl" alt="Company Logo">
+                            <img v-if="sidebarCollapsed" class="h-10 w-10 object-contain" :src="smallLogoUrl" :alt="$t('Company Logo')">
+                            <img v-else :class="[useContainLogo ? 'object-contain h-24 w-36 p-2' : 'object-cover h-24 w-36']" :src="logoUrl" :alt="$t('Company Logo')">
                         </div>
                     </Link>
                 </div>
                 <div class="mt-2 flex px-2" :class="sidebarCollapsed ? 'justify-center' : 'justify-end'">
                     <button type="button" @click="sidebarCollapsed = !sidebarCollapsed"
-                        v-tooltip.right="sidebarCollapsed ? 'Expand menu' : ''"
-                        :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        v-tooltip.right="sidebarCollapsed ? $t('Expand menu') : ''"
+                        :aria-label="sidebarCollapsed ? $t('Expand sidebar') : $t('Collapse sidebar')"
                         class="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <ChevronDoubleRightIcon v-if="sidebarCollapsed" class="h-5 w-5" aria-hidden="true" />
                         <ChevronDoubleLeftIcon v-else class="h-5 w-5" aria-hidden="true" />
                     </button>
                 </div>
                 <div class="mt-2 flex-grow flex flex-col border-t border-gray-200 pt-2">
-                    <nav class="flex-1 px-2 space-y-1 bg-white" aria-label="Sidebar">
+                    <nav class="flex-1 px-2 space-y-1 bg-white" :aria-label="$t('Sidebar')">
                         <template v-for="item in navigation" :key="item.name">
                             <div v-if="!item.children">
                                 <Link :href="route(item.href)"
                                     v-if="canSee(item)"
-                                    v-tooltip.right="sidebarCollapsed ? [item.name, item.tagline].filter(Boolean).join(' — ') : ''"
+                                    v-tooltip.right="sidebarCollapsed ? [$t(item.name), item.tagline ? $t(item.tagline) : null].filter(Boolean).join(' — ') : ''"
                                     :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', sidebarCollapsed ? 'justify-center px-2' : 'pl-2', 'group w-full flex items-center py-2 text-sm font-medium rounded-md']">
                                 <component :is="item.icon"
                                     :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', sidebarCollapsed ? '' : 'mr-3', 'flex-shrink-0 h-6 w-6']"
                                     aria-hidden="true" />
                                 <span v-if="!sidebarCollapsed" class="flex flex-col">
                                     <span>
-                                        {{ item.name }}
+                                        {{ $t(item.name) }}
                                     </span>
                                     <span class="text-[12px] text-gray-500">
                                         {{ item.tagline }}
@@ -753,7 +758,7 @@ onBeforeUnmount(() => {
                                          two separate poppers on one element and visibly overlap
                                          while the flyout fades in. The flyout's own header
                                          carries the section name instead. -->
-                                    <Link :href="firstChildHref(item) || '#'" :aria-label="item.name"
+                                    <Link :href="firstChildHref(item) || '#'" :aria-label="$t(item.name)"
                                         @mouseenter="flyoutEnter(item.name)" @mouseleave="flyoutLeave"
                                         :class="[isItemActive(item) ? 'bg-gray-100' : 'bg-white hover:bg-gray-50', 'relative group w-full flex items-center justify-center px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                         <component :is="item.icon"
@@ -767,12 +772,12 @@ onBeforeUnmount(() => {
                                     <template #popper>
                                         <div class="w-60 py-2" @mouseenter="flyoutEnter(item.name)" @mouseleave="flyoutLeave">
                                             <div class="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                                                {{ item.name }}
+                                                {{ $t(item.name) }}
                                             </div>
                                             <template v-for="subItem in item.children" :key="subItem.name">
                                                 <Link v-if="canSee(subItem)" :href="subItem.href" v-close-popper
                                                     :class="[isSubItemActive(item, subItem) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'flex items-center px-4 py-2 text-sm font-medium']">
-                                                    <span>{{ subItem.name }}</span>
+                                                    <span>{{ $t(subItem.name) }}</span>
                                                     <span class="ml-auto flex items-center gap-1 pl-2">
                                                         <span v-if="subMentionBadge(subItem.href) > 0"
                                                             class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
@@ -796,7 +801,7 @@ onBeforeUnmount(() => {
                                         aria-hidden="true" />
                                     <span class="flex flex-1 flex-col">
                                         <span>
-                                            {{ item.name }}
+                                            {{ $t(item.name) }}
                                         </span>
                                         <span class="text-[12px] text-gray-500">
                                             {{ item.tagline }}
@@ -822,7 +827,7 @@ onBeforeUnmount(() => {
                                             :class="[isSubItemActive(item, subItem) ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200', 'group w-full flex items-center justify-start text-left pl-4 pr-2 py-2 text-sm font-medium rounded-md']"
                                             v-if="canSee(subItem)"
                                             >
-                                            <span>{{ subItem.name }}</span>
+                                            <span>{{ $t(subItem.name) }}</span>
                                             <span class="ml-auto flex items-center gap-1">
                                                 <span v-if="subMentionBadge(subItem.href) > 0"
                                                     class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
@@ -857,7 +862,7 @@ onBeforeUnmount(() => {
                         <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                             <Link href="/">
                                 <div class="h-fit w-fit py-2 px-1">
-                                    <img class="h-14 w-16" :src="smallLogoUrl" alt="Company Logo">
+                                    <img class="h-14 w-16" :src="smallLogoUrl" :alt="$t('Company Logo')">
                                 </div>
                             </Link>
                         </div>
@@ -871,6 +876,8 @@ onBeforeUnmount(() => {
                             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                                 <div class="flex justify-between h-16">
                                     <div class="hidden md:flex sm:items-center sm:ml-6">
+                                        <WordingEditor />
+                                        <LanguageSwitch class="mx-2" />
                                         <!-- Settings Dropdown -->
                                         <div class="ml-3 relative">
                                             <BreezeDropdown align="right" width="48">
@@ -888,10 +895,10 @@ onBeforeUnmount(() => {
 
                                                 <template #content>
                                                     <BreezeDropdownLink :href="route('self')" method="get" as="button">
-                                                        Account Settings
+                                                        {{ $t('Account Settings') }}
                                                     </BreezeDropdownLink>
                                                     <BreezeDropdownLink :href="route('logout')" method="post" as="button">
-                                                        Log Out
+                                                        {{ $t('Log Out') }}
                                                     </BreezeDropdownLink>
                                                 </template>
                                             </BreezeDropdown>
@@ -923,7 +930,7 @@ onBeforeUnmount(() => {
                             :href="route(item.href)" :active="isItemActive(item)">
                                 <span class="flex flex-col">
                                     <span>
-                                        {{ item.name }}
+                                        {{ $t(item.name) }}
                                     </span>
                                     <span class="text-[12px] text-gray-500">
                                         {{ item.tagline }}
@@ -935,7 +942,7 @@ onBeforeUnmount(() => {
                             <DisclosureButton :class="[isItemActive(item) ? 'text-gray-900 font-bold' : '', 'pt-2 pb-2 mb-1 pl-4 space-y-1 flex w-full justify-start text-left']" v-if="canSee(item)">
                                 <span class="flex flex-col">
                                     <span>
-                                        {{ item.name }}
+                                        {{ $t(item.name) }}
                                     </span>
                                     <span class="text-[12px] text-gray-500">
                                         {{ item.tagline }}
@@ -961,7 +968,7 @@ onBeforeUnmount(() => {
                                     <DisclosureButton
                                         v-if="canSee(subItem)"
                                         :class="[isSubItemActive(item, subItem) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50', 'group w-full flex items-center justify-start text-left pl-14 pr-2 py-3 text-sm font-medium rounded-md']">
-                                        <span>{{ subItem.name }}</span>
+                                        <span>{{ $t(subItem.name) }}</span>
                                         <span class="ml-auto flex items-center gap-1">
                                             <span v-if="subMentionBadge(subItem.href) > 0"
                                                 class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
@@ -985,15 +992,20 @@ onBeforeUnmount(() => {
                             <div class="font-medium text-sm text-gray-500">{{ $page.props.auth && $page.props.auth.user ? $page.props.auth.user.email :null }}</div>
                         </div>
 
+                        <div class="mt-3 px-4 flex flex-wrap items-center gap-2">
+                            <LanguageSwitch />
+                            <WordingEditor />
+                        </div>
+
                         <div class="mt-3 space-y-1">
                             <BreezeResponsiveNavLink :href="route('self')" method="get" as="button">
-                                Account Settings
+                                {{ $t('Account Settings') }}
                             </BreezeResponsiveNavLink>
                         </div>
 
                         <div class="mt-3 space-y-1">
                             <BreezeResponsiveNavLink :href="route('logout')" method="post" as="button">
-                                Log Out
+                                {{ $t('Log Out') }}
                             </BreezeResponsiveNavLink>
                         </div>
                     </div>
@@ -1003,7 +1015,7 @@ onBeforeUnmount(() => {
                 <main class="bg-gray-100">
                     <slot />
                     <div class="flex bg-gray-100 items-center px-3 py-6 text-sm">
-                        © Copyright 2024 Happy Ice Pte Ltd. All Rights Reserved.
+                        {{ $t('© Copyright 2024 Happy Ice Pte Ltd. All Rights Reserved.') }}
                     </div>
                 </main>
             </div>

@@ -522,6 +522,14 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Settings → Translations (2026-10-26): change any UI wording, English or Simplified
+                // Chinese, without a deploy. Everyone may pick their language; only these may reword.
+                'translations',
+                ['read', 'update'],
+                ['superadmin', 'admin'],
+            ],
+
+            [
                 'apk-settings',
                 // create/update/delete: audit CORE-01 (2026-10-17). The routes had no server gate
                 // at all, so these are the roles that already reached them through the sidebar —
