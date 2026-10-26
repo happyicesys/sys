@@ -168,7 +168,8 @@ class RolePermissionSyncSeeder extends Seeder
                 // This is the one that renders the NAV LINK — Authenticated.vue
                 // gates "Dashboard -> /vends/customers" on `read vends`. Without
                 // it the page is reachable only by typing the URL.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee'],
+                // 2026-10-26 sheet (Brian, "upskill driver to solve basic technical issues"): + driver.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee'],
             ],
 
             [
@@ -193,7 +194,8 @@ class RolePermissionSyncSeeder extends Seeder
                 // - observer_transactions: no column in the sheet (see below).
                 // 2026-08-13 sheet: + sup_driver (Ops Dashboard Full Filter, row 5).
                 // This is the ROUTE gate — without it /vends/customers 403s.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee'],
+                // 2026-10-26 sheet: + driver (Ops Dashboard Full Filter, red Yes).
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee'],
             ],
 
             [
@@ -213,7 +215,8 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-08-13 sheet: + sup_driver. Its column says Full Filter, so
                 // it gets this gate too — serial num, temp/T2 thresholds, balance
                 // stock, last-visited. Drop it here alone for a limited filter.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor'],
+                // 2026-10-26 sheet: + driver (Full Filter, like sup_driver).
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor'],
             ],
 
             // Operations > Dashboard (Lite) — /vends/customers-lite. Its OWN
@@ -236,10 +239,13 @@ class RolePermissionSyncSeeder extends Seeder
             // struck) and got nothing in its place; Lite is that replacement.
             // Lite's "Grouped?" toggle is disabled on the page itself
             // (CustomerIndexLite.vue) — no permission involved.
+            //
+            // 2026-10-26 sheet: - driver (Dashboard Lite struck) — it has the full
+            // Dashboard back, so the stand-in goes.
             [
                 'vend-customers-lite',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'prod_owner', 'driver'],
+                ['superadmin', 'admin', 'prod_owner'],
             ],
 
             [
@@ -438,13 +444,24 @@ class RolePermissionSyncSeeder extends Seeder
                 'machine-settings',
                 ['read', 'update'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (Machine Settings = HappyIce staff only).
-                ['superadmin', 'admin', 'supervisor', 'technician'],
+                // 2026-10-26 sheet: + driver — open Setting/Edit and fix basic issues there
+                // (save, restart VMC / APK, View Screen, freezer controls).
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver'],
             ],
 
             [
                 'machine-settings',
-                ['export', 'create', 'delete', 'admin-access'],
+                ['admin-access'],
+                // The Machines Settings list's extra filters (Site, serial no, …). 2026-10-26: + driver.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver'],
+            ],
+
+            [
+                'machine-settings',
+                ['export', 'create', 'delete'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor
+                // `create` makes a new machine (and imports a CityBox chiller): not a driver's
+                // job, so driver is left out here (2026-10-26).
                 ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
 

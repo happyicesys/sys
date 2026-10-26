@@ -10,9 +10,10 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * sup_driver ("Sup Driver", added to the sheet 2026-08-13) is driver plus the
- * Operation Dashboard, and nothing else. Asserted as SET EQUALITY so that a
- * later change to driver's grants fails here unless sup_driver moves with it.
+ * sup_driver ("Sup Driver", added to the sheet 2026-08-13) was driver plus the Operation Dashboard.
+ * Since the 2026-10-26 sheet driver holds that Dashboard too, plus Machine Settings, which the sheet
+ * does NOT give sup_driver. Asserted as SET EQUALITY so a later change to either role's grants fails
+ * here unless it is deliberate.
  */
 class SupDriverRoleTest extends TestCase
 {
@@ -39,41 +40,35 @@ class SupDriverRoleTest extends TestCase
         return $names;
     }
 
-    public function test_sup_driver_is_driver_plus_the_operation_dashboard(): void
+    /** What driver holds that sup_driver does not (2026-10-26 sheet: Machine Settings for Driver only). */
+    private const DRIVER_ONLY = [
+        'read machine-settings',
+        'update machine-settings',
+        'admin-access machine-settings',
+    ];
+
+    public function test_sup_driver_is_driver_without_machine_settings(): void
     {
         $this->seed(RolePermissionSyncSeeder::class);
 
-        // driver holds vend-customers-lite as a REPLACEMENT for the full
-        // Dashboard it lost in the 2026-08-09 sync (seeder note, 2026-08-18).
-        // sup_driver kept the full Dashboard (that is its whole point), so it
-        // deliberately does not carry the Lite fallback.
-        $expected = array_merge(
-            array_values(array_filter(
-                $this->permissionNames('driver'),
-                fn ($p) => ! str_ends_with($p, 'vend-customers-lite')
-            )),
-            self::DASHBOARD_ONLY
-        );
+        $expected = array_values(array_diff($this->permissionNames('driver'), self::DRIVER_ONLY));
         sort($expected);
 
         $this->assertSame($expected, $this->permissionNames('sup_driver'));
+        foreach (self::DASHBOARD_ONLY as $permission) {
+            $this->assertContains($permission, $this->permissionNames('driver'));
+        }
     }
 
-    public function test_the_new_role_did_not_change_driver(): void
+    public function test_driver_keeps_its_ops_jobs_grants(): void
     {
         $this->seed(RolePermissionSyncSeeder::class);
 
         $driver = $this->permissionNames('driver');
 
-        // driver keeps its ops-jobs grants...
         $this->assertContains('read operations', $driver);
         $this->assertContains('read operation-jobs', $driver);
         $this->assertContains('read operation-job-summaries', $driver);
-
-        // ...and still cannot reach the dashboard. See OpsDashboardDriverAccessTest.
-        foreach (self::DASHBOARD_ONLY as $permission) {
-            $this->assertNotContains($permission, $driver);
-        }
     }
 
     public function test_sup_driver_lands_on_ops_jobs_after_login(): void
