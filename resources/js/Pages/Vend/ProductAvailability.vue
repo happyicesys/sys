@@ -494,7 +494,15 @@
             <tbody class="divide-y divide-gray-200 bg-white">
               <tr v-for="(vend, vendIndex) in sortedVendDrillVends" :key="vend.vend_id" class="hover:bg-gray-50">
                 <td class="p-2 text-xs text-gray-500">{{ vendIndex + 1 }}</td>
-                <td class="p-2 text-xs font-bold text-gray-900 whitespace-nowrap">{{ vend.vend_code }}</td>
+                <td class="p-2 text-xs font-bold whitespace-nowrap">
+                  <!-- Opens the Operation Dashboard on this machine, already searched (Brian, 2026-10-26). -->
+                  <a :href="opsDashboardUrl(vend)" target="_blank" class="text-blue-700 hover:underline"
+                    v-tooltip="$t('Open this machine in the Operation Dashboard')">{{ vend.vend_code }}</a>
+                </td>
+                <td class="p-2 text-xs text-gray-700 whitespace-nowrap">
+                  <span v-if="vend.vend_prefix_name">{{ vend.vend_prefix_name }}</span>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
                 <td class="p-2 text-xs text-gray-800">
                   <span class="font-semibold">{{ vend.site_ref_id }}</span>
                   {{ vend.site_name }}
@@ -741,6 +749,7 @@ const vendDrillVends = ref([])
 const vendDrillColumns = [
   { key: 'index', label: '#', align: 'text-left', justify: 'justify-start' },
   { key: 'vend_code', label: t('Machine'), align: 'text-left', justify: 'justify-start' },
+  { key: 'vend_prefix_name', label: t('Machine Prefix'), align: 'text-left', justify: 'justify-start' },
   { key: 'site_name', label: t('Site'), align: 'text-left', justify: 'justify-start' },
   { key: 'qty', label: t('Stock Left'), align: 'text-center', justify: 'justify-center' },
   { key: 'last_job_date', label: t('Last Job'), align: 'text-left', justify: 'justify-start' },
@@ -748,6 +757,12 @@ const vendDrillColumns = [
 ]
 const vendDrillSortKey = ref('index')
 const vendDrillSortAsc = ref(true)
+
+// The machine's Operation Dashboard row: its code in the Machine ID filter, searched at once. The trailing comma
+// makes the filter match that code exactly (VendCode::whereSearch), not every code starting with it.
+function opsDashboardUrl(vend) {
+  return '/vends/customers?codes=' + encodeURIComponent(vend.vend_code + ',') + '&autoload=true'
+}
 
 function sortVendDrill(key) {
   if (vendDrillSortKey.value === key) {

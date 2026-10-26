@@ -367,10 +367,12 @@ class ProductController extends Controller
         $rows = $this->deployedVendChannelQuery($productIds)
             ->join('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-            ->groupBy('vends.id', 'vends.code', 'vends.code_prefix', 'customers.id', 'customers.name', 'zones.name')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->groupBy('vends.id', 'vends.code', 'vends.code_prefix', 'vend_prefixes.name', 'customers.id', 'customers.name', 'zones.name')
             ->when($scope === 'low', fn ($q) => $q->havingRaw('COALESCE(SUM(vend_channels.qty), 0) <= 2'))
             ->when($scope === 'with_stock', fn ($q) => $q->havingRaw('MAX(vend_channels.qty > 0) = 1'))
             ->selectRaw('vends.id as vend_id, vends.code as vend_code, vends.code_prefix,
+                vend_prefixes.name as vend_prefix_name,
                 customers.id as customer_id, customers.name as customer_name,
                 zones.name as zone_name,
                 COALESCE(SUM(vend_channels.qty), 0) as total_qty,
@@ -391,6 +393,8 @@ class ProductController extends Controller
                 return [
                     'vend_id' => $r->vend_id,
                     'vend_code' => VendCode::label($r->code_prefix, $r->vend_code),
+                    // The Machine Prefix column (Brian, 2026-10-26) — vend_prefixes.name, as Sales Transactions shows it.
+                    'vend_prefix_name' => $r->vend_prefix_name,
                     'site_ref_id' => $r->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT,
                     'site_name' => $r->customer_name,
                     'zone_name' => $r->zone_name,

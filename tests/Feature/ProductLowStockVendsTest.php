@@ -54,6 +54,9 @@ class ProductLowStockVendsTest extends TestCase
 
         // 1+1 across two channels = 2 -> listed
         $low = $this->makeVend($this->hipl, 9001, 'Alpha Condo', $zoneId);
+        DB::table('vends')->where('id', $low)->update(['vend_prefix_id' => DB::table('vend_prefixes')->insertGetId([
+            'name' => 'UUD-11B-11B', 'created_at' => now(), 'updated_at' => now(),
+        ])]);
         $this->makeChannel($low, 11, $product->id, 1);
         $this->makeChannel($low, 12, $product->id, 1);
         // empty machine -> listed (qty 0)
@@ -82,6 +85,7 @@ class ProductLowStockVendsTest extends TestCase
 
         $alpha = $vends->firstWhere('vend_code', '9001');
         $this->assertSame(2, $alpha['qty']);
+        $this->assertSame('UUD-11B-11B', $alpha['vend_prefix_name'], 'the Machine Prefix column');
         $this->assertSame('Alpha Condo', $alpha['site_name']);
         $this->assertSame('HC A', $alpha['zone_name']);
         $this->assertSame(
@@ -91,6 +95,7 @@ class ProductLowStockVendsTest extends TestCase
 
         $bravo = $vends->firstWhere('vend_code', '9002');
         $this->assertSame(0, $bravo['qty']);
+        $this->assertNull($bravo['vend_prefix_name'], 'a machine with no prefix');
         $this->assertNull($bravo['zone_name']);
     }
 
