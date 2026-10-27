@@ -12,6 +12,7 @@ use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Support\ProductAccess;
 use App\Support\TransactionAccess;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use DB;
 use Illuminate\Bus\Queueable;
@@ -199,9 +200,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 // can surface "Dispense Attempted?" the same way the Payment Gateway
                 // Transactions page does (payment_gateway_logs.is_dispensed).
                 ->leftJoin('payment_gateway_logs', 'payment_gateway_logs.id', '=', 'vend_transactions.payment_gateway_log_id')
-                ->when($user->vends()->exists(), function ($query) use ($user) {
-                    $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
-                })
+                ->tap(fn ($query) => VendAccess::forUser($user)->constrain($query, 'vend_transactions.vend_id'))
                 // "Access Product(s)" - MUST stay identical to the id-boundary query
                 // in VendController@exportTransactionCsv, or the chunk boundaries
                 // stop lining up with the rows each chunk actually emits.

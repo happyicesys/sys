@@ -109,6 +109,7 @@ use App\Support\DispenseVerdict;
 use App\Support\ProductAccess;
 use App\Support\ProductScopedSales;
 use App\Support\TransactionAccess;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
@@ -2603,6 +2604,11 @@ class VendController extends Controller
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->whereIn('customers.id', $reqCustomerIds)
             ->whereIn('customers.operator_id', $operatorIds)
+            // ...and to Sites holding a machine the caller may see (VendAccess).
+            ->when(! VendAccess::current()->isUnrestricted(), fn ($q) => $q->whereExists(function ($sub) {
+                $sub->selectRaw('1')->from('vends')->whereColumn('vends.customer_id', 'customers.id');
+                VendAccess::current()->constrain($sub, 'vends.id');
+            }))
             ->select(
                 'customers.id',
                 'customers.operator_id',
@@ -3996,29 +4002,6 @@ class VendController extends Controller
         return [null, null];
     }
 
-    /**
-     * The viewer's bound machines, or null when they have none (= unrestricted).
-     *
-     * payment_gateway_logs carries NO global scope and scopeUnreportedDispensed
-     * only applies the REQUEST filters — never the user's own allow-list. So
-     * every unreportedDispensed() read has to be narrowed by hand or a
-     * machine-restricted user is handed a fleet-wide number.
-     * AppendsUnreportedGatewayCsvRows already does exactly this; the Transactions
-     * card and the Excel export did not.
-     */
-    private function viewerVendIds()
-    {
-        if (! auth()->check()) {
-            return null;
-        }
-
-        $user = auth()->user();
-
-        return ($user->vends && $user->vends()->exists())
-            ? $user->vends->pluck('id')
-            : null;
-    }
-
     public function transactionIndex(Request $request)
     {
         $saleCode = DispenseVerdict::sqlSale('vend_channel_errors.code');
@@ -4567,16 +4550,18 @@ class VendController extends Controller
         // (AppendsUnreportedGatewayCsvRows).
         $cardAllowedProductIds = ProductAccess::current();
 
-        // The viewer's machines. Without this a machine-restricted user's Total
-        // Sales is inflated by the WHOLE FLEET's unreported gateway revenue,
-        // because scopeUnreportedDispensed applies request filters only.
-        $viewerVendIds = $this->viewerVendIds();
+        // The viewer's machines, by hand: payment_gateway_logs carries NO global
+        // scope and scopeUnreportedDispensed applies request filters only, so a
+        // machine-limited user's Total Sales would carry the WHOLE FLEET's
+        // unreported gateway revenue (the Excel export and
+        // AppendsUnreportedGatewayCsvRows do the same).
+        $viewerVendAccess = VendAccess::current();
 
         $unreportedGatewayAmount = $cardAllowedProductIds !== null
             ? 0
             : PaymentGatewayLog::query()
                 ->unreportedDispensed($request, $testingVendIds)
-                ->when($viewerVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $viewerVendIds))
+                ->tap(fn ($q) => $viewerVendAccess->constrain($q, 'payment_gateway_logs.vend_id'))
                 ->sum('payment_gateway_logs.amount');
 
         // vend_transactions.amount is in minor units (cents); gateway log
@@ -4838,7 +4823,7 @@ class VendController extends Controller
         // Lightweight ID-only query — same filters, no heavy SELECT columns.
         // Ordering by vend_transactions.id (PK) is index-only and avoids the
         // slow transaction_datetime sort on a large range.
-        $userVendIds = $user->vends()->exists() ? $user->vends->pluck('id') : null;
+        $userVendAccess = VendAccess::forUser($user);
 
         // "Access Product(s)": resolve ONCE here and hand the set to the jobs.
         // auth() is empty inside a queue worker so the global scope cannot fire
@@ -4873,9 +4858,7 @@ class VendController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->when($userVendIds !== null, function ($query) use ($userVendIds) {
-                $query->whereIn('vend_transactions.vend_id', $userVendIds);
-            })
+            ->tap(fn ($query) => $userVendAccess->constrain($query, 'vend_transactions.vend_id'))
             ->filterTransactionIndex($request, true) // skip sort — we impose our own
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
@@ -5163,11 +5146,11 @@ class VendController extends Controller
         // has no product_id), so a restricted export omits them rather than
         // crediting a partner with revenue that is provably not theirs. Mirrors
         // AppendsUnreportedGatewayCsvRows.
-        $excelViewerVendIds = $this->viewerVendIds();
+        $excelViewerVendAccess = VendAccess::current();
 
         PaymentGatewayLog::query()
             ->when($excelAllowedProductIds !== null, fn ($q) => $q->whereRaw('1 = 0'))
-            ->when($excelViewerVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $excelViewerVendIds))
+            ->tap(fn ($q) => $excelViewerVendAccess->constrain($q, 'payment_gateway_logs.vend_id'))
             ->with(['vend:id,code,code_prefix', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->orderBy('payment_gateway_logs.approved_at')

@@ -15,9 +15,11 @@ use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\User;
 use App\Models\Vend;
+use App\Services\Access\UserMachineVisibility;
 use App\Support\ProductAccess;
 use App\Support\ProductOwners;
 use App\Support\TransactionAccess;
+use App\Support\VendAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -218,7 +220,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function edit($id)
+    public function edit($id, UserMachineVisibility $machineVisibility)
     {
         $this->assertWithinOperatorCeiling(User::findOrFail($id)->operator_id);
 
@@ -289,6 +291,9 @@ class UserController extends Controller
                     ->orderBy('code')
                     ->get(['id', 'code', 'name'])
             ),
+            // The machine level of a product-limited user: the machines carrying
+            // their products right now, each Show / No Show (null = not product-limited).
+            'machineVisibility' => fn () => $machineVisibility->listFor($user),
             'operatorProductCeiling' => $productCeiling === null ? null : [
                 'operatorName' => $user->operator?->name,
                 'products' => Product::withoutGlobalScopes()
@@ -526,6 +531,9 @@ class UserController extends Controller
             ProductAccess::flush($user->id);
         }
 
+        // The machine level follows both lists above (VendAccess).
+        VendAccess::flush($user->id);
+
         // "Transaction Access From".
         //
         // Its OWN marker, not manage_product_access: the two fields sit on the
@@ -571,6 +579,30 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('users');
+    }
+
+    /**
+     * Show / No Show one machine for a product-limited user. Saves at once, so
+     * the switch never waits on the rest of the form.
+     */
+    public function setMachineVisibility(Request $request, $id, UserMachineVisibility $machineVisibility)
+    {
+        abort_unless(auth()->user()->can('update users'), 403);
+
+        $user = User::findOrFail($id);
+        $this->assertWithinOperatorCeiling($user->operator_id);
+
+        $data = $request->validate([
+            'vend_id' => ['required', 'integer'],
+            'show' => ['required', 'boolean'],
+        ]);
+
+        $listed = collect($machineVisibility->listFor($user) ?? [])->pluck('id');
+        abort_unless($listed->contains((int) $data['vend_id']), 422, __('This machine is not on the list for this user.'));
+
+        $machineVisibility->set($user, (int) $data['vend_id'], (bool) $data['show'], auth()->user());
+
+        return response()->json(['machines' => $machineVisibility->listFor($user)]);
     }
 
     public function bindVend(Request $request)

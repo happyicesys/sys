@@ -4,6 +4,7 @@ namespace App\Jobs\Concerns;
 
 use App\Models\PaymentGatewayLog;
 use App\Models\User;
+use App\Support\VendAccess;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -59,14 +60,12 @@ trait AppendsUnreportedGatewayCsvRows
 
         // Keep the gateway rows scoped to the same machines as the CSV's
         // transaction rows when the user is restricted to specific vends.
-        $userVendIds = ($user && $user->vends()->exists())
-            ? $user->vends->pluck('id')
-            : null;
+        $vendAccess = VendAccess::forUser($user);
 
         PaymentGatewayLog::query()
             ->with(['vend:id,code,code_prefix', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
-            ->when($userVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $userVendIds))
+            ->tap(fn ($q) => $vendAccess->constrain($q, 'payment_gateway_logs.vend_id'))
             // "Transaction Access From". These rows are gateway money with no
             // vend_transaction behind them, so they carry their own timestamp -
             // approved_at, not transaction_datetime. Without this a restricted

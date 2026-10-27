@@ -16,7 +16,6 @@ use App\Models\LocationType;
 use App\Models\Month;
 use App\Models\Operator;
 use App\Models\Product;
-use App\Models\Vend;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendProductRecord;
@@ -27,6 +26,7 @@ use App\Support\DispenseVerdict;
 use App\Support\IndexHint;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -1191,11 +1191,12 @@ class DashboardController extends Controller
                 $query->where('customer_period_summaries.operator_id', $operatorId);
             }
 
-            $vendIds = $user->vends ? $user->vends->pluck('id')->all() : [];
-
-            if (! empty($vendIds)) {
-                $query->whereIn('customer_period_summaries.customer_id', function ($sub) use ($vendIds) {
-                    $sub->select('customer_id')->from('vends')->whereIn('id', $vendIds);
+            // Site-grained rows: keep the Sites of the machines this user may see.
+            $access = VendAccess::forUser($user);
+            if (! $access->isUnrestricted()) {
+                $query->whereIn('customer_period_summaries.customer_id', function ($sub) use ($access) {
+                    $sub->select('customer_id')->from('vends')->whereNotNull('customer_id');
+                    $access->constrain($sub, 'vends.id');
                 });
             }
         }
@@ -1342,19 +1343,7 @@ class DashboardController extends Controller
             $query->where($table.'.operator_id', $operatorId);
         }
 
-        $vendIds = $user->vends ? $user->vends->pluck('id')->all() : [];
-
-        if (empty($vendIds)) {
-            return $query;
-        }
-
-        $query->whereIn($table.'.vend_id', $vendIds);
-
-        $customerIds = Vend::whereIn('id', $vendIds)->get()->pluck('customer_id')->filter()->all();
-
-        if (! empty($customerIds)) {
-            $query->whereIn($table.'.customer_id', $customerIds);
-        }
+        VendAccess::forUser($user)->constrain($query, $table.'.vend_id', $table.'.customer_id');
 
         return $query;
     }

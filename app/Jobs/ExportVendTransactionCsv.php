@@ -10,6 +10,7 @@ use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Support\ProductAccess;
 use App\Support\TransactionAccess;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use DB;
 use Illuminate\Bus\Queueable;
@@ -193,9 +194,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-                ->when($user->vends()->exists(), function ($query) use ($user) {
-                    $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
-                })
+                ->tap(fn ($query) => VendAccess::forUser($user)->constrain($query, 'vend_transactions.vend_id'))
                 // "Access Product(s)": a basket is exported whole when ANY of its
                 // items is allowed. The other party's item rows survive carrying
                 // only their channel number - product code, name, price type,

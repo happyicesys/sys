@@ -69,6 +69,10 @@ class AppServiceProvider extends ServiceProvider
         // every product query, so memoised per request / job (scoped, see the class).
         $this->app->scoped(\App\Support\ProductOwners::class);
 
+        // Which machines a user may see (VendAccess): asked by several global
+        // scopes on every query, so resolved once per request / job.
+        $this->app->scoped(\App\Support\VendAccessResolver::class);
+
         // Stock check "sync": one strategy per machine kind, first match wins.
         // A new machine kind that owns its stock differently is one more entry.
         $this->app->when(\App\Services\StockCheck\StockCheckService::class)

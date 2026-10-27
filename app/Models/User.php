@@ -253,6 +253,15 @@ class User extends Authenticatable
     }
 
     /**
+     * Machines switched to "No Show" for a product-limited user (User edit).
+     * Enforcement reads App\Support\VendAccess, never this relation.
+     */
+    public function hiddenVends()
+    {
+        return $this->belongsToMany(Vend::class, 'user_hidden_vends')->withTimestamps();
+    }
+
+    /**
      * "Access Product(s)" allow-list. NOT ownership - it is the set of SKUs
      * this user is permitted to see, capped by their operator's own list.
      *

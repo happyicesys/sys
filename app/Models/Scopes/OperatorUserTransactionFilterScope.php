@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Support\VendAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -14,10 +15,7 @@ class OperatorUserTransactionFilterScope implements Scope
     public function apply(Builder $builder, Model $model): void
     {
         if (auth()->check() && auth()->user() instanceof \App\Models\User) {
-            $vendIds = auth()->user()->vends->pluck('id');
-            if ($vendIds->isNotEmpty()) {
-                $builder->whereIn('vend_transactions.vend_id', $vendIds);
-            }
+            VendAccess::current()->constrain($builder, 'vend_transactions.vend_id');
         }
     }
 }

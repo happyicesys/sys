@@ -42,6 +42,7 @@ use App\Support\DispenseVerdict;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
 use App\Support\TransactionAccess;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
@@ -1905,12 +1906,7 @@ class ReportController extends Controller
             if (! $isHappyIce && $operatorId) {
                 $sub->where('vends.operator_id', $operatorId);
             }
-            if ($user->vends()->exists()) {
-                $vendIds = $user->vends->pluck('id')->toArray();
-                if (! empty($vendIds)) {
-                    $sub->whereIn('vends.id', $vendIds);
-                }
-            }
+            VendAccess::forUser($user)->constrain($sub, 'vends.id');
         }
 
         // channel_availability: only count channels that STILL HAVE STOCK

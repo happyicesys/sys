@@ -225,6 +225,20 @@ Operator filter on a product list (Products index, Warehouse Qty + export, Produ
 HIPL's products) and the Access Product(s) lists on User / Operator edit read it. The user's own product allow-list
 (`ProductAccess`) still narrows on top. Regression coverage: `tests/Feature/ProductOperatorGroupVisibilityTest.php`.
 
+**What a user may see: three levels, in order — operator, products, machines** (Brian, 2026-10-27; User edit shows
+them in that order). Operator = the rules above. Products = Access Product(s) (`App\Support\ProductAccess`).
+Machines = `App\Support\VendAccess`, the ONE reader for every machine limit (the transaction / record / UI Setting /
+delivery scopes, `HasFilter`, the dashboard and report raw queries, the Sales Transactions page and both CSV jobs,
+the Ops Dashboard per-site money endpoint, Warehouse Qty's machine counts and low-stock drill-down) — never read
+`$user->vends` to restrict a query again. Its modes: **ALL**; **ONLY** = the bind-a-machine list (`user_vend`, empty =
+all), for users on "All products"; **EXCEPT** = for a user on "Only the product(s) listed below", every machine but
+the ones switched to **No Show** (`user_hidden_vends`). User edit lists such a user's machines LIVE — active machines
+carrying their products now (`App\Services\Access\UserMachineVisibility`, the only writer of that table) plus any No
+Show one — each Show (default) / No Show, saved at once (`POST /users/{id}/machine-visibility`, `update users`). A
+deny-list on purpose: a product owner keeps the history of a machine that stopped carrying their product. Product-limited
+users ignore `user_vend`; the two such users bound on prod (test1, powerpop) were carried over to No Show rows on
+2026-10-27 so their view did not change. Regression coverage: `tests/Feature/UserMachineAccessLevelsTest.php`.
+
 `users` can never carry a global scope — auth, notifications and the driver
 APIs all read it unfiltered — so any user-picker has to apply the boundary
 itself, and several still don't. The "Assign Job(s)" driver dropdown

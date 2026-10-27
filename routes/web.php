@@ -1020,6 +1020,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/update', [UserController::class, 'update']);
         Route::post('/{id}/toggle-activate-deactivate', [UserController::class, 'toggleActivateDeactivate']);
         Route::delete('/{id}', [UserController::class, 'delete']);
+        Route::post('/{id}/machine-visibility', [UserController::class, 'setMachineVisibility'])->name('users.machine-visibility');
         Route::post('/bind-vend', [UserController::class, 'bindVend']);
         Route::post('/unbind-vend', [UserController::class, 'unbindVend']);
     });

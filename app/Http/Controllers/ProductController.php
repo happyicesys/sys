@@ -30,6 +30,7 @@ use App\Services\VendChannelService;
 use App\Services\VendTransactionSalesAggregator;
 use App\Services\VendTransactionService;
 use App\Support\ProductOwners;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -305,13 +306,15 @@ class ProductController extends Controller
     /**
      * Shared base for the "Available in # of VM" figures and the low-stock
      * drill-down: active channels of DEPLOYED machines, viewer boundary
-     * applied by hand (raw join to vends — see CLAUDE.md, operator isolation).
+     * applied by hand (raw join to vends — see CLAUDE.md, operator isolation):
+     * the operator, then the machines the viewer may see (VendAccess).
      */
     private function deployedVendChannelQuery(array $productIds)
     {
         return VendChannel::query()
             ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
             ->when(OperatorVendFilterScope::viewerOperatorId(), fn ($q, $operatorId) => $q->where('vends.operator_id', $operatorId))
+            ->tap(fn ($q) => VendAccess::current()->constrain($q, 'vends.id'))
             ->whereIn('vend_channels.product_id', $productIds)
             ->where('vend_channels.is_active', true)
             ->where('vends.is_active', true)

@@ -2,7 +2,7 @@
 
 namespace App\Models\Scopes;
 
-use App\Models\Vend;
+use App\Support\VendAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -55,22 +55,10 @@ class OperatorApkSettingScope implements Scope
             });
         }
 
-        $user = auth()->user();
-        $vendIds = $user->vends ? $user->vends->pluck('id')->toArray() : null;
-
-        if ($vendIds) {
-            // Ensure filtering by vends the user is associated with
-            $builder->whereHas('vends', function ($query) use ($vendIds) {
-                $query->whereIn('vends.id', $vendIds);
-            });
-            // Get customers linked to those vends
-            $customerIDs = Vend::whereIn('id', $vendIds)->pluck('customer_id')->toArray();
-
-            if ($customerIDs) {
-                $builder->whereHas('vends.customer', function ($query) use ($customerIDs) {
-                    $query->whereIn('customers.id', $customerIDs);
-                });
-            }
+        // A UI Setting with at least one machine this user may see.
+        $access = VendAccess::current();
+        if (! $access->isUnrestricted()) {
+            $builder->whereHas('vends', fn ($query) => $access->constrain($query, 'vends.id'));
         }
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Vend;
 use App\Models\VendTemp;
 use App\Support\SiteSearch;
+use App\Support\VendAccess;
 use App\Support\VendCode;
 use App\ValueObjects\ReportedApkVersion;
 use Carbon\Carbon;
@@ -55,10 +56,7 @@ trait HasFilter
                 });
             }
 
-            $vendIds = auth()->user()->vends ? auth()->user()->vends->pluck('id')->toArray() : null;
-            if ($vendIds != null) {
-                $query->whereIn('vends.id', $vendIds);
-            }
+            VendAccess::current()->constrain($query, 'vends.id');
         }
 
         return $query;
@@ -88,10 +86,7 @@ trait HasFilter
                 $query = $query->where($columnName, $operatorId);
             }
 
-            $vendIds = auth()->user()->vends?->pluck('id')->toArray();
-            if ($vendIds != null) {
-                $query->whereIn('vends.id', $vendIds);
-            }
+            VendAccess::current()->constrain($query, 'vends.id');
         }
 
         return $query;
@@ -109,10 +104,7 @@ trait HasFilter
                 $query = $query->where('operators.id', $operatorId);
             }
 
-            $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
-            if ($vendIds) {
-                $query->whereIn('vends.id', $vendIds);
-            }
+            VendAccess::current()->constrain($query, 'vends.id');
         }
 
         return $query;

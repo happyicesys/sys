@@ -118,6 +118,21 @@
 
               <AccessBindingSection
                 v-if="form.id && user"
+                :title="$t('Access Product(s)')"
+                :addLabel="$t('Product to Bind')"
+                itemNoun="product"
+                subjectNoun="user"
+                optionLabel="full_name"
+                :columns="productColumns"
+                :options="unbindedProductOptions"
+                :canEdit="permissions.includes('update users')"
+                :ceiling="operatorProductCeiling"
+                v-model="user.access_products"
+                v-model:mode="form.product_access_mode"
+              />
+
+              <AccessBindingSection
+                v-if="form.id && user && !productLimitedOnScreen"
                 :title="$t('Access Vending Machine(s)')"
                 :addLabel="$t('Vending Machine to Bind')"
                 :showMode="false"
@@ -130,19 +145,17 @@
                 v-model="user.vends"
               />
 
-              <AccessBindingSection
-                v-if="form.id && user"
-                :title="$t('Access Product(s)')"
-                :addLabel="$t('Product to Bind')"
-                itemNoun="product"
-                subjectNoun="user"
-                optionLabel="full_name"
-                :columns="productColumns"
-                :options="unbindedProductOptions"
+              <!--
+                Operator → products → machines (Brian, 2026-10-27). A product-limited
+                user's machines are the ones carrying their products live, each Show /
+                No Show; everyone else keeps the bind-a-machine list.
+              -->
+              <MachineVisibilitySection
+                v-if="form.id && user && productLimitedOnScreen"
+                :userId="form.id"
+                :machines="machineVisibility || []"
                 :canEdit="permissions.includes('update users')"
-                :ceiling="operatorProductCeiling"
-                v-model="user.access_products"
-                v-model:mode="form.product_access_mode"
+                :pendingSave="machineVisibility === null"
               />
 
               <!--
@@ -242,8 +255,9 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import AccessBindingSection from '@/Components/AccessBindingSection.vue';
+import MachineVisibilitySection from '@/Components/MachineVisibilitySection.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderPlusIcon, FolderMinusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -259,6 +273,9 @@ const props = defineProps({
   // null, or { operatorName, products: [{id, code, name}] } - the operator's
   // own "Access Product(s)" list, which caps whatever is chosen here.
   operatorProductCeiling: { type: Object, default: null },
+  // null unless the SAVED user is limited to a product list; else the machines
+  // carrying those products, each { id, code, site, products, is_active, is_shown, carries }.
+  machineVisibility: { type: Array, default: null },
   // null, or { operatorName, from: 'YYYY-MM-DD' } - the operator's own
   // "Transaction Access From", which this user's date may not go below.
   operatorTransactionFloor: { type: Object, default: null },
@@ -277,6 +294,8 @@ const permissions = usePage().props.auth.permissions
 const unbindedVendOptions = ref([])
 const unbindedProductOptions = ref([])
 const user = ref()
+// The machine section follows the product mode chosen on screen.
+const productLimitedOnScreen = computed(() => form.value?.product_access_mode === 'list')
 
 const vendColumns = [
   { key: 'code', label: t('Machine ID') },
