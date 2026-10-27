@@ -137,6 +137,42 @@ class UserMachineAccessLevelsTest extends TestCase
         $this->assertDatabaseMissing('user_hidden_vends', ['user_id' => $owner->id]);
     }
 
+    public function test_each_listed_machine_carries_prefix_start_date_and_l30d_sales(): void
+    {
+        [$vend, $site] = $this->machine(7001);
+        $prefixId = DB::table('vend_prefixes')->insertGetId(['name' => 'C-CEP2', 'operator_id' => 1]);
+        DB::table('vends')->where('id', $vend)->update([
+            'vend_prefix_id' => $prefixId,
+            'vend_transaction_totals_json' => json_encode(['thirty_days_amount' => 12345, 'thirty_days_count' => 67]),
+        ]);
+        DB::table('customers')->where('id', $site)->update(['begin_date' => '2026-09-12 00:00:00']);
+        // Not theirs, and outside the 30 days: neither counts in the SKU figure.
+        DB::table('vend_product_records')->insert([
+            ['vend_id' => $vend, 'product_id' => self::OTHER_PRODUCT, 'date' => now()->subDay()->toDateString(), 'total_amount' => 999, 'total_count' => 9],
+            ['vend_id' => $vend, 'product_id' => self::OWN_PRODUCT, 'date' => now()->subDays(40)->toDateString(), 'total_amount' => 999, 'total_count' => 9],
+        ]);
+        $owner = $this->productOwner();
+
+        $this->actingAs($this->admin(['read users']))->get("/users/{$owner->id}/edit")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('machineVisibility.0.prefix', 'C-CEP2')
+                ->where('machineVisibility.0.start_date', '2026-09-12')
+                ->where('machineVisibility.0.machine_l30d', ['amount' => 12345, 'count' => 67])
+                ->where('machineVisibility.0.sku_l30d', ['amount' => 300, 'count' => 2]));
+
+        // An editor limited to a product list never sees the whole-machine figure.
+        $limitedEditor = $this->admin(['read users']);
+        DB::table('users')->where('id', $limitedEditor->id)->update(['product_access_mode' => ProductAccess::MODE_LIST]);
+        DB::table('product_user')->insert(['user_id' => $limitedEditor->id, 'product_id' => self::OWN_PRODUCT]);
+        $limitedEditor = $limitedEditor->fresh();
+        ProductAccess::flush();
+
+        $this->actingAs($limitedEditor)->get("/users/{$owner->id}/edit")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('machineVisibility.0.machine_l30d', null)
+                ->where('machineVisibility.0.sku_l30d', ['amount' => 300, 'count' => 2]));
+    }
+
     public function test_a_hidden_machine_that_stopped_carrying_stays_listed_to_switch_back(): void
     {
         [$vend] = $this->machine(7001);

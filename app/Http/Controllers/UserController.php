@@ -597,7 +597,7 @@ class UserController extends Controller
             'show' => ['required', 'boolean'],
         ]);
 
-        $listed = collect($machineVisibility->listFor($user) ?? [])->pluck('id');
+        $listed = collect($machineVisibility->listFor($user, false) ?? [])->pluck('id');
         abort_unless($listed->contains((int) $data['vend_id']), 422, __('This machine is not on the list for this user.'));
 
         $machineVisibility->set($user, (int) $data['vend_id'], (bool) $data['show'], auth()->user());

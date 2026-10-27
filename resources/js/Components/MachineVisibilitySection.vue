@@ -35,29 +35,49 @@
               <thead class="bg-gray-50">
                 <tr>
                   <th scope="col" class="w-12 px-3 py-3 text-center text-sm font-semibold text-gray-900">#</th>
-                  <th scope="col" class="px-3 py-3 text-left text-sm font-semibold text-gray-900">{{ $t('Machine ID') }}</th>
-                  <th scope="col" class="px-3 py-3 text-left text-sm font-semibold text-gray-900">{{ $t('Site') }}</th>
-                  <th scope="col" class="px-3 py-3 text-left text-sm font-semibold text-gray-900">{{ $t('Their products here') }}</th>
-                  <th scope="col" class="w-48 px-3 py-3 text-center text-sm font-semibold text-gray-900">{{ $t('Visibility') }}</th>
+                  <th
+                    v-for="col in columns"
+                    :key="col.key"
+                    scope="col"
+                    class="px-3 py-3 text-sm font-semibold text-gray-900"
+                    :class="[col.align === 'right' ? 'text-right' : (col.align === 'center' ? 'text-center' : 'text-left'), col.width || '']"
+                    :aria-sort="sortKey === col.key ? (sortAsc ? 'ascending' : 'descending') : 'none'"
+                  >
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-0.5 text-blue-600 hover:text-blue-800"
+                      @click="sortBy(col.key)"
+                    >
+                      {{ $t(col.label) }}
+                      <svg v-if="sortKey === col.key" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path v-if="sortAsc" stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                        <path v-else stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-if="!rows.length">
-                  <td colspan="5" class="px-3 py-4 text-center text-sm text-gray-500">
+                  <td :colspan="columns.length + 1" class="px-3 py-4 text-center text-sm text-gray-500">
                     {{ $t('No machine carries these products right now.') }}
                   </td>
                 </tr>
-                <tr v-for="(row, rowIndex) in rows" :key="row.id" :class="[rowIndex % 2 === 0 ? undefined : 'bg-gray-50', row.is_shown ? '' : 'text-gray-400']">
+                <tr v-for="(row, rowIndex) in sortedRows" :key="row.id" :class="[rowIndex % 2 === 0 ? undefined : 'bg-gray-50', row.is_shown ? '' : 'text-gray-400']">
                   <td class="whitespace-nowrap px-3 py-3 text-sm text-center">{{ rowIndex + 1 }}</td>
                   <td class="whitespace-nowrap px-3 py-3 text-sm font-semibold" :class="row.is_shown ? 'text-gray-900' : ''">
                     {{ row.code }}
                     <span v-if="!row.is_active" class="ml-1 rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-600">{{ $t('Inactive') }}</span>
                   </td>
+                  <td class="whitespace-nowrap px-3 py-3 text-sm">{{ row.prefix || '—' }}</td>
                   <td class="px-3 py-3 text-sm">{{ row.site || '—' }}</td>
+                  <td class="whitespace-nowrap px-3 py-3 text-sm text-right tabular-nums">{{ salesText(row.machine_l30d) }}</td>
                   <td class="px-3 py-3 text-sm">
                     <template v-if="row.carries">{{ row.products.join(', ') }}</template>
                     <span v-else class="italic">{{ $t('No longer carries their products') }}</span>
                   </td>
+                  <td class="whitespace-nowrap px-3 py-3 text-sm tabular-nums">{{ row.start_date || '—' }}</td>
+                  <td class="whitespace-nowrap px-3 py-3 text-sm text-right tabular-nums">{{ salesText(row.sku_l30d) }}</td>
                   <td class="whitespace-nowrap px-3 py-2 text-sm text-center">
                     <div class="inline-flex rounded-md shadow-sm" role="group">
                       <button
@@ -93,7 +113,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
-import { t } from '@/i18n'
+import { usePage } from '@inertiajs/vue3'
+import { t, tk } from '@/i18n'
 
 const props = defineProps({
   userId: { type: [Number, String], required: true },
@@ -110,6 +131,73 @@ watch(() => props.machines, (machines) => { rows.value = [...machines] })
 const busyId = ref(null)
 const error = ref('')
 const shownCount = computed(() => rows.value.filter((row) => row.is_shown).length)
+
+// Sortable headers (Brian, 2026-10-27). Client-side: the list is one machine set,
+// already complete. The sort survives a Show / No Show save, which replaces rows.
+const columns = [
+  { key: 'code', label: tk('Machine ID') },
+  { key: 'prefix', label: tk('Prefix') },
+  { key: 'site', label: tk('Site') },
+  { key: 'machine_l30d', label: tk('Machine L30d Sales'), align: 'right' },
+  { key: 'products', label: tk('Their products here') },
+  { key: 'start_date', label: tk('Start Date') },
+  { key: 'sku_l30d', label: tk('SKU L30d Sales'), align: 'right' },
+  { key: 'is_shown', label: tk('Visibility'), align: 'center', width: 'w-48' },
+]
+// Figures sort biggest first on the first click; text and dates A–Z / oldest first.
+const DESC_FIRST = ['machine_l30d', 'sku_l30d']
+
+const sortKey = ref('code')
+const sortAsc = ref(true)
+
+function sortBy(key) {
+  if (sortKey.value === key) {
+    sortAsc.value = !sortAsc.value
+  } else {
+    sortKey.value = key
+    sortAsc.value = !DESC_FIRST.includes(key)
+  }
+}
+
+function sortValue(row, key) {
+  switch (key) {
+    case 'code': return row.code
+    case 'machine_l30d':
+    case 'sku_l30d': return row[key] ? row[key].amount : null
+    case 'products': return row.carries ? row.products.join(', ') : null
+    case 'is_shown': return row.is_shown ? 1 : 0
+    default: return row[key] || null
+  }
+}
+
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+const sortedRows = computed(() => {
+  const key = sortKey.value
+  const dir = sortAsc.value ? 1 : -1
+  return [...rows.value].sort((a, b) => {
+    const va = sortValue(a, key)
+    const vb = sortValue(b, key)
+    // Blanks always last, whichever way.
+    if (va === null && vb === null) return collator.compare(a.code, b.code)
+    if (va === null) return 1
+    if (vb === null) return -1
+    const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : collator.compare(String(va), String(vb))
+    return cmp !== 0 ? cmp * dir : collator.compare(a.code, b.code)
+  })
+})
+
+const operatorCountry = usePage().props.auth?.operatorCountry
+function salesText(figure) {
+  if (!figure) return '—'
+  const exponent = operatorCountry?.currency_exponent ?? 2
+  const symbol = operatorCountry?.currency_symbol ?? '$'
+  const amount = (figure.amount / Math.pow(10, exponent)).toLocaleString(undefined, {
+    minimumFractionDigits: operatorCountry?.is_currency_exponent_hidden ? 0 : exponent,
+    maximumFractionDigits: operatorCountry?.is_currency_exponent_hidden ? 0 : exponent,
+  })
+  return `${symbol}${amount} (${figure.count.toLocaleString()})`
+}
 
 async function setShown(row, show) {
   if (!props.canEdit) return

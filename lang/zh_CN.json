@@ -5823,5 +5823,7 @@
     "🔁 Re-match Order ID": "🔁 重新匹配订单 ID",
     "🔗 Auto-matched": "🔗 自动匹配",
     "🔗 Match Order ID": "🔗 匹配订单 ID",
-    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）"
+    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）",
+    "Machine L30d Sales": "机器近 30 天销售",
+    "SKU L30d Sales": "SKU 近 30 天销售"
 }

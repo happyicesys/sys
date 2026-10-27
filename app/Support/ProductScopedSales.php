@@ -274,6 +274,58 @@ class ProductScopedSales
                 : null;
     }
 
+    /**
+     * Last-30-days sales of the GIVEN products per machine — the same window and
+     * sources as warmFor()'s thirty_days_* (29 completed days from
+     * vend_product_records + live today), but for an explicit product list rather
+     * than the viewer's own. User edit uses it to show what a product-limited user's
+     * SKUs sold at each machine on their list (Brian, 2026-10-27), so no viewer
+     * floor is applied: the editor sees the figure as it stands.
+     *
+     * Throws on a query failure; the caller decides whether to blank the column.
+     *
+     * @param  array<int, int>  $vendIds
+     * @param  array<int, int>  $productIds
+     * @return array<int, array{amount: int, count: int}> keyed by vend id; every asked id present
+     */
+    public static function thirtyDaysFor(array $vendIds, array $productIds): array
+    {
+        $vendIds = array_values(array_unique(array_map('intval', $vendIds)));
+        $out = array_fill_keys($vendIds, ['amount' => 0, 'count' => 0]);
+
+        if ($vendIds === [] || $productIds === []) {
+            return $out;
+        }
+
+        $productIds = array_values(array_unique(array_map('intval', $productIds)));
+        $today = Carbon::today();
+        $todayDate = $today->toDateString();
+
+        $rolled = self::rolledUp(
+            $vendIds,
+            $productIds,
+            $todayDate,
+            $today->copy()->subDay()->toDateString(),
+            $today->copy()->subDays(7)->toDateString(),
+            $today->copy()->subDays(29)->toDateString(),
+        );
+        $todayRows = self::today($vendIds, $productIds, $today->toDateTimeString());
+        $todaySingleRows = self::todaySingles($vendIds, $productIds, $today->toDateTimeString());
+
+        foreach ($vendIds as $id) {
+            $r = $rolled[$id] ?? null;
+            $t = $todayRows[$id] ?? null;
+            $ts = $todaySingleRows[$id] ?? null;
+
+            $out[$id] = [
+                'amount' => (int) ($r->d30_amount ?? 0) + (int) ($t->amount ?? 0) + (int) ($ts->amount ?? 0),
+                'count' => (int) ($r->d30_count ?? 0) + (int) ($t->qty ?? 0) + (int) ($ts->qty ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
     /** Reset between requests/tests, and for long-lived workers. */
     public static function flush(): void
     {
