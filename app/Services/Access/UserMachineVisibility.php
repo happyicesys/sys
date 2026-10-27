@@ -28,11 +28,11 @@ class UserMachineVisibility
 {
     /**
      * Each row also carries the figures the table shows beside it (Brian, 2026-10-27:
-     * Prefix, Machine L30d sales, Start date, SKU L30d sales) unless $withFigures is
+     * Prefix, Machine L30d sales, SKU start date, SKU L30d sales) unless $withFigures is
      * false — the visibility POST checks membership with the bare list.
      *
-     * @return array<int, array{id: int, code: string, prefix: ?string, site: ?string, start_date: ?string, products: array<int, string>, is_active: bool, is_shown: bool, carries: bool, machine_l30d: ?array{amount: int, count: int}, sku_l30d: ?array{amount: int, count: int}}>|null
-     *                                                                                                                                                                                                                                                                                    null when the user is not limited to a product list
+     * @return array<int, array{id: int, code: string, prefix: ?string, site: ?string, sku_start_date: ?string, sku_start_dates: array<string, string>, products: array<int, string>, is_active: bool, is_shown: bool, carries: bool, machine_l30d: ?array{amount: int, count: int}, sku_l30d: ?array{amount: int, count: int}}>|null
+     *                                                                                                                                                                                                                                                                                                                                null when the user is not limited to a product list
      */
     public function listFor(User $user, bool $withFigures = true): ?array
     {
@@ -66,7 +66,7 @@ class UserMachineVisibility
                 ->orWhereIn('vends.id', $hidden ?: [0]))
             ->selectRaw(VendCode::sqlLabel().' as code_label')
             ->addSelect('vends.id', 'vends.code', 'vends.is_active', 'customers.name as site_name')
-            ->addSelect('vend_prefixes.name as prefix_name', 'customers.begin_date as site_begin_date', 'vends.vend_transaction_totals_json');
+            ->addSelect('vend_prefixes.name as prefix_name', 'vends.vend_transaction_totals_json');
 
         // The machines this user could see at all: their own operator's, or every
         // operator's for HappyIce — and never more than the editor may see.
@@ -79,6 +79,7 @@ class UserMachineVisibility
 
         $vends = $query->orderBy('vends.code')->get();
         $figures = $withFigures ? $this->figures($vends, $productIds) : null;
+        $skuStarts = $withFigures ? $this->skuStartDates($vends->pluck('id')->map(fn ($id) => (int) $id)->all(), $productIds) : [];
 
         return $vends
             ->map(fn ($vend) => [
@@ -87,8 +88,10 @@ class UserMachineVisibility
                 // vend_prefixes.name, as Sales Transactions and Warehouse Qty show it.
                 'prefix' => $vend->prefix_name,
                 'site' => $vend->site_name,
-                // The Site's Begin Dt, as the Operation Dashboard shows it.
-                'start_date' => $vend->site_begin_date ? Carbon::parse($vend->site_begin_date)->toDateString() : null,
+                // When each of their products went into this machine (skuStartDates);
+                // the earliest one sorts the column.
+                'sku_start_dates' => $skuStarts[(int) $vend->id] ?? [],
+                'sku_start_date' => isset($skuStarts[(int) $vend->id]) ? min($skuStarts[(int) $vend->id]) : null,
                 'products' => $carrying->get($vend->id, []),
                 'is_active' => (bool) $vend->is_active,
                 'is_shown' => ! in_array((int) $vend->id, $hidden, true),
@@ -167,6 +170,76 @@ class UserMachineVisibility
         UserLogger::recordChanges($user, ['hidden_vend_ids' => [$before, $this->hiddenIds($user)]]);
 
         VendAccess::flush($user->id);
+    }
+
+    /**
+     * When each product went into each machine (Brian, 2026-10-27: "when this SKU
+     * start in the machine", not the Site's begin date) — the start of its CURRENT
+     * stay: the first completed refill visit that carried it after the last visit
+     * that did not. A visit lists every slot of the machine with its product
+     * (ops_job_item_channels; prod 2026-10: 17–19 rows a visit, none partial), so a
+     * visit without the product means it was out; a changeover visit lists the
+     * arriving product (is_upcoming_product) and so counts as in. No visit since it
+     * came back (a planogram edit with no refill yet) = no date.
+     *
+     * @param  array<int, int>  $vendIds
+     * @param  array<int, int>  $productIds
+     * @return array<int, array<string, string>> vend id => product code => Y-m-d
+     */
+    private function skuStartDates(array $vendIds, array $productIds): array
+    {
+        if ($vendIds === [] || $productIds === []) {
+            return [];
+        }
+
+        // Completed visits that recorded the machine's slots, oldest first.
+        $visits = DB::table('ops_job_items')
+            ->whereIn('vend_id', $vendIds)
+            ->whereNotNull('completed_at')
+            ->whereNull('cancelled_at')
+            ->whereExists(fn ($q) => $q->selectRaw('1')->from('ops_job_item_channels')->whereColumn('ops_job_item_channels.ops_job_item_id', 'ops_job_items.id'))
+            ->orderBy('completed_at')
+            ->orderBy('id')
+            ->get(['id', 'vend_id', 'completed_at'])
+            ->groupBy('vend_id');
+
+        // Which of those visits carried which of the products.
+        $carried = DB::table('ops_job_item_channels')
+            ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->whereIn('ops_job_item_channels.product_id', $productIds)
+            ->whereIn('ops_job_items.vend_id', $vendIds)
+            ->whereNotNull('ops_job_items.completed_at')
+            ->whereNull('ops_job_items.cancelled_at')
+            ->select('ops_job_items.id as item_id', 'ops_job_item_channels.product_id')
+            ->distinct()
+            ->get()
+            ->groupBy('product_id')
+            ->map(fn ($rows) => $rows->pluck('item_id')->map(fn ($id) => (int) $id)->flip());
+
+        $codes = DB::table('products')->whereIn('id', $carried->keys()->all())->pluck('code', 'id');
+
+        $starts = [];
+        foreach ($visits as $vendId => $vendVisits) {
+            foreach ($carried as $productId => $itemIds) {
+                $start = null;
+                foreach ($vendVisits as $visit) {
+                    if ($itemIds->has((int) $visit->id)) {
+                        $start ??= $visit->completed_at;
+                    } else {
+                        $start = null;
+                    }
+                }
+                if ($start !== null && isset($codes[$productId])) {
+                    $starts[(int) $vendId][$codes[$productId]] = Carbon::parse($start)->toDateString();
+                }
+            }
+        }
+
+        foreach ($starts as &$byCode) {
+            ksort($byCode);
+        }
+
+        return $starts;
     }
 
     /** @return array<int, int> */

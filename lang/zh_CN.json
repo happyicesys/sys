@@ -2903,6 +2903,7 @@
     "Machine Key No": "机器钥匙编号",
     "Machine L24h": "机器近 24 小时",
     "Machine L24h # of RF": "机器近 24 小时退款申请数",
+    "Machine L30d Sales": "机器近 30 天销售",
     "Machine Limit": "机器数量上限",
     "Machine Log": "机器日志",
     "Machine log": "机器日志",
@@ -4749,7 +4750,9 @@
     "skipped — :reason": "已跳过 — :reason",
     "SKIPPED, :count already synced": "已跳过，:count 条已同步",
     "SKU": "SKU",
+    "SKU L30d Sales": "SKU 近 30 天销售",
     "SKU name": "SKU 名称",
+    "SKU Start Date": "SKU 上架日期",
     "Sky": "天蓝色",
     "Slot :code is currently bound to \":name\". Remove the binding and shrink this basket?": "货位 :code 目前绑定了“:name”。要解除绑定并缩减此篮吗？",
     "Slot :slot · :price (was :was)": "时段 :slot · :price（原价 :was）",
@@ -5823,7 +5826,5 @@
     "🔁 Re-match Order ID": "🔁 重新匹配订单 ID",
     "🔗 Auto-matched": "🔗 自动匹配",
     "🔗 Match Order ID": "🔗 匹配订单 ID",
-    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）",
-    "Machine L30d Sales": "机器近 30 天销售",
-    "SKU L30d Sales": "SKU 近 30 天销售"
+    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）"
 }

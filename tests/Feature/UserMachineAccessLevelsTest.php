@@ -137,7 +137,7 @@ class UserMachineAccessLevelsTest extends TestCase
         $this->assertDatabaseMissing('user_hidden_vends', ['user_id' => $owner->id]);
     }
 
-    public function test_each_listed_machine_carries_prefix_start_date_and_l30d_sales(): void
+    public function test_each_listed_machine_carries_prefix_and_l30d_sales(): void
     {
         [$vend, $site] = $this->machine(7001);
         $prefixId = DB::table('vend_prefixes')->insertGetId(['name' => 'C-CEP2', 'operator_id' => 1]);
@@ -156,7 +156,8 @@ class UserMachineAccessLevelsTest extends TestCase
         $this->actingAs($this->admin(['read users']))->get("/users/{$owner->id}/edit")
             ->assertInertia(fn (Assert $page) => $page
                 ->where('machineVisibility.0.prefix', 'C-CEP2')
-                ->where('machineVisibility.0.start_date', '2026-09-12')
+                // The Site's begin date is NOT the SKU's start; no refill loaded it yet.
+                ->where('machineVisibility.0.sku_start_date', null)
                 ->where('machineVisibility.0.machine_l30d', ['amount' => 12345, 'count' => 67])
                 ->where('machineVisibility.0.sku_l30d', ['amount' => 300, 'count' => 2]));
 
@@ -214,6 +215,46 @@ class UserMachineAccessLevelsTest extends TestCase
         $access = VendAccess::forUser($owner->fresh());
         $this->assertTrue($access->allows($bound));
         $this->assertFalse($access->allows($unbound));
+    }
+
+    public function test_sku_start_date_is_when_the_current_stay_of_each_product_began(): void
+    {
+        [$vend, $site] = $this->machine(7001);
+        $owner = $this->productOwner();
+        DB::table('product_user')->insert(['user_id' => $owner->id, 'product_id' => self::OTHER_PRODUCT]);
+
+        // OWN: in on 08-01, out on 08-10, back on 09-05 → its stay began 09-05.
+        // OTHER: in on every visit since 08-01 → 08-01. A cancelled visit and an
+        // unfinished one say nothing.
+        $this->visit($vend, $site, '2026-08-01 10:00:00', [self::OWN_PRODUCT, self::OTHER_PRODUCT]);
+        $this->visit($vend, $site, '2026-08-10 10:00:00', [self::OTHER_PRODUCT]);
+        $this->visit($vend, $site, '2026-09-05 23:30:00', [self::OWN_PRODUCT, self::OTHER_PRODUCT]);
+        $this->visit($vend, $site, '2026-09-20 10:00:00', [self::OWN_PRODUCT, self::OTHER_PRODUCT]);
+        $this->visit($vend, $site, '2026-09-25 10:00:00', [self::OTHER_PRODUCT], cancelled: true);
+        $this->visit($vend, $site, null, [self::OTHER_PRODUCT]);
+
+        $this->actingAs($this->admin(['read users']))->get("/users/{$owner->id}/edit")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('machineVisibility.0.sku_start_dates', ['OK-01' => '2026-09-05', 'ZZ-99' => '2026-08-01'])
+                ->where('machineVisibility.0.sku_start_date', '2026-08-01'));
+    }
+
+    /** A refill visit listing the machine's slots with these products. */
+    private function visit(int $vendId, int $siteId, ?string $completedAt, array $productIds, bool $cancelled = false): void
+    {
+        $jobId = DB::table('ops_jobs')->insertGetId(['code' => random_int(100000, 999999), 'date' => now()->toDateString(), 'status' => 1, 'operator_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
+        $itemId = DB::table('ops_job_items')->insertGetId([
+            'ops_job_id' => $jobId, 'vend_id' => $vendId, 'customer_id' => $siteId, 'status' => 1,
+            'completed_at' => $completedAt, 'cancelled_at' => $cancelled ? $completedAt : null,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        foreach (array_values($productIds) as $i => $productId) {
+            DB::table('ops_job_item_channels')->insert([
+                'ops_job_id' => $jobId, 'ops_job_item_id' => $itemId, 'product_id' => $productId,
+                'vend_channel_code' => 11 + $i, 'vend_code' => 7001, 'qty' => 0, 'actual_qty' => 3, 'capacity' => 10,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
     }
 
     private function productOwner(): User

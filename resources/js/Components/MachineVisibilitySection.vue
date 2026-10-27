@@ -76,7 +76,14 @@
                     <template v-if="row.carries">{{ row.products.join(', ') }}</template>
                     <span v-else class="italic">{{ $t('No longer carries their products') }}</span>
                   </td>
-                  <td class="whitespace-nowrap px-3 py-3 text-sm tabular-nums">{{ row.start_date || '—' }}</td>
+                  <td class="whitespace-nowrap px-3 py-3 text-sm tabular-nums">
+                    <template v-if="skuStartLines(row).length > 1">
+                      <div v-for="line in skuStartLines(row)" :key="line.code">
+                        <span class="text-gray-500">{{ line.code }}</span> {{ line.date }}
+                      </div>
+                    </template>
+                    <template v-else>{{ row.sku_start_date || '—' }}</template>
+                  </td>
                   <td class="whitespace-nowrap px-3 py-3 text-sm text-right tabular-nums">{{ salesText(row.sku_l30d) }}</td>
                   <td class="whitespace-nowrap px-3 py-2 text-sm text-center">
                     <div class="inline-flex rounded-md shadow-sm" role="group">
@@ -140,7 +147,9 @@ const columns = [
   { key: 'site', label: tk('Site') },
   { key: 'machine_l30d', label: tk('Machine L30d Sales'), align: 'right' },
   { key: 'products', label: tk('Their products here') },
-  { key: 'start_date', label: tk('Start Date') },
+  // When their products went into the machine (first refill that loaded them),
+  // not the Site's begin date. Sorts on the earliest.
+  { key: 'sku_start_date', label: tk('SKU Start Date') },
   { key: 'sku_l30d', label: tk('SKU L30d Sales'), align: 'right' },
   { key: 'is_shown', label: tk('Visibility'), align: 'center', width: 'w-48' },
 ]
@@ -168,6 +177,13 @@ function sortValue(row, key) {
     case 'is_shown': return row.is_shown ? 1 : 0
     default: return row[key] || null
   }
+}
+
+// One date when every product went in on the same day, else a line per product.
+function skuStartLines(row) {
+  const dates = row.sku_start_dates || {}
+  if (new Set(Object.values(dates)).size <= 1) return []
+  return Object.entries(dates).map(([code, date]) => ({ code, date }))
 }
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
