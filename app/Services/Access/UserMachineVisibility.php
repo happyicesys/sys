@@ -203,16 +203,15 @@ class UserMachineVisibility
             ->get(['id', 'vend_id', 'completed_at'])
             ->groupBy('vend_id');
 
-        // Which of those visits carried which of the products.
-        $carried = DB::table('ops_job_item_channels')
-            ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-            ->whereIn('ops_job_item_channels.product_id', $productIds)
-            ->whereIn('ops_job_items.vend_id', $vendIds)
-            ->whereNotNull('ops_job_items.completed_at')
-            ->whereNull('ops_job_items.cancelled_at')
-            ->select('ops_job_items.id as item_id', 'ops_job_item_channels.product_id')
-            ->distinct()
-            ->get()
+        // Which of those visits carried which of the products: by visit id on the
+        // (product_id, ops_job_item_id) index — joining back to ops_job_items by
+        // vend took 2.4 s for a 607-machine list on prod, this 0.9 s.
+        $carried = collect($visits->flatten(1)->pluck('id')->chunk(5000))
+            ->flatMap(fn ($chunk) => DB::table('ops_job_item_channels')
+                ->whereIn('product_id', $productIds)
+                ->whereIn('ops_job_item_id', $chunk->all())
+                ->distinct()
+                ->get(['ops_job_item_id as item_id', 'product_id']))
             ->groupBy('product_id')
             ->map(fn ($rows) => $rows->pluck('item_id')->map(fn ($id) => (int) $id)->flip());
 
