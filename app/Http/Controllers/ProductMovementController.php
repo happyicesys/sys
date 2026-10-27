@@ -16,6 +16,7 @@ use App\Models\ProductMovement;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Services\BlindPlanningService;
 use App\Services\VendTransactionSalesAggregator;
+use App\Support\ProductOwners;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -606,8 +607,9 @@ class ProductMovementController extends Controller
         if ($request->operators == null) {
             // Default = All (Brian, 2026-08-20): the self-system ledger spans
             // operators (CityBox SKUs sit under CB, not in the HIPL group).
-            // Non-HIPL users are still pinned to their own operator by
-            // OperatorProductFilterScope, so 'all' never widens their view.
+            // Non-HIPL users are still pinned by OperatorProductFilterScope (their
+            // own operator's products, plus HIPL's inside HIPL's group), so 'all'
+            // never widens their view.
             $request->merge(['operators' => ['all']]);
         }
 
@@ -640,7 +642,7 @@ class ProductMovementController extends Controller
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
                 if (! in_array('all', $search)) {
-                    $query->whereIn('operator_id', $search);
+                    $query->whereIn('operator_id', app(ProductOwners::class)->forSelection($search));
                 }
             })
             ->when($request->product_code, function ($query, $search) {

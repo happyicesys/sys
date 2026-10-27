@@ -29,6 +29,7 @@ use App\Services\TagBindingService;
 use App\Services\VendChannelService;
 use App\Services\VendTransactionSalesAggregator;
 use App\Services\VendTransactionService;
+use App\Support\ProductOwners;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -503,7 +504,7 @@ class ProductController extends Controller
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
                 if (! in_array('all', $search)) {
-                    $query->whereIn('operator_id', $search);
+                    $query->whereIn('operator_id', app(ProductOwners::class)->forSelection($search));
                 }
             })
             ->when($request->product_code, function ($query, $search) {
@@ -828,7 +829,7 @@ class ProductController extends Controller
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
                 if (! in_array('all', $search)) {
-                    $query->whereIn('operator_id', $search);
+                    $query->whereIn('operator_id', app(ProductOwners::class)->forSelection($search));
                 }
             })
             ->when($request->product_code, fn ($q, $s) => $q->where('code', 'LIKE', "%{$s}%"))

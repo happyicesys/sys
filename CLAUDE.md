@@ -216,6 +216,15 @@ means the card and the grid are drawn from different populations, and the card
 is almost always the one that has escaped the boundary. Regression coverage:
 `tests/Feature/OperatorScopeLeakTest.php`.
 
+**Products follow the operator group, parent only** (Brian, 2026-10-27). A product belongs to one operator
+(`products.operator_id`), but HIPL's group sells HIPL's catalogue — HIMD owns no product at all. So a member of
+`PARENT_GROUP_CODES` works with its OWN products plus HIPL's, never another member's (CB / XO / LEA / MSW
+catalogues stay apart); anyone outside the group with its own; HIPL sees every product.
+`App\Support\ProductOwners` (scoped, memoised per request) is the one rule: `OperatorProductFilterScope`, every
+Operator filter on a product list (Products index, Warehouse Qty + export, Product Movement — picking HIMD lists
+HIPL's products) and the Access Product(s) lists on User / Operator edit read it. The user's own product allow-list
+(`ProductAccess`) still narrows on top. Regression coverage: `tests/Feature/ProductOperatorGroupVisibilityTest.php`.
+
 `users` can never carry a global scope — auth, notifications and the driver
 APIs all read it unfiltered — so any user-picker has to apply the boundary
 itself, and several still don't. The "Assign Job(s)" driver dropdown

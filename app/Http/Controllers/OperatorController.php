@@ -25,6 +25,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vend;
 use App\Support\ProductAccess;
+use App\Support\ProductOwners;
 use App\Support\SiteSearch;
 use App\Support\VendCode;
 use App\Traits\HasFilter;
@@ -298,7 +299,7 @@ class OperatorController extends Controller
             // full range here. Operator ownership scoping stays on.
             'unbindedProducts' => fn () => ProductResource::collection(
                 Product::withoutGlobalScope(ProductAccessProductScope::class)
-                    ->where('products.operator_id', $id)
+                    ->whereIn('products.operator_id', app(ProductOwners::class)->of((int) $id))
                     ->where('is_active', true)
                     ->orderBy('code')
                     ->get(['id', 'code', 'name'])
@@ -508,7 +509,7 @@ class OperatorController extends Controller
                 ->map(fn ($id) => (int) $id);
 
             $grantableProductIds = Product::withoutGlobalScopes()
-                ->where('operator_id', $operator->id)
+                ->whereIn('operator_id', app(ProductOwners::class)->of((int) $operator->id))
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id);
 

@@ -65,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(\App\Services\CardSettlement\Payout\BankingCalendar::class);
         $this->app->scoped(\App\Services\CardSettlement\Payout\SettlementPayoutResolver::class);
 
+        // Whose products an operator works with: asked by Product's global scope on
+        // every product query, so memoised per request / job (scoped, see the class).
+        $this->app->scoped(\App\Support\ProductOwners::class);
+
         // Stock check "sync": one strategy per machine kind, first match wins.
         // A new machine kind that owns its stock differently is one more entry.
         $this->app->when(\App\Services\StockCheck\StockCheckService::class)

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorProductFilterScope;
 use App\Models\Scopes\ProductAccessProductScope;
+use App\Support\ProductOwners;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -357,9 +358,8 @@ class Product extends Model
             })
             ->when($request->operator_id, function ($query, $search) {
                 if ($search != 'all') {
-                    $query->whereHas('operator', function ($query) use ($search) {
-                        $query->where('operators.id', $search);
-                    });
+                    // The products that operator works with (its own, plus HIPL's for HIPL's group).
+                    $query->whereIn('products.operator_id', app(ProductOwners::class)->forSelection([$search]));
                 }
             })
             ->when($request->code, function ($query, $search) {

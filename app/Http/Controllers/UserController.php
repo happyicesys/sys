@@ -16,6 +16,7 @@ use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\User;
 use App\Models\Vend;
 use App\Support\ProductAccess;
+use App\Support\ProductOwners;
 use App\Support\TransactionAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -282,7 +283,7 @@ class UserController extends Controller
             // explicit operator_id filter), and update() re-clamps server-side.
             'unbindedProducts' => fn () => ProductResource::collection(
                 Product::withoutGlobalScope(ProductAccessProductScope::class)
-                    ->where('products.operator_id', $user->operator_id)
+                    ->whereIn('products.operator_id', app(ProductOwners::class)->of((int) $user->operator_id))
                     ->where('is_active', true)
                     ->when($productCeiling !== null, fn ($query) => $query->whereIn('products.id', $productCeiling))
                     ->orderBy('code')
@@ -486,7 +487,7 @@ class UserController extends Controller
                 ->map(fn ($id) => (int) $id);
 
             $grantableProductIds = Product::withoutGlobalScopes()
-                ->where('operator_id', $originalOperatorId)
+                ->whereIn('operator_id', app(ProductOwners::class)->of((int) $originalOperatorId))
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id);
 

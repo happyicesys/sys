@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Support\ProductOwners;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -9,27 +10,28 @@ use Illuminate\Database\Eloquent\Scope;
 class OperatorProductFilterScope implements Scope
 {
     /**
-     * Apply the scope to a given Eloquent query builder.
+     * HIPL (operator 1) sees every product. Anyone else sees the products their
+     * operator works with: its own, plus HIPL's for a member of HIPL's group
+     * (Brian, 2026-10-27 — HIMD owns none and sells HIPL's) — App\Support\ProductOwners.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $builder
-     * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return void
      */
     public function apply(Builder $builder, Model $model)
     {
-      if(auth()->check()) {
-        $operatorId = auth()->user()->operator_id;
-        $isHappyIce = $operatorId == 1 ? true : false;
-        if($isHappyIce) {
-          $operatorId = null;
+        if (! auth()->check()) {
+            return;
         }
-        if($operatorId) {
-          // Qualified with the table name on purpose: this scope is registered on
-          // Product, and any Product:: query that joins another table carrying an
-          // operator_id column (vends, customers, operators, ...) would otherwise
-          // die with "Column 'operator_id' in where clause is ambiguous".
-          $builder->where($model->getTable() . '.operator_id', $operatorId);
+
+        $operatorId = (int) auth()->user()->operator_id;
+
+        if (! $operatorId || $operatorId === 1) {
+            return;
         }
-      }
+
+        // Qualified with the table name on purpose: this scope is registered on
+        // Product, and any Product:: query that joins another table carrying an
+        // operator_id column (vends, customers, operators, ...) would otherwise
+        // die with "Column 'operator_id' in where clause is ambiguous".
+        $builder->whereIn($model->getTable().'.operator_id', app(ProductOwners::class)->of($operatorId));
     }
 }
