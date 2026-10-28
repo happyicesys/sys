@@ -411,6 +411,8 @@
     "> 90 mins": "> 90 分钟",
     ">Refillable $: # of VM": ">可补货金额 $：机器数",
     "? The lid will unlock": "的门吗？柜盖解锁时间：",
+    "SKU L7d Sales $ (Qty)": "此商品近 7 天销售额（数量）",
+    "VM L30d Sales": "机器近 30 天销售额",
     "a": "标为",
     "A = Less than 1 week": "A = 少于 1 周",
     "A = Low/Free parking and easy access": "A = 停车便宜/免费，进出方便",

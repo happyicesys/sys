@@ -290,8 +290,27 @@ class ProductScopedSales
      */
     public static function thirtyDaysFor(array $vendIds, array $productIds): array
     {
+        return array_map(
+            fn ($w) => ['amount' => $w['thirty_days_amount'], 'count' => $w['thirty_days_count']],
+            self::windowsFor($vendIds, $productIds),
+        );
+    }
+
+    /**
+     * Last-7 and last-30-days sales of the GIVEN products per machine, the same windows and sources as
+     * warmFor()'s seven_days_* / thirty_days_* (completed days from vend_product_records + live today). Used by
+     * thirtyDaysFor() and by the Warehouse "Machines with stock" list's SKU L7d column (Brian, 2026-10-27).
+     * No viewer floor, like thirtyDaysFor(). Throws on a query failure. Keyed by vend id; every asked id present.
+     *
+     * @param  array<int, int>  $vendIds
+     * @param  array<int, int>  $productIds
+     * @return array<int, array{seven_days_amount: int, seven_days_count: int, thirty_days_amount: int, thirty_days_count: int}>
+     */
+    public static function windowsFor(array $vendIds, array $productIds): array
+    {
         $vendIds = array_values(array_unique(array_map('intval', $vendIds)));
-        $out = array_fill_keys($vendIds, ['amount' => 0, 'count' => 0]);
+        $zero = ['seven_days_amount' => 0, 'seven_days_count' => 0, 'thirty_days_amount' => 0, 'thirty_days_count' => 0];
+        $out = array_fill_keys($vendIds, $zero);
 
         if ($vendIds === [] || $productIds === []) {
             return $out;
@@ -316,10 +335,14 @@ class ProductScopedSales
             $r = $rolled[$id] ?? null;
             $t = $todayRows[$id] ?? null;
             $ts = $todaySingleRows[$id] ?? null;
+            $todayAmount = (int) ($t->amount ?? 0) + (int) ($ts->amount ?? 0);
+            $todayCount = (int) ($t->qty ?? 0) + (int) ($ts->qty ?? 0);
 
             $out[$id] = [
-                'amount' => (int) ($r->d30_amount ?? 0) + (int) ($t->amount ?? 0) + (int) ($ts->amount ?? 0),
-                'count' => (int) ($r->d30_count ?? 0) + (int) ($t->qty ?? 0) + (int) ($ts->qty ?? 0),
+                'seven_days_amount' => (int) ($r->d7_amount ?? 0) + $todayAmount,
+                'seven_days_count' => (int) ($r->d7_count ?? 0) + $todayCount,
+                'thirty_days_amount' => (int) ($r->d30_amount ?? 0) + $todayAmount,
+                'thirty_days_count' => (int) ($r->d30_count ?? 0) + $todayCount,
             ];
         }
 

@@ -507,6 +507,17 @@
                   <span class="font-semibold">{{ vend.site_ref_id }}</span>
                   {{ vend.site_name }}
                 </td>
+                <td class="p-2 text-right text-xs text-gray-800 whitespace-nowrap">
+                  <span v-if="vend.vend_thirty_days_amount !== null">{{ drillMoney(vend.vend_thirty_days_amount) }}</span>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
+                <td class="p-2 text-right text-xs text-gray-800 whitespace-nowrap">
+                  <template v-if="vend.sku_seven_days_amount !== null">
+                    {{ drillMoney(vend.sku_seven_days_amount) }}
+                    <span class="text-gray-500">({{ Number(vend.sku_seven_days_count).toLocaleString() }})</span>
+                  </template>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
                 <td class="p-2 text-center text-xs font-bold" :class="vend.qty <= 0 ? 'text-red-600' : (vend.qty <= 2 ? 'text-orange-600' : 'text-gray-800')">
                   {{ vend.qty }}
                 </td>
@@ -751,6 +762,10 @@ const vendDrillColumns = [
   { key: 'vend_code', label: t('Machine'), align: 'text-left', justify: 'justify-start' },
   { key: 'vend_prefix_name', label: t('Machine Prefix'), align: 'text-left', justify: 'justify-start' },
   { key: 'site_name', label: t('Site'), align: 'text-left', justify: 'justify-start' },
+  // VM L30d = the whole machine's sales (the Operation Dashboard's L30d); SKU L7d = this SKU at that machine
+  // (Brian, 2026-10-27). Both in cents from the server.
+  { key: 'vend_thirty_days_amount', label: t('VM L30d Sales'), align: 'text-right', justify: 'justify-end' },
+  { key: 'sku_seven_days_amount', label: t('SKU L7d Sales $ (Qty)'), align: 'text-right', justify: 'justify-end' },
   { key: 'qty', label: t('Stock Left'), align: 'text-center', justify: 'justify-center' },
   { key: 'last_job_date', label: t('Last Job'), align: 'text-left', justify: 'justify-start' },
   { key: 'zone_name', label: t('Refilling Route'), align: 'text-right', justify: 'justify-end' },
@@ -773,9 +788,17 @@ function sortVendDrill(key) {
   }
 }
 
+function drillMoney(cents) {
+  return (operatorCountry?.currency_symbol ?? '') + (Number(cents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 function compareVendDrill(a, b, key) {
   if (key === 'qty') {
     return a.qty - b.qty
+  }
+  if (key === 'vend_thirty_days_amount' || key === 'sku_seven_days_amount') {
+    // A blank figure sorts below every real one, 0 included.
+    return (a[key] ?? -1) - (b[key] ?? -1)
   }
   if (key === 'vend_code') {
     // Machine codes are numeric strings — 2601 must not sort after 999.

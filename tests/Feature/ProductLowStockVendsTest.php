@@ -171,6 +171,48 @@ class ProductLowStockVendsTest extends TestCase
         $this->assertNull($pendingRow['last_job_days_ago']);
     }
 
+    public function test_reports_machine_l30d_and_sku_l7d_sales(): void
+    {
+        $product = Product::create(['code' => 'LS5', 'name' => 'Sales Bar']);
+        $other = Product::create(['code' => 'LS6', 'name' => 'Other Bar']);
+
+        $sold = $this->makeVend($this->hipl, 9401, 'Selling Site', null);
+        $this->makeChannel($sold, 11, $product->id, 1);
+        // VM L30d is the machine's own rollup, the Operation Dashboard's figure.
+        DB::table('vends')->where('id', $sold)->update([
+            'vend_transaction_totals_json' => json_encode(['thirty_days_amount' => 123450]),
+        ]);
+        DB::table('vend_product_records')->insert([
+            // inside L7d (7 completed days + today)
+            ['vend_id' => $sold, 'product_id' => $product->id, 'date' => now()->subDays(7)->toDateString(), 'total_amount' => 400, 'total_count' => 2],
+            ['vend_id' => $sold, 'product_id' => $product->id, 'date' => now()->subDay()->toDateString(), 'total_amount' => 250, 'total_count' => 1],
+            // older than L7d
+            ['vend_id' => $sold, 'product_id' => $product->id, 'date' => now()->subDays(8)->toDateString(), 'total_amount' => 999, 'total_count' => 9],
+            // another SKU at the same machine
+            ['vend_id' => $sold, 'product_id' => $other->id, 'date' => now()->subDay()->toDateString(), 'total_amount' => 777, 'total_count' => 7],
+        ]);
+        $quiet = $this->makeVend($this->hipl, 9402, 'Quiet Site', null);
+        $this->makeChannel($quiet, 11, $product->id, 1);
+
+        $user = User::factory()->create(['operator_id' => $this->hipl->id]);
+        $user->givePermissionTo('read product-availability');
+
+        $vends = collect($this->actingAs($user)
+            ->getJson("/products/availability/low-stock-vends/{$product->id}")
+            ->assertOk()
+            ->json('vends'));
+
+        $row = $vends->firstWhere('vend_code', '9401');
+        $this->assertSame(123450, $row['vend_thirty_days_amount']);
+        $this->assertSame(650, $row['sku_seven_days_amount']);
+        $this->assertSame(3, $row['sku_seven_days_count']);
+
+        $quietRow = $vends->firstWhere('vend_code', '9402');
+        $this->assertNull($quietRow['vend_thirty_days_amount'], 'no rollup yet = blank, not 0');
+        $this->assertSame(0, $quietRow['sku_seven_days_amount']);
+        $this->assertSame(0, $quietRow['sku_seven_days_count']);
+    }
+
     public function test_viewer_operator_boundary_is_applied(): void
     {
         // Owned by the restricted operator, so the product global scope lets

@@ -29,7 +29,9 @@ use App\Services\TagBindingService;
 use App\Services\VendChannelService;
 use App\Services\VendTransactionSalesAggregator;
 use App\Services\VendTransactionService;
+use App\Support\ProductAccess;
 use App\Support\ProductOwners;
+use App\Support\ProductScopedSales;
 use App\Support\VendAccess;
 use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
@@ -389,9 +391,10 @@ class ProductController extends Controller
             ->get();
 
         $today = Carbon::today();
+        [$machineThirtyDays, $skuWindows] = $this->lowStockVendSales($rows->pluck('vend_id')->all(), $productIds);
 
         return response()->json([
-            'vends' => $rows->map(function ($r) use ($today) {
+            'vends' => $rows->map(function ($r) use ($today, $machineThirtyDays, $skuWindows) {
                 $lastJobDate = $r->last_job_date ? Carbon::parse($r->last_job_date)->startOfDay() : null;
 
                 return [
@@ -405,9 +408,62 @@ class ProductController extends Controller
                     'qty' => (int) $r->total_qty,
                     'last_job_date' => $lastJobDate?->toDateString(),
                     'last_job_days_ago' => $lastJobDate ? (int) $lastJobDate->diffInDays($today) : null,
+                    // VM L30d sales and SKU L7d sales $ (qty) (Brian, 2026-10-27). Cents; null = not available.
+                    'vend_thirty_days_amount' => $machineThirtyDays[$r->vend_id] ?? null,
+                    'sku_seven_days_amount' => $skuWindows[$r->vend_id]['seven_days_amount'] ?? null,
+                    'sku_seven_days_count' => $skuWindows[$r->vend_id]['seven_days_count'] ?? null,
                 ];
             })->values(),
         ]);
+    }
+
+    /**
+     * The two sales columns of the "Machines with stock" list, per vend id:
+     * - VM L30d: the whole machine's last 30 days, the Operation Dashboard's figure
+     *   (vend_transaction_totals_json.thirty_days_amount). A product-restricted viewer must never see other
+     *   suppliers' sales at a machine (ProductAccess::maskWholeMachineJson), so they get THEIR SKUs' 30 days.
+     * - SKU L7d: this SKU's last 7 days at that machine (ProductScopedSales::windowsFor, the dashboards' window:
+     *   seven completed days + today). A blind flavour counts its housing, like Stock Left.
+     * A failing sales query blanks the columns, never the list.
+     *
+     * @return array{0: array<int, int|null>, 1: array<int, array<string, int>>}
+     */
+    private function lowStockVendSales(array $vendIds, array $productIds): array
+    {
+        if ($vendIds === []) {
+            return [[], []];
+        }
+
+        try {
+            $skuWindows = ProductScopedSales::windowsFor($vendIds, $productIds);
+        } catch (\Throwable $e) {
+            report($e);
+            $skuWindows = [];
+        }
+
+        $viewerProducts = ProductAccess::current();
+        if ($viewerProducts !== null) {
+            try {
+                $machineThirtyDays = array_map(fn ($w) => $w['amount'], ProductScopedSales::thirtyDaysFor($vendIds, $viewerProducts));
+            } catch (\Throwable $e) {
+                report($e);
+                $machineThirtyDays = [];
+            }
+
+            return [$machineThirtyDays, $skuWindows];
+        }
+
+        $machineThirtyDays = DB::table('vends')
+            ->whereIn('id', $vendIds)
+            ->pluck('vend_transaction_totals_json', 'id')
+            ->map(function ($json) {
+                $amount = json_decode((string) $json, true)['thirty_days_amount'] ?? null;
+
+                return $amount === null ? null : (int) $amount;
+            })
+            ->all();
+
+        return [$machineThirtyDays, $skuWindows];
     }
 
     public function availability(Request $request)
