@@ -126,6 +126,14 @@ class FreezerSaleAuditTest extends TestCase
         ]);
     }
 
+    /** The AI never answered: past the grace a person keys in the charge (CardPaymentService::chargeByPerson). */
+    private function chargedByPerson(int $cents): void
+    {
+        Carbon::setTestNow(Carbon::now()->addMinutes((int) config('payrallel.ai_person_after_minutes', 30) + 1));
+        $this->service->chargeByPerson(CardPaymentIntent::sole(), $cents, \App\Models\User::factory()->create());
+        $this->service->reconcile();
+    }
+
     /**
      * Total Sales for this machine, through the very aggregate the Sales Transactions headline
      * and the nightly rollup are built from (VendTransaction::salesRawTotalsSelect), joins and
@@ -277,9 +285,9 @@ class FreezerSaleAuditTest extends TestCase
     {
         $this->doorClosed();
         $sale = $this->trade();
-        // No verdict at all: the 72 h backstop charges the cart.
-        Carbon::setTestNow(Carbon::now()->addHours(73));
-        $this->service->reconcile();
+        // No verdict at all: since 2026-10-10 nothing charges such a hold on its own (the 72 h
+        // backstop is gone) — a person keys in the charge on AI Recognition, here the cart.
+        $this->chargedByPerson(760);
 
         $this->assertSame(760, (int) $sale->fresh()->amount);
         $this->assertSame(760, $this->countedSales());
@@ -307,10 +315,9 @@ class FreezerSaleAuditTest extends TestCase
     public function test_a_trade_arriving_after_its_charge_was_decided_is_never_left_pending(): void
     {
         $this->doorClosed();
-        // No sale yet (the board is offline), so no verdict can be judged: the 72 h backstop
-        // charges the cart and the hold is closed before the TRADE ever lands.
-        Carbon::setTestNow(Carbon::now()->addHours(73));
-        $this->service->reconcile();
+        // No sale yet (the board is offline), so no verdict can be judged: a person keys in the
+        // cart and the hold is closed before the TRADE ever lands.
+        $this->chargedByPerson(760);
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::sole()->state);
 
         $sale = $this->trade();
@@ -344,6 +351,38 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertSame(380, (int) $sale->fresh()->amount, 'the sweep puts the charged amount back');
         $this->assertNull($sale->fresh()->audit_pending_at);
         $this->assertSame(380, $this->countedSales());
+    }
+
+    /**
+     * Happy Hour after an audit (merge onto main, 2026-10-28): the rebuilt basket's rows keep the
+     * slot tag, and a slot totalled while the sale was held (PENDING is not counted) re-opens so
+     * the minute run counts the sale.
+     */
+    public function test_a_settled_sale_is_tagged_again_and_reopens_its_happy_hour_totals(): void
+    {
+        $campaign = \App\Models\HappyHourCampaign::create(['name' => 'HH', 'operator_id' => 1,
+            'window_start' => '00:00:00', 'window_end' => '23:59:00', 'discount_pct' => 24]);
+        $slot = \App\Models\HappyHourSlot::create([
+            'happy_hour_campaign_id' => $campaign->id, 'vend_id' => $this->vend->id, 'product_id' => $this->cheesecake->id,
+            'slot_date' => Carbon::now()->toDateString(), 'position' => 0,
+            'starts_at' => Carbon::now()->subMinutes(30), 'ends_at' => Carbon::now()->addMinutes(30),
+            'original_price' => 500, 'promo_price' => 380, 'discount_pct' => 24, 'rank' => 1,
+        ]);
+
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->assertSame($slot->id, (int) $sale->fresh()->happy_hour_slot_id, 'tagged at ingest');
+        // The slot closed and was totalled while the sale was held: 0, the held sale left out.
+        $slot->forceFill(['units_sold' => 0])->save();
+
+        $this->verdict('took_less', 1, $sale);
+        $this->service->reconcile();
+
+        $items = VendTransactionItem::where('vend_transaction_id', $sale->id)->get();
+        $this->assertCount(1, $items, 'the basket follows the charge');
+        $this->assertSame([$slot->id], $items->pluck('happy_hour_slot_id')->map(fn ($v) => (int) $v)->all(),
+            'the rebuilt row is tagged again');
+        $this->assertNull($slot->fresh()->units_sold, 're-opened, so the minute run recounts it');
     }
 
     public function test_a_sale_the_refund_path_owns_is_never_held(): void

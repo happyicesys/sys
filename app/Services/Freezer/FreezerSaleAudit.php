@@ -10,6 +10,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\HappyHour\HappyHourSales;
 use App\Services\Sales\LateTradeTracker;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use Carbon\Carbon;
@@ -67,6 +68,7 @@ class FreezerSaleAudit
     public function __construct(
         private readonly FreezerRecognitionService $recognitions,
         private readonly LateTradeTracker $lateTrades,
+        private readonly HappyHourSales $happyHour,
     ) {}
 
     /**
@@ -154,6 +156,10 @@ class FreezerSaleAudit
         // tonight's rollup must rebuild that day, and the Ops Dashboard totals need a resync.
         $this->lateTrades->noteLanded($sale);
         if ($vend = ($sale->vend ?? $intent->vend)) {
+            // Happy Hour tags again: a rebuilt basket has new item rows, and a slot totalled while
+            // this sale was held left it out (results() counts settled sales only). Tagging a slot
+            // that has closed re-opens its totals, so the minute run recounts it. Never throws.
+            $this->happyHour->tag($vend, $sale->fresh());
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
         }
 
