@@ -1521,6 +1521,18 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   all. Shown on AI Recognition ("Sale / Card charge"). `vend_transactions.amount`
   is NOT changed to the captured figure — revenue follow-up open.
   Regression coverage: `tests/Feature/AiGatedCardCaptureTest.php`, `tests/Unit/AiCaptureDecisionTest.php`.
+- **The sale waits for the charge** (Brian, 2026-10-05; on main 2026-10-28). A T05 freezer TRADE whose
+  hold is still `awaiting_ai` is written with `settlement_status = PENDING` + `audit_pending_at`
+  (`App\Services\Freezer\FreezerSaleAudit::record`, fresh ingest path only): listed, but out of every
+  sales / revenue / GP / qty figure ("Pending AI" on Sales Transactions; the Dispense cell still shows
+  the TRADE's verdict). When the charge is decided `settle()` writes the CHARGED cents as the amount
+  (SETTLED; a released hold = REFUNDED, never a sale), rebuilds the item rows into the basket the
+  decision charged for (one row per unit; a cart-total fallback leaves them alone), re-tags Happy
+  Hour (a rebuilt row keeps its slot; a slot totalled meanwhile recounts) and dirties the day.
+  `CardPaymentService` calls it after every AI capture / void, and `reconcile()` settles any held sale
+  whose intent was resolved in the last 48 h by any path (person, `resolve-charge`, device void). A
+  TRADE landing after its charge was decided is booked at once. A cabinet with no barcoded product is
+  never held. Regression coverage: `tests/Feature/FreezerSaleAuditTest.php`.
 - Only an exact provider `approved` approves (`PayrallelGateway::query`); an
   unknown word stays processing.
 - Device requests are HMAC-signed with the vend's `private_key`
