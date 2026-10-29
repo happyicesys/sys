@@ -63,9 +63,7 @@ class DeliveryPlatformService
    */
   public function resolveMappingVend($platformRefId = null, $vendCode = null): ?DeliveryProductMappingVend
   {
-    $selling = fn () => DeliveryProductMappingVend::query()
-      ->whereNull('end_date')
-      ->where('is_active', true);
+    $selling = fn () => DeliveryProductMappingVend::query()->selling();
 
     if ($platformRefId) {
       $candidates = $selling()

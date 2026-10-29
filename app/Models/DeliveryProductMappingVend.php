@@ -72,7 +72,50 @@ class DeliveryProductMappingVend extends Model
         return $this->belongsTo(Vend::class);
     }
 
+    // A store sells on Grab only while its binding is open and on AND its ref number
+    // (Delivery Platform Ref Numbers page) is not Inactive (Brian, 2026-10-29): the
+    // ref page is where ops switch a store off, so Inactive alone must stop it.
+    public function isSelling(): bool
+    {
+        return ! $this->end_date
+            && $this->is_active
+            && ! $this->isRefNumberInactive();
+    }
+
+    public function isRefNumberInactive(): bool
+    {
+        return $this->delivery_platform_ref_number_id
+            && (int) $this->deliveryPlatformRefNumber?->status === DeliveryPlatformRefNumber::STATUS_INACTIVE;
+    }
+
     // scopes
+    public function scopeSelling($query)
+    {
+        return $query->whereNull('end_date')
+            ->where('is_active', true)
+            ->refNumberNotInactive();
+    }
+
+    // Raw (NOT) EXISTS, not whereDoesntHave: a scoped relation would read "no Inactive
+    // ref that I may see". A row with no ref number linked is never Inactive.
+    public function scopeRefNumberNotInactive($query)
+    {
+        return $query->whereNotExists(self::inactiveRefNumber(...));
+    }
+
+    public function scopeOrRefNumberInactive($query)
+    {
+        return $query->orWhereExists(self::inactiveRefNumber(...));
+    }
+
+    private static function inactiveRefNumber($ref): void
+    {
+        $ref->selectRaw('1')
+            ->from('delivery_platform_ref_numbers')
+            ->whereColumn('delivery_platform_ref_numbers.id', 'delivery_product_mapping_vend.delivery_platform_ref_number_id')
+            ->where('delivery_platform_ref_numbers.status', DeliveryPlatformRefNumber::STATUS_INACTIVE);
+    }
+
     public function scopeFilterIndex($query, $request)
     {
         $query = $query

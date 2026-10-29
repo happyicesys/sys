@@ -61,7 +61,7 @@ class NotifyDeliveryPlatformUpdateMenu implements ShouldBeUniqueUntilProcessing,
     {
         $mappingVend = $this->deliveryProductMappingVend->fresh();
 
-        if (! $mappingVend || $mappingVend->end_date || ! $mappingVend->is_active) {
+        if (! $mappingVend || ! $mappingVend->isSelling()) {
             return;
         }
 

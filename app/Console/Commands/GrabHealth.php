@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\DeliveryPlatformOrder;
+use App\Models\DeliveryPlatformRefNumber;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -119,7 +120,8 @@ class GrabHealth extends Command
         $open = DB::table('delivery_product_mapping_vend as v')
             ->leftJoin('delivery_platform_ref_numbers as rn', 'rn.id', '=', 'v.delivery_platform_ref_number_id')
             ->whereNull('v.end_date')
-            ->get(['v.id', 'v.vend_code', 'v.is_active', DB::raw('COALESCE(rn.ref_number, v.platform_ref_id) as merchant_id')]);
+            ->get(['v.id', 'v.vend_code', 'v.is_active', DB::raw('COALESCE(rn.ref_number, v.platform_ref_id) as merchant_id'),
+                DB::raw('(rn.status <=> '.DeliveryPlatformRefNumber::STATUS_INACTIVE.') as ref_inactive')]);
 
         $grabCode = DB::table('delivery_platform_menu_records')
             ->whereIn('platform_ref_id', $open->pluck('merchant_id')->filter())
@@ -129,11 +131,13 @@ class GrabHealth extends Command
             ->selectRaw('platform_ref_id, MAX(vend_code) AS vend_code')
             ->pluck('vend_code', 'platform_ref_id');
 
-        $moved = $open->filter(fn ($v) => $v->is_active && isset($grabCode[$v->merchant_id]) && (string) $grabCode[$v->merchant_id] !== (string) $v->vend_code);
+        $selling = $open->filter(fn ($v) => $v->is_active && ! $v->ref_inactive);
+        $moved = $selling->filter(fn ($v) => isset($grabCode[$v->merchant_id]) && (string) $grabCode[$v->merchant_id] !== (string) $v->vend_code);
 
         $this->newLine();
         $this->line('<comment>Stores</comment>');
-        $this->line(sprintf('  bound: %d   selling: %d   paused: %d', $open->count(), $open->where('is_active', 1)->count(), $open->where('is_active', 0)->count()));
+        $this->line(sprintf('  bound: %d   selling: %d   paused: %d   ref Inactive: %d', $open->count(), $selling->count(),
+            $open->where('is_active', 0)->count(), $open->filter(fn ($v) => $v->ref_inactive)->count()));
 
         if ($moved->isNotEmpty()) {
             $this->line('  Bound to another machine than the partnerMerchantID Grab sends (served by merchant id since 2026-10-29):');

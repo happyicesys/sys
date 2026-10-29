@@ -27,13 +27,14 @@ class DeliveryProductMappingService
               $query->where('vend_id', $search);
           })
           ->whereNull('end_date')
+          ->with('deliveryPlatformRefNumber')
           ->get();
 
         if(count($deliveryProductMappingVends) > 0) {
           foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
             SyncDeliveryProductMappingVendChannels::dispatch($deliveryProductMappingVend)->onQueue('high');
             // Waits for the channel sync above, and only for a store that sells.
-            if ($deliveryProductMappingVend->is_active) {
+            if ($deliveryProductMappingVend->isSelling()) {
               NotifyDeliveryPlatformUpdateMenu::debounced($deliveryProductMappingVend);
             }
           }

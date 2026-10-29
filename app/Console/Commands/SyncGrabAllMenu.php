@@ -30,8 +30,7 @@ class SyncGrabAllMenu extends Command
         // Only stores mark1 sells: an ended or paused row's menu pull is refused, so
         // notifying it only produced a FAILED sync (all 127 rows ever were notified).
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
-            ->whereNull('end_date')
-            ->where('is_active', true)
+            ->selling()
             ->whereHas('deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', function ($query) {
                 $query->where('slug', 'grab');
             })

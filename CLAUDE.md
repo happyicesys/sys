@@ -2135,10 +2135,17 @@ Plan, evidence and the as-built table: `GRAB_REVAMP_PLAN_2026-10-29.md` (Phase 0
 open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`.
 
 - **A Grab call is resolved by merchantID, never by machine code first.** `DeliveryPlatformService::resolveMappingVend()`
-  is the one lookup for the menu pull and the order submit: the open (`end_date` NULL), selling (`is_active`) row
-  of that merchant (ref number, else `platform_ref_id`); `partnerMerchantID` only breaks a tie. Grab keeps the
+  is the one lookup for the menu pull and the order submit: the SELLING row of that merchant (ref number, else
+  `platform_ref_id`); `partnerMerchantID` only breaks a tie. Grab keeps the
   partnerMerchantID a store was ACTIVATED with, so a store moved to another machine keeps sending the old code
   (4-C7CCRTEJJYUJR6 sent 2114 for months while bound to 2401 — every menu pull and order failed).
+- **"Selling" is one rule: `DeliveryProductMappingVend::isSelling()` / `scopeSelling()`** — binding open
+  (`end_date` NULL), on (`is_active`), AND its ref number not Inactive (Brian, 2026-10-29: Inactive on the Delivery
+  Platform Ref Numbers page alone switches a store off — ops set it there, and until then it changed only the
+  pickers, so GoWell 2870 kept selling on a closed listing). The menu pull, orders, every notify, the daily sync
+  and `grab:menu-diff` read it; a row with no ref number linked is judged by its binding. An open row whose ref is
+  Inactive counts as paused: Grab gets the paused 4xx, and the pause re-assert keeps the store closed on Grab
+  (2871: ref Inactive, Grab still listing it). Never filter `is_active` alone for "sells on Grab" again.
 - **The order webhook answers fast and is idempotent.** One writer per orderID (cache lock); a repeat answers
   200 with the stored order; a Grab edit (`featureFlags.isMexEditOrder`) is kept in `request_history_json` +
   `is_edited` for a person, never re-allocated blind. Grab calls (mark ready, cancel) run in
@@ -2155,8 +2162,8 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   ~750 full syncs a day. Stock / price changes belong in Grab's Update Menu Record / Batch (Phase 2).
 - **Menu prices are stored cents** (`getRawOriginal('amount')`), integers on the wire; never `round($dollars * 100)`.
 - **Grab ends any pause after 24 h.** `delivery:sync-store-pause --apply --only-if-open` runs every 10 min
-  (`GRAB_PAUSE_REASSERT`), asks Grab's store status and re-pauses only a store Grab reopened; a merchant live on
-  another row is never paused. Calls are spaced `GRAB_STORE_API_SPACING_MS` (300; Grab allows 5 a second for the
+  (`GRAB_PAUSE_REASSERT`) over open rows that are paused or whose ref number is Inactive, asks Grab's store status
+  and re-pauses only a store Grab reopened; a merchant selling on another row is never paused. Calls are spaced `GRAB_STORE_API_SPACING_MS` (300; Grab allows 5 a second for the
   store endpoints, and the first prod run's burst drew 429s); a 429 stops the run; a store Grab answers 403 for
   (DCVIC's 11, paused since 2025-12-29 — Grab no longer lets us act for them) is skipped for 24 h.
 - **Webhook auth**: `VerifyGrabWebhook` (`grab.webhook`) checks the Passport client-credentials token Grab sends
@@ -2168,7 +2175,8 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
 
 Regression coverage: `tests/Feature/GrabOrderWebhookTest.php` (built from a real prod Mart order,
 `tests/Support/Grab`), `tests/Feature/GrabMenuTest.php`, `tests/Feature/GrabWebhookAuthTest.php`,
-`tests/Feature/GrabCampaignAndUpkeepTest.php`, `tests/Feature/SyncDeliveryStorePauseTest.php`.
+`tests/Feature/GrabCampaignAndUpkeepTest.php`, `tests/Feature/GrabInactiveRefNumberTest.php`,
+`tests/Feature/SyncDeliveryStorePauseTest.php`.
 
 ## Code style
 

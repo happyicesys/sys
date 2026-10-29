@@ -23,7 +23,10 @@ use Illuminate\Support\Facades\Cache;
  * Grab before the customer's order died. The argument bug is fixed, but the
  * 24-hour ceiling means a single push still would not have held.
  *
- * SCOPE. Mappings that are paused (is_active = 0) and NOT ended (end_date null).
+ * SCOPE. Mappings that are paused (is_active = 0) or whose ref number is Inactive
+ * (2026-10-29: Inactive on the Ref Numbers page switches the store off, so Grab must
+ * be kept from reopening it too - 2871's ref was Inactive while Grab still listed
+ * it), and NOT ended (end_date null).
  * An ended mapping is a retired site whose merchant Grab has normally closed
  * already - on 2026-09-23 that was 221 of 237 paused production mappings, and
  * re-pausing them every run would mean hundreds of pointless calls and a flood
@@ -73,7 +76,9 @@ class SyncDeliveryStorePause extends Command
         // on the unauthenticated branch staying permissive.
         $query = DeliveryProductMappingVend::query()
             ->withoutGlobalScopes()
-            ->where('is_active', false)
+            ->where(function ($q) {
+                $q->where('is_active', false)->orRefNumberInactive();
+            })
             ->whereHas('deliveryProductMapping.deliveryPlatformOperator', function ($q) {
                 $q->where('type', $this->option('type'))
                     ->whereHas('deliveryPlatform', fn ($p) => $p->where('slug', 'grab'));
@@ -91,10 +96,12 @@ class SyncDeliveryStorePause extends Command
 
         // Merchants that are live on SOME vend. Built from the same platform and
         // operator type, with no end_date/paused filter - one active row anywhere
-        // means the merchant is selling and must never be paused from here.
+        // means the merchant is selling and must never be paused from here. A row
+        // whose ref number is Inactive does not sell, so it does not count.
         $liveMerchantIds = DeliveryProductMappingVend::query()
             ->withoutGlobalScopes()
             ->where('is_active', true)
+            ->refNumberNotInactive()
             ->whereHas('deliveryProductMapping.deliveryPlatformOperator', function ($q) {
                 $q->where('type', $this->option('type'))
                     ->whereHas('deliveryPlatform', fn ($p) => $p->where('slug', 'grab'));

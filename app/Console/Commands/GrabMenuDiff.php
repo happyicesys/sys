@@ -24,8 +24,7 @@ class GrabMenuDiff extends Command
     {
         $query = DeliveryProductMappingVend::query()
             ->withoutGlobalScopes()
-            ->whereNull('end_date')
-            ->where('is_active', true)
+            ->selling()
             ->whereHas('deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', fn ($q) => $q->where('slug', 'grab'))
             ->orderBy('id');
 

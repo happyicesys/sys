@@ -313,6 +313,7 @@ read-only history.
 | C8 | `grab:prune-menu-records` (by id, chunked) | `GRAB_MENU_RECORDS_KEEP_DAYS` (unset = not scheduled; first run deletes ~2.7M rows) |
 | Phase 0 | `grab:health [--days]` (baseline report) and `grab:menu-diff [--details]` (menu now vs Grab's last pull); tests from a real prod order (`tests/Support/Grab`) | — |
 | — | Index `oivc_order_id_idx` on `order_item_vend_channels.delivery_platform_order_id` (held-stock join) | migration |
+| Store cross-check (afternoon) | **Inactive ref number = store off.** `DeliveryProductMappingVend::isSelling()` / `scopeSelling()`: binding open, on, and ref number not Inactive. Menu pull, orders, notify, daily sync and menu-diff use it; the pause re-assert also covers open rows whose ref is Inactive (keeps Grab from reopening them). Before: the status only filtered pickers, so GoWell 2870 kept selling on a [CLOSED] listing and 2871 (ref Inactive) relied on its paused binding | — |
 
 Not done in Phase 1: B3 (keypad order search unsigned — needs the APK to sign), full Grab-edit handling,
 `getGrabMenuSellingTimes` still moves `startTime` daily (ignored by the change check instead).
