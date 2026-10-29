@@ -44,4 +44,52 @@ class AceApexLogoOnSpacesTest extends TestCase
         Storage::disk()->assertMissing('payment-merchant/mindef-ace-apex.png');
         $this->assertSame('https://happyice-space.sgp1.digitaloceanspaces.com/payment-merchant/paynow.png', $paynow->fresh()->image_url);
     }
+
+    private function replacement(): object
+    {
+        return require database_path('migrations/2026_10_29_200000_replace_mindef_ace_apex_logo.php');
+    }
+
+    public function test_the_new_artwork_goes_up_under_a_new_name_and_the_old_one_stays(): void
+    {
+        Storage::fake();
+        Storage::disk()->put('payment-merchant/mindef-ace-apex.png', 'old artwork');
+        $merchant = PaymentMerchant::create([
+            'name' => 'Ace Credits & Apex Credits',
+            'image_url' => Storage::disk()->url('payment-merchant/mindef-ace-apex.png'),
+        ]);
+
+        $this->replacement()->up();
+
+        $this->assertSame(
+            file_get_contents(database_path('data/payment-merchant/mindef-ace-apex-v2.png')),
+            Storage::disk()->get('payment-merchant/mindef-ace-apex-v2.png'),
+        );
+        $this->assertSame('old artwork', Storage::disk()->get('payment-merchant/mindef-ace-apex.png'));
+        $this->assertSame(Storage::disk()->url('payment-merchant/mindef-ace-apex-v2.png'), $merchant->fresh()->image_url);
+
+        $this->replacement()->down();
+        $this->assertSame(Storage::disk()->url('payment-merchant/mindef-ace-apex.png'), $merchant->fresh()->image_url);
+    }
+
+    public function test_a_merchant_still_on_the_public_copy_is_moved_straight_to_the_new_artwork(): void
+    {
+        Storage::fake();
+        $merchant = PaymentMerchant::create(['name' => 'Ace Credits & Apex Credits', 'image_url' => self::OLD_URL]);
+
+        $this->replacement()->up();
+
+        $this->assertSame(Storage::disk()->url('payment-merchant/mindef-ace-apex-v2.png'), $merchant->fresh()->image_url);
+    }
+
+    public function test_the_replacement_leaves_other_merchants_alone(): void
+    {
+        Storage::fake();
+        $paynow = PaymentMerchant::create(['name' => 'Paynow', 'image_url' => 'https://happyice-space.sgp1.digitaloceanspaces.com/payment-merchant/paynow.png']);
+
+        $this->replacement()->up();
+
+        Storage::disk()->assertMissing('payment-merchant/mindef-ace-apex-v2.png');
+        $this->assertSame('https://happyice-space.sgp1.digitaloceanspaces.com/payment-merchant/paynow.png', $paynow->fresh()->image_url);
+    }
 }
