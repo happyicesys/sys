@@ -425,8 +425,8 @@ RP × multiplier also sees what each store charges. Grab campaigns discount from
 (`objectIDs` = `delivery_product_mapping_items.id`). So the same deal is typed again per template: "Any 2 B&J pint
 for 24.90" exists 9 times, "3 Magnum for $11.90" 15 times, "Any 5 Cornetto for $12.90" 13 times; 1,633 per-machine
 rows in all. When a mapping changes, the channel item points at another product, the deal with it (§7) — and
-nothing has run since 2026-08-31 (D1). What ops actually ran, by rows: bundles "any N for $X" (~70%), "free item
-above $X" (~17%), delivery off above $X, % off a range.
+nothing has run since 2026-08-31 (D1). What ops actually ran, by rows: bundles "any N for $X" (~65%), "free item
+above $X" (~30%), delivery off above $X (~4%), % off a range.
 
 **Target: a promotion is written once per operator, in one sentence, and mark1 does the rest.**
 
