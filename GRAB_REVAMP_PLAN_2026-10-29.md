@@ -3,7 +3,8 @@
 **Status (2026-10-29): Phase 0 + Phase 1 DEPLOYED** (`0cdc338af7`, 09:43) — see §6 for what shipped and what is
 still a switch. **§7 (same day, ops feedback + prod check): Grab sells the wrong product on 58 of 64 stores after
 mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward. §7 pricing: two
-modes per operator (RP × multiplier / own SKU price). Brian, 2026-10-29: more feedback first — nothing built yet.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+modes per operator (RP × multiplier / own SKU price). §8: Grab promotions written once per operator, by
+product/category, no template. Brian, 2026-10-29: more feedback first — nothing built yet.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -205,7 +206,7 @@ Seven rules. Each has one writer, as the rest of mark1 already does.
    Grab's state and our dispense state get two separate columns. That replaces the numeric "status >"
    comparison, which mixes Grab's states with ours. A nightly List Orders (30 days) recovers missed orders.
    A "Delivered, not dispensed" list goes to ops.
-7. **Campaigns are defined once per operator.** A promotion has a type, value, SKUs, schedule and targets:
+7. **Campaigns are defined once per operator** (detailed in §8, which supersedes this rule's wording). A promotion has a type, value, SKUs, schedule and targets:
    all Grab stores of the operator, a group, or picked stores. This is the same idea as Happy Hour machine
    groups. `GrabCampaignPlanner` is the only writer. It:
    - validates Grab's rules before submit;
@@ -298,6 +299,7 @@ read-only history.
 6. **The 24 delivered-not-dispensed orders**: who reviews them, and is there a refund rule?
 7–12. See §7 (2026-10-29 user feedback): stopgap for wrong-product items, unpriced products, G101 / A001,
    HIPL's multiplier and rounding, Grab's commission rate, Bulla (LEA).
+13–15. See §8 (Grab promotions): deal types on day one, below-cost promotions, who may manage them.
 
 ## 6. Phase 0 + 1 as built (DEPLOYED 2026-10-29 09:43, `0cdc338af7`; pause hotfix after it)
 
@@ -416,3 +418,75 @@ RP × multiplier also sees what each store charges. Grab campaigns discount from
     higher one recovers part of Grab's 30%. Round up to 10¢?
 11. Grab's commission: 30% for every operator, or a rate per operator (clients may have their own Grab terms)?
 12. Bulla (LEA, 1 store): its site has no RP tier, so only the SKU-price mode works for it — confirm.
+
+## 8. Grab campaigns: one promotion, every store, no mapping (Brian, 2026-10-29: "most important is easy to use, even a layman can manage it")
+
+**Today (prod, 2026-10-29)** — a campaign hangs off ONE Grab template and picks that template's channel items
+(`objectIDs` = `delivery_product_mapping_items.id`). So the same deal is typed again per template: "Any 2 B&J pint
+for 24.90" exists 9 times, "3 Magnum for $11.90" 15 times, "Any 5 Cornetto for $12.90" 13 times; 1,633 per-machine
+rows in all. When a mapping changes, the channel item points at another product, the deal with it (§7) — and
+nothing has run since 2026-08-31 (D1). What ops actually ran, by rows: bundles "any N for $X" (~70%), "free item
+above $X" (~17%), delivery off above $X, % off a range.
+
+**Target: a promotion is written once per operator, in one sentence, and mark1 does the rest.**
+
+What the person sees — one page, Grab → Promotions, a list and a "New promotion" button:
+
+1. **Pick what kind of deal** — five cards, each a sentence with blanks, nothing else:
+   - **Any [2] of [these] for $[24.90]** (Grab `bundleDiffFixPrice`)
+   - **[20]% off [these]** (`percentage`, items)
+   - **$[1.00] off each of [these]** (`net`, items)
+   - **Free [1 Magnum Almond] when the order is above $[25]** (`freeItem`)
+   - **$[2] off delivery when the order is above $[35]** (`delivery`)
+   The other Grab types (same-item bundles, bundle $ / % off, order-level % off, category scope) stay off the page
+   until someone asks; the planner can still send them.
+2. **"[these]" is a product picker, never a channel or a template**: tick whole **categories** ("Magnum Series",
+   "Classic Cornetto" — `products.category_id`) and/or single products. A category stays live: a new Magnum mapped
+   next month joins the deal by itself. Only products on the operator's Grab list can be picked.
+3. **Where**: "All my Grab stores" (default, live — a store opened later gets it) or "Only these stores". The
+   page then says, before saving, **"Runs on 38 of 55 stores"** and lists the 17 others with the plain reason:
+   "doesn't carry any of these now", "deal is not cheaper here" (an "any 2 for $24.90" where two already cost less —
+   with RP × multiplier the price differs per store, §7), "already in 'Free Magnum…' 1–30 Nov".
+4. **When**: quick buttons — "This weekend", "1 week", "Until end of month", "1 month" — or dates. Grab allows
+   2 h to 2 months per campaign, so a longer run is just **"Repeat until [date]"**: mark1 creates the next stretch
+   before the last one ends. Start "Now" means the next allowed minute (Grab needs a future start).
+5. **Check before save** — a box that reads like a receipt, per store or summed: normal price → deal price →
+   **what we keep after Grab's commission** → unit cost. Red when a store would sell below cost (save still allowed,
+   ticked "I know"). Every Grab rule is checked here (D5), in words: "Grab does not allow an item in two promotions
+   at once — Magnum Almond is in 'Free Magnum…' until 30 Nov at 12 stores".
+6. **Save = live.** No "Submit", no per-machine rows to look at. The list shows each promotion as **Scheduled /
+   Running / Ended / Needs attention**, with "Running on 38 stores" and, under it, only the stores with a problem
+   and why (Grab refused, store paused, …).
+7. **Change it**: Edit any time. Before start, Grab is updated; once running (Grab cannot change a started one),
+   the page says "This ends the running promotion and starts the new version now" and mark1 does both. **Stop**
+   ends it everywhere on Grab at once (fixes D2). Delete is only for Ended / never-sent ones.
+8. **Results** on each row: orders, units, sales, discount given, for the period — from each order's `campaigns[]`
+   (`deductedAmount`). A promotion made in the Grab merchant app shows read-only, labelled "made in Grab app" (D6).
+
+**How it works underneath** (replaces §3 rule 7's wording; same idea as Happy Hour machine groups):
+- Tables: `grab_promotions` (operator, type, values in integer cents / %, schedule, repeat-until, store mode,
+  status) + `grab_promotion_products` (category or product) + `grab_promotion_stores` (only for "only these") +
+  `grab_promotion_runs` — one row per store per stretch, the only thing that maps to a Grab campaign id (request,
+  response, state). `GrabPromotionPlanner` is the only writer of runs, like `HappyHourPlanner`.
+- Item ids are `products.id` (§7 point 3), so a promotion never names a channel or template: for each store the
+  planner sends the promotion's products that store lists now.
+- The planner runs every few minutes and on every save: creates due runs (checks Grab's List first, never a
+  blind retry), stops runs of stopped / edited promotions, starts the next stretch of a repeating one, adds a store
+  that joined. When a store's product set changes (mapping change) mid-run, the store's run is replaced only if
+  it would change what customers see (a product added or removed) — ended and recreated at once.
+- Nightly reconcile against Grab's ongoing / upcoming list (D6): drift shown on the row, orphans stopped.
+- The old campaign pages and tables go read-only at the switch (nothing has been live since 2026-08-31, so no
+  live campaign has to be migrated) and are removed in Phase 5. **Promotions need product-id items, so they ship
+  with Phase 3 (§7), not before.**
+
+**Open / to verify in Grab's sandbox before building**
+- Does Grab accept a campaign naming an item the store's menu does not list (so one product list could go to
+  every store), or must each store get only its own items (the plan assumes the latter)?
+- Who funds: our promotions are 100% merchant-funded (`mexFundedRatio` 100); Grab co-funded deals come from the
+  Grab app and are read-only here — confirm.
+
+**Decisions for Brian**
+13. The five deal cards above — enough, or is another type needed on day one (e.g. "% off the whole order above
+    $X")?
+14. Below-cost promotions: warn and allow with a tick (recommended), or block?
+15. Who may manage promotions: the operator's own admins too (Ariska, Kumoyo), or HIPL staff only?
